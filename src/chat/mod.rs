@@ -23,6 +23,7 @@ pub mod room;
 pub mod runner;
 pub mod sentinels;
 pub mod shape;
+pub mod talk;
 pub mod thread;
 pub mod touch;
 pub mod turnover;

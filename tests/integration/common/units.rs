@@ -747,12 +747,14 @@ impl Agency for StandInAgency {
   }
 }
 
-/// bmo-job: the questions of its jobs that wait in a room, and every answer it was asked to settle.
+/// bmo-job: the questions of its jobs that wait in a room, the items it holds open and every answer it was asked
+/// to settle.
 pub struct StandInJob {
   pub open: Mutex<BTreeMap<i64, Vec<OpenQuestion>>>,
   pub settled: Mutex<Vec<Chosen>>,
   pub talked: Mutex<Vec<Talked>>,
   pub moved: Mutex<Vec<Moved>>,
+  pub items: Mutex<Vec<ItemRow>>,
 }
 
 impl StandInJob {
@@ -762,7 +764,13 @@ impl StandInJob {
       settled: Mutex::default(),
       talked: Mutex::default(),
       moved: Mutex::default(),
+      items: Mutex::default(),
     }
+  }
+
+  /// The open items bmo-job holds, as it keeps them.
+  pub fn filing(&self, items: Vec<ItemRow>) {
+    *self.items.lock().unwrap() = items.clone();
   }
 
   pub fn asking(&self, chat_id: i64, question: OpenQuestion) {
@@ -792,7 +800,7 @@ impl Job for StandInJob {
   }
 
   fn items(&self) -> BoxFuture<'_, Answer<Vec<ItemRow>>> {
-    Box::pin(async { Ok(vec![]) })
+    Box::pin(async { Ok(self.items.lock().unwrap().clone()) })
   }
 
   fn open_questions(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<OpenQuestion>>> {

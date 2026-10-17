@@ -14,9 +14,11 @@ pub mod receiver;
 pub mod roads;
 pub mod room_record;
 pub mod rounds;
+pub mod routes;
 pub mod run_lines;
 pub mod store;
 pub mod text;
+pub mod verbs;
 pub mod web_address;
 pub mod wording;
 

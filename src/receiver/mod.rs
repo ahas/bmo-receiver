@@ -29,6 +29,8 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
 use crate::Fault;
+use crate::chat::conversation::Talking;
+use crate::chat::talk::{Standing, TalkState};
 use crate::data_root::DataRoot;
 use crate::roads::Roads;
 use crate::room_record::{Facing, RoomHolding, Says};
@@ -279,6 +281,7 @@ pub struct Receiver {
   wake: Arc<dyn Wake>,
   pass: Arc<OnceLock<Arc<dyn Pass>>>,
   runner: Arc<OnceLock<Arc<dyn Runner>>>,
+  talking: Arc<Standing>,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -315,7 +318,29 @@ impl Receiver {
       wake: Arc::new(Nobody),
       pass: Arc::default(),
       runner: Arc::default(),
+      talking: Arc::default(),
     }
+  }
+
+  /// Where the receiver's talks stand: no talk begun, and nothing taking their turns until a taker is held.
+  pub fn talking(&self) -> &Standing {
+    &self.talking
+  }
+
+  /// The conversations that take a talk's turns from now on; the first given stands, for every clone alike.
+  pub fn hold_talks(self, taker: Arc<dyn Talking>) -> Self {
+    self.talking.hold(taker);
+    self
+  }
+
+  /// What takes a talk's turns, where any stand.
+  pub fn talks(&self) -> Option<Arc<dyn Talking>> {
+    self.talking.taker()
+  }
+
+  /// Where one talk stands: whether a turn is being answered, and why the last went unanswered.
+  pub fn talk_state(&self, key: &str) -> TalkState {
+    self.talking.state(key)
   }
 
   /// The receiver telling its news to this hearer, its own lines' too.

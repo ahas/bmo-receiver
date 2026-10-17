@@ -203,6 +203,7 @@ dependencies = [
  "bmo-chat-client",
  "chrono",
  "futures-util",
+ "headers",
  "image",
  "inventory",
  "receiver-codes",

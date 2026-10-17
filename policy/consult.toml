@@ -17,6 +17,16 @@ sanitised = "a line the agent {name} is about to say in the consult room"
 said = "Said in {room} under the name of {name}{number}."
 number = " (message {id})"
 
+# What the consult verbs answer with (docs/consult.md, 「The consult tool」): the room read or set, a room
+# refused, and the block an agent is shown. `{title}` and `{chat}` name the room, `{room}` what the verb was
+# given, `{agent}` the agent asking.
+room_unset = "No consult room is set (bmo consult room <room>)."
+room_shown = "Consult room: {title} (chat {chat})."
+room_chosen = "Consult room set to {title} (chat {chat})."
+not_answered = "{room} is not a room any agent answers."
+not_shared = "{room} is not a room more than one agent answers."
+nothing_shown = "{agent} is shown nothing: it does not answer in the consult room."
+
 # One agent's window as a line: open with its time left, or closed.
 [windows]
 heading = "Agents' windows in this room now:"

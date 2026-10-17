@@ -6,6 +6,8 @@
 mod common;
 
 mod alone_runs;
+mod consult_block;
+mod consult_verbs;
 mod data_root;
 mod private_thread;
 mod receiver;
@@ -13,4 +15,5 @@ mod room_record;
 mod scratch_runs;
 mod stop_notice;
 mod store;
+mod talks;
 mod wake;

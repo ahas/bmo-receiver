@@ -18,7 +18,7 @@ lines the web unit's language packs render (`docs/codes.md`).
 | `talk.toml` | the lines a console talk's turn is composed in, the item states its head names, and how many earlier turns it restates and how much of each | the talks |
 | `restart.toml` | the back notice a restart leaves the owner's session: its facts, how long a deployment's record speaks for a stop, how long the notice rides and lives | the restart |
 | `second-asks.toml` | the words each answer check reads by and every errand a second asking sends | the answer checks (`docs/answer-checks.md`) |
-| `consult.toml` | the consult room's setting key, the lines of what an agent is shown of other agents' work, how many items it shows, and the line a consult call answers its agent with | the consult block and `POST /consult/say` (`docs/consult.md`) |
+| `consult.toml` | the consult room's setting key, the lines of what an agent is shown of other agents' work, how many items it shows, the line a consult call answers its agent with, and the lines the consult verbs answer with | the consult block, `POST /consult/say` and the consult verbs (`docs/consult.md`) |
 | `handover.toml` | how much of a closed session's transcript is kept, the lines a transcript is written in, the blocks of a round that are the conversation, and the notes a room's new session opens with | the session replacement |
 | `files.toml` | the largest file the console may attach, in bytes, and the name a file with none goes by | `POST /say-file` |
 | `code-review.toml` | the lines a code review's talk is composed in, the places a review is pinned to, how much of the reviewed lines a turn carries | the talks |

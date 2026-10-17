@@ -3,6 +3,8 @@
 //! The engine, its guard and its sessions are the agency's: the receiver reads the row the agency lists and hands
 //! a round to the same session routes every agent's turns go through.
 
+pub mod consult;
+pub mod consult_say;
 pub mod pass;
 pub mod turn;
 pub mod words;

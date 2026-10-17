@@ -43,6 +43,12 @@ pub struct Consult {
   pub sanitised: String,
   pub said: String,
   pub number: String,
+  pub room_unset: String,
+  pub room_shown: String,
+  pub room_chosen: String,
+  pub not_answered: String,
+  pub not_shared: String,
+  pub nothing_shown: String,
   pub windows: Windows,
   pub work: Work,
 }

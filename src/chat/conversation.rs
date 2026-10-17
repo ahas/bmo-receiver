@@ -19,6 +19,7 @@ use serde_json::{Value, json};
 use super::mid_turn::{Paragraph, Push};
 use super::prompt::{self, Round, Scope as RoundScope};
 use super::sentinels::{is_skip, is_wait};
+use super::talk::{TalkFailure, TalkRequest};
 use super::touch::TouchAnswer;
 use super::window;
 use super::window::Selection;
@@ -380,31 +381,17 @@ pub struct Sent {
   pub text: String,
 }
 
-/// What a turn of a console talk is asked with, and what it answers with. Filled by the module that owns the
-/// talks (docs/unified-bmo.md, 「Console conversation in the private chat」).
+/// What a turn of a console talk is asked with, and what it answers with: the talks' own module takes the turn
+/// (docs/unified-bmo.md, 「Console conversation in the private chat」).
 pub trait Talking: Send + Sync {
-  fn talk(&self, request: TalkRequest) -> Result<Option<String>, TalkFailure>;
-}
-
-pub struct TalkRequest {
-  pub head: Vec<String>,
-  pub turns: Vec<(bool, String)>,
-  pub said: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TalkFailure {
-  Resting,
-  Limit,
-  Outage,
-  Other(String),
+  fn talk<'a>(&'a self, request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>>;
 }
 
 struct NoTalking;
 
 impl Talking for NoTalking {
-  fn talk(&self, _request: TalkRequest) -> Result<Option<String>, TalkFailure> {
-    Err(TalkFailure::Resting)
+  fn talk<'a>(&'a self, _request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>> {
+    Box::pin(async { Err(TalkFailure::Resting) })
   }
 }
 
@@ -709,11 +696,11 @@ impl Conversations {
     self.0.state.lock().unwrap_or_else(PoisonError::into_inner)
   }
 
-  fn receiver(&self) -> Receiver {
+  pub fn receiver(&self) -> Receiver {
     self.0.receiver.clone()
   }
 
-  fn owner(&self) -> i64 {
+  pub fn owner(&self) -> i64 {
     self.0.receiver.owner_id()
   }
 
@@ -912,7 +899,7 @@ impl Conversations {
   }
 
   // The session the room's turns go on: the one the agent's row keeps, resumed where one stands.
-  async fn held_session(&self, chat_id: i64) -> Held {
+  pub async fn held_session(&self, chat_id: i64) -> Held {
     Held {
       agent: self.agent().to_owned(),
       chat_id,
@@ -2223,7 +2210,7 @@ impl Conversations {
   /// waiting its place behind whatever round is running — whose answer is handed back rather than sent: no
   /// output gate reads it, no room sees it, and no room's window, read mark or typing moves for it.
   pub async fn talk(&self, request: TalkRequest) -> Result<Option<String>, TalkFailure> {
-    self.0.talking.talk(request)
+    self.0.talking.talk(&request).await
   }
 
   /// The conversations' own clock: the failure orders nobody took up looked over on the health policy's
