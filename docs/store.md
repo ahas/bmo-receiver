@@ -40,6 +40,7 @@ An instruction names the agent whose session takes it outright: the table holds 
 | `chat_reads` | the last message of a room the receiver has read | room |
 | `chat_titles` | a room's title | room |
 | `room_answerers` | an agent answering in a room | room and agent |
+| `room_windows` | when a room's window for an agent closes, in Unix seconds (`docs/wake.md`, 「The names and the window」) | room and agent |
 | `bmo_rooms` | a room the chat agent's one shared session has answered in (`docs/unified-bmo.md`) | room |
 | `bmo_room_contexts` | the fingerprint of the room context a chat session was last given | session |
 | `bmo_session_rooms` | a room a chat session has been given the context of | session and room |
@@ -72,8 +73,6 @@ the table below is the whole list. A key that names a room is built only through
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
 | `consult_room` | the consult room's number (`consult.toml`, its `room_setting`) | the consult room (`docs/consult.md`) |
 | `restart_reason` | what a deployment recorded before the receiver stopped: its purpose and the items going live, taken once at start-up | the restart |
-| `rest_until`, `rest_until:<account>` | the moment, in Unix seconds, a rest lasts until: the service's or a login's own | the rest (`docs/wake.md`) |
-| `rest_kind` | `limit` or `outage`: why the rest under `rest_until` began | the rest |
 | `fallback_since`, `fallback_provider` | since when, in Unix seconds, a stand-in has answered for the chat agent, and which one | the agency's `fallback-answering` and `fallback-ended` |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |

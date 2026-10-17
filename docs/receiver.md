@@ -30,7 +30,7 @@ flowchart TD
   - the wake: which designated agents of the room a message wakes, by the one rule (`docs/wake.md`), with
     everything that stops a message before it:
     - the owner's answer to a job's open question in the owner's private chat, handed to bmo-job;
-    - the rest's gate, read off the agency's rest events;
+    - the rest's gate, read off the agency's rest (`GET /rest`, and `GET /stand-in` for a road the rest closes);
     - the read mark, the reply mode, a mute, and whether a room rule names the sender;
     - the window each agent keeps in the room, and the one a call opens for a companion;
     - the files a person posted just before the words of theirs that woke the chat agent;

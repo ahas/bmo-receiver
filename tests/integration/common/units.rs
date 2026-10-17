@@ -10,14 +10,22 @@ use bmo_chat_client::{
   DialectReading, RoomKind,
 };
 use bmo_receiver::data_root::DataRoot;
-use bmo_receiver::receiver::{Deployment, How, Inbound, News, NotReceived, Receiver, Room, Units, Wake};
+use bmo_receiver::receiver::{
+  Deployment, How, Inbound, News, NotReceived, Receiver, Room, Runner, Units, Wake,
+};
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
+use receiver_ports::agency::{
+  Agency, Agent, Agents, Delivery, Events, Forgotten, Passed, Rest, RestKind, Resting, RunLine, Scope,
+  Session, SessionState, Turn, Written,
+};
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
 use receiver_ports::http::Answer;
+use receiver_ports::job::{Chosen, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::web::{Checked, Grant, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web};
 use sea_orm::DatabaseConnection;
+use serde_json::Value;
 
 /// The owner every receiver of the tests answers for.
 pub const OWNER: i64 = 42;
@@ -203,9 +211,29 @@ impl Gate for StandInGate {
   }
 }
 
-/// The web unit: a fixed line rendered as its code and the language asked; nothing else is asked.
-#[derive(Default)]
-pub struct StandInWeb;
+/// The web unit: the account model's links and grants a test gives it, and a fixed line rendered as its code
+/// and the language asked; nothing else is asked.
+pub struct StandInWeb {
+  pub users: Mutex<BTreeMap<i64, String>>,
+  pub grants: Mutex<BTreeSet<(i64, i64, String)>>,
+}
+
+impl StandInWeb {
+  pub fn new() -> Self {
+    StandInWeb {
+      users: Mutex::default(),
+      grants: Mutex::default(),
+    }
+  }
+
+  pub fn linking(&self, sender: i64, user: String) {
+    self.users.lock().unwrap().insert(sender, user.to_owned());
+  }
+
+  pub fn granting(&self, room: i64, sender: i64, relation: String) {
+    self.grants.lock().unwrap().insert((room, sender, relation.to_owned()));
+  }
+}
 
 fn unasked<T>() -> BoxFuture<'static, Answer<T>> {
   panic!("the stand-in web unit was asked what no test sets")
@@ -216,16 +244,27 @@ impl Web for StandInWeb {
     unasked()
   }
 
-  fn user_of_sender(&self, _sender: i64) -> BoxFuture<'_, Answer<Option<String>>> {
-    unasked()
+  fn user_of_sender(&self, sender: i64) -> BoxFuture<'_, Answer<Option<String>>> {
+    let user = self.users.lock().unwrap().get(&sender).cloned();
+
+    Box::pin(async move { Ok(user) })
   }
 
   fn user<'a>(&'a self, _user: &'a str) -> BoxFuture<'a, Answer<User>> {
     unasked()
   }
 
-  fn check_room<'a>(&'a self, _check: &'a RoomCheck) -> BoxFuture<'a, Answer<Checked>> {
-    unasked()
+  fn check_room<'a>(&'a self, check: &'a RoomCheck) -> BoxFuture<'a, Answer<Checked>> {
+    let sender = check.sender.unwrap_or_default();
+    let allowed = self.grants.lock().unwrap().contains(&(check.room, sender, check.relation.clone()));
+    let checked = Checked {
+      allowed,
+      grant: check.relation.clone(),
+      user: None,
+      sender: check.sender,
+    };
+
+    Box::pin(async move { Ok(checked) })
   }
 
   fn check_message<'a>(&'a self, _check: &'a MessageCheck) -> BoxFuture<'a, Answer<Checked>> {
@@ -284,15 +323,15 @@ pub enum Woken {
 
 /// The wake, keeping what it was handed and waking nobody.
 #[derive(Default)]
-pub struct Waking(pub Mutex<Vec<Woken>>);
+pub struct WakeStandIn(pub Mutex<Vec<Woken>>);
 
-impl Waking {
+impl WakeStandIn {
   pub fn woken(&self) -> Vec<Woken> {
     self.0.lock().unwrap().clone()
   }
 }
 
-impl Wake for Waking {
+impl Wake for WakeStandIn {
   fn words<'a>(
     &'a self,
     _receiver: &'a Receiver,
@@ -347,33 +386,352 @@ pub fn deployment() -> Deployment {
 /// The attachment size cap of the tests' deployment, in bytes.
 pub const CAP: u64 = 1024;
 
-/// A receiver over a database and a data root, reaching the chat services given and the stand-in gate and web
-/// unit, its news and its wake kept for the test to read.
+/// The length of window the stand-in conversations open when a turn's ground does, in seconds.
+pub const WINDOW: i64 = 60;
+
+/// An agent as the agency registers it.
+pub fn registration(
+  name: &str,
+  label: &str,
+  words: Vec<&str>,
+  window: Option<i64>,
+  default: bool,
+) -> Agent {
+  let mut row = serde_json::Map::<String, Value>::new();
+
+  row.insert("wake_words".to_owned(), serde_json::json!(words.join(",")));
+  row.insert("default_answerer".to_owned(), serde_json::json!(if default { 1 } else { 0 }));
+
+  if let Some(window) = window {
+    row.insert("window_seconds".to_owned(), serde_json::json!(window));
+  }
+
+  Agent {
+    name: name.to_owned(),
+    label: Some(label.to_owned()),
+    awake: true,
+    brain_folder: None,
+    row,
+  }
+}
+
+/// The agency: the agents it registers, whether a stand-in answers an agent while the rest closes its road,
+/// and the deployment's rest.
+pub struct StandInAgency {
+  pub agents: Mutex<Vec<Agent>>,
+  pub stand_ins: Mutex<BTreeSet<String>>,
+  pub rest: Mutex<Rest>,
+  pub written: Mutex<Vec<Resting>>,
+  pub passed: Mutex<Option<RestKind>>,
+}
+
+impl StandInAgency {
+  pub fn new() -> Self {
+    StandInAgency {
+      agents: Mutex::default(),
+      stand_ins: Mutex::default(),
+      rest: Mutex::new(Rest {
+        resting: false,
+        until: None,
+        kind: None,
+      }),
+      written: Mutex::default(),
+      passed: Mutex::default(),
+    }
+  }
+
+  pub fn registering(&self, agents: Vec<Agent>) {
+    *self.agents.lock().unwrap() = agents.clone();
+  }
+
+  pub fn standing_in(&self, agents: Vec<String>) {
+    *self.stand_ins.lock().unwrap() =
+      agents.iter().map(|agent| agent.to_owned()).collect::<BTreeSet<String>>();
+  }
+
+  pub fn at_rest(&self, rest: Rest) {
+    *self.rest.lock().unwrap() = rest.clone();
+  }
+
+  pub fn asked(&self) -> Vec<Resting> {
+    self.written.lock().unwrap().clone()
+  }
+}
+
+fn not_asked_agency<T>(what: &str) -> BoxFuture<'_, Answer<T>> {
+  panic!("a stand-in agency was asked {what}, which no test sets")
+}
+
+impl Agency for StandInAgency {
+  fn agents(&self) -> BoxFuture<'_, Answer<Agents>> {
+    Box::pin(async move {
+      Ok(Agents {
+        agents: self.agents.lock().unwrap().clone(),
+        roles: vec![],
+      })
+    })
+  }
+
+  fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    let answers = self.stand_ins.lock().unwrap().contains(agent);
+
+    Box::pin(async move { Ok(answers) })
+  }
+
+  fn rest(&self) -> BoxFuture<'_, Answer<Rest>> {
+    let rest = self.rest.lock().unwrap().clone();
+
+    Box::pin(async move { Ok(rest) })
+  }
+
+  fn write_rest<'a>(&'a self, resting: &'a Resting) -> BoxFuture<'a, Answer<Written>> {
+    self.written.lock().unwrap().push(resting.clone());
+
+    Box::pin(async move { Ok(Written { silenced: true }) })
+  }
+
+  fn passed_rest(&self) -> BoxFuture<'_, Answer<Passed>> {
+    let kind = *self.passed.lock().unwrap();
+
+    Box::pin(async move { Ok(Passed { kind }) })
+  }
+
+  fn start<'a>(&'a self, _agent: &'a str, _scope: Scope) -> BoxFuture<'a, Answer<Session>> {
+    not_asked_agency("a session")
+  }
+
+  fn turn<'a>(&'a self, _turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
+    not_asked_agency("a turn")
+  }
+
+  fn state<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<SessionState>> {
+    not_asked_agency("a session's state")
+  }
+
+  fn interrupt<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    not_asked_agency("an interrupt")
+  }
+
+  fn fold<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    not_asked_agency("a fold")
+  }
+
+  fn end<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    not_asked_agency("an end")
+  }
+
+  fn sessions(&self) -> BoxFuture<'_, Answer<Vec<Session>>> {
+    not_asked_agency("its sessions")
+  }
+
+  fn forget_room(&self, _chat_id: i64, _dry_run: bool) -> BoxFuture<'_, Answer<Forgotten>> {
+    not_asked_agency("a room forgotten")
+  }
+
+  fn register_hook<'a>(
+    &'a self,
+    _point: &'a str,
+    _url: &'a str,
+    _token: &'a str,
+  ) -> BoxFuture<'a, Answer<()>> {
+    not_asked_agency("a hook")
+  }
+
+  fn run_log<'a>(&'a self, _run: &'a str, _after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>> {
+    not_asked_agency("a run's log")
+  }
+
+  fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
+    not_asked_agency("the events")
+  }
+}
+
+/// bmo-job: the questions of its jobs that wait in a room, and every answer it was asked to settle.
+pub struct StandInJob {
+  pub open: Mutex<BTreeMap<i64, Vec<OpenQuestion>>>,
+  pub settled: Mutex<Vec<Chosen>>,
+  pub talked: Mutex<Vec<Talked>>,
+  pub moved: Mutex<Vec<Moved>>,
+}
+
+impl StandInJob {
+  pub fn new() -> Self {
+    StandInJob {
+      open: Mutex::default(),
+      settled: Mutex::default(),
+      talked: Mutex::default(),
+      moved: Mutex::default(),
+    }
+  }
+
+  pub fn asking(&self, chat_id: i64, question: OpenQuestion) {
+    self.open.lock().unwrap().insert(chat_id, [question].to_vec());
+  }
+
+  pub fn settled(&self) -> Vec<Chosen> {
+    self.settled.lock().unwrap().clone()
+  }
+
+  pub fn talked(&self) -> Vec<Talked> {
+    self.talked.lock().unwrap().clone()
+  }
+
+  pub fn moved(&self) -> Vec<Moved> {
+    self.moved.lock().unwrap().clone()
+  }
+}
+
+fn not_asked_job<T>(what: &str) -> BoxFuture<'_, Answer<T>> {
+  panic!("a stand-in bmo-job was asked {what}, which no test sets")
+}
+
+impl Job for StandInJob {
+  fn holdings(&self, _chat_id: i64) -> BoxFuture<'_, Answer<Vec<RoomHolding>>> {
+    not_asked_job("a room's holdings")
+  }
+
+  fn open_questions(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<OpenQuestion>>> {
+    let open = self.open.lock().unwrap().get(&chat_id).cloned().unwrap_or_default();
+
+    Box::pin(async move { Ok(open) })
+  }
+
+  fn settle<'a>(&'a self, chosen: &'a Chosen) -> BoxFuture<'a, Answer<()>> {
+    self.settled.lock().unwrap().push(chosen.clone());
+
+    Box::pin(async move { Ok(()) })
+  }
+
+  fn talk<'a>(&'a self, talked: &'a Talked) -> BoxFuture<'a, Answer<()>> {
+    self.talked.lock().unwrap().push(talked.clone());
+
+    Box::pin(async move { Ok(()) })
+  }
+
+  fn queue_moved<'a>(&'a self, moved: Option<&'a str>) -> BoxFuture<'a, Answer<()>> {
+    self.moved.lock().unwrap().push(Moved {
+      detail: moved.map(str::to_owned),
+    });
+
+    Box::pin(async move { Ok(()) })
+  }
+}
+
+/// What the conversations were handed: each agent, its room and message, the files ahead of it, whether the
+/// ground opens the room's window and whether the message was read through somebody else's account.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Handed {
+  pub agent: String,
+  pub chat_id: i64,
+  pub message_id: i64,
+  pub files: Vec<i64>,
+  pub opens_window: bool,
+  pub read_through: Option<bool>,
+}
+
+/// The conversations, keeping every turn they were handed and opening the room's window where asked, as the
+/// conversations of a room do.
+pub struct Taken {
+  db: DatabaseConnection,
+  handed: Mutex<Vec<Handed>>,
+}
+
+impl Taken {
+  pub fn new(db: DatabaseConnection) -> Self {
+    Taken {
+      db,
+      handed: Mutex::default(),
+    }
+  }
+
+  pub fn handed(&self) -> Vec<Handed> {
+    self.handed.lock().unwrap().clone()
+  }
+}
+
+impl Runner for Taken {
+  fn hand<'a>(
+    &'a self,
+    agent: &'a str,
+    files: &'a [Inbound],
+    message: &'a Inbound,
+    _room: Room,
+    opens_window: bool,
+  ) -> BoxFuture<'a, bool> {
+    self.handed.lock().unwrap().push(Handed {
+      agent: agent.to_owned(),
+      chat_id: message.chat_id,
+      message_id: message.message_id,
+      files: files.iter().map(|file| file.message_id).collect(),
+      opens_window,
+      read_through: message.via_reader,
+    });
+
+    Box::pin(async move {
+      if opens_window {
+        let until = bmo_receiver::now_ms().div_euclid(1000) + WINDOW;
+
+        bmo_receiver::receiver::wake::agents::open_window(&self.db, message.chat_id, agent, until)
+          .await
+          .ok();
+      }
+
+      true
+    })
+  }
+}
+
+/// A receiver over a database and a data root, reaching the chat services given and the stand-in agency, gate,
+/// web unit and bmo-job, its news, its wake and the conversations it hands kept for the test to read.
 pub struct Standing {
   pub receiver: Receiver,
   pub heard: Arc<Heard>,
-  pub waking: Arc<Waking>,
+  pub waking: Arc<WakeStandIn>,
   pub gate: Arc<StandInGate>,
+  pub agency: Arc<StandInAgency>,
+  pub job: Arc<StandInJob>,
+  pub taken: Arc<Taken>,
+  pub web: Arc<StandInWeb>,
+}
+
+/// The same standing, with the receiver's own wake in place of the recording one: the rule every message is
+/// judged by, so the turns the wake hands are kept in `taken`.
+pub fn woken(mut standing: Standing) -> Standing {
+  standing.receiver = standing.receiver.with_wake(Arc::new(bmo_receiver::receiver::wake::Waking));
+
+  standing
 }
 
 pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<StandInChat>>) -> Standing {
   let heard = Arc::new(Heard::default());
-  let waking = Arc::new(Waking::default());
+  let waking = Arc::new(WakeStandIn::default());
   let gate = Arc::new(StandInGate::default());
+  let web = Arc::new(StandInWeb::new());
+  let agency = Arc::new(StandInAgency::new());
+  let job = Arc::new(StandInJob::new());
+  let taken = Arc::new(Taken::new(db.clone()));
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
+    agency: agency.clone(),
     gate: gate.clone(),
-    web: Arc::new(StandInWeb),
+    job: job.clone(),
+    web: web.clone(),
   };
   let receiver = Receiver::new(db.clone(), data_root, deployment(), units)
     .with_news(heard.clone())
     .with_wake(waking.clone());
+
+  receiver.hold_runner(taken.clone());
 
   Standing {
     receiver,
     heard,
     waking,
     gate,
+    agency,
+    job,
+    taken,
+    web,
   }
 }

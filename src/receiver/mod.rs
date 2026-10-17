@@ -11,12 +11,16 @@ pub mod notices;
 pub mod pictures;
 pub mod rows;
 pub mod speech;
+pub mod wake;
 
 use std::sync::{Arc, OnceLock};
 
 use futures_util::future::BoxFuture;
 use receiver_codes::{RoomRemovalRefusal, SettingFact};
+use receiver_ports::agency::Agency;
 use receiver_ports::gate::Gate;
+use receiver_ports::http::PortFailure;
+use receiver_ports::job::Job;
 use receiver_ports::web::Web;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -88,6 +92,8 @@ pub enum NotReceived {
   Store(#[from] Fault),
   #[error(transparent)]
   Said(#[from] NotSaid),
+  #[error(transparent)]
+  Unit(#[from] PortFailure),
 }
 
 impl From<sea_orm::DbErr> for NotReceived {
@@ -171,6 +177,43 @@ pub trait Pass: Send + Sync {
   fn kick(&self);
 }
 
+/// Where a woken agent's turn goes: its conversations, which take the files leading up to the message ahead of
+/// it and the message itself into the room's queue, opening the room's window where its ground does; whether
+/// anything stood to take it.
+pub trait Runner: Send + Sync {
+  fn hand<'a>(
+    &'a self,
+    agent: &'a str,
+    files: &'a [Inbound],
+    message: &'a Inbound,
+    room: Room,
+    opens_window: bool,
+  ) -> BoxFuture<'a, bool>;
+}
+
+/// The conversations where none stand: no turn is taken.
+pub struct NoRunner;
+
+impl Runner for NoRunner {
+  fn hand<'a>(
+    &'a self,
+    _agent: &'a str,
+    _files: &'a [Inbound],
+    message: &'a Inbound,
+    _room: Room,
+    _opens_window: bool,
+  ) -> BoxFuture<'a, bool> {
+    Box::pin(async {
+      eprintln!(
+        "chat {}: no conversations stand to take message {}",
+        message.chat_id, message.message_id
+      );
+
+      false
+    })
+  }
+}
+
 /// The deployment's names, as the configuration gives them (docs/boundary-api.md, 「Configuration」).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Deployment {
@@ -192,17 +235,20 @@ pub struct Deployment {
   pub attachment_bytes: Option<u64>,
 }
 
-/// The units a receiver reaches: the chat services through their roads, the gate and the web unit.
+/// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
+/// sessions carry a woken turn and bmo-job whose questions the owner answers in his chat.
 #[derive(Clone)]
 pub struct Units {
   pub roads: Roads,
+  pub agency: Arc<dyn Agency>,
   pub gate: Arc<dyn Gate>,
+  pub job: Arc<dyn Job>,
   pub web: Arc<dyn Web>,
 }
 
 /// The receiver: the database it keeps messages in, the deployment it answers for, the data root it keeps files
-/// under, the roads its lines go out on, where its news is heard, whom a message wakes, and the instruction pass
-/// its acknowledgements are handed over by.
+/// under, the units it reaches, where its news is heard, whom a message wakes, the instruction pass its
+/// acknowledgements are handed over by, and the conversations a woken turn goes into.
 #[derive(Clone)]
 pub struct Receiver {
   db: DatabaseConnection,
@@ -213,6 +259,7 @@ pub struct Receiver {
   news: Arc<dyn News>,
   wake: Arc<dyn Wake>,
   pass: Arc<OnceLock<Arc<dyn Pass>>>,
+  runner: Arc<OnceLock<Arc<dyn Runner>>>,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -232,8 +279,9 @@ crate::room_holding!(RoomHolding::Refuses {
 });
 
 impl Receiver {
-  /// A receiver on its database and data root, for its deployment, reaching its units; its news heard nowhere and
-  /// its messages waking nobody until a hearer and a wake are given.
+  /// A receiver on its database and data root, for its deployment, reaching its units; its news heard nowhere,
+  /// its messages waking nobody and no conversations standing to take a turn until a hearer, a wake and a
+  /// runner are given.
   pub fn new(db: DatabaseConnection, data_root: DataRoot, deployment: Deployment, units: Units) -> Self {
     let deployment = Arc::new(deployment);
     let news: Arc<dyn News> = Arc::new(Unheard);
@@ -247,6 +295,7 @@ impl Receiver {
       news,
       wake: Arc::new(Nobody),
       pass: Arc::default(),
+      runner: Arc::default(),
     }
   }
 
@@ -266,6 +315,16 @@ impl Receiver {
   /// The receiver kicking this pass as it queues a row; the first given stands, for every clone alike.
   pub fn hold_pass(&self, pass: Arc<dyn Pass>) {
     let _ = self.pass.set(pass);
+  }
+
+  /// The receiver handing a woken turn to these conversations; the first given stands, for every clone alike.
+  pub fn hold_runner(&self, runner: Arc<dyn Runner>) {
+    let _ = self.runner.set(runner);
+  }
+
+  /// The conversations a woken turn goes into, where any stand.
+  pub fn runner(&self) -> Option<Arc<dyn Runner>> {
+    self.runner.get().cloned()
   }
 
   pub fn db(&self) -> &DatabaseConnection {

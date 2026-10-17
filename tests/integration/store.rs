@@ -3,6 +3,7 @@
 
 use bmo_receiver::store::migration::m20261017_000001_receiver::TABLES;
 use bmo_receiver::store::migration::m20261017_000002_record_numbers::TABLE as RECORD_NUMBERS;
+use bmo_receiver::store::migration::m20261017_000003_room_windows::TABLE as ROOM_WINDOWS;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -31,11 +32,11 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
   let made: Vec<String> = TABLES
     .iter()
     .copied()
-    .chain([RECORD_NUMBERS, RECORD_TABLE])
+    .chain([RECORD_NUMBERS, ROOM_WINDOWS, RECORD_TABLE])
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 2);
+  assert_eq!(migrate(db).await.unwrap(), 3);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 

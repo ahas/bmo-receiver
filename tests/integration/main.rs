@@ -11,3 +11,4 @@ mod receiver;
 mod room_record;
 mod scratch_runs;
 mod store;
+mod wake;

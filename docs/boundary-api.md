@@ -15,9 +15,9 @@ for each unit it calls, that unit's base address and the token that unit takes:
 
 | Unit | What the receiver reaches it for |
 |---|---|
-| the agency | the agents' registrations, their sessions and the turns carried in them, the events of those turns, the hooks it answers, a room forgotten, a run's log |
+| the agency | the agents' registrations, their sessions and the turns carried in them, the events of those turns, the hooks it answers, a room forgotten, a run's log, the deployment's rest and whether a stand-in answers while it closes a road |
 | the brain | room rules, reminders, a session's loaded documents, a chat session's handoff note, what a turn wrote into memory, and a room's rows when the room goes |
-| bmo-job | a room's holdings, and the items a turn filed |
+| bmo-job | a room's holdings, the questions of its jobs the owner answers in his chat, and the items a turn filed |
 | the gate | a turn's reference, the sanitiser, a room's judgements |
 | the web unit | the account model: a sender's user, the checks, the grants |
 | the voice unit | a voice briefing launched and its state |
@@ -345,6 +345,10 @@ every room's matter.
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | the agents | `GET /agents` | | `agents`, each with its row's fields, its roads, `awake`, `brainFolder`; `roles` |
+| a stand-in | `GET /stand-in?agent=` | | `answers` (boolean): whether a stand-in answers the agent while the rest closes its road |
+| the rest | `GET /rest` | | `resting` (boolean), `until` in epoch seconds or null, `kind` (`limit` or `outage`) or null |
+| a rest written | `POST /rest` | `until` in epoch seconds, `kind` (`limit` or `outage`), `account` or null for the service's own | `silenced` (boolean): the rest is the one that closed every road that answers |
+| a rest passed | `GET /rest/passed` | | `kind` (`limit` or `outage`) or null: why the deployment rested where its rest has just passed, with the passed rests cleared |
 | start a session | `POST /session/start` | `agent`, `scope` (`{ "kind": "agent" }` or `{ "kind": "room", "room": <id> }`) | `id`, `agent`, `scope` |
 | send a turn | `POST /session/turn` | `session`, `prompt`, and the context: `room` (`chatId`, `text`, `mark`), `via`, `basePersona`, `privileged`, `answers`, `began` | `delivery`: `taken` or `blocked` |
 | read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` |
@@ -384,11 +388,21 @@ Its `docs/boundary-api.md`, camelCase `POST`s.
 
 Its `docs/api.md`, snake_case.
 
-| Call | Route | Answers |
-|---|---|---|
-| a room's holdings | `GET /rooms/{chat}/holdings` | `[holdings]` (`RoomHoldings`) |
+| Call | Route | Sends | Answers |
+|---|---|---|---|
+| a room's holdings | `GET /rooms/{chat}/holdings` | | `[holdings]` (`RoomHoldings`) |
+| a room's open questions | `GET /questions/open?chat=` | | `questions`: each `id`, `options` (in the order they were asked), `talks` (boolean: the owner may talk it over) |
+| a question settled | `POST /question` | `id`, `chosen` (the option's number, counted from zero) | a question answer |
+| a question talked over | `POST /question-talk` | `id`, `say` | a question answer |
+| the queue moved | `POST /queue/moved` | `detail?` | 204 |
 
 The items a turn filed, read for its answer checks, are read through the same API (its 「Reading the queue」).
+
+- **The owner's answer to a job's question** is read here, not in bmo-job: the receiver sees the owner's words,
+  matches them against the question's options (`docs/wake.md`, and the suffixes `policy/commands.toml` names
+  after an option's number) and hands bmo-job the option it chose, or the line of talk with its clock stopped.
+  A question that is gone or settled already answers the talk with a refusal of its own, and the words are
+  taken as an ordinary message instead.
 
 ### The gate
 
@@ -461,6 +475,15 @@ Statements the receiver makes that a sibling's document does not yet match, each
 
 - **The agency** documents no route that registers a companion's row with its console room; the receiver's
   `POST /companions/add` writes the room half and needs one.
+- **The agency** states `GET /rest` and `POST /rest` but no route that reports why a rest that has just passed
+  ended the silence; the receiver asks `GET /rest/passed` for its restart, for agency to state.
+- **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open
+  questions with their options, nor one that writes a line of talk over a question and stops its clock; the
+  receiver asks `GET /questions/open?chat=` and `POST /question-talk`, for bmo-job to state.
+- **The agency's `room_windows`** and the receiver's are the same table: agency's `docs/store.md` lists it
+  among the companions' sessions, and the receiver's `docs/store.md` keeps it as its own, since the window a
+  room holds for an agent is what the wake reads. One of the two is to be moved before both stand in one
+  database.
 - **The gate, the web unit and the voice unit** state no boundary yet; their calls above are the receiver's side.
 - **bmo-chat's file item** carries a name, a type and the bytes, and no identifier of the file's own, so a file
   another replaced under the same name in an edited message is not told apart from it and the first bytes stand;

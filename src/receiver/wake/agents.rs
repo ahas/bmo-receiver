@@ -1,0 +1,229 @@
+//! The designated agents of a room as the wake judges them (docs/wake.md, 「Who reaches the session」): who
+//! answers there, by the room's own record, what each is called by and keeps a window for, and the number its
+//! own words are filed under. The agents themselves are the agency's registrations, read through its port, so
+//! an agent added as a row is judged the same way with nothing here naming it.
+
+use serde_json::{Map, Value};
+
+use receiver_ports::agency::{Agent, Agents};
+use sea_orm::DatabaseConnection;
+
+use super::asked;
+use crate::receiver::{NotReceived, Receiver, Room};
+use crate::{all, one, run};
+
+/// One designated agent of a room: its registration name, the words a room calls it by, how long a room it
+/// answered keeps it listening where it keeps a window at all, and whether it answers the rooms that name
+/// nobody.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Designated {
+  pub name: String,
+  pub call_names: Vec<String>,
+  pub window_seconds: Option<i64>,
+  pub default_answerer: bool,
+}
+
+impl Designated {
+  /// The agent as its registration gives it: its label and the words its row names, held as one line
+  /// separated by commas.
+  fn of(agent: &Agent) -> Self {
+    let words = text(&agent.row, "wake_words").unwrap_or_default();
+    let named = agent.label.clone().into_iter().chain(words.split(',').map(str::to_owned));
+
+    Self {
+      name: agent.name.clone(),
+      call_names: named.map(trim).filter(|word| !word.is_empty()).collect(),
+      window_seconds: count(&agent.row, "window_seconds"),
+      default_answerer: count(&agent.row, "default_answerer").is_some_and(|held| held != 0),
+    }
+  }
+
+  /// Whether the words call it: its label or one of its words stands in them, in either case.
+  pub fn called_by(&self, text: &str) -> bool {
+    let lowered = text.to_lowercase();
+
+    self.call_names.iter().any(|name| lowered.contains(&name.to_lowercase()))
+  }
+
+  /// Whether it answers the rooms that name nobody, the one a room rule's file reaches uncalled.
+  pub fn answers_unnamed(&self) -> bool {
+    self.default_answerer
+  }
+}
+
+fn trim(word: String) -> String {
+  word.trim().to_owned()
+}
+
+fn text(row: &Map<String, Value>, key: &str) -> Option<String> {
+  row.get(key).and_then(|value| value.as_str()).map(|word| word.to_owned())
+}
+
+fn count(row: &Map<String, Value>, key: &str) -> Option<i64> {
+  match row.get(key) {
+    Some(value) => value.as_i64().or_else(|| value.as_bool().map(|on| if on { 1 } else { 0 })),
+    None => None,
+  }
+}
+
+/// Every awake agent, as the agency registers it, by name.
+async fn awake(receiver: &Receiver) -> Result<Vec<Designated>, NotReceived> {
+  let listed: Agents = receiver.units.agency.agents().await.map_err(NotReceived::from)?;
+  let mut agents = listed
+    .agents
+    .iter()
+    .filter(|agent| agent.awake)
+    .map(Designated::of)
+    .collect::<Vec<Designated>>();
+
+  agents.sort_by(|one, other| one.name.cmp(&other.name));
+
+  Ok(agents)
+}
+
+/// The agent that answers the rooms that name nobody: the awake one its registration marks as the default,
+/// and where none does, the deployment's own chat agent, called by nothing and keeping no window.
+pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotReceived> {
+  Ok(
+    awake(receiver)
+      .await?
+      .iter()
+      .find(|agent| agent.default_answerer)
+      .cloned()
+      .unwrap_or_else(|| Designated {
+        name: receiver.deployment().agent.clone(),
+        call_names: Vec::new(),
+        window_seconds: None,
+        default_answerer: true,
+      }),
+  )
+}
+
+/// The awake agents a room records as its answerers; none where it names nobody.
+pub async fn named_designated(receiver: &Receiver, chat_id: i64) -> Result<Vec<Designated>, NotReceived> {
+  let rows = all(
+    receiver.db(),
+    r#"SELECT "agent" FROM "room_answerers" WHERE "chat_id" = $1 ORDER BY "agent""#,
+    vec![chat_id.into()],
+  )
+  .await?;
+  let named: Vec<String> =
+    rows.iter().map(|row| row.try_get::<String>("", "agent")).collect::<Result<_, _>>()?;
+
+  Ok(
+    awake(receiver)
+      .await?
+      .iter()
+      .filter(|agent| named.contains(&agent.name))
+      .cloned()
+      .collect(),
+  )
+}
+
+/// Who answers in a room, and whether one of them answers it alone: a room that records one answerer, or one
+/// that records none and is a user's own private chat with the chat agent, the owner's or anyone else's, as the
+/// room's road declares it, which is the chat agent's.
+pub async fn room_designated(
+  receiver: &Receiver,
+  chat_id: i64,
+  room: Room,
+) -> Result<(Vec<Designated>, bool), NotReceived> {
+  let answerers = named_designated(receiver, chat_id).await?;
+
+  if answerers.is_empty() {
+    let alone = room.owner_room || private_room(receiver, room.private_to).await?;
+
+    return Ok((vec![default_designated(receiver).await?], alone));
+  }
+
+  let alone = answerers.len() == 1;
+
+  Ok((answerers, alone))
+}
+
+/// Whether a room is a user's own private chat: its road says it is a one-to-one with the chat agent, with a
+/// person whose sender the account model links to a user.
+async fn private_room(receiver: &Receiver, private_to: Option<i64>) -> Result<bool, NotReceived> {
+  match private_to {
+    Some(person) => {
+      Ok(
+        asked("whose user the sender is", receiver.units.web.user_of_sender(person).await)
+          .flatten()
+          .is_some(),
+      )
+    }
+    None => Ok(false),
+  }
+}
+
+/// The agent that says the bot's own lines in a room (docs/voiced-notices.md, 「The rule」).
+pub async fn voice_of(receiver: &Receiver, chat_id: i64) -> Result<String, NotReceived> {
+  let default = default_designated(receiver).await?;
+  let named: Vec<String> = named_designated(receiver, chat_id)
+    .await?
+    .iter()
+    .map(|agent| agent.name.clone())
+    .collect();
+
+  Ok(match named.first() {
+    Some(first) if !named.contains(&default.name) => first.clone(),
+    _ => default.name,
+  })
+}
+
+/// The sender number an agent's words are filed under in a room. For the agent the road itself speaks as it is
+/// who the room's road says the chat agent is there, whichever road carried the message: an answer said on
+/// another road there is filed under the number that road gave the agent, not the one a console gave it for its
+/// own rooms. Every other agent's, and the chat agent's where the room's road names nobody, is the number the
+/// road gave it.
+pub async fn own_number(
+  receiver: &Receiver,
+  agent: &Designated,
+  via: &str,
+  identity: Option<i64>,
+) -> Result<Option<i64>, NotReceived> {
+  if agent.answers_unnamed() && identity.is_some() {
+    return Ok(identity);
+  }
+
+  let given = one(
+    receiver.db(),
+    r#"SELECT "sender_id" FROM "provider_users" WHERE "provider" = $1 AND "user_id" = $2"#,
+    vec![via.into(), agent.name.clone().into()],
+  )
+  .await?;
+
+  Ok(given.map(|row| row.try_get("", "sender_id")).transpose()?)
+}
+
+/// When an agent's window in a room closes, in epoch seconds; zero where none was opened.
+pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) -> Result<i64, NotReceived> {
+  let row = one(
+    db,
+    r#"SELECT "open_until" FROM "room_windows" WHERE "chat_id" = $1 AND "agent" = $2"#,
+    vec![chat_id.into(), agent.into()],
+  )
+  .await?;
+
+  Ok(row.map(|row| row.try_get("", "open_until")).transpose()?.unwrap_or(0))
+}
+
+/// An agent's window in a room opened until `until`, in epoch seconds; a window already open longer keeps its
+/// own end.
+pub async fn open_window(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  agent: &str,
+  until: i64,
+) -> Result<(), NotReceived> {
+  Ok(
+    run(
+      db,
+      r#"INSERT INTO "room_windows" ("chat_id", "agent", "open_until") VALUES ($1, $2, $3)
+         ON CONFLICT ("chat_id", "agent") DO UPDATE SET "open_until" = GREATEST("room_windows"."open_until", excluded."open_until")"#,
+      vec![chat_id.into(), agent.into(), until.into()],
+    )
+      .await
+      .map(drop)?,
+  )
+}

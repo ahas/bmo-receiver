@@ -151,10 +151,69 @@ pub struct Event {
 /// The events of the kinds asked, as they come; a stream that drops ends, and is opened again by its reader.
 pub type Events = BoxStream<'static, Answer<Event>>;
 
+/// Why a rest stands: a login's usage limit, or the service being down.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RestKind {
+  Limit,
+  Outage,
+}
+
+/// The deployment's rest: whether it stands now, until when in epoch seconds, and why.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Rest {
+  pub resting: bool,
+  #[serde(default)]
+  pub until: Option<i64>,
+  #[serde(default)]
+  pub kind: Option<RestKind>,
+}
+
+/// A rest written down: whether it is the one that silenced the deployment.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Written {
+  pub silenced: bool,
+}
+
+/// A rest written: until when in epoch seconds, why, and the login a limit is its own.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Resting {
+  pub until: i64,
+  pub kind: RestKind,
+  #[serde(default)]
+  pub account: Option<String>,
+}
+
+/// Why the deployment rested where its rest has just passed: none while it still rests or rested for no
+/// reason that ended the silence.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+pub struct Passed {
+  #[serde(default)]
+  pub kind: Option<RestKind>,
+}
+
+/// Whether a stand-in answers an agent while the rest closes the agent's road.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Answers {
+  pub answers: bool,
+}
+
 /// Every call the receiver makes on the agency.
 pub trait Agency: Send + Sync {
   /// Every agent with its row and roads, and the roles.
   fn agents(&self) -> BoxFuture<'_, Answer<Agents>>;
+
+  /// Whether a stand-in answers an agent while the rest closes its road.
+  fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>>;
+
+  /// The deployment's rest: whether it stands, until when, and why.
+  fn rest(&self) -> BoxFuture<'_, Answer<Rest>>;
+
+  /// A rest written down; whether it is the one that silenced the deployment.
+  fn write_rest<'a>(&'a self, resting: &'a Resting) -> BoxFuture<'a, Answer<Written>>;
+
+  /// Why the deployment rested where its rest has just passed.
+  fn passed_rest(&self) -> BoxFuture<'_, Answer<Passed>>;
 
   /// The session kept for the agent at the scope, started where none is.
   fn start<'a>(&'a self, agent: &'a str, scope: Scope) -> BoxFuture<'a, Answer<Session>>;
@@ -255,6 +314,28 @@ impl HttpAgency {
 impl Agency for HttpAgency {
   fn agents(&self) -> BoxFuture<'_, Answer<Agents>> {
     Box::pin(self.caller.get(&["agents"], &[]))
+  }
+
+  fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    Box::pin(async move {
+      let query = vec![("agent", agent.to_owned())];
+
+      let answers: Answers = self.caller.get(&["stand-in"], &query).await?;
+
+      Ok(answers.answers)
+    })
+  }
+
+  fn rest(&self) -> BoxFuture<'_, Answer<Rest>> {
+    Box::pin(self.caller.get(&["rest"], &[]))
+  }
+
+  fn write_rest<'a>(&'a self, resting: &'a Resting) -> BoxFuture<'a, Answer<Written>> {
+    Box::pin(self.caller.post(&["rest"], resting))
+  }
+
+  fn passed_rest(&self) -> BoxFuture<'_, Answer<Passed>> {
+    Box::pin(self.caller.get(&["rest", "passed"], &[]))
   }
 
   fn start<'a>(&'a self, agent: &'a str, scope: Scope) -> BoxFuture<'a, Answer<Session>> {

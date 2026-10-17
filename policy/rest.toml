@@ -10,5 +10,9 @@ weekly_threshold = 0.99
 # How long a login is put aside where its limit named no reset moment, in seconds.
 fallback_seconds = 3600
 
+# How long a rest lasts when the provider itself is down, in seconds: long enough to stop hammering it, short
+# enough that the agent is back the moment it is.
+outage_seconds = 60
+
 # How often a rest past its end is looked for and lifted, in seconds.
 lift_check_seconds = 30

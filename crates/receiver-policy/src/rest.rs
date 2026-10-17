@@ -11,6 +11,8 @@ pub struct Rest {
   pub weekly_threshold: f64,
   /// How long a login is put aside where its limit named no reset moment, in seconds.
   pub fallback_seconds: i64,
+  /// How long a rest lasts when the provider itself is down, in seconds.
+  pub outage_seconds: i64,
   /// How often a rest past its end is looked for and lifted, in seconds.
   pub lift_check_seconds: u64,
 }
