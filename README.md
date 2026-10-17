@@ -12,7 +12,7 @@ library `bmo-chat-client`; every other unit over HTTP, as `docs/boundary-api.md`
 | Folder | Holds |
 |---|---|
 | `src/` | the service's own package: its store, with the migrations under `src/store/migration/`, and its folders under the data root |
-| `crates/` | `receiver-codes`, every refusal, fact and fixed line the receiver gives, as codes with structured fields; `receiver-policy`, the loader of `policy/` |
+| `crates/` | `receiver-codes`, every refusal, fact and fixed line the receiver gives, as codes with structured fields; `receiver-policy`, the loader of `policy/`; `receiver-ports`, a trait and an HTTP client for each unit the receiver calls |
 | `policy/` | the receiver's fixed numbers and words, the Korean words its commands are matched by among them |
 | `tests/` | the checks that span the repository, and the service's integration tests as one binary under `tests/integration/` |
 | `docs/` | the canonical statements of what the service does |

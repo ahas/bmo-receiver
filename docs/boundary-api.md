@@ -326,8 +326,11 @@ judgements beside a page are the gate's, read there.
 
 ## Calls the receiver makes
 
-Each call goes to the serving unit's configured base address, carrying that unit's token, by the method, path and
-body the serving unit's own boundary document gives it; the tables repeat them as that document states them.
+Each call goes to the serving unit's configured base address, carrying that unit's token as a bearer (a unit that
+takes none, as the cache warmer, is configured with none and called with no `Authorization` header), by the
+method, path and body the serving unit's own boundary document gives it; the tables repeat them as that document
+states them. Each unit is a port of the crate `receiver-ports`: a trait the receiver's code is written against and
+the HTTP client that answers it.
 Where the serving unit states no boundary yet, the call is stated here as the receiver makes it, for that unit's
 document to match. A call is retried only where the connection was refused, within two minutes, offered every
 two seconds.
@@ -393,7 +396,7 @@ are snake_case, as bmo-job's calls on the gate are.
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| a turn's reference | `POST /reference/selected` | `chat`, `message?`, `lines` (the room's recent messages in the room shape with every line the turn brought), `speakers`, `situation?` (`agent`, `room`: `owner` or `group`, `events`: each `kind` and `item?`, `now`), `holds?`, `round?`, `people_spoke`, `answered?`, `off` (the gates switched off for the agent), `records` | `entries`: each `path`, `text`, `source` (`document`, `person`, `rule`, `situation`, `knowledge`, `memory`, `room` or `archive`) and `fragment?` |
+| a turn's reference | `POST /reference/selected` | `chat`, `message?`, `lines` (the room's recent messages in the room shape with every line the turn brought, each a string), `speakers` (the people whose words the turn answers, by number), `situation?` (`agent`, `room`: `owner` or `group`, `events`: each `kind` and `item?`, `now` in Unix seconds), `holds?` (the holds' names), `round?`, `people_spoke` (boolean), `answered?` (what the turn answered already, where it is asked again), `off` (the gates switched off for the agent), `records` (boolean: whether the turn's road records its gates) | `entries`: each `path`, `text`, `source` (`document`, `person`, `rule`, `situation`, `knowledge`, `memory`, `room` or `archive`) and `fragment?` |
 | sanitise words | `POST /sanitised` | `text`, `label`, `chat?`, `message?` | `text`, `changed`; 409 `stopped` where its run was stopped |
 | a room's judgement | `POST /judgements` | `chat`, `message?`, `stage`, `verdict`, `detail?`, `ms?`, `round?` | 204 |
 
@@ -415,7 +418,7 @@ it, with the same conventions; the receiver adds the room checks and the grants.
 | a sender's relation in a room | `POST /checks/room` | `room`, `sender?`, `relation` | `allowed`, `grant`, `user?` |
 | a message's sender's relation | `POST /checks/message` | `room`, `message`, `relation` | `allowed`, `grant`, `user?`, `sender?` |
 | a user's relation on an object | `POST /checks/object` | `kind`, `object`, `relation`, `user` | `allowed`, `grant` |
-| make a grant | `POST /grants` | `room?` or `kind` and `object`, `relation`, `to` (`sender?`, `user?`, `members`), `words?`, `expires_at?`, `message` (`room`, `id`) | `grant` |
+| make a grant | `POST /grants` | `room?` or `kind` and `object`, `relation`, `to` (`sender?`, `user?`, `members`: boolean, every member of the room), `words?`, `expires_at?`, `message` (`room`, `id`) | `grant` |
 | revoke a grant | `DELETE /grants` | as a grant, without `words` and `expires_at` | `grant` |
 | a fixed line's words | `POST /words/render` | `code`, its fields beside it, `language` | `text` |
 

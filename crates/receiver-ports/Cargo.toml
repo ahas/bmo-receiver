@@ -1,0 +1,22 @@
+[package]
+name = "receiver-ports"
+description = "The receiver's ports to the other units: each call it makes there, as a trait and an HTTP client."
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+# The chat services' provider routes, and the client the receiver reaches each one through.
+bmo-chat-client.workspace = true
+futures-util.workspace = true
+reqwest = { workspace = true, features = ["query", "stream"] }
+serde.workspace = true
+serde_json.workspace = true
+# The agency's event stream, read as server-sent events.
+sse-stream.workspace = true
+tokio = { workspace = true, features = ["time"] }
+
+[dev-dependencies]
+# The stand-in each port's client is tried against.
+axum.workspace = true
+tokio = { workspace = true, features = ["net"] }
