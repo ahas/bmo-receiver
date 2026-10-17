@@ -2,17 +2,30 @@
 //! queue, rounds, window and waits, the round's turn on the agent's session with the words pushed into it, the
 //! answer sent on the road the turn answers on, and the instruction pass over every agent's rows.
 
+pub mod again;
 pub mod around;
+pub mod ask;
+pub mod cache;
 pub mod context;
 pub mod conversation;
+pub mod fold;
+pub mod health;
 pub mod instructions;
 pub mod mid_turn;
+pub mod notices;
+pub mod progress;
+pub mod promises;
 pub mod prompt;
 pub mod records;
+pub mod reply;
+pub mod restart;
 pub mod room;
 pub mod runner;
 pub mod sentinels;
 pub mod shape;
 pub mod thread;
+pub mod touch;
+pub mod turnover;
 pub mod typed;
+pub mod voice;
 pub mod window;

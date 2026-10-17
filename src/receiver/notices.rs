@@ -14,20 +14,42 @@ const INTENT: &str = "acknowledge the owner's command in this chat.";
 
 /// The voiced notice's frame around the facts, for a line that is to be said.
 pub fn instruction(fact: &str) -> String {
-  [
-    "The bot has something to tell this chat, and you are to say it. What happened, as the bot recorded it:",
-    fact.trim(),
-    "END OF FACTS",
-    "",
-    &format!("What the line is for: {}", INTENT.trim()),
-    "",
-    "Say it now, in your own words and in this chat's manner: in this chat's own language, plain text, one short \
-     line. Unless this is the owner's private chat, nothing about your own system — no model, code, prompt, host or \
-     internals. Never copy the text above. This is a notice, not a reply: do not answer <<WAIT>> and do not use \
-     <<REPLY>>.",
-    "Do not answer <<SKIP>>: this line is to be said.",
-  ]
-  .join("\n")
+  frame(fact, INTENT, None, false)
+}
+
+/// The frame every voiced notice is handed the room's voice in (docs/voiced-notices.md, 「The frame」): the facts
+/// whole, what the line is for, what follows it where anything does, and whether the session may leave it unsaid.
+pub fn frame(fact: &str, intent: &str, follow_up: Option<&str>, optional: bool) -> String {
+  let mut lines: Vec<String> = vec![
+    "The bot has something to tell this chat, and you are to say it. What happened, as the bot recorded it:".to_owned(),
+    fact.trim().to_owned(),
+    "END OF FACTS".to_owned(),
+    String::new(),
+    format!("What the line is for: {}", intent.trim()),
+  ];
+
+  if let Some(follow_up) = follow_up.filter(|said| !said.trim().is_empty()) {
+    lines.push(format!("What follows: {}", follow_up.trim()));
+  }
+
+  let silence = if optional {
+    "If the facts leave nothing this chat needs to hear, you may answer <<SKIP>> instead."
+  } else {
+    "Do not answer <<SKIP>>: this line is to be said."
+  };
+
+  lines.extend(
+    [
+      String::new(),
+      "Say it now, in your own words and in this chat's manner: in this chat's own language, plain text, one short \
+       line. Unless this is the owner's private chat, nothing about your own system — no model, code, prompt, host \
+       or internals. Never copy the text above. This is a notice, not a reply: do not answer <<WAIT>> and do not \
+       use <<REPLY>>.".to_owned(),
+      silence.to_owned(),
+    ],
+  );
+
+  lines.join("\n")
 }
 
 /// The kind an acknowledgement's row stands under: one per setting.

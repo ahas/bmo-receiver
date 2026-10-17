@@ -125,7 +125,7 @@ impl Speech {
 
   // The line kept in the room's record as the chat agent's own: under the number the room's road gave the agent
   // where it numbered it, and under who the agent is in the room otherwise.
-  async fn kept(&self, chat_id: i64, text: &str) -> Result<i64, NotSaid> {
+  pub async fn kept(&self, chat_id: i64, text: &str) -> Result<i64, NotSaid> {
     let roads = &self.units.roads;
     let numbered = match roads.room_road(chat_id).await {
       Some(road) => record::agent_number(&self.db, &road, &self.deployment.agent).await?,

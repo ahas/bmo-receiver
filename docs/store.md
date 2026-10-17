@@ -80,8 +80,8 @@ the table below is the whole list. A key that names a room is built only through
 | `<agent>_active_route` | the road an agent's one chat session stands on, as JSON | the chat session |
 | `<agent>_pending_summary` | the note a replaced session left for the next fresh one | the chat session |
 | `<agent>_force_reset` | the owner's word to start an agent's session afresh, with its reason | the chat session |
-| `<agent>_cache:<mode>:<session>` | what the receiver knows of a session's cache between turns, as JSON | the chat session |
-| `<agent>_last_chat_launch` | when an agent's chat session was last launched, in Unix milliseconds | the chat session |
+| `<agent>_cache:<session>` | what the receiver knows of a session's cache between turns, as JSON | the chat session |
+| `<agent>_last_chat_launch` | the launch the agent's one chat session last stood on, as JSON: the room it stood in, whether every word of it was the owner's, whether the room's tools were on, and when it went out, in epoch milliseconds | the chat session |
 
 ## The data root's folders
 

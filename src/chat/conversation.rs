@@ -19,7 +19,9 @@ use serde_json::{Value, json};
 use super::mid_turn::{Paragraph, Push};
 use super::prompt::{self, Round, Scope as RoundScope};
 use super::sentinels::{is_skip, is_wait};
+use super::touch::TouchAnswer;
 use super::window;
+use super::window::Selection;
 
 use crate::Fault;
 use crate::now_ms;
@@ -129,6 +131,9 @@ pub struct Asking {
   pub privileged: bool,
   pub answers: Vec<i64>,
   pub began: i64,
+  /// What the turn was built with, each document by its source and its path, which the carrying writes down
+  /// beside its run.
+  pub context: Vec<(String, String)>,
 }
 
 /// What carries a composed turn into the agent's session and answers with what the session said. The agency
@@ -165,6 +170,14 @@ pub struct Checked<'a> {
   pub batch: &'a [Inbound],
   pub tools_allowed: bool,
   pub owed: usize,
+  /// The room the round answers, the road its answer goes back on, whether every word it took was the owner's,
+  /// and the messages waiting for the next turn: what a second asking goes out with beside its errand.
+  pub room: Room,
+  pub via: String,
+  pub privileged: bool,
+  pub pending: Vec<i64>,
+  /// The round's own selection, which a second asking goes out with the same reference on.
+  pub selection: &'a Selection,
 }
 
 /// What holds a round's answer to the checks the code keeps before it goes out (docs/answer-checks.md), and what
@@ -173,6 +186,7 @@ pub struct Checked<'a> {
 pub trait Checks: Send + Sync {
   fn checks<'a>(
     &'a self,
+    conversations: &'a Conversations,
     receiver: &'a Receiver,
     agent: &'a str,
     held: &'a Held,
@@ -185,6 +199,7 @@ struct NoChecks;
 impl Checks for NoChecks {
   fn checks<'a>(
     &'a self,
+    _conversations: &'a Conversations,
     _receiver: &'a Receiver,
     _agent: &'a str,
     _held: &'a Held,
@@ -196,14 +211,23 @@ impl Checks for NoChecks {
 
 /// What sends a round's answer into its room, on the road the turn answers on: the number of the message it went
 /// out as and its words, where anything went out. Filled by the module that owns the send.
+/// Where a round's answer goes out: the room it goes out in, the message it answers, the road it answers on, the
+/// round that wrote it and when the room said the earliest thing it answers.
+pub struct ReplyRoad {
+  pub chat_id: i64,
+  pub reply_to: Option<i64>,
+  pub via: String,
+  pub round: String,
+  pub asked_at: Option<i64>,
+}
+
 pub trait Sending: Send + Sync {
   fn send<'a>(
     &'a self,
     receiver: &'a Receiver,
     agent: &'a str,
+    road: &'a ReplyRoad,
     reply: &'a Reply,
-    via: &'a str,
-    round: &'a str,
   ) -> BoxFuture<'a, Option<Sent>>;
 }
 
@@ -214,9 +238,8 @@ impl Sending for NoSending {
     &'a self,
     _receiver: &'a Receiver,
     _agent: &'a str,
+    _road: &'a ReplyRoad,
     _reply: &'a Reply,
-    _via: &'a str,
-    _round: &'a str,
   ) -> BoxFuture<'a, Option<Sent>> {
     Box::pin(async { None })
   }
@@ -231,9 +254,11 @@ pub trait Noting: Send + Sync {
     agent: &'a str,
     held: &'a Held,
     reply: &'a Reply,
+    ms: i64,
   ) -> BoxFuture<'a, ()>;
   fn fold<'a>(
     &'a self,
+    conversations: &'a Conversations,
     receiver: &'a Receiver,
     agent: &'a str,
     chat_id: i64,
@@ -251,12 +276,14 @@ impl Noting for NoNoting {
     _agent: &'a str,
     _held: &'a Held,
     _reply: &'a Reply,
+    _ms: i64,
   ) -> BoxFuture<'a, ()> {
     Box::pin(async {})
   }
 
   fn fold<'a>(
     &'a self,
+    _conversations: &'a Conversations,
     _receiver: &'a Receiver,
     _agent: &'a str,
     _chat_id: i64,
@@ -280,7 +307,7 @@ pub struct PiecesRound {
 
 /// Whether an agent's turns are a companion's own, and what such a round does. Filled by the companion's part.
 pub trait Pieces: Send + Sync {
-  fn of(&self, receiver: &Receiver, agent: &str) -> bool;
+  fn of<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
 
   fn round<'a>(
     &'a self,
@@ -296,8 +323,8 @@ pub trait Pieces: Send + Sync {
 struct NoPieces;
 
 impl Pieces for NoPieces {
-  fn of(&self, _receiver: &Receiver, _agent: &str) -> bool {
-    false
+  fn of<'a>(&'a self, _receiver: &'a Receiver, _agent: &'a str) -> BoxFuture<'a, bool> {
+    Box::pin(async { false })
   }
 
   fn round<'a>(
@@ -314,25 +341,34 @@ impl Pieces for NoPieces {
 }
 
 /// The health of the rooms' sessions as the conversations read it: whether a room has fallen silent, what a
-/// failed round is told of, and a round that ended with nothing said at all. Filled by the module that owns the
-/// health.
+/// failed round is told of, a round that ended with nothing said at all, and the minute the failure orders are
+/// looked over on. Filled by the module that owns the health.
 pub trait Health: Send + Sync {
-  fn silenced(&self, receiver: &Receiver, chat_id: i64) -> bool;
-  fn failed(&self, receiver: &Receiver, chat_id: i64, failure: &Failure);
-  fn died(&self, receiver: &Receiver, chat_id: i64);
+  fn silenced<'a>(&'a self, receiver: &'a Receiver, chat_id: i64) -> BoxFuture<'a, bool>;
+  fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()>;
+  fn died<'a>(&'a self, receiver: &'a Receiver, chat_id: i64) -> BoxFuture<'a, ()>;
   fn orders(&self, receiver: &Receiver);
 }
 
 struct NoHealth;
 
 impl Health for NoHealth {
-  fn silenced(&self, _receiver: &Receiver, _chat_id: i64) -> bool {
-    false
+  fn silenced<'a>(&'a self, _receiver: &'a Receiver, _chat_id: i64) -> BoxFuture<'a, bool> {
+    Box::pin(async { false })
   }
 
-  fn failed(&self, _receiver: &Receiver, _chat_id: i64, _failure: &Failure) {}
+  fn failed<'a>(
+    &'a self,
+    _receiver: &'a Receiver,
+    _chat_id: i64,
+    _failure: &'a Failure,
+  ) -> BoxFuture<'a, ()> {
+    Box::pin(async {})
+  }
 
-  fn died(&self, _receiver: &Receiver, _chat_id: i64) {}
+  fn died<'a>(&'a self, _receiver: &'a Receiver, _chat_id: i64) -> BoxFuture<'a, ()> {
+    Box::pin(async {})
+  }
 
   fn orders(&self, _receiver: &Receiver) {}
 }
@@ -375,14 +411,24 @@ impl Talking for NoTalking {
 /// The touch of the quiet rooms' sessions, on the idle stretch the warmer names where it shortens it (docs/bmo-window.md,
 /// 「The touch」). Filled by the module that owns the touch.
 pub trait Touching: Send + Sync {
-  fn touch(&self, receiver: &Receiver, agent: &str, idle_override_ms: Option<i64>) -> Result<(), Fault>;
+  fn touch<'a>(
+    &'a self,
+    receiver: &'a Receiver,
+    agent: &'a str,
+    idle_override_ms: Option<i64>,
+  ) -> BoxFuture<'a, Result<TouchAnswer, Fault>>;
 }
 
 struct NoTouching;
 
 impl Touching for NoTouching {
-  fn touch(&self, _receiver: &Receiver, _agent: &str, _idle_override_ms: Option<i64>) -> Result<(), Fault> {
-    Err(Fault::new("no touch stands for these conversations"))
+  fn touch<'a>(
+    &'a self,
+    _receiver: &'a Receiver,
+    _agent: &'a str,
+    _idle_override_ms: Option<i64>,
+  ) -> BoxFuture<'a, Result<TouchAnswer, Fault>> {
+    Box::pin(async { Err(Fault::new("no touch stands for these conversations")) })
   }
 }
 
@@ -1257,7 +1303,7 @@ impl Conversations {
 
   /// Whether a room has fallen silent: the rest closes it and nothing else would answer it.
   pub async fn silenced(&self, chat_id: i64) -> bool {
-    self.0.health.silenced(&self.0.receiver, chat_id)
+    self.0.health.silenced(&self.0.receiver, chat_id).await
   }
 
   pub async fn close(&self, chat_id: i64) {
@@ -1437,7 +1483,7 @@ impl Conversations {
       "detail": said,
     }));
 
-    self.0.health.failed(&self.0.receiver, chat_id, &failure);
+    self.0.health.failed(&self.0.receiver, chat_id, &failure).await;
   }
 
   // The road this turn's answer goes back on, as the roads its words came in on and its instructions were asked
@@ -1541,7 +1587,7 @@ impl Conversations {
     let mut via = self.road_of(chat_id, &batch, &roads).await;
 
     // A round of a pieces-shaped agent is its companion's own.
-    if self.0.pieces.of(&receiver, self.agent()) {
+    if self.0.pieces.of(&receiver, self.agent()).await {
       return self
         .0
         .pieces
@@ -1642,6 +1688,7 @@ impl Conversations {
       privileged: held.all_from_owner,
       answers: batch.iter().map(|message| message.message_id).collect(),
       began: started,
+      context: composed.context.clone(),
     };
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
     let carried = follower.finish();
@@ -1700,7 +1747,7 @@ impl Conversations {
       ..reply.clone()
     };
 
-    self.0.noting.note(&receiver, self.agent(), &held, &reply).await;
+    self.0.noting.note(&receiver, self.agent(), &held, &reply, now_ms() - started).await;
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
     held.session = reply.session.clone().or(held.session);
     held.replaced = reply.replaced.clone();
@@ -1719,6 +1766,7 @@ impl Conversations {
       .0
       .checks
       .checks(
+        self,
         &receiver,
         self.agent(),
         &held,
@@ -1729,6 +1777,11 @@ impl Conversations {
           batch: &batch,
           tools_allowed,
           owed,
+          room,
+          via: via.to_owned(),
+          privileged: held.all_from_owner,
+          pending: self.pending(chat_id),
+          selection: &composed.selection,
         },
       )
       .await?;
@@ -1788,10 +1841,31 @@ impl Conversations {
 
     self.restart_window(chat_id).await;
 
+    let waiting = {
+      let state = self.state();
+
+      state.active.get(&chat_id).map(|conv| (conv.reply_target, conv.asked_at))
+    };
+    let (reply_to, asked_at) = waiting.unwrap_or((None, None));
     let sent = if self.silenced(chat_id).await {
       None
     } else {
-      self.0.sending.send(&receiver, self.agent(), &reply, &via, round).await
+      self
+        .0
+        .sending
+        .send(
+          &receiver,
+          self.agent(),
+          &ReplyRoad {
+            chat_id,
+            reply_to,
+            via: via.to_owned(),
+            round: round.to_owned(),
+            asked_at,
+          },
+          &reply,
+        )
+        .await
     };
 
     if let Some(sent) = &sent {
@@ -1960,7 +2034,7 @@ impl Conversations {
     if final_round {
       self.close(chat_id).await;
       self.publish(waited(chat_id, message, Some("WAIT")));
-      self.0.health.died(&self.0.receiver, chat_id);
+      self.0.health.died(&self.0.receiver, chat_id).await;
 
       return Ok(());
     }
@@ -2118,7 +2192,7 @@ impl Conversations {
       let held = this.state().active.get(&chat_id).map(|conv| conv.held.clone());
 
       if let Some(held) = held {
-        this.0.noting.fold(&receiver, this.agent(), chat_id, &held, room).await;
+        this.0.noting.fold(&this, &receiver, this.agent(), chat_id, &held, room).await;
       }
 
       this.state().folding.remove(&chat_id);
@@ -2127,9 +2201,9 @@ impl Conversations {
 
   /// The keepalive's touch of the quiet rooms' sessions, on the idle stretch the pass names where it shortens
   /// it.
-  pub async fn touch(&self, idle_override_ms: Option<i64>) -> Result<(), Fault> {
+  pub async fn touch(&self, idle_override_ms: Option<i64>) -> Result<TouchAnswer, Fault> {
     let lock = self.0.turn.lock().await;
-    let touched = self.0.touching.touch(&self.0.receiver, self.agent(), idle_override_ms);
+    let touched = self.0.touching.touch(&self.0.receiver, self.agent(), idle_override_ms).await;
 
     drop(lock);
     touched

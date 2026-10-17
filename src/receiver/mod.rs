@@ -13,6 +13,7 @@ pub mod rows;
 pub mod speech;
 pub mod wake;
 
+use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use futures_util::future::BoxFuture;
@@ -245,6 +246,9 @@ pub struct Deployment {
   pub language: String,
   /// The largest file a message may carry to be kept, in bytes; none where no cap is set.
   pub attachment_bytes: Option<u64>,
+  /// The wording document the configuration names, whose banned words every answer is held to; none where the
+  /// deployment names none.
+  pub wording_document: Option<PathBuf>,
 }
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose

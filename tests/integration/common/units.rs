@@ -580,6 +580,7 @@ pub fn deployment() -> Deployment {
     infra_room: None,
     language: "en".to_owned(),
     attachment_bytes: Some(CAP),
+    wording_document: None,
   }
 }
 

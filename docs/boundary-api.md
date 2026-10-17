@@ -486,6 +486,12 @@ Statements the receiver makes that a sibling's document does not yet match, each
 
 - **The agency** documents no route that registers a companion's row with its console room; the receiver's
   `POST /companions/add` writes the room half and needs one.
+- **The agency** has no operation that puts words into a turn already working: a round's mid-turn push into a
+  session it carries is not answered for here, and the receiver's `push` stands only in its own queues.
+- **The voice unit** gives no time beside a briefing it keeps, so the receiver reads a room's briefings at large
+  where it wants the ones this round launched, for the voice unit to state.
+- **The agency** publishes `road-walked` and `usage-spent`; the receiver writes no road and no usage rows of its
+  own, and a run of a second asking that failed is written as a judgement of the round with no figures.
 - **The agency** states `GET /rest` and `POST /rest` but no route that reports why a rest that has just passed
   ended the silence; the receiver asks `GET /rest/passed` for its restart, for agency to state.
 - **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open

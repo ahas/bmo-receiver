@@ -196,7 +196,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-receiver"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -1576,7 +1576,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-codes"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bmo-chat-client",
  "http",
@@ -1589,7 +1589,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-policy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "toml",
@@ -1597,7 +1597,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-ports"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "bmo-chat-client",

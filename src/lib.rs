@@ -4,17 +4,21 @@
 //! reached through a port over HTTP; the chat services through bmo-chat-client.
 
 pub mod chat;
+pub mod companion;
 pub mod dashes;
 pub mod data_root;
 pub mod form;
 pub mod js;
+pub mod json;
 pub mod receiver;
 pub mod roads;
 pub mod room_record;
 pub mod rounds;
+pub mod run_lines;
 pub mod store;
 pub mod text;
 pub mod web_address;
+pub mod wording;
 
 pub use store::{Fault, all, one, run};
 
