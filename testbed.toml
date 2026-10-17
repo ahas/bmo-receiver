@@ -7,6 +7,9 @@ name = "receiver"
 [test]
 languages = ["cargo"]
 
+# The tests make their own scratch databases on the server, so no template is named.
+[test.database]
+
 [check]
 quick = ["layout", "dependencies"]
 base_libraries = ["bmo-chat", "bmo-chat-client", "bmo-ui"]

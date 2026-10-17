@@ -457,5 +457,7 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** documents no route that registers a companion's row with its console room; the receiver's
   `POST /companions/add` writes the room half and needs one.
 - **The gate, the web unit and the voice unit** state no boundary yet; their calls above are the receiver's side.
+- **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver
+  keeps what was recorded as its `restart_reason` setting (`docs/store.md`) and needs a route for it.
 - **The brain's** 「The receiver」 names the operations by path alone; every one is a `POST`, as its port calls
   them.

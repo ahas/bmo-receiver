@@ -11,8 +11,8 @@ library `bmo-chat-client`; every other unit over HTTP, as `docs/boundary-api.md`
 
 | Folder | Holds |
 |---|---|
-| `src/` | the service's own package |
-| `crates/` | `receiver-codes`, every refusal, fact and fixed line the receiver gives, as codes with structured fields |
+| `src/` | the service's own package: its store, with the migrations under `src/store/migration/`, and its folders under the data root |
+| `crates/` | `receiver-codes`, every refusal, fact and fixed line the receiver gives, as codes with structured fields; `receiver-policy`, the loader of `policy/` |
 | `policy/` | the receiver's fixed numbers and words, the Korean words its commands are matched by among them |
 | `tests/` | the checks that span the repository, and the service's integration tests as one binary under `tests/integration/` |
 | `docs/` | the canonical statements of what the service does |
@@ -40,6 +40,7 @@ deployed), `rustfmt.toml` and `CLAUDE.md`.
 | `docs/random-draw.md` | Fair draws and their method |
 | `docs/reminders.md` | Reminders as the receiver delivers them |
 | `docs/chat-mcp.md` | The send tool: its entries, how a call runs, its turn context |
+| `docs/store.md` | The receiver's database, its tables and settings keys, and its folders under the data root |
 | `docs/codes.md` | Every refusal, fact, fixed line and kind the receiver gives, with its fields and status |
 | `docs/policy.md` | The policy files and the keys the receiver reads |
 | `docs/checks.md` | The repository checks: dependencies, manifests, layout, the version, the testbed's declaration, Hangul, home paths, private addresses and names |
@@ -61,3 +62,6 @@ bmo-testbed cargo test --workspace
 bmo-testbed cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 ```
+
+The tests that use a database make their own on the PostgreSQL server `BMO_TEST_POSTGRES` names, which the
+testbed's suite sets; with nothing named, the machine's own socket.
