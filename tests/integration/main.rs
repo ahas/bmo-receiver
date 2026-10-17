@@ -7,4 +7,5 @@ mod common;
 
 mod alone_runs;
 mod data_root;
+mod scratch_runs;
 mod store;

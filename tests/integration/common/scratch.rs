@@ -1,15 +1,14 @@
-//! An empty receiver database of a test's own on the suite's PostgreSQL server: the receiver's migrations run
-//! once per test binary into a template database, and each test handed a copy of it, which the server makes in a
-//! fraction of the time a migration takes. A copy is dropped when its test is done, and the template and copies
-//! a binary left behind are dropped by the next binary to make a template.
+//! An empty receiver database of a test's own on the suite's PostgreSQL server, as a database of its own: the
+//! receiver's migrations run once per test binary into a template database, and each test handed a copy of it,
+//! which the server makes in a fraction of the time a migration takes. A copy is dropped when its test is done,
+//! and the template and copies a binary left behind are dropped by the next binary to make a template. The guard
+//! a test holds is `common::Scratch`.
 
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use bmo_receiver::store::migration::Migrator;
-use sea_orm::{
-  ConnectOptions, ConnectionTrait, Database as Connector, DatabaseConnection, DbBackend, Statement, Value,
-};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use sea_orm_migration::MigratorTrait;
 use sqlx::postgres::{PgConnectOptions, PgConnection};
 use sqlx::{Connection as _, Executor};
@@ -116,7 +115,7 @@ pub async fn connect(database: &str) -> DatabaseConnection {
 
   options.sqlx_logging(false).max_connections(4);
 
-  Connector::connect(options).await.unwrap()
+  Database::connect(options).await.unwrap()
 }
 
 // A new database's name, unique to this process.
@@ -162,76 +161,4 @@ pub fn drop_copy(database: String) {
     });
   })
   .join();
-}
-
-/// A database of the test's own, dropped when the guard goes.
-pub struct Database {
-  database: String,
-  db: DatabaseConnection,
-}
-
-impl Database {
-  /// A migrated, empty receiver database.
-  pub async fn new() -> Database {
-    Self::opened(copy().await).await
-  }
-
-  /// A database with nothing in it, for a test that runs the migrations itself.
-  pub async fn blank() -> Database {
-    Self::opened(blank().await).await
-  }
-
-  async fn opened(database: String) -> Database {
-    let db = connect(&database).await;
-
-    Database { database, db }
-  }
-
-  /// The database's address, as a reader handed one opens it.
-  pub fn address(&self) -> String {
-    address_of(&self.database)
-  }
-
-  pub fn db(&self) -> &DatabaseConnection {
-    &self.db
-  }
-
-  /// A statement run as written.
-  pub async fn run(&self, sql: &str, values: Vec<Value>) {
-    self
-      .db
-      .execute(Statement::from_sql_and_values(DbBackend::Postgres, sql, values))
-      .await
-      .unwrap();
-  }
-
-  /// The texts a statement answers in its first column, in its order.
-  pub async fn texts(&self, sql: &str) -> Vec<String> {
-    self
-      .db
-      .query_all(Statement::from_string(DbBackend::Postgres, sql))
-      .await
-      .unwrap()
-      .iter()
-      .map(|row| row.try_get_by_index::<String>(0).unwrap())
-      .collect()
-  }
-
-  /// A count a statement answers.
-  pub async fn count(&self, sql: &str, values: Vec<Value>) -> i64 {
-    let row = self
-      .db
-      .query_one(Statement::from_sql_and_values(DbBackend::Postgres, sql, values))
-      .await
-      .unwrap()
-      .unwrap();
-
-    row.try_get_by_index::<i64>(0).unwrap()
-  }
-}
-
-impl Drop for Database {
-  fn drop(&mut self) {
-    drop_copy(std::mem::take(&mut self.database));
-  }
 }

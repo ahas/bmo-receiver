@@ -7,7 +7,7 @@ use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
 use sea_orm_migration::MigratorTrait;
 
-use crate::common::scratch::Database;
+use crate::common::Scratch;
 
 // The tables of the schema, the migrator's own record among them.
 const SCHEMA_TABLES: &str = "SELECT table_name::text FROM information_schema.tables
@@ -25,7 +25,7 @@ fn sorted(mut names: Vec<String>) -> Vec<String> {
 
 #[tokio::test]
 async fn the_migrations_make_every_table_once_and_take_them_down_again() {
-  let database = Database::blank().await;
+  let database = Scratch::blank().await;
   let db = database.db();
   let made: Vec<String> = TABLES.iter().copied().chain([RECORD_TABLE]).map(str::to_owned).collect();
 
@@ -42,7 +42,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
 
 #[tokio::test]
 async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
-  let database = Database::new().await;
+  let database = Scratch::new().await;
 
   assert_eq!(
     database.texts(INDEXES).await,
@@ -100,7 +100,7 @@ async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
 
 #[tokio::test]
 async fn a_setting_is_set_read_taken_and_forgotten() {
-  let database = Database::new().await;
+  let database = Scratch::new().await;
   let db = database.db();
 
   assert_eq!(settings::get(db, "mode").await.unwrap(), None);
@@ -119,7 +119,7 @@ async fn a_setting_is_set_read_taken_and_forgotten() {
 
 #[tokio::test]
 async fn the_numbers_of_a_family_of_keys_are_read_in_order_and_its_prefix_matched_as_written() {
-  let database = Database::new().await;
+  let database = Scratch::new().await;
   let db = database.db();
 
   for key in ["mark_12", "mark_3", "mark_x", "markA9", "other_4"] {
@@ -136,14 +136,14 @@ static ONE_AT_A_TIME: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(())
 
 // A pool of one connection, so every statement of the test stands on the connection the first one
 // prepared on.
-async fn single(database: &Database) -> DatabaseConnection {
+async fn single(database: &Scratch) -> DatabaseConnection {
   pool::connect(&database.address(), pool::pool(1)).await.unwrap()
 }
 
 #[tokio::test]
 async fn a_statement_reading_every_column_survives_a_column_added_under_it() {
   let _turn = ONE_AT_A_TIME.lock().await;
-  let database = Database::new().await;
+  let database = Scratch::new().await;
   database.run("CREATE TABLE shape_probe (id BIGINT PRIMARY KEY)", vec![]).await;
   database.run("INSERT INTO shape_probe (id) VALUES (1)", vec![]).await;
   let db = single(&database).await;
@@ -170,7 +170,7 @@ async fn a_statement_reading_every_column_survives_a_column_added_under_it() {
 #[tokio::test]
 async fn a_transaction_that_met_the_old_plan_fails_alone() {
   let _turn = ONE_AT_A_TIME.lock().await;
-  let database = Database::new().await;
+  let database = Scratch::new().await;
   database.run("CREATE TABLE shape_probe (id BIGINT PRIMARY KEY)", vec![]).await;
   database.run("INSERT INTO shape_probe (id) VALUES (1)", vec![]).await;
   let db = single(&database).await;
