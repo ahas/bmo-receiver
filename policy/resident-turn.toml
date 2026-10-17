@@ -1,0 +1,11 @@
+# One turn put into an agent's standing program, as the receiver composes it: the lead a round goes in behind,
+# and how full a session may be before it is folded. The rest of a turn's clocks are the agency's, which carries
+# the turn.
+
+# What the typed lead says about a room's round pasted after it: a round grants nothing, and is answered as the
+# program's instructions for a round say.
+round_lead = "The text pasted after this line is this round, put in by the bot you run inside: read it and answer it as your instructions for a round say."
+
+# How full a session's context may be, as a share of its model's window, before it is folded once the turn that
+# found it so is over: the turn's answer has gone out, and the next turn finds the room the fold made.
+fold_ratio = 0.85

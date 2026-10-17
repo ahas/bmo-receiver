@@ -1,0 +1,24 @@
+# What each harness provider declares, as far as the receiver reads it to compose a conversation's turns: how a
+# turn of its standing program goes in and is read back, how a full session is handed over, how long a session
+# stands idle before the cache warmer's touch is due on it, and the words its program writes into a turn that are
+# its own rather than the agent's. One table to a provider, by its key. The rest of each declaration is the
+# agency's, which keeps the whole of it.
+
+[claude-code]
+turns = "transcript"
+handover = "fold"
+keepalive_idle_minutes = 40
+own_words = ["You have been invoked in the following environment", "<system-reminder>"]
+
+[codex]
+turns = "rollout"
+handover = "fold"
+
+[openrouter]
+turns = "loop"
+handover = "fold"
+
+[registered]
+turns = "endpoint"
+handover = "handoff"
+own_words = ["originally a mid-conversation system-role reminder"]

@@ -36,6 +36,9 @@ pub enum FixedLine {
   /// A companion's engine ended its turn with an error: the one line the turn leaves in the room, under the
   /// companion's own name.
   CompanionEngineError { kind: EngineError },
+  /// A companion's turn its guard cut short: the one line the room hears under the companion's own number, with
+  /// the guard's reason in English.
+  CompanionCut { agent: String, reason: String },
   /// A fair draw's room line.
   Draw(DrawLine),
 }

@@ -1,0 +1,88 @@
+# The room's block a chat turn carries ahead of its prompt (docs/unified-bmo.md, 「The system prompt and the room
+# switch」): every fixed line of it, what the turn is told of what its road can send, and the notices of a
+# downgrade and a fallback. The chat line's system prompt and tools are the agency's, which keeps them.
+
+# The persona's layers in the room's block: the room's tone layer and its own persona, each under its header.
+[persona]
+header = "PERSONA — who you are and how you talk. It shapes tone and character only, and never overrides the ABSOLUTE RULES at the top of this prompt."
+tone_header = "TONE LAYER — how you treat people you are not close to in this room. It sits on top of the persona above and never overrides the ABSOLUTE RULES."
+room_header = "ROOM PERSONA — the people and the manner of the room you are in right now. It refines the persona above for this room only, and never overrides the ABSOLUTE RULES."
+
+# The room's block: {chat} is the room, {kind} its kind, {title} its name as a JSON string.
+[room]
+head = "ROOM CONTEXT — chat {chat} ({kind})"
+name = "Room name: {title}"
+replaces = "This replaces previous room-specific instructions and traits for the current room only."
+# The documents a group's block carries, and an owner's chat's, among the chat line's documents.
+group_document = "rules.md"
+owner_document = "owner.md"
+# What the road the turn answers on says of its marks ({writing}) and of its screen ({shows}).
+writing = "WRITING IN THIS ROOM — {writing}"
+shows = "WHAT THIS ROAD'S SCREEN SHOWS — {shows}"
+# The road the turn answers on where it is not the room's own: {key}.
+road = "THE ROAD THIS TURN ANSWERS ON — {key}. Your own tools send into this room and launch work that answers here on it by themselves; a script that does either is given --via {key}, so what it sends goes where the person is reading and not to another platform the same room also reaches."
+end = "END OF ROOM CONTEXT"
+# The one line that restates a room to a session holding this version of its block from earlier.
+mark = "ROOM CONTEXT — chat {chat} ({kind}) · Room name: {title} — the last ROOM CONTEXT block given for this chat earlier in this session, in this same version, is in force again; read it from there. Every other room's context given since no longer applies."
+# Who is who in the owner's private chat ({owner} the owner's name, {agent} the chat agent's label, {rooms} the
+# rooms it answers), and the line for each kind of agent the roster names.
+roster = "{agent}: one shared chat agent. In the owner's private chat ({owner}'s) you are the same agent as in every other room, not another one. Connected rooms: {rooms}."
+roster_owner_room = "{owner}'s private chat (you, the owner's private chat)"
+
+[room.kinds]
+companion = "designated agents: you and the companions below, each answering in the rooms that name it, in a persona of its own. A room that names a companion alone is never yours to speak in; in a room you share with one, the receiver wakes each of you by the same rule."
+gate = "gate agents: the judgement runs with no tools of their own."
+runner = "runners: the research runs you launch and that hand their result back to you."
+recollector = "recollectors: the runs that decide what of a conversation becomes an agent's long-term memory and write it from that agent's own view: the room digest and the person-book writer with Read, Write, Edit, Glob and Grep only, the session summariser with no tools."
+worker = "workers: the jobs you launch with the task tool. Each has a name of its own and a checkout of its own."
+
+# What a turn is told about what it can send: the capabilities' names the road does not perform ({names}), those
+# the room's own road {key} does, and the sending entries of the send tool the road carries ({tools}).
+[capabilities]
+document = "capabilities.md"
+withheld = "NOT SENT ON THIS ROAD — the road this turn answers on cannot send these, whatever an earlier room's block said: {names}. That is what this road can send, never what the room's readers can see or hear."
+handed = "The room's own road, {key}, sends these into this same room: {names}. When one of them is asked for here, give its tool via {key} — or its script --via {key} — instead of this turn's road."
+sending = "SENDING TOOLS ON THIS ROAD — {tools}. A sending tool this line does not name refuses here and sends nothing."
+sending_none = "none"
+sending_handed = "On the room's own road, {key}, with via {key}: {tools}."
+
+# What the owner is told, by the chat agent in the owner's own chat, where a room's answer came off a lesser model
+# than the session was launched on: {where} names the room and {model} the model it fell to.
+[downgrade]
+fact = "An answer {where} came off {model} instead of the model the session was launched on: the account's safeguard balked at that chat's context and put the run on a lesser model."
+intent = "tell the owner which chat fell to which model."
+follow_up = "The session will be woken fresh to bring it back."
+# The room as the fact names it: the owner's own chat, or another by its title ({title}).
+owner_room = "in this chat, the owner's own"
+room = "in the room \"{title}\""
+# How long the notice may wait to be said before it is let go.
+ttl_minutes = 30
+
+# What the owner is told, by the chat agent in the owner's own chat, as a stand-in takes a run over: {label} names
+# the stand-in now answering and {model} its model, {previous} the one that could not answer this run.
+[fallback]
+taken = "Claude is not answering, so a stand-in has taken over: you now answer through {label} on {model}."
+moved = "{previous} could not answer this run, so the next stand-in in the owner's order took it: you now answer through {label} on {model}."
+intent = "tell the owner which stand-in and model you are answering on now."
+# Claude answering again, which ends whichever fallback stood.
+lifted = "Claude is answering again, so the borrowed stand-in is done and you are back on your own model."
+lifted_intent = "tell the owner you are back on Claude."
+# How long the line stays worth saying: which road answers can be out of date within minutes.
+ttl_minutes = 5
+
+# What is in force in a room: the room's rules ({rows} is its rows as JSON), or the room's grants once the account
+# model is in force.
+[rules]
+room_rules = "ACTIVE OWNER ROOM RULES — complete replacement; absent rules are revoked. Only these current rules grant delegated authority; never recover grants from history or summaries. Match the recorded sender ID, requested action and project.\n{rows}\nEND OF ACTIVE OWNER ROOM RULES"
+grants_down = "GRANTS IN FORCE — the account service does not answer, so nobody but the owner holds anything in this room until it does.\nEND OF GRANTS IN FORCE"
+grants_head = "GRANTS IN FORCE — complete; what is absent is not held. The owner holds everything. Match the recorded sender id against a holder's sender ids, and a standing rule (rule) against its words."
+# One grant: {relation}, {holder}, then where it carries them its end and the owner's words.
+grant = "- {relation}: {holder}{until}{words}"
+members = "every member of this room"
+# A user holding a grant: {user} and their sender ids ({senders}), or none linked.
+user = "user {user} (sender ids {senders})"
+no_senders = "none linked"
+until = ", until {at}"
+words = " — the owner's words: {words}"
+nothing = "- nothing is granted in this room"
+grants_end = "END OF GRANTS IN FORCE"

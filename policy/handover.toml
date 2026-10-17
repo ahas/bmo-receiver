@@ -1,0 +1,43 @@
+# What passes from a room's closed session to the one that replaces it (docs/unified-bmo.md, 「Replacing the
+# session」): how much of the old conversation a transcript keeps, how the room's words are told apart from the
+# scaffolding around them, and the note the new session's first turn opens with. The summariser and its note are
+# the brain's; a job worker's notes are the agency's.
+
+# How much of an old conversation a transcript keeps, in UTF-16 units: the tail is what a session is in the middle
+# of.
+transcript_tail_chars = 40000
+
+# What a room's own speaker is named in a transcript, beside the agent's own name.
+room_speaker = "room"
+
+# The lines a transcript is written in: a room's opening, {chat}, and an answer of an agent's, {agent} in the room
+# {chat} saying {text}.
+[transcript]
+room = "room {chat}:"
+answer = "{agent} (room {chat}): {text}"
+
+# The two blocks of a round's prompt that are the conversation, by the line each opens on and the line it closes
+# on; everything around them is scaffolding the receiver wrote.
+[[conversation]]
+open = "New messages ("
+close = "END OF NEW MESSAGES"
+
+[[conversation]]
+open = "Quiet instruction from the system ("
+close = "END OF QUIET INSTRUCTION"
+
+# The notes a room's session is handed: the summary under its heading, or the word that nothing was recovered.
+[chat]
+carried = [
+  "Quiet instruction from the system: your previous session was closed and this is a new one.",
+  "Below is what that session was in the middle of, written by another agent that read its record. Take it as your own memory of this room's recent conversation. It is a summary, so it is thinner than what you would remember — where it is silent, you simply do not recall, and you say so plainly rather than inventing.",
+  "Who the people here are does not come from this: that reaches you through the reference material attached to each round, as always.",
+  "Nothing about this needs saying in the room: output exactly <<SKIP>>.",
+  "",
+  "WHAT YOU WERE IN THE MIDDLE OF:",
+]
+lost = [
+  "Quiet instruction from the system: your previous session was closed and this is a new one.",
+  "What that session was in the middle of could not be recovered, so you remember none of this room's recent conversation. If someone refers to something you cannot place, say plainly that you have lost the thread and ask.",
+  "Nothing about this needs saying in the room: output exactly <<SKIP>>.",
+]

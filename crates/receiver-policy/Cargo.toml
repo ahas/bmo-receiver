@@ -1,0 +1,10 @@
+[package]
+name = "receiver-policy"
+description = "The receiver's policy: its fixed numbers and words, read from the TOML files under the repository's policy/."
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+toml.workspace = true

@@ -1,0 +1,9 @@
+# The files the owner attaches from the console (docs/receiver.md, 「The owner's words」).
+
+# The largest one file may be, in bytes. Each file is held whole in memory on the way from the
+# browser to where it goes, so the ceiling is what a hop like that can carry rather
+# than what a platform would take.
+largest_bytes = 52428800
+
+# The name a file goes by where the browser sent it with none.
+unnamed = "attachment"

@@ -1,0 +1,23 @@
+# The lines a turn runs on, as far as the receiver reads them (docs/bmo-window.md, 「A line typed into the
+# program」): whether a line's turns follow one another on one session, and whether a line a person types into the
+# line's standing program is handed the composition a turn the receiver puts in would carry. What each line needs
+# of its program, its capabilities and the tools it is shown are the agency's, which keeps the whole of this file.
+
+[chat]
+keeps_session = true
+composes_typed_lines = true
+
+[gate]
+keeps_session = false
+
+[worker]
+keeps_session = true
+
+[search]
+keeps_session = false
+
+[browse]
+keeps_session = false
+
+[editor]
+keeps_session = false

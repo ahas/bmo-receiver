@@ -189,6 +189,7 @@ a chat. Its words in the room's language are rendered by the web unit's language
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
 | `companion-engine-error` (a companion's engine ended its turn with an error) | The companion's session is the one that failed; the line stands under the companion's own name. |
+| `companion-cut` (a companion's turn its guard cut short) | The companion's session is the one that was cut; the next turn opens a new one. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
 | A job's question to the owner, and the job's answers when the owner talks it over | A numbered form the owner answers by number; its options, and what the job says about them, reach the owner exactly as the job wrote them. bmo-job sends them. |
 | Pass-through content (search, browse and say results) | An agent, or whoever set it, already wrote it. |

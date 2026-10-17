@@ -158,6 +158,7 @@ family. No code carries a sentence in a room's language.
 | `going-down-for-update` | `items` | the service stops for a deployment: a system notice |
 | `going-down` | | the service restarts with no deployment behind it: a system notice |
 | `companion-engine-error` | `kind` (an `EngineError`) | a companion's engine ended its turn with an error |
+| `companion-cut` | `agent`, `reason` | a companion's turn its guard cut short; the next turn opens a new session |
 | `draw` | `label`, `asked`, `result`, `number`, `seed`, `method`, `answered`, `next` | a fair draw's room line (`docs/random-draw.md`) |
 
 ## Kinds

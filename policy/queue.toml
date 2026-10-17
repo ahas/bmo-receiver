@@ -1,0 +1,7 @@
+# What the receiver holds of a job's question as the owner answers it from a room or the console (docs/rooms.md).
+# The queue's own limits are bmo-job's.
+
+# How long the owner may hold a job's question clock stopped from the console, in seconds. A minute is short for
+# reading while the owner is there; a stop still ends, because a job standing still holds its checkout's lock and
+# everything queued on that checkout waits behind it. One line of talk over a question holds its clock as long.
+question_stop_seconds = 1800

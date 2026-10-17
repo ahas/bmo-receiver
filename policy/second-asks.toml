@@ -1,0 +1,69 @@
+# The checks a chat answer passes before it goes out, and the errands a second asking sends the same session
+# (docs/answer-checks.md): the words each check reads an answer or the owner's words by, which are words of the
+# room's language and so data, and every line it says. `{name}` marks what each line carries.
+
+# The lines every second asking closes on, after its errand and the turn's scope: the messages waiting for
+# the next turn, and that they are not acted on now.
+next_turn = "NEXT TURN MESSAGE IDS: "
+later = "Later messages will be delivered in the next turn; do not act on them now."
+
+# The errands, one to a check.
+[errands]
+# A turn that carried {count} of the owner's own messages and answered with silence.
+owed = "Your answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. This turn carried {count} message(s) from the owner, in the owner's own private chat, which is always answered. Write this turn's answer to the owner now. <<SKIP>> and <<WAIT>> are not available."
+# What came out in the machine's language: {what} names what is written again.
+language = "What you wrote for {what} came out in English. English is the language the system lines, the quiet instructions and their results are written in; it is not this room's language, and nothing went out. Write {what} again, in Korean, as this room is always answered. Say the same thing; only the language changes. <<SKIP>> and <<WAIT>> are not available."
+# What the language errand names where the caller names no other part.
+answer = "this turn's answer"
+# An answer using banned words: {terms} is each term beside what to write.
+wording = "What you wrote for this turn's answer uses words the owner has banned as purified coinages (the wording document): {terms}. Nothing went out. Write this turn's answer again with each of them replaced, choosing among the words given by what the sentence means and fixing the particle after it. Say the same thing; only those words change. <<SKIP>> and <<WAIT>> are not available."
+# A promise with nothing recorded: the rule, then the form for a turn with its tools off or on.
+record = "Your answer promises something about what you will do from now on, and nothing went out: this turn wrote nothing down, and a promise kept only in this session is gone the moment the session is replaced. A promise to behave a certain way only for this session is not allowed either. "
+record_off = "Tools are off for this turn, so nothing can be recorded: write this turn's answer again without the promise. Say the same thing otherwise. <<SKIP>> and <<WAIT>> are not available."
+record_on = "Record it now, in this run, with your own tools: a way of working or a standard as a note (note_add), something to do later as a memory (memory_add, type promise, check or followup), what you are to do whenever a situation comes back as a situation memory (memory_add, type situation), a change to code or to a manual as a TODO row (todo_add, or todo_append onto the row that already stands). Then write this turn's answer again. Where it went to a note or a TODO row, say so (방 메모, 항목 #번호). Where it went to your memories and nowhere else, say nothing at all about where it went: your memories are quiet in every room, so make the promise and stop. Where the sentence was not a promise about the future at all, only something done in this very turn, write the same answer again unchanged. <<SKIP>> and <<WAIT>> are not available."
+# A promise to act once something happens with nothing set to wake: the rule, then the form for a turn
+# with its tools off or on; {chat} is the room.
+wake = "Your answer promises to act once something has happened (「끝나면 …할게」, 「… 뒤에 올릴게」) and nothing went out: this turn set nothing that wakes you when it happens, and nothing wakes you by itself, so the promise would be kept by nobody. "
+wake_off = "Tools are off for this turn, so nothing can be set: write this turn's answer again without the promise. Say the same thing otherwise. <<SKIP>> and <<WAIT>> are not available."
+wake_on = "Set it now, in this run. Where what you wait for is a deployment, a job's end or the queue changing, write the promise as a memory waiting on that event: memory_add with chat {chat}, type promise, action '<무엇을, 누구에게>' and on <deployed[:<항목>]|job-ended[:<항목>]|queue-changed>. Anything else (a unit on another machine ending, a file or a result appearing) takes a check that comes true when it happens, set with the memory in one call: memory_add with chat {chat}, type promise, action '<무엇을, 누구에게>', until '<check>' and name '<짧은 이름>'. Then write this turn's answer again, saying nothing about how you will be woken. Where the sentence was not such a promise at all, write the same answer again unchanged. <<SKIP>> and <<WAIT>> are not available."
+# The owner set what is done from a situation on and the turn filed no rule; {chat} is the room.
+rule = "The owner has just set what you are to do from a situation on (「다음부터는 …」, 「앞으로 … 할 때는」, 「그거 시키면 이렇게 해」) and this turn filed no situation rule. A rule kept only in this session is gone the moment the session is replaced, and the next time that situation comes it will not be there. File it now, in this run: memory_add with chat {chat}, type situation, condition '<언제>' and action '<무엇을>', with by and message naming who said it and where. The condition is the half a later situation is judged against, so write it as the situation rather than as this one turn; the action is what you are to do then. A rule that takes the place of one already standing is filed with replaces, and slug '<이름>' gives it a name of its own. A rule tied to no room at all is filed with global instead of chat, and then it names no room, nobody and no id. Then write this turn's answer again, saying the rule was filed. Where what the owner said was not a rule for later at all, only a request for this once, write the same answer again unchanged. <<SKIP>> and <<WAIT>> are not available."
+
+# The words a sentence is read by, each a regular expression both sides compile as it stands. A pattern
+# said to be followed by no syllable is matched only where no Korean syllable comes right after it, which
+# each side adds in its own way.
+[reading]
+# The syllables a sentence of an answer ends on where white space follows them, beside the marks that end
+# one wherever they stand.
+closings = "요다"
+# Words that put an action into time to come: from now on, next time, every time, for this session.
+later = '(앞으로|다음부터|다음번|다음에도|이제부터|이제는|지금부터|향후|매번|이번 세션)'
+# Keeping something in mind, which is a promise however it is phrased.
+remember = '(기억|명심|유념|새겨|메모|적어 ?두|잊지 ?않)'
+# Something that has to happen first: a job, a unit on another machine, a deployment, a result.
+awaiting = '(끝나|마치|완료되|나오|올라가|배포되|돌아오|들어오|도착하|떨어지)(면|는\s?대로)|(끝난|마친|완료된|나온|올라간|배포된|돌아온|들어온|도착한)\s?(뒤|후|다음)|끝나고|배포\s?(뒤|후)|결과(가|를)?\s?(오면|받으면|나오면)'
+# A condition standing in a sentence.
+condition = '(시키면|하라고\s?하면|라고\s?하면|물어보면|말하면|때는|때에는|경우에는|끝나면|되면)'
+# A manner pointed at rather than spelt out, which makes a condition a standing rule and not an errand.
+manner = '(이렇게|이런\s?식으로|이런\s?식으론|그렇게|그런\s?식으로)'
+# The first person's volition in its formal endings, followed by no syllable.
+volition = '겠(?:습니다|어요|어)'
+# The first person's volition after a syllable, followed by no syllable: it counts where that syllable
+# closes on the final consonant numbered `pledge_final` (ㄹ), which is how every verb says it.
+pledge = '([가-힣])[게께]요?'
+pledge_final = 8
+# Somebody told to do something, politely or not, followed by no syllable.
+told = '(하라|하세요|하십시오|하도록|해야\s?(돼|된다|해|한다|합니다)|지\s?(마|말아))'
+# The imperative that closes the sentence it stands in.
+told_closing = '[가-힣]라[.!。]?$'
+# A request made of somebody, which may stand mid-sentence, followed by no syllable: it counts where the
+# syllable before it closes on an imperative vowel.
+request = '([가-힣])\s?(줘|주라|주세요|줄래)'
+# The vowels, by their number in a syllable, an imperative closes on with no final consonant.
+imperative_vowels = [0, 1, 4, 5, 6, 9, 14]
+
+# When an answer reads as the machine's language in a room that speaks Korean: the fewest English words
+# its prose must run to before it is judged, and the share of Korean words below which it reads as English.
+[language]
+judged_from = 4
+korean_share = 0.25

@@ -1,0 +1,33 @@
+# The back notice a restart leaves the owner's session (docs/voiced-notices.md, 「What each path says」), queued by
+# the receiver as it starts; `{name}` marks what each line carries.
+
+# How long a deployment's record of why it restarts speaks for a stop, in minutes: one older belongs to a
+# deployment that never restarted.
+fresh_minutes = 15
+# How long the restart's lines wait for the deployment's outcome fact, which opens the one turn they go in, in
+# minutes.
+ride_minutes = 3
+# What the notice's row is kept as, and how long a back line not yet spoken still stands, in minutes.
+kind = "restart-back"
+ttl_minutes = 30
+
+# A restart no deployment announced.
+[unannounced]
+fact = "The bot has just started again after a restart that no deployment announced."
+intent = "tell the owner you are back."
+follow_up = "Nobody said why it restarted; do not guess a reason."
+
+# A deployment's restart: the back line, why it went live ({purpose}) or that nobody said, its {commit}, and the
+# job it ran inside where it did — its TODO item ({item}, its {title} where it has one) or none.
+[deployed]
+back = "The bot is back up after the deployment."
+purpose = "Why it goes live now, as the deployer put it: {purpose}"
+no_purpose = "The deployer gave no reason for it."
+commit = "Commit: {commit}."
+item = "the job for TODO #{item}"
+titled_item = "the job for TODO #{item} \"{title}\""
+no_item = "a job with no TODO item"
+job = "The deployment was run by {job}, which is still at work and will send its own report when it ends."
+intent = "tell the owner you are back, in the light of why this went live."
+job_follow_up = "The job is not done yet. Do not summarise the work, do not say what changed, and do not call it finished: the job's own report is the one account of it."
+follow_up = "Do not describe the change beyond its reason."

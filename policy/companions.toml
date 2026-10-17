@@ -1,0 +1,9 @@
+# A companion added on the console with a room of its own (docs/boundary-api.md, 「Companions with a room of their
+# own」): what it may be named and the mark a screen puts beside it. The companions' settings are the agency's.
+
+# What a companion added on the console may be named, its agent name and its room's key: a lowercase letter,
+# then lowercase letters, digits and hyphens, forty characters at most.
+name_pattern = '^[a-z][a-z0-9-]{0,39}$'
+
+# The mark a screen puts beside a companion added on the console.
+added_icon = "i-material-symbols-face-outline"

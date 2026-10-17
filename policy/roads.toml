@@ -1,0 +1,36 @@
+# The receiver's own road and the marks it reads (docs/unified-bmo.md, 「Console conversation in the private
+# chat」): the room's own record, which no chat service carries, its dialect, and the marks a picture and a voice
+# are kept under. What each chat service's road sends, reads and says is that service's own declaration.
+
+# The room's own record: what an agent says in a room that nobody asked for on a road of its own, kept as the
+# room's and carried by no road, where a road reaching the room shows its whole line. The key a turn and a send
+# name it by, its label, what it keeps (the chat verbs a turn answering into it performs) and what a turn
+# answering into it is told of who reads it.
+[record]
+key = "record"
+label = "the room's record"
+can = ["text", "replyTo", "photo", "album", "document", "audio", "voice"]
+shows = "What you say in this turn is kept in the room's own record, which no road carries to a platform: every screen that reads the room shows it — a voice message, a voice briefing or a sound file in its own player, any other file with its download, a picture as itself — and a road that carries only what is sent on it does not. Never tell the reader that something the record keeps cannot be seen or heard."
+# What a document, a voice and an audio file an agent sent into the record are kept as, the same words a chat
+# service keeps a received one under: {name} is the file's name, {said} what a voice said, and the caption the
+# room read under it, where it differs from that, follows as caption_kept with {caption}.
+document_kept = "[파일 {name}]"
+voice_kept = "[음성] {said}"
+caption_kept = "\n\n캡션: {caption}"
+audio_kept = "[오디오 {name}]"
+# What a kept copy of a voice and of an audio file an agent made are filed under, marking them the agent's own
+# rather than something a room attached.
+voice_source = "agent:voice"
+audio_source = "agent:audio"
+
+# The record's dialect: the longest one message holds, in characters (a longer answer goes out as consecutive
+# messages, cut at its own markdown's seams), and what a writer is told its marks become.
+[record.dialect]
+text_limit = 4096
+writing = "This room shows your markdown as you wrote it: the marks stand as marks, and nothing converts or escapes them."
+
+# The marks the receiver matches on: what a chat service keeps a picture and a voice under where no caption says
+# them, read to find a picture's row to repair and a voice line.
+[marks]
+picture = "[사진]"
+voice = "[음성]"

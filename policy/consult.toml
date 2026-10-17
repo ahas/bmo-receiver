@@ -1,0 +1,44 @@
+# What an agent is shown to see another agent's work (docs/consult.md, 「What an agent is shown」): each agent's
+# window in a room more than one agent answers, and with a notice of the queue, the other agents' work and the
+# consult room; and what a line said in the consult room answers its agent with. `{name}` marks what each line
+# carries.
+
+# How many of the other agents' items the block lists before it counts the rest.
+shown_items = 30
+
+# The setting the consult room's number is kept under.
+room_setting = "consult_room"
+
+# What a companion's line in the consult room is to the outgoing sanitiser, by the agent's {name}.
+sanitised = "a line the agent {name} is about to say in the consult room"
+
+# What `POST /consult/say` answers its agent with: the line was said in {room} under {name}'s own name, with the
+# number of the message it went out as where the road gave one ({number}, from `number` with its {id}).
+said = "Said in {room} under the name of {name}{number}."
+number = " (message {id})"
+
+# One agent's window as a line: open with its time left, or closed.
+[windows]
+heading = "Agents' windows in this room now:"
+you = "{label} (you)"
+open = "- {who}: open, {left} left{hears}"
+hears = "; it hears you without its name"
+closed = "- {who}: closed{keeps}{call}"
+keeps_none = " (keeps no window)"
+call = "; call it by name to wake it"
+minutes = "{minutes}m {seconds}s"
+seconds = "{seconds}s"
+
+# The other agents' work, and the consult room.
+[work]
+heading = "Other agents' work, read only: check your own items against it."
+nothing = "- nothing open"
+item = "- #{id} {owner} · {approval} · {status} · {title}"
+approved = "approved"
+awaiting = "awaiting approval"
+more = "- and {count} more (todo_list)"
+room = "Consult room: {room}. Windows there now:"
+room_titled = "{title} (chat {chat})"
+room_bare = "chat {chat}"
+settle = "Where an item of yours overlaps one of these, settle it with its agent there with the consult tool, as the rulebook on other agents' words says."
+closing = "END OF OTHER AGENTS' WORK"
