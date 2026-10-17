@@ -45,6 +45,7 @@ pub mod owner_sends;
 pub mod room_grants;
 pub mod room_removal;
 pub mod sends;
+pub mod settings;
 pub mod talk;
 pub mod voice;
 
@@ -57,6 +58,7 @@ pub use owner_sends::{FileUnsent, OwnerSendRefusal};
 pub use room_grants::RoomGrantRefusal;
 pub use room_removal::{RoomRemovalRefusal, RoomRemovalWarning};
 pub use sends::SendRefusal;
+pub use settings::SettingFact;
 pub use talk::TalkRefusal;
 pub use voice::{VoiceFact, VoiceRefusal};
 
@@ -126,6 +128,7 @@ pub enum Fact {
   Companion(CompanionFact),
   Health(HealthFact),
   Voice(VoiceFact),
+  Setting(SettingFact),
 }
 
 impl Fact {
@@ -134,6 +137,7 @@ impl Fact {
       Self::Companion(fact) => fact,
       Self::Health(fact) => fact,
       Self::Voice(fact) => fact,
+      Self::Setting(fact) => fact,
     }
   }
 }
@@ -150,6 +154,7 @@ impl Display for Fact {
       Self::Companion(fact) => fact.fmt(f),
       Self::Health(fact) => fact.fmt(f),
       Self::Voice(fact) => fact.fmt(f),
+      Self::Setting(fact) => fact.fmt(f),
     }
   }
 }

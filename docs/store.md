@@ -54,6 +54,7 @@ An instruction names the agent whose session takes it outright: the table holds 
 | `provider_users` | a person a chat service numbered: their own user id and the number | chat service and user id; one per number |
 | `provider_private_rooms` | a room a chat service says is one person's one-to-one with the agent | chat service and room |
 | `provider_owner_users` | a user id of a chat service that is the owner in a room | chat service, room and user id |
+| `message_number_marks` | the lowest number the room's own record has handed out, so a number whose message left the record is never handed out again (`docs/unified-bmo.md`) | room |
 
 ## The settings
 

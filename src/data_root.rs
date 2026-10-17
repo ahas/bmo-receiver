@@ -4,6 +4,42 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+use crate::room_record::{Facing, Found, RoomHolding};
+
+// Each store's folder for a room, where it stands, declared as the room's so its removal takes it.
+fn collected_of<'a>(facing: &'a Facing<'a>) -> Found<'a> {
+  Box::pin(async move { Ok(room_folder(&facing.receiver.data_root().collected(), facing.room)) })
+}
+
+fn images_of<'a>(facing: &'a Facing<'a>) -> Found<'a> {
+  Box::pin(async move { Ok(room_folder(&facing.receiver.data_root().images(), facing.room)) })
+}
+
+fn outbox_of<'a>(facing: &'a Facing<'a>) -> Found<'a> {
+  Box::pin(async move { Ok(room_folder(&facing.receiver.data_root().outboxes(), facing.room)) })
+}
+
+crate::room_holding!(RoomHolding::Folder {
+  what: "the files the room's messages carried",
+  of: collected_of,
+  removes: None,
+  named: false,
+});
+
+crate::room_holding!(RoomHolding::Folder {
+  what: "the pictures read off the room's messages",
+  of: images_of,
+  removes: None,
+  named: false,
+});
+
+crate::room_holding!(RoomHolding::Folder {
+  what: "the files an agent made for the room",
+  of: outbox_of,
+  removes: None,
+  named: false,
+});
+
 /// The data root the configuration names, and the stores under it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DataRoot {

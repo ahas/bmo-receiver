@@ -1,0 +1,268 @@
+//! The roads a room may be answered on (docs/receiver.md, 「The one hard rule」 and 「Identity, and reaching the
+//! owner」): each chat service the configuration lists, reached through bmo-chat-client, and the room's own record.
+//! Which service a room is on, whether it is the owner's private chat, who the agent is there and whose one-to-one
+//! it is are each that service's answer; what differs between services is read from what each declares. Nothing
+//! here compares a road's key to a literal.
+
+pub mod declared;
+pub mod record;
+
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+
+use bmo_chat_client::{ChatDeclaration, RoomKind};
+use receiver_policy::roads::ROADS;
+use receiver_ports::chat::{Chat, ChatServices};
+
+pub use declared::Facts;
+
+use crate::receiver::Room;
+use crate::room_record::{Facing, RoomHolding, Says};
+use receiver_codes::{RoomRemovalRefusal, RoomRemovalWarning};
+
+// The administrator's own private chat on any road, where reports and questions reach the administrator.
+fn owner_refusal<'a>(facing: &'a Facing<'a>) -> Says<'a, RoomRemovalRefusal> {
+  Box::pin(async move {
+    let owner = facing.receiver.roads().is_owner_room(facing.room).await;
+
+    Ok(owner.then_some(RoomRemovalRefusal::OwnersChat))
+  })
+}
+
+crate::room_holding!(RoomHolding::Refuses {
+  what: "the administrator's own private chat",
+  refuses: owner_refusal,
+});
+
+// A room a chat service still holds, where a later message would register it anew.
+fn reachable<'a>(facing: &'a Facing<'a>) -> Says<'a, RoomRemovalWarning> {
+  Box::pin(async move {
+    let roads = facing.receiver.roads();
+    let Some(key) = roads.room_road(facing.room).await else { return Ok(None) };
+    let road = roads.facts(&Road::Service(key)).await.label;
+
+    Ok(Some(RoomRemovalWarning::Road { road }))
+  })
+}
+
+crate::room_holding!(RoomHolding::Warns {
+  what: "a road that can still reach the room",
+  warns: reachable,
+});
+
+/// A road a line goes out on: the room's own record, or a chat service by its key.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Road {
+  Record,
+  Service(String),
+}
+
+impl Road {
+  /// The road's key, as a message and a turn name it.
+  pub fn key(&self) -> &str {
+    match self {
+      Self::Record => &ROADS.record.key,
+      Self::Service(key) => key,
+    }
+  }
+}
+
+/// The chat services and what each has declared, read once and kept.
+#[derive(Clone, Default)]
+pub struct Roads {
+  chats: ChatServices,
+  declared: Arc<Mutex<BTreeMap<String, ChatDeclaration>>>,
+}
+
+// A chat service's answer that did not come is said once and read as no answer, so one service that does not
+// answer never stops a room another service holds.
+fn heard<T>(road: &str, asked: &str, answer: Result<T, impl std::fmt::Display>) -> Option<T> {
+  answer
+    .map_err(|why| eprintln!("bmo-receiver: the {road} road did not answer {asked}: {why}"))
+    .ok()
+}
+
+impl Roads {
+  pub fn new(chats: ChatServices) -> Self {
+    Self {
+      chats,
+      declared: Arc::default(),
+    }
+  }
+
+  pub fn chats(&self) -> &ChatServices {
+    &self.chats
+  }
+
+  fn service(&self, key: &str) -> Option<&Arc<dyn Chat>> {
+    self.chats.road(key)
+  }
+
+  /// What a chat service declares of itself, asked once and kept; none where it is not listed or does not answer.
+  pub async fn declaration(&self, key: &str) -> Option<ChatDeclaration> {
+    if let Some(declared) = self.declared.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).get(key) {
+      return Some(declared.clone());
+    }
+
+    let declared = heard(key, "its declaration", self.service(key)?.declaration().await)?;
+
+    self
+      .declared
+      .lock()
+      .unwrap_or_else(|poisoned| poisoned.into_inner())
+      .insert(key.to_owned(), declared.clone());
+
+    Some(declared)
+  }
+
+  /// What a road declares; a chat service that has declared nothing is named by its key alone and performs nothing.
+  pub async fn facts(&self, road: &Road) -> Facts {
+    match road {
+      Road::Record => Facts::record(),
+      Road::Service(key) => match self.declaration(key).await {
+        Some(declared) => Facts::of(&declared),
+        None => Facts {
+          key: key.clone(),
+          label: key.clone(),
+          can: vec![],
+          unpinned: vec![],
+          writing: String::new(),
+          shows: None,
+          speakers: false,
+        },
+      },
+    }
+  }
+
+  /// The chat service a room is on: the first that says the room is its own.
+  pub async fn room_road(&self, chat_id: i64) -> Option<String> {
+    for key in self.chats.names() {
+      let Some(service) = self.service(key) else { continue };
+
+      if heard(key, "whether it holds the room", service.room_owns(chat_id).await) == Some(true) {
+        return Some(key.to_owned());
+      }
+    }
+
+    None
+  }
+
+  /// What the road a room is on says of it: whether it is the owner's private chat, who the agent is there, and
+  /// whose one-to-one with the agent it is; nothing where no road holds the room.
+  pub async fn room_facts(&self, chat_id: i64) -> Room {
+    let Some(key) = self.room_road(chat_id).await else { return Room::default() };
+    let Some(service) = self.service(&key) else { return Room::default() };
+
+    Room {
+      owner_room: heard(&key, "the room's kind", service.room_kind(chat_id).await) == Some(RoomKind::Owner),
+      identity: heard(&key, "who the agent is in the room", service.room_identity(chat_id).await).flatten(),
+      private_to: heard(&key, "whose one-to-one the room is", service.room_private_of(chat_id).await)
+        .flatten(),
+    }
+  }
+
+  /// Whether a room is the owner's private chat, as the road it is on says.
+  pub async fn is_owner_room(&self, chat_id: i64) -> bool {
+    self.room_facts(chat_id).await.owner_room
+  }
+
+  /// Who the agent is in a room: the number its words there are filed under, as the room's road says.
+  pub async fn identity_in(&self, chat_id: i64) -> Option<i64> {
+    self.room_facts(chat_id).await.identity
+  }
+
+  // Whether a chat service reaches a room: one of its own, or the owner's room it reaches beyond its own rooms.
+  async fn reaches(&self, key: &str, chat_id: i64) -> bool {
+    let Some(service) = self.service(key) else { return false };
+
+    heard(key, "whether it holds the room", service.room_owns(chat_id).await) == Some(true)
+      || heard(key, "the owner's room", service.owner_room().await).flatten() == Some(chat_id)
+  }
+
+  /// Whether the record is where a line nobody asked for goes in a room: a road reaching the room shows its whole
+  /// line, so whatever the record keeps is read there. Where none does, the room's own road carries it.
+  pub async fn shown(&self, chat_id: i64) -> bool {
+    for key in self.chats.names() {
+      let shows = self.declaration(key).await.is_some_and(|declared| declared.shows.is_some());
+
+      if shows && self.reaches(key, chat_id).await {
+        return true;
+      }
+    }
+
+    false
+  }
+
+  /// Where a line nobody asked for goes in a room — a turn opened by the bot's lines alone, a line the service says
+  /// itself, a send that names no road: the room's record where a road reaching the room shows it, the room's own
+  /// road everywhere else, and none where no road holds the room.
+  pub async fn unasked(&self, chat_id: i64) -> Option<Road> {
+    if self.shown(chat_id).await {
+      return Some(Road::Record);
+    }
+
+    self.room_road(chat_id).await.map(Road::Service)
+  }
+
+  /// The road a turn in a room answers on, given the road it was asked on: that road where it is the room's own or
+  /// reaches the room, and the room's own road everywhere else.
+  pub async fn answering(&self, chat_id: i64, via: Option<&str>) -> Option<Road> {
+    let own = self.room_road(chat_id).await.map(Road::Service);
+    let Some(via) = via else { return own };
+
+    if via == ROADS.record.key {
+      return if self.shown(chat_id).await { Some(Road::Record) } else { own };
+    }
+
+    if own.as_ref().is_some_and(|own| own.key() == via) || self.reaches(via, chat_id).await {
+      return Some(Road::Service(via.to_owned()));
+    }
+
+    own
+  }
+
+  /// The road a send goes out on in a room, given the road its caller named: the one `answering` chooses for a road
+  /// named, and the unasked road where none is.
+  pub async fn sending(&self, chat_id: i64, via: Option<&str>) -> Option<Road> {
+    match via {
+      Some(via) => self.answering(chat_id, Some(via)).await,
+      None => self.unasked(chat_id).await,
+    }
+  }
+
+  /// The road a turn answers on, given the roads its messages came in on and those its instructions were asked on:
+  /// the one every word came in on, the room's own where they came in on more than one; for a turn of instructions
+  /// alone, the road they were asked on where they agree, and otherwise — a turn opened by the bot's lines alone —
+  /// the unasked road, whichever road the owner last spoke on.
+  pub async fn turn_road(&self, chat_id: i64, came: &[&str], asked: &[&str]) -> Option<Road> {
+    let (came, asked) = (distinct(came), distinct(asked));
+
+    match (came.as_slice(), asked.as_slice()) {
+      ([_, _, ..], _) => self.room_road(chat_id).await.map(Road::Service),
+      ([one], _) | ([], [one]) => self.answering(chat_id, Some(one)).await,
+      _ => self.unasked(chat_id).await,
+    }
+  }
+
+  /// Whether an answer can be pinned to a message that came in on a road by one of its read modes. A road that
+  /// declares nothing, or a message that names no mode, can be answered where it stands.
+  pub async fn pinnable(&self, via: &str, mode: Option<&str>) -> bool {
+    let Some(mode) = mode else { return true };
+
+    !self
+      .facts(&Road::Service(via.to_owned()))
+      .await
+      .unpinned
+      .iter()
+      .any(|unpinned| unpinned == mode)
+  }
+}
+
+// Each road named once.
+fn distinct<'a>(roads: &[&'a str]) -> Vec<&'a str> {
+  let mut roads = roads.to_vec();
+
+  roads.sort_unstable();
+  roads.dedup();
+  roads
+}

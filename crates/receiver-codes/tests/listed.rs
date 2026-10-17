@@ -10,8 +10,8 @@ use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
   Code, CompanionFact, CompanionRefusal, ConsultRefusal, EngineError, Fact, FileUnsent, FixedLine,
   HealthFact, OwnerSendRefusal, ReceiverError, Refused, RoomGrantRefusal, RoomRemovalRefusal,
-  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SkipReason, TalkRefusal, TurnOpening,
-  VoiceFact, VoiceRefusal,
+  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason, TalkRefusal,
+  TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -39,6 +39,7 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("CompanionRefusal", Codes, CompanionRefusal::VARIANTS),
     ("HealthFact", Codes, HealthFact::VARIANTS),
     ("VoiceFact", Codes, VoiceFact::VARIANTS),
+    ("SettingFact", Codes, SettingFact::VARIANTS),
     ("CompanionFact", Codes, CompanionFact::VARIANTS),
     ("RoomRemovalWarning", Codes, RoomRemovalWarning::VARIANTS),
     ("FixedLine", Codes, FixedLine::VARIANTS),

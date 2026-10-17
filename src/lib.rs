@@ -4,4 +4,16 @@
 //! reached through a port over HTTP; the chat services through bmo-chat-client.
 
 pub mod data_root;
+pub mod receiver;
+pub mod roads;
+pub mod room_record;
 pub mod store;
+
+pub use store::{Fault, all, one, run};
+
+/// The moment it is, in epoch milliseconds.
+pub fn now_ms() -> i64 {
+  std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .map_or(0, |since| i64::try_from(since.as_millis()).unwrap_or(i64::MAX))
+}

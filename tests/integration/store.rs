@@ -2,6 +2,7 @@
 //! migration moved its table run again on the same pooled connection (`docs/store.md`).
 
 use bmo_receiver::store::migration::m20261017_000001_receiver::TABLES;
+use bmo_receiver::store::migration::m20261017_000002_record_numbers::TABLE as RECORD_NUMBERS;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -27,9 +28,14 @@ fn sorted(mut names: Vec<String>) -> Vec<String> {
 async fn the_migrations_make_every_table_once_and_take_them_down_again() {
   let database = Scratch::blank().await;
   let db = database.db();
-  let made: Vec<String> = TABLES.iter().copied().chain([RECORD_TABLE]).map(str::to_owned).collect();
+  let made: Vec<String> = TABLES
+    .iter()
+    .copied()
+    .chain([RECORD_NUMBERS, RECORD_TABLE])
+    .map(str::to_owned)
+    .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 1);
+  assert_eq!(migrate(db).await.unwrap(), 2);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 

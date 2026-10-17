@@ -1,11 +1,12 @@
-//! What the receiver's integration tests stand on: a test run alone in a process of its own, and a receiver
-//! database of the test's own, a copy of the one this test binary migrated or a module's shared schema in the
-//! suite's test database, migrated by the store's own migrator.
+//! What the receiver's integration tests stand on: a test run alone in a process of its own, a receiver database
+//! of the test's own, a copy of the one this test binary migrated or a module's shared schema in the suite's test
+//! database, migrated by the store's own migrator, and stand-ins for the units a receiver reaches.
 
 #![allow(dead_code)]
 
 pub mod alone;
 pub mod scratch;
+pub mod units;
 
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};

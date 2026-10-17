@@ -7,5 +7,7 @@ mod common;
 
 mod alone_runs;
 mod data_root;
+mod receiver;
+mod room_record;
 mod scratch_runs;
 mod store;
