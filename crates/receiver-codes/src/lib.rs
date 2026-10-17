@@ -1,0 +1,160 @@
+//! The receiver's codes (docs/codes.md): every refusal it answers, every fact it hands a room's agent and every
+//! fixed line a room hears, as enums of stable kebab-case codes with structured fields, and the kinds those
+//! fields take. None carries a sentence in a room's language: a refusal carries the one English sentence its
+//! caller reads beside its code, a fact the English its agent reads, and a fixed line only its code and fields,
+//! which the web unit's language packs render.
+
+use std::fmt::Display;
+
+use http::StatusCode;
+use serde::{Deserialize, Serialize};
+
+/// Implements [`Code`] for each family as the kebab-case name of its variant.
+macro_rules! coded {
+  ($($family:ty),+ $(,)?) => {
+    $(
+      impl $crate::Code for $family {
+        fn code(&self) -> &'static str {
+          self.into()
+        }
+      }
+    )+
+  };
+}
+
+/// Implements [`Refused`] for each family from the status each of its variants answers with.
+macro_rules! refused {
+  ($($family:ty),+ $(,)?) => {
+    $(
+      impl $crate::Refused for $family {
+        fn status(&self) -> http::StatusCode {
+          self.answers()
+        }
+      }
+    )+
+  };
+}
+
+pub mod companions;
+pub mod consult;
+pub mod draws;
+pub mod fixed_lines;
+pub mod health;
+pub mod kinds;
+pub mod owner_sends;
+pub mod room_grants;
+pub mod room_removal;
+pub mod sends;
+pub mod talk;
+pub mod voice;
+
+pub use companions::{CompanionFact, CompanionRefusal};
+pub use consult::ConsultRefusal;
+pub use fixed_lines::FixedLine;
+pub use health::HealthFact;
+pub use kinds::{EngineError, RunTitle, SessionReason, SkipReason, TurnOpening};
+pub use owner_sends::{FileUnsent, OwnerSendRefusal};
+pub use room_grants::RoomGrantRefusal;
+pub use room_removal::{RoomRemovalRefusal, RoomRemovalWarning};
+pub use sends::SendRefusal;
+pub use talk::TalkRefusal;
+pub use voice::{VoiceFact, VoiceRefusal};
+
+/// A refusal, a fact or a fixed line, named by its code.
+pub trait Code {
+  fn code(&self) -> &'static str;
+}
+
+/// A refusal, which answers its own status beside its code and its English sentence.
+pub trait Refused: Code + Display {
+  fn status(&self) -> StatusCode;
+}
+
+/// Every refusal the receiver answers, each area's under its own variant.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum ReceiverError {
+  #[error(transparent)]
+  Companion(#[from] CompanionRefusal),
+  #[error(transparent)]
+  Consult(#[from] ConsultRefusal),
+  #[error(transparent)]
+  OwnerSend(#[from] OwnerSendRefusal),
+  #[error(transparent)]
+  RoomGrant(#[from] RoomGrantRefusal),
+  #[error(transparent)]
+  RoomRemoval(#[from] RoomRemovalRefusal),
+  #[error(transparent)]
+  Send(#[from] SendRefusal),
+  #[error(transparent)]
+  Talk(#[from] TalkRefusal),
+  #[error(transparent)]
+  Voice(#[from] VoiceRefusal),
+}
+
+impl ReceiverError {
+  fn inner(&self) -> &dyn Refused {
+    match self {
+      Self::Companion(refusal) => refusal,
+      Self::Consult(refusal) => refusal,
+      Self::OwnerSend(refusal) => refusal,
+      Self::RoomGrant(refusal) => refusal,
+      Self::RoomRemoval(refusal) => refusal,
+      Self::Send(refusal) => refusal,
+      Self::Talk(refusal) => refusal,
+      Self::Voice(refusal) => refusal,
+    }
+  }
+}
+
+impl Code for ReceiverError {
+  fn code(&self) -> &'static str {
+    self.inner().code()
+  }
+}
+
+impl Refused for ReceiverError {
+  fn status(&self) -> StatusCode {
+    self.inner().status()
+  }
+}
+
+/// Every fact the receiver hands a room's agent to say in its own words, read back by its code alone. Its
+/// `Display` is the English the agent reads in its quiet instruction.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Fact {
+  Companion(CompanionFact),
+  Health(HealthFact),
+  Voice(VoiceFact),
+}
+
+impl Fact {
+  fn inner(&self) -> &dyn Code {
+    match self {
+      Self::Companion(fact) => fact,
+      Self::Health(fact) => fact,
+      Self::Voice(fact) => fact,
+    }
+  }
+}
+
+impl Code for Fact {
+  fn code(&self) -> &'static str {
+    self.inner().code()
+  }
+}
+
+impl Display for Fact {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Companion(fact) => fact.fmt(f),
+      Self::Health(fact) => fact.fmt(f),
+      Self::Voice(fact) => fact.fmt(f),
+    }
+  }
+}
+
+/// A list laid out for an English sentence, its members joined by commas.
+pub(crate) fn listed<T: Display>(members: &[T]) -> String {
+  members.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")
+}

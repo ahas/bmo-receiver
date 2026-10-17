@@ -181,12 +181,14 @@ a chat. Its words in the room's language are rendered by the web unit's language
 
 | Line | Why it stays fixed |
 | --- | --- |
-| `resting` (a usage limit begins) | No model can answer while the limit holds. |
-| `outage` (the provider stopped answering) | No model can answer during the outage. |
+| `rest-begins` (a usage limit begins) | No model can answer while the limit holds. |
+| `provider-down` (the provider stopped answering) | No model can answer during the outage. |
 | `compacting` (a room's session is being folded) | The session about to be folded is asked for its own line first; the fixed line stands in only when it cannot answer. |
 | `compact-failed` (the fold did not happen) | The room was told it was going for a nap and nothing changed; the session it would be asked is the one that could not be folded. Said once per cause. |
 | `run-broken`, the last resort when a run broke and the agent cannot answer the order about it | No session is able to say it; it is composed out of what the broken run left. |
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
+| `companion-engine-error` (a companion's engine ended its turn with an error) | The companion's session is the one that failed; the line stands under the companion's own name. |
+| `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
 | A job's question to the owner, and the job's answers when the owner talks it over | A numbered form the owner answers by number; its options, and what the job says about them, reach the owner exactly as the job wrote them. bmo-job sends them. |
 | Pass-through content (search, browse and say results) | An agent, or whoever set it, already wrote it. |

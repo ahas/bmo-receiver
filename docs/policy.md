@@ -21,7 +21,23 @@ fixed lines the web unit's language packs render (`docs/voiced-notices.md`).
 | `files.toml` | the largest file the console may attach, in bytes | `POST /say-file` |
 | `code-review.toml` | the lines a code review's talk is composed in, how much of the reviewed lines a turn carries | the talks |
 | `queue.toml` | how long the owner may hold a job's question clock stopped from the console | the owner's answer to a job's question |
-| `commands.toml` | the owner's in-room command phrases and the polite endings a command may carry, the option-number suffix a question's answer may carry, and the face names an avatar is drawn with | the receiver's commands, a question's answer, the event stream |
+| `commands.toml` | the owner's in-room command phrases and the polite endings a command may carry, and the suffix an answer to a job's question may put after an option's number | the receiver's commands, a question's answer |
+
+The emotions a voice briefing may be spoken with, a closed list of words checked on `POST /event`, stand in
+`chat-round.toml` beside the briefing's other lines. The marks a chat service writes for a kept picture and a
+kept voice, which the receiver matches on to repair a picture's row and to find a voice line, stand in
+`roads.toml`.
+
+## Names and languages in the lines
+
+No line of the policy names an agent, the owner or a language. Where a line an agent reads names the owner, it
+carries the mark `{owner}`, filled with the owner's name as the configuration gives it; where it names an agent,
+`{agent}`, filled with the agent's registered label from the agency; where it names the language to answer in,
+`{language}`, the room's language. So the talks' lines (`talk.toml`, `code-review.toml`), the roster of the owner's
+private chat (`chat-line.toml`, `roster`), the lines a handoff's transcript is written in (`handover.toml`,
+`transcript`) and the lines a consult call answers with (`consult.toml`, `said`, `windows`) carry these marks rather
+than the names they once wrote out. A line a person reads in a room is never here: it is a code
+(`docs/codes.md`).
 
 ## Keys the receiver takes from files the agency also holds
 

@@ -1,0 +1,21 @@
+[package]
+name = "receiver-codes"
+description = "The receiver's codes: every refusal it answers, every fact it hands a room's agent and every fixed line a room hears, as enums of kebab-case codes with structured fields."
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+# The send verbs and capabilities a refusal names, as the chat protocol declares them.
+bmo-chat-client.workspace = true
+# A refusal's status.
+http.workspace = true
+serde.workspace = true
+# A fixed line written out as its code and fields where nothing renders it.
+serde_json.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+# The codes document, read to check every code is listed.
+pulldown-cmark.workspace = true

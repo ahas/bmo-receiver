@@ -70,6 +70,9 @@ conventions, so a caller reads the receiver as its own document says:
 bmo-job's routes answer the same cases with the same status and the code in snake_case (`bad_request`,
 `not_found`, `unit_failed` and so on).
 
+A route's own refusals, the facts the receiver hands a room's agent and the fixed lines a room hears are the codes
+of `docs/codes.md`, each with its status and its fields.
+
 ## Routes served
 
 ### For the brain

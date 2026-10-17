@@ -1,0 +1,29 @@
+# The owner's in-room setting commands as the receiver reads them off the words typed in a room (docs/rooms.md):
+# the phrases that say each command, the endings a command may carry without changing it, and the suffix an
+# answer to a job's question may put after an option's number. These are words of the room's language the code
+# matches on, so they are data and stand here.
+#
+# A command is read off the words once the agent's own name in front of them is left out (the name as the
+# agent's registration gives it, or the chat service's declared handle) and every ending below is taken off the
+# back, then matched whole against a phrase; a mute and an unmute may end on the person's number after a space.
+# The first phrase of each command is its plain form, the same in every language.
+
+# The endings the owner puts on a command without changing it, taken off the back of the words one at a time
+# for as long as one is there. "줘" stands on its own as well as after "해", because a switch is asked for as
+# "켜줘" or "꺼줘" as often as it is said as "켜" or "꺼".
+polite_tails = ["해줘", "해라", "하자", "해", "줘", ".", "!"]
+
+# What an answer to a job's question may put after an option's number: "2번" is the second option, as "2" is.
+option_suffixes = ["번"]
+
+[phrases]
+delegate_on = ["delegate:on", "위임 모드"]
+delegate_off = ["delegate:off", "위임 해제"]
+unmute = ["member:unmute", "뮤트 해제", "뮤트 풀어", "뮤트 풀어줘", "뮤트 풀기"]
+mute = ["member:mute", "뮤트"]
+notice_rest_on = ["notice:rest:on", "한도 알림 켬", "한도 알림 켜"]
+notice_rest_off = ["notice:rest:off", "한도 알림 끔", "한도 알림 꺼"]
+notice_restart_on = ["notice:restart:on", "재시작 알림 켬", "재시작 알림 켜"]
+notice_restart_off = ["notice:restart:off", "재시작 알림 끔", "재시작 알림 꺼"]
+photos_on = ["photos:on", "이 방 사진 열람 켬", "이 방 사진 열람 켜", "사진 열람 켬", "사진 열람 켜", "사진 봐"]
+photos_off = ["photos:off", "이 방 사진 열람 끔", "이 방 사진 열람 꺼", "사진 열람 끔", "사진 열람 꺼", "사진 보지 마"]
