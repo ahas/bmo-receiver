@@ -1,0 +1,26 @@
+# How the testbed tests, checks, builds and deploys this repository, in the testbed's declaration format.
+# Provisional: no build or deploy is declared until the service has its binary, its unit and its tools.
+
+testbed = 0
+name = "receiver"
+
+[test]
+languages = ["cargo"]
+
+[check]
+quick = ["layout", "dependencies"]
+base_libraries = ["bmo-chat", "bmo-chat-client", "bmo-ui"]
+
+[[check.step]]
+id = "check"
+command = "cargo check --workspace --all-targets"
+lane = "wide"
+
+[[check.step]]
+id = "clippy"
+command = "cargo clippy --workspace --all-targets -- -D warnings"
+lane = "wide"
+
+[[check.step]]
+id = "fmt"
+command = "cargo fmt --all --check"
