@@ -12,6 +12,8 @@ edition = "2024"
 [workspace.dependencies]
 async-trait = "0.1.92"
 axum = { version = "0.8.4", default-features = false, features = ["http1", "json", "query", "tokio"] }
+# A moment written as the room's transcript shows it, in UTC.
+chrono = "0.4.45"
 # The base library the receiver reaches every chat service through.
 bmo-chat-client = { path = "../chat/client" }
 futures-util = "0.3.34"
@@ -19,6 +21,9 @@ http = "1.3.1"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "gif", "webp", "tiff"] }
 inventory = "0.3.24"
 pulldown-cmark = { version = "0.13.0", default-features = false }
+# The shapes a text is cut by: the scaffolding, the markers, a wrapped document, a recording verb's call. The
+# Unicode classes stand on because a digit class is read over any script's words.
+regex = { version = "1.13.1", default-features = false, features = ["std", "unicode"] }
 receiver-codes = { path = "crates/receiver-codes" }
 receiver-policy = { path = "crates/receiver-policy" }
 receiver-ports = { path = "crates/receiver-ports" }
@@ -34,6 +39,8 @@ tempfile = "3.20.0"
 thiserror = "2.0.21"
 tokio = { version = "1.47.0", features = ["macros", "rt", "rt-multi-thread", "sync"] }
 toml = { version = "0.8.23", default-features = false, features = ["parse"] }
+# A web address read out of a text: its scheme, host and path, as the address itself says.
+url = "2.5.8"
 
 [package]
 name = "bmo-receiver"
@@ -46,12 +53,16 @@ publish = false
 # The chat services' receiver routes, which the receiver implements, and the router they are served by.
 async-trait.workspace = true
 axum.workspace = true
+# A moment written as the room's transcript shows it.
+chrono.workspace = true
 bmo-chat-client.workspace = true
 futures-util.workspace = true
 # A picture a message carried, read, brought down, laid on white and written as JPEG as it is filed.
 image.workspace = true
 # What a room holds beyond its `chat_id` columns, declared beside the code that owns it.
 inventory.workspace = true
+# The shapes a text is cut by.
+regex.workspace = true
 receiver-codes.workspace = true
 receiver-policy.workspace = true
 receiver-ports.workspace = true
@@ -63,7 +74,9 @@ serde.workspace = true
 serde_json.workspace = true
 sqlx = { workspace = true, features = ["any", "sqlite"] }
 thiserror.workspace = true
-tokio = { workspace = true, features = ["fs"] }
+tokio = { workspace = true, features = ["fs", "time"] }
+# The web addresses a text is read for.
+url.workspace = true
 
 [dev-dependencies]
 # The repository checks read `cargo metadata` and the testbed's declaration.

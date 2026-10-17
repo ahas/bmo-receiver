@@ -130,8 +130,8 @@ flowchart TD
   number in a `chat_id` column, the tables read off the database's own schema as the removal runs rather than off
   any list (its registration and title, its switches and answerers, its messages, its reads, its collected-file
   rows, its draws); what an owner of room state outside those columns declares beside its own code (its picture,
-  the settings that name it, and its folders in the message-file store, the picture store and the outboxes,
-  `docs/room-files.md`).
+  the settings that name it, what its runs wrote down, and its folders in the message-file store, the picture store
+  and the outboxes, `docs/room-files.md`).
 - **Every other unit's part goes through that unit:** the agency forgets the room (`POST /rooms/forget`), the brain
   removes its rows and folders (`POST /rooms/removed`), and every declared holder (`PUT /room-holders/{unit}`) is
   asked what it holds (`GET <address>/rooms/{chat}/holdings`): what it keeps stays and keeps the room's chat, what

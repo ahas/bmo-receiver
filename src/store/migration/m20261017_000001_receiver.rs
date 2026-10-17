@@ -1,4 +1,4 @@
-//! The receiver's twenty-six tables and their indexes, in the shapes its rows have always had
+//! The receiver's twenty-seven tables and their indexes, in the shapes its rows have always had
 //! (`docs/store.md`, 「The tables」).
 
 use sea_orm_migration::prelude::*;
@@ -12,10 +12,11 @@ impl MigrationName for Migration {
 }
 
 /// The tables this migration makes, in the order they are dropped.
-pub const TABLES: [&str; 26] = [
+pub const TABLES: [&str; 27] = [
   "tool_chats",
   "settings",
   "say_relays",
+  "run_records",
   "room_answerers",
   "reload_sent",
   "reload_pending",

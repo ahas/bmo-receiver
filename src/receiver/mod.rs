@@ -18,9 +18,11 @@ use std::sync::{Arc, OnceLock};
 use futures_util::future::BoxFuture;
 use receiver_codes::{RoomRemovalRefusal, SettingFact};
 use receiver_ports::agency::Agency;
+use receiver_ports::brain::Brain;
 use receiver_ports::gate::Gate;
 use receiver_ports::http::PortFailure;
 use receiver_ports::job::Job;
+use receiver_ports::voice::Voice;
 use receiver_ports::web::Web;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -172,14 +174,18 @@ impl Wake for Nobody {
   }
 }
 
-/// The instruction pass, asked to hand a row over at once rather than at its next tick.
+/// The instruction pass: asked to hand a row over at once rather than at its next tick, and asked for the rows
+/// of one agent riding a room's next round as that round starts.
 pub trait Pass: Send + Sync {
   fn kick(&self);
+
+  fn riders<'a>(&'a self, agent: &'a str, chat_id: i64) -> BoxFuture<'a, ()>;
 }
 
 /// Where a woken agent's turn goes: its conversations, which take the files leading up to the message ahead of
 /// it and the message itself into the room's queue, opening the room's window where its ground does; whether
-/// anything stood to take it.
+/// anything stood to take it. And everything the agent keeps of a room, forgotten as the room's registration is
+/// removed.
 pub trait Runner: Send + Sync {
   fn hand<'a>(
     &'a self,
@@ -189,6 +195,8 @@ pub trait Runner: Send + Sync {
     room: Room,
     opens_window: bool,
   ) -> BoxFuture<'a, bool>;
+
+  fn forget(&self, chat_id: i64) -> BoxFuture<'_, ()>;
 }
 
 /// The conversations where none stand: no turn is taken.
@@ -211,6 +219,10 @@ impl Runner for NoRunner {
 
       false
     })
+  }
+
+  fn forget(&self, _chat_id: i64) -> BoxFuture<'_, ()> {
+    Box::pin(async {})
   }
 }
 
@@ -236,13 +248,16 @@ pub struct Deployment {
 }
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
-/// sessions carry a woken turn and bmo-job whose questions the owner answers in his chat.
+/// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, the brain that keeps what
+/// the agents remember, and the voice unit a spoken briefing is launched through.
 #[derive(Clone)]
 pub struct Units {
   pub roads: Roads,
   pub agency: Arc<dyn Agency>,
+  pub brain: Arc<dyn Brain>,
   pub gate: Arc<dyn Gate>,
   pub job: Arc<dyn Job>,
+  pub voice: Arc<dyn Voice>,
   pub web: Arc<dyn Web>,
 }
 
@@ -325,6 +340,11 @@ impl Receiver {
   /// The conversations a woken turn goes into, where any stand.
   pub fn runner(&self) -> Option<Arc<dyn Runner>> {
     self.runner.get().cloned()
+  }
+
+  /// The instruction pass the receiver's acknowledgements are queued for, where one stands.
+  pub fn pass(&self) -> Option<Arc<dyn Pass>> {
+    self.pass.get().cloned()
   }
 
   pub fn db(&self) -> &DatabaseConnection {

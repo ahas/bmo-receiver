@@ -41,6 +41,7 @@ An instruction names the agent whose session takes it outright: the table holds 
 | `chat_titles` | a room's title | room |
 | `room_answerers` | an agent answering in a room | room and agent |
 | `room_windows` | when a room's window for an agent closes, in Unix seconds (`docs/wake.md`, 「The names and the window」) | room and agent |
+| `run_records` | what one of a room's runs wrote down beside it: the run it was written under, the kind of record, its words, the number of the row it wrote, whether it woke the agent and when (`docs/answer-checks.md`) | its number |
 | `bmo_rooms` | a room the chat agent's one shared session has answered in (`docs/unified-bmo.md`) | room |
 | `bmo_room_contexts` | the fingerprint of the room context a chat session was last given | session |
 | `bmo_session_rooms` | a room a chat session has been given the context of | session and room |

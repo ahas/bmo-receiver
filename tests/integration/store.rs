@@ -62,6 +62,7 @@ async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
       "messages_sender_latest",
       "messages_unnamed",
       "random_draws_chat",
+      "run_records_run",
       "say_relays_asker",
       "say_relays_chat",
     ]

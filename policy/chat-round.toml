@@ -214,3 +214,8 @@ instruction = [
 number = 0
 nameless = "owner"
 lead = "The owner typed this turn's line straight into this program rather than into a chat. Below is that line as a round of the owner's private chat hands it, as message #{number}, which is no message of the archive. Answer it as that round says; your answer is read on this screen and goes to no room. Where the program keeps this text in a file and shows only its start, read the file whole before answering."
+
+# What the gate is handed to choose a turn's reference: how much of the closing words of the message a turn
+# follows on from, in characters, stands in front of it.
+[reference]
+answered_chars = 300

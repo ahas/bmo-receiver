@@ -145,13 +145,11 @@ pub async fn room_designated(
 /// person whose sender the account model links to a user.
 async fn private_room(receiver: &Receiver, private_to: Option<i64>) -> Result<bool, NotReceived> {
   match private_to {
-    Some(person) => {
-      Ok(
-        asked("whose user the sender is", receiver.units.web.user_of_sender(person).await)
-          .flatten()
-          .is_some(),
-      )
-    }
+    Some(person) => Ok(
+      asked("whose user the sender is", receiver.units.web.user_of_sender(person).await)
+        .flatten()
+        .is_some(),
+    ),
     None => Ok(false),
   }
 }
@@ -226,4 +224,32 @@ pub async fn open_window(
       .await
       .map(drop)?,
   )
+}
+
+/// An agent's window in a room moved to its own end at `until`, in epoch seconds; zero closes it. A turn of the
+/// agent's sets the end it read, whatever was written before, so a window it did not open is not closed by it.
+pub async fn set_window(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  agent: &str,
+  until: i64,
+) -> Result<(), NotReceived> {
+  let written = if until <= 0 {
+    run(
+      db,
+      r#"DELETE FROM "room_windows" WHERE "chat_id" = $1 AND "agent" = $2"#,
+      vec![chat_id.into(), agent.into()],
+    )
+    .await
+  } else {
+    run(
+      db,
+      r#"INSERT INTO "room_windows" ("chat_id", "agent", "open_until") VALUES ($1, $2, $3)
+         ON CONFLICT ("chat_id", "agent") DO UPDATE SET "open_until" = excluded."open_until""#,
+      vec![chat_id.into(), agent.into(), until.into()],
+    )
+    .await
+  };
+
+  Ok(written.map(drop)?)
 }

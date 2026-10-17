@@ -49,10 +49,31 @@ pub struct Moved {
   pub detail: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct Listed {
+  items: Vec<ItemRow>,
+}
+
+/// An item on the queue that is not finished, merged or set aside, as bmo-job keeps it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ItemRow {
+  pub id: i64,
+  /// Whether the owner has approved it.
+  pub approved: bool,
+  pub status: String,
+  pub title: String,
+  /// The worker assigned where one is.
+  #[serde(default)]
+  pub worker: Option<String>,
+}
+
 /// Every call the receiver makes on bmo-job.
 pub trait Job: Send + Sync {
   /// What bmo-job holds of a room, each named only where it holds any.
   fn holdings(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<RoomHolding>>>;
+
+  /// Every item on the queue that is not finished, merged or set aside, oldest first.
+  fn items(&self) -> BoxFuture<'_, Answer<Vec<ItemRow>>>;
 
   /// The questions of jobs that wait for the owner's answer in a room, the one asked last first.
   fn open_questions(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<OpenQuestion>>>;
@@ -87,6 +108,15 @@ impl HttpJob {
 impl Job for HttpJob {
   fn holdings(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<RoomHolding>>> {
     Box::pin(async move { self.caller.get(&["rooms", &chat_id.to_string(), "holdings"], &[]).await })
+  }
+
+  fn items(&self) -> BoxFuture<'_, Answer<Vec<ItemRow>>> {
+    Box::pin(async move {
+      let query = vec![("open", "1".to_owned())];
+      let listed: Listed = self.caller.get(&["items"], &query).await?;
+
+      Ok(listed.items)
+    })
   }
 
   fn open_questions(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<OpenQuestion>>> {

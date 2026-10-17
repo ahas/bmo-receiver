@@ -15,7 +15,9 @@ use receiver_ports::agency::{Rest, RestKind};
 use receiver_ports::job::{Chosen, Moved, OpenQuestion, Talked};
 
 use crate::common::Scratch;
-use crate::common::units::{ADDRESS, AGENT, Handed, OWNER, StandInChat, Standing, registration, standing, woken};
+use crate::common::units::{
+  ADDRESS, AGENT, Handed, OWNER, StandInChat, Standing, registration, standing, woken,
+};
 
 /// The agent's number in the rooms of these tests.
 const AGENT_NUMBER: i64 = 7;
@@ -257,16 +259,14 @@ async fn another_users_private_room_wakes_the_chat_agent_on_every_word_and_a_gro
 
   assert_eq!(
     woken,
-    [
-      Handed {
-        agent: AGENT.into(),
-        chat_id: person,
-        message_id: 1,
-        files: vec![],
-        opens_window: false,
-        read_through: Some(false),
-      }
-    ]
+    [Handed {
+      agent: AGENT.into(),
+      chat_id: person,
+      message_id: 1,
+      files: vec![],
+      opens_window: false,
+      read_through: Some(false),
+    }]
   );
 }
 

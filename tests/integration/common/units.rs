@@ -19,11 +19,17 @@ use receiver_ports::agency::{
   Agency, Agent, Agents, Delivery, Events, Forgotten, Passed, Rest, RestKind, Resting, RunLine, Scope,
   Session, SessionState, Turn, Written,
 };
+use receiver_ports::brain::{
+  BeforeFold, Brain, Load, Reading, Refused, Reminder, Reminders, RoomRule, Row, RuleText, Took,
+};
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
 use receiver_ports::http::Answer;
-use receiver_ports::job::{Chosen, Job, Moved, OpenQuestion, RoomHolding, Talked};
-use receiver_ports::web::{Checked, Grant, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web};
+use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
+use receiver_ports::voice::{Briefed, Briefing, Voice};
+use receiver_ports::web::{
+  Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web,
+};
 use sea_orm::DatabaseConnection;
 use serde_json::Value;
 
@@ -44,6 +50,7 @@ pub struct StandInChat {
   pub owns: BTreeSet<i64>,
   pub owner_rooms: BTreeSet<i64>,
   pub identities: BTreeMap<i64, i64>,
+  pub private: BTreeMap<i64, i64>,
   pub reaches_owner: Option<i64>,
   pub sends: Mutex<Vec<ChatSendRequest>>,
   /// What each send is answered with; sent as message 900 where none is set.
@@ -80,6 +87,13 @@ impl StandInChat {
 
   pub fn agent_in(mut self, room: i64, identity: i64) -> Self {
     self.identities.insert(room, identity);
+    self
+  }
+
+  /// A room of the service's own that is one person's private chat with the chat agent.
+  pub fn privating(mut self, room: i64, person: i64) -> Self {
+    self.owns.insert(room);
+    self.private.insert(room, person);
     self
   }
 
@@ -169,8 +183,10 @@ impl Chat for StandInChat {
     Box::pin(async move { Ok(kind) })
   }
 
-  fn room_private_of(&self, _chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
-    Box::pin(async { Ok(None) })
+  fn room_private_of(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
+    let person = self.private.get(&chat_id).copied();
+
+    Box::pin(async move { Ok(person) })
   }
 
   fn room_title(&self, _chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<String>>> {
@@ -211,11 +227,169 @@ impl Gate for StandInGate {
   }
 }
 
-/// The web unit: the account model's links and grants a test gives it, and a fixed line rendered as its code
-/// and the language asked; nothing else is asked.
+/// The brain: a session's loaded documents, kept and forgotten, and nothing else asked.
+pub struct StandInBrain {
+  pub loads: Mutex<BTreeMap<String, Vec<Load>>>,
+}
+
+impl StandInBrain {
+  pub fn new() -> StandInBrain {
+    StandInBrain {
+      loads: Mutex::default(),
+    }
+  }
+
+  pub fn loaded(&self) -> BTreeMap<String, Vec<Load>> {
+    self.loads.lock().unwrap().clone()
+  }
+}
+
+fn not_asked_brain<T>(what: &str) -> BoxFuture<'_, Answer<T>> {
+  panic!("a stand-in brain was asked {what}, which no test sets")
+}
+
+impl Brain for StandInBrain {
+  fn room_rules(&self, _chat_id: i64) -> BoxFuture<'_, Answer<Vec<RoomRule>>> {
+    Box::pin(async { Ok(vec![]) })
+  }
+
+  fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>> {
+    let kept = self.loads.lock().unwrap().get(session).cloned().unwrap_or_default();
+
+    Box::pin(async move { Ok(kept) })
+  }
+
+  fn keep_loads<'a>(&'a self, session: &'a str, loads: &'a [Load], _at: i64) -> BoxFuture<'a, Answer<()>> {
+    self.loads.lock().unwrap().insert(session.to_owned(), loads.to_vec());
+
+    Box::pin(async { Ok(()) })
+  }
+
+  fn forget_loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    self.loads.lock().unwrap().remove(&session.to_owned());
+
+    Box::pin(async { Ok(()) })
+  }
+
+  fn set_room_rule<'a>(
+    &'a self,
+    _chat: i64,
+    _message: i64,
+    _id: &'a str,
+    _rule: Option<&'a RuleText>,
+  ) -> BoxFuture<'a, Answer<Refused<Vec<RoomRule>>>> {
+    Box::pin(async { Ok(Ok(vec![])) })
+  }
+
+  fn set_reminder<'a>(&'a self, _reminder: &'a Reminder) -> BoxFuture<'a, Answer<Refused<Reading>>> {
+    Box::pin(async { Ok(Ok(Reading::default())) })
+  }
+
+  fn cancel_reminder(&self, _id: i64) -> BoxFuture<'_, Answer<Refused<Reading>>> {
+    Box::pin(async { Ok(Ok(Reading::default())) })
+  }
+
+  fn reminders<'a>(
+    &'a self,
+    _chat: i64,
+    _agent: Option<&'a str>,
+    _all: bool,
+  ) -> BoxFuture<'a, Answer<Reminders>> {
+    Box::pin(async {
+      Ok(Reminders {
+        reminders: vec![],
+        lines: vec![],
+      })
+    })
+  }
+
+  fn session_summary<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<String>>> {
+    Box::pin(async { Ok(None) })
+  }
+
+  fn clear_session_summary<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async { Ok(()) })
+  }
+
+  fn people_before_fold<'a>(&'a self, _chat: i64, _agent: &'a str) -> BoxFuture<'a, Answer<BeforeFold>> {
+    not_asked_brain("the people before a fold")
+  }
+
+  fn memories<'a>(
+    &'a self,
+    _agent: Option<&'a str>,
+    _chat: Option<i64>,
+  ) -> BoxFuture<'a, Answer<Vec<Row>>> {
+    Box::pin(async { Ok(vec![]) })
+  }
+
+  fn notes<'a>(&'a self, _agent: &'a str, _chat: Option<i64>) -> BoxFuture<'a, Answer<Vec<Row>>> {
+    Box::pin(async { Ok(vec![]) })
+  }
+
+  fn watches<'a>(
+    &'a self,
+    _by: Option<i64>,
+    _agent: Option<&'a str>,
+    _all: bool,
+  ) -> BoxFuture<'a, Answer<Vec<Row>>> {
+    Box::pin(async { Ok(vec![]) })
+  }
+
+  fn room_forgotten(&self, _chat: i64) -> BoxFuture<'_, Answer<()>> {
+    Box::pin(async { Ok(()) })
+  }
+
+  fn room_removed(&self, _chat: i64, _preview: bool) -> BoxFuture<'_, Answer<Took>> {
+    Box::pin(async { Ok(Took::default()) })
+  }
+}
+
+/// The voice unit: a briefing launched and kept, its line let go; nothing else asked.
+pub struct StandInVoice {
+  pub launched: Mutex<Vec<Briefing>>,
+  pub kept: Mutex<Vec<Briefed>>,
+  pub lines: Mutex<Vec<(String, i64)>>,
+}
+
+impl StandInVoice {
+  pub fn new() -> StandInVoice {
+    StandInVoice {
+      launched: Mutex::default(),
+      kept: Mutex::default(),
+      lines: Mutex::default(),
+    }
+  }
+
+  pub fn launched(&self) -> Vec<Briefing> {
+    self.launched.lock().unwrap().clone()
+  }
+}
+
+impl Voice for StandInVoice {
+  fn brief<'a>(&'a self, briefing: &'a Briefing) -> BoxFuture<'a, Answer<String>> {
+    self.launched.lock().unwrap().push(briefing.clone());
+
+    Box::pin(async { Ok("briefing-run".to_owned()) })
+  }
+
+  fn briefings(&self, _chat: i64, _awaiting: bool) -> BoxFuture<'_, Answer<Vec<Briefed>>> {
+    Box::pin(async { Ok(vec![]) })
+  }
+
+  fn line<'a>(&'a self, run: &'a str, message: i64) -> BoxFuture<'a, Answer<()>> {
+    self.lines.lock().unwrap().push((run.to_owned(), message));
+
+    Box::pin(async { Ok(()) })
+  }
+}
+
+/// The web unit: the account model's links and grants a test gives it, whether that model stands in force at
+/// all, and a fixed line rendered as its code and the language asked; nothing else is asked.
 pub struct StandInWeb {
   pub users: Mutex<BTreeMap<i64, String>>,
   pub grants: Mutex<BTreeSet<(i64, i64, String)>>,
+  pub model: Mutex<bool>,
 }
 
 impl StandInWeb {
@@ -223,7 +397,14 @@ impl StandInWeb {
     StandInWeb {
       users: Mutex::default(),
       grants: Mutex::default(),
+      model: Mutex::default(),
     }
+  }
+
+  /// The account model stands in force: what the room holds in force is read from its grants, and a user's own
+  /// thread is followed.
+  pub fn modelling(&self) {
+    *self.model.lock().unwrap() = true;
   }
 
   pub fn linking(&self, sender: i64, user: String) {
@@ -241,7 +422,9 @@ fn unasked<T>() -> BoxFuture<'static, Answer<T>> {
 
 impl Web for StandInWeb {
   fn model_in_force(&self) -> BoxFuture<'_, Answer<bool>> {
-    unasked()
+    let in_force = *self.model.lock().unwrap();
+
+    Box::pin(async move { Ok(in_force) })
   }
 
   fn user_of_sender(&self, sender: i64) -> BoxFuture<'_, Answer<Option<String>>> {
@@ -252,6 +435,19 @@ impl Web for StandInWeb {
 
   fn user<'a>(&'a self, _user: &'a str) -> BoxFuture<'a, Answer<User>> {
     unasked()
+  }
+
+  fn senders_of_user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>> {
+    let linked = self
+      .users
+      .lock()
+      .unwrap()
+      .iter()
+      .filter(|(_, one)| one.as_str() == user)
+      .map(|(sender, _)| *sender)
+      .collect::<Vec<i64>>();
+
+    Box::pin(async move { Ok(linked) })
   }
 
   fn check_room<'a>(&'a self, check: &'a RoomCheck) -> BoxFuture<'a, Answer<Checked>> {
@@ -273,6 +469,10 @@ impl Web for StandInWeb {
 
   fn check_object<'a>(&'a self, _check: &'a ObjectCheck) -> BoxFuture<'a, Answer<Checked>> {
     unasked()
+  }
+
+  fn room_grants(&self, _chat_id: i64) -> BoxFuture<'_, Answer<Vec<GrantRow>>> {
+    Box::pin(async { Ok(vec![]) })
   }
 
   fn grant<'a>(&'a self, _grant: &'a Grant) -> BoxFuture<'a, Answer<String>> {
@@ -590,6 +790,10 @@ impl Job for StandInJob {
     not_asked_job("a room's holdings")
   }
 
+  fn items(&self) -> BoxFuture<'_, Answer<Vec<ItemRow>>> {
+    Box::pin(async { Ok(vec![]) })
+  }
+
   fn open_questions(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<OpenQuestion>>> {
     let open = self.open.lock().unwrap().get(&chat_id).cloned().unwrap_or_default();
 
@@ -679,6 +883,10 @@ impl Runner for Taken {
       true
     })
   }
+
+  fn forget(&self, _chat_id: i64) -> BoxFuture<'_, ()> {
+    Box::pin(async {})
+  }
 }
 
 /// A receiver over a database and a data root, reaching the chat services given and the stand-in agency, gate,
@@ -689,8 +897,10 @@ pub struct Standing {
   pub waking: Arc<WakeStandIn>,
   pub gate: Arc<StandInGate>,
   pub agency: Arc<StandInAgency>,
+  pub brain: Arc<StandInBrain>,
   pub job: Arc<StandInJob>,
   pub taken: Arc<Taken>,
+  pub voice: Arc<StandInVoice>,
   pub web: Arc<StandInWeb>,
 }
 
@@ -710,12 +920,16 @@ pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<Sta
   let agency = Arc::new(StandInAgency::new());
   let job = Arc::new(StandInJob::new());
   let taken = Arc::new(Taken::new(db.clone()));
+  let brain = Arc::new(StandInBrain::new());
+  let voice = Arc::new(StandInVoice::new());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
     agency: agency.clone(),
+    brain: brain.clone(),
     gate: gate.clone(),
     job: job.clone(),
+    voice: voice.clone(),
     web: web.clone(),
   };
   let receiver = Receiver::new(db.clone(), data_root, deployment(), units)
@@ -730,8 +944,10 @@ pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<Sta
     waking,
     gate,
     agency,
+    brain,
     job,
     taken,
+    voice,
     web,
   }
 }

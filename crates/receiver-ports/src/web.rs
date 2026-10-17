@@ -111,6 +111,13 @@ pub trait Web: Send + Sync {
 
   fn user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<User>>;
 
+  /// The senders linked to a user, in the order the model gives them.
+  fn senders_of_user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>>;
+
+  /// The grants standing in a room: each its relation, the subject it is held on, when it lapses in epoch
+  /// milliseconds where it does, and the words written with it where they were.
+  fn room_grants(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<GrantRow>>>;
+
   fn check_room<'a>(&'a self, check: &'a RoomCheck) -> BoxFuture<'a, Answer<Checked>>;
 
   fn check_message<'a>(&'a self, check: &'a MessageCheck) -> BoxFuture<'a, Answer<Checked>>;
@@ -160,6 +167,27 @@ struct Linked {
 }
 
 #[derive(Deserialize)]
+struct Senders {
+  senders: Vec<i64>,
+}
+
+#[derive(Deserialize)]
+struct Grants {
+  grants: Vec<GrantRow>,
+}
+
+/// A grant standing in a room, as the account model keeps it.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct GrantRow {
+  pub relation: String,
+  pub subject_key: String,
+  #[serde(default)]
+  pub expires_at: Option<i64>,
+  #[serde(default)]
+  pub words: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct Granted {
   grant: String,
 }
@@ -189,6 +217,23 @@ impl Web for HttpWeb {
 
   fn user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<User>> {
     Box::pin(async move { self.caller.get(&["users", user], &[]).await })
+  }
+
+  fn senders_of_user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>> {
+    Box::pin(async move {
+      let linked: Senders = self.caller.get(&["users", user, "senders"], &[]).await?;
+
+      Ok(linked.senders)
+    })
+  }
+
+  fn room_grants(&self, chat_id: i64) -> BoxFuture<'_, Answer<Vec<GrantRow>>> {
+    Box::pin(async move {
+      let query = vec![("room", chat_id.to_string())];
+      let standing: Grants = self.caller.get(&["grants"], &query).await?;
+
+      Ok(standing.grants)
+    })
   }
 
   fn check_room<'a>(&'a self, check: &'a RoomCheck) -> BoxFuture<'a, Answer<Checked>> {

@@ -134,6 +134,14 @@ pub struct Thread {
   pub cut: String,
 }
 
+/// What the gate is handed to choose a turn's reference.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Reference {
+  /// How much of the closing words of the message a turn follows on from, in characters.
+  pub answered_chars: usize,
+}
+
 /// How the conversations keep time.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -243,6 +251,7 @@ pub struct ChatRound {
   pub backlog: Backlog,
   pub console: Console,
   pub typed: Typed,
+  pub reference: Reference,
 }
 
 crate::part!(pub CHAT_ROUND: ChatRound = "chat-round.toml");

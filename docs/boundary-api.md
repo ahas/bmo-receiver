@@ -359,6 +359,14 @@ every room's matter.
 | a run's log | `GET /run-log?run=&after=` | | `lines` |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 
+The receiver reads these of an agent's row, beside the `name`, `label` and `awake` the agency states of every
+agent: `kind`, `aliases` and `builtin` (how the room's roster groups and names it), `wake_words` and
+`default_answerer` (the words a room calls it by, and whether it answers the rooms that name nobody),
+`window_seconds` (how long a room it answered keeps it listening), `session_scope` (`unified` for the one
+session shared across the rooms), `voice` (whether its answers may be spoken), `item_worker` (the item it is
+working, on the queue) and `gates_off` (the gate switches turned off for it, each its name). A row holding
+none of a field answers it as nothing: no window, no aliases, not unified, not spoken, no gates off.
+
 The events read: `turn-started` and `turn-ended` (a turn's answer, taken into the room by the receiver's checks,
 `docs/answer-checks.md`), `documents-moved` (the sessions told to read documents again, 「Document reload」 in
 `docs/bmo-window.md`), `companion-cut-off` and `companion-reset` (what waited for a companion's turns let go,
@@ -392,6 +400,7 @@ Its `docs/api.md`, snake_case.
 |---|---|---|---|
 | a room's holdings | `GET /rooms/{chat}/holdings` | | `[holdings]` (`RoomHoldings`) |
 | a room's open questions | `GET /questions/open?chat=` | | `questions`: each `id`, `options` (in the order they were asked), `talks` (boolean: the owner may talk it over) |
+| the open items | `GET /items?open=1` | | `items`: each `id`, `approved` (boolean), `status`, `title`, `worker?` (the agent assigned where one is), oldest first |
 | a question settled | `POST /question` | `id`, `chosen` (the option's number, counted from zero) | a question answer |
 | a question talked over | `POST /question-talk` | `id`, `say` | a question answer |
 | the queue moved | `POST /queue/moved` | `detail?` | 204 |
@@ -431,6 +440,8 @@ it, with the same conventions; the receiver adds the room checks and the grants.
 | whether the model is in force | `GET /accounts/model` | | `in_force` |
 | a sender's user | `GET /senders/{sender}/user` | | `user`; nothing found where none is linked |
 | a user | `GET /users/{user}` | | `user`, `administrator` (boolean) |
+| a user's senders | `GET /users/{user}/senders` | | `senders`: the numbers linked to the user |
+| the grants in a room | `GET /grants` | `room` | `grants`: each `relation`, `subject_key` (`user:{user}` or another key), `expires_at?` in epoch milliseconds, `words?` |
 | a sender's relation in a room | `POST /checks/room` | `room`, `sender?`, `relation` | `allowed`, `grant`, `user?` |
 | a message's sender's relation | `POST /checks/message` | `room`, `message`, `relation` | `allowed`, `grant`, `user?`, `sender?` |
 | a user's relation on an object | `POST /checks/object` | `kind`, `object`, `relation`, `user` | `allowed`, `grant` |
@@ -480,6 +491,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open
   questions with their options, nor one that writes a line of talk over a question and stops its clock; the
   receiver asks `GET /questions/open?chat=` and `POST /question-talk`, for bmo-job to state.
+- **bmo-job** states no route that lists the items still open on the queue with the worker assigned to each;
+  the receiver asks `GET /items?open=1` for the consult block, for bmo-job to state.
 - **The agency's `room_windows`** and the receiver's are the same table: agency's `docs/store.md` lists it
   among the companions' sessions, and the receiver's `docs/store.md` keeps it as its own, since the window a
   room holds for an agent is what the wake reads. One of the two is to be moved before both stand in one
