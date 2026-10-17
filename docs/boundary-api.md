@@ -27,7 +27,7 @@ for each unit it calls, that unit's base address and the token that unit takes:
 The deployment's names are read from the same file: the owner; the chat agent's registration name, whose label
 and wake words (`GET /agents`) are the words a room calls it by; the delegate's registration name, whose label a
 delegation notice names; the infrastructure room, where one is named; the language the rooms are spoken in, which
-a fixed line is rendered in; and each chat service's road name with its base address and token.
+a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; and each chat service's road name with its base address and token.
 
 ## Wire conventions
 
@@ -462,6 +462,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** documents no route that registers a companion's row with its console room; the receiver's
   `POST /companions/add` writes the room half and needs one.
 - **The gate, the web unit and the voice unit** state no boundary yet; their calls above are the receiver's side.
+- **bmo-chat's file item** carries a name, a type and the bytes, and no identifier of the file's own, so a file
+  another replaced under the same name in an edited message is not told apart from it and the first bytes stand;
+  nor does a hand-over say whether a sound was a spoken note or a video a round note or an animation.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver
   learns a message was taken as a move: until one does, a move is woken on as any message is.
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver

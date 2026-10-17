@@ -34,3 +34,34 @@ writing = "This room shows your markdown as you wrote it: the marks stand as mar
 [marks]
 picture = "[사진]"
 voice = "[음성]"
+
+# How a picture a message carried is filed under its message: one past this many bytes, or one with transparency,
+# is brought inside this many pixels on its longer side, laid on white and written as JPEG at this quality.
+[pictures]
+kept_threshold_bytes = 4000000
+kept_max_dimension = 1568
+kept_quality = 80
+
+# What a file a message carried is named where the chat service hands it over with no name of its own: a sound
+# as a spoken note, a video as a video, each with the extension its type implies, or the fallback.
+[gathering]
+voice_name = "voice"
+video_name = "video"
+video_fallback_extension = ".mp4"
+
+[gathering.audio_extensions]
+"audio/ogg" = ".ogg"
+"audio/mpeg" = ".mp3"
+"audio/mp4" = ".m4a"
+"audio/x-m4a" = ".m4a"
+"audio/wav" = ".wav"
+"audio/x-wav" = ".wav"
+"audio/flac" = ".flac"
+"audio/aac" = ".aac"
+"audio/webm" = ".webm"
+"audio/opus" = ".opus"
+
+[gathering.video_extensions]
+"video/mp4" = ".mp4"
+"video/webm" = ".webm"
+"video/quicktime" = ".mov"

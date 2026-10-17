@@ -26,15 +26,14 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   `gathering` promised (`POST /gathered`), or fetched on asking (`POST /media`).
 - **Every file is recorded in `collected_items`** (chat, sender, message id, kind, source, stored path, and which
   file it is) and keeping the same file twice is a no-op.
-- **Twice means the same file.** An edit that puts another file where the old one was is kept again over the old
-  bytes, because the name an attachment is filed under is derived and two different files often derive the same
-  one. What tells them apart is the chat service's own identifier for the file, and where either side has none
-  the bytes stand while the row learns the identifier it was missing.
-- **Failures:** a failed attachment retains its row and can be retried on a later hand-over; a download failure is
-  logged but never takes the receiver down.
-- **A video is kept as one**, whatever the chat service called it (a video, a round video note, a silent
-  animation, a video attached as a file) as a row of kind `video`. One with no file name of its own is filed as
-  `video`, `video-note` or `gif` with the extension its type implies.
+- **Twice means the same file.** A file is the message's file of its name: where its row stands and its bytes are
+  still on the disk, a hand-over of a file of that name again keeps nothing, since the protocol hands over no
+  identifier of a file's own to tell another file of the same name apart by.
+- **Failures:** a file past the cap, or one that could not be written, keeps its row with no stored path and why,
+  and a later hand-over of the same file keeps it; a failure is logged but never takes the receiver down.
+- **A video is kept as one**, whatever the chat service called it, as a row of kind `video`, by the video type it
+  is handed over under. One with no file name of its own is filed as `video` with the extension its type implies,
+  and a sound with none as `voice` with its own (`policy/roads.toml`, `gathering`).
 - **What is kept always has a message to hang on.** A voice note, an audio file and a document are written into
   the archive as the short placeholder line the chat service makes of it, so the room reads back with the note in
   its place and the console has a row to put a listen button on.

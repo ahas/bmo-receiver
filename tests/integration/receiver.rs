@@ -4,6 +4,7 @@
 //! place, and the chat services' hand-overs taken behind the receiver's token.
 
 mod commands;
+mod files;
 mod notices;
 mod owner_road;
 

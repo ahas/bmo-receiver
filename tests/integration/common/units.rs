@@ -340,8 +340,12 @@ pub fn deployment() -> Deployment {
     delegate: Some("agent-b".to_owned()),
     infra_room: None,
     language: "en".to_owned(),
+    attachment_bytes: Some(CAP),
   }
 }
+
+/// The attachment size cap of the tests' deployment, in bytes.
+pub const CAP: u64 = 1024;
 
 /// A receiver over a database and a data root, reaching the chat services given and the stand-in gate and web
 /// unit, its news and its wake kept for the test to read.

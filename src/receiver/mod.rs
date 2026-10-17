@@ -8,6 +8,7 @@ pub mod files;
 pub mod handover;
 pub mod left_board;
 pub mod notices;
+pub mod pictures;
 pub mod rows;
 pub mod speech;
 
@@ -187,6 +188,8 @@ pub struct Deployment {
   pub infra_room: Option<i64>,
   /// The language the rooms are spoken in, which a fixed line is rendered in.
   pub language: String,
+  /// The largest file a message may carry to be kept, in bytes; none where no cap is set.
+  pub attachment_bytes: Option<u64>,
 }
 
 /// The units a receiver reaches: the chat services through their roads, the gate and the web unit.
@@ -491,7 +494,7 @@ impl Receiver {
       return Ok(());
     }
 
-    files::keep(&self.db, &self.data_root, inbound, handed).await?;
+    files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, inbound, handed).await?;
 
     if context.gathering && handed.is_empty() {
       return Ok(());
@@ -520,7 +523,7 @@ impl Receiver {
 
     match outcome {
       bmo_chat_client::GatheredOutcome::Kept { files } => {
-        files::keep(&self.db, &self.data_root, &inbound, files).await?;
+        files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, &inbound, files).await?;
       }
       bmo_chat_client::GatheredOutcome::NotKept { reason } => {
         eprintln!(
