@@ -1,5 +1,6 @@
 //! The gate port: a turn's envelope handed over for its reference, words through the sanitiser on their way in
-//! and out, and a room's judgements written (`docs/boundary-api.md`, 「The gate」). The gate states no boundary
+//! and out, a room's judgements written and a new companion's gate options copied (`docs/boundary-api.md`, 「The
+//! gate」). The gate states no boundary
 //! yet, so these calls are the receiver's statement for it to match; bodies are snake_case, and the gate reads
 //! the rest of its material back from the brain and from the receiver's own routes.
 
@@ -133,6 +134,9 @@ pub trait Gate: Send + Sync {
   fn sanitise<'a>(&'a self, asked: &'a Sanitise) -> BoxFuture<'a, Answer<Sanitised>>;
 
   fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>>;
+
+  /// The gate options of the agent `from` copied, as they are now, for the agent that has just stood up.
+  fn copy_options<'a>(&'a self, agent: &'a str, from: &'a str) -> BoxFuture<'a, Answer<()>>;
 }
 
 /// The gate over HTTP.
@@ -156,6 +160,12 @@ struct Entries {
   entries: Vec<Entry>,
 }
 
+#[derive(Serialize)]
+struct Copied<'a> {
+  agent: &'a str,
+  from: &'a str,
+}
+
 impl Gate for HttpGate {
   fn reference<'a>(&'a self, envelope: &'a Envelope) -> BoxFuture<'a, Answer<Vec<Entry>>> {
     Box::pin(async move {
@@ -171,5 +181,11 @@ impl Gate for HttpGate {
 
   fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {
     Box::pin(self.caller.done(Method::POST, &["judgements"], judgement))
+  }
+
+  fn copy_options<'a>(&'a self, agent: &'a str, from: &'a str) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      self.caller.done(Method::POST, &["options", "copied"], &Copied { agent, from }).await
+    })
   }
 }

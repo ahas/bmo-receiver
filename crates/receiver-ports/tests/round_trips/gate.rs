@@ -9,7 +9,7 @@ use serde_json::json;
 use crate::stand_in::{StandIn, call};
 
 #[tokio::test]
-async fn the_envelope_the_sanitiser_and_a_judgement_go_out_as_the_receiver_states_them() {
+async fn the_envelope_the_sanitiser_a_judgement_and_an_options_copy_go_out_as_the_receiver_states_them() {
   let unit = StandIn::start().await;
   let gate = HttpGate::new(&unit.peer("t"));
 
@@ -20,6 +20,7 @@ async fn the_envelope_the_sanitiser_and_a_judgement_go_out_as_the_receiver_state
   );
   unit.answer("POST /sanitised", 200, json!({ "text": "clean", "changed": true }));
   unit.answer_empty("POST /judgements", 204);
+  unit.answer_empty("POST /options/copied", 204);
 
   let envelope = Envelope {
     chat: -7,
@@ -79,6 +80,7 @@ async fn the_envelope_the_sanitiser_and_a_judgement_go_out_as_the_receiver_state
   };
 
   gate.judge(&judgement).await.unwrap();
+  gate.copy_options("companion-a", "agent-a").await.unwrap();
 
   assert_eq!(
     unit.took(),
@@ -108,6 +110,7 @@ async fn the_envelope_the_sanitiser_and_a_judgement_go_out_as_the_receiver_state
         "",
         Some(json!({ "chat": -7, "stage": "round", "verdict": "skip", "ms": 12 }))
       ),
+      call("POST /options/copied", "", Some(json!({ "agent": "companion-a", "from": "agent-a" }))),
     ]
   );
 }

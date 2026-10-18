@@ -1,16 +1,17 @@
 //! A companion added on the console and removed there (docs/boundary-api.md, 「Companions with a room of their
 //! own」): its room of the console's own, its number there and the room's answerers, written in one go once every
-//! field has passed; and a companion taken out again, its room half given up. The agent's row, its gate options,
-//! its settings and its place are the agency's, and go through it.
+//! field has passed; and a companion taken out again, its room half given up. The agent's row, its settings and
+//! its place are the agency's, and go through it; its gate options are the gate's, copied from the chat agent's
+//! as it stands.
 
-use axum::{body::Bytes, extract::State};
+use axum::{body::Bytes, extract::State, http::StatusCode};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use receiver_codes::{CompanionFact, CompanionRefusal, RoomRemovalWarning};
 use receiver_policy::companions::COMPANIONS;
 use receiver_policy::roads::ROADS;
-use receiver_ports::agency::{Agent, CompanionRow};
+use receiver_ports::agency::{Agent, CompanionRemoval, CompanionRow, FieldRefusal};
 
 use regex::Regex;
 use std::sync::LazyLock;
@@ -19,7 +20,7 @@ use sea_orm::DatabaseConnection;
 
 use crate::receiver::Receiver;
 use crate::room_record::{Facing, RoomHolding, Says};
-use crate::routes::{Answered, Refusal, Served, answered, code, read, store, unit};
+use crate::routes::{Answered, Refusal, Served, answered, code, read, refused, store, unit};
 use crate::store::Fault;
 use crate::{all, one, run};
 
@@ -39,6 +40,32 @@ pub struct Added {
 #[derive(Deserialize)]
 pub struct Removed {
   name: String,
+  #[serde(default)]
+  by: Option<String>,
+}
+
+/// A field the agency refused, as the refusal of that field: the console renders the code, never the agency's
+/// sentence. A field the receiver has no refusal for is the agency's failure to answer the call.
+fn refused_field(refusal: FieldRefusal, provider: &str, worker: &str, agent: &str) -> Refusal {
+  match refusal.field.as_str() {
+    "name" => code(&CompanionRefusal::Name),
+    "label" => code(&CompanionRefusal::Label),
+    "provider" => code(&CompanionRefusal::Provider {
+      provider: provider.to_owned(),
+    }),
+    "model" => code(&CompanionRefusal::Model),
+    "worker" => code(&CompanionRefusal::Worker {
+      worker: worker.to_owned(),
+    }),
+    "agent" => code(&CompanionRefusal::NotCompanion {
+      agent: agent.to_owned(),
+    }),
+    field => refused(
+      StatusCode::BAD_GATEWAY,
+      "unit-failed",
+      &format!("The agency refused the field {field}: {}", refusal.error),
+    ),
+  }
 }
 
 // The road a console room is numbered under: the receiver's own record, which no chat service carries.
@@ -153,11 +180,21 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
     provider: asked.provider.clone(),
     model: asked.model.clone(),
     worker: asked.worker.clone(),
-    room: chat_id,
   };
 
-  // The agency stands the companion's row; the receiver writes the room half.
-  receiver.units().agency.add_companion(&row).await.map_err(unit)?;
+  // The agency stands the companion's row and the gate its options; the receiver writes the room half.
+  if let Err(refusal) = receiver.units().agency.add_companion(&row).await.map_err(unit)? {
+    return Err(refused_field(refusal, &asked.provider, &asked.worker, &asked.name));
+  }
+
+  let chat_agent = receiver.deployment().agent.as_str();
+
+  if let Err(why) = receiver.units().gate.copy_options(&asked.name, chat_agent).await {
+    eprintln!(
+      "companions: {} stands on the gate's own options, since they were not copied: {why}",
+      asked.name
+    );
+  }
 
   let sender = next_sender(receiver.db(), &road).await.map_err(store)?;
 
@@ -238,7 +275,27 @@ pub async fn remove(State(served): State<Served>, body: Bytes) -> Answered {
     return Err(code(&CompanionRefusal::SeededCompanion { label }));
   }
 
-  receiver.units().agency.remove_companion(&asked.name).await.map_err(unit)?;
+  // The rooms it answers are read before the receiver gives any up, so the agency's reset keeps each one's record.
+  let rooms: Vec<i64> = all(
+    receiver.db(),
+    r#"SELECT "chat_id" FROM "room_answerers" WHERE "agent" = $1 ORDER BY "chat_id""#,
+    vec![asked.name.clone().into()],
+  )
+  .await
+  .map_err(store)?
+  .iter()
+  .map(|row| row.try_get::<i64>("", "chat_id"))
+  .collect::<Result<Vec<i64>, _>>()
+  .map_err(|why| store(why.into()))?;
+  let removal = CompanionRemoval {
+    agent: asked.name.clone(),
+    rooms,
+    by: asked.by.clone().filter(|by| !by.trim().is_empty()),
+  };
+
+  if let Err(refusal) = receiver.units().agency.remove_companion(&removal).await.map_err(unit)? {
+    return Err(refused_field(refusal, "", "", &asked.name));
+  }
 
   // A number a kept message is still filed under stays, so it is never handed to anybody else.
   let numbers: Vec<i64> = all(

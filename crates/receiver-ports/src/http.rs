@@ -222,6 +222,35 @@ impl Caller {
     self.call(Method::POST, segments, body).await
   }
 
+  /// A POST with a JSON body whose refusal of the body is an answer of its own: success decoded as the call's,
+  /// a 400 whose body reads as the unit's refusal handed back as that refusal, and anything else the failure it
+  /// is.
+  pub async fn checked<T: DeserializeOwned, R: DeserializeOwned>(
+    &self,
+    segments: &[&str],
+    body: &impl Serialize,
+  ) -> Answer<Result<T, R>> {
+    let (url, answer) = self.sent(Method::POST, segments, Some(body), &[]).await?;
+
+    if answer.status() != reqwest::StatusCode::BAD_REQUEST {
+      return decoded(url, answer).await.map(Ok);
+    }
+
+    let bytes = answer.bytes().await.map_err(|error| PortFailure::Transport {
+      url: url.clone(),
+      why: chain(&error),
+    })?;
+
+    match serde_json::from_slice(&bytes) {
+      Ok(refusal) => Ok(Err(refusal)),
+      Err(_) => Err(PortFailure::Answered {
+        url,
+        status: 400,
+        answer: serde_json::from_slice(&bytes).ok(),
+      }),
+    }
+  }
+
   /// A GET with the query's fields, its successful answer decoded as the call's.
   pub async fn get<T: DeserializeOwned>(&self, segments: &[&str], query: &[(&str, String)]) -> Answer<T> {
     let (url, answer) = self.sent::<()>(Method::GET, segments, None, query).await?;

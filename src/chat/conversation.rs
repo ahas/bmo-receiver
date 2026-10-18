@@ -30,6 +30,7 @@ use crate::receiver::{Inbound, Receiver, Room, rows, wake};
 use crate::rounds;
 use crate::{one, run};
 use receiver_codes::SessionReason;
+use receiver_ports::agency::Said;
 use receiver_ports::gate::{Judgement, TurnEvent};
 
 /// A hook's answer, which it may take its time over.
@@ -511,14 +512,24 @@ struct Offered {
   paragraph: Paragraph,
 }
 
-/// What became of words pushed into a working turn: the turn took them and answered, the turn is waiting for
-/// more, or the turn refused them while it rests on a person. The carrying reads the session's own answer and
-/// names one of these.
+/// What became of words pushed into a working turn: the turn took them, its program waits on a person so it
+/// takes no more, or they did not go in. The carrying reads the agency's answer to the push and names one of
+/// these.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AsideOutcome {
   Delivered,
   Waiting,
   Refused,
+}
+
+impl From<Said> for AsideOutcome {
+  fn from(said: Said) -> Self {
+    match said {
+      Said::Delivered => Self::Delivered,
+      Said::Waiting => Self::Waiting,
+      Said::Refused => Self::Refused,
+    }
+  }
 }
 
 /// A quiet instruction with the row it came as and the events its delivery carries.

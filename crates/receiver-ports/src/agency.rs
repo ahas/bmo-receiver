@@ -1,6 +1,6 @@
-//! The agency port: the agents and their roads, the sessions a turn is carried in, a room forgotten, the hooks
-//! the receiver answers, a run's log and the event stream (`docs/boundary-api.md`, 「The agency」; the agency's
-//! `docs/api.md`). Bodies are camelCase.
+//! The agency port: the agents and their roads, the sessions a turn is carried in and the words pushed into a
+//! working one, a room forgotten, a companion's agent half, the hooks the receiver answers, a run's log and the
+//! event stream (`docs/boundary-api.md`, 「The agency」; the agency's `docs/api.md`). Bodies are camelCase.
 
 use futures_util::StreamExt;
 use futures_util::future::BoxFuture;
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sse_stream::SseStream;
 
-use crate::http::{Answer, Caller, Done, Nothing, Peer, PortFailure};
+use crate::http::{Answer, Caller, Done, Peer, PortFailure};
 
 /// One agent as the agency lists it: its registration name, whether it is awake, the brain folder its long-term
 /// memory is in, and every other field of its row and roads as the agency gives them.
@@ -104,6 +104,16 @@ pub enum Delivery {
   Blocked,
 }
 
+/// What became of words pushed into the turn a session is working: the turn took them, its program waits on a
+/// person, or they did not go in and are the caller's to carry into the next turn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Said {
+  Delivered,
+  Waiting,
+  Refused,
+}
+
 /// A session's state: the provider and model it stands on, its place, its generation and the context its last
 /// request carried, as the agency gives them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -121,9 +131,8 @@ pub struct SessionState {
   pub context: Value,
 }
 
-/// A companion's row the console stands up with its own room: the name it is registered by, what it is
-/// called in the room, the provider and model it is pinned to, the worker its turns run on, and the room
-/// number the receiver gave it.
+/// A companion's row the console stands up: the name it is registered by, what it is called in the room, the
+/// provider and model it is pinned to, and the worker its items go to. The room it answers is the receiver's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CompanionRow {
   pub name: String,
@@ -131,7 +140,23 @@ pub struct CompanionRow {
   pub provider: String,
   pub model: String,
   pub worker: String,
-  pub room: i64,
+}
+
+/// A companion taken out: its registration name, the chat ids of the rooms it answers, and who asked, where the
+/// asker is named.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompanionRemoval {
+  pub agent: String,
+  pub rooms: Vec<i64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub by: Option<String>,
+}
+
+/// A field of the body the agency refused: the field's name and the English sentence saying why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FieldRefusal {
+  pub field: String,
+  pub error: String,
 }
 
 /// A table's rows that stayed with the agency as a room was forgotten, and why.
@@ -260,11 +285,20 @@ pub trait Agency: Send + Sync {
   /// turn begun at or before it is overtaken (the agency's `docs/companions.md`, 「What the reset cuts off」).
   fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
 
-  /// A companion's row stood up, with the console room it answers alone in.
-  fn add_companion<'a>(&'a self, companion: &'a CompanionRow) -> BoxFuture<'a, Answer<()>>;
+  /// Words put into the turn the session is working, answered with what became of them.
+  fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>>;
 
-  /// A companion's row taken down.
-  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<()>>;
+  /// A companion's row stood up, or the field the agency refused.
+  fn add_companion<'a>(
+    &'a self,
+    companion: &'a CompanionRow,
+  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
+
+  /// A companion's half taken out with everything of its own, or the field the agency refused.
+  fn remove_companion<'a>(
+    &'a self,
+    removal: &'a CompanionRemoval,
+  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
 
   /// The stream of the events of the kinds named, from the moment it is opened.
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>>;
@@ -300,6 +334,17 @@ struct Delivered {
 #[derive(Serialize)]
 struct Named<'a> {
   session: &'a str,
+}
+
+#[derive(Serialize)]
+struct Pushing<'a> {
+  session: &'a str,
+  words: &'a str,
+}
+
+#[derive(Deserialize)]
+struct Pushed {
+  said: Said,
 }
 
 #[derive(Deserialize)]
@@ -441,12 +486,35 @@ impl Agency for HttpAgency {
     })
   }
 
-  fn add_companion<'a>(&'a self, companion: &'a CompanionRow) -> BoxFuture<'a, Answer<()>> {
-    Box::pin(async move { self.caller.done(Method::POST, &["companions"], companion).await })
+  fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>> {
+    Box::pin(async move {
+      let pushed: Pushed = self.caller.post(&["session", "push"], &Pushing { session, words }).await?;
+
+      Ok(pushed.said)
+    })
   }
 
-  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<()>> {
-    Box::pin(async move { self.caller.done(Method::DELETE, &["companions", agent], &Nothing {}).await })
+  fn add_companion<'a>(
+    &'a self,
+    companion: &'a CompanionRow,
+  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+    Box::pin(async move {
+      let done: Result<Done, FieldRefusal> = self.caller.checked(&["companions", "add"], companion).await?;
+
+      Ok(done.map(|_| ()))
+    })
+  }
+
+  fn remove_companion<'a>(
+    &'a self,
+    removal: &'a CompanionRemoval,
+  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+    Box::pin(async move {
+      let done: Result<Done, FieldRefusal> =
+        self.caller.checked(&["companions", "remove"], removal).await?;
+
+      Ok(done.map(|_| ()))
+    })
   }
 
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {

@@ -358,10 +358,17 @@ room's registration」).
 | Route | Body | Answer |
 |---|---|---|
 | `POST /companions/add` | `name`, `label`, `provider`, `model`, `worker`, `room` | `companions`, `room` (`chatId`, `takenBack`), `said` |
-| `POST /companions/remove` | `name` | `companions`, `said` |
+| `POST /companions/remove` | `name`, `by?` | `companions`, `said` |
 
-The receiver writes the companion's console room, its number there and the room's answerers; the agent's row is
-the agency's (「Contract gaps」).
+The receiver writes the companion's console room, its number there and the room's answerers; the agent's half is
+the agency's, and its gate options the gate's. Adding checks the name, the label, the room and the worker here,
+asks the agency to write the row (`POST /companions/add`), then the gate to copy the chat agent's gate options
+for it (`POST /options/copied`), then writes the room half. Removing reads the rooms the companion answers before
+it gives any up, asks the agency to take its half with those rooms and `by`, who asked where the console names
+one, and then gives up the room half. A field the agency refuses comes back as the `CompanionRefusal` of that
+field (`name`, `label`, `provider`, `model`, `worker`; `agent` as `not-companion`; any other as `unit-failed`),
+and nothing of the receiver's is written. A gate that does not copy refuses nothing: the companion stands on the gate's defaults,
+and the failure is logged.
 
 ### For the web unit's console: reading a room
 
@@ -406,15 +413,22 @@ every room's matter.
 | start a session | `POST /session/start` | `agent`, `scope` (`{ "kind": "agent" }` or `{ "kind": "room", "room": <id> }`) | `id`, `agent`, `scope` |
 | send a turn | `POST /session/turn` | `session`, `prompt`, and the context: `room` (`chatId`, `text`, `mark`), `via`, `basePersona`, `privileged`, `answers`, `began` | `delivery`: `taken` or `blocked` |
 | read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` |
+| push words | `POST /session/push` | `session`, `words` | `said`: `delivered`, `waiting` or `refused` |
 | interrupt, fold, end | `POST /session/interrupt`, `POST /session/fold`, `POST /session/end` | `session` | `ok` |
 | list sessions | `GET /session/list` | | `sessions` |
 | forget a room | `POST /rooms/forget` | `chatId`, `dryRun` | `gone`, `stayed` (each `table`, `rows`, `why`) |
 | register a hook | `POST /hooks` | `point`, `url`, `token` | |
-| a companion registered | `POST /companions` | `name`, `label`, `provider`, `model`, `worker`, `room` | `ok` |
-| a companion taken out | `DELETE /companions/{agent}` | | `ok` |
+| a companion registered | `POST /companions/add` | `name`, `label`, `provider`, `model`, `worker` | `ok`; 400 `field`, `error` for a field that does not pass |
+| a companion taken out | `POST /companions/remove` | `agent`, `rooms` (the chat ids of the rooms it answers), `by?` | `ok`; 400 `field`, `error` for an agent that is no companion or is seeded |
 | a run's log | `GET /run-log?run=&after=` | | `lines` |
 | an agent's reset point | `GET /reset-point?agent=` | | `point` in epoch milliseconds or null: the moment the agent was last reset at, which overtakes a turn begun at or before it |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
+
+A round's turn takes words while it works: on the round's push look, while the turn's run has started, the
+words that came for the round's room since it froze are composed (`push` in `docs/bmo-window.md`) and handed to
+the session's push. `delivered` joins them to the round; `waiting` gives them back to wait for the next round and
+offers that turn nothing more; `refused`, or a push that failed, gives them back, and nothing more is offered
+until the policy's gap after a refusal has passed (`chat-round.toml`, `[pushing]`).
 
 The receiver reads these of an agent's row, beside the `name`, `label` and `awake` the agency states of every
 agent: `kind`, `aliases` and `builtin` (how the room's roster groups and names it), `wake_words` and
@@ -481,11 +495,15 @@ are snake_case, as bmo-job's calls on the gate are.
 | a turn's reference | `POST /reference/selected` | `chat`, `message?`, `lines` (the room's recent messages in the room shape with every line the turn brought, each a string), `speakers` (the people whose words the turn answers, by number), `situation?` (`agent`, `room`: `owner` or `group`, `events`: each `kind` and `item?`, `now` in Unix seconds), `holds?` (the holds' names), `round?`, `people_spoke` (boolean), `answered?` (what the turn answered already, where it is asked again), `off` (the gates switched off for the agent), `records` (boolean: whether the turn's road records its gates) | `entries`: each `path`, `text`, `source` (`document`, `person`, `rule`, `situation`, `knowledge`, `memory`, `room` or `archive`) and `fragment?` |
 | sanitise words | `POST /sanitised` | `text`, `label`, `chat?`, `message?` | `text`, `changed`; 409 `stopped` where its run was stopped |
 | a room's judgement | `POST /judgements` | `chat`, `message?`, `stage`, `verdict`, `detail?`, `ms?`, `round?` | 204 |
+| a companion's gate options | `POST /options/copied` | `agent` (the companion), `from` (the deployment's chat agent) | 204 |
 
 The sanitiser is bmo-job's call as its `docs/api.md` states it, with `message` beside it so a verdict is kept
 under the message it was made on. A judgement is a decision written into a room's log: a round's skip, a re-ask,
 an answer sent. The road a turn walked and what it spent are published by the agency as `road-walked` and
-`usage-spent`, for the units that keep them; the receiver writes neither.
+`usage-spent`, for the units that keep them; the receiver writes neither. A companion's gate options are the
+gate's: as a companion stands they are copied from the chat agent's as they are then, so the gates run for it
+from its first turn and are tuned apart afterwards; the receiver, which stands the companion up, asks for the
+copy.
 
 ### The web unit
 
@@ -541,19 +559,10 @@ each declares.
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:
 
-- **The agency** documents no route that registers a companion's row with its console room; the receiver's
-  `POST /companions/add` writes the room half and needs one.
-- **The agency** has no operation that puts words into a turn already working: a round's mid-turn push into a
-  session it carries is not answered for here, and the receiver's `push` stands only in its own queues.
 - **The voice unit** gives no time beside a briefing it keeps, so the receiver reads a room's briefings at large
   where it wants the ones this round launched, for the voice unit to state.
 - **The agency** publishes `road-walked` and `usage-spent`; the receiver writes no road and no usage rows of its
   own, and a run of a second asking that failed is written as a judgement of the round with no figures.
-- **The agency** states `GET /rest` and `POST /rest` but no route that reports why a rest that has just passed
-  ended the silence; the receiver asks `GET /rest/passed` for its restart, for agency to state.
-- **The agency** states no route answering an agent's reset point; the receiver asks `GET /reset-point?agent=`
-  for the send tool's turn, which a turn begun at or before the point it answers is refused in, for the agency
-  to state.
 - **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open
   questions with their options, nor one that writes a line of talk over a question and stops its clock; the
   receiver asks `GET /questions/open?chat=` and `POST /question-talk`, for bmo-job to state.
@@ -564,6 +573,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
   room holds for an agent is what the wake reads. One of the two is to be moved before both stand in one
   database.
 - **The gate, the web unit and the voice unit** state no boundary yet; their calls above are the receiver's side.
+  The gate's copy of a companion's gate options, which the agency's `docs/companions.md` names the gate's, is
+  among them.
 - **bmo-chat's file item** carries a name, a type and the bytes, and no identifier of the file's own, so a file
   another replaced under the same name in an edited message is not told apart from it and the first bytes stand;
   nor does a hand-over say whether a sound was a spoken note or a video a round note or an animation.

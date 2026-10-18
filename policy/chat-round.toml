@@ -168,6 +168,12 @@ instructions = "{count} quiet instruction(s) from the service you run inside"
 joined = " and "
 scope = "These add to this turn's scope: {ids}"
 
+# How often a working turn is offered the words that came for its room while it works, in milliseconds, and how
+# long it is offered none after the agency refused a push, since each offer composes its words afresh.
+[pushing]
+look_ms = 1000
+refused_gap_ms = 10000
+
 # How often a working turn's picture is published where only its counts changed, in milliseconds; a change in
 # what the room's block draws goes out at once.
 [progress]

@@ -33,7 +33,7 @@ pub use store::{Fault, all, one, run};
 
 /// The service's version, the workspace's: a contract a consumer reads moves the major, an addition no
 /// existing consumer reads the minor, anything else the patch.
-pub const VERSION: &str = "0.3.0";
+pub const VERSION: &str = "0.4.0";
 
 /// The moment it is, in epoch milliseconds.
 pub fn now_ms() -> i64 {

@@ -16,8 +16,8 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, CompanionRow, Delivery, Events, Forgotten, Passed, Rest, RestKind, Resting,
-  RunLine, Scope, Session, SessionState, Turn, Written,
+  Agency, Agent, Agents, CompanionRemoval, CompanionRow, Delivery, Events, FieldRefusal, Forgotten, Passed,
+  Rest, RestKind, Resting, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::brain::{
   BeforeFold, Brain, Load, Reading, Refused, Reminder, Reminders, RoomRule, Row, RuleText, Took,
@@ -201,10 +201,12 @@ impl Chat for StandInChat {
   }
 }
 
-/// The gate: the sanitiser marks what it read, and nothing else is asked.
+/// The gate: the sanitiser marks what it read, and every copy of gate options asked is kept, each the agent it
+/// is for and the agent copied from.
 #[derive(Default)]
 pub struct StandInGate {
   pub read: Mutex<Vec<String>>,
+  pub copied: Mutex<Vec<(String, String)>>,
 }
 
 impl Gate for StandInGate {
@@ -224,6 +226,12 @@ impl Gate for StandInGate {
   }
 
   fn judge<'a>(&'a self, _judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async { Ok(()) })
+  }
+
+  fn copy_options<'a>(&'a self, agent: &'a str, from: &'a str) -> BoxFuture<'a, Answer<()>> {
+    self.copied.lock().unwrap().push((agent.to_owned(), from.to_owned()));
+
     Box::pin(async { Ok(()) })
   }
 }
@@ -647,8 +655,11 @@ pub fn registration(
 }
 
 /// The agency: the agents it registers, whether a stand-in answers an agent while the rest closes its road,
-/// and the deployment's rest.
+/// the deployment's rest, every companion removal it was asked, and the field it refuses a companion's call on
+/// where a test sets one.
 pub struct StandInAgency {
+  pub removals: Mutex<Vec<CompanionRemoval>>,
+  pub refusing: Mutex<Option<FieldRefusal>>,
   pub agents: Mutex<Vec<Agent>>,
   pub stand_ins: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
@@ -661,6 +672,8 @@ pub struct StandInAgency {
 impl StandInAgency {
   pub fn new() -> Self {
     StandInAgency {
+      removals: Mutex::default(),
+      refusing: Mutex::default(),
       agents: Mutex::default(),
       stand_ins: Mutex::default(),
       rest: Mutex::new(Rest {
@@ -790,7 +803,18 @@ impl Agency for StandInAgency {
     not_asked_agency("the events")
   }
 
-  fn add_companion<'a>(&'a self, companion: &'a CompanionRow) -> BoxFuture<'a, Answer<()>> {
+  fn push<'a>(&'a self, _session: &'a str, _words: &'a str) -> BoxFuture<'a, Answer<Said>> {
+    not_asked_agency("a push")
+  }
+
+  fn add_companion<'a>(
+    &'a self,
+    companion: &'a CompanionRow,
+  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+    if let Some(refusal) = self.refusing.lock().unwrap().clone() {
+      return Box::pin(async move { Ok(Err(refusal)) });
+    }
+
     let mut row = serde_json::Map::<String, Value>::new();
 
     row.insert("kind".to_owned(), serde_json::json!("chat"));
@@ -806,17 +830,26 @@ impl Agency for StandInAgency {
       row,
     });
 
-    Box::pin(async { Ok(()) })
+    Box::pin(async { Ok(Ok(())) })
   }
 
-  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<()>> {
+  fn remove_companion<'a>(
+    &'a self,
+    removal: &'a CompanionRemoval,
+  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+    if let Some(refusal) = self.refusing.lock().unwrap().clone() {
+      return Box::pin(async move { Ok(Err(refusal)) });
+    }
+
+    self.removals.lock().unwrap().push(removal.clone());
+
     let mut held = self.agents.lock().unwrap();
 
-    if let Some(at) = held.iter().position(|one| one.name == agent) {
+    if let Some(at) = held.iter().position(|one| one.name == removal.agent) {
       held.remove(at);
     }
 
-    Box::pin(async { Ok(()) })
+    Box::pin(async { Ok(Ok(())) })
   }
 }
 

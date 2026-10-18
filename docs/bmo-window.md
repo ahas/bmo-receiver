@@ -215,7 +215,8 @@ Beside the reference, a turn carries the room's messages since the agent last an
 - **`push`**: words put into a turn that is still working. The window selects over the pushed words and
   instructions, with their events, for what the round does not already hold: no gate is offered a piece the
   round carries, and a push of the system's lines alone asks only the matcher. It puts in whatever the running
-  turn does not already carry, and that joins what the round holds.
+  turn does not already carry, and that joins what the round holds once the agency's session push answers it
+  `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
 - **`again`**: a second asking inside the same round. It carries the round's own selection again; the documents
   have just gone in, so they stand as marks.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.

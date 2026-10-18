@@ -7,14 +7,16 @@
 //! the turn as it goes.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{LazyLock, Mutex, PoisonError};
+use std::sync::{Arc, LazyLock, Mutex, PoisonError};
 use std::time::Duration;
 
 use futures_util::StreamExt;
 use serde_json::Value;
+use tokio::time::MissedTickBehavior;
 
 use receiver_codes::SessionReason;
-use receiver_ports::agency::{Delivery, Event, Scope, Session, Turn, TurnRoom};
+use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
 use receiver_ports::http::PortFailure;
 
 use super::cache::{
@@ -211,9 +213,24 @@ impl Carry {
     let mut run: Option<String> = None;
     let mut after: i64 = 0;
     let mut ended: Option<Value> = None;
+    let mut look = tokio::time::interval(Duration::from_millis(CHAT_ROUND.pushing.look_ms.max(1)));
+    let mut quiet_until: Option<tokio::time::Instant> = None;
+
+    look.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
     while ended.is_none() {
-      match stream.next().await {
+      let read = tokio::select! {
+        read = stream.next() => read,
+        _ = look.tick() => {
+          if run.is_some() && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until) {
+            quiet_until = pushed(&agency, &session.id, follower).await;
+          }
+
+          continue;
+        }
+      };
+
+      match read {
         None => break,
         Some(Ok(Event { kind, data })) => {
           let mine = data.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
@@ -297,6 +314,29 @@ impl Carry {
       }),
     }
   }
+}
+
+// The words that came for the round's room while its turn works, offered to the turn and settled on what the
+// agency said became of them; answered with the moment before which nothing more is offered, where a refusal
+// asks for that gap.
+async fn pushed(
+  agency: &Arc<dyn Agency>,
+  session: &str,
+  follower: &Follower,
+) -> Option<tokio::time::Instant> {
+  let words = follower.offer().await?;
+  let said = match agency.push(session, &words).await {
+    Ok(said) => said,
+    Err(why) => {
+      eprintln!("session {session}: words for the working turn did not go in: {why}");
+      Said::Refused
+    }
+  };
+
+  follower.settle(said.into()).await;
+
+  (said == Said::Refused)
+    .then(|| tokio::time::Instant::now() + Duration::from_millis(CHAT_ROUND.pushing.refused_gap_ms))
 }
 
 impl Carrying for Carry {

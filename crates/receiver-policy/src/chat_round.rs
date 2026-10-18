@@ -177,6 +177,15 @@ pub struct Push {
   pub scope: String,
 }
 
+/// How often a working turn is offered the words that came for its room, and how long it is offered none after
+/// the agency refused a push.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Pushing {
+  pub look_ms: u64,
+  pub refused_gap_ms: u64,
+}
+
 /// How often a working turn's picture is published where only its counts changed.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -245,6 +254,7 @@ pub struct ChatRound {
   pub queue_line: QueueLine,
   pub relay: Relay,
   pub push: Push,
+  pub pushing: Pushing,
   pub progress: Progress,
   pub typing: Typing,
   pub instructions: Instructions,
