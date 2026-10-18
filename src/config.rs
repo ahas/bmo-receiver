@@ -22,9 +22,13 @@ use serde::Deserialize;
 use crate::data_root::DataRoot;
 use crate::receiver::{Deployment, Receiver, Units};
 use crate::roads::Roads;
+use crate::verbs::reload::Places;
 
 /// The consumer the receiver registers with the cache warmer, unless the configuration names another.
 const CONSUMER: &str = "receiver";
+
+/// The folder under the data root the brain's documents stand in, unless the configuration names another root.
+const BRAIN: &str = "brain";
 
 /// The configuration, key by key as the file writes it.
 #[derive(Clone, Debug, Deserialize)]
@@ -48,6 +52,10 @@ pub struct Config {
   pub attachment_bytes: Option<u64>,
   #[serde(default)]
   pub wording_document: Option<PathBuf>,
+  #[serde(default)]
+  pub brain_root: Option<PathBuf>,
+  #[serde(default)]
+  pub document_tree: Option<PathBuf>,
   pub agency: Peer,
   pub brain: Peer,
   pub gate: Peer,
@@ -113,6 +121,15 @@ impl Config {
   /// The data root the configuration names, with the stores under it.
   pub fn roots(&self) -> DataRoot {
     DataRoot::new(self.data_root.clone())
+  }
+
+  /// Where a document reload reads what it names: the tree the agents' shipped documents stand in, where the
+  /// configuration names one, and the brain root, `brain` under the data root where it names none.
+  pub fn places(&self) -> Places {
+    Places {
+      tree: self.document_tree.clone(),
+      brain: self.brain_root.clone().unwrap_or_else(|| self.data_root.join(BRAIN)),
+    }
   }
 
   /// A receiver on the database, for this configuration's deployment and units, with its database's place

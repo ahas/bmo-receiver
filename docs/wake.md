@@ -166,6 +166,44 @@ receiver's (the agency's `docs/companions.md`, 「What the reset cuts off」).
   quiet instructions, whose rows are settled as delivered so no turn takes them again. A companion whose
   conversations do not stand in this process has nothing waiting.
 
+## A companion's reset
+
+The reset is the agency's; it tells each unit holding the companion's rows to take its own, by
+`companion-reset` on the agency's event stream (the agency's `docs/companions.md`, 「Starting it afresh」),
+once the cut-off has let go what waited for the companion's turns. The receiver takes its own rows of the
+ranges the event names, in one write:
+
+- **The conversation range** takes the whole record of each room the companion answers alone (its messages and
+  the receiver's read mark of it) and, in every room, the companion's own quiet instructions and the windows its
+  rooms hold for it.
+- **The person range** takes the marks the companion's book of each room has read.
+- **A room counts as answered alone** where the event names it so and the receiver's own record holds the
+  companion as its one answerer, so a room another agent also answers keeps its record whatever the event says.
+- **What stays, whichever range:** the rooms themselves and who answers them, their titles, their settings, the
+  files their messages carried, and the lowest number each room's record has handed out, so a number whose
+  message went is never handed out again.
+
+## What the agency's events wake
+
+Each event the receiver reads (`docs/boundary-api.md`, 「The agency」) is heard by the part its effect belongs
+to, and those that tell the chat agent something wake it as an instruction in the owner's private chat, which
+opens a round there like any instruction:
+
+- **A fact the system recorded,** framed as every voiced notice is and summed up on the console by its own
+  account: what a job's end left standing in herdr (`herdr-leftovers`, its `panes`, its `workspaces` and its
+  `account` as the agency gave them), and pressure on the machine (`machine-pressure`). A pressure fact names
+  its `cause`; for the memory the `minutes` it stood, the `alertPct` line and the `memoryFullPct` it stands at,
+  and for the disk the `limitGb` line and the `diskFreeGb` left; then the node service's `reading`, the `jobs`
+  and `browserJobs` open, the eight largest `holders`, each its `place`, `worker`, `jobId`, `todoId`,
+  `megabytes` and `browsers`, the `largest` processes as the agency named them, and an English `account` naming
+  the four largest holders. A newer fact of the same cause replaces one not yet handed over.
+- **A voiced notice:** a stand-in answering or ended, a run come back after a failure, a worker fallen to a
+  lesser model (`docs/voiced-notices.md`, 「Rest and fallback」).
+- **An order:** a run past its clock, withdrawn where its ask closes first (`docs/voiced-notices.md`, 「A turn
+  past its clock」).
+- **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency
+  words it; neither wakes anyone.
+
 ## A job's end
 
 - **A job's end wakes the chat agent through bmo-job's instruction:** its ending, its report and its state

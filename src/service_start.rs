@@ -16,17 +16,27 @@ use sea_orm::DatabaseConnection;
 
 use crate::chat::around::Around;
 use crate::chat::conversation::{Conversations, Timings};
+use crate::chat::fallback::Fallbacks;
 use crate::chat::instructions::{Pass, Rooms};
+use crate::chat::logins::Logins;
+use crate::chat::overtime::Overtime;
+use crate::chat::recovered::Recoveries;
 use crate::chat::restart::keep as keep_restart;
 use crate::chat::runner::Runner;
-use crate::companion::cut::keep_hearing;
+use crate::companion::cut::CutOffs;
+use crate::companion::reset::Resets;
 use crate::config::Config;
 use crate::data_root::DataRoot;
 use crate::events::Events;
+use crate::hearing::{Hearer, Hearing};
+use crate::machine::Pressure;
 use crate::receiver::wake::Waking;
 use crate::receiver::wake::agents::{Designated, default_designated};
+use crate::receiver::wake::rest::Rests;
 use crate::receiver::{Receiver, Units};
 use crate::tool_env::base_address;
+use crate::verbs::reload::{Places, Reloads};
+use crate::workers::Workers;
 
 /// The agency's hook points the receiver answers.
 const HOOKS: [&str; 3] = ["room-title", "typed-line", "road-verbs"];
@@ -117,14 +127,15 @@ pub async fn settle(receiver: &Receiver, consumer: &str, listen: &str, token: &s
 /// The receiver as a running service stands it: on its configuration's database, hearing its news on the
 /// event stream, judging every message by the one rule, handing every woken turn to the one runner whose
 /// default answerer is the awake agent its registration marks as the default, and handing every agent's rows
-/// to its conversations through the one instruction pass. Nothing is started here: the clocks are the
-/// service's, and a check runs one pass over the same standing.
+/// to its conversations through the one instruction pass, with where a document reload reads what it names.
+/// Nothing is started here: the clocks are the service's, and a check runs one pass over the same standing.
 pub struct Standing {
   pub receiver: Receiver,
   pub runner: Runner,
   pub pass: Arc<Pass>,
   pub news: Arc<Events>,
   pub conversations: Conversations,
+  pub places: Places,
 }
 
 impl Standing {
@@ -162,15 +173,36 @@ impl Standing {
       pass,
       news,
       conversations,
+      places: config.places(),
     })
   }
 }
 
+/// Every part of the receiver that hears the agency's events, each the owner of its events' effect
+/// (docs/boundary-api.md, 「The agency」).
+pub fn hearing(standing: &Standing) -> Hearing {
+  let receiver = &standing.receiver;
+  let hearers: Vec<Arc<dyn Hearer>> = vec![
+    Arc::new(CutOffs::new(receiver.clone(), standing.runner.clone())),
+    Arc::new(Resets::new(receiver.clone())),
+    Arc::new(Reloads::new(receiver.clone(), standing.places.clone())),
+    Arc::new(Fallbacks::new(receiver.clone())),
+    Arc::new(Rests::new(receiver.clone())),
+    Arc::new(Logins::new(receiver.clone())),
+    Arc::new(Recoveries::new(receiver.clone())),
+    Arc::new(Workers::new(receiver.clone())),
+    Arc::new(Pressure::new(receiver.clone())),
+    Arc::new(Overtime::new(receiver.clone())),
+  ];
+
+  Hearing::new(hearers)
+}
+
 /// The clocks of a running service: the instruction pass over every agent's rows, the conversations' own
-/// clock and the restart; and the companions' cut-off, heard for as long as the service runs.
+/// clock and the restart; and the agency's events, heard for as long as the service runs.
 pub fn keep(standing: &Standing) {
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();
   keep_restart(standing.receiver.clone(), standing.conversations.clone());
-  keep_hearing(standing.receiver.clone(), standing.runner.clone());
+  hearing(standing).keep(standing.receiver.units().agency.clone());
 }

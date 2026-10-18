@@ -10,12 +10,15 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 
-use receiver_ports::agency::Scope;
+use futures_util::future::BoxFuture;
+use receiver_ports::agency::{Event, Scope};
+use serde::Deserialize;
 
 use sea_orm::DatabaseConnection;
 
 use crate::chat::conversation::unified_session;
 use crate::chat::instructions::{Queued, queue};
+use crate::hearing::Hearer;
 use crate::receiver::Receiver;
 use crate::{Fault, all, now_ms, one, run};
 
@@ -48,7 +51,7 @@ pub const RELOAD_COOLDOWN_SECONDS: i64 = 3_600;
 
 const RELOAD_HEAD: &str = "Documents you rely on were updated";
 
-// A reload notice's kind: the one row a room holds of it at a time.
+// A reload notice's kind, beside the agent it is for: the one row a room holds of it for each agent at a time.
 const RELOAD_KIND: &str = "reload";
 
 // The family a reload row is listed under.
@@ -73,10 +76,11 @@ pub fn lexical(path: &Path) -> PathBuf {
   whole
 }
 
-/// Where a reload reads shipped documents out of, and where the brain's documents are.
+/// Where a reload reads shipped documents out of, where the deployment names that tree, and where the brain's
+/// documents are.
 #[derive(Clone, Debug)]
 pub struct Places {
-  pub tree: PathBuf,
+  pub tree: Option<PathBuf>,
   pub brain: PathBuf,
 }
 
@@ -108,13 +112,25 @@ impl Places {
       return lexical(Path::new(value)).to_string_lossy().into_owned();
     }
 
-    let tree = lexical(&self.tree);
+    let Some(tree) = self.tree.as_deref().map(lexical) else {
+      return whole_text;
+    };
 
     if let Ok(inside) = whole.strip_prefix(&tree) {
       return inside.to_string_lossy().into_owned();
     }
 
     pathdiff(&whole, &tree)
+  }
+
+  /// The file a named document is read from: a whole path as it stands, a tree's under the tree where one is
+  /// named; none for a tree's document where none is.
+  pub fn file(&self, path: &str) -> Option<PathBuf> {
+    if Path::new(path).is_absolute() {
+      return Some(PathBuf::from(path));
+    }
+
+    self.tree.as_ref().map(|tree| tree.join(path))
   }
 }
 
@@ -250,9 +266,13 @@ pub fn reload_instruction(places: &Places, paths: &[String]) -> String {
       continue;
     }
 
-    let text = std::fs::read_to_string(places.tree.join(path))
-      .map(|whole| whole.trim().to_owned())
-      .unwrap_or_default();
+    let Some(file) = places.file(path) else {
+      lines.push(format!(
+        "[{path}] (its current text is in a tree this service does not read; open it when you next need it)"
+      ));
+      continue;
+    };
+    let text = std::fs::read_to_string(&file).map(|whole| whole.trim().to_owned()).unwrap_or_default();
 
     if text.is_empty() {
       lines.push(format!("[{path}] (removed or empty)"));
@@ -265,7 +285,7 @@ pub fn reload_instruction(places: &Places, paths: &[String]) -> String {
       let at = if Path::new(path).is_absolute() {
         String::new()
       } else {
-        format!(" at {}", lexical(&places.tree.join(path)).display())
+        format!(" at {}", lexical(&file).display())
       };
 
       lines.push(format!("[{path}] (too long to include here; read the file{at})"));
@@ -378,20 +398,24 @@ pub async fn chats_concerned(receiver: &Receiver, places: &Places, path: &str) -
   }
 }
 
-/// The files a reload notice names, folded into the one still waiting in the room, and the row written for
-/// the room's session: it rides the next round of any room its session answers rather than waking one.
+/// The files a reload notice names, folded into the one still waiting in the room for the agent, and the row
+/// written for the agent's session there: it rides the next round of any room its session answers, for good,
+/// rather than waking one. Where the room's gathering is kept, the moment it was told is written.
 async fn tell_chat(
   receiver: &Receiver,
   places: &Places,
+  agent: &str,
   chat_id: i64,
   paths: &[String],
   now: i64,
+  gathered: bool,
 ) -> Result<(), Fault> {
   let db = receiver.db();
+  let kind = format!("{RELOAD_KIND}:{agent}");
   let waiting = one(
     db,
     r#"SELECT "text" FROM "instructions" WHERE "chat_id" = $1 AND "kind" = $2 AND "delivered_at" IS NULL AND "handed_at" IS NULL ORDER BY "id" DESC LIMIT 1"#,
-    vec![chat_id.into(), RELOAD_KIND.into()],
+    vec![chat_id.into(), kind.clone().into()],
   )
     .await
     .unwrap_or(None);
@@ -405,12 +429,18 @@ async fn tell_chat(
 
   let text = reload_instruction(places, &every);
   let queued = Queued {
-    kind: Some(RELOAD_KIND),
+    kind: Some(&kind),
     sort: Some(RELOAD_SORT),
+    rides_session: true,
     ..Queued::default()
   };
 
-  queue(db, &receiver.deployment().agent, chat_id, &text, &queued).await.map(drop)?;
+  queue(db, agent, chat_id, &text, &queued).await.map(drop)?;
+
+  if !gathered {
+    return Ok(());
+  }
+
   run(
     db,
     r#"INSERT INTO "reload_sent" ("chat_id", "at") VALUES ($1, $2) ON CONFLICT ("chat_id") DO UPDATE SET "at" = excluded."at""#,
@@ -484,7 +514,7 @@ pub async fn flush_due(receiver: &Receiver, places: &Places, now: i64) -> Vec<i6
       .collect();
 
     if !paths.is_empty() {
-      let _ = tell_chat(receiver, places, chat_id, &paths, now).await;
+      let _ = tell_chat(receiver, places, &receiver.deployment().agent, chat_id, &paths, now, true).await;
       told.push(chat_id);
     }
   }
@@ -501,8 +531,8 @@ async fn session_key(receiver: &Receiver, chat_id: i64) -> String {
   }
 }
 
-/// A reload as the receiver runs it: the documents named told to every session concerned, and what the reload
-/// came to said. `given` are as the call gave them; `now` is in unix seconds.
+/// A reload as the receiver runs it: the documents named told to every session of the chat agent's they concern,
+/// and what the reload came to said. `given` are as the call gave them; `now` is in unix seconds.
 pub async fn reload(
   receiver: &Receiver,
   places: &Places,
@@ -532,23 +562,51 @@ pub async fn reload(
     }
 
     for chat_id in chats_concerned(receiver, places, path).await {
-      match by_room.iter_mut().find(|(chat, _)| *chat == chat_id) {
-        Some((_, list)) => {
-          if !list.iter().any(|one| one == path) {
-            list.push(path.clone());
-          }
-        }
-        None => by_room.push((chat_id, vec![path.clone()])),
-      }
+      gather(&mut by_room, chat_id, std::slice::from_ref(path));
     }
   }
 
+  said.extend(tell_rooms(receiver, places, &receiver.deployment().agent, by_room, now, immediate).await);
+  said
+}
+
+// The paths added to what a room has gathered, each once.
+fn gather(by_room: &mut Vec<(i64, Vec<String>)>, chat_id: i64, paths: &[String]) {
+  let at = match by_room.iter().position(|(chat, _)| *chat == chat_id) {
+    Some(at) => at,
+    None => {
+      by_room.push((chat_id, vec![]));
+      by_room.len() - 1
+    }
+  };
+  let list = &mut by_room[at].1;
+
+  for path in paths {
+    if !list.contains(path) {
+      list.push(path.clone());
+    }
+  }
+}
+
+/// What each room gathered told to the agent's session there, or kept for its next reload where the room was told
+/// within the hour and the reload is not due at once; what came of it, said.
+async fn tell_rooms(
+  receiver: &Receiver,
+  places: &Places,
+  agent: &str,
+  by_room: Vec<(i64, Vec<String>)>,
+  now: i64,
+  immediate: bool,
+) -> Vec<String> {
+  let mut said: Vec<String> = vec![];
   let mut told: Vec<i64> = vec![];
+  // The reload tables keep a room's gathering for the chat agent's session alone: another agent's is told at once.
+  let gathered = agent == receiver.deployment().agent;
 
   for (chat_id, list) in by_room {
     let last = last_told(receiver.db(), chat_id).await;
 
-    if !immediate && last.is_some_and(|last| now - last < RELOAD_COOLDOWN_SECONDS) {
+    if gathered && !immediate && last.is_some_and(|last| now - last < RELOAD_COOLDOWN_SECONDS) {
       for path in &list {
         let _ = run(
           receiver.db(),
@@ -565,7 +623,7 @@ pub async fn reload(
       continue;
     }
 
-    let mut every = take_pending(receiver.db(), chat_id).await;
+    let mut every = if gathered { take_pending(receiver.db(), chat_id).await } else { vec![] };
 
     for path in &list {
       if !every.contains(path) {
@@ -575,7 +633,7 @@ pub async fn reload(
 
     every = distinct_paths(&every);
 
-    let _ = tell_chat(receiver, places, chat_id, &every, now).await;
+    let _ = tell_chat(receiver, places, agent, chat_id, &every, now, gathered).await;
     told.push(chat_id);
     said.push(format!(
       "reload: room {chat_id} told to re-read {}, with its next round",
@@ -613,13 +671,92 @@ pub async fn reload(
   said
 }
 
-/// The documents moved told to the sessions concerned, as the agency's `documents-moved` event names them.
-pub async fn documents_moved(receiver: &Receiver, places: &Places, paths: &[String]) -> Vec<String> {
-  let lines = reload(receiver, places, paths, now_ms() / 1000, false).await;
+/// The event a reload naming documents is published as.
+pub const DOCUMENTS_MOVED: &str = "documents-moved";
 
-  for line in &lines {
-    eprintln!("{line}");
+/// A reload as the agency publishes it: the paths, whether it is due at once, and where the caller named them, whose
+/// documents they are and the rooms they concern.
+#[derive(Debug, Deserialize)]
+pub struct Moved {
+  #[serde(default)]
+  pub paths: Vec<String>,
+  #[serde(default)]
+  pub now: bool,
+  #[serde(default)]
+  pub agent: Option<String>,
+  #[serde(default)]
+  pub rooms: Vec<i64>,
+}
+
+/// The documents moved told to the sessions concerned, as the agency's `documents-moved` names them: where it names
+/// rooms, the named agent's sessions in those rooms, the chat agent's where it names no agent, each room holding a
+/// session of that agent told every path; where it names none, the chat agent's sessions each document concerns. A
+/// reload naming an agent and rooms is the brain's, so a relative path it names stands under the brain root.
+pub async fn documents_moved(receiver: &Receiver, places: &Places, moved: &Moved) -> Vec<String> {
+  let now = now_ms() / 1000;
+
+  if moved.rooms.is_empty() {
+    return reload(receiver, places, &moved.paths, now, moved.now).await;
   }
 
-  lines
+  let agent = moved.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone());
+  let brains = moved.agent.is_some();
+  let paths: Vec<String> = moved
+    .paths
+    .iter()
+    .map(|path| {
+      if brains && !Path::new(path).is_absolute() {
+        places.named(&places.brain.join(path).to_string_lossy())
+      } else {
+        places.named(path)
+      }
+    })
+    .collect();
+
+  if paths.is_empty() {
+    return vec![RELOAD_USAGE.to_owned()];
+  }
+
+  let sessions = session_rooms(receiver, &agent).await;
+  let mut by_room: Vec<(i64, Vec<String>)> = vec![];
+
+  for chat_id in moved.rooms.iter().filter(|room| sessions.contains(room)) {
+    gather(&mut by_room, *chat_id, &paths);
+  }
+
+  tell_rooms(receiver, places, &agent, by_room, now, moved.now).await
+}
+
+/// The reloads as the service hears them on the agency's stream.
+pub struct Reloads {
+  receiver: Receiver,
+  places: Places,
+}
+
+impl Reloads {
+  pub fn new(receiver: Receiver, places: Places) -> Self {
+    Reloads { receiver, places }
+  }
+}
+
+impl Hearer for Reloads {
+  fn kinds(&self) -> &'static [&'static str] {
+    &[DOCUMENTS_MOVED]
+  }
+
+  fn hear<'a>(&'a self, event: &'a Event) -> BoxFuture<'a, ()> {
+    Box::pin(async move {
+      let moved = match serde_json::from_value::<Moved>(event.data.clone()) {
+        Ok(moved) => moved,
+        Err(why) => {
+          eprintln!("bmo-receiver: a reload that does not read: {why}");
+          return;
+        }
+      };
+
+      for line in documents_moved(&self.receiver, &self.places, &moved).await {
+        println!("{line}");
+      }
+    })
+  }
 }

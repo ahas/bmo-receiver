@@ -1877,10 +1877,15 @@ impl Conversations {
 
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.answered = true;
+    }
+
+    // The room stays in flight until its window is written, so a room read as idle has its window moved.
+    self.restart_window(chat_id).await;
+
+    if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.in_flight = false;
     }
 
-    self.restart_window(chat_id).await;
     drop(keeping);
     self.pump_pending(chat_id);
   }

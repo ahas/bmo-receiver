@@ -143,6 +143,7 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     expires_at_ms: asked.expires_at,
     events: asked.events.clone(),
     rides_until_ms: asked.rides_until,
+    rides_session: false,
     sort: Some(&asked.sort),
     summary: asked.summary.as_deref(),
     via: asked.via.as_deref(),

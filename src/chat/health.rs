@@ -71,6 +71,7 @@ pub async fn raise_order(
     expires_at_ms: Some(CHAT_HEALTH.order.check_seconds as i64 * 1_000),
     events: vec![],
     rides_until_ms: None,
+    rides_session: false,
     sort: None,
     summary: reason,
     via: None,

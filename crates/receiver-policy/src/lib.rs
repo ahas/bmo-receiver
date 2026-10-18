@@ -14,6 +14,7 @@ pub mod consult;
 pub mod files;
 pub mod handover;
 pub mod keepalive;
+pub mod owner_facts;
 pub mod providers;
 pub mod queue;
 pub mod resident_turn;

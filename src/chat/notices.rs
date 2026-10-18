@@ -46,3 +46,33 @@ pub async fn queue_notice(receiver: &Receiver, chat_id: i64, notice: &Voiced) ->
 
   Ok(queue(receiver.db(), voice.as_ref(), chat_id, &text, &queued).await?)
 }
+
+/// A fact the system recorded, as a producer tells it: the fact whole, what it is told for, the kind a newer one
+/// replaces it under, the family it is listed under, and the line the console sums it up by.
+#[derive(Debug, Clone)]
+pub struct Recorded<'a> {
+  pub fact: &'a serde_json::Value,
+  pub intent: &'a str,
+  pub kind: &'a str,
+  pub sort: &'a str,
+  pub summary: &'a str,
+}
+
+/// The fact queued for the session of the room's voice in the notice's frame, in place of one of the same kind not
+/// yet handed over; its row.
+pub async fn queue_fact(
+  receiver: &Receiver,
+  chat_id: i64,
+  recorded: &Recorded<'_>,
+) -> Result<i64, NotReceived> {
+  let voice = voice_of(receiver, chat_id).await?;
+  let text = frame(&recorded.fact.to_string(), recorded.intent, None, false);
+  let queued = Queued {
+    kind: Some(recorded.kind),
+    sort: Some(recorded.sort),
+    summary: Some(recorded.summary.trim()),
+    ..Queued::default()
+  };
+
+  Ok(queue(receiver.db(), voice.as_ref(), chat_id, &text, &queued).await?)
+}

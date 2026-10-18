@@ -1,13 +1,17 @@
 //! The rest's gate as the agency holds it (docs/receiver.md, 「What it carries」): the receiver closes a room's
 //! turn while the deployment rests, and takes it only where a stand-in answers on the agent's road. A rest
 //! lifted past its end is reported here for the restart's clock, and a run's usage that left one of its login's
-//! windows past its ceiling begins that login's rest here. The rest itself, and the logins it is read against,
+//! windows past its ceiling begins that login's rest here, and a rest that silenced the deployment, as the agency
+//! publishes it, is told to the owner in its fixed line. The rest itself, and the logins it is read against,
 //! are the agency's: the receiver asks and writes across its port.
 
+use futures_util::future::BoxFuture;
 use receiver_codes::FixedLine;
 use receiver_policy::rest::REST;
-use receiver_ports::agency::{Rest, RestKind, Resting};
+use receiver_ports::agency::{Event, Rest, RestKind, Resting};
+use serde::Deserialize;
 
+use crate::hearing::Hearer;
 use crate::receiver::{NotReceived, NotSaid, Receiver};
 
 /// What a usage reading hands of one login: the shares of its windows past which it rests, and when each
@@ -110,7 +114,7 @@ pub async fn rest_after_usage(
   let until = until.round() as i64;
 
   if write_rest(receiver, until, RestKind::Limit, Some(account.to_owned())).await?
-    && let Err(why) = notice(receiver, until).await
+    && let Err(why) = tell_rest(receiver, &rest_line(RestKind::Limit, Some(until))).await
   {
     eprintln!("bmo-receiver: the rest notice failed for the owner's chat: {why}");
   }
@@ -118,9 +122,62 @@ pub async fn rest_after_usage(
   Ok(())
 }
 
-// The line the owner hears as the silence begins, rendered in the rooms' language where the web unit stands.
-async fn notice(receiver: &Receiver, until: i64) -> Result<(), NotSaid> {
-  let line = receiver.speech().rendered(&FixedLine::RestBegins { until: Some(until) }).await;
+/// The fixed line a rest begins with: a limit's names when it ends, an outage's says the provider stopped answering.
+pub fn rest_line(kind: RestKind, until: Option<i64>) -> FixedLine {
+  match kind {
+    RestKind::Limit => FixedLine::RestBegins { until },
+    RestKind::Outage => FixedLine::ProviderDown,
+  }
+}
+
+/// The line the owner hears as the silence begins, rendered in the rooms' language where the web unit stands.
+pub async fn tell_rest(receiver: &Receiver, line: &FixedLine) -> Result<(), NotSaid> {
+  let line = receiver.speech().rendered(line).await;
 
   receiver.speech().say(receiver.deployment().owner_id, &line, true).await.map(drop)
+}
+
+/// The deployment resting, as the agency publishes it where a rest closed the last login that would answer.
+pub const RESTING: &str = "deployment-resting";
+
+/// A rest that silenced the deployment: why, and until when in epoch seconds where it is known.
+#[derive(Debug, Deserialize)]
+pub struct Silenced {
+  pub kind: RestKind,
+  #[serde(default)]
+  pub until: Option<i64>,
+}
+
+/// The deployment's rests as the service hears them on the agency's stream: each told to the owner in its fixed
+/// line.
+pub struct Rests {
+  receiver: Receiver,
+}
+
+impl Rests {
+  pub fn new(receiver: Receiver) -> Self {
+    Rests { receiver }
+  }
+}
+
+impl Hearer for Rests {
+  fn kinds(&self) -> &'static [&'static str] {
+    &[RESTING]
+  }
+
+  fn hear<'a>(&'a self, event: &'a Event) -> BoxFuture<'a, ()> {
+    Box::pin(async move {
+      let silenced = match serde_json::from_value::<Silenced>(event.data.clone()) {
+        Ok(silenced) => silenced,
+        Err(why) => {
+          eprintln!("bmo-receiver: a rest that does not read: {why}");
+          return;
+        }
+      };
+
+      if let Err(why) = tell_rest(&self.receiver, &rest_line(silenced.kind, silenced.until)).await {
+        eprintln!("bmo-receiver: the rest notice failed for the owner's chat: {why}");
+      }
+    })
+  }
 }

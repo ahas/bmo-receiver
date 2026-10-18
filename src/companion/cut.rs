@@ -2,45 +2,39 @@
 //! docs/wake.md, 「A companion's round」): each move of the companion's reset point heard on the agency's event
 //! stream, and everything waiting for its turns let go unread under the hold its answers are kept under.
 
-use std::time::Duration;
-
-use futures_util::StreamExt;
+use futures_util::future::BoxFuture;
+use receiver_ports::agency::Event;
 use serde_json::Value;
 
 use crate::chat::runner::Runner;
+use crate::hearing::Hearer;
 use crate::receiver::Receiver;
 use crate::{now_ms, run};
 
 /// The event a reset's move of the point is published as.
 pub const CUT_OFF: &str = "companion-cut-off";
 
-// How long a stream that dropped or could not be opened waits before it is opened again.
-const REOPEN: Duration = Duration::from_secs(5);
+/// The cut-off as the service hears it on the agency's stream: each one lets go what waited for the companion's
+/// turns in the conversations the runner holds.
+pub struct CutOffs {
+  receiver: Receiver,
+  runner: Runner,
+}
 
-/// The cut-off heard for as long as the service runs: the agency waits on no reader, so a stream that drops is
-/// opened again, and what it published meanwhile is the round's reading of the point to catch.
-pub fn keep_hearing(receiver: Receiver, runner: Runner) {
-  tokio::spawn(async move {
-    loop {
-      match receiver.units().agency.events(&[CUT_OFF]).await {
-        Ok(mut stream) => {
-          while let Some(read) = stream.next().await {
-            match read {
-              Ok(event) if event.kind == CUT_OFF => cut_off(&receiver, &runner, &event.data).await,
-              Ok(_) => {}
-              Err(why) => {
-                eprintln!("bmo-receiver: the companions' cut-off stream dropped: {why}");
-                break;
-              }
-            }
-          }
-        }
-        Err(why) => eprintln!("bmo-receiver: the companions' cut-off stream did not open: {why}"),
-      }
+impl CutOffs {
+  pub fn new(receiver: Receiver, runner: Runner) -> Self {
+    CutOffs { receiver, runner }
+  }
+}
 
-      tokio::time::sleep(REOPEN).await;
-    }
-  });
+impl Hearer for CutOffs {
+  fn kinds(&self) -> &'static [&'static str] {
+    &[CUT_OFF]
+  }
+
+  fn hear<'a>(&'a self, event: &'a Event) -> BoxFuture<'a, ()> {
+    Box::pin(cut_off(&self.receiver, &self.runner, &event.data))
+  }
 }
 
 /// What one cut-off lets go, once no answer of the companion's is being kept: the words its rooms' queues are

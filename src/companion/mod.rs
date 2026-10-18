@@ -8,6 +8,7 @@ pub mod consult_say;
 pub mod cut;
 pub mod overtaken;
 pub mod pass;
+pub mod reset;
 pub mod turn;
 pub mod words;
 

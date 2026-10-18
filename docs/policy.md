@@ -23,6 +23,7 @@ lines the web unit's language packs render (`docs/codes.md`).
 | `files.toml` | the largest file the console may attach, in bytes, and the name a file with none goes by | `POST /say-file` |
 | `code-review.toml` | the lines a code review's talk is composed in, the places a review is pinned to, how much of the reviewed lines a turn carries | the talks |
 | `queue.toml` | how long the owner may hold a job's question clock stopped from the console | the owner's answer to a job's question |
+| `owner-facts.toml` | what the owner's session is told of the agency's events that no other part words: the account of pressure on the machine and the words for its holders, how many holders the account and the fact each carry, the intent and kind of a pressure fact and a herdr leftovers fact, the facts and follow-ups of a worker fallen to a lesser model, and the lines of the overtime order | the machine's pressure, the workers' facts, the overtime order |
 | `commands.toml` | the owner's in-room command phrases (each command's plain form first), the polite endings a command may carry, and the suffix an answer to a job's question may put after an option's number | the receiver's commands, a question's answer |
 
 ## Keys the receiver takes from files the agency also holds

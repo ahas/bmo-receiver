@@ -380,12 +380,24 @@ pub struct Queued<'a> {
   pub events: Vec<String>,
   /// Whether it rides the next turn rather than opening one, and until when in epoch milliseconds.
   pub rides_until_ms: Option<i64>,
+  /// Whether it rides a round of any room its session answers rather than its own room's alone: such a row rides
+  /// until `rides_until_ms`, and for good where that names no moment.
+  pub rides_session: bool,
   pub sort: Option<&'a str>,
   pub summary: Option<&'a str>,
   /// The road the session it is for was read on, which it is delivered on.
   pub via: Option<&'a str>,
   /// The run whose result it is, which a call waiting on that run takes it by.
   pub run_id: Option<i64>,
+}
+
+// How a row rides as its column keeps it: not at all, its own room's rounds, or any room's its session answers.
+fn rides(queued: &Queued<'_>) -> i64 {
+  match (queued.rides_session, queued.rides_until_ms) {
+    (true, _) => 2,
+    (false, Some(_)) => 1,
+    (false, None) => 0,
+  }
 }
 
 /// The instruction written for one agent's session in the chat with everything it carries, a pending row of the
@@ -421,7 +433,7 @@ pub async fn queue(
       queued.kind.into(),
       queued.expires_at_ms.map(|at| at.div_euclid(1000)).into(),
       queued.events.join(",").into(),
-      i64::from(queued.rides_until_ms.is_some()).into(),
+      rides(queued).into(),
       queued.rides_until_ms.map(|at| at.div_euclid(1000)).into(),
       queued.sort.into(),
       queued.summary.into(),

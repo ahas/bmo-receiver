@@ -77,7 +77,7 @@ is written.
 | A search's, a browse's and a remote browser's result | bmo-job's instructions | instruction table | `round` | opens | — |
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
 | Voice and digest notices | the units that run them | instruction table | `round` | opens | — |
-| Leftover panes, a run past its clock | the agency's events | instruction table | `round` | opens | — |
+| Leftover panes, pressure on the machine, a run past its clock | the agency's events | instruction table | `round` | opens | — |
 | An instruction typed on the console | `POST /instruct` | instruction table | `round` | opens | — |
 | A talk from the console about an item or a document | `POST /talks` | — | `talk` | opens | — |
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
@@ -287,10 +287,18 @@ flowchart TD
 ## Document reload
 
 - **The agency publishes `documents-moved`** when a reload names documents. The receiver tells the sessions it
-  concerns (the named agent's sessions in the named rooms, every chat session where none is named) by a riding
-  instruction for each room, folded into the one still waiting there.
+  concerns by a riding instruction for each room, folded into the one still waiting there, which rides for good
+  in a round of any room the session answers.
+  - Where the event names rooms, the named agent's sessions in those rooms are told, the chat agent's where it
+    names no agent, and only the rooms holding a session of that agent. A reload that names an agent and rooms is
+    the brain's, so a relative path it names stands under the brain root (`docs/boundary-api.md`,
+    「Configuration」).
+  - Where it names none, each document concerns the chat agent's sessions it reads in: a room's own documents
+    that room's, a person's the rooms they speak in, the shared ones every session; a document of a session's own
+    system prompt, or of its turn, is read with its next turn and told to nobody.
 - **A chat told within the last hour** gets the documents with its next reload; one whose reload says `now` is
-  told at once. Which rooms were told when is the receiver's record (its reload tables).
+  told at once. Which rooms were told when is the receiver's record (its reload tables), kept for the chat agent's
+  sessions; another agent's session is told at once, folded into its own row still waiting in the room.
 
 ## Events
 

@@ -11,8 +11,9 @@ use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::{Conversations, Timings};
 use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::runner::Runner;
-use bmo_receiver::companion::cut::{CUT_OFF, cut_off, keep_hearing};
+use bmo_receiver::companion::cut::{CUT_OFF, CutOffs, cut_off};
 use bmo_receiver::data_root::DataRoot;
+use bmo_receiver::hearing::Hearing;
 use bmo_receiver::receiver::wake::agents::window_until;
 use bmo_receiver::receiver::{Inbound, Room};
 use bmo_receiver::{now_ms, one};
@@ -326,7 +327,8 @@ async fn an_answer_being_sent_holds_off_the_reset_until_it_is_out() {
 async fn a_cut_off_lets_go_unread_what_waited_for_the_companions_turns() {
   let rounds = Rounds::on(StandInSession::new(SESSION, ANSWER).holding_the_first()).await;
 
-  keep_hearing(rounds.standing.receiver.clone(), rounds.runner.clone());
+  Hearing::new(vec![Arc::new(CutOffs::new(rounds.standing.receiver.clone(), rounds.runner.clone()))])
+    .keep(rounds.standing.agency.clone());
   until("the cut-off heard", || rounds.session.listeners() == 1).await;
   rounds.hear(1, FIRST).await;
   until("the turn", || rounds.session.working()).await;

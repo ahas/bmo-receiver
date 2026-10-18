@@ -5,6 +5,7 @@
 
 mod common;
 
+mod agency_events;
 mod alone_runs;
 mod brain_contract;
 mod companion_round;

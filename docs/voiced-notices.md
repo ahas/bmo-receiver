@@ -79,11 +79,18 @@ agent that answers the room says the line.
      says it in the room's own language.
   5. A restart no deployment announced has no purpose to tell: its going-down notice is the restart one, and its
      back notice opens its turn at once and says only that the agent is back from an unannounced restart.
-- **Rest and fallback.** Going to rest is a fixed line (see below); coming back (the rest lifted, the outage
-  over, the compaction done, the provider answering again, a stand-in taking over or stepping down, a
-  downgraded answer) is voiced. The agency publishes each as an event (`deployment-resting`,
-  `fallback-answering`, `fallback-ended`, `run-recovered`, `worker-downgraded`) and the receiver queues the
-  notice.
+- **Rest and fallback.** Going to rest is a fixed line (see below), said in the owner's chat as the agency's
+  `deployment-resting` comes: `rest-begins` with its end for a limit, `provider-down` for an outage. Coming back
+  (the rest lifted, the outage over, the compaction done, the provider answering again, a stand-in taking over
+  or stepping down, a downgraded answer) is voiced. The agency publishes the stand-in's moves, a run come back
+  and a worker's fall as events (`fallback-answering`, `fallback-ended`, `run-recovered`, `worker-downgraded`)
+  and the receiver queues each notice for the owner's chat: the stand-in's provider and model, with the one
+  before it where one stood, or the stand-in done; the run's own fact, intent, kind and lifetime as the agency
+  composed them; and the worker, the model it fell to and the one it was launched on, its job, and whether its
+  session was dropped or kept.
+- **A login's end.** The agency's `account-login-notice` carries its `notice`, the words its policy composes
+  with the one command the owner runs; the receiver says it in the owner's chat as it stands, pass-through
+  content no session rewords.
 - **Room settings.** The owner's in-chat setting commands are acknowledged by that chat's session after the
   setting has changed, so a change that relaunches the session is acknowledged by the new one.
 - **A broken run.** A chat turn of the agent's own that died, or a job that failed while it worked, is handed to
@@ -95,6 +102,11 @@ agent that answers the room says the line.
 - **A turn past its clock.** A worker's turn that reached its bound (the agency's `clock-asked`) is handed to the
   agent's session in the owner's chat as an order to decide on, keep or cut, never as a line to say; the order is
   withdrawn where `clock-ask-closed` comes first.
+  - The order carries the ask's number, what the run is doing, its agent and run, how long it has run and since
+    when, its bound, its last sign of work and when it was, and the moment the agency cuts it with no verdict; it
+    names the procedure `overtime` and the verb the event names, with its keep and cut forms.
+  - It is kept under the run's own kind (`overtime:<run>`), so a later ask on the same run replaces one not yet
+    handed over, and the ask's closing withdraws only an order no round has taken.
 - **A job's end.** The job's report is the worker's English, written to the agent, and carries the system:
   commits, test and suite counts, file counts, worker and model names, paths, commands. The receiver sends it to
   nobody: the agent that filed the item tells it. A companion's item is told to that companion in the room it was

@@ -32,7 +32,12 @@ address and the token that unit takes:
 The deployment's names are read from the same file: the owner; the chat agent's registration name, whose label
 and wake words (`GET /agents`) are the words a room calls it by; the delegate's registration name, whose label a
 delegation notice names; the infrastructure room, where one is named; the language the rooms are spoken in, which
-a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; and each chat service's road name with its base address and token.
+a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; the brain
+root, where the brain's documents stand, `brain` under the data root where none is named, which a document
+reload reads the brain's documents from; the document tree, where the documents that ship with the agents' code
+stand (the deploy tree of the unit that ships them), which a reload reads such a document's current text from and
+which, where none is named, leaves such a document named without its text; and each chat service's road name with
+its base address and token.
 
 ### The service and its commands
 
@@ -439,14 +444,35 @@ session shared across the rooms), `voice` (whether its answers may be spoken), `
 working, on the queue) and `gates_off` (the gate switches turned off for it, each its name). A row holding
 none of a field answers it as nothing: no window, no aliases, not unified, not spoken, no gates off.
 
-The events read: `turn-started` and `turn-ended` (a turn's answer, taken into the room by the receiver's checks,
-`docs/answer-checks.md`; a failed companion turn's `engineError`, `{ "kind": <the engine's error kind or null> }`
-where its engine ended it with an error, `docs/wake.md`, 「A companion's round」), `documents-moved` (the
-sessions told to read documents again, 「Document reload」 in `docs/bmo-window.md`), `companion-cut-off` and `companion-reset` (what waited for a companion's turns let go,
-its quiet instructions settled), `companion-run-going`, `fallback-answering`, `fallback-ended`,
-`deployment-resting`, `account-login-notice`, `clock-asked` and `clock-ask-closed`, `run-recovered`,
-`herdr-leftovers` and `worker-downgraded` (each told to the owner, or to its room, by the chat agent as a fact).
-The agency waits on no reader, so a stream that drops is opened again from the moment it is read again.
+The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind
+read and is opened again when it drops:
+
+- `turn-started` and `turn-ended`: a turn's answer, taken into the room by the receiver's checks
+  (`docs/answer-checks.md`); a failed companion turn's `engineError`, `{ "kind": <the engine's error kind or
+  null> }` where its engine ended it with an error (`docs/wake.md`, 「A companion's round」). A round reads
+  these on a stream of its own while its turn works.
+- `companion-cut-off`: what waited for the companion's turns let go unread and its quiet instructions settled
+  (`docs/wake.md`, 「A companion's round」).
+- `companion-reset`: the receiver's own rows of the ranges it names taken (`docs/wake.md`, 「A companion's
+  reset」).
+- `documents-moved`: the sessions told to read documents again (「Document reload」 in `docs/bmo-window.md`).
+- `fallback-answering` and `fallback-ended`: the stand-in answering kept in the `fallback_since` and
+  `fallback_provider` settings and cleared, and the owner told by the chat agent which stand-in answers now, or
+  that it answers on its own model again (`docs/voiced-notices.md`, 「Rest and fallback」).
+- `deployment-resting`: the owner's chat hears the fixed line `rest-begins`, with `until`, for a limit's rest,
+  and `provider-down` for an outage.
+- `account-login-notice`: its `notice` said in the owner's chat as the agency's policy words it.
+- `run-recovered`: its `fact`, `intent`, `kind` and `ttlMs` voiced in the owner's chat.
+- `worker-downgraded`: the owner told by the chat agent which worker fell to which model, and whether its
+  session was dropped or kept.
+- `herdr-leftovers` and `machine-pressure`: told to the chat agent in the owner's chat as a fact the system
+  recorded (`docs/wake.md`, 「What the agency's events wake」).
+- `clock-asked` and `clock-ask-closed`: the overtime order queued for the chat agent in the owner's chat, and
+  withdrawn where it was not yet handed over (`docs/voiced-notices.md`, 「A turn past its clock」).
+
+`companion-run-going` is read by none of it: the agency stands the cancellation over a reset companion's runs
+itself (its `docs/companions.md`, 「What the reset cuts off」). The agency waits on no reader, so a stream that
+drops is opened again from the moment it is read again, and what it published meanwhile is heard by nobody.
 
 ### The brain
 
@@ -569,6 +595,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** serves no route reading a run by its id, which bmo-job calls as `GET /runs/{id}` too; the
   receiver asks it for a run's `started_at`, for the agency to state, and keeps every instruction whose run it
   cannot read.
+- **The agency's `companion-reset`** names the ranges and the rooms but no run, so the receiver's run records
+  (`run_records`), which name a run alone, are not taken with a companion's conversation.
 - **The agency** publishes `road-walked` and `usage-spent`; the receiver writes no road and no usage rows of its
   own, and a run of a second asking that failed is written as a judgement of the round with no figures.
 - **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open
