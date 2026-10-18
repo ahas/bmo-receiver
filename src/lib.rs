@@ -5,6 +5,7 @@
 
 pub mod chat;
 pub mod companion;
+pub mod config;
 pub mod dashes;
 pub mod data_root;
 pub mod events;
@@ -16,8 +17,10 @@ pub mod room_record;
 pub mod rounds;
 pub mod routes;
 pub mod run_lines;
+pub mod service_start;
 pub mod store;
 pub mod text;
+pub mod tool_env;
 pub mod verbs;
 pub mod web_address;
 pub mod wording;

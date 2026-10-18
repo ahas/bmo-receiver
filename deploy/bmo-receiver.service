@@ -1,0 +1,22 @@
+# The receiver's user unit (docs/boundary-api.md, 「Configuration」). A deployment links it from the deploy tree
+# and restarts it as the repository's one service, waited on by its health; it runs the release binary as `serve`
+# in the release, whose settings.toml each release links to the data root's env/receiver.toml.
+[Unit]
+Description=bmo-receiver: the chat receiver, the rooms and their rules, rights and windows
+After=network-online.target
+Wants=network-online.target
+# Without its configuration the service does not stand, so the unit does not start where the data root holds none.
+ConditionPathExists=%h/.local/share/bmo/data/env/receiver.toml
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/share/bmo-receiver/deploy
+ExecStart=%h/.local/share/bmo-receiver/deploy/bin/bmo-receiver serve
+Restart=always
+RestartSec=2
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target
+# The bot: linked, enabled, restarted and waited on by every deployment.
+X-BMO-Deploy=bot

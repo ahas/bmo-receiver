@@ -1,5 +1,4 @@
 # How the testbed tests, checks, builds and deploys this repository, in the testbed's declaration format.
-# Provisional: no build or deploy is declared until the service has its binary, its unit and its tools.
 
 testbed = 0
 name = "receiver"
@@ -9,6 +8,10 @@ languages = ["cargo"]
 
 # The tests make their own scratch databases on the server, so no template is named.
 [test.database]
+
+[tools]
+# The receiver's own tools, each checked by the command its tool.toml names.
+dir = "tools"
 
 [check]
 quick = ["layout", "dependencies"]
@@ -27,3 +30,26 @@ lane = "wide"
 [[check.step]]
 id = "fmt"
 command = "cargo fmt --all --check"
+
+# The service's binary and each tool's executable go into a release's bin/.
+[build]
+binaries = ["bmo-receiver"]
+
+# The receiver's own deploy tree, and the data root it shares with the services that read its files. The
+# configuration stands under the data root as env/receiver.toml, and each release links to it as settings.toml,
+# the file the service reads in its working directory (docs/boundary-api.md, 「Configuration」).
+[deploy]
+root = "~/.local/share/bmo-receiver"
+link = "deploy"
+data_root = "~/.local/share/bmo/data"
+env_links = [{ link = "settings.toml", target = "env/receiver.toml" }]
+# The service's user unit, marked bot: the repository's one service, whose health the deployment waits on.
+units = ["deploy/*.service"]
+# Answers 0 once the service the deployed configuration answers up (docs/boundary-api.md, 「Health」).
+health = "~/.local/share/bmo-receiver/deploy/bin/bmo-receiver --config ~/.local/share/bmo-receiver/deploy/settings.toml health"
+
+# Where the receiver's tools find it: the data root's env/receiver.env, written from the configuration.
+[[deploy.step]]
+id = "tool-env"
+phase = "before-flip"
+command = "bin/bmo-receiver --config settings.toml tool-env"

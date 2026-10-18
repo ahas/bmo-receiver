@@ -28,6 +28,7 @@ use axum::{
   http::StatusCode,
   middleware::{Next, from_fn_with_state},
   response::{IntoResponse, Json, Response},
+  routing::MethodRouter,
   routing::{delete, get, post, put},
 };
 use headers::authorization::Bearer;
@@ -86,6 +87,99 @@ fn answered(body: serde_json::Value) -> Answered {
   Ok(Json(body))
 }
 
+/// Every route the receiver answers behind its token: its method, its path and the handler standing at it.
+/// The table is what the `routes` command prints, so the router is built from it rather than beside it.
+fn table() -> Vec<(String, String, MethodRouter<Served>)> {
+  [
+    ("POST", "/consult/say", post(consult_say)),
+    ("POST", "/consult/block", post(block)),
+    ("POST", "/instruct", post(instruct)),
+    ("POST", "/say", post(say)),
+    ("POST", "/say-file", post(say_file)),
+    ("POST", "/sends", post(sends)),
+    ("POST", "/sends/can", post(can)),
+    ("POST", "/talks", post(talk)),
+    ("POST", "/instructions", post(instructions::queue_instruction)),
+    ("GET", "/instructions/{id}", get(instructions::instruction_state)),
+    ("DELETE", "/instructions/{id}", delete(instructions::withdraw)),
+    ("POST", "/rooms/{chat}/notices", post(instructions::notice)),
+    ("PUT", "/room-holders/{unit}", put(instructions::declare)),
+    ("GET", "/owner", get(rooms::owner)),
+    ("GET", "/rooms/{chat}", get(rooms::room)),
+    ("GET", "/rooms/{chat}/answerers", get(rooms::answerers)),
+    ("GET", "/rooms/{chat}/messages/{message}", get(rooms::message)),
+    ("POST", "/messages/unread", post(brain::unread)),
+    ("POST", "/messages/unread-counts", post(brain::unread_counts)),
+    ("POST", "/messages/read", post(brain::read_messages)),
+    ("POST", "/read-marks/count", post(brain::read_count)),
+    ("POST", "/read-marks/keep", post(brain::keep)),
+    ("POST", "/read-marks/forget", post(brain::forget)),
+    ("POST", "/rooms/titles", post(brain::titles)),
+    ("POST", "/rooms/answerers", post(brain::answerers)),
+    ("POST", "/rooms/spoke-between", post(brain::spoke_between)),
+    ("POST", "/rooms/own-number", post(brain::own_number)),
+    ("POST", "/rooms/spoken-in", post(brain::spoken_in)),
+    ("POST", "/people/names", post(brain::names)),
+    ("POST", "/promises/waits", post(brain::waits)),
+    ("POST", "/rooms/roads", post(brain::roads)),
+    ("POST", "/messages/sender-is-owner", post(brain::sender_is_owner)),
+    ("POST", "/rooms/owner-spoke", post(brain::owner_spoke)),
+    ("POST", "/owner/notice", post(brain::notice)),
+    ("POST", "/instructions/quiet", post(brain::quiet)),
+    ("POST", "/agency/hooks/{point}", post(hooks::hook)),
+    ("POST", "/event", post(events::told)),
+    ("GET", "/events", get(events::stream)),
+    ("GET", "/live", get(events::live)),
+    ("GET", "/health", get(events::health)),
+    ("GET", "/rooms/remove", get(room_removal::preview)),
+    ("POST", "/rooms/remove", post(room_removal::remove)),
+    ("GET", "/rounds/openings", get(openings::openings)),
+    ("GET", "/rounds/instruction", get(openings::instruction)),
+    ("POST", "/voice-briefing", post(voice::switch)),
+    ("POST", "/voice-briefing/line", post(voice::line)),
+    ("POST", "/companions/add", post(companions::add)),
+    ("POST", "/companions/remove", post(companions::remove)),
+    ("GET", "/console/rooms", get(console::rooms)),
+    ("GET", "/console/rooms/{chat}/title", get(console::title)),
+    ("GET", "/console/rooms/{chat}/agent-message/{message}", get(console::agent_message)),
+    ("GET", "/console/rooms/{chat}/messages", get(console::page)),
+    ("GET", "/console/rooms/{chat}/day-start", get(console::day_start)),
+    ("GET", "/console/rooms/{chat}/messages/after", get(console::after)),
+    ("GET", "/console/rooms/{chat}/messages/{message}", get(console::one)),
+  ]
+  .into_iter()
+  .map(|(method, path, router)| (method.to_owned(), path.to_owned(), router))
+  .collect()
+}
+
+/// Every route the receiver answers, one method and path to a name: its own table, the chat services' hand-overs
+/// served by the base library, and the warmer's hook, which stands outside the bearer check.
+pub fn served() -> Vec<String> {
+  let names = table()
+    .iter()
+    .map(|(method, path, _)| format!("{method} {path}"))
+    .collect::<Vec<String>>();
+
+  let mut printed = names
+    .into_iter()
+    .chain(
+      [
+        "POST /message",
+        "POST /attachment",
+        "POST /edited",
+        "POST /gathered",
+        "POST /warmer/ping",
+      ]
+      .into_iter()
+      .map(|name| name.to_owned()),
+    )
+    .collect::<Vec<String>>();
+
+  printed.sort();
+
+  printed
+}
+
 /// The receiver's routes, merged.
 pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
   let bearer: String = token.into();
@@ -94,61 +188,9 @@ pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
     token: bearer.clone().into(),
   };
 
-  let served_routes = Router::new()
-    .route("/consult/say", post(consult_say))
-    .route("/consult/block", post(block))
-    .route("/instruct", post(instruct))
-    .route("/say", post(say))
-    .route("/say-file", post(say_file))
-    .route("/sends", post(sends))
-    .route("/sends/can", post(can))
-    .route("/talks", post(talk))
-    .route("/instructions", post(instructions::queue_instruction))
-    .route("/instructions/{id}", get(instructions::instruction_state))
-    .route("/instructions/{id}", delete(instructions::withdraw))
-    .route("/rooms/{chat}/notices", post(instructions::notice))
-    .route("/room-holders/{unit}", put(instructions::declare))
-    .route("/owner", get(rooms::owner))
-    .route("/rooms/{chat}", get(rooms::room))
-    .route("/rooms/{chat}/answerers", get(rooms::answerers))
-    .route("/rooms/{chat}/messages/{message}", get(rooms::message))
-    .route("/messages/unread", post(brain::unread))
-    .route("/messages/unread-counts", post(brain::unread_counts))
-    .route("/messages/read", post(brain::read_messages))
-    .route("/read-marks/count", post(brain::read_count))
-    .route("/read-marks/keep", post(brain::keep))
-    .route("/read-marks/forget", post(brain::forget))
-    .route("/rooms/titles", post(brain::titles))
-    .route("/rooms/answerers", post(brain::answerers))
-    .route("/rooms/spoke-between", post(brain::spoke_between))
-    .route("/rooms/own-number", post(brain::own_number))
-    .route("/rooms/spoken-in", post(brain::spoken_in))
-    .route("/people/names", post(brain::names))
-    .route("/promises/waits", post(brain::waits))
-    .route("/rooms/roads", post(brain::roads))
-    .route("/messages/sender-is-owner", post(brain::sender_is_owner))
-    .route("/rooms/owner-spoke", post(brain::owner_spoke))
-    .route("/owner/notice", post(brain::notice))
-    .route("/instructions/quiet", post(brain::quiet))
-    .route("/agency/hooks/{point}", post(hooks::hook))
-    .route("/event", post(events::told))
-    .route("/events", get(events::stream))
-    .route("/live", get(events::live))
-    .route("/health", get(events::health))
-    .route("/rooms/remove", get(room_removal::preview).post(room_removal::remove))
-    .route("/rounds/openings", get(openings::openings))
-    .route("/rounds/instruction", get(openings::instruction))
-    .route("/voice-briefing", post(voice::switch))
-    .route("/voice-briefing/line", post(voice::line))
-    .route("/companions/add", post(companions::add))
-    .route("/companions/remove", post(companions::remove))
-    .route("/console/rooms", get(console::rooms))
-    .route("/console/rooms/{chat}/title", get(console::title))
-    .route("/console/rooms/{chat}/agent-message/{message}", get(console::agent_message))
-    .route("/console/rooms/{chat}/messages", get(console::page))
-    .route("/console/rooms/{chat}/day-start", get(console::day_start))
-    .route("/console/rooms/{chat}/messages/after", get(console::after))
-    .route("/console/rooms/{chat}/messages/{message}", get(console::one))
+  let served_routes = table()
+    .into_iter()
+    .fold(Router::new(), |app, (_, path, router)| app.route(path.as_str(), router))
     .fallback(no_route)
     .method_not_allowed_fallback(no_route)
     .layer(from_fn_with_state(served.clone(), authorized))

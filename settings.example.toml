@@ -1,0 +1,56 @@
+# The receiver's configuration, as it is read at start (docs/boundary-api.md, 「Configuration」). The checked-in
+# example names a database and neutral names, and loads as it stands; the deployment's own file stands under the
+# data root as env/receiver.toml, which each release links to as settings.toml.
+
+listen = "127.0.0.1:3212"
+token = "receiver-token"
+database = "postgres://127.0.0.1:5432/receiver"
+data_root = ".local/share/bmo/data"
+owner = 42
+agent = "agent-a"
+sender_name = "Agent A"
+language = "en"
+
+# The names a deployment chooses beyond the required ones: the delegate's registration name, the infrastructure
+# room, the attachment size cap in bytes, the wording document and the consumer's name in place of `receiver`.
+delegate = "agent-b"
+infra_room = -1
+attachment_bytes = 26214400
+wording_document = "wording.md"
+consumer = "receiver"
+
+# Each unit the receiver calls, with its base address and the token it takes. The cache warmer takes none, so its
+# token is left empty and no header is sent.
+[agency]
+base = "http://127.0.0.1:3220"
+token = "agency-token"
+
+[brain]
+base = "http://127.0.0.1:3230"
+token = "brain-token"
+
+[gate]
+base = "http://127.0.0.1:3240"
+token = "gate-token"
+
+[job]
+base = "http://127.0.0.1:3250"
+token = "job-token"
+
+[voice]
+base = "http://127.0.0.1:3260"
+token = "voice-token"
+
+[web]
+base = "http://127.0.0.1:3270"
+token = "web-token"
+
+[warmer]
+base = "http://127.0.0.1:3280"
+token = ""
+
+# Each chat service's road, by its key, with its base address and token. The keys are the deployment's; nothing
+# in the receiver compares one to a literal.
+[roads.road-a]
+base = "http://127.0.0.1:3290"
+token = "road-token"

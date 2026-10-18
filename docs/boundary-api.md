@@ -10,8 +10,13 @@ reference and reads it on the way in and out, and the brain keeps what the agent
 
 ## Configuration
 
-The receiver reads one configuration file. Beside its own listen address, its token and its database it names,
-for each unit it calls, that unit's base address and the token that unit takes:
+The receiver reads one configuration file, `settings.toml` in its working directory — the release's own, which
+each release links to the data root's `env/receiver.toml`. A deployment that finds no such file is refused, and
+the unit does not start where the data root holds none. `settings.example.toml` at the repository root is the
+checked-in example, naming a database and neutral names, and it loads as it stands.
+
+Beside its own listen address, its token and its database it names, for each unit it calls, that unit's base
+address and the token that unit takes:
 
 | Unit | What the receiver reaches it for |
 |---|---|
@@ -28,6 +33,27 @@ The deployment's names are read from the same file: the owner; the chat agent's 
 and wake words (`GET /agents`) are the words a room calls it by; the delegate's registration name, whose label a
 delegation notice names; the infrastructure room, where one is named; the language the rooms are spoken in, which
 a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; and each chat service's road name with its base address and token.
+
+### The service and its commands
+
+- **The service runs as the user unit `bmo-receiver.service`,** this repository's `deploy/bmo-receiver.service`,
+  which the deployment links from the deploy tree under `~/.local/share/bmo-receiver`. It starts the deploy
+  tree's `bin/bmo-receiver` with `serve`, and does not start where the data root holds no configuration.
+- **`serve`** runs the migrations, stands the receiver on the configuration — its news heard by the event stream,
+  its messages judged by the one rule, its turns handed to the one runner, its rows handed over by the one
+  instruction pass — settles the start (the data root's folders made, the cache warmer told of the consumer and
+  its one target, the agency told of the three hooks it answers), keeps the clocks and answers the routes on the
+  configured address until the process is told to stop; on a stop it tells every stream first and says the
+  going-down line to the owner after.
+- **`routes`** prints every route the receiver answers, one method and path to a line, sorted; the table is what
+  the router is built from, so the printed names are the routes that stand.
+- **`deliver-waiting`** runs one pass over the instruction rows a job's end left waiting, told as the receiver's
+  sweep tells them, with no clock of the receiver's: what a check stands in for the sweep with once a runner has
+  ended.
+- **`tool-env`** writes where the receiver's tools find it (「Its tools」 below) and ends.
+- **`health`** asks the service the configuration names whether it is ready and ends (「Health」 below).
+- **The consumer's name** the receiver registers with the cache warmer is `receiver`, unless the configuration
+  names another.
 
 ## Wire conventions
 
@@ -277,6 +303,23 @@ What goes into the stream: a message the receiver kept or wrote again, a room's 
 `window`, a room whose registration was removed as `room-removed`, the picture whenever it changes, and what
 `POST /event` says (a message or a briefing checked against the room's record first, and the profile pictures a
 chat service took).
+
+#### Health
+
+`bmo-receiver --config <file> health` asks `GET /health` of the service the file names, at its listen address
+(an unspecified host asked at the loopback one) with its token, waiting at most five seconds: it ends 0 where the
+service answers with `ok` standing, and 1 otherwise, saying on its error stream why: the status it answered with,
+or that nothing answered.
+
+#### Its tools
+
+The receiver's own tool reads the receiver's base address and token from `RECEIVER_ADDRESS` and `RECEIVER_TOKEN`
+in its own environment, else from `env/receiver.env` under the record's data root; a tool placed by the host has
+a clean environment. That file is written from the configuration by `bmo-receiver --config <file> tool-env`, which
+every deployment runs before its flip: `RECEIVER_ADDRESS` is `http://` and the listen address, an unspecified
+host answered as the loopback one, and `RECEIVER_TOKEN` the configured token. It is written under the configured
+data root, readable by the user alone, and only where it would change; a value an env file cannot hold bare
+(empty, or carrying whitespace, a quote, `#`, `$` or `\`) refuses it with exit code 1 and nothing written.
 
 #### Removing a room
 

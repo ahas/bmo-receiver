@@ -37,11 +37,21 @@ pub struct Fold {
   pub ttl_minutes: i64,
 }
 
-/// The cache warmer's touch of a quiet room's session.
+/// The cache warmer's touch of a quiet room's session: its note, and the chat touch target as the receiver
+/// declares it to the warmer (docs/boundary-api.md, 「For the cache warmer: the chat touch」).
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Touch {
   pub note: String,
+  pub label: String,
+  pub rank: i64,
+  pub idle_ms: i64,
+  pub lifetime_ms: i64,
+  pub margin_ms: i64,
+  pub ping_bound_ms: i64,
+  pub warm_by_default: bool,
+  pub failure_touches: bool,
+  pub honours_idle_override: bool,
 }
 
 #[derive(Debug, Deserialize)]

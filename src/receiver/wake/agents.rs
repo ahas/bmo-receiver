@@ -28,7 +28,7 @@ pub struct Designated {
 impl Designated {
   /// The agent as its registration gives it: its label and the words its row names, held as one line
   /// separated by commas.
-  fn of(agent: &Agent) -> Self {
+  pub fn of(agent: &Agent) -> Self {
     let words = text(&agent.row, "wake_words").unwrap_or_default();
     let named = agent.label.clone().into_iter().chain(words.split(',').map(str::to_owned));
 
