@@ -16,4 +16,6 @@ mod scratch_runs;
 mod stop_notice;
 mod store;
 mod talks;
+mod verbs_draws;
+mod verbs_messages;
 mod wake;

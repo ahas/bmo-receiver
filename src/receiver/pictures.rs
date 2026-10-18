@@ -34,7 +34,8 @@ pub fn is_jpeg(bytes: &[u8]) -> bool {
   bytes.starts_with(&[0xff, 0xd8, 0xff])
 }
 
-fn decode(bytes: &[u8]) -> Result<DynamicImage, NotAPicture> {
+/// The picture the bytes draw, of the formats this reads.
+pub fn decode(bytes: &[u8]) -> Result<DynamicImage, NotAPicture> {
   match image::guess_format(bytes) {
     Ok(
       format @ (ImageFormat::Jpeg
@@ -54,9 +55,9 @@ pub fn is_transparent(bytes: &[u8]) -> Result<bool, NotAPicture> {
   Ok(picture.color().has_alpha() && picture.to_rgba16().pixels().any(|pixel| pixel.0[3] < u16::MAX))
 }
 
-// The picture laid on white: each pixel's colour weighed by its own alpha against the ground, so an anti-aliased
-// edge keeps its softness against the white.
-fn on_white(picture: &DynamicImage) -> RgbImage {
+/// The picture laid on white: each pixel's colour weighed by its own alpha against the ground, so an anti-aliased
+/// edge keeps its softness against the white.
+pub fn on_white(picture: &DynamicImage) -> RgbImage {
   let rgba = picture.to_rgba8();
 
   RgbImage::from_fn(rgba.width(), rgba.height(), |x, y| {
@@ -70,7 +71,8 @@ fn on_white(picture: &DynamicImage) -> RgbImage {
   })
 }
 
-fn jpeg(picture: &RgbImage, quality: u8) -> Result<Vec<u8>, NotAPicture> {
+/// The picture written as JPEG at this quality.
+pub fn jpeg(picture: &RgbImage, quality: u8) -> Result<Vec<u8>, NotAPicture> {
   let mut out = Vec::new();
 
   JpegEncoder::new_with_quality(&mut out, quality).encode_image(picture).map_err(failed)?;

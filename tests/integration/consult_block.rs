@@ -117,6 +117,14 @@ async fn the_windows_of_a_room_more_than_one_agent_answers_stand_in_the_block() 
   let states = window_states(&standing.receiver, ROOM).await;
 
   assert_eq!(states.len(), 2);
-  assert!(states.iter().any(|state| state.agent == COMPANION && state.open_until.unwrap_or(0) == 0));
-  assert!(states.iter().any(|state| state.agent == "chat-a" && state.open_until == Some(1_790_000_160)));
+  assert!(
+    states
+      .iter()
+      .any(|state| state.agent == COMPANION && state.open_until.unwrap_or(0) == 0)
+  );
+  assert!(
+    states
+      .iter()
+      .any(|state| state.agent == "chat-a" && state.open_until == Some(1_790_000_160))
+  );
 }

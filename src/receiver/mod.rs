@@ -6,6 +6,7 @@
 pub mod commands;
 pub mod files;
 pub mod handover;
+pub mod labels;
 pub mod left_board;
 pub mod notices;
 pub mod pictures;

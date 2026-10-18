@@ -14,7 +14,7 @@ pub mod instructions;
 pub mod mid_turn;
 pub mod notices;
 pub mod progress;
-pub mod promises;
+pub use room_calls::promises;
 pub mod prompt;
 pub mod records;
 pub mod reply;

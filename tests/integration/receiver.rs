@@ -7,6 +7,8 @@ mod commands;
 mod files;
 mod notices;
 mod owner_road;
+mod owner_sends;
+mod owner_words;
 
 use std::sync::Arc;
 

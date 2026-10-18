@@ -33,6 +33,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   );
   unit.answer_empty("POST /hooks", 204);
   unit.answer("GET /run-log", 200, json!({ "lines": [{ "id": 4, "text": "a line" }] }));
+  unit.answer("GET /reset-point", 200, json!({ "point": 2_000 }));
 
   let agents = agency.agents().await.unwrap();
 
@@ -70,6 +71,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     .await
     .unwrap();
   assert_eq!(agency.run_log("run-1", Some(3)).await.unwrap()[0]["id"], 4);
+  assert_eq!(agency.reset_point("agent-a").await.unwrap(), Some(2_000));
 
   assert_eq!(
     unit.took(),
@@ -104,6 +106,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
         )
       ),
       call("GET /run-log", "run=run-1&after=3", None),
+      call("GET /reset-point", "agent=agent-a", None),
     ]
   );
 }

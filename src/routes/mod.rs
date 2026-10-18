@@ -2,7 +2,11 @@
 //! tool and the `bmo` command line reach the receiver on. Every one answers only a request carrying the
 //! receiver's token, and a refusal with its code and the English sentence naming it.
 
+mod as_owner;
 mod consult;
+mod owner_words;
+mod say;
+mod sends;
 mod talks;
 
 use std::sync::Arc;
@@ -26,6 +30,9 @@ use receiver_ports::http::PortFailure;
 use crate::Fault;
 use crate::receiver::Receiver;
 use crate::routes::consult::{block, consult_say};
+use crate::routes::owner_words::instruct;
+use crate::routes::say::{say, say_file};
+use crate::routes::sends::{can, sends};
 use crate::routes::talks::talk;
 
 /// What every route stands on: the receiver and the token it answers behind.
@@ -75,6 +82,11 @@ pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
   Router::new()
     .route("/consult/say", post(consult_say))
     .route("/consult/block", post(block))
+    .route("/instruct", post(instruct))
+    .route("/say", post(say))
+    .route("/say-file", post(say_file))
+    .route("/sends", post(sends))
+    .route("/sends/can", post(can))
     .route("/talks", post(talk))
     .fallback(no_route)
     .method_not_allowed_fallback(no_route)

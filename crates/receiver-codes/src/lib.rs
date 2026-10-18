@@ -51,6 +51,7 @@ pub mod voice;
 
 pub use companions::{CompanionFact, CompanionRefusal};
 pub use consult::ConsultRefusal;
+pub use draws::{DrawAsked, DrawLine, DrawResult};
 pub use fixed_lines::FixedLine;
 pub use health::HealthFact;
 pub use kinds::{EngineError, RunTitle, SessionReason, SkipReason, TurnOpening};

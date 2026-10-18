@@ -8,7 +8,6 @@ pub mod companion;
 pub mod dashes;
 pub mod data_root;
 pub mod form;
-pub mod js;
 pub mod json;
 pub mod receiver;
 pub mod roads;
@@ -21,6 +20,10 @@ pub mod text;
 pub mod verbs;
 pub mod web_address;
 pub mod wording;
+
+/// The text readings a JavaScript side is kept answers with, held in the shared crate so the receiver's verbs
+/// and its tools read it alike.
+pub use room_calls::js;
 
 pub use store::{Fault, all, one, run};
 

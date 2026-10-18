@@ -243,6 +243,10 @@ pub trait Agency: Send + Sync {
   /// A run's log lines after the one given, five hundred at most.
   fn run_log<'a>(&'a self, run: &'a str, after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>>;
 
+  /// The moment an agent's last reset cut it off at, in epoch milliseconds; none where it was never reset. A
+  /// turn begun at or before it is overtaken (`docs/companions.md`, 「What the reset cuts off」).
+  fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
+
   /// The stream of the events of the kinds named, from the moment it is opened.
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>>;
 }
@@ -301,6 +305,12 @@ struct Hook<'a> {
 #[derive(Deserialize)]
 struct Lines {
   lines: Vec<RunLine>,
+}
+
+#[derive(Deserialize)]
+struct Point {
+  #[serde(default)]
+  point: Option<i64>,
 }
 
 impl HttpAgency {
@@ -400,6 +410,15 @@ impl Agency for HttpAgency {
       let lines: Lines = self.caller.get(&["run-log"], &query).await?;
 
       Ok(lines.lines)
+    })
+  }
+
+  fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
+    Box::pin(async move {
+      let query = vec![("agent", agent.to_owned())];
+      let point: Point = self.caller.get(&["reset-point"], &query).await?;
+
+      Ok(point.point)
     })
   }
 

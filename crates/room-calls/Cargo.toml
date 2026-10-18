@@ -1,0 +1,33 @@
+[package]
+name = "room-calls"
+description = "What the send tool and the receiver's own verbs share: the turn a call is made in, the sends asked of the receiver, and the readings an answer is held to."
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+# The verbs a road performs, named as the chat protocol names them, which a procedure is held to.
+bmo-chat-client.workspace = true
+# The moment a scanned message was sent, written as an instant.
+chrono.workspace = true
+# The receiver's env file, read for where it answers.
+dotenvy.workspace = true
+# The web unit and the agency, asked across the boundary for a grant check and a reset point.
+receiver-ports.workspace = true
+# The words an answer's promises and rules are read by.
+receiver-policy.workspace = true
+# The marks a procedure document is cut by.
+regex.workspace = true
+# One call to the running receiver's routes.
+reqwest.workspace = true
+# A room's messages read out of the receiver's database.
+sea-orm.workspace = true
+# The shape a tool's entry declares its arguments by.
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true

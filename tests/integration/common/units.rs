@@ -742,6 +742,10 @@ impl Agency for StandInAgency {
     not_asked_agency("a run's log")
   }
 
+  fn reset_point<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
+    Box::pin(async { Ok(None) })
+  }
+
   fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
     not_asked_agency("the events")
   }

@@ -245,21 +245,24 @@ These are the routes the console, the receiver's tool and the `bmo` command line
   `sticker` (`chat?`, `via?`, `emoji`) and `random_draw` (`chat?`, `via?`, `mode`, `shape` and the shape's
   fields, `docs/random-draw.md`). The act goes out as the asker's agent, on the road the turn names
   (`docs/messages.md`).
-- **`remind`** is carried to the brain's `POST /reminders/set` as the asker's agent in its room
-  (「The brain」 below), and answered with the reading the brain gives.
+- **`remind`** is carried to the brain's `POST /reminders/set` as the asker's agent in its room (「The brain」 below),
+  and answered with the reading the brain gives; the brain keeps a reminder by its memory row alone, so the message
+  a call names is not carried. Asked outside any agent's turn it is refused, since a reminder is one agent's.
+- **A line asked to be said** goes in a run of its own, whose launcher the receiver's binary fills; asked of a
+  service standing without one, it is turned away before its words are written anywhere.
 
 #### The owner's words from the console
 
 | Route | Body | Answer |
 |---|---|---|
 | `POST /say` | `chatId`, `text`, `replyTo?` | `ok`, `messageId` |
-| `POST /say-file` | a form: `chatId`, `text?` (the caption), `replyTo?`, and up to ten `file` fields | `ok`, `sent` (each `name`, `messageId`), `failed` (each `name`, `reason`) |
+| `POST /say-file` | a form: `chatId`, `text?` (the caption), `replyTo?`, and up to ten `file` fields | `ok`, `messageId` (the first send's), `sent` (each `name`, `messageId`), `checking` (each file the road is still drawing on), `failed` (each `name`, `reason`) |
 | `POST /instruct` | `chatId`, `text` | `ok`: the owner's words queued for the room's session as a quiet instruction |
 
 `POST /say` and `POST /say-file` in the owner's private chat archive the words under a console number and hand
 them to that chat's conversation; in any other room they go as the owner, on the road the room declares for the
-owner's voice (`docs/receiver.md`, 「The owner's words」). A file past the road's ceiling is refused 413 with
-`maxBytes`; a `replyTo` the archive does not hold is refused 409.
+owner's voice (`docs/receiver.md`, 「The owner's words」). A file past the road's ceiling is refused 413 `too-large`
+with a sentence naming the file and the ceiling; a `replyTo` the archive does not hold is refused 409.
 
 #### The event stream and the live board
 
@@ -357,6 +360,7 @@ every room's matter.
 | forget a room | `POST /rooms/forget` | `chatId`, `dryRun` | `gone`, `stayed` (each `table`, `rows`, `why`) |
 | register a hook | `POST /hooks` | `point`, `url`, `token` | |
 | a run's log | `GET /run-log?run=&after=` | | `lines` |
+| an agent's reset point | `GET /reset-point?agent=` | | `point` in epoch milliseconds or null: the moment the agent was last reset at, which overtakes a turn begun at or before it |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 
 The receiver reads these of an agent's row, beside the `name`, `label` and `awake` the agency states of every
@@ -494,6 +498,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
   own, and a run of a second asking that failed is written as a judgement of the round with no figures.
 - **The agency** states `GET /rest` and `POST /rest` but no route that reports why a rest that has just passed
   ended the silence; the receiver asks `GET /rest/passed` for its restart, for agency to state.
+- **The agency** states no route answering an agent's reset point; the receiver asks `GET /reset-point?agent=`
+  for the send tool's turn, which a turn begun at or before the point it answers is refused in, for the agency
+  to state.
 - **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open
   questions with their options, nor one that writes a line of talk over a question and stops its clock; the
   receiver asks `GET /questions/open?chat=` and `POST /question-talk`, for bmo-job to state.
