@@ -149,6 +149,8 @@
   puts it at the head of that turn, and clears it once a new answer succeeds (`POST /session-summary/clear`), so it
   is still delivered after a failure or a restart.
 - **A room switch alone does not replace the session.** The switch block is not a change to the common head.
+- **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
+  keeps one session across its rooms; a room's own session is the agency's to resume.
 - **Never a full re-read:** even when summarising is impossible, the whole old context is not read again; the new
   session is opened with a line saying memory could not be restored.
 

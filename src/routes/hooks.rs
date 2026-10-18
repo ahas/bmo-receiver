@@ -86,8 +86,9 @@ async fn typed(receiver: &Receiver, ask: &Value) -> Answered {
   let Some(typing) = receiver.typing() else {
     return answered(json!({ "answer": null }));
   };
-  let context =
-    typing.typed_line(receiver, &receiver.deployment().agent, &asked.text, &asked.session_id, now_ms());
+  let context = typing
+    .typed_line(receiver, &receiver.deployment().agent, &asked.text, &asked.session_id, now_ms())
+    .await;
 
   answered(json!({ "answer": context.ok() }))
 }

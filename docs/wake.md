@@ -115,6 +115,20 @@ its rounds.
   itself finished before it had sent would let the next message start a second run of the same session, and the
   room would read two answers to one thing, the older one arriving last.
 - **What arrives while a round is running waits in the buffer** and is read when that round hands over.
+- **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
+  window is carried into the agent's session through the agency (`POST /session/start`, `GET /session/state`,
+  `POST /session/turn`, and the turn's `turn-started` and `turn-ended` on the event stream); a companion's round
+  is its own turn, sent on the road its room answers on; any other answer is held to the answer checks
+  (`docs/answer-checks.md`) and sent on the road the turn answers on, then handed back to the receiver as filed.
+  The round's session is noted, a failed round tells its room's health, and the failure orders are looked over on
+  the conversations' own clock.
+- **Words that come while the turn works are pushed into it** (`POST /session/push`) at the round's next look at
+  the working turn: what the agency says was `delivered` joins the round, which answers it with the rest; what is
+  `waiting` or `refused` goes back to the front of the room's buffer for the round after, and a `waiting` turn is
+  offered nothing more (`docs/bmo-window.md`, `push`).
+- **A round folds its session only past the fold share:** once its answer has gone out, the session is folded as
+  work of its own where the context the agency reports it carrying (`carried` against `window`) has reached the
+  resident turn policy's `fold_ratio`, and not otherwise.
 
 ## A job's end
 

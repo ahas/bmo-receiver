@@ -262,7 +262,7 @@ pub async fn touch(
 }
 
 /// The warmer's ping answered: the touch of the chat agent's one session, where the ping is of that target.
-pub async fn ping(receiver: &Receiver, conversations: &Conversations, ping: &Ping) -> TouchAnswer {
+pub async fn ping(conversations: &Conversations, ping: &Ping) -> TouchAnswer {
   if ping.kind != "chat_touch" || ping.target != "chat-touch" {
     return TouchAnswer {
       outcome: TouchOutcome::Skipped,
@@ -271,32 +271,17 @@ pub async fn ping(receiver: &Receiver, conversations: &Conversations, ping: &Pin
     };
   }
 
-  touch(receiver, conversations, &receiver.deployment().agent, Some(ping.bound_ms)).await
+  conversations.touch(Some(ping.bound_ms)).await
 }
 
-/// The touch, as the conversations hold it.
-#[derive(Clone)]
-pub struct Warmer {
-  pub receiver: Receiver,
-  pub conversations: Conversations,
-}
-
-impl Warmer {
-  pub fn new(receiver: Receiver, conversations: Conversations) -> Self {
-    Warmer {
-      receiver,
-      conversations,
-    }
-  }
-}
-
-impl crate::chat::conversation::Touching for Warmer {
+// The chat agent's conversations take the warmer's touch, behind whatever round is running.
+impl crate::chat::conversation::Touching for Conversations {
   fn touch<'a>(
     &'a self,
     _receiver: &'a Receiver,
-    agent: &'a str,
+    _agent: &'a str,
     idle_override_ms: Option<i64>,
   ) -> BoxFuture<'a, Result<TouchAnswer, Fault>> {
-    Box::pin(async move { Ok(touch(&self.receiver, &self.conversations, agent, idle_override_ms).await) })
+    Box::pin(async move { Ok(Conversations::touch(self, idle_override_ms).await) })
   }
 }

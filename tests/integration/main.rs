@@ -16,6 +16,7 @@ mod private_thread;
 mod receiver;
 mod room_record;
 mod room_removal;
+mod room_round;
 mod routes;
 mod scratch_runs;
 mod stop_notice;

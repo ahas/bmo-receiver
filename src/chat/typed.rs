@@ -9,7 +9,9 @@
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 
-use crate::receiver::Inbound;
+use super::conversation::{BoxFuture, Conversations, Typing};
+use crate::Fault;
+use crate::receiver::{Inbound, Receiver};
 
 /// The line as one message of the owner's in his private chat, sent at `at_ms`.
 pub fn message(text: &str, owner: i64, name: &str, at_ms: i64) -> Inbound {
@@ -34,4 +36,18 @@ pub fn context(composed: &str) -> String {
   let lead = fill_marks(&CHAT_ROUND.typed.lead, &[("number", &CHAT_ROUND.typed.number.to_string())]);
 
   format!("{lead}\n\n{composed}")
+}
+
+// The chat agent's conversations compose a line typed into its program.
+impl Typing for Conversations {
+  fn typed_line<'a>(
+    &'a self,
+    _receiver: &'a Receiver,
+    _agent: &'a str,
+    text: &'a str,
+    session_id: &'a str,
+    at_ms: i64,
+  ) -> BoxFuture<'a, Result<String, Fault>> {
+    Box::pin(Conversations::typed_line(self, text, session_id, at_ms))
+  }
 }

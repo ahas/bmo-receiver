@@ -19,7 +19,6 @@ use crate::chat::conversation::{Conversations, Timings};
 use crate::chat::instructions::{Pass, Rooms};
 use crate::chat::restart::keep as keep_restart;
 use crate::chat::runner::Runner;
-use crate::chat::touch::Warmer as TouchWarmer;
 use crate::config::Config;
 use crate::data_root::DataRoot;
 use crate::events::Events;
@@ -148,9 +147,8 @@ impl Standing {
     let rooms: Arc<dyn Rooms> = Arc::new(runner.clone());
 
     receiver.hold_runner(Arc::new(runner.clone()));
-    receiver
-      .clone()
-      .hold_touching(Arc::new(TouchWarmer::new(receiver.clone(), conversations.clone())));
+    receiver.clone().hold_touching(Arc::new(conversations.clone()));
+    receiver.clone().hold_typing(Arc::new(conversations.clone()));
     receiver = receiver.hold_talks(Arc::new(conversations.clone()));
 
     let pass = Pass::new(receiver.clone(), rooms);

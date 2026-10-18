@@ -16,15 +16,23 @@ use receiver_policy::fill_marks;
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
 
+use super::again::Checker;
+use super::ask::Carry;
+use super::context::{remember_held, sent_prompt};
+use super::health::{FailureOrders, RoomHealth};
 use super::mid_turn::{Paragraph, Push};
 use super::prompt::{self, Round, Scope as RoundScope};
+use super::reply::Sender;
+use super::room::room_context;
 use super::sentinels::{is_skip, is_wait};
 use super::talk::{TalkFailure, TalkRequest};
 use super::touch::TouchAnswer;
+use super::turnover::Noter;
 use super::window;
 use super::window::Selection;
 
 use crate::Fault;
+use crate::companion::turn::Turn as CompanionTurn;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver, Room, rows, wake};
 use crate::rounds;
@@ -36,13 +44,15 @@ use receiver_ports::gate::{Judgement, TurnEvent};
 /// A hook's answer, which it may take its time over.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// How long the room queue gathers a room's words, how long a wait holds them, and how long the chat agent's
-/// window keeps a room listening where its row says nothing else.
+/// How long the room queue gathers a room's words, how long a wait holds them, how long the chat agent's
+/// window keeps a room listening where its row says nothing else, and how often a working turn is looked at
+/// for words that came for its room.
 #[derive(Clone, Copy, Debug)]
 pub struct Timings {
   pub queue: Duration,
   pub wait: Duration,
   pub window: Option<Duration>,
+  pub look: Duration,
 }
 
 impl Timings {
@@ -54,6 +64,7 @@ impl Timings {
       queue: Duration::from_millis(held.queue_ms),
       wait: Duration::from_millis(held.wait_ms),
       window: None,
+      look: Duration::from_millis(CHAT_ROUND.pushing.look_ms),
     }
   }
 }
@@ -94,7 +105,7 @@ pub enum Failure {
 }
 
 /// A turn's answer as the round reads it: its words, the mode it answered in, the session it went out on, what
-/// the session now holds and the run whose log holds its calls.
+/// the session now holds against the window it holds it in, and the run whose log holds its calls.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Reply {
   pub text: String,
@@ -102,8 +113,19 @@ pub struct Reply {
   pub account: Option<String>,
   pub session: Option<String>,
   pub context_tokens: Option<i64>,
+  pub context_window: Option<i64>,
   pub replaced: Vec<SessionReason>,
   pub run: Option<String>,
+}
+
+impl Reply {
+  /// The share of its window the session's context now fills, where the agency told both.
+  pub fn context_ratio(&self) -> Option<f64> {
+    match (self.context_tokens, self.context_window) {
+      (Some(tokens), Some(window)) if window > 0 => Some(tokens as f64 / window as f64),
+      _ => None,
+    }
+  }
 }
 
 /// What a conversation keeps of the session its room's turns go on: the session it resumes, why it was replaced,
@@ -149,20 +171,6 @@ pub trait Carrying: Send + Sync {
   ) -> BoxFuture<'a, Result<Reply, Failure>>;
 }
 
-/// The conversations where no carrying stands: a turn asked of them says nothing.
-struct NoCarrying;
-
-impl Carrying for NoCarrying {
-  fn carry<'a>(
-    &'a self,
-    _asking: &'a Asking,
-    _held: &'a Held,
-    _follower: &'a Follower,
-  ) -> BoxFuture<'a, Result<Reply, Failure>> {
-    Box::pin(async { Ok(Reply::default()) })
-  }
-}
-
 /// What a round's answer is held to while the checks read it: the answer itself, the round's scope, the words
 /// the round read and the words around it, whether its turn may use tools and what it still owes the owner.
 pub struct Checked<'a> {
@@ -196,23 +204,6 @@ pub trait Checks: Send + Sync {
   ) -> BoxFuture<'a, Result<Reply, Failure>>;
 }
 
-struct NoChecks;
-
-impl Checks for NoChecks {
-  fn checks<'a>(
-    &'a self,
-    _conversations: &'a Conversations,
-    _receiver: &'a Receiver,
-    _agent: &'a str,
-    _held: &'a Held,
-    checked: &'a Checked<'a>,
-  ) -> BoxFuture<'a, Result<Reply, Failure>> {
-    Box::pin(async { Ok(checked.reply.clone()) })
-  }
-}
-
-/// What sends a round's answer into its room, on the road the turn answers on: the number of the message it went
-/// out as and its words, where anything went out. Filled by the module that owns the send.
 /// Where a round's answer goes out: the room it goes out in, the message it answers, the road it answers on, the
 /// round that wrote it and when the room said the earliest thing it answers.
 pub struct ReplyRoad {
@@ -223,6 +214,8 @@ pub struct ReplyRoad {
   pub asked_at: Option<i64>,
 }
 
+/// What sends a round's answer into its room, on the road the turn answers on: the number of the message it went
+/// out as and its words, where anything went out. Filled by the module that owns the send.
 pub trait Sending: Send + Sync {
   fn send<'a>(
     &'a self,
@@ -231,20 +224,6 @@ pub trait Sending: Send + Sync {
     road: &'a ReplyRoad,
     reply: &'a Reply,
   ) -> BoxFuture<'a, Option<Sent>>;
-}
-
-struct NoSending;
-
-impl Sending for NoSending {
-  fn send<'a>(
-    &'a self,
-    _receiver: &'a Receiver,
-    _agent: &'a str,
-    _road: &'a ReplyRoad,
-    _reply: &'a Reply,
-  ) -> BoxFuture<'a, Option<Sent>> {
-    Box::pin(async { None })
-  }
 }
 
 /// What writes a session's and its road's records as a turn went out, and what folds a session past its window.
@@ -269,33 +248,6 @@ pub trait Noting: Send + Sync {
   ) -> BoxFuture<'a, ()>;
 }
 
-struct NoNoting;
-
-impl Noting for NoNoting {
-  fn note<'a>(
-    &'a self,
-    _receiver: &'a Receiver,
-    _agent: &'a str,
-    _held: &'a Held,
-    _reply: &'a Reply,
-    _ms: i64,
-  ) -> BoxFuture<'a, ()> {
-    Box::pin(async {})
-  }
-
-  fn fold<'a>(
-    &'a self,
-    _conversations: &'a Conversations,
-    _receiver: &'a Receiver,
-    _agent: &'a str,
-    _chat_id: i64,
-    _held: &'a Held,
-    _room: Room,
-  ) -> BoxFuture<'a, ()> {
-    Box::pin(async {})
-  }
-}
-
 /// The words a round of a pieces-shaped agent carries: the room it runs in, the messages and instructions it
 /// took, the roads they came in on and the events among them.
 pub struct PiecesRound {
@@ -307,39 +259,27 @@ pub struct PiecesRound {
   pub via: String,
 }
 
+/// What a round of a pieces-shaped agent came to: no turn, where nothing was left to answer, or a turn, with the
+/// message its answer went out as where one went out.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PiecesEnded {
+  NoTurn,
+  Answered(Option<Sent>),
+}
+
 /// Whether an agent's turns are a companion's own, and what such a round does. Filled by the companion's part.
 pub trait Pieces: Send + Sync {
   fn of<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
 
   fn round<'a>(
     &'a self,
-    receiver: &'a Receiver,
+    conversations: &'a Conversations,
     agent: &'a str,
     pieces: &'a PiecesRound,
     turn: u64,
     round: &'a str,
     record: &'a Record,
-  ) -> BoxFuture<'a, Result<(), Failure>>;
-}
-
-struct NoPieces;
-
-impl Pieces for NoPieces {
-  fn of<'a>(&'a self, _receiver: &'a Receiver, _agent: &'a str) -> BoxFuture<'a, bool> {
-    Box::pin(async { false })
-  }
-
-  fn round<'a>(
-    &'a self,
-    _receiver: &'a Receiver,
-    _agent: &'a str,
-    _pieces: &'a PiecesRound,
-    _turn: u64,
-    _round: &'a str,
-    _record: &'a Record,
-  ) -> BoxFuture<'a, Result<(), Failure>> {
-    Box::pin(async { Ok(()) })
-  }
+  ) -> BoxFuture<'a, Result<PiecesEnded, Failure>>;
 }
 
 /// The health of the rooms' sessions as the conversations read it: whether a room has fallen silent, what a
@@ -352,29 +292,6 @@ pub trait Health: Send + Sync {
   fn orders(&self, receiver: &Receiver);
 }
 
-struct NoHealth;
-
-impl Health for NoHealth {
-  fn silenced<'a>(&'a self, _receiver: &'a Receiver, _chat_id: i64) -> BoxFuture<'a, bool> {
-    Box::pin(async { false })
-  }
-
-  fn failed<'a>(
-    &'a self,
-    _receiver: &'a Receiver,
-    _chat_id: i64,
-    _failure: &'a Failure,
-  ) -> BoxFuture<'a, ()> {
-    Box::pin(async {})
-  }
-
-  fn died<'a>(&'a self, _receiver: &'a Receiver, _chat_id: i64) -> BoxFuture<'a, ()> {
-    Box::pin(async {})
-  }
-
-  fn orders(&self, _receiver: &Receiver) {}
-}
-
 /// What a round's answer went out as, where it went out: the number of its message and its words.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sent {
@@ -382,22 +299,14 @@ pub struct Sent {
   pub text: String,
 }
 
-/// What a turn of a console talk is asked with, and what it answers with: the talks' own module takes the turn
-/// (docs/unified-bmo.md, 「Console conversation in the private chat」).
+/// What a turn of a console talk is asked with, and what it answers with (docs/unified-bmo.md, 「Console
+/// conversation in the private chat」): the conversations take it as a round of the owner's private chat.
 pub trait Talking: Send + Sync {
   fn talk<'a>(&'a self, request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>>;
 }
 
-struct NoTalking;
-
-impl Talking for NoTalking {
-  fn talk<'a>(&'a self, _request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>> {
-    Box::pin(async { Err(TalkFailure::Resting) })
-  }
-}
-
-/// The touch of the quiet rooms' sessions, on the idle stretch the warmer names where it shortens it (docs/bmo-window.md,
-/// 「The touch」). Filled by the module that owns the touch.
+/// The touch of the quiet rooms' sessions, on the idle stretch the warmer names where it shortens it
+/// (docs/bmo-window.md, 「The touch」): the conversations take it behind whatever round is running.
 pub trait Touching: Send + Sync {
   fn touch<'a>(
     &'a self,
@@ -407,57 +316,23 @@ pub trait Touching: Send + Sync {
   ) -> BoxFuture<'a, Result<TouchAnswer, Fault>>;
 }
 
-struct NoTouching;
-
-impl Touching for NoTouching {
-  fn touch<'a>(
-    &'a self,
-    _receiver: &'a Receiver,
-    _agent: &'a str,
-    _idle_override_ms: Option<i64>,
-  ) -> BoxFuture<'a, Result<TouchAnswer, Fault>> {
-    Box::pin(async { Err(Fault::new("no touch stands for these conversations")) })
-  }
-}
-
 /// What the window hands a line a person typed into the agent's program (docs/bmo-window.md, 「A line typed into
-/// the program」). Filled by the module that owns the hook.
+/// the program」): the conversations compose it as a round of the owner's private chat.
 pub trait Typing: Send + Sync {
-  fn typed_line(
-    &self,
-    receiver: &Receiver,
-    agent: &str,
-    text: &str,
-    session_id: &str,
+  fn typed_line<'a>(
+    &'a self,
+    receiver: &'a Receiver,
+    agent: &'a str,
+    text: &'a str,
+    session_id: &'a str,
     at_ms: i64,
-  ) -> Result<String, Fault>;
-}
-
-struct NoTyping;
-
-impl Typing for NoTyping {
-  fn typed_line(
-    &self,
-    _receiver: &Receiver,
-    _agent: &str,
-    _text: &str,
-    _session_id: &str,
-    _at_ms: i64,
-  ) -> Result<String, Fault> {
-    Err(Fault::new("no typed line stands for these conversations"))
-  }
+  ) -> BoxFuture<'a, Result<String, Fault>>;
 }
 
 /// What the conversations' own clock looks over on the health policy's minute, for as long as the process stands
 /// (docs/answer-checks.md). Filled by the module that owns the failure orders.
 pub trait Orders: Send + Sync {
   fn check_failure_orders(&self, receiver: &Receiver, agent: &str);
-}
-
-struct NoOrders;
-
-impl Orders for NoOrders {
-  fn check_failure_orders(&self, _receiver: &Receiver, _agent: &str) {}
 }
 
 // A conversation as it stands in a room.
@@ -681,9 +556,6 @@ struct Inner {
   noting: Arc<dyn Noting>,
   pieces: Arc<dyn Pieces>,
   health: Arc<dyn Health>,
-  talking: Arc<dyn Talking>,
-  touching: Arc<dyn Touching>,
-  typing: Arc<dyn Typing>,
   orders: Arc<dyn Orders>,
 }
 
@@ -692,25 +564,26 @@ struct Inner {
 pub struct Conversations(Arc<Inner>);
 
 impl Conversations {
+  /// An agent's conversations on the receiver's own parts of a round: its turns carried into the agency's
+  /// sessions, its answers held to the checks and sent on the road they answer on, its sessions noted and folded,
+  /// a companion's rounds its own, and the health and failure orders of its rooms. The talk and the touch are the
+  /// conversations' own, taken behind whatever round is running, and so is the typed line, composed at once.
   pub fn new(receiver: Receiver, hooks: Arc<dyn Hooks>, timings: Timings, agent: &str) -> Self {
     Self(Arc::new(Inner {
       agent: agent.to_owned(),
+      carrying: Arc::new(Carry::looking_every(receiver.clone(), timings.look)),
+      checks: Arc::new(Checker::new(receiver.clone())),
+      sending: Arc::new(Sender::new(receiver.clone())),
+      noting: Arc::new(Noter::new(receiver.clone())),
+      pieces: Arc::new(CompanionTurn),
+      health: Arc::new(RoomHealth::new(receiver.clone())),
+      orders: Arc::new(FailureOrders::new(receiver.clone())),
       receiver,
       hooks,
       timings,
       state: Mutex::new(State::default()),
       turn: tokio::sync::Mutex::new(()),
       keeping: Arc::new(tokio::sync::RwLock::new(())),
-      carrying: Arc::new(NoCarrying),
-      checks: Arc::new(NoChecks),
-      sending: Arc::new(NoSending),
-      noting: Arc::new(NoNoting),
-      pieces: Arc::new(NoPieces),
-      health: Arc::new(NoHealth),
-      talking: Arc::new(NoTalking),
-      touching: Arc::new(NoTouching),
-      typing: Arc::new(NoTyping),
-      orders: Arc::new(NoOrders),
     }))
   }
 
@@ -1610,11 +1483,11 @@ impl Conversations {
 
     // A round of a pieces-shaped agent is its companion's own.
     if self.0.pieces.of(&receiver, self.agent()).await {
-      return self
+      let ended = self
         .0
         .pieces
         .round(
-          &receiver,
+          self,
           self.agent(),
           &PiecesRound {
             chat_id,
@@ -1622,13 +1495,17 @@ impl Conversations {
             instructions,
             ids,
             events,
-            via,
+            via: via.clone(),
           },
           turn,
           round,
           record,
         )
-        .await;
+        .await?;
+
+      self.pieces_ended(chat_id, ended, &via, room, round).await;
+
+      return Ok(());
     }
 
     let mut owed = if chat_id == owner {
@@ -1768,6 +1645,7 @@ impl Conversations {
       text: if stripped.is_empty() { super::sentinels::SKIP.to_owned() } else { stripped },
       ..reply.clone()
     };
+    let ratio = reply.context_ratio();
 
     self.0.noting.note(&receiver, self.agent(), &held, &reply, now_ms() - started).await;
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
@@ -1928,7 +1806,7 @@ impl Conversations {
       conv.in_flight = false;
     }
 
-    self.maybe_fold(chat_id, room).await;
+    self.maybe_fold(chat_id, room, held.session.as_deref(), ratio).await;
     self.pump_pending(chat_id);
 
     Ok(())
@@ -1946,6 +1824,41 @@ impl Conversations {
     if let Err(why) = self.0.receiver.filed(chat_id, message_id, via, declared).await {
       eprintln!("chat {chat_id}: the answer could not be handed to the receiver: {why}");
     }
+  }
+
+  // A companion's round ends as every round does: the room free for the next round, and where its turn answered,
+  // the room answered, its window moved, and the answer that went out told to the room's screens under the
+  // companion's name and handed to the receiver as filed.
+  async fn pieces_ended(&self, chat_id: i64, ended: PiecesEnded, via: &str, room: Room, round: &str) {
+    let PiecesEnded::Answered(sent) = ended else {
+      self.no_turn(chat_id);
+      return;
+    };
+
+    if let Some(sent) = sent {
+      let mut event = json!({
+        "type": "sent",
+        "chatId": chat_id,
+        "messageId": sent.message_id,
+        "detail": sent.text,
+        "round": round,
+      });
+
+      if let Some(speaker) = self.state().speakers.get(&chat_id).cloned() {
+        event["speaker"] = speaker;
+      }
+
+      self.publish(event);
+      self.hand_filed(chat_id, sent.message_id, via, room).await;
+    }
+
+    if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      conv.answered = true;
+      conv.in_flight = false;
+    }
+
+    self.restart_window(chat_id).await;
+    self.pump_pending(chat_id);
   }
 
   // A round that comes to no turn: the room free for the next round, and nothing of it kept.
@@ -2200,8 +2113,8 @@ impl Conversations {
 
   // A session past its threshold folded, as work of its own after the round: the room marked folding while it
   // runs, so its next round waits and the touch of the quiet rooms skips it.
-  async fn maybe_fold(&self, chat_id: i64, room: Room) {
-    if self.state().folding.contains(&chat_id) {
+  async fn maybe_fold(&self, chat_id: i64, room: Room, session: Option<&str>, ratio: Option<f64>) {
+    if self.state().folding.contains(&chat_id) || !super::fold::past_fold(session, ratio) {
       return;
     }
 
@@ -2225,9 +2138,9 @@ impl Conversations {
 
   /// The keepalive's touch of the quiet rooms' sessions, on the idle stretch the pass names where it shortens
   /// it.
-  pub async fn touch(&self, idle_override_ms: Option<i64>) -> Result<TouchAnswer, Fault> {
+  pub async fn touch(&self, idle_override_ms: Option<i64>) -> TouchAnswer {
     let lock = self.0.turn.lock().await;
-    let touched = self.0.touching.touch(&self.0.receiver, self.agent(), idle_override_ms).await;
+    let touched = super::touch::touch(&self.0.receiver, self, self.agent(), idle_override_ms).await;
 
     drop(lock);
     touched
@@ -2235,19 +2148,72 @@ impl Conversations {
 
   /// What a line a person typed into the chat agent's program at `at_ms` goes with (docs/bmo-window.md,
   /// 「A line typed into the program」): a round of the owner's private chat holding the line as one new message
-  /// of his, opened against the program's session, which then holds what went in full. Nothing is asked and
-  /// nothing waits behind a running round: the person's turn is already under way in the program, and its
-  /// answer is the program's.
+  /// of his, built by the round's own prompt builder over the window's own selection and opened against the
+  /// program's session, which then holds what went in full. Nothing is asked and nothing waits behind a running
+  /// round: the person's turn is already under way in the program, and its answer is the program's.
   pub async fn typed_line(&self, text: &str, session_id: &str, at_ms: i64) -> Result<String, Fault> {
-    self.0.typing.typed_line(&self.0.receiver, self.agent(), text, session_id, at_ms)
+    let receiver = self.receiver();
+    let db = receiver.db();
+    let owner = self.owner();
+    let name = crate::receiver::reads::display_name(db, owner)
+      .await?
+      .unwrap_or_else(|| CHAT_ROUND.typed.nameless.clone());
+    let batch = [super::typed::message(text, owner, &name, at_ms)];
+    let pending: HashSet<i64> = self
+      .state()
+      .queue
+      .get(&owner)
+      .map(|gathering| gathering.iter().map(|message| message.message_id).collect())
+      .unwrap_or_default();
+    let mode = self.mode().await;
+    let queue_line = self.queue_line(owner).await;
+    let composed = prompt::compose(
+      &receiver,
+      &Round {
+        agent: self.agent(),
+        chat_id: owner,
+        room: prompt::quiet_room(&receiver, owner, owner).await?,
+        owner,
+        batch: &batch,
+        instructions: &[],
+        instruction_ids: &[],
+        events: &[],
+        force: true,
+        mode: &mode,
+        tools_allowed: true,
+        waited_on: &HashSet::new(),
+        first_call: false,
+        all_from_owner: true,
+        session: Some(session_id),
+        pending: &pending,
+        queue_line: &queue_line,
+        woken: None,
+        reader: Some(receiver.roads()),
+        round: None,
+      },
+    )
+    .await?;
+    let room = room_context(&receiver, owner, owner, None).await?;
+    let written = window::composed(&composed.selection, &composed.prompt);
+    let (sent, _) = sent_prompt(&receiver, Some(session_id), Some(&room), true, &written).await?;
+
+    remember_held(&receiver, Some(session_id), session_id, Some(&room), true, &written).await?;
+
+    Ok(super::typed::context(&sent))
   }
 
   /// A turn of a console talk (docs/unified-bmo.md, 「Console conversation in the private chat」): the owner
   /// speaking, so a round of his private chat on the session that chat resumes — his tools, his room's context,
-  /// waiting its place behind whatever round is running — whose answer is handed back rather than sent: no
-  /// output gate reads it, no room sees it, and no room's window, read mark or typing moves for it.
-  pub async fn talk(&self, request: TalkRequest) -> Result<Option<String>, TalkFailure> {
-    self.0.talking.talk(&request).await
+  /// waiting its place behind whatever round is running or fold under way — whose answer is handed back rather
+  /// than sent: no output gate reads it, no room sees it, and no room's window, read mark or typing moves for it.
+  pub async fn talk(&self, request: &TalkRequest) -> Result<Option<String>, TalkFailure> {
+    let _turn = self.0.turn.lock().await;
+
+    while !self.state().folding.is_empty() {
+      tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    super::talk::answer(self, request).await
   }
 
   /// The conversations' own clock: the failure orders nobody took up looked over on the health policy's

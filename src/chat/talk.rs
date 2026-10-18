@@ -391,89 +391,97 @@ fn failure_of(failure: Failure) -> TalkFailure {
   }
 }
 
-// The chat agent's conversations take a talk's turns: the turn cleaned, restated and asked of the session the
-// owner's chat resumes, whose answer is handed back rather than sent.
+/// A talk's turn as the chat agent's conversations take it: the turn cleaned, restated and asked of the session
+/// the owner's chat resumes, whose answer is handed back rather than sent. The conversations hold their turn
+/// around it.
+pub async fn answer(
+  conversations: &Conversations,
+  request: &TalkRequest,
+) -> Result<Option<String>, TalkFailure> {
+  let owner = conversations.owner();
+  let receiver = conversations.receiver();
+
+  if conversations.silenced(owner).await {
+    return Err(TalkFailure::Resting);
+  }
+
+  let clean =
+    |text: String| clean(&receiver, conversations.agent(), text, request.words.clone(), owner, None);
+  let said = match clean(request.said.clone()).await {
+    Ok(said) => said,
+    Err(why) => return Err(TalkFailure::Other(why.detail)),
+  };
+  let mut head = Vec::new();
+
+  for part in &request.head {
+    head.push(match part {
+      HeadPart::Line(line) => line.clone(),
+      HeadPart::Cleaned { line, text } => match clean(text.clone()).await {
+        Ok(cleaned) => line.replace("{text}", &cleaned),
+        Err(why) => return Err(TalkFailure::Other(why.detail)),
+      },
+    });
+  }
+
+  let mut turns = Vec::new();
+
+  for turn in &request.turns {
+    match clean(turn.text.clone()).await {
+      Ok(text) => turns.push(SaidTurn {
+        owner: turn.owner,
+        text: text.clone(),
+      }),
+      Err(why) => return Err(TalkFailure::Other(why.detail)),
+    }
+  }
+
+  let names = (owner_name(&receiver, owner).await, agent_label(&receiver, conversations.agent()).await);
+  let written = prompt(&head, &turns, &said, &names.0, &names.1);
+  let room = receiver.roads().room_facts(owner).await;
+  let messages: Vec<Inbound> = vec![];
+  let recent: Vec<String> = vec![];
+  let instructions: Vec<String> = vec![];
+  let events: Vec<receiver_ports::gate::TurnEvent> = vec![];
+  let material = Material {
+    agent: conversations.agent(),
+    chat_id: owner,
+    room,
+    messages: &messages,
+    instructions: &instructions,
+    said: std::slice::from_ref(&said),
+    events: &events,
+    recent: &recent,
+    holds: None,
+    round: None,
+  };
+  let selection = match select(&receiver, &material).await {
+    Ok(selection) => selection,
+    Err(why) => return Err(TalkFailure::Other(why.detail)),
+  };
+  let held = conversations.held_session(owner).await;
+  let asking = Asking {
+    chat_id: owner,
+    session: held.session.clone().unwrap_or_default(),
+    prompt: composed(&selection, &written),
+    via: None,
+    privileged: true,
+    answers: Vec::new(),
+    began: now_ms(),
+    context: selection.context.clone(),
+  };
+  let follower = Follower::new(conversations, owner);
+  let carried = Carry::new(receiver).carries(&asking, &held, &follower).await;
+
+  Ok(match carried {
+    Ok(reply) => Some(crate::form::strip_prompt_scaffolding(&reply.text)),
+    Err(failure) => return Err(failure_of(failure)),
+  })
+}
+
+// The chat agent's conversations take a talk's turns, behind whatever round is running.
 impl Talking for Conversations {
   fn talk<'a>(&'a self, request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>> {
-    Box::pin(async move {
-      let owner = self.owner();
-      let receiver = self.receiver();
-
-      if self.silenced(owner).await {
-        return Err(TalkFailure::Resting);
-      }
-
-      let clean = |text: String| clean(&receiver, self.agent(), text, request.words.clone(), owner, None);
-      let said = match clean(request.said.clone()).await {
-        Ok(said) => said,
-        Err(why) => return Err(TalkFailure::Other(why.detail)),
-      };
-      let mut head = Vec::new();
-
-      for part in &request.head {
-        head.push(match part {
-          HeadPart::Line(line) => line.clone(),
-          HeadPart::Cleaned { line, text } => match clean(text.clone()).await {
-            Ok(cleaned) => line.replace("{text}", &cleaned),
-            Err(why) => return Err(TalkFailure::Other(why.detail)),
-          },
-        });
-      }
-
-      let mut turns = Vec::new();
-
-      for turn in &request.turns {
-        match clean(turn.text.clone()).await {
-          Ok(text) => turns.push(SaidTurn {
-            owner: turn.owner,
-            text: text.clone(),
-          }),
-          Err(why) => return Err(TalkFailure::Other(why.detail)),
-        }
-      }
-
-      let names = (owner_name(&receiver, owner).await, agent_label(&receiver, self.agent()).await);
-      let written = prompt(&head, &turns, &said, &names.0, &names.1);
-      let room = receiver.roads().room_facts(owner).await;
-      let messages: Vec<Inbound> = vec![];
-      let recent: Vec<String> = vec![];
-      let instructions: Vec<String> = vec![];
-      let events: Vec<receiver_ports::gate::TurnEvent> = vec![];
-      let material = Material {
-        agent: self.agent(),
-        chat_id: owner,
-        room,
-        messages: &messages,
-        instructions: &instructions,
-        said: std::slice::from_ref(&said),
-        events: &events,
-        recent: &recent,
-        holds: None,
-        round: None,
-      };
-      let selection = match select(&receiver, &material).await {
-        Ok(selection) => selection,
-        Err(why) => return Err(TalkFailure::Other(why.detail)),
-      };
-      let held = self.held_session(owner).await;
-      let asking = Asking {
-        chat_id: owner,
-        session: held.session.clone().unwrap_or_default(),
-        prompt: composed(&selection, &written),
-        via: None,
-        privileged: true,
-        answers: Vec::new(),
-        began: now_ms(),
-        context: selection.context.clone(),
-      };
-      let follower = Follower::new(self, owner);
-      let carried = Carry::new(receiver).carries(&asking, &held, &follower).await;
-
-      Ok(match carried {
-        Ok(reply) => Some(crate::form::strip_prompt_scaffolding(&reply.text)),
-        Err(failure) => return Err(failure_of(failure)),
-      })
-    })
+    Box::pin(Conversations::talk(self, request))
   }
 }
 

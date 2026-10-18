@@ -412,7 +412,7 @@ every room's matter.
 | a rest passed | `GET /rest/passed` | | `kind` (`limit` or `outage`) or null: why the deployment rested where its rest has just passed, with the passed rests cleared |
 | start a session | `POST /session/start` | `agent`, `scope` (`{ "kind": "agent" }` or `{ "kind": "room", "room": <id> }`) | `id`, `agent`, `scope` |
 | send a turn | `POST /session/turn` | `session`, `prompt`, and the context: `room` (`chatId`, `text`, `mark`), `via`, `basePersona`, `privileged`, `answers`, `began` | `delivery`: `taken` or `blocked` |
-| read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` |
+| read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` (`carried`, the tokens its last request carried, and `window`, the registration's window), which a round's fold reads |
 | push words | `POST /session/push` | `session`, `words` | `said`: `delivered`, `waiting` or `refused` |
 | interrupt, fold, end | `POST /session/interrupt`, `POST /session/fold`, `POST /session/end` | `session` | `ok` |
 | list sessions | `GET /session/list` | | `sessions` |

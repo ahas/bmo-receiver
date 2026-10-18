@@ -34,6 +34,8 @@ use receiver_ports::web::{
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
 
+use crate::common::session::StandInSession;
+
 /// The owner every receiver of the tests answers for.
 pub const OWNER: i64 = 42;
 /// The chat agent's registration name.
@@ -269,7 +271,15 @@ impl Brain for StandInBrain {
   }
 
   fn keep_loads<'a>(&'a self, session: &'a str, loads: &'a [Load], _at: i64) -> BoxFuture<'a, Answer<()>> {
-    self.loads.lock().unwrap().insert(session.to_owned(), loads.to_vec());
+    let mut kept = self.loads.lock().unwrap();
+    let held = kept.entry(session.to_owned()).or_default();
+
+    for load in loads {
+      held.retain(|one| one.path != load.path);
+      held.push(load.clone());
+    }
+
+    drop(kept);
 
     Box::pin(async { Ok(()) })
   }
@@ -656,9 +666,10 @@ pub fn registration(
 
 /// The agency: the agents it registers, whether a stand-in answers an agent while the rest closes its road,
 /// the deployment's rest, every companion removal it was asked, the field it refuses a companion's call on
-/// where a test sets one, and every push it was asked with what it says of it (a push failing where it says
-/// nothing).
+/// where a test sets one, every push it was asked with what it says of it (a push failing where it says
+/// nothing), and the session its turns go on where a test stands one.
 pub struct StandInAgency {
+  pub session: Mutex<Option<Arc<StandInSession>>>,
   pub removals: Mutex<Vec<CompanionRemoval>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
   pub pushes: Mutex<Vec<(String, String)>>,
@@ -675,6 +686,7 @@ pub struct StandInAgency {
 impl StandInAgency {
   pub fn new() -> Self {
     StandInAgency {
+      session: Mutex::default(),
       removals: Mutex::default(),
       refusing: Mutex::default(),
       pushes: Mutex::default(),
@@ -707,6 +719,15 @@ impl StandInAgency {
 
   pub fn asked(&self) -> Vec<Resting> {
     self.written.lock().unwrap().clone()
+  }
+
+  /// The session its turns go on.
+  pub fn carrying_on(&self, session: Arc<StandInSession>) {
+    *self.session.lock().unwrap() = Some(session);
+  }
+
+  fn standing_session(&self) -> Option<Arc<StandInSession>> {
+    self.session.lock().unwrap().clone()
   }
 }
 
@@ -748,16 +769,26 @@ impl Agency for StandInAgency {
     Box::pin(async move { Ok(Passed { kind }) })
   }
 
-  fn start<'a>(&'a self, _agent: &'a str, _scope: Scope) -> BoxFuture<'a, Answer<Session>> {
-    not_asked_agency("a session")
+  fn start<'a>(&'a self, agent: &'a str, scope: Scope) -> BoxFuture<'a, Answer<Session>> {
+    let Some(session) = self.standing_session() else {
+      return not_asked_agency("a session");
+    };
+
+    Box::pin(async move { session.start(agent, scope).await })
   }
 
-  fn turn<'a>(&'a self, _turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
-    not_asked_agency("a turn")
+  fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
+    let Some(session) = self.standing_session() else { return not_asked_agency("a turn") };
+
+    Box::pin(async move { session.turn(turn).await })
   }
 
   fn state<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<SessionState>> {
-    not_asked_agency("a session's state")
+    let Some(session) = self.standing_session() else {
+      return not_asked_agency("a session's state");
+    };
+
+    Box::pin(async move { session.state().await })
   }
 
   fn interrupt<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
@@ -797,7 +828,11 @@ impl Agency for StandInAgency {
   }
 
   fn run_log<'a>(&'a self, _run: &'a str, _after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>> {
-    not_asked_agency("a run's log")
+    let Some(session) = self.standing_session() else {
+      return not_asked_agency("a run's log");
+    };
+
+    Box::pin(async move { session.run_log().await })
   }
 
   fn reset_point<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
@@ -805,7 +840,11 @@ impl Agency for StandInAgency {
   }
 
   fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
-    not_asked_agency("the events")
+    let Some(session) = self.standing_session() else {
+      return not_asked_agency("the events");
+    };
+
+    Box::pin(async move { session.events().await })
   }
 
   fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>> {
@@ -1117,6 +1156,19 @@ pub fn standing_on(
   chats: Vec<Arc<StandInChat>>,
   given: Deployment,
 ) -> Standing {
+  let standing = unrun(db, data_root, chats, given);
+
+  standing.receiver.hold_runner(standing.taken.clone());
+  standing
+}
+
+/// The same standing with no conversations held: the first runner a test holds takes the turns the wake hands.
+pub fn unrun(
+  db: &DatabaseConnection,
+  data_root: DataRoot,
+  chats: Vec<Arc<StandInChat>>,
+  given: Deployment,
+) -> Standing {
   let heard = Arc::new(Heard::default());
   let waking = Arc::new(WakeStandIn::default());
   let gate = Arc::new(StandInGate::default());
@@ -1141,8 +1193,6 @@ pub fn standing_on(
   let receiver = Receiver::new(db.clone(), data_root, given, units)
     .with_news(heard.clone())
     .with_wake(waking.clone());
-
-  receiver.hold_runner(taken.clone());
 
   Standing {
     receiver,

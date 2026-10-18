@@ -7,6 +7,7 @@
 pub mod alone;
 pub mod queue;
 pub mod scratch;
+pub mod session;
 pub mod units;
 
 use std::str::FromStr;

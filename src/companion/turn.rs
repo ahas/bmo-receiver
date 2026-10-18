@@ -10,7 +10,7 @@ use super::words::new_turns;
 use crate::chat::ask::Carry;
 use crate::chat::conversation::Carrying;
 use crate::chat::conversation::{
-  Asking, BoxFuture, Conversations, Failure, Follower, Held, PiecesRound, Record,
+  Asking, BoxFuture, Conversations, Failure, Follower, Held, PiecesEnded, PiecesRound, Record,
 };
 use crate::chat::reply::{OutgoingReply, send_reply};
 use crate::chat::turnover::{judge, verdict_of};
@@ -18,14 +18,8 @@ use crate::now_ms;
 use crate::receiver::{Receiver, rows};
 
 /// The companion's turn, as the conversations hold it.
-#[derive(Clone)]
-pub struct Turn(Conversations);
-
-impl Turn {
-  pub fn new(conversations: Conversations) -> Self {
-    Turn(conversations)
-  }
-}
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Turn;
 
 impl crate::chat::conversation::Pieces for Turn {
   /// Whether an agent's turns are a companion's own: its row takes the pieces shape of turn.
@@ -35,14 +29,15 @@ impl crate::chat::conversation::Pieces for Turn {
 
   fn round<'a>(
     &'a self,
-    receiver: &'a Receiver,
+    conversations: &'a Conversations,
     agent: &'a str,
     pieces: &'a PiecesRound,
     _turn: u64,
     round: &'a str,
     _record: &'a Record,
-  ) -> BoxFuture<'a, Result<(), Failure>> {
+  ) -> BoxFuture<'a, Result<PiecesEnded, Failure>> {
     Box::pin(async move {
+      let receiver = &conversations.receiver();
       let chat_id = pieces.chat_id;
       let owner = receiver.deployment().owner_id;
       let identity = receiver.roads().identity_in(chat_id).await;
@@ -53,7 +48,7 @@ impl crate::chat::conversation::Pieces for Turn {
       let body = parts.join("\n\n");
 
       if body.trim().is_empty() {
-        return Ok(());
+        return Ok(PiecesEnded::NoTurn);
       }
 
       let asking = Asking {
@@ -79,7 +74,7 @@ impl crate::chat::conversation::Pieces for Turn {
         replaced: vec![],
         last_consumed_id: pieces.batch.iter().map(|message| message.message_id).max(),
       };
-      let follower = Follower::new(&self.0, chat_id);
+      let follower = Follower::new(conversations, chat_id);
       let carrying = Carry::new(receiver.clone());
       let answered = match carrying.carry(&asking, &held, &follower).await {
         Ok(answered) => answered,
@@ -99,7 +94,7 @@ impl crate::chat::conversation::Pieces for Turn {
         }
       };
 
-      send_reply(
+      let sent = send_reply(
         receiver,
         &OutgoingReply {
           agent: Some(agent.to_owned()),
@@ -128,7 +123,7 @@ impl crate::chat::conversation::Pieces for Turn {
       )
       .await;
 
-      Ok(())
+      Ok(PiecesEnded::Answered(sent))
     })
   }
 }

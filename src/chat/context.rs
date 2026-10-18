@@ -8,12 +8,15 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use crate::js::bun_hash;
+use receiver_ports::brain::Load;
+use receiver_ports::http::PortFailure;
 use regex::Regex;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
 use super::room::RoomContext;
-use crate::{Fault, all, now_ms, one, run};
+use crate::receiver::Receiver;
+use crate::{Fault, now_ms, one, run};
 
 // The wrapping a document rides in until the session it goes to is settled (`window::once_block`).
 const BLOCK_OPEN: &str = "\u{e000}REFERENCE-ONCE ";
@@ -73,30 +76,26 @@ fn room_path(chat_id: i64) -> String {
   format!("room-context/{chat_id}")
 }
 
-/// What a session holds of what was sent in full: each path with the version it holds.
+// Why the brain's record of what a session holds could not be read or written.
+fn unrecorded(why: PortFailure) -> Fault {
+  Fault::new(format!("the brain's record of what the session holds: {why}"))
+}
+
+/// What a session holds of what was sent in full, as the brain keeps it: each path with the version it holds.
 pub async fn loaded_in(
-  db: &DatabaseConnection,
+  receiver: &Receiver,
   session: Option<&str>,
 ) -> Result<HashMap<String, String>, Fault> {
   let Some(session) = session else { return Ok(HashMap::new()) };
+  let loads = receiver.units().brain.loads(session).await.map_err(unrecorded)?;
 
-  Ok(
-    all(
-      db,
-      r#"SELECT "path", "version" FROM "session_people" WHERE "session_id" = $1"#,
-      vec![session.into()],
-    )
-    .await?
-    .iter()
-    .filter_map(|row| Some((row.try_get("", "path").ok()?, row.try_get("", "version").ok()?)))
-    .collect(),
-  )
+  Ok(loads.into_iter().map(|load| (load.path, load.version)).collect())
 }
 
 /// How the turn restates its room: not at all where the session read this very block last, by its mark where it
 /// holds this version from earlier, in full otherwise. A turn that continues no session holds nothing.
 pub async fn room_send(
-  db: &DatabaseConnection,
+  receiver: &Receiver,
   session: Option<&str>,
   room: &RoomContext,
 ) -> Result<RoomSend, Fault> {
@@ -104,7 +103,7 @@ pub async fn room_send(
   let version = fingerprint(room);
 
   let read = one(
-    db,
+    receiver.db(),
     r#"SELECT "fingerprint" FROM "bmo_room_contexts" WHERE "session_id" = $1"#,
     vec![session.into()],
   )
@@ -115,11 +114,13 @@ pub async fn room_send(
     return Ok(RoomSend::None);
   }
 
-  Ok(if loaded_in(db, Some(session)).await?.get(&room_path(room.chat_id)) == Some(&version) {
-    RoomSend::Mark
-  } else {
-    RoomSend::Full
-  })
+  Ok(
+    if loaded_in(receiver, Some(session)).await?.get(&room_path(room.chat_id)) == Some(&version) {
+      RoomSend::Mark
+    } else {
+      RoomSend::Full
+    },
+  )
 }
 
 // Each wrapped document of a prompt, and whether the session already holds that very version.
@@ -186,20 +187,20 @@ pub fn states(prompt: &str, loaded: &HashMap<String, String>) -> HashMap<String,
 /// A turn whose room is restated has the session's record of the block let go first, since a turn that fails may
 /// still have taken the new room.
 pub async fn sent_prompt(
-  db: &DatabaseConnection,
+  receiver: &Receiver,
   session: Option<&str>,
   room: Option<&RoomContext>,
   restates: bool,
   prompt: &str,
 ) -> Result<(String, Option<RoomSend>), Fault> {
-  let prompt = opened(prompt, &loaded_in(db, session).await?);
+  let prompt = opened(prompt, &loaded_in(receiver, session).await?);
   let Some(room) = room.filter(|_| restates) else { return Ok((prompt, None)) };
-  let send = room_send(db, session, room).await?;
+  let send = room_send(receiver, session, room).await?;
 
   match send {
     RoomSend::None => Ok((prompt, Some(send))),
     RoomSend::Mark | RoomSend::Full => {
-      forget_room(db, session).await?;
+      forget_room(receiver.db(), session).await?;
 
       let said = if send == RoomSend::Full { &room.text } else { &room.mark };
 
@@ -218,9 +219,9 @@ pub async fn forget_room(db: &DatabaseConnection, session: Option<&str>) -> Resu
 }
 
 /// Everything sent once let go of a session that folds: it keeps its name and loses the detail.
-pub async fn forget_documents(db: &DatabaseConnection, session: Option<&str>) -> Result<(), Fault> {
+pub async fn forget_documents(receiver: &Receiver, session: Option<&str>) -> Result<(), Fault> {
   if let Some(session) = session {
-    run(db, r#"DELETE FROM "session_people" WHERE "session_id" = $1"#, vec![session.into()]).await?;
+    receiver.units().brain.forget_loads(session).await.map_err(unrecorded)?;
   }
 
   Ok(())
@@ -230,18 +231,19 @@ pub async fn forget_documents(db: &DatabaseConnection, session: Option<&str>) ->
 /// block where it went in full or the session it continued took it, the room as one it has seen, and every
 /// reference document that went in full. `prompt` is the turn's prompt before it was opened.
 pub async fn remember_held(
-  db: &DatabaseConnection,
+  receiver: &Receiver,
   resumed: Option<&str>,
   session: &str,
   room: Option<&RoomContext>,
   restates: bool,
   prompt: &str,
 ) -> Result<(), Fault> {
+  let db = receiver.db();
   let mut loaded: Vec<(String, String)> = vec![];
 
   if let Some(room) = room.filter(|_| restates) {
     // Asked before anything below is written, it answers what the send decided.
-    if room_send(db, resumed, room).await? == RoomSend::Full || Some(session) == resumed {
+    if room_send(receiver, resumed, room).await? == RoomSend::Full || Some(session) == resumed {
       let version = fingerprint(room);
 
       run(
@@ -262,7 +264,7 @@ pub async fn remember_held(
     .await?;
   }
 
-  let held = loaded_in(db, resumed).await?;
+  let held = loaded_in(receiver, resumed).await?;
 
   loaded.extend(
     once_entries(prompt, &held)
@@ -275,25 +277,13 @@ pub async fn remember_held(
     return Ok(());
   }
 
-  let at = now_ms() / 1000;
+  // The brain lets go of the sessions untouched for a week at the same stroke.
+  let loads: Vec<Load> = loaded.into_iter().map(|(path, version)| Load { path, version }).collect();
 
-  for (path, version) in loaded {
-    run(
-      db,
-      r#"INSERT INTO "session_people" ("session_id", "path", "version", "loaded_at") VALUES ($1, $2, $3, $4)
-         ON CONFLICT ("session_id", "path") DO UPDATE SET "version" = excluded."version", "loaded_at" = excluded."loaded_at""#,
-      vec![session.into(), path.into(), version.into(), at.into()],
-    )
-    .await?;
-  }
-
-  // Rows of sessions untouched for a week go at the same stroke: a session that old has long been replaced.
-  run(
-    db,
-    r#"DELETE FROM "session_people" WHERE "session_id" IN (SELECT "session_id" FROM "session_people" GROUP BY "session_id" HAVING MAX("loaded_at") < $1)"#,
-    vec![(at - 7 * 86_400).into()],
-  )
-  .await?;
-
-  Ok(())
+  receiver
+    .units()
+    .brain
+    .keep_loads(session, &loads, now_ms() / 1000)
+    .await
+    .map_err(unrecorded)
 }

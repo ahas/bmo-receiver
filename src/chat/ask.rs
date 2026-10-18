@@ -133,17 +133,27 @@ fn turn_of(asking: &Asking, session: &Session, room: &RoomContext, prompt: &str)
   }
 }
 
-/// The carrying of a composed turn into the agent's session, as the conversations hold it.
+/// The carrying of a composed turn into the agent's session, as the conversations hold it: the receiver it
+/// carries for, and how often a working turn is looked at for words that came for its room.
 #[derive(Clone)]
-pub struct Carry(Receiver);
+pub struct Carry {
+  receiver: Receiver,
+  look: Duration,
+}
 
 impl Carry {
+  /// The carrying looking at a working turn as often as the round policy says.
   pub fn new(receiver: Receiver) -> Self {
-    Carry(receiver)
+    Carry::looking_every(receiver, Duration::from_millis(CHAT_ROUND.pushing.look_ms))
+  }
+
+  /// The carrying looking at a working turn every `look`.
+  pub fn looking_every(receiver: Receiver, look: Duration) -> Self {
+    Carry { receiver, look }
   }
 
   pub async fn carries(&self, asking: &Asking, held: &Held, follower: &Follower) -> Result<Reply, Failure> {
-    let receiver = &self.0;
+    let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let brain = receiver.units().brain.clone();
     let db = receiver.db();
@@ -161,17 +171,18 @@ impl Carry {
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
 
-    let (sent, send) = sent_prompt(db, Some(started_id.as_str()), Some(&room), true, &asking.prompt)
+    let (sent, send) = sent_prompt(receiver, Some(started_id.as_str()), Some(&room), true, &asking.prompt)
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
-    let loaded = loaded_in(db, Some(started_id.as_str()))
+    let loaded = loaded_in(receiver, Some(started_id.as_str()))
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
     let marked = states(&asking.prompt, &loaded);
     let standing = agency.state(&started_id).await.map_err(fault_of)?;
 
-    // A session the road says may not be resumed is let go here and started again, the note it left — the
-    // handoff note the brain holds where it has one, the receiver's own otherwise — riding at the head.
+    // The one session an agent keeps across its rooms, where the road says it may not be resumed, is let go
+    // here and started again, the note it left — the handoff note the brain holds where it has one, the
+    // receiver's own otherwise — riding at the head. A room's own session is the agency's to resume.
     let asked = Route {
       provider: standing.provider.as_deref().unwrap_or_default().to_owned(),
       model: standing.model.as_deref().unwrap_or_default().to_owned(),
@@ -180,9 +191,13 @@ impl Carry {
       session: Some(started_id.clone()),
       transcript: None,
     };
-    let reason = reset_reason(db, agent, &asked, &sent)
-      .await
-      .map_err(|why| Failure::Failed(why.detail))?;
+    let reason = if unified {
+      reset_reason(db, agent, &asked, &sent)
+        .await
+        .map_err(|why| Failure::Failed(why.detail))?
+    } else {
+      None
+    };
 
     let (session, prompt, replaced): (Session, String, Vec<SessionReason>) = match reason {
       None => (started, sent, vec![]),
@@ -215,7 +230,7 @@ impl Carry {
     let mut run: Option<String> = None;
     let mut after: i64 = 0;
     let mut ended: Option<Value> = None;
-    let mut look = tokio::time::interval(Duration::from_millis(CHAT_ROUND.pushing.look_ms.max(1)));
+    let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
     let mut quiet_until: Option<tokio::time::Instant> = None;
 
     look.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -276,7 +291,8 @@ impl Carry {
 
     if delivered == Delivery::Taken {
       let _ =
-        remember_held(db, Some(started_id.as_str()), &session.id, Some(&room), true, &asking.prompt).await;
+        remember_held(receiver, Some(started_id.as_str()), &session.id, Some(&room), true, &asking.prompt)
+          .await;
 
       let _ = remember(
         db,
@@ -310,7 +326,8 @@ impl Carry {
         mode: standing.provider,
         account: None,
         session: Some(session.id),
-        context_tokens: standing.context.get("contextTokens").and_then(Value::as_i64),
+        context_tokens: standing.context.get("carried").and_then(Value::as_i64),
+        context_window: standing.context.get("window").and_then(Value::as_i64),
         replaced: replaced.clone(),
         run: run.clone(),
       }),
