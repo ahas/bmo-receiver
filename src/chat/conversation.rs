@@ -92,9 +92,9 @@ pub trait Hooks: Send + Sync + 'static {
   fn typing(&self, chat_id: i64, on: bool) -> BoxFuture<'_, ()>;
 }
 
-/// Why a round's turn did not answer: it was stopped, the road closed it for a limit or an outage, or it failed
-/// outright. The agency carries the turn and answers with its fault; the rest of the road's reason is the
-/// agency's to tell.
+/// Why a round's turn did not answer: it was stopped, the road closed it for a limit or an outage, it failed
+/// outright, or the session's engine ended it with an error, of the kind the engine named where it named one.
+/// The agency carries the turn and answers with its fault; the rest of the road's reason is the agency's to tell.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Failure {
   Stopped,
@@ -102,6 +102,19 @@ pub enum Failure {
   Outage,
   Transport(String),
   Failed(String),
+  Engine { reason: String, kind: Option<String> },
+}
+
+impl Failure {
+  /// The failure as the turn's line says it.
+  pub fn reason(&self) -> String {
+    match self {
+      Failure::Stopped => "stopped".to_owned(),
+      Failure::Limit => "limit".to_owned(),
+      Failure::Outage => "outage".to_owned(),
+      Failure::Transport(why) | Failure::Failed(why) | Failure::Engine { reason: why, .. } => why.clone(),
+    }
+  }
 }
 
 /// A turn's answer as the round reads it: its words, the mode it answered in, the session it went out on, what
@@ -259,12 +272,14 @@ pub struct PiecesRound {
   pub via: String,
 }
 
-/// What a round of a pieces-shaped agent came to: no turn, where nothing was left to answer, or a turn, with the
-/// message its answer went out as where one went out.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// What a round of a pieces-shaped agent came to: no turn, where nothing was left to answer or its companion's
+/// reset overtook it; a turn that answered, with the message its answer went out as where one went out and the
+/// hold its reset's cut-off waits on until the room's window has moved; or a turn that failed, with why and the
+/// last message it read.
 pub enum PiecesEnded {
   NoTurn,
-  Answered(Option<Sent>),
+  Answered { sent: Option<Sent>, keeping: Keeping },
+  Failed { reason: String, message: Option<i64> },
 }
 
 /// Whether an agent's turns are a companion's own, and what such a round does. Filled by the companion's part.
@@ -1363,13 +1378,7 @@ impl Conversations {
     self.close(chat_id).await;
 
     let stopped = matches!(failure, Failure::Stopped);
-    let said = match &failure {
-      Failure::Stopped => "stopped".to_owned(),
-      Failure::Limit => "limit".to_owned(),
-      Failure::Outage => "outage".to_owned(),
-      Failure::Transport(why) => why.clone(),
-      Failure::Failed(why) => why.clone(),
-    };
+    let said = failure.reason();
 
     self.publish(json!({
       "type": if stopped { "run-stopped" } else { "run-failed" },
@@ -1826,13 +1835,27 @@ impl Conversations {
     }
   }
 
-  // A companion's round ends as every round does: the room free for the next round, and where its turn answered,
-  // the room answered, its window moved, and the answer that went out told to the room's screens under the
-  // companion's name and handed to the receiver as filed.
+  // A companion's round ends free for the next round. A turn that came to none leaves the room as it was; one that
+  // failed is told to the room's screens with why, under the companion's name; and where its turn answered, the
+  // answer that went out is told to them and handed to the receiver as filed. Either way the room is answered and
+  // its window moved, and only then is the hold its reset's cut-off waits on let go.
   async fn pieces_ended(&self, chat_id: i64, ended: PiecesEnded, via: &str, room: Room, round: &str) {
-    let PiecesEnded::Answered(sent) = ended else {
-      self.no_turn(chat_id);
-      return;
+    let (sent, keeping) = match ended {
+      PiecesEnded::NoTurn => {
+        self.no_turn(chat_id);
+        return;
+      }
+      PiecesEnded::Failed { reason, message } => {
+        self.publish(json!({
+          "type": "run-failed",
+          "chatId": chat_id,
+          "messageId": message,
+          "detail": reason,
+        }));
+
+        (None, None)
+      }
+      PiecesEnded::Answered { sent, keeping } => (sent, Some(keeping)),
     };
 
     if let Some(sent) = sent {
@@ -1858,6 +1881,7 @@ impl Conversations {
     }
 
     self.restart_window(chat_id).await;
+    drop(keeping);
     self.pump_pending(chat_id);
   }
 

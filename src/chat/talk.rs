@@ -387,7 +387,9 @@ fn failure_of(failure: Failure) -> TalkFailure {
     Failure::Stopped => TalkFailure::Resting,
     Failure::Limit => TalkFailure::Limit,
     Failure::Outage => TalkFailure::Outage,
-    Failure::Transport(why) | Failure::Failed(why) => TalkFailure::Other(why.clone()),
+    Failure::Transport(why) | Failure::Failed(why) | Failure::Engine { reason: why, .. } => {
+      TalkFailure::Other(why.clone())
+    }
   }
 }
 

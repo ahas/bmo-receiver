@@ -316,11 +316,18 @@ impl Carry {
       .await;
     }
 
+    let reason = ended.get("reason").and_then(Value::as_str).unwrap_or_default().to_owned();
+
     match outcome {
       "stopped" => Err(Failure::Stopped),
-      "failed" => Err(Failure::Failed(
-        ended.get("reason").and_then(Value::as_str).unwrap_or_default().to_owned(),
-      )),
+      // A turn its engine ended with an error says so, with the error's kind where the engine named one.
+      "failed" => Err(match ended.get("engineError").filter(|engine| engine.is_object()) {
+        Some(engine) => Failure::Engine {
+          reason,
+          kind: engine.get("kind").and_then(Value::as_str).map(str::to_owned),
+        },
+        None => Failure::Failed(reason),
+      }),
       _ => Ok(Reply {
         text: answer.to_owned(),
         mode: standing.provider,

@@ -422,6 +422,7 @@ every room's matter.
 | a companion taken out | `POST /companions/remove` | `agent`, `rooms` (the chat ids of the rooms it answers), `by?` | `ok`; 400 `field`, `error` for an agent that is no companion or is seeded |
 | a run's log | `GET /run-log?run=&after=` | | `lines` |
 | an agent's reset point | `GET /reset-point?agent=` | | `point` in epoch milliseconds or null: the moment the agent was last reset at, which overtakes a turn begun at or before it |
+| a run | `GET /runs/{id}` | | the run's row, of which the receiver reads `started_at` in epoch seconds: whether a quiet instruction handing back its result comes from before a companion's reset; 404 for a run it holds no row of |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 
 A round's turn takes words while it works: on the round's push look, while the turn's run has started, the
@@ -439,8 +440,9 @@ working, on the queue) and `gates_off` (the gate switches turned off for it, eac
 none of a field answers it as nothing: no window, no aliases, not unified, not spoken, no gates off.
 
 The events read: `turn-started` and `turn-ended` (a turn's answer, taken into the room by the receiver's checks,
-`docs/answer-checks.md`), `documents-moved` (the sessions told to read documents again, 「Document reload」 in
-`docs/bmo-window.md`), `companion-cut-off` and `companion-reset` (what waited for a companion's turns let go,
+`docs/answer-checks.md`; a failed companion turn's `engineError`, `{ "kind": <the engine's error kind or null> }`
+where its engine ended it with an error, `docs/wake.md`, 「A companion's round」), `documents-moved` (the
+sessions told to read documents again, 「Document reload」 in `docs/bmo-window.md`), `companion-cut-off` and `companion-reset` (what waited for a companion's turns let go,
 its quiet instructions settled), `companion-run-going`, `fallback-answering`, `fallback-ended`,
 `deployment-resting`, `account-login-notice`, `clock-asked` and `clock-ask-closed`, `run-recovered`,
 `herdr-leftovers` and `worker-downgraded` (each told to the owner, or to its room, by the chat agent as a fact).
@@ -561,6 +563,12 @@ Statements the receiver makes that a sibling's document does not yet match, each
 
 - **The voice unit** gives no time beside a briefing it keeps, so the receiver reads a room's briefings at large
   where it wants the ones this round launched, for the voice unit to state.
+- **The agency** carries no sign on a failed turn's `turn-ended` that a companion's engine ended it with an
+  error, nor the error's kind, which its companion turn reads and drops; the receiver reads `engineError`, for the
+  agency to publish, and tells the room nothing of an engine's error until it does.
+- **The agency** serves no route reading a run by its id, which bmo-job calls as `GET /runs/{id}` too; the
+  receiver asks it for a run's `started_at`, for the agency to state, and keeps every instruction whose run it
+  cannot read.
 - **The agency** publishes `road-walked` and `usage-spent`; the receiver writes no road and no usage rows of its
   own, and a run of a second asking that failed is written as a judgement of the round with no figures.
 - **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open

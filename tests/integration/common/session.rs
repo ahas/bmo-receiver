@@ -1,7 +1,8 @@
 //! A stand-in for the agency's sessions (docs/boundary-api.md, 「The agency」): a session started for every asking,
-//! its state, the turn-started and turn-ended events of every turn it carries on its event stream, and an empty
-//! run log. A turn it is told to hold stands working after it started until the test lets it go, so words can
-//! come into the room while it works.
+//! its state, the turn-started and turn-ended events of every turn it carries on its event stream, with whatever
+//! else a test publishes there, and an empty run log. A turn it is told to hold stands working after it started
+//! until the test lets it go, so words can come into the room while it works; a turn ends answered, or as the
+//! test set it to end.
 
 use std::sync::Mutex;
 
@@ -23,6 +24,8 @@ pub struct StandInSession {
   holding: Mutex<usize>,
   let_go: Notify,
   working: Mutex<bool>,
+  // What every turn's turn-ended says beside its session, where a test sets it: its answer otherwise.
+  ending: Mutex<Option<serde_json::Value>>,
 }
 
 impl StandInSession {
@@ -36,6 +39,7 @@ impl StandInSession {
       holding: Mutex::new(0),
       let_go: Notify::new(),
       working: Mutex::new(false),
+      ending: Mutex::default(),
     }
   }
 
@@ -43,6 +47,17 @@ impl StandInSession {
   pub fn holding_the_first(self) -> Self {
     *self.holding.lock().unwrap() = 1;
     self
+  }
+
+  /// Every turn ends saying `ending` beside its session, in place of its answer.
+  pub fn ending_with(self, ending: serde_json::Value) -> Self {
+    *self.ending.lock().unwrap() = Some(ending);
+    self
+  }
+
+  /// How many streams read its events now.
+  pub fn listeners(&self) -> usize {
+    self.events.receiver_count()
   }
 
   /// The turn standing working ends.
@@ -60,7 +75,8 @@ impl StandInSession {
     self.turns.lock().unwrap().iter().map(|turn| turn.prompt.clone()).collect()
   }
 
-  fn told(&self, kind: &str, data: serde_json::Value) {
+  /// An event published on its stream.
+  pub fn told(&self, kind: &str, data: serde_json::Value) {
     let _ = self.events.send(Event {
       kind: kind.to_owned(),
       data,
@@ -130,11 +146,16 @@ impl StandInSession {
         self.let_go.notified().await;
       }
 
+      let mut ended = self
+        .ending
+        .lock()
+        .unwrap()
+        .clone()
+        .unwrap_or_else(|| json!({ "outcome": "answered", "answer": self.answer }));
+
+      ended["session"] = json!(self.id);
       *self.working.lock().unwrap() = false;
-      self.told(
-        "turn-ended",
-        json!({ "session": self.id, "outcome": "answered", "answer": self.answer }),
-      );
+      self.told("turn-ended", ended);
 
       Ok(Delivery::Taken)
     })

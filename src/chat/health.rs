@@ -98,7 +98,9 @@ impl crate::chat::conversation::Health for RoomHealth {
   fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()> {
     Box::pin(async move {
       let reason = match failure {
-        Failure::Transport(why) | Failure::Failed(why) => Some(why.as_str()),
+        Failure::Transport(why) | Failure::Failed(why) | Failure::Engine { reason: why, .. } => {
+          Some(why.as_str())
+        }
         _ => None,
       };
       let said = match failure {

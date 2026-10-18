@@ -78,7 +78,11 @@ pub fn ending_of(failure: &Failure) -> Ending {
   let said = match failure {
     Failure::Stopped => return Ending::Stopped,
     Failure::Limit | Failure::Outage => String::new(),
-    Failure::Transport(message) | Failure::Failed(message) => message.clone(),
+    Failure::Transport(message)
+    | Failure::Failed(message)
+    | Failure::Engine {
+      reason: message, ..
+    } => message.clone(),
   };
 
   if TIMED_OUT.is_match(&said) { Ending::Timeout } else { Ending::Error }

@@ -2,8 +2,8 @@
 
 use futures_util::StreamExt;
 use receiver_ports::agency::{
-  Agency, CompanionRemoval, CompanionRow, Delivery, Event, FieldRefusal, HttpAgency, RestKind, Said, Scope,
-  Turn, TurnRoom,
+  Agency, CompanionRemoval, CompanionRow, Delivery, Event, FieldRefusal, HttpAgency, RestKind, Run, Said,
+  Scope, Turn, TurnRoom,
 };
 use serde_json::json;
 
@@ -316,4 +316,17 @@ async fn a_reset_point_and_a_passed_rest_read_their_empty_answers_and_a_missing_
       call("GET /reset-point", "agent=", None),
     ]
   );
+}
+
+#[tokio::test]
+async fn a_run_reads_the_moment_it_began_and_one_the_agency_holds_none_of_reads_as_none() {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+
+  unit.answer("GET /runs/7", 200, json!({ "id": 7, "agent": "agent-a", "started_at": 1_700 }));
+  unit.answer("GET /runs/8", 404, json!({ "error": "No run is numbered 8." }));
+
+  assert_eq!(agency.run(7).await.unwrap(), Some(Run { started_at: 1_700 }));
+  assert_eq!(agency.run(8).await.unwrap(), None);
+  assert_eq!(unit.took(), [call("GET /runs/7", "", None), call("GET /runs/8", "", None)]);
 }

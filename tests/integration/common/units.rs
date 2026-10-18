@@ -17,7 +17,7 @@ use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
   Agency, Agent, Agents, CompanionRemoval, CompanionRow, Delivery, Events, FieldRefusal, Forgotten, Passed,
-  Rest, RestKind, Resting, RunLine, Said, Scope, Session, SessionState, Turn, Written,
+  Rest, RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::brain::{
   BeforeFold, Brain, Load, Reading, Refused, Reminder, Reminders, RoomRule, Row, RuleText, Took,
@@ -58,6 +58,9 @@ pub struct StandInChat {
   pub sends: Mutex<Vec<ChatSendRequest>>,
   /// What each send is answered with; sent as message 900 where none is set.
   pub answer: Mutex<Option<ChatSendResult>>,
+  // The next send, held until the test lets it go, and whether one stands held now.
+  held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
+  holding_send: Mutex<bool>,
 }
 
 impl StandInChat {
@@ -100,9 +103,22 @@ impl StandInChat {
     self
   }
 
-  /// Every send handed over so far, in order.
+  /// Every send carried through so far, in order.
   pub fn sent(&self) -> Vec<ChatSendRequest> {
     self.sends.lock().unwrap().clone()
+  }
+
+  /// The next send stands held, unsent, until what this answers is notified.
+  pub fn holding_the_next_send(&self) -> Arc<tokio::sync::Notify> {
+    let release = Arc::new(tokio::sync::Notify::new());
+
+    *self.held_send.lock().unwrap() = Some(release.clone());
+    release
+  }
+
+  /// Whether a send stands held now.
+  pub fn send_held(&self) -> bool {
+    *self.holding_send.lock().unwrap()
   }
 }
 
@@ -146,14 +162,23 @@ impl Chat for StandInChat {
   }
 
   fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSendResult>> {
-    self.sends.lock().unwrap().push(request.clone());
-
+    let held = self.held_send.lock().unwrap().take();
     let answer = self.answer.lock().unwrap().clone().unwrap_or(ChatSendResult::Sent {
       message_id: Some(900),
       missed: vec![],
     });
 
-    Box::pin(async move { Ok(answer) })
+    Box::pin(async move {
+      if let Some(release) = held {
+        *self.holding_send.lock().unwrap() = true;
+        release.notified().await;
+        *self.holding_send.lock().unwrap() = false;
+      }
+
+      self.sends.lock().unwrap().push(request.clone());
+
+      Ok(answer)
+    })
   }
 
   fn media<'a>(&'a self, _request: &'a ChatMediaRequest) -> BoxFuture<'a, ChatAnswer<ChatMediaResult>> {
@@ -681,6 +706,10 @@ pub struct StandInAgency {
   pub passed: Mutex<Option<RestKind>>,
   // The rooms it was asked to forget, each with whether the asking was a preview.
   pub forgotten: Mutex<Vec<(i64, bool)>>,
+  // Every agent's reset point, in epoch milliseconds, where a test moved it.
+  pub point: Mutex<Option<i64>>,
+  // The runs it holds, each its id and the moment it began, in epoch seconds.
+  pub runs: Mutex<BTreeMap<i64, i64>>,
 }
 
 impl StandInAgency {
@@ -701,6 +730,8 @@ impl StandInAgency {
       written: Mutex::default(),
       passed: Mutex::default(),
       forgotten: Mutex::default(),
+      point: Mutex::default(),
+      runs: Mutex::default(),
     }
   }
 
@@ -836,7 +867,17 @@ impl Agency for StandInAgency {
   }
 
   fn reset_point<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
-    Box::pin(async { Ok(None) })
+    let point = *self.point.lock().unwrap();
+
+    Box::pin(async move { Ok(point) })
+  }
+
+  fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>> {
+    let run = self.runs.lock().unwrap().get(&id).map(|started_at| Run {
+      started_at: *started_at,
+    });
+
+    Box::pin(async move { Ok(run) })
   }
 
   fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {

@@ -130,6 +130,42 @@ its rounds.
   work of its own where the context the agency reports it carrying (`carried` against `window`) has reached the
   resident turn policy's `fold_ratio`, and not otherwise.
 
+## A companion's round
+
+A companion's round is its own turn (the agency's `docs/companions.md`): the room's words and its quiet
+instructions composed into one prompt, carried into the room's session, and the answer sent on the road the room
+answers on under the companion's name. Its reset is the agency's; what the reset cuts off in the rooms is the
+receiver's (the agency's `docs/companions.md`, 「What the reset cuts off」).
+
+- **A turn begins as its round takes its words,** and a reset whose point stands at or after that moment
+  overtakes it. The point is the agency's (`GET /reset-point?agent=`), read as the round takes its words and
+  again whenever the turn is to keep anything.
+- **What the reset cut off reaches no turn:** words said at or before the point are dropped, a message's moment
+  being a whole second, so one said in the point's own second goes with those before it; and a quiet instruction
+  handing back a run is dropped where that run began at or before the point. A run is read by its id from the
+  agency; one that cannot be read keeps its instruction. A round left with nothing to answer runs no turn.
+- **A turn the reset overtook keeps nothing:** where the agency answers that it stopped the turn, or where the
+  point read after the turn ended stands at or after its beginning, no answer goes into the room, no judgement is
+  written and no window is moved; the room is free for the next round.
+- **An answer is kept under a hold the reset's cut-off waits on:** the point is read again under it, and the
+  hold stands until the answer is sent, the room answered and its window moved. A cut-off begun meanwhile takes
+  what waits only after; a turn that reads the point after it moved finds itself overtaken.
+- **The answer is read as the companion wrote it:** an answer that is the skip sentinel alone sends nothing and
+  the turn ends answered, its window moved; the reply sentinel is taken off and pins the answer to the message it
+  names, the last one the turn read where it names none, or to none where the answer carries no sentinel.
+- **A turn that failed ends its round, not the conversation:** its reason is told to the room's screens on the
+  turn's line under the companion's name, the room counts as answered and its window moves, and words that came
+  meanwhile follow as the next round. No health line and no failure order is raised for it.
+- **A turn its engine ended with an error tells the room in one line** under the companion's own name: the fixed
+  line `companion-engine-error`, its kind read from the error kind the failed turn's `turn-ended` carries
+  (`docs/codes.md`, `EngineError`), sent on the road the room answers on. Any other failure says nothing in the
+  room.
+- **The cut-off itself,** `companion-cut-off` on the agency's event stream, is heard for as long as the service
+  runs. Under the hold every answer is kept under, everything waiting for the companion's turns in every room is
+  let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on, and its
+  quiet instructions, whose rows are settled as delivered so no turn takes them again. A companion whose
+  conversations do not stand in this process has nothing waiting.
+
 ## A job's end
 
 - **A job's end wakes the chat agent through bmo-job's instruction:** its ending, its report and its state

@@ -19,6 +19,7 @@ use crate::chat::conversation::{Conversations, Timings};
 use crate::chat::instructions::{Pass, Rooms};
 use crate::chat::restart::keep as keep_restart;
 use crate::chat::runner::Runner;
+use crate::companion::cut::keep_hearing;
 use crate::config::Config;
 use crate::data_root::DataRoot;
 use crate::events::Events;
@@ -166,9 +167,10 @@ impl Standing {
 }
 
 /// The clocks of a running service: the instruction pass over every agent's rows, the conversations' own
-/// clock and the restart.
+/// clock and the restart; and the companions' cut-off, heard for as long as the service runs.
 pub fn keep(standing: &Standing) {
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();
   keep_restart(standing.receiver.clone(), standing.conversations.clone());
+  keep_hearing(standing.receiver.clone(), standing.runner.clone());
 }

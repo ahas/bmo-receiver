@@ -236,6 +236,12 @@ pub struct Answers {
   pub answers: bool,
 }
 
+/// A run as the agency keeps its row, of which the receiver reads the moment it began, in epoch seconds.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Run {
+  pub started_at: i64,
+}
+
 /// Every call the receiver makes on the agency.
 pub trait Agency: Send + Sync {
   /// Every agent with its row and roads, and the roles.
@@ -284,6 +290,9 @@ pub trait Agency: Send + Sync {
   /// The moment an agent's last reset cut it off at, in epoch milliseconds; none where it was never reset. A
   /// turn begun at or before it is overtaken (the agency's `docs/companions.md`, 「What the reset cuts off」).
   fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
+
+  /// A run's row by its id; none where the agency holds none.
+  fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>>;
 
   /// Words put into the turn the session is working, answered with what became of them.
   fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>>;
@@ -484,6 +493,10 @@ impl Agency for HttpAgency {
 
       Ok(point.point)
     })
+  }
+
+  fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>> {
+    Box::pin(async move { self.caller.found(&["runs", &id.to_string()], &[]).await })
   }
 
   fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>> {

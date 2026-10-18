@@ -7,6 +7,7 @@ mod common;
 
 mod alone_runs;
 mod brain_contract;
+mod companion_round;
 mod companions;
 mod consult_block;
 mod consult_verbs;
