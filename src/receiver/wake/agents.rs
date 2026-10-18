@@ -186,6 +186,18 @@ async fn private_room(receiver: &Receiver, private_to: Option<i64>) -> Result<bo
   }
 }
 
+/// Whether an agent answers in a room: a room that names it among its awake answerers, and for the default
+/// answerer every room that names nobody awake.
+pub async fn answers(receiver: &Receiver, agent: &str, chat_id: i64) -> Result<bool, NotReceived> {
+  let named = named_designated(receiver, chat_id).await?;
+
+  if named.is_empty() {
+    return Ok(default_designated(receiver).await?.name == agent);
+  }
+
+  Ok(named.iter().any(|one| one.name == agent))
+}
+
 /// The agent that says the system's own lines in a room (docs/voiced-notices.md, 「The rule」).
 pub async fn voice_of(receiver: &Receiver, chat_id: i64) -> Result<String, NotReceived> {
   let default = default_designated(receiver).await?;

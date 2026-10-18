@@ -8,7 +8,7 @@ use sea_orm::Value;
 use serde_json::json;
 
 use crate::common::Scratch;
-use crate::common::queue::{get, post, put, remove, stood};
+use crate::common::queue::{Front, get, post, put, remove, stood};
 use crate::common::units::{AGENT, OWNER, registration};
 
 // How many instruction rows hold every one of these pieces, in whatever order their facts are written.
@@ -39,6 +39,30 @@ async fn registered(scratch: &Scratch, chat_id: i64) {
       vec![chat_id.into()],
     )
     .await;
+}
+
+// The agents the agency registers, the first the default answerer and every one in `resting` asleep, and the
+// room naming `named` among its answerers.
+async fn answering(front: &Front, scratch: &Scratch, chat_id: i64, named: &[&str], resting: &[&str]) {
+  let mut agents = [registration(AGENT, "Agent A", ["a"].to_vec(), None, true)].to_vec();
+
+  for name in ["agent-b", "agent-c"] {
+    let mut agent = registration(name, name, [name].to_vec(), None, false);
+
+    agent.awake = !resting.contains(&name);
+    agents.push(agent);
+  }
+
+  front.standing.agency.registering(agents);
+
+  for name in named {
+    scratch
+      .run(
+        r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
+        vec![chat_id.into(), (*name).into()],
+      )
+      .await;
+  }
 }
 
 #[tokio::test]
@@ -172,6 +196,7 @@ async fn a_runs_result_queued_for_its_room_keeps_the_agent_that_asked_its_road_a
   let front = stood(&scratch, OWNER).await;
 
   registered(&scratch, 7).await;
+  answering(&front, &scratch, 7, &["agent-b"], &[]).await;
 
   let (made, queued) = post(
     &front,
@@ -194,6 +219,61 @@ async fn a_runs_result_queued_for_its_room_keeps_the_agent_that_asked_its_road_a
     .await,
     1,
   );
+}
+
+// The row each of these asks writes for the room: whose it is, with the road, the run and the words it was given.
+async fn queued_as(scratch: &Scratch, id: i64, agent: &str) -> i64 {
+  rows(
+    scratch,
+    r#"SELECT COUNT(*) FROM "instructions" WHERE "id" = $1 AND "chat_id" = 7 AND "agent" = $2
+         AND "via" = 'road-a' AND "run_id" = 31 AND "sort" = 'search' AND "text" = 'the search came back.'"#,
+    vec![id.into(), agent.into()],
+  )
+  .await
+}
+
+async fn run_ending(front: &Front, asker: &str) -> i64 {
+  let (made, queued) = post(
+    front,
+    "/instructions",
+    json!({
+      "agent": asker, "chat": 7, "said": { "order": "the search came back." },
+      "sort": "search", "via": "road-a", "run": 31,
+    }),
+  )
+  .await;
+
+  assert_eq!(made, StatusCode::CREATED);
+
+  queued["id"].as_i64().unwrap()
+}
+
+#[tokio::test]
+async fn a_runs_result_whose_asker_no_longer_answers_a_room_naming_nobody_goes_to_the_default_answerer() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  registered(&scratch, 7).await;
+  answering(&front, &scratch, 7, &[], &[]).await;
+
+  let id = run_ending(&front, "agent-b").await;
+
+  assert_eq!(queued_as(&scratch, id, AGENT).await, 1);
+}
+
+#[tokio::test]
+async fn a_runs_result_whose_asker_rests_goes_to_the_first_awake_answerer_the_room_names() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  registered(&scratch, 7).await;
+  answering(&front, &scratch, 7, &["agent-b", "agent-c"], &["agent-b"]).await;
+
+  let resting = run_ending(&front, "agent-b").await;
+  let gone = run_ending(&front, AGENT).await;
+
+  assert_eq!(queued_as(&scratch, resting, "agent-c").await, 1);
+  assert_eq!(queued_as(&scratch, gone, "agent-c").await, 1);
 }
 
 #[tokio::test]

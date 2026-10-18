@@ -70,6 +70,11 @@ flowchart TD
   into the owner's conversation the same way, opening nothing.
 - **Another unit reaches the conversations through the instruction pass alone:** a row it queues is delivered as
   any is.
+- **A row queued for an agent that no longer answers its room goes to the room's voice:** a run's ending whose
+  asker was taken off the room or rests, or a job's instruction for an agent gone from the room, is queued for the
+  agent that speaks for the room (`docs/boundary-api.md`, 「For bmo-job」), so the result is told in the room's
+  own voice. A row whose agent stops answering after it was queued is let go by the pass, as every row no turn
+  could take.
 
 ## The one hard rule
 

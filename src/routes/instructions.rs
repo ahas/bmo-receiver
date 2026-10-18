@@ -5,7 +5,8 @@
 //!
 //! An instruction whose `said` holds a fact is framed the way every voiced notice is, so the room's voice says it;
 //! one whose `said` holds an order goes to the session as the words it was given. One for a room whose
-//! registration is gone goes to the owner's private chat instead, naming the room, never into the platform room.
+//! registration is gone goes to the owner's private chat instead, naming the room, never into the platform room;
+//! one whose agent no longer answers its room goes to the room's voice.
 
 use axum::{
   body::Bytes,
@@ -136,7 +137,7 @@ enum Effect {
 
 /// The instruction queued, answered with its id. One for a room whose registration is gone is queued for the voice
 /// of the owner's private chat, opening with the room's number (docs/receiver.md, 「Removing a room's
-/// registration」).
+/// registration」). One whose agent no longer answers the room is queued for the room's voice instead.
 pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Instruction>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
@@ -155,7 +156,11 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     run_id: asked.run,
   };
   let agent = match room.removed {
-    None => asked.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone()),
+    None => match asked.agent.clone() {
+      None => receiver.deployment().agent.clone(),
+      Some(asker) if agents::answers(&receiver, &asker, chat_id).await.map_err(reached)? => asker,
+      Some(_) => agents::voice_of(&receiver, chat_id).await.map_err(reached)?,
+    },
     Some(removed) => {
       let told_here = CHAT_ROUND.instructions.room_removed.replace("{room}", &removed.to_string());
 

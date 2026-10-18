@@ -179,6 +179,11 @@ the receiver serves them as stated there, with snake_case bodies.
     (`chat-round.toml`, `[instructions]`), which names the room by its number. It goes on no road and of no
     kind, since the removed room's road is not the owner's and its kind must not replace a pending row of the
     owner's own; its `run`, `events`, `sort`, `summary`, `expires_at` and `rides_until` are kept.
+  - **An instruction whose agent no longer answers its room**, such as the asker of a run taken off the room's
+    answerers or resting since it asked, is queued for the room's voice instead (`docs/voiced-notices.md`, 「The
+    rule」), with everything else it carries kept as given, so what it holds still reaches the room. An agent
+    answers a room that names it among its awake answerers, and the default answerer every room that names
+    nobody awake. An instruction whose `agent` is null is the deployment's agent's as it stands.
 - **A notice:** `fact` (a fact), `intent` (what the line is for, in English for the agent), `follow_up?` (what
   follows it), `optional` (true where the voice may leave it unsaid when the fact leaves the room nothing to
   hear), `kind?`, `expires_at?`, `[events]` and `rides_until?`, the last four read as an instruction's.
@@ -210,9 +215,10 @@ asked, as a quiet instruction. bmo-artifact queues it on the same route bmo-job 
 the same body and the same answers as 「For bmo-job」 states them, under its `docs/api.md`, 「What this repository
 calls」.
 
-- **What a run's ending carries:** `agent` (the agent whose turn set the run going), `chat` (the room it was
-  asked in), `said` holding an `order` (the words the session is handed), `sort` (the kind of ending), `via` (the
-  road the question came in on) and `run` (the run in the agency's ledger).
+- **What a run's ending carries:** `agent` (the agent whose turn set the run going, the room's voice taking it
+  where that agent no longer answers the room), `chat` (the room it was asked in), `said` holding an `order` (the
+  words the session is handed), `sort` (the kind of ending), `via` (the road the question came in on) and `run`
+  (the run in the agency's ledger).
 - **A room whose registration is gone** takes nothing: the ending goes to the owner's private chat, naming the
   room, as 「For bmo-job」 states for every instruction.
 - **The run is kept on the row,** so a companion's round can tell an ending that is no longer its to answer: a
@@ -616,10 +622,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** carries no sign on a failed turn's `turn-ended` that a companion's engine ended it with an
   error, nor the error's kind, which its companion turn reads and drops; the receiver reads `engineError`, for the
   agency to publish, and tells the room nothing of an engine's error until it does.
-- **bmo-artifact** hands a run's ending to bmo-job's address, which serves no route for it, in a body of its own
-  (`run_id`, `chat_id`, `agent`, `text`, `sort`, `via`), and its 「What this repository calls」 names bmo-job for
-  it. The receiver takes it as 「For bmo-artifact」 states, at its own address with `chat`, `said` holding an
-  `order` and `run`, for bmo-artifact to take up.
 - **The agency's `companion-reset`** names the ranges and the rooms but no run, so the receiver's run records
   (`run_records`), which name a run alone, are not taken with a companion's conversation.
 - **The agency** publishes `road-walked` and `usage-spent`; the receiver writes no road and no usage rows of its

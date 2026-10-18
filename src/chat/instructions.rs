@@ -200,14 +200,7 @@ async fn deliverable(
     return Ok(false);
   }
 
-  let room = receiver.roads().room_facts(row.chat_id).await;
-  let answerers = wake::agents::room_designated(receiver, row.chat_id, room).await.ok();
-  let answers = match answerers {
-    Some((answerers, _)) => answerers.iter().any(|agent| agent.name == row.agent),
-    None => false,
-  };
-
-  if !answers {
+  if !wake::agents::answers(receiver, &row.agent, row.chat_id).await.unwrap_or(false) {
     println!(
       "instruction {} of {} for chat {} has no conversation to take it, discarding",
       row.id, row.agent, row.chat_id
