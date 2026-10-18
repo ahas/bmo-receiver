@@ -1,0 +1,4 @@
+{
+  "briefingEmotions": ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"],
+  "types": ["message", "briefing", "avatars-updated"]
+}

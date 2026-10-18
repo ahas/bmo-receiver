@@ -1,0 +1,146 @@
+//! The stream's own ring, run and picture: the ids it numbers in its run, the cursor replayed only against the
+//! run it was taken in, the last stretch kept, the folds and queued messages drawn of what this process runs,
+//! and every listener told as it comes.
+
+use serde_json::json;
+use tokio::sync::mpsc::UnboundedReceiver;
+
+use bmo_receiver::events::{Events, RING, STOPPING_FRAME};
+
+// The opening and the frames of a stream, taken under the one lock the stream keeps its listeners under.
+fn frames_of(events: &Events, after: i64, run: Option<&str>) -> (String, UnboundedReceiver<String>) {
+  events.frames(after, run)
+}
+
+#[test]
+fn numbers_each_event_in_its_run_and_replays_only_after_a_cursor_of_that_run() {
+  let events = Events::new();
+  let first = events.publish(json!({ "type": "run-started", "chatId": -101, "messageId": 1 }));
+  let second = events.publish(json!({ "type": "sent", "chatId": -101, "messageId": 2 }));
+  let run = events.run();
+
+  assert_eq!((first["id"].as_i64(), second["id"].as_i64()), (Some(1), Some(2)));
+
+  let (same_run, _) = frames_of(&events, 1, Some(&run));
+
+  assert!(same_run.starts_with(&format!("event: run\ndata: {}\n\n", json!({ "run": run }))));
+  assert!(same_run.contains("id: 2\nevent: bot\n") && !same_run.contains("id: 1\n"));
+
+  // A cursor of another run, or of none, counts events that are not these.
+  for run in [Some("an-earlier-run"), None] {
+    let (whole, _) = frames_of(&events, 1, run);
+
+    assert!(whole.contains("id: 1\nevent: bot\n") && whole.contains("id: 2\nevent: bot\n"));
+  }
+}
+
+#[test]
+fn hands_the_picture_after_the_replay_with_nothing_of_this_process_running_yet() {
+  let events = Events::new();
+  let (empty, _) = frames_of(&events, 0, None);
+
+  assert!(empty.ends_with("\n\n") && empty.contains("event: live\ndata: {\"at\":"));
+  assert_eq!(
+    (events.picture()["turns"].clone(), events.picture()["queued"].clone()),
+    (json!([]), json!([])),
+  );
+
+  events.begin_turn(json!({ "chatId": -104 }));
+
+  let (opening, _) = frames_of(&events, 0, None);
+  let live = opening.rfind("event: live").unwrap();
+
+  assert!(live > opening.find("id: 1\nevent: bot").unwrap());
+  assert!(!opening[live - 10..live].contains("id:"));
+  assert_eq!(events.picture()["turns"][0]["chatId"], -104);
+}
+
+#[test]
+fn keeps_the_last_five_hundred() {
+  let events = Events::new();
+
+  for message in 0..RING + 3 {
+    events.publish(json!({ "type": "sent", "chatId": 1, "messageId": message }));
+  }
+
+  let (opening, _) = frames_of(&events, 0, None);
+
+  assert!(!opening.contains("id: 3\n") && opening.contains("id: 4\n") && opening.contains("id: 503\n"));
+}
+
+#[test]
+fn draws_its_folds_and_queued_messages_and_a_turn_reading_the_queued_one_takes_it() {
+  let events = Events::new();
+
+  events.begin_fold(-7);
+  events.begin_fold(-105);
+  events.queue_message(-7, 1);
+  events.queue_message(-105, 9);
+
+  let picture = events.picture();
+
+  assert_eq!(picture["compacting"].as_array().map(Vec::len), Some(2));
+  assert_eq!(picture["queued"].as_array().map(Vec::len), Some(2));
+  assert_eq!(picture["queued"][0]["messageId"], 9);
+
+  // A turn reading another message leaves the queued one standing; one reading it takes it.
+  events.begin_turn(json!({ "chatId": -105, "messageId": 8 }));
+
+  assert_eq!(events.picture()["queued"][0]["messageId"], 9);
+
+  events.begin_turn(json!({ "chatId": -105, "messageId": 9 }));
+  events.end_fold(-105);
+
+  let picture = events.picture();
+
+  assert_eq!(picture["queued"].as_array().map(Vec::len), Some(1));
+  assert_eq!(picture["queued"][0]["chatId"], -7);
+  assert_eq!(picture["compacting"].as_array().map(Vec::len), Some(1));
+  assert_eq!(picture["compacting"][0]["chatId"], -7);
+
+  // A companion's turn, shown as another speaker, takes none of it.
+  events.queue_message(-105, 10);
+  events.begin_turn(json!({ "chatId": -105, "messageId": 10, "speaker": { "agent": "companion-a" } }));
+
+  assert_eq!(events.picture()["queued"][0]["messageId"], 10);
+}
+
+#[test]
+fn a_room_whose_registration_is_removed_leaves_its_fold_and_its_queued_message() {
+  let events = Events::new();
+
+  events.begin_fold(-9);
+  events.queue_message(-9, 4);
+  events.begin_turn(json!({ "chatId": -9 }));
+  events.forget_room(-9);
+
+  let picture = events.picture();
+
+  assert_eq!((picture["compacting"].clone(), picture["queued"].clone()), (json!([]), json!([])));
+  // A round still running in the room ends on its own, and its turn with it.
+  assert_eq!(picture["turns"].as_array().map(Vec::len), Some(1));
+}
+
+// A stream that is never read waits out the flush it is given before the process goes on to end, so the wait
+// here is the real one and no clock is stood still.
+#[tokio::test]
+async fn tells_every_listener_as_it_comes_and_ends_each_stream_after_saying_it_is_stopping() {
+  let events = Events::new();
+  let (_, mut frames) = frames_of(&events, 0, None);
+  let (_, gone) = frames_of(&events, 0, None);
+
+  drop(gone);
+  events.publish(json!({ "type": "message", "chatId": 0, "messageId": null }));
+
+  assert!(frames.try_recv().unwrap().starts_with("id: 1\nevent: bot\ndata: "));
+
+  events.stopping().await;
+
+  assert_eq!(frames.try_recv().unwrap(), STOPPING_FRAME);
+  assert!(frames.try_recv().is_err());
+
+  // Nothing of the stop goes into the ring a later listener is replayed from.
+  let (opening, _) = frames_of(&events, 0, None);
+
+  assert!(!opening.contains("stopping"));
+}

@@ -34,6 +34,7 @@ async fn a_briefing_is_launched_listed_and_handed_its_line() {
     [Briefed {
       run: "voice-1".to_owned(),
       chat: -7,
+      message: None,
       voice_message: None,
       kind: BriefingKind::Notice,
       title: "t".to_owned(),

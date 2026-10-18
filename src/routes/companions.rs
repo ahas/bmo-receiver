@@ -1,0 +1,332 @@
+//! A companion added on the console and removed there (docs/boundary-api.md, 「Companions with a room of their
+//! own」): its room of the console's own, its number there and the room's answerers, written in one go once every
+//! field has passed; and a companion taken out again, its room half given up. The agent's row, its gate options,
+//! its settings and its place are the agency's, and go through it.
+
+use axum::{body::Bytes, extract::State};
+use serde::Deserialize;
+use serde_json::{Value, json};
+
+use receiver_codes::{CompanionFact, CompanionRefusal, RoomRemovalWarning};
+use receiver_policy::companions::COMPANIONS;
+use receiver_policy::roads::ROADS;
+use receiver_ports::agency::{Agent, CompanionRow};
+
+use regex::Regex;
+use std::sync::LazyLock;
+
+use sea_orm::DatabaseConnection;
+
+use crate::receiver::Receiver;
+use crate::room_record::{Facing, RoomHolding, Says};
+use crate::routes::{Answered, Refusal, Served, answered, code, read, store, unit};
+use crate::store::Fault;
+use crate::{all, one, run};
+
+static NAME: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(&COMPANIONS.name_pattern).expect("the companion name pattern reads"));
+
+#[derive(Deserialize)]
+pub struct Added {
+  name: String,
+  label: String,
+  provider: String,
+  model: String,
+  worker: String,
+  room: String,
+}
+
+#[derive(Deserialize)]
+pub struct Removed {
+  name: String,
+}
+
+// The road a console room is numbered under: the receiver's own record, which no chat service carries.
+fn console_road() -> String {
+  ROADS.record.key.clone()
+}
+
+/// Whether an agent's row is the companion's shape of turn, which is what makes it a companion.
+fn companion_shape(agent: &Agent) -> bool {
+  agent.row.get("turn_shape").is_some_and(|shape| shape.as_str() == Some("pieces"))
+}
+
+/// Whether an agent is a worker, which is what a companion is asked to run its turns on.
+fn worker_kind(agent: &Agent) -> bool {
+  agent.row.get("kind").is_some_and(|kind| kind.as_str() == Some("worker"))
+}
+
+/// The companions as the console's screen shows them: the agents the agency registers with the companion's
+/// shape of turn, each with the room the receiver stood up for it where it did.
+async fn listed(receiver: &Receiver) -> Result<Vec<Value>, Refusal> {
+  let agents = receiver.units().agency.agents().await.map_err(unit)?;
+  let mut shown: Vec<Value> = vec![];
+
+  for agent in agents.agents.iter().filter(|one| companion_shape(one)) {
+    shown.push(json!({
+      "name": agent.name,
+      "label": agent.label,
+      "chatId": room_of(receiver.db(), &agent.name).await.ok().flatten(),
+    }));
+  }
+
+  Ok(shown)
+}
+
+/// The console room already numbered for a companion's name, where one stands.
+async fn room_of(db: &DatabaseConnection, name: &str) -> Result<Option<i64>, Fault> {
+  Ok(
+    one(
+      db,
+      r#"SELECT "chat_id" FROM "provider_rooms" WHERE "provider" = $1 AND "room_id" = $2"#,
+      vec![console_road().into(), name.into()],
+    )
+    .await?
+    .map(|row| row.try_get::<i64>("", "chat_id"))
+    .transpose()?,
+  )
+}
+
+// The number the next console room takes: below every room the receiver has numbered.
+async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
+  let least = one(db, r#"SELECT MIN("chat_id") AS "least" FROM "provider_rooms""#, vec![])
+    .await
+    .unwrap_or(None);
+  let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
+
+  Ok(least.min(0) - 1)
+}
+
+// The sender number a companion's words are filed under in its room: below every number the road has given.
+async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fault> {
+  let least = one(
+    db,
+    r#"SELECT MIN("sender_id") AS "least" FROM "provider_users" WHERE "provider" = $1"#,
+    vec![road.into()],
+  )
+  .await
+  .unwrap_or(None);
+  let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
+
+  Ok(least.min(0) - 1)
+}
+
+/// A companion added with a room of the console's own, answered with every companion as it then stands and
+/// the room it answers.
+pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
+  let asked = read::<Added>(&body)?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  if !NAME.is_match(&asked.name) {
+    return Err(code(&CompanionRefusal::Name));
+  }
+
+  if asked.label.trim().is_empty() {
+    return Err(code(&CompanionRefusal::Label));
+  }
+
+  if asked.room.trim().is_empty() {
+    return Err(code(&CompanionRefusal::Room));
+  }
+
+  let agents = receiver.units().agency.agents().await.map_err(unit)?;
+
+  if agents.agents.iter().any(|one| one.name == asked.name) {
+    return Err(code(&CompanionRefusal::NameTaken { name: asked.name }));
+  }
+
+  if !agents.agents.iter().any(|one| one.name == asked.worker && worker_kind(one)) {
+    return Err(code(&CompanionRefusal::Worker {
+      worker: asked.worker,
+    }));
+  }
+
+  let road = console_road();
+  let standing = room_of(receiver.db(), &asked.name).await.ok().flatten();
+  let (chat_id, taken_back) = match standing {
+    Some(room) => (room, true),
+    None => (next_room(receiver.db()).await.map_err(store)?, false),
+  };
+  let row = CompanionRow {
+    name: asked.name.clone(),
+    label: asked.label.clone(),
+    provider: asked.provider.clone(),
+    model: asked.model.clone(),
+    worker: asked.worker.clone(),
+    room: chat_id,
+  };
+
+  // The agency stands the companion's row; the receiver writes the room half.
+  receiver.units().agency.add_companion(&row).await.map_err(unit)?;
+
+  let sender = next_sender(receiver.db(), &road).await.map_err(store)?;
+
+  run(
+    receiver.db(),
+    r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ($1, $2, $3, $4)"#,
+    vec![
+      road.clone().into(),
+      asked.name.clone().into(),
+      chat_id.into(),
+      asked.room.clone().into(),
+    ],
+  )
+  .await
+  .map_err(store)?;
+  run(
+    receiver.db(),
+    r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES ($1, $2) ON CONFLICT ("chat_id") DO UPDATE SET "title" = excluded."title""#,
+    vec![chat_id.into(), asked.room.clone().into()],
+  )
+    .await.map_err(store)?;
+  run(
+    receiver.db(),
+    r#"DELETE FROM "room_answerers" WHERE "chat_id" = $1"#,
+    vec![chat_id.into()],
+  )
+  .await
+  .map_err(store)?;
+  run(
+    receiver.db(),
+    r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
+    vec![chat_id.into(), asked.name.clone().into()],
+  )
+  .await
+  .map_err(store)?;
+  run(
+    receiver.db(),
+    r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ($1, $2, $3)"#,
+    vec![road.clone().into(), asked.name.clone().into(), sender.into()],
+  )
+  .await
+  .map_err(store)?;
+
+  let said = taken_back.then(|| {
+    json!(CompanionFact::RoomTakenBack {
+      label: asked.label,
+      title: asked.room
+    })
+  });
+
+  answered(json!({
+    "companions": listed(&receiver).await.unwrap_or_default(),
+    "room": { "chatId": chat_id, "takenBack": taken_back, "said": said },
+  }))
+}
+
+/// A companion the console added taken out, answered with every companion as it then stands.
+pub async fn remove(State(served): State<Served>, body: Bytes) -> Answered {
+  let asked = read::<Removed>(&body)?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  if asked.name.trim().is_empty() {
+    return Err(code(&CompanionRefusal::Action));
+  }
+
+  let agents = receiver.units().agency.agents().await.map_err(unit)?;
+  let Some(agent) = agents.agents.iter().find(|one| one.name == asked.name) else {
+    return Err(code(&CompanionRefusal::NotCompanion { agent: asked.name }));
+  };
+
+  if !companion_shape(agent) {
+    return Err(code(&CompanionRefusal::NotCompanion { agent: asked.name }));
+  }
+
+  if agent.row.get("builtin").is_some_and(|held| held.as_i64().unwrap_or(0) == 1) {
+    let label = agent.label.clone().unwrap_or_else(|| agent.name.clone());
+
+    return Err(code(&CompanionRefusal::SeededCompanion { label }));
+  }
+
+  receiver.units().agency.remove_companion(&asked.name).await.map_err(unit)?;
+
+  // A number a kept message is still filed under stays, so it is never handed to anybody else.
+  let numbers: Vec<i64> = all(
+    receiver.db(),
+    r#"SELECT u.sender_id FROM provider_users u WHERE u.user_id = $1
+       AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.sender_id = u.sender_id)"#,
+    vec![asked.name.clone().into()],
+  )
+  .await
+  .map_err(store)?
+  .iter()
+  .map(|row| row.try_get::<i64>("", "sender_id"))
+  .collect::<Result<Vec<i64>, _>>()
+  .unwrap_or_default();
+
+  for number in &numbers {
+    let worn = one(
+      receiver.db(),
+      r#"DELETE FROM avatars WHERE kind = 'person' AND subject_id = $1 RETURNING path"#,
+      vec![(*number).into()],
+    )
+    .await
+    .map_err(store)?;
+
+    if let Some(path) = worn.map(|row| row.try_get::<String>("", "path")).transpose().unwrap_or(None) {
+      let _ = std::fs::remove_file(&path);
+    }
+
+    run(
+      receiver.db(),
+      r#"DELETE FROM "provider_users" WHERE "sender_id" = $1"#,
+      vec![(*number).into()],
+    )
+    .await
+    .map_err(store)?;
+  }
+
+  run(
+    receiver.db(),
+    r#"DELETE FROM "room_answerers" WHERE "agent" = $1"#,
+    vec![asked.name.into()],
+  )
+  .await
+  .map_err(store)?;
+
+  answered(json!({
+    "companions": listed(&receiver).await.unwrap_or_default(),
+    "said": Value::Null,
+  }))
+}
+
+// The companions answering in the room: they stay with the removal, and no longer answer in a room that is gone.
+async fn answering(receiver: &Receiver, room: i64) -> Vec<String> {
+  let named: Vec<String> = all(
+    receiver.db(),
+    r#"SELECT "agent" FROM "room_answerers" WHERE "chat_id" = $1"#,
+    vec![room.into()],
+  )
+  .await
+  .unwrap_or_default()
+  .iter()
+  .map(|row| row.try_get::<String>("", "agent").unwrap_or_default())
+  .collect();
+  let agents: Vec<Agent> =
+    receiver.units().agency.agents().await.map(|listed| listed.agents).unwrap_or_default();
+
+  named
+    .into_iter()
+    .filter(|name| {
+      agents
+        .iter()
+        .any(|agent| agent.name.as_str() == name.as_str() && companion_shape(agent))
+    })
+    .collect()
+}
+
+fn answering_warning<'a>(facing: &'a Facing<'a>) -> Says<'a, RoomRemovalWarning> {
+  Box::pin(async move {
+    let names = answering(facing.receiver, facing.room).await;
+
+    Ok(match names.is_empty() {
+      true => None,
+      false => Some(RoomRemovalWarning::Answerers { names }),
+    })
+  })
+}
+
+crate::room_holding!(RoomHolding::Warns {
+  what: "the companions answering the room",
+  warns: answering_warning,
+});

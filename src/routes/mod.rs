@@ -4,15 +4,20 @@
 
 mod as_owner;
 mod brain;
+mod companions;
 mod console;
 mod consult;
+mod events;
 mod hooks;
 mod instructions;
+mod openings;
 mod owner_words;
+mod room_removal;
 mod rooms;
 mod say;
 mod sends;
 mod talks;
+mod voice;
 
 use std::sync::Arc;
 
@@ -39,6 +44,10 @@ use crate::routes::owner_words::instruct;
 use crate::routes::say::{say, say_file};
 use crate::routes::sends::{can, sends};
 use crate::routes::talks::talk;
+
+// The readings a route's own tests hold, kept beside the handler that uses them.
+pub use crate::routes::events::{TYPES, leading_whole};
+pub use crate::routes::openings::{SUMMARY_CHARS, rounds_of, summary_of};
 
 /// What every route stands on: the receiver and the token it answers behind.
 #[derive(Clone)]
@@ -122,6 +131,17 @@ pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
     .route("/owner/notice", post(brain::notice))
     .route("/instructions/quiet", post(brain::quiet))
     .route("/agency/hooks/{point}", post(hooks::hook))
+    .route("/event", post(events::told))
+    .route("/events", get(events::stream))
+    .route("/live", get(events::live))
+    .route("/health", get(events::health))
+    .route("/rooms/remove", get(room_removal::preview).post(room_removal::remove))
+    .route("/rounds/openings", get(openings::openings))
+    .route("/rounds/instruction", get(openings::instruction))
+    .route("/voice-briefing", post(voice::switch))
+    .route("/voice-briefing/line", post(voice::line))
+    .route("/companions/add", post(companions::add))
+    .route("/companions/remove", post(companions::remove))
     .route("/console/rooms", get(console::rooms))
     .route("/console/rooms/{chat}/title", get(console::title))
     .route("/console/rooms/{chat}/agent-message/{message}", get(console::agent_message))

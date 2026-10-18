@@ -34,6 +34,9 @@ pub struct Briefing {
 pub struct Briefed {
   pub run: String,
   pub chat: i64,
+  /// The line the reading was asked for, where it was asked for one.
+  #[serde(default)]
+  pub message: Option<i64>,
   #[serde(default)]
   pub voice_message: Option<i64>,
   pub kind: BriefingKind,

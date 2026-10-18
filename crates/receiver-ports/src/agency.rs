@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sse_stream::SseStream;
 
-use crate::http::{Answer, Caller, Done, Peer, PortFailure};
+use crate::http::{Answer, Caller, Done, Nothing, Peer, PortFailure};
 
 /// One agent as the agency lists it: its registration name, whether it is awake, the brain folder its long-term
 /// memory is in, and every other field of its row and roads as the agency gives them.
@@ -119,6 +119,19 @@ pub struct SessionState {
   pub generation: Value,
   #[serde(default)]
   pub context: Value,
+}
+
+/// A companion's row the console stands up with its own room: the name it is registered by, what it is
+/// called in the room, the provider and model it is pinned to, the worker its turns run on, and the room
+/// number the receiver gave it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompanionRow {
+  pub name: String,
+  pub label: String,
+  pub provider: String,
+  pub model: String,
+  pub worker: String,
+  pub room: i64,
 }
 
 /// A table's rows that stayed with the agency as a room was forgotten, and why.
@@ -246,6 +259,12 @@ pub trait Agency: Send + Sync {
   /// The moment an agent's last reset cut it off at, in epoch milliseconds; none where it was never reset. A
   /// turn begun at or before it is overtaken (`docs/companions.md`, 「What the reset cuts off」).
   fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
+
+  /// A companion's row stood up, with the console room it answers alone in.
+  fn add_companion<'a>(&'a self, companion: &'a CompanionRow) -> BoxFuture<'a, Answer<()>>;
+
+  /// A companion's row taken down.
+  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<()>>;
 
   /// The stream of the events of the kinds named, from the moment it is opened.
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>>;
@@ -420,6 +439,14 @@ impl Agency for HttpAgency {
 
       Ok(point.point)
     })
+  }
+
+  fn add_companion<'a>(&'a self, companion: &'a CompanionRow) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move { self.caller.done(Method::POST, &["companions"], companion).await })
+  }
+
+  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move { self.caller.done(Method::DELETE, &["companions", agent], &Nothing {}).await })
   }
 
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {

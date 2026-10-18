@@ -10,6 +10,7 @@ mod notices;
 mod owner_road;
 mod owner_sends;
 mod owner_words;
+mod voice;
 mod worker_settings;
 
 use std::sync::Arc;

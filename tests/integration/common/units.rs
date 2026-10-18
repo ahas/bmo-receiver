@@ -16,8 +16,8 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, Delivery, Events, Forgotten, Passed, Rest, RestKind, Resting, RunLine, Scope,
-  Session, SessionState, Turn, Written,
+  Agency, Agent, Agents, CompanionRow, Delivery, Events, Forgotten, Passed, Rest, RestKind, Resting,
+  RunLine, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::brain::{
   BeforeFold, Brain, Load, Reading, Refused, Reminder, Reminders, RoomRule, Row, RuleText, Took,
@@ -32,7 +32,7 @@ use receiver_ports::web::{
   Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web,
 };
 use sea_orm::DatabaseConnection;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 /// The owner every receiver of the tests answers for.
 pub const OWNER: i64 = 42;
@@ -365,6 +365,11 @@ impl StandInVoice {
   pub fn launched(&self) -> Vec<Briefing> {
     self.launched.lock().unwrap().clone()
   }
+
+  /// The briefings it keeps of a room, as the readings it has launched.
+  pub fn keeping(&self, kept: Vec<Briefed>) {
+    *self.kept.lock().unwrap() = kept.clone();
+  }
 }
 
 impl Voice for StandInVoice {
@@ -374,8 +379,17 @@ impl Voice for StandInVoice {
     Box::pin(async { Ok("briefing-run".to_owned()) })
   }
 
-  fn briefings(&self, _chat: i64, _awaiting: bool) -> BoxFuture<'_, Answer<Vec<Briefed>>> {
-    Box::pin(async { Ok(vec![]) })
+  fn briefings(&self, chat: i64, _awaiting: bool) -> BoxFuture<'_, Answer<Vec<Briefed>>> {
+    let kept = self
+      .kept
+      .lock()
+      .unwrap()
+      .iter()
+      .filter(|one| one.chat == chat)
+      .cloned()
+      .collect::<Vec<Briefed>>();
+
+    Box::pin(async { Ok(kept) })
   }
 
   fn line<'a>(&'a self, run: &'a str, message: i64) -> BoxFuture<'a, Answer<()>> {
@@ -391,6 +405,8 @@ pub struct StandInWeb {
   pub users: Mutex<BTreeMap<i64, String>>,
   pub grants: Mutex<BTreeSet<(i64, i64, String)>>,
   pub model: Mutex<bool>,
+  // The names the web unit says are the administrator's.
+  pub admins: Mutex<BTreeSet<String>>,
 }
 
 impl StandInWeb {
@@ -399,7 +415,13 @@ impl StandInWeb {
       users: Mutex::default(),
       grants: Mutex::default(),
       model: Mutex::default(),
+      admins: Mutex::default(),
     }
+  }
+
+  /// The name the web unit answers for as the administrator's.
+  pub fn admin(&self, name: String) {
+    self.admins.lock().unwrap().insert(name);
   }
 
   /// The account model stands in force: what the room holds in force is read from its grants, and a user's own
@@ -434,8 +456,15 @@ impl Web for StandInWeb {
     Box::pin(async move { Ok(user) })
   }
 
-  fn user<'a>(&'a self, _user: &'a str) -> BoxFuture<'a, Answer<User>> {
-    unasked()
+  fn user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<User>> {
+    let known = self.admins.lock().unwrap().contains(user);
+
+    Box::pin(async move {
+      Ok(User {
+        user: user.to_owned(),
+        administrator: known,
+      })
+    })
   }
 
   fn senders_of_user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>> {
@@ -625,6 +654,8 @@ pub struct StandInAgency {
   pub rest: Mutex<Rest>,
   pub written: Mutex<Vec<Resting>>,
   pub passed: Mutex<Option<RestKind>>,
+  // The rooms it was asked to forget, each with whether the asking was a preview.
+  pub forgotten: Mutex<Vec<(i64, bool)>>,
 }
 
 impl StandInAgency {
@@ -639,6 +670,7 @@ impl StandInAgency {
       }),
       written: Mutex::default(),
       passed: Mutex::default(),
+      forgotten: Mutex::default(),
     }
   }
 
@@ -726,8 +758,15 @@ impl Agency for StandInAgency {
     not_asked_agency("its sessions")
   }
 
-  fn forget_room(&self, _chat_id: i64, _dry_run: bool) -> BoxFuture<'_, Answer<Forgotten>> {
-    not_asked_agency("a room forgotten")
+  fn forget_room(&self, chat_id: i64, dry_run: bool) -> BoxFuture<'_, Answer<Forgotten>> {
+    self.forgotten.lock().unwrap().push((chat_id, dry_run));
+
+    Box::pin(async {
+      Ok(Forgotten {
+        gone: json!({ "sessions": 1 }).as_object().unwrap().clone(),
+        stayed: vec![],
+      })
+    })
   }
 
   fn register_hook<'a>(
@@ -749,6 +788,35 @@ impl Agency for StandInAgency {
 
   fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
     not_asked_agency("the events")
+  }
+
+  fn add_companion<'a>(&'a self, companion: &'a CompanionRow) -> BoxFuture<'a, Answer<()>> {
+    let mut row = serde_json::Map::<String, Value>::new();
+
+    row.insert("kind".to_owned(), serde_json::json!("chat"));
+    row.insert("turn_shape".to_owned(), serde_json::json!("pieces"));
+    row.insert("builtin".to_owned(), serde_json::json!(0));
+    row.insert("window_seconds".to_owned(), serde_json::json!(180));
+
+    self.agents.lock().unwrap().push(Agent {
+      name: companion.name.clone(),
+      label: Some(companion.label.clone()),
+      awake: true,
+      brain_folder: None,
+      row,
+    });
+
+    Box::pin(async { Ok(()) })
+  }
+
+  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<()>> {
+    let mut held = self.agents.lock().unwrap();
+
+    if let Some(at) = held.iter().position(|one| one.name == agent) {
+      held.remove(at);
+    }
+
+    Box::pin(async { Ok(()) })
   }
 }
 
@@ -991,6 +1059,17 @@ pub fn woken(mut standing: Standing) -> Standing {
 }
 
 pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<StandInChat>>) -> Standing {
+  standing_on(db, data_root, chats, deployment())
+}
+
+/// The same standing, on a deployment of the test's own, for a test that stands the infrastructure room or
+/// another owner.
+pub fn standing_on(
+  db: &DatabaseConnection,
+  data_root: DataRoot,
+  chats: Vec<Arc<StandInChat>>,
+  given: Deployment,
+) -> Standing {
   let heard = Arc::new(Heard::default());
   let waking = Arc::new(WakeStandIn::default());
   let gate = Arc::new(StandInGate::default());
@@ -1012,7 +1091,7 @@ pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<Sta
     web: web.clone(),
     warmer: warmer.clone(),
   };
-  let receiver = Receiver::new(db.clone(), data_root, deployment(), units)
+  let receiver = Receiver::new(db.clone(), data_root, given, units)
     .with_news(heard.clone())
     .with_wake(waking.clone());
 

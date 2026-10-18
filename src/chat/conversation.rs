@@ -596,8 +596,6 @@ struct State {
   // The agent's own runs going now, by name with the room each runs for, which a reset or a room's removal
   // stands its cancellation over.
   going: HashMap<String, i64>,
-  // How many of the agent's rounds have been set going, which tells one round's turn from the next.
-  turn: u64,
 }
 
 /// A run of an agent's own named as going until this is dropped.
@@ -711,11 +709,7 @@ impl Conversations {
       .and_then(Value::as_i64)
       .and_then(|chat_id| self.state().speakers.get(&chat_id).cloned());
 
-    let event = told_as(event, speaker);
-    let chat_id = event.get("chatId").and_then(Value::as_i64).unwrap_or_default();
-    let message_id = event.get("messageId").and_then(Value::as_i64).unwrap_or_default();
-
-    self.0.receiver.news().message(chat_id, message_id);
+    self.0.receiver.news().publish(&told_as(event, speaker));
   }
 
   async fn speaker_in(&self, chat_id: i64) -> Option<Value> {
@@ -793,7 +787,7 @@ impl Conversations {
     drop(state);
 
     for chat_id in rooms {
-      self.0.receiver.news().message(chat_id, 0);
+      self.0.receiver.news().drop_queued(chat_id);
     }
 
     CutOff {
@@ -883,8 +877,12 @@ impl Conversations {
   }
 
   async fn set_window(&self, chat_id: i64, until: i64) {
-    if let Err(why) = wake::agents::set_window(self.0.receiver.db(), chat_id, self.agent(), until).await {
+    let written = wake::agents::set_window(self.0.receiver.db(), chat_id, self.agent(), until).await;
+
+    if let Err(why) = written {
       eprintln!("chat {chat_id}: the window could not be written: {why}");
+    } else if until > 0 {
+      self.0.receiver.news().window(chat_id);
     }
   }
 
@@ -1036,7 +1034,7 @@ impl Conversations {
     // From here until a turn takes it the message stands queued in the picture (docs/receiver.md, 「The event
     // stream」).
     if !state.active.get(&chat_id).is_some_and(|conv| conv.seen.contains(&message.message_id)) {
-      self.0.receiver.news().message(chat_id, message.message_id);
+      self.0.receiver.news().queue_message(chat_id, message.message_id);
     }
 
     match state.queue.get_mut(&chat_id) {
@@ -1307,7 +1305,7 @@ impl Conversations {
 
     // Whatever it had not read goes unread, but words the queue is still gathering wait for the next.
     if !gathering {
-      self.0.receiver.news().message(chat_id, 0);
+      self.0.receiver.news().drop_queued(chat_id);
     }
 
     self.persist(&conv.held).await;
@@ -1378,12 +1376,19 @@ impl Conversations {
           .map(|message| message.message_id),
       )
     };
-    let turn = {
-      let mut state = self.state();
+    let mut picture = json!({
+      "chatId": chat_id,
+      "messageId": reading,
+      "messages": messages,
+      "instructions": instructions,
+      "since": now_ms() / 1000,
+    });
 
-      state.turn += 1;
-      state.turn
-    };
+    if let Some(speaker) = self.state().speakers.get(&chat_id).cloned() {
+      picture["speaker"] = speaker;
+    }
+
+    let turn = self.0.receiver.news().begin_turn(&picture);
 
     self.publish(json!({
       "type": "run-started",
@@ -1429,6 +1434,7 @@ impl Conversations {
     }
 
     self.0.hooks.round_ended(chat_id).await;
+    self.0.receiver.news().end_turn(turn);
     self.0.hooks.typing(chat_id, false).await;
 
     drop(turn_lock);
@@ -2173,6 +2179,7 @@ impl Conversations {
     let this = self.clone();
 
     self.state().folding.insert(chat_id);
+    self.0.receiver.news().begin_fold(chat_id);
 
     tokio::spawn(async move {
       let receiver = this.receiver();
@@ -2183,6 +2190,7 @@ impl Conversations {
       }
 
       this.state().folding.remove(&chat_id);
+      this.0.receiver.news().end_fold(chat_id);
     });
   }
 

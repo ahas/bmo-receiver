@@ -1,0 +1,359 @@
+//! A room's registration removed from the console (docs/receiver.md, 「Removing a room's registration」): what
+//! the removal would take, answered with nothing written, and the removal itself, run to its end whatever
+//! becomes of the request. Both are refused to anyone but the administrator. What a room holds, what stays, what
+//! refuses and what warns is read off the room record's declarations, so nothing here names a table, a folder or
+//! a holder of live state; every other unit's part goes through that unit.
+
+use std::path::Path;
+
+use axum::{
+  body::Bytes,
+  extract::{Query, State},
+};
+use serde::Deserialize;
+use serde_json::{Value, json};
+
+use receiver_codes::RoomRemovalRefusal;
+use receiver_ports::http::{Caller, Peer, PortFailure};
+use receiver_ports::job::RoomHolding;
+
+use sqlx::{AnyConnection, Connection};
+
+use crate::receiver::Receiver;
+use crate::room_record::forget::forget;
+use crate::room_record::{
+  Act, Counted, Facing, Held, count, files, folders, record, refusals, take, warnings,
+};
+use crate::routes::instructions::HOLDER_KEY;
+use crate::routes::{Answered, Refusal, Served, answered, code, read, ready, store};
+use crate::store::{Fault, settings};
+
+#[derive(Deserialize)]
+pub struct Asked {
+  chat: String,
+
+  #[serde(default)]
+  by: String,
+}
+
+// A declared holder, as its declaration is kept: the base its unit is reached at.
+#[derive(Deserialize)]
+pub struct Declared {
+  address: String,
+}
+
+#[derive(Deserialize)]
+pub struct Posted {
+  chat: Value,
+
+  #[serde(default)]
+  by: String,
+}
+
+// The room a request names, a whole number given as a number or as text.
+fn room_of(value: &Value) -> Result<i64, Refusal> {
+  let room = match value {
+    Value::Number(number) => number.as_i64(),
+    Value::String(text) => text.trim().parse().ok(),
+    _ => None,
+  };
+
+  room.ok_or_else(|| code(&RoomRemovalRefusal::Chat))
+}
+
+fn room_text(asked: &str) -> Result<i64, Refusal> {
+  match asked.trim().parse::<i64>() {
+    Err(_) => Err(code(&RoomRemovalRefusal::Chat)),
+    Ok(one) => Ok(one),
+  }
+}
+
+async fn administrator(receiver: &Receiver, by: &str) -> Result<(), Refusal> {
+  match receiver.units().web.user(by).await {
+    Ok(found) if found.administrator => Ok(()),
+    _ => Err(code(&RoomRemovalRefusal::NotAdministrator)),
+  }
+}
+
+// The database opened by place, as the configuration gives it: a room's record is read off the schema the
+// database has now, the same way a copy of it is.
+async fn open(receiver: &Receiver) -> Result<AnyConnection, Refusal> {
+  let Some(place) = receiver.place() else { return Err(ready("the database")) };
+
+  sqlx::any::install_default_drivers();
+
+  AnyConnection::connect(&place).await.map_err(failed)
+}
+
+fn counted_view(counted: &Counted) -> Value {
+  let mut view = json!({ "table": counted.table, "rows": counted.rows, "why": counted.why });
+
+  if let Act::Clear(columns) = counted.act {
+    view["cleared"] = json!(columns);
+  }
+
+  view
+}
+
+// What goes, and what stays with the columns naming the room cleared or kept as they are.
+fn split(counted: &[Counted]) -> (Vec<Value>, Vec<Value>) {
+  let goes = counted
+    .iter()
+    .filter(|counted| counted.act == Act::Take && counted.rows > 0)
+    .map(counted_view);
+  let stays = counted
+    .iter()
+    .filter(|counted| counted.act != Act::Take && counted.rows > 0)
+    .map(counted_view);
+
+  (goes.collect(), stays.collect())
+}
+
+fn folder_view(receiver: &Receiver, held: &Held) -> Value {
+  let files = files_under(&held.path);
+  let mut view = json!({ "what": held.what, "path": shown(receiver, &held.path), "files": files.len() });
+
+  if held.named {
+    view["documents"] = json!(files);
+  }
+
+  view
+}
+
+// Every file under a folder, never through a link, by its path relative to the folder.
+fn files_under(root: &Path) -> Vec<String> {
+  fn walk(root: &Path, at: &Path, found: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(at) else {
+      return;
+    };
+
+    for entry in entries.flatten() {
+      let Ok(kind) = entry.file_type() else {
+        continue;
+      };
+      let path = entry.path();
+
+      if kind.is_dir() {
+        walk(root, &path, found);
+      } else {
+        found.push(path.strip_prefix(root).unwrap_or(&path).to_string_lossy().into_owned());
+      }
+    }
+  }
+
+  let mut found = vec![];
+
+  walk(root, root, &mut found);
+  found.sort();
+  found
+}
+
+// A path as the answer names it: under the data root where it stands there.
+fn shown(receiver: &Receiver, path: &Path) -> String {
+  path
+    .strip_prefix(receiver.data_root().path())
+    .unwrap_or(path)
+    .to_string_lossy()
+    .into_owned()
+}
+
+// Every unit declared a holder of rows naming the room, asked what it holds of it.
+async fn holders(receiver: &Receiver, room: i64) -> Vec<Value> {
+  let named = settings::named(receiver.db(), HOLDER_KEY).await.unwrap_or_default();
+  let mut answers: Vec<Value> = vec![];
+
+  for (unit, written) in named {
+    let asked = match serde_json::from_str::<Declared>(&written) {
+      Err(why) => Err(PortFailure::Undecodable {
+        url: unit.clone(),
+        why: why.to_string(),
+      }),
+      Ok(holder) => {
+        let peer = Peer {
+          base: holder.address,
+          token: String::new(),
+        };
+
+        let named = room.to_string();
+
+        Caller::new(&peer).get::<Vec<RoomHolding>>(&["rooms", &named, "holdings"], &[]).await
+      }
+    };
+    let (held, failure) = match asked {
+      Ok(held) => (json!(held), Value::Null),
+      Err(why) => (json!([]), json!(format!("{why}"))),
+    };
+
+    answers.push(json!({ "unit": unit, "holdings": held, "failure": failure }));
+  }
+
+  answers
+}
+
+/// What the removal would take and leave, every count read the way the removal takes it.
+async fn shown_removal(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
+  let facing = Facing { receiver, room };
+  let said = refusals(&facing).await.unwrap_or_default();
+  let refused = said.first();
+  let warnings = warnings(&facing).await.unwrap_or_default();
+  let folders = folders(&facing).await.unwrap_or_default();
+  let mut archive = open(receiver).await?;
+  let read = async {
+    let record = record(&mut archive, room).await?;
+    let counted = count(&mut archive, &record, room).await?;
+    let pictures = files(&mut archive, &record, room).await?;
+
+    Ok::<_, sqlx::Error>((record, counted, pictures))
+  }
+  .await;
+  let _ = archive.close().await;
+  let (record, counted, pictures) = read.map_err(failed)?;
+  let (goes, stays) = split(&counted);
+  let units = holders(receiver, room).await;
+  let agency = receiver.units().agency.forget_room(room, true).await;
+  let brain = receiver.units().brain.room_removed(room, true).await;
+
+  Ok(json!({
+    "chat": room,
+    "refused": refused.map(|why| code(why).code),
+    "warnings": warnings,
+    "warns": units,
+    "goes": goes,
+    "stays": stays,
+    "pictures": pictures,
+    "settings": { "taken": record.settings.taken, "undeclared": record.settings.undeclared },
+    "folders": folders.iter().map(|held| folder_view(receiver, held)).collect::<Vec<_>>(),
+    "units": json!({ "agency": unit_answer(agency), "brain": unit_answer(brain) }),
+  }))
+}
+
+// What a unit's part came to: what it answered, or why it did not.
+fn unit_answer<T: serde::Serialize>(asked: Result<T, PortFailure>) -> Value {
+  match asked {
+    Ok(one) => json!(one),
+    Err(why) => json!({ "failure": format!("{why}") }),
+  }
+}
+
+/// What removing a room would take, nothing written.
+pub async fn preview(State(served): State<Served>, query: Query<Asked>) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+
+  administrator(&receiver, &query.by).await?;
+
+  let room = room_text(&query.chat)?;
+
+  answered(shown_removal(&receiver, room).await?)
+}
+
+/// The removal carried out: what it took, and anything it could not remove.
+async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusal> {
+  let facing = Facing { receiver, room };
+  let folders = folders(&facing).await.unwrap_or_default();
+  let mut archive = open(receiver).await?;
+  let written = async {
+    // Read before anything moves, so what is written is what the confirmation showed.
+    let record = record(&mut archive, room).await?;
+    let pictures = files(&mut archive, &record, room).await?;
+
+    Ok::<_, sqlx::Error>((record, pictures))
+  }
+  .await;
+  let _ = archive.close().await;
+  let (record, pictures) = written.map_err(failed)?;
+
+  // The other units' parts go through them, and every holder of live per-room state forgets the room.
+  let agency = receiver.units().agency.forget_room(room, false).await;
+  let brain = receiver.units().brain.room_removed(room, false).await;
+  forget(receiver, room).await;
+
+  let mut archive = open(receiver).await?;
+  let taken = async { take(&mut archive, &record, room).await }.await;
+  let _ = archive.close().await;
+  let counted = taken.map_err(failed)?;
+
+  let mut left: Vec<String> = vec![];
+  let mut removed_pictures: Vec<String> = vec![];
+
+  for path in pictures {
+    let at = Path::new(&path);
+
+    if !under(receiver, at) {
+      left.push(format!("{path}: outside this data root"));
+      continue;
+    }
+
+    match std::fs::remove_file(at) {
+      Err(why) if why.kind() != std::io::ErrorKind::NotFound => left.push(format!("{path}: {why}")),
+      _ => removed_pictures.push(shown(receiver, at)),
+    }
+  }
+
+  let mut removed_folders: Vec<Value> = vec![];
+
+  for held in &folders {
+    let removal = if under(receiver, &held.path) {
+      held.remove(receiver).await
+    } else {
+      Err("outside this data root".to_owned())
+    };
+
+    match removal {
+      Ok(()) => removed_folders.push(json!({ "what": held.what, "path": shown(receiver, &held.path) })),
+      Err(why) => left.push(format!("{}: {why}", shown(receiver, &held.path))),
+    }
+  }
+
+  let units = holders(receiver, room).await;
+
+  receiver.news().room_removed(room);
+  eprintln!("bmo-receiver: the room {room}'s registration was removed, as {by} asked");
+
+  let (goes, stays) = split(&counted);
+
+  Ok(json!({
+    "chat": room,
+    "taken": goes,
+    "cleared": stays,
+    "pictures": removed_pictures,
+    "settings": record.settings.taken,
+    "folders": removed_folders,
+    "holders": units,
+    "units": json!({ "agency": unit_answer(agency), "brain": unit_answer(brain) }),
+    "couldNot": left,
+  }))
+}
+
+// Whether a path may be taken down: only under this data root.
+fn under(receiver: &Receiver, path: &Path) -> bool {
+  path.is_absolute() && path.starts_with(receiver.data_root().path())
+}
+
+// A database that did not answer the removal.
+fn failed(why: sqlx::Error) -> Refusal {
+  store(Fault::new(why.to_string()))
+}
+
+/// A room's registration removed, its whole record with it.
+pub async fn remove(State(served): State<Served>, body: Bytes) -> Answered {
+  let asked = read::<Posted>(&body)?;
+  let receiver: Receiver = (*served.receiver).clone();
+  let by = asked.by.trim();
+
+  administrator(&receiver, by).await?;
+
+  let room = room_of(&asked.chat)?;
+
+  if let Some(refusal) = refusals(&Facing {
+    receiver: &receiver,
+    room,
+  })
+  .await
+  .unwrap_or_default()
+  .first()
+  {
+    return Err(code(refusal));
+  }
+
+  answered(carry(&receiver, room, by).await?)
+}

@@ -18,6 +18,7 @@ pub mod wake;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
+use axum::{body::Body, response::Response};
 use futures_util::future::BoxFuture;
 use receiver_codes::{RoomRemovalRefusal, SettingFact};
 use receiver_ports::agency::Agency;
@@ -30,11 +31,13 @@ use receiver_ports::warmer::Warmer;
 use receiver_ports::web::Web;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
 use crate::Fault;
 use crate::chat::conversation::{Talking, Touching, Typing};
 use crate::chat::talk::{Standing, TalkState};
 use crate::data_root::DataRoot;
+use crate::now_ms;
 use crate::roads::Roads;
 use crate::room_record::{Facing, RoomHolding, Says};
 use commands::{CommandKind, OwnerCommand, parse_mode_command, parse_owner_command};
@@ -110,9 +113,49 @@ impl From<sea_orm::DbErr> for NotReceived {
   }
 }
 
-/// Where the room's screens hear the receiver's news: a message it kept or wrote again.
+/// Where the room's screens hear the receiver's news, and where its live board reads what the process runs
+/// (docs/receiver.md, 「The event stream」). The stream itself is the events module's; a hearer that stands
+/// for it in a test answers the rest as nothing.
 pub trait News: Send + Sync {
   fn message(&self, chat_id: i64, message_id: i64);
+
+  fn window(&self, _chat_id: i64) {}
+
+  fn room_removed(&self, _chat_id: i64) {}
+
+  fn publish(&self, _event: &Value) {}
+
+  fn queue_message(&self, _chat_id: i64, _message_id: i64) {}
+
+  fn drop_queued(&self, _chat_id: i64) {}
+
+  fn begin_fold(&self, _chat_id: i64) {}
+
+  fn end_fold(&self, _chat_id: i64) {}
+
+  fn forget_room(&self, _chat_id: i64) {}
+
+  fn begin_turn(&self, _turn: &Value) -> u64 {
+    0
+  }
+
+  fn end_turn(&self, _id: u64) {}
+
+  fn picture(&self) -> Value {
+    json!({ "at": now_ms() / 1000, "turns": [], "compacting": [], "queued": [] })
+  }
+
+  fn held(&self) -> Vec<Value> {
+    vec![]
+  }
+
+  fn started(&self) -> i64 {
+    0
+  }
+
+  fn listen(&self, _after: i64, _run: Option<&str>) -> Response {
+    Response::new(Body::empty())
+  }
 }
 
 /// News nobody hears, where nothing stands to hear it.
@@ -289,6 +332,7 @@ pub struct Receiver {
   talking: Arc<Standing>,
   typing: Arc<OnceLock<Arc<dyn Typing>>>,
   touching: Arc<OnceLock<Arc<dyn Touching>>>,
+  place: Arc<OnceLock<Arc<str>>>,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -328,6 +372,7 @@ impl Receiver {
       talking: Arc::default(),
       typing: Arc::default(),
       touching: Arc::default(),
+      place: Arc::default(),
     }
   }
 
@@ -403,6 +448,16 @@ impl Receiver {
   /// The instruction pass the receiver's acknowledgements are queued for, where one stands.
   pub fn pass(&self) -> Option<Arc<dyn Pass>> {
     self.pass.get().cloned()
+  }
+
+  /// The database's place, as the configuration gives it: a room's record is read and taken through the any
+  /// driver, which opens a database by place rather than through the pool.
+  pub fn hold_place(&self, place: Arc<str>) {
+    let _ = self.place.set(place);
+  }
+
+  pub fn place(&self) -> Option<Arc<str>> {
+    self.place.get().cloned()
   }
 
   pub fn db(&self) -> &DatabaseConnection {

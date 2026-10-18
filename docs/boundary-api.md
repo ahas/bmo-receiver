@@ -273,16 +273,17 @@ with a sentence naming the file and the ceiling; a `replyTo` the archive does no
 | `GET /live` | the picture: the chat turns of the conversations and companions, the rooms whose session is folding and the message each room queued for a turn |
 | `GET /health` | `ok`, `ownerId`, `bot` (`pid`, `since`), `version` |
 
-What goes into the stream: a message the receiver kept or wrote again (which a game of the word chain reads, as
-any reader of a room's messages does), a room whose registration was removed as `room-removed`, the picture
-whenever it changes, and what `POST /event` says.
+What goes into the stream: a message the receiver kept or wrote again, a room's window opened or restarted as
+`window`, a room whose registration was removed as `room-removed`, the picture whenever it changes, and what
+`POST /event` says (a message or a briefing checked against the room's record first, and the profile pictures a
+chat service took).
 
 #### Removing a room
 
 | Route | Body | Answer |
 |---|---|---|
-| `GET /rooms/remove?chat=&by=` | | what the removal would do: `goes` (rows each table would give up), `stays` (each `table`, `rows`, `why`), `taken` (pictures, folders, settings), every holder's answer under `warns`, `refused` where a refusal applies, and `undeclared` (settings naming the room that no declaration matches) |
-| `POST /rooms/remove` | `chat`, `by` | what it took, and `couldNot` |
+| `GET /rooms/remove?chat=&by=` | | what the removal would do: `goes` (each `table`, `rows`, `why` it gives up), `stays` (each kept or cleared among them), `pictures` (the files the rows point at), `settings` (`taken`, the keys a declaration matches, and `undeclared`, the keys holding the room's number that none does), `folders` (each `what`, `path` and its `files`), `warnings` (what the receiver's own record warns of beside the removal), `warns` (every declared holder's answer), `units` (the agency's and the brain's answer, or why it did not come), `refused` (the code of a refusal that applies, where one does) |
+| `POST /rooms/remove` | `chat`, `by` | what it took: `taken` (as the preview's `goes`), `cleared` (as its `stays`, with the columns named cleared), `pictures`, `settings`, `folders`, `holders`, `units`, and `couldNot` (what it could not remove, each with why) |
 
 Both are refused 403 unless `by` names the administrator. The removal asks each declared holder, the agency
 (`POST /rooms/forget`) and the brain (`POST /rooms/removed`) for their part (`docs/receiver.md`, 「Removing a
@@ -359,6 +360,8 @@ every room's matter.
 | list sessions | `GET /session/list` | | `sessions` |
 | forget a room | `POST /rooms/forget` | `chatId`, `dryRun` | `gone`, `stayed` (each `table`, `rows`, `why`) |
 | register a hook | `POST /hooks` | `point`, `url`, `token` | |
+| a companion registered | `POST /companions` | `name`, `label`, `provider`, `model`, `worker`, `room` | `ok` |
+| a companion taken out | `DELETE /companions/{agent}` | | `ok` |
 | a run's log | `GET /run-log?run=&after=` | | `lines` |
 | an agent's reset point | `GET /reset-point?agent=` | | `point` in epoch milliseconds or null: the moment the agent was last reset at, which overtakes a turn begun at or before it |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
@@ -466,7 +469,7 @@ The voice unit states no boundary yet.
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | launch a briefing | `POST /briefings` | `chat`, `message?`, `kind` (`notice` or `summary`), `title`, `awaits_line`, `text` | `run` |
-| a room's briefings | `GET /briefings?chat=&awaiting=` | | `briefings`: each `run`, `chat`, `voice_message?`, `kind`, `title`, `finished` |
+| a room's briefings | `GET /briefings?chat=&awaiting=` | | `briefings`: each `run`, `chat`, `message?` (the line the reading was asked for), `voice_message?`, `kind`, `title`, `finished` |
 | a briefing's line | `POST /briefings/{run}/line` | `message` | 204 |
 
 A briefing is spoken where the voice briefing's switch stands on (`docs/voiced-notices.md`).

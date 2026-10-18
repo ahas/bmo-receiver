@@ -113,6 +113,7 @@ pub async fn say(
 
   if let Some(seconds) = designated.window_seconds {
     open_window(db, chat_id, agent, now_ms() / 1000 + seconds).await?;
+    receiver.news().window(chat_id);
   }
 
   if let Some(message_id) = message_id {
