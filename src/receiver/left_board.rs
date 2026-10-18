@@ -60,7 +60,7 @@ pub async fn take_down(receiver: &Receiver) {
 }
 
 // One board out of the chat: deleted, or unpinned where the road refuses the deletion — a board older than the
-// platform lets a bot delete — whether it is out. The road's answer to the unpinning is the last word on it; a
+// platform lets the account delete — whether it is out. The road's answer to the unpinning is the last word on it; a
 // failure to reach the road at all leaves the board for the next look.
 async fn taken_out(receiver: &Receiver, road: &str, chat_id: i64, message_id: i64) -> bool {
   let speech = receiver.speech();

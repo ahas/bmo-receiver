@@ -57,7 +57,7 @@ impl Timings {
   }
 }
 
-/// A round of the bot's own lines alone whose answer went out, as the voice briefing is told of it.
+/// A round of the system's own lines alone whose answer went out, as the voice briefing is told of it.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoticeTurn {
@@ -735,8 +735,8 @@ impl Conversations {
     self.state().queue.get(&chat_id).cloned().unwrap_or_default()
   }
 
-  /// A run of the agent's own in a room named as going until what this answers is dropped (docs/companions.md,
-  /// 「What the reset cuts off」).
+  /// A run of the agent's own in a room named as going until what this answers is dropped (the agency's
+  /// `docs/companions.md`, 「What the reset cuts off」).
   pub fn going(&self, run: &str, chat_id: i64) -> Going {
     self.state().going.insert(run.to_owned(), chat_id);
 
@@ -747,7 +747,7 @@ impl Conversations {
   }
 
   /// Held by a turn of the agent's from its last reading of the reset point until what it came to is kept and sent,
-  /// so its reset never moves the point between that reading and the keeping (docs/companions.md, 「What the reset
+  /// so its reset never moves the point between that reading and the keeping (the agency's `docs/companions.md`, 「What the reset
   /// cuts off」).
   pub async fn keeping(&self) -> Keeping {
     Keeping {
@@ -765,7 +765,7 @@ impl Conversations {
 
   /// Everything waiting for the agent's turns in every room let go unread, as its reset cuts it off: the words the
   /// queue gathers and those a conversation holds or waits on, and its quiet instructions, whose rows it answers
-  /// with the runs of its own going now (docs/companions.md, 「What the reset cuts off」).
+  /// with the runs of its own going now (the agency's `docs/companions.md`, 「What the reset cuts off」).
   pub fn cut_off(&self) -> CutOff {
     let mut state = self.state();
     let mut rooms: Vec<i64> = state.queue.drain().map(|(chat_id, _)| chat_id).collect();
@@ -2235,7 +2235,7 @@ impl Conversations {
     });
   }
 
-  /// The bot's own line for every failure order the agent cannot answer, asked on the agent's own clock.
+  /// The service's own line for every failure order the agent cannot answer, asked on the agent's own clock.
   pub async fn check_failure_orders(&self) {
     self.0.orders.check_failure_orders(&self.0.receiver, self.agent());
   }

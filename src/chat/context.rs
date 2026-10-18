@@ -1,4 +1,4 @@
-//! A turn's prompt opened on its way out (docs/reference-selection.md, 「Loaded once per session」; docs/unified-
+//! A turn's prompt opened on its way out (the gate's reference selection; docs/unified-
 //! bmo.md, 「The system prompt and the room switch」): each reference document wrapped once goes in full, or as
 //! the line saying the session already holds that version; the room's block goes in full, by its mark where the
 //! session holds this version from earlier, or not at all where the session read this very block last; and once

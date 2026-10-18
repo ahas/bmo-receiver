@@ -1,6 +1,11 @@
 # The repository checks
 
 `tests/repository.rs` holds the checks that span the repository. Each runs with the root package's tests.
+Beside them the testbed's declaration enables four sweeps that read the tree before anything runs, a line per
+fault each: the wording check holds every file that is not a test file to the terms `docs/wording.md` bans; the
+Korean check holds each code file to the lines `korean-ledger.json` allows it, a file the ledger does not name
+being allowed none; the layout check reads the README's folder table against the folders that stand; the
+dependencies check reads every manifest against the base libraries the declaration names.
 
 - **Dependencies.** No package of the workspace depends on a `bmo-*` package but the base libraries,
   `bmo-chat`, `bmo-chat-client` and `bmo-ui`, nor on a crate named after a shared crate of the single

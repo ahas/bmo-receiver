@@ -1,4 +1,4 @@
-//! The one runner of every conversational agent (docs/agents.md, 「One runner」): each agent's conversations in
+//! The one runner of every conversational agent (the agency's `docs/agents.md`, 「One runner」): each agent's conversations in
 //! its rooms, made the first time the agent is woken and kept for as long as the process stands, all on the same
 //! surroundings and the same timings. The default answerer's stand from the start, since the rooms that name
 //! nobody, the owner's own words and the console's talks are its.

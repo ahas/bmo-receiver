@@ -18,5 +18,5 @@ TimeoutStopSec=30
 
 [Install]
 WantedBy=default.target
-# The bot: linked, enabled, restarted and waited on by every deployment.
+# The service: linked, enabled, restarted and waited on by every deployment.
 X-BMO-Deploy=bot

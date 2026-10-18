@@ -1,7 +1,7 @@
-//! The words a room session had not taken when the service stopped (docs/companions.md, 「The session」), taken up
+//! The words a room session had not taken when the service stopped (the agency's `docs/companions.md`, 「The session」), taken up
 //! again as it starts where the receiver's rule still wakes the agent for them, by the agent's own conversations in
 //! the one runner. Rows queued for an agent go through the one instruction pass every agent's rows go through
-//! (docs/agents.md, 「One runner」).
+//! (the agency's `docs/agents.md`, 「One runner」).
 
 use receiver_ports::agency::Scope;
 

@@ -1,5 +1,5 @@
-//! What a companion's turn is given and what it answers, as words (docs/companions.md, 「The session」,
-//! 「Whose words are whose」, 「What a turn shows」): the room's lines under each speaker's name with the owner's
+//! What a companion's turn is given and what it answers, as words (the agency's `docs/companions.md`, 「The session」,
+//! 「What a turn shows」): the room's lines under each speaker's name with the owner's
 //! mark on his alone, the parts one turn's words fall into, the blocks its reference and its handoff note stand in,
 //! an answer that repeats what it was given, and the lines a cut is told in.
 

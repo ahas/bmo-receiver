@@ -50,7 +50,7 @@ pub async fn instruct(State(served): State<Served>, body: Bytes) -> Answered {
     return Err(refused(StatusCode::NOT_FOUND, "no-route", &format!("unknown chat {}", asked.chat_id)));
   }
 
-  // A chat the bot does not serve is not woken, whoever asks; the owner's own chat always is.
+  // A chat the service does not serve is not woken, whoever asks; the owner's own chat always is.
   if asked.chat_id != receiver.owner_id() && !rows::is_chat_allowed(asked.chat_id) {
     return Err(refused(
       StatusCode::FORBIDDEN,

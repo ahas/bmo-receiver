@@ -193,7 +193,7 @@ impl Roads {
     false
   }
 
-  /// Where a line nobody asked for goes in a room — a turn opened by the bot's lines alone, a line the service says
+  /// Where a line nobody asked for goes in a room — a turn opened by the system's own lines alone, a line the service says
   /// itself, a send that names no road: the room's record where a road reaching the room shows it, the room's own
   /// road everywhere else, and none where no road holds the room.
   pub async fn unasked(&self, chat_id: i64) -> Option<Road> {
@@ -232,7 +232,7 @@ impl Roads {
 
   /// The road a turn answers on, given the roads its messages came in on and those its instructions were asked on:
   /// the one every word came in on, the room's own where they came in on more than one; for a turn of instructions
-  /// alone, the road they were asked on where they agree, and otherwise — a turn opened by the bot's lines alone —
+  /// alone, the road they were asked on where they agree, and otherwise — a turn opened by the system's own lines alone —
   /// the unasked road, whichever road the owner last spoke on.
   pub async fn turn_road(&self, chat_id: i64, came: &[&str], asked: &[&str]) -> Option<Road> {
     let (came, asked) = (distinct(came), distinct(asked));

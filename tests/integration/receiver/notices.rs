@@ -7,7 +7,7 @@ use receiver_codes::SettingFact;
 fn the_frame_carries_the_fact_and_says_the_line_is_to_be_said_in_the_chats_own_language() {
   let framed = instruction(&SettingFact::ToolsSwitched { on: false }.to_string());
 
-  assert!(framed.starts_with("The bot has something to tell this chat"));
+  assert!(framed.starts_with("The service has something to tell this chat"));
   assert!(framed.contains(
     "\nThe owner switched tools off in this chat: here you now answer in words only.\nEND OF FACTS\n"
   ));

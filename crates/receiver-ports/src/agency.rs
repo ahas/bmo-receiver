@@ -257,7 +257,7 @@ pub trait Agency: Send + Sync {
   fn run_log<'a>(&'a self, run: &'a str, after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>>;
 
   /// The moment an agent's last reset cut it off at, in epoch milliseconds; none where it was never reset. A
-  /// turn begun at or before it is overtaken (`docs/companions.md`, 「What the reset cuts off」).
+  /// turn begun at or before it is overtaken (the agency's `docs/companions.md`, 「What the reset cuts off」).
   fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
 
   /// A companion's row stood up, with the console room it answers alone in.

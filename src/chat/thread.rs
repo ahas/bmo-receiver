@@ -1,7 +1,6 @@
-//! A person's own thread, followed into their private room (docs/rust-migration.md, 「Continuity and room
-//! isolation」): in a user's private room, the turn is handed what that user and BMO said to each other in the
-//! group rooms the user is in and BMO answers over the last days, and nothing anyone else said nor what the user said
-//! to a companion there. It is a reference document like any other, so it passes the same sanitiser and goes to a
+//! A person's own thread, followed into their private room: in a user's private room, the turn is handed what that
+//! user and the chat agent said to each other in the group rooms the user is in and the agent answers over the last
+//! days, and nothing anyone else said nor what the user said to a companion there. It is a reference document like any other, so it passes the same sanitiser and goes to a
 //! session in full once per version.
 
 use crate::js;

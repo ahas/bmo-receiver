@@ -21,7 +21,8 @@ pub fn instruction(fact: &str) -> String {
 /// whole, what the line is for, what follows it where anything does, and whether the session may leave it unsaid.
 pub fn frame(fact: &str, intent: &str, follow_up: Option<&str>, optional: bool) -> String {
   let mut lines: Vec<String> = vec![
-    "The bot has something to tell this chat, and you are to say it. What happened, as the bot recorded it:".to_owned(),
+    "The service has something to tell this chat, and you are to say it. What happened, as it recorded it:"
+      .to_owned(),
     fact.trim().to_owned(),
     "END OF FACTS".to_owned(),
     String::new(),

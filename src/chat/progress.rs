@@ -1,5 +1,5 @@
 //! What a turn of a conversational agent is doing, read off the lines its run leaves in the agency's log as they
-//! are written (docs/live-state.md, 「A chat turn」): whether it thinks, writes or calls a tool, the thinking it
+//! are written (the agency's `docs/run-records.md`, 「Agent log」; docs/receiver.md, 「The event stream」): whether it thinks, writes or calls a tool, the thinking it
 //! counted, what its last request carried and what its requests spent, an estimate of what it wrote, and the last
 //! few things it did — what it was handed and each call with how it ended — so a room watching the console sees
 //! the turn as it goes.

@@ -1,6 +1,6 @@
 //! A picture with a word burned into it (docs/pictures.md, 「Pictures sent」): an album of unrelated pictures —
 //! one product each — is read by its pictures alone once the platform shows the album without their captions, so
-//! the name is drawn into the picture itself: a dark band along the bottom edge with the label on it, white. What
+//! the name is drawn into the picture itself: a dark band along the lower edge with the label on it, white. What
 //! comes back is a new JPEG, laid on white where the picture has transparency; the original is not touched. The
 //! text is drawn by the machine's own fonts, so no font is named by the deployment.
 

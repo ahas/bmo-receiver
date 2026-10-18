@@ -120,7 +120,7 @@ null), `senderName`, `sentAt`, `text` and `replyToMessageId` (or null).
 | room titles | `POST /rooms/titles` | none | `rooms`: each room's `chatId`, `title` (or null) and `senders`, the people that have stood as a sender in it |
 | room answerers | `POST /rooms/answerers` | `chatId` or null | `rooms`: each room's `chatId` and `agents`, the agents answering it: the awake agents it names, or the default answerer where it names none awake |
 | spoke between | `POST /rooms/spoke-between` | `chatId`, `person`, `from`, `to` | `spoke` (boolean): the person sent a message in the room between the two moments, both included |
-| own number | `POST /rooms/own-number` | `agent`, `chatId` | `number` (or null): the sender the agent's own words stand under in the room: the number the room's road gave the agent, or for the default answerer where it gave none, who the road says the bot is there |
+| own number | `POST /rooms/own-number` | `agent`, `chatId` | `number` (or null): the sender the agent's own words stand under in the room: the number the room's road gave the agent, or for the default answerer where it gave none, who the road says the agent is there |
 | spoken in | `POST /rooms/spoken-in` | `chatId`, `people` | `people`: those who have stood as a sender in the room |
 | display names | `POST /people/names` | `people` | `names`: each person's `person` and `name` or null: the name their latest message went under, a room where the owner goes by a name of that room alone read last |
 | waits on a happening | `POST /promises/waits` | `text` | `waits` (boolean): whether the text waits for something to happen first, by the receiver's reading of promises |

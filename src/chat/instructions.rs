@@ -316,8 +316,7 @@ pub async fn deliver_riders(
 }
 
 /// What a stopped process left handed and unsettled goes back to pending before anything is delivered, each
-/// row given back at most the policy's times before it is dropped (docs/deploy.md, 「Work in flight across a
-/// restart」).
+/// row given back at most the policy's times before it is dropped.
 pub async fn requeue_interrupted(db: &DatabaseConnection) -> Result<(), Fault> {
   let rows = all(
     db,

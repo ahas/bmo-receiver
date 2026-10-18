@@ -1,5 +1,5 @@
 //! The turn a call of the receiver's tool is made in, read afresh from the call's session record (docs/chat-mcp.md,
-//! 「Turn context」), and the refusal of a turn its agent's reset overtook (docs/companions.md, 「What the reset
+//! 「Turn context」), and the refusal of a turn its agent's reset overtook (the agency's `docs/companions.md`, 「What the reset
 //! cuts off」): a turn begun at or before the agent's reset point does nothing more, whichever tool it calls.
 //! The tool host hands the turn's variables whole — its own run's, overlaid by the run a resident program's
 //! place names — and the agency, which owns the resets, answers the point.

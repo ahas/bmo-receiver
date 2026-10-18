@@ -1,4 +1,4 @@
-//! The pieces shape of a conversational agent's turn (docs/companions.md; docs/agents.md, 「One runner」): a
+//! The pieces shape of a conversational agent's turn (the agency's `docs/companions.md`; its `docs/agents.md`, 「One runner」): a
 //! companion as its turns read its row, the words a turn takes, and the room a console made for companions reads.
 //! The engine, its guard and its sessions are the agency's: the receiver reads the row the agency lists and hands
 //! a round to the same session routes every agent's turns go through.

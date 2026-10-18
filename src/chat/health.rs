@@ -1,7 +1,7 @@
 //! The health of the rooms' sessions as the conversations read it (docs/voiced-notices.md, 「System notices」;
 //! docs/bmo-window.md, 「What stands in the window」): whether a room has fallen silent, what a stopped or failed
 //! round is told of its room, a round that ended with nothing said at all, and the failure order a broken run of
-//! the agent's own raises as a quiet instruction row — looked over on the health policy's minute, with the bot's
+//! the agent's own raises as a quiet instruction row — looked over on the health policy's minute, with the service's
 //! own line as the last resort where no session answers the order.
 
 use receiver_codes::FixedLine;

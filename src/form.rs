@@ -82,7 +82,7 @@ pub fn strip_prompt_scaffolding(input: &str) -> String {
   js::trim(&text[..cut]).to_owned()
 }
 
-// Every marker a session writes for the bot rather than for the room, with the one space before it.
+// Every marker a session writes for the service rather than for the room, with the one space before it.
 static CONTROL_MARKER: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"[ \t]?<<(?:REPLY(?::[0-9]+)?|SKIP|WAIT)>>").expect("a control marker"));
 static FENCE_LINE: LazyLock<Regex> =

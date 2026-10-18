@@ -1,4 +1,4 @@
-//! A round of a room's session: everything run to produce one answer (docs/web.md, its usage chips). The round
+//! A round of a room's session: everything run to produce one answer (the web unit's usage chips). The round
 //! carries a name of its own, and whatever is recorded while it goes — a gate's road, a judgement, the
 //! message the answer goes out as — carries that name, so what one answer cost is read by the name. The name
 //! travels with the round's own work rather than as an argument, since a gate is asked far below the turn

@@ -1,5 +1,5 @@
 //! Words that arrive while a round's turn is working, put into that turn at its next look rather than held for
-//! the next round (docs/agent-control.md, 「Words that arrive while a turn is working」): the one paragraph they
+//! the next round (the agency's `docs/agent-control.md`, 「Words that arrive while a turn is working」): the one paragraph they
 //! go in as — what arrived, that this same answer takes them in, the messages and instructions formatted and
 //! cleaned exactly as a round's own are, the answer they are owed — behind whatever the window selects for them
 //! that the round does not already hold.

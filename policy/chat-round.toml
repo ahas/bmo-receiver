@@ -33,7 +33,7 @@ group = "a group chat with other members"
 # The voice summary line a notice turn of the owner's chat is given.
 [voice]
 none = "Voice summary: none this turn. It tells of a voice briefing that did not go out, so launch no briefing of any kind; say it in text only."
-launch = "Voice summary: this turn is opened by the bot's lines alone, so it answers into the owner's chat's own record and nothing of it goes to a road; while you answer, launch its spoken summary with --title, --via this turn's road, as the voice capability says."
+launch = "Voice summary: this turn is opened by the system's own lines alone, so it answers into the owner's chat's own record and nothing of it goes to a road; while you answer, launch its spoken summary with --title, --via this turn's road, as the voice capability says."
 waiting = "{note} Still waiting to go out, and replaced by yours, so cover them too: {titles}."
 untitled = "the opening of an earlier line"
 titled = "「{title}」"
@@ -164,7 +164,7 @@ Do not write back to that room over this. A reply for the sake of replying is tw
 [push]
 note = "More for the answer you are making now: {what} arrived while you were making it. This same answer takes them in: answer them in the reply you are writing, not in a reply of their own. Only the answer you write after this goes out, and nothing you wrote before it is sent: if you had already written an answer, write the whole reply again with these taken in."
 messages = "{count} new message(s) from this same room"
-instructions = "{count} quiet instruction(s) from the bot you run inside"
+instructions = "{count} quiet instruction(s) from the service you run inside"
 joined = " and "
 scope = "These add to this turn's scope: {ids}"
 
@@ -186,7 +186,7 @@ tick_seconds = 15
 watch_ms = 1000
 cold_wake_gap_ms = 10000
 restart_limit = 2
-restarted = "This instruction was handed to you before, and the bot restarted before that round ended. Part of it may already be done: look at what is there before you repeat anything that has an effect."
+restarted = "This instruction was handed to you before, and the service restarted before that round ended. Part of it may already be done: look at what is there before you repeat anything that has an effect."
 
 # The words a restart left unread, read back as the process that holds the conversations starts: how old the
 # oldest that may still wake an agent is, in seconds, and how long the start settles before they are read, in

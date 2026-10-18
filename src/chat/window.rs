@@ -164,7 +164,7 @@ pub async fn clean(
   Ok(cleaned.text)
 }
 
-/// Whether anybody's words came into a turn rather than the bot's own lines alone.
+/// Whether anybody's words came into a turn rather than the system's own lines alone.
 pub fn people_spoke(room: Room, messages: &[Inbound], said: &[String]) -> bool {
   messages.iter().any(|message| message.sender_id != room.identity) || !said.is_empty()
 }

@@ -1,6 +1,6 @@
 //! What the receiver puts into a room from a shell (docs/messages.md): a line, said from a run of its own so
 //! nobody waits on the gates; a reaction, a pin, a sticker and pictures; the owner's line that stands without the
-//! bot; and a procedure document as one room may use it. Each answers the lines it prints.
+//! service; and a procedure document as one room may use it. Each answers the lines it prints.
 //!
 //! A line of its own is said in a run: its row, its log and its process are opened, written and closed through
 //! the launcher seam the binary fills, since the run's rows and its log are the agency's and the receiver holds

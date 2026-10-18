@@ -186,7 +186,7 @@ async fn private_room(receiver: &Receiver, private_to: Option<i64>) -> Result<bo
   }
 }
 
-/// The agent that says the bot's own lines in a room (docs/voiced-notices.md, 「The rule」).
+/// The agent that says the system's own lines in a room (docs/voiced-notices.md, 「The rule」).
 pub async fn voice_of(receiver: &Receiver, chat_id: i64) -> Result<String, NotReceived> {
   let default = default_designated(receiver).await?;
   let named: Vec<String> = named_designated(receiver, chat_id)

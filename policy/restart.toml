@@ -13,14 +13,14 @@ ttl_minutes = 30
 
 # A restart no deployment announced.
 [unannounced]
-fact = "The bot has just started again after a restart that no deployment announced."
+fact = "The service has just started again after a restart that no deployment announced."
 intent = "tell the owner you are back."
 follow_up = "Nobody said why it restarted; do not guess a reason."
 
 # A deployment's restart: the back line, why it went live ({purpose}) or that nobody said, its {commit}, and the
 # job it ran inside where it did — its TODO item ({item}, its {title} where it has one) or none.
 [deployed]
-back = "The bot is back up after the deployment."
+back = "The service is back up after the deployment."
 purpose = "Why it goes live now, as the deployer put it: {purpose}"
 no_purpose = "The deployer gave no reason for it."
 commit = "Commit: {commit}."

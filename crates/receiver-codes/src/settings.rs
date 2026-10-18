@@ -128,10 +128,10 @@ impl std::fmt::Display for SettingFact {
          changed.",
       ),
       Self::ModeSet { everyone: false } => f.write_str(
-        "The owner set the bot's mode to owner_only: you now follow the owner's commands alone.",
+        "The owner set the room's mode to owner_only: you now follow the owner's commands alone.",
       ),
       Self::ModeSet { everyone: true } => f.write_str(
-        "The owner set the bot's mode to everyone: you now listen to everyone and answer them.",
+        "The owner set the room's mode to everyone: you now listen to everyone and answer them.",
       ),
     }
   }

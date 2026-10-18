@@ -1,4 +1,4 @@
-//! The turn a verb runs in, as the process's environment says it (docs/agent-roles.md, 「Who a send goes out as」):
+//! The turn a verb runs in, as the process's environment says it (the agency's `docs/agent-roles.md`, 「Who a send goes out as」):
 //! a process a resident program started takes the run's own variables from the run its place says is going — none
 //! for a person's turn — and every other process has them in its own environment.
 

@@ -1,4 +1,4 @@
-//! A companion's turn as the receiver runs it (docs/companions.md, 「What a turn is given」): the round's words
+//! A companion's turn as the receiver runs it (the agency's `docs/companions.md`, 「What a turn is given」): the round's words
 //! composed into the turn — the room's lines under each speaker's name, the quiet instructions after them, the
 //! reference the gates attached ahead — handed to the same session routes every agent's turns go through, and the
 //! answer sent on the road the room answers on. The engine, its guard and its sessions are the agency's.

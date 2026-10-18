@@ -1,5 +1,5 @@
 //! What one line of a run's log says: a Claude Code record's line, or a Codex thread's rollout line, read into
-//! the pieces a turn's picture is built from (docs/run-records.md, 「Agent log」). The agency writes these lines
+//! the pieces a turn's picture is built from (the agency's `docs/run-records.md`, 「Agent log」). The agency writes these lines
 //! and masks what stood where a credential did; this only reads them.
 
 use std::sync::LazyLock;

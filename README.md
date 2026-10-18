@@ -21,8 +21,10 @@ library `bmo-chat-client`; every other unit over HTTP, as `docs/boundary-api.md`
 
 At the root stand the Cargo workspace manifest, which is also the service's package, the version in
 `VERSION`, `testbed.toml` (the testbed's declaration of how this repository is tested, checked, built and
-deployed), `rustfmt.toml`, `CLAUDE.md` and `settings.example.toml` (the checked-in example of the
-configuration, which the deployment's own file stands under the data root).
+deployed), `rustfmt.toml`, `CLAUDE.md`, `settings.example.toml` (the checked-in example of the
+configuration, which the deployment's own file stands under the data root) and `korean-ledger.json` (the Korean
+left in a code file, which the testbed's Korean sweep holds every file to; no code file of this repository
+holds any).
 
 ## Documents
 
@@ -47,6 +49,8 @@ configuration, which the deployment's own file stands under the data root).
 | `docs/codes.md` | Every refusal, fact, fixed line and kind the receiver gives, with its fields and status |
 | `docs/policy.md` | The policy files and the keys the receiver reads |
 | `docs/checks.md` | The repository checks: dependencies, manifests, layout, the version, the testbed's declaration, Hangul, home paths, private addresses and names |
+| `docs/wording.md` | The terms this repository's English text bans, held to by the testbed's wording check |
+| `docs/inventory.md` | Every member of the single repository this one was separated from: where it stands here, the task that carried it, and the unit that owns the ones that did not come |
 
 ## Version
 
@@ -60,11 +64,17 @@ configuration, which the deployment's own file stands under the data root).
 Cargo runs through the testbed's Cargo verb, which builds in the one shared build directory:
 
 ```sh
+bmo-testbed check quick
 bmo-testbed cargo check --workspace --all-targets
 bmo-testbed cargo test --workspace
 bmo-testbed cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 ```
+
+`bmo-testbed check quick` runs the four sweeps that read the tree before anything runs: the glossary's terms,
+Korean in the code, the README's folder table and the dependencies the manifests name. The names a person, an
+agent or a machine goes by are checked by the repository's own test, which reads the list from outside the
+checkout.
 
 The tests that use a database make their own on the PostgreSQL server `BMO_TEST_POSTGRES` names, which the
 testbed's suite sets; with nothing named, the machine's own socket.
