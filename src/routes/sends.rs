@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use room_calls::sends::{Act, Asked, Asker, RemindInput};
-use room_calls::turn::NO_ROOM;
+use room_calls::turn::{NO_AGENT, NO_ROOM};
 
 use receiver_ports::brain::Reminder;
 use receiver_ports::http::PortFailure;
@@ -21,10 +21,6 @@ use super::{Answered, Served, answered, read, refused};
 use crate::receiver::Receiver;
 use crate::verbs::sends::Sends;
 use crate::verbs::{VerbError, draws, messages};
-
-// A reminder is one agent's, and a send made outside any agent's turn names none to file it under.
-const NO_AGENT: &str =
-  "this call was made outside any agent's turn, so there is no agent whose memory it would be";
 
 // One send carried as its asker, answering the lines it said, or those lines with the refusal it ended in.
 async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, VerbError> {

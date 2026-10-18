@@ -39,7 +39,9 @@ needs its road to perform, so the room's block names the sending entries a room'
 - **Where each unit is found:** the receiver's address and token from the call's environment
   (`RECEIVER_ADDRESS`, `RECEIVER_TOKEN`), else from `env/receiver.env` under the data root, which the receiver's
   `tool-env` verb writes as it is deployed; the brain's from `BRAIN_ADDRESS` and `BRAIN_TOKEN`, else from
-  `env/brain.env`, which the brain writes the same way.
+  `env/brain.env`, which the brain writes the same way; agency's server, which answers the reset point a turn is
+  refused on, from `AGENCY_CONTROL_PORT` and `AGENCY_CONTROL_TOKEN`, else from `env/agency.env`, the file agency's
+  server takes its own environment from, at the port it answers on where none is named.
 - **A send's room is the one the call names or the turn's own,** its road the turn's own for the turn's own room
   alone (a call addressed to another room goes out on that room's own road), and its sender the turn's agent, who
   sends only where it answers the room and its role gives sending.

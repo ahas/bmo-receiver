@@ -1,0 +1,108 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "chat": {
+      "description": "The room, by chat id, where it is not this turn's own.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "count": {
+      "description": "dice: how many dice; one where not given.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "items": {
+      "description": "pick, shuffle: the entries.",
+      "items": {
+        "type": "string"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "label": {
+      "description": "What the draw decides.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "max": {
+      "description": "range: the greatest value, included.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "min": {
+      "description": "range: the least value, included.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "mode": {
+      "description": "sync: the result comes back in this call. async: it wakes the next turn.",
+      "enum": [
+        "sync",
+        "async"
+      ],
+      "type": "string"
+    },
+    "modifier": {
+      "description": "dice: added to the total.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "shape": {
+      "description": "dice: count dice of sides faces plus modifier. range: one integer in min..max. pick: take of items. shuffle: items in a fair order.",
+      "enum": [
+        "dice",
+        "range",
+        "pick",
+        "shuffle"
+      ],
+      "type": "string"
+    },
+    "sides": {
+      "description": "dice: faces on each die.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "take": {
+      "description": "pick: how many items; one where not given.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "via": {
+      "description": "The road to send on, where the room block names the room's own road for this.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "mode",
+    "shape"
+  ],
+  "type": "object"
+}

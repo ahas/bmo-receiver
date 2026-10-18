@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "chat": {
+      "description": "The room, by chat id, where it is not this turn's own.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "emoji": {
+      "description": "The emoji, or empty to clear.",
+      "type": "string"
+    },
+    "message": {
+      "description": "The message.",
+      "format": "int64",
+      "type": "integer"
+    },
+    "via": {
+      "description": "The road to send on, where the room block names the room's own road for this.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "message",
+    "emoji"
+  ],
+  "type": "object"
+}

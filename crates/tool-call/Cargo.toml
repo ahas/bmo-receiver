@@ -1,0 +1,21 @@
+[package]
+name = "tool-call"
+description = "The receiver's side of the tool host's call protocol, which the tools bound to it share."
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+# Where the units a tool answers through are found: the data root's env files.
+dotenvy.workspace = true
+# The ports a tool answers through, at the peer each env file names.
+receiver-ports.workspace = true
+# Each entry's input schema, as the manifest's schema file must hold it.
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# The manifest a tool's tests hold to its executable.
+toml.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

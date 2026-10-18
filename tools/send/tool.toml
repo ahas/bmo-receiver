@@ -1,0 +1,116 @@
+# The sends the agents make into rooms, each asking the running receiver for the send through its routes, as the
+# `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): a line said in a room or in
+# the consult room, a picture or an album, a reminder, a reaction, a pin, a sticker and a fair draw. The reminder
+# is the brain's, so that entry asks the brain directly. The crate's own test holds every entry here to the Rust
+# tool answering it.
+
+[tool]
+name = "send"
+protocol = 1
+language = "rust"
+build = 'cargo build --release -p send-tool && cp "$BMO_CARGO_TARGET/release/send-tool" "$BMO_TOOL_OUT/"'
+check = 'cargo test -p send-tool'
+run = ["send-tool"]
+timeout = 180
+
+[[entry]]
+namespace = "bmo"
+name = "say"
+description = "Put a line in a room, through the output gates, without waiting for it."
+input = "say.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.facts]
+verb = "text"
+
+[[entry]]
+namespace = "bmo"
+name = "consult"
+description = "Say a line in the consult room under your own name, to settle work of yours that overlaps another agent's; answers with each agent's window there."
+input = "consult.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.chat"]
+shown = ["text", "reply"]
+
+[[entry]]
+namespace = "bmo"
+name = "photo"
+description = "Send a picture, or several as one album."
+input = "photo.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.send"]
+shown = ["pictures", "caption"]
+
+[entry.facts]
+verb = "album"
+
+[[entry]]
+namespace = "bmo"
+name = "remind"
+description = "Set a reminder that wakes you in the room at its moment, once or repeating, with its reason and memory; it keeps no words to say."
+input = "remind.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+grant = "reminders"
+
+[entry.bundle."room.chat"]
+shown = ["at", "every", "reason", "memory"]
+
+[[entry]]
+namespace = "bmo"
+name = "react"
+description = "Put an emoji reaction on a message, or clear the agent's own with an empty emoji."
+input = "react.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.send"]
+shown = ["message", "emoji"]
+
+[entry.facts]
+verb = "reaction"
+
+[[entry]]
+namespace = "bmo"
+name = "pin"
+description = "Pin a message quietly, or unpin it."
+input = "pin.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.send"]
+shown = ["message", "unpin"]
+
+[entry.facts]
+verb = "pin"
+
+[[entry]]
+namespace = "bmo"
+name = "sticker"
+description = "Send one of the deployment's stickers by its emoji."
+input = "sticker.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.send"]
+shown = ["emoji"]
+
+[entry.facts]
+verb = "sticker"
+
+[[entry]]
+namespace = "bmo"
+name = "random_draw"
+description = "Draw fairly for anything decided by chance — dice, a number, winners, an order, a tie-break — and post the result with its seed in the room. sync hands the result back to state in this reply; async hands it to the next turn, for a turn that announces the draw and ends."
+input = "random_draw.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.facts]
+verb = "text"
+icon = "material-symbols:casino-outline-sharp"

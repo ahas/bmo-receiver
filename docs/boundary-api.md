@@ -321,6 +321,13 @@ host answered as the loopback one, and `RECEIVER_TOKEN` the configured token. It
 data root, readable by the user alone, and only where it would change; a value an env file cannot hold bare
 (empty, or carrying whitespace, a quote, `#`, `$` or `\`) refuses it with exit code 1 and nothing written.
 
+The tool answers the brain directly for a reminder, so it reads the brain's address and token the same way, from
+`BRAIN_ADDRESS` and `BRAIN_TOKEN` or from `env/brain.env` under the record's data root; it asks agency's server for
+the reset point a turn is refused on, from `AGENCY_CONTROL_PORT` and `AGENCY_CONTROL_TOKEN` or from `env/agency.env`
+there, at the port agency's server answers on by default where none is named. The call protocol, the answer shape,
+the session record and the manifest held to the executable are this repository's `crates/tool-call`; the sends and
+the turn a call reads are shared with the `bmo` commands in `crates/room-calls`.
+
 #### Removing a room
 
 | Route | Body | Answer |

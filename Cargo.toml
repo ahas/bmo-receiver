@@ -2,7 +2,7 @@
 # and the tools bound to it under `tools/`. The root package also holds the checks that span the repository and
 # the service's integration tests in `tests/`. Each crate and tool is named as a member as it stands.
 [workspace]
-members = ["crates/receiver-codes", "crates/receiver-policy", "crates/receiver-ports", "crates/room-calls"]
+members = ["crates/receiver-codes", "crates/receiver-policy", "crates/receiver-ports", "crates/room-calls", "crates/tool-call", "tools/send"]
 resolver = "3"
 
 [workspace.package]
@@ -36,6 +36,8 @@ receiver-ports = { path = "crates/receiver-ports" }
 # The env file a placed tool reads the receiver's address and token from.
 dotenvy = "0.15.7"
 room-calls = { path = "crates/room-calls" }
+# The call protocol every tool bound to the receiver speaks.
+tool-call = { path = "crates/tool-call" }
 # The shape a tool's entry declares its arguments by.
 schemars = "1.0.4"
 reqwest = { version = "0.13.5", default-features = false }
