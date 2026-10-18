@@ -7,7 +7,7 @@
 //! the turn as it goes.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::Duration;
 
 use futures_util::StreamExt;
@@ -23,7 +23,9 @@ use super::cache::{
   Leaving, Route, carried_note, pending_note, remember, reset_reason, without_archive_replay,
 };
 use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
-use super::conversation::{Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session};
+use super::conversation::{
+  Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
+};
 use super::progress::{RunProgress, picture_of};
 use super::room::{RoomContext, room_context};
 use crate::now_ms;
@@ -223,7 +225,7 @@ impl Carry {
         read = stream.next() => read,
         _ = look.tick() => {
           if run.is_some() && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until) {
-            quiet_until = pushed(&agency, &session.id, follower).await;
+            quiet_until = pushed(agency.as_ref(), &session.id, follower).await;
           }
 
           continue;
@@ -316,15 +318,11 @@ impl Carry {
   }
 }
 
-// The words that came for the round's room while its turn works, offered to the turn and settled on what the
-// agency said became of them; answered with the moment before which nothing more is offered, where a refusal
-// asks for that gap.
-async fn pushed(
-  agency: &Arc<dyn Agency>,
-  session: &str,
-  follower: &Follower,
-) -> Option<tokio::time::Instant> {
-  let words = follower.offer().await?;
+/// The words that came for the round's room while its turn works, offered to the turn and settled on what the
+/// agency said became of them; answered with the moment before which nothing more is offered, where a refusal
+/// or a push that failed asks for that gap.
+pub async fn pushed(agency: &dyn Agency, session: &str, aside: &dyn Aside) -> Option<tokio::time::Instant> {
+  let words = aside.offer().await?;
   let said = match agency.push(session, &words).await {
     Ok(said) => said,
     Err(why) => {
@@ -333,7 +331,7 @@ async fn pushed(
     }
   };
 
-  follower.settle(said.into()).await;
+  aside.settle(said.into()).await;
 
   (said == Said::Refused)
     .then(|| tokio::time::Instant::now() + Duration::from_millis(CHAT_ROUND.pushing.refused_gap_ms))

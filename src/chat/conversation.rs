@@ -522,6 +522,24 @@ pub enum AsideOutcome {
   Refused,
 }
 
+/// What a working turn is offered words through: the words that came for its room, composed, where it still
+/// takes some, and what became of them once the agency answered.
+pub trait Aside: Send + Sync {
+  fn offer(&self) -> BoxFuture<'_, Option<String>>;
+
+  fn settle(&self, outcome: AsideOutcome) -> BoxFuture<'_, ()>;
+}
+
+impl Aside for Follower {
+  fn offer(&self) -> BoxFuture<'_, Option<String>> {
+    Box::pin(Follower::offer(self))
+  }
+
+  fn settle(&self, outcome: AsideOutcome) -> BoxFuture<'_, ()> {
+    Box::pin(Follower::settle(self, outcome))
+  }
+}
+
 impl From<Said> for AsideOutcome {
   fn from(said: Said) -> Self {
     match said {

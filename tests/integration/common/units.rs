@@ -24,7 +24,7 @@ use receiver_ports::brain::{
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
-use receiver_ports::http::Answer;
+use receiver_ports::http::{Answer, PortFailure};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefed, Briefing, Voice};
 use receiver_ports::warmer::{Target, Used, Warmer};
@@ -655,11 +655,14 @@ pub fn registration(
 }
 
 /// The agency: the agents it registers, whether a stand-in answers an agent while the rest closes its road,
-/// the deployment's rest, every companion removal it was asked, and the field it refuses a companion's call on
-/// where a test sets one.
+/// the deployment's rest, every companion removal it was asked, the field it refuses a companion's call on
+/// where a test sets one, and every push it was asked with what it says of it (a push failing where it says
+/// nothing).
 pub struct StandInAgency {
   pub removals: Mutex<Vec<CompanionRemoval>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
+  pub pushes: Mutex<Vec<(String, String)>>,
+  pub saying: Mutex<Option<Said>>,
   pub agents: Mutex<Vec<Agent>>,
   pub stand_ins: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
@@ -674,6 +677,8 @@ impl StandInAgency {
     StandInAgency {
       removals: Mutex::default(),
       refusing: Mutex::default(),
+      pushes: Mutex::default(),
+      saying: Mutex::default(),
       agents: Mutex::default(),
       stand_ins: Mutex::default(),
       rest: Mutex::new(Rest {
@@ -803,8 +808,17 @@ impl Agency for StandInAgency {
     not_asked_agency("the events")
   }
 
-  fn push<'a>(&'a self, _session: &'a str, _words: &'a str) -> BoxFuture<'a, Answer<Said>> {
-    not_asked_agency("a push")
+  fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>> {
+    self.pushes.lock().unwrap().push((session.to_owned(), words.to_owned()));
+
+    let said = *self.saying.lock().unwrap();
+
+    Box::pin(async move {
+      said.ok_or(PortFailure::Transport {
+        url: "agency/session/push".to_owned(),
+        why: "the stand-in says nothing".to_owned(),
+      })
+    })
   }
 
   fn add_companion<'a>(
