@@ -11,7 +11,7 @@ fn env(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
 
 #[test]
 fn a_process_outside_a_place_reads_its_own_environment() {
-  let own = env(&[("BMO_TURN_AGENT", "agent-a"), ("HOME", "/home/tester")]);
+  let own = env(&[("BMO_TURN_AGENT", "agent-a"), ("HOME", "the-home")]);
 
   assert_eq!(environment(&own), own);
 }
@@ -20,7 +20,7 @@ fn a_process_outside_a_place_reads_its_own_environment() {
 fn a_process_in_a_place_takes_the_runs_variables_and_none_for_a_persons_turn() {
   let place = tempdir().unwrap();
   let path = place.path().to_string_lossy().into_owned();
-  let started = env(&[("BMO_AGENT_PLACE", &path), ("BMO_TURN_AGENT", "stale"), ("HOME", "/home/tester")]);
+  let started = env(&[("BMO_AGENT_PLACE", &path), ("BMO_TURN_AGENT", "stale"), ("HOME", "the-home")]);
 
   std::fs::write(place.path().join("run.json"), r#"{"person":false,"env":{"BMO_TURN_AGENT":"agent-a"}}"#)
     .unwrap();
@@ -29,5 +29,5 @@ fn a_process_in_a_place_takes_the_runs_variables_and_none_for_a_persons_turn() {
   std::fs::write(place.path().join("run.json"), r#"{"person":true,"env":{"BMO_TURN_AGENT":"agent-a"}}"#)
     .unwrap();
   assert_eq!(environment(&started).get("BMO_TURN_AGENT"), None);
-  assert_eq!(environment(&started).get("HOME").map(String::as_str), Some("/home/tester"));
+  assert_eq!(environment(&started).get("HOME").map(String::as_str), Some("the-home"));
 }

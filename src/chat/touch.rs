@@ -26,9 +26,9 @@ use crate::receiver::{Inbound, Receiver, Room};
 use crate::store::{Fault, settings};
 
 /// What the warmer's ping names the touch of: the consumer, the target, its kind and subject, and the stretch it
-/// is bound to.
+/// is bound to, in the names the warmer's own document gives them.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct Ping {
   pub consumer: String,
   pub target: String,

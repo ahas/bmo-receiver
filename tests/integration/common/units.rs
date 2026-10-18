@@ -27,6 +27,7 @@ use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised
 use receiver_ports::http::Answer;
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefed, Briefing, Voice};
+use receiver_ports::warmer::{Target, Used, Warmer};
 use receiver_ports::web::{
   Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web,
 };
@@ -902,6 +903,69 @@ impl Runner for Taken {
   }
 }
 
+/// The cache warmer, keeping what the receiver registered and reported.
+pub struct StandInWarmer {
+  pub registered: Mutex<Vec<(String, String)>>,
+  pub targets: Mutex<Vec<(String, Target)>>,
+  pub uses: Mutex<Vec<(String, String, Used)>>,
+}
+
+impl StandInWarmer {
+  pub fn new() -> Self {
+    Self {
+      registered: Mutex::default(),
+      targets: Mutex::default(),
+      uses: Mutex::default(),
+    }
+  }
+
+  /// The consumer registrations, each by its name and hook URL.
+  pub fn hooks(&self) -> Vec<(String, String)> {
+    self.registered.lock().unwrap().clone()
+  }
+
+  /// The targets registered, each by its name and declaration.
+  pub fn targets(&self) -> Vec<(String, Target)> {
+    self.targets.lock().unwrap().clone()
+  }
+
+  /// Each use reported, in order.
+  pub fn used(&self) -> Vec<(String, String, Used)> {
+    self.uses.lock().unwrap().clone()
+  }
+}
+
+impl Warmer for StandInWarmer {
+  fn register<'a>(&'a self, consumer: &'a str, hook_url: &'a str) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async {
+      self.registered.lock().unwrap().push((consumer.to_owned(), hook_url.to_owned()));
+
+      Ok(())
+    })
+  }
+
+  fn target<'a>(
+    &'a self,
+    _consumer: &'a str,
+    target: &'a str,
+    declared: &'a Target,
+  ) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async {
+      self.targets.lock().unwrap().push((target.to_owned(), declared.clone()));
+
+      Ok(())
+    })
+  }
+
+  fn used<'a>(&'a self, consumer: &'a str, target: &'a str, used: Used) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      self.uses.lock().unwrap().push((consumer.to_owned(), target.to_owned(), used));
+
+      Ok(())
+    })
+  }
+}
+
 /// A receiver over a database and a data root, reaching the chat services given and the stand-in agency, gate,
 /// web unit and bmo-job, its news, its wake and the conversations it hands kept for the test to read.
 pub struct Standing {
@@ -915,6 +979,7 @@ pub struct Standing {
   pub taken: Arc<Taken>,
   pub voice: Arc<StandInVoice>,
   pub web: Arc<StandInWeb>,
+  pub warmer: Arc<StandInWarmer>,
 }
 
 /// The same standing, with the receiver's own wake in place of the recording one: the rule every message is
@@ -935,6 +1000,7 @@ pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<Sta
   let taken = Arc::new(Taken::new(db.clone()));
   let brain = Arc::new(StandInBrain::new());
   let voice = Arc::new(StandInVoice::new());
+  let warmer = Arc::new(StandInWarmer::new());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
@@ -944,6 +1010,7 @@ pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<Sta
     job: job.clone(),
     voice: voice.clone(),
     web: web.clone(),
+    warmer: warmer.clone(),
   };
   let receiver = Receiver::new(db.clone(), data_root, deployment(), units)
     .with_news(heard.clone())
@@ -962,5 +1029,6 @@ pub fn standing(db: &DatabaseConnection, data_root: DataRoot, chats: Vec<Arc<Sta
     taken,
     voice,
     web,
+    warmer,
   }
 }

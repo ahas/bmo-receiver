@@ -5,10 +5,12 @@
 
 mod commands;
 mod files;
+mod job_queue;
 mod notices;
 mod owner_road;
 mod owner_sends;
 mod owner_words;
+mod worker_settings;
 
 use std::sync::Arc;
 

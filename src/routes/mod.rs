@@ -3,8 +3,13 @@
 //! receiver's token, and a refusal with its code and the English sentence naming it.
 
 mod as_owner;
+mod brain;
+mod console;
 mod consult;
+mod hooks;
+mod instructions;
 mod owner_words;
+mod rooms;
 mod say;
 mod sends;
 mod talks;
@@ -18,7 +23,7 @@ use axum::{
   http::StatusCode,
   middleware::{Next, from_fn_with_state},
   response::{IntoResponse, Json, Response},
-  routing::post,
+  routing::{delete, get, post, put},
 };
 use headers::authorization::Bearer;
 use headers::{Authorization, HeaderMapExt};
@@ -74,12 +79,13 @@ fn answered(body: serde_json::Value) -> Answered {
 
 /// The receiver's routes, merged.
 pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
+  let bearer: String = token.into();
   let served = Served {
-    receiver: Arc::new(receiver),
-    token: token.into().into(),
+    receiver: Arc::new(receiver.clone()),
+    token: bearer.clone().into(),
   };
 
-  Router::new()
+  let served_routes = Router::new()
     .route("/consult/say", post(consult_say))
     .route("/consult/block", post(block))
     .route("/instruct", post(instruct))
@@ -88,10 +94,51 @@ pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
     .route("/sends", post(sends))
     .route("/sends/can", post(can))
     .route("/talks", post(talk))
+    .route("/instructions", post(instructions::queue_instruction))
+    .route("/instructions/{id}", get(instructions::instruction_state))
+    .route("/instructions/{id}", delete(instructions::withdraw))
+    .route("/rooms/{chat}/notices", post(instructions::notice))
+    .route("/room-holders/{unit}", put(instructions::declare))
+    .route("/owner", get(rooms::owner))
+    .route("/rooms/{chat}", get(rooms::room))
+    .route("/rooms/{chat}/answerers", get(rooms::answerers))
+    .route("/rooms/{chat}/messages/{message}", get(rooms::message))
+    .route("/messages/unread", post(brain::unread))
+    .route("/messages/unread-counts", post(brain::unread_counts))
+    .route("/messages/read", post(brain::read_messages))
+    .route("/read-marks/count", post(brain::read_count))
+    .route("/read-marks/keep", post(brain::keep))
+    .route("/read-marks/forget", post(brain::forget))
+    .route("/rooms/titles", post(brain::titles))
+    .route("/rooms/answerers", post(brain::answerers))
+    .route("/rooms/spoke-between", post(brain::spoke_between))
+    .route("/rooms/own-number", post(brain::own_number))
+    .route("/rooms/spoken-in", post(brain::spoken_in))
+    .route("/people/names", post(brain::names))
+    .route("/promises/waits", post(brain::waits))
+    .route("/rooms/roads", post(brain::roads))
+    .route("/messages/sender-is-owner", post(brain::sender_is_owner))
+    .route("/rooms/owner-spoke", post(brain::owner_spoke))
+    .route("/owner/notice", post(brain::notice))
+    .route("/instructions/quiet", post(brain::quiet))
+    .route("/agency/hooks/{point}", post(hooks::hook))
+    .route("/console/rooms", get(console::rooms))
+    .route("/console/rooms/{chat}/title", get(console::title))
+    .route("/console/rooms/{chat}/agent-message/{message}", get(console::agent_message))
+    .route("/console/rooms/{chat}/messages", get(console::page))
+    .route("/console/rooms/{chat}/day-start", get(console::day_start))
+    .route("/console/rooms/{chat}/messages/after", get(console::after))
+    .route("/console/rooms/{chat}/messages/{message}", get(console::one))
     .fallback(no_route)
     .method_not_allowed_fallback(no_route)
     .layer(from_fn_with_state(served.clone(), authorized))
-    .with_state(served)
+    .with_state(served.clone());
+
+  // The warmer's hook: it sends no header at all, so the token stands in the URL the receiver registered and
+  // this route alone reads it, outside the bearer check every other route answers behind.
+  let hook = Router::new().route("/warmer/ping", post(hooks::ping)).with_state(served);
+
+  served_routes.merge(hook)
 }
 
 /// A request that does not carry the receiver's token is answered with `unauthorized`.

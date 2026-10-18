@@ -59,3 +59,27 @@ pub async fn numbered(db: &impl ConnectionTrait, prefix: &str) -> Result<Vec<i64
 
   Ok(numbers)
 }
+
+/// Every key carrying a prefix, each with its value and with what follows the prefix: the members a family of
+/// keys is kept for, named by what they carry beside the prefix.
+pub async fn named(db: &impl ConnectionTrait, prefix: &str) -> Result<Vec<(String, String)>, Fault> {
+  let rows = all(
+    db,
+    r#"SELECT "key", "value" FROM "settings" WHERE "key" LIKE $1 ESCAPE '\'"#,
+    vec![format!("{}%", prefix.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")).into()],
+  )
+  .await?;
+  let mut held: Vec<(String, String)> = vec![];
+
+  for row in rows {
+    let key: String = row.try_get("", "key")?;
+    let value: String = row.try_get("", "value")?;
+    let named = key.strip_prefix(prefix).unwrap_or_default().to_owned();
+
+    held.push((named, value));
+  }
+
+  held.sort_unstable();
+
+  Ok(held)
+}

@@ -520,3 +520,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
   keeps what was recorded as its `restart_reason` setting (`docs/store.md`) and needs a route for it.
 - **The brain's** 「The receiver」 names the operations by path alone; every one is a `POST`, as its port calls
   them.
+- **The console's pinned-room order** is the receiver's `console_pinned_rooms` setting, which its room list reads
+  to stand the pinned rooms first; no route lets the web unit write it, so until one does the order stands only
+  where it was written into the receiver's database.

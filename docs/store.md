@@ -40,6 +40,7 @@ An instruction names the agent whose session takes it outright: the table holds 
 | `chat_reads` | the last message of a room the receiver has read | room |
 | `chat_titles` | a room's title | room |
 | `room_answerers` | an agent answering in a room | room and agent |
+| `people_reads` | a message an agent's book of a room has read, and when the mark was made | agent, room and message |
 | `room_windows` | when a room's window for an agent closes, in Unix seconds (`docs/wake.md`, 「The names and the window」) | room and agent |
 | `run_records` | what one of a room's runs wrote down beside it: the run it was written under, the kind of record, its words, the number of the row it wrote, whether it woke the agent and when (`docs/answer-checks.md`) | its number |
 | `bmo_rooms` | a room the chat agent's one shared session has answered in (`docs/unified-bmo.md`) | room |
@@ -61,8 +62,8 @@ An instruction names the agent whose session takes it outright: the table holds 
 ## The settings
 
 A setting is one row of `settings`, its value text. The store supplies reading, writing, forgetting and taking a
-key, and the keys carrying a family's numbers after a prefix; each key is named by the code that writes it, and
-the table below is the whole list. A key that names a room is built only through a room setting's declaration
+key, the numbers of a family of keys, and every key carrying a name after a prefix with its value, for the members
+such a family is kept for; each key is named by the code that writes it, and the table below is the whole list. A key that names a room is built only through a room setting's declaration
 (`docs/receiver.md`, 「Removing a room's registration」).
 
 | Key | Value | Kept by |
@@ -77,6 +78,8 @@ the table below is the whole list. A key that names a room is built only through
 | `fallback_since`, `fallback_provider` | since when, in Unix seconds, a stand-in has answered for the chat agent, and which one | the agency's `fallback-answering` and `fallback-ended` |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |
+| `console_pinned_rooms` | the rooms the console stands over the rest, as a JSON list of room numbers in the owner's order; a number the record no longer has stands for nothing | the console's pinning, read by the console's room list |
+| `room_holder:<unit>` | a unit declared a holder of rows naming a room: its API base and its holdings, as JSON | the holder's declaration (`PUT /room-holders/{unit}`) |
 | `<agent>_active_route` | the road an agent's one chat session stands on, as JSON | the chat session |
 | `<agent>_pending_summary` | the note a replaced session left for the next fresh one | the chat session |
 | `<agent>_force_reset` | the owner's word to start an agent's session afresh, with its reason | the chat session |

@@ -6,8 +6,10 @@
 mod common;
 
 mod alone_runs;
+mod brain_contract;
 mod consult_block;
 mod consult_verbs;
+mod contracts;
 mod data_root;
 mod private_thread;
 mod receiver;

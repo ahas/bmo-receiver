@@ -1,0 +1,596 @@
+//! What the receiver answers of a room: its messages, its title, the people that stood as a sender in it, and an
+//! agent's read marks over it — read as another unit asks (`docs/boundary-api.md`, 「For the brain」 and 「For the
+//! web unit's console」). Nothing here decides what becomes of a message; that is the receiver's own judgement
+//! (`rows.rs`). A room's line is walked by when each message was sent and the order the record took it in, never
+//! by its number, since a room carries two numberings and a number of one says nothing about where it stands
+//! among the other's.
+
+use sea_orm::{DatabaseConnection, DbErr, QueryResult};
+
+use serde::Serialize;
+
+use crate::Fault;
+use crate::now_ms;
+use crate::store::settings;
+use crate::{all, one, run};
+
+// The setting the console's pinned rooms stand in: a list of room numbers, a number that keeps its room
+// through a rename (`docs/store.md`, 「The settings」).
+pub const PINNED_ROOMS: &str = "console_pinned_rooms";
+
+// A message of the room not in an agent's book yet, read over the room's rows as `m`.
+const UNREAD: &str = r#"NOT EXISTS (SELECT 1 FROM "people_reads" "r" WHERE "r"."agent" = $1
+     AND "r"."chat_id" = "m"."chat_id" AND "r"."message_id" = "m"."message_id")"#;
+
+// Where a message stands after the cursor message the reader holds, or after its number where the room no
+// longer holds that row.
+const AFTER_CURSOR: &str = r#"(("m"."sent_at", "m"."rowid") > (SELECT "c"."sent_at", "c"."rowid" FROM "messages" "c"
+     WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)
+   OR (NOT EXISTS (SELECT 1 FROM "messages" "c" WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)
+     AND "m"."message_id" > $2))"#;
+
+// Where a message stands before the cursor message the reader holds.
+const BEFORE_CURSOR: &str = r#"("m"."sent_at", "m"."rowid") < (SELECT "c"."sent_at", "c"."rowid" FROM "messages" "c"
+     WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)"#;
+
+/// A message as every reader of a room is handed it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Message {
+  pub chat_id: i64,
+  pub message_id: i64,
+  pub sender_id: Option<i64>,
+  pub sender_name: String,
+  pub sent_at: i64,
+  pub text: String,
+  pub reply_to_message_id: Option<i64>,
+}
+
+impl Message {
+  fn of(row: &QueryResult) -> Result<Self, DbErr> {
+    Ok(Message {
+      chat_id: row.try_get("", "chat_id")?,
+      message_id: row.try_get("", "message_id")?,
+      sender_id: row.try_get("", "sender_id")?,
+      sender_name: row.try_get("", "sender_name")?,
+      sent_at: row.try_get("", "sent_at")?,
+      text: row.try_get("", "text")?,
+      reply_to_message_id: row.try_get("", "reply_to_message_id")?,
+    })
+  }
+}
+
+/// A message as the console's screen stands it: the whole row the record keeps, with the files it carried.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Page {
+  pub chat_id: i64,
+  pub message_id: i64,
+  pub sender_id: Option<i64>,
+  pub sender_name: String,
+  pub sent_at: i64,
+  pub text: String,
+  pub image_path: Option<String>,
+  pub reply_to_message_id: Option<i64>,
+  pub answer_seconds: Option<i64>,
+  pub round: Option<String>,
+  pub album: Option<i64>,
+  pub via: Option<String>,
+  pub files: Vec<KeptFile>,
+}
+
+/// A file a message carried, as the room's store kept it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeptFile {
+  pub kind: String,
+  pub source: String,
+  pub stored_path: Option<String>,
+  pub summary: Option<String>,
+  pub collected_at: i64,
+}
+
+impl Page {
+  fn of(row: &QueryResult) -> Result<Self, DbErr> {
+    Ok(Page {
+      chat_id: row.try_get("", "chat_id")?,
+      message_id: row.try_get("", "message_id")?,
+      sender_id: row.try_get("", "sender_id")?,
+      sender_name: row.try_get("", "sender_name")?,
+      sent_at: row.try_get("", "sent_at")?,
+      text: row.try_get("", "text")?,
+      image_path: row.try_get("", "image_path")?,
+      reply_to_message_id: row.try_get("", "reply_to_message_id")?,
+      answer_seconds: row.try_get("", "answer_seconds")?,
+      round: row.try_get("", "round")?,
+      album: row.try_get("", "album")?,
+      via: row.try_get::<Option<String>>("", "via")?,
+      files: vec![],
+    })
+  }
+
+  /// The message as every reader of a room is handed it, without the files the screen carries beside it.
+  pub fn message(&self) -> Message {
+    Message {
+      chat_id: self.chat_id,
+      message_id: self.message_id,
+      sender_id: self.sender_id,
+      sender_name: self.sender_name.clone(),
+      sent_at: self.sent_at,
+      text: self.text.clone(),
+      reply_to_message_id: self.reply_to_message_id,
+    }
+  }
+}
+
+/// The room's messages not in an agent's book yet, oldest first, sent at or after `since` where it is given.
+pub async fn unread(
+  db: &DatabaseConnection,
+  agent: &str,
+  chat_id: i64,
+  since: Option<i64>,
+  limit: i64,
+) -> Result<Vec<Message>, Fault> {
+  let (sql, values) = match since {
+    Some(since) => (
+      format!(
+        r#"SELECT "m".* FROM "messages" "m" WHERE "m"."chat_id" = $2 AND {UNREAD} AND "m"."sent_at" >= $3
+           ORDER BY "m"."sent_at" ASC, "m"."rowid" ASC LIMIT $4"#,
+      ),
+      vec![agent.into(), chat_id.into(), since.into(), limit.into()],
+    ),
+    None => (
+      format!(
+        r#"SELECT "m".* FROM "messages" "m" WHERE "m"."chat_id" = $2 AND {UNREAD}
+           ORDER BY "m"."sent_at" ASC, "m"."rowid" ASC LIMIT $3"#,
+      ),
+      vec![agent.into(), chat_id.into(), limit.into()],
+    ),
+  };
+
+  Ok(all(db, &sql, values).await?.iter().map(Message::of).collect::<Result<_, _>>()?)
+}
+
+/// Every room holding messages past an agent's marks, each with how many it holds; a room named in `since`
+/// counts only the messages sent at or after its moment.
+pub async fn unread_counts(
+  db: &DatabaseConnection,
+  agent: &str,
+  since: Vec<(i64, i64)>,
+) -> Result<Vec<(i64, i64)>, Fault> {
+  let rows = all(
+    db,
+    &format!(
+      r#"SELECT "chat_id", COUNT(*) AS "count" FROM "messages" "m" WHERE {UNREAD} GROUP BY "chat_id""#
+    ),
+    vec![agent.into()],
+  )
+  .await?;
+  let mut held: Vec<(i64, i64)> = rows
+    .iter()
+    .map(|row| Ok((row.try_get::<i64>("", "chat_id")?, row.try_get::<i64>("", "count")?)))
+    .collect::<Result<Vec<(i64, i64)>, Fault>>()?;
+
+  for (chat_id, moment) in since {
+    let counted = one(
+      db,
+      &format!(
+        r#"SELECT COUNT(*) AS "count" FROM "messages" "m" WHERE "m"."chat_id" = $2 AND {UNREAD}
+             AND "m"."sent_at" >= $3"#,
+      ),
+      vec![agent.into(), chat_id.into(), moment.into()],
+    )
+    .await?;
+    let count = counted.map(|row| row.try_get::<i64>("", "count")).transpose()?;
+
+    held.retain(|(room, _)| *room != chat_id);
+
+    if count.is_some_and(|count| count > 0) {
+      held.push((chat_id, count.unwrap()));
+    }
+  }
+
+  held.sort_unstable();
+
+  Ok(held)
+}
+
+/// The room's messages already folded into an agent's book, oldest first, after the message `from` in the room's
+/// line; where that message is gone, with a number above it.
+pub async fn read_messages(
+  db: &DatabaseConnection,
+  agent: &str,
+  chat_id: i64,
+  from: i64,
+  limit: i64,
+) -> Result<Vec<Message>, Fault> {
+  Ok(
+    all(
+      db,
+      &format!(
+        r#"SELECT "m".* FROM "messages" "m" WHERE "m"."chat_id" = $1 AND EXISTS (SELECT 1 FROM "people_reads" "r"
+             WHERE "r"."agent" = $3 AND "r"."chat_id" = "m"."chat_id" AND "r"."message_id" = "m"."message_id")
+           AND {AFTER_CURSOR}
+           ORDER BY "m"."sent_at" ASC, "m"."rowid" ASC LIMIT $4"#,
+      ),
+      vec![chat_id.into(), from.into(), agent.into(), limit.into()],
+    )
+    .await?
+    .iter()
+    .map(Message::of)
+    .collect::<Result<_, _>>()?,
+  )
+}
+
+/// How many of a room's messages an agent has marked, of the ones that still stand.
+pub async fn read_count(db: &DatabaseConnection, agent: &str, chat_id: i64) -> Result<i64, Fault> {
+  Ok(
+    one(
+      db,
+      r#"SELECT COUNT(*) AS "count" FROM "people_reads" "r" JOIN "messages" "m"
+         ON "m"."chat_id" = "r"."chat_id" AND "m"."message_id" = "r"."message_id"
+         WHERE "r"."agent" = $1 AND "r"."chat_id" = $2"#,
+      vec![agent.into(), chat_id.into()],
+    )
+    .await?
+    .map(|row| row.try_get::<i64>("", "count"))
+    .transpose()?
+    .unwrap_or(0),
+  )
+}
+
+/// The room's messages marked as read into an agent's book.
+pub async fn keep_marks(
+  db: &DatabaseConnection,
+  agent: &str,
+  chat_id: i64,
+  message_ids: &[i64],
+) -> Result<(), Fault> {
+  let now = now_ms() / 1000;
+
+  for message_id in message_ids {
+    run(
+      db,
+      r#"INSERT INTO "people_reads" ("agent", "chat_id", "message_id", "read_at") VALUES ($1, $2, $3, $4)
+         ON CONFLICT ("agent", "chat_id", "message_id") DO UPDATE SET "read_at" = excluded."read_at""#,
+      vec![agent.into(), chat_id.into(), (*message_id).into(), now.into()],
+    )
+    .await?;
+  }
+
+  Ok(())
+}
+
+/// Every mark of an agent's book taken off a room's messages, or off every room's; how many were let go.
+pub async fn forget_marks(
+  db: &DatabaseConnection,
+  agent: &str,
+  chat_id: Option<i64>,
+) -> Result<i64, Fault> {
+  let (sql, values) = match chat_id {
+    None => (r#"DELETE FROM "people_reads" WHERE "agent" = $1"#, vec![agent.into()]),
+    Some(chat_id) => (
+      r#"DELETE FROM "people_reads" WHERE "agent" = $1 AND "chat_id" = $2"#,
+      vec![agent.into(), chat_id.into()],
+    ),
+  };
+
+  Ok(i64::try_from(run(db, sql, values).await?).unwrap_or(0))
+}
+
+/// Every room the receiver has a record of: one it numbered, one it titled, or one a message was kept from.
+pub async fn rooms(db: &DatabaseConnection) -> Result<Vec<i64>, Fault> {
+  let rows = all(
+    db,
+    r#"SELECT "chat_id" FROM "chat_titles" "t" UNION SELECT "chat_id" FROM "messages" "m"
+         UNION SELECT "chat_id" FROM "provider_rooms" "p""#,
+    vec![],
+  )
+  .await?;
+
+  Ok(rows.iter().map(|row| row.try_get::<i64>("", "chat_id")).collect::<Result<_, _>>()?)
+}
+
+/// Every room the record shows, with its title, how many messages it holds and when the last was sent.
+pub async fn shown(db: &DatabaseConnection) -> Result<Vec<RoomLine>, Fault> {
+  let rows = all(
+    db,
+    r#"SELECT "chat_id", "title", "message_count", "last_message_at" FROM (
+           SELECT c."chat_id" AS "chat_id", t."title" AS "title",
+             COALESCE(s."message_count", 0) AS "message_count", s."last_message_at" AS "last_message_at"
+           FROM (SELECT "chat_id" FROM "chat_titles" "c" UNION SELECT "chat_id" FROM "messages" "m") "c"
+           LEFT JOIN "chat_titles" "t" ON "t"."chat_id" = "c"."chat_id"
+           LEFT JOIN (SELECT "chat_id", COUNT(*) AS "message_count", MAX("sent_at") AS "last_message_at"
+                      FROM "messages" GROUP BY "chat_id") "s" ON "s"."chat_id" = "c"."chat_id"
+         ) "l" ORDER BY "l"."last_message_at" IS NULL, "l"."last_message_at" DESC"#,
+    vec![],
+  )
+  .await?;
+
+  rows
+    .iter()
+    .map(|row| {
+      Ok(RoomLine {
+        chat_id: row.try_get("", "chat_id")?,
+        title: row.try_get::<Option<String>>("", "title")?,
+        message_count: row.try_get::<i64>("", "message_count")?,
+        last_message_at: row.try_get::<Option<i64>>("", "last_message_at")?,
+      })
+    })
+    .collect::<Result<Vec<RoomLine>, Fault>>()
+}
+
+/// One room as the record shows it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomLine {
+  pub chat_id: i64,
+  pub title: Option<String>,
+  pub message_count: i64,
+  pub last_message_at: Option<i64>,
+}
+
+/// A room's title, where it has one.
+pub async fn title(db: &DatabaseConnection, chat_id: i64) -> Result<Option<String>, Fault> {
+  Ok(
+    one(db, r#"SELECT "title" FROM "chat_titles" WHERE "chat_id" = $1"#, vec![chat_id.into()])
+      .await?
+      .map(|row| row.try_get::<String>("", "title"))
+      .transpose()?,
+  )
+}
+
+/// The room's latest messages, oldest first, at most `count` of them.
+pub async fn latest(db: &DatabaseConnection, chat_id: i64, count: i64) -> Result<Vec<Page>, Fault> {
+  Ok(
+    all(
+      db,
+      r#"SELECT * FROM (SELECT * FROM "messages" "m" WHERE "m"."chat_id" = $1
+         ORDER BY "m"."sent_at" DESC, "m"."rowid" DESC LIMIT $2) "l"
+         ORDER BY "l"."sent_at", "l"."rowid""#,
+      vec![chat_id.into(), count.into()],
+    )
+    .await?
+    .iter()
+    .map(Page::of)
+    .collect::<Result<_, _>>()?,
+  )
+}
+
+/// The messages of a room before the cursor message the reader holds, newest first, at most `count` of them.
+pub async fn before(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  cursor: i64,
+  count: i64,
+) -> Result<Vec<Page>, Fault> {
+  Ok(
+    all(
+      db,
+      &format!(
+        r#"SELECT * FROM (SELECT * FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {BEFORE_CURSOR}
+             ORDER BY "m"."sent_at" DESC, "m"."rowid" DESC LIMIT $3) "l"
+           ORDER BY "l"."sent_at", "l"."rowid""#,
+      ),
+      vec![chat_id.into(), cursor.into(), count.into()],
+    )
+    .await?
+    .iter()
+    .map(Page::of)
+    .collect::<Result<_, _>>()?,
+  )
+}
+
+/// The messages of a room past the cursor message the reader holds, oldest first, at most `count` of them.
+pub async fn after(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  cursor: i64,
+  count: i64,
+) -> Result<Vec<Page>, Fault> {
+  Ok(
+    all(
+      db,
+      &format!(
+        r#"SELECT "m".* FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {AFTER_CURSOR}
+           ORDER BY "m"."sent_at" ASC, "m"."rowid" ASC LIMIT $3"#,
+      ),
+      vec![chat_id.into(), cursor.into(), count.into()],
+    )
+    .await?
+    .iter()
+    .map(Page::of)
+    .collect::<Result<_, _>>()?,
+  )
+}
+
+/// The first messages of a room sent at or after a moment, oldest first.
+pub async fn from(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  since: i64,
+  count: i64,
+) -> Result<Vec<Page>, Fault> {
+  Ok(
+    all(
+      db,
+      r#"SELECT "m".* FROM "messages" "m" WHERE "m"."chat_id" = $1 AND "m"."sent_at" >= $2
+         ORDER BY "m"."sent_at" ASC, "m"."rowid" ASC LIMIT $3"#,
+      vec![chat_id.into(), since.into(), count.into()],
+    )
+    .await?
+    .iter()
+    .map(Page::of)
+    .collect::<Result<_, _>>()?,
+  )
+}
+
+/// The one message the room holds under that number, or nothing.
+pub async fn message_of(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+) -> Result<Option<Page>, Fault> {
+  Ok(
+    one(
+      db,
+      r#"SELECT * FROM "messages" WHERE "chat_id" = $1 AND "message_id" = $2"#,
+      vec![chat_id.into(), message_id.into()],
+    )
+    .await?
+    .map(|row| Page::of(&row))
+    .transpose()?,
+  )
+}
+
+/// The files a message carried, as the room's store kept them.
+pub async fn files(db: &DatabaseConnection, chat_id: i64, message_id: i64) -> Result<Vec<KeptFile>, Fault> {
+  all(
+    db,
+    r#"SELECT "kind", "source", "stored_path", "summary", "collected_at" FROM "collected_items"
+       WHERE "chat_id" = $1 AND "message_id" = $2 ORDER BY "collected_at", "source""#,
+    vec![chat_id.into(), message_id.into()],
+  )
+  .await?
+  .iter()
+  .map(|row| {
+    Ok(KeptFile {
+      kind: row.try_get("", "kind")?,
+      source: row.try_get("", "source")?,
+      stored_path: row.try_get::<Option<String>>("", "stored_path")?,
+      summary: row.try_get::<Option<String>>("", "summary")?,
+      collected_at: row.try_get("", "collected_at")?,
+    })
+  })
+  .collect::<Result<Vec<KeptFile>, Fault>>()
+}
+
+/// The people that have stood as a sender in a room.
+pub async fn senders(db: &DatabaseConnection, chat_id: i64) -> Result<Vec<i64>, Fault> {
+  let rows = all(
+    db,
+    r#"SELECT DISTINCT "sender_id" FROM "messages" "m" WHERE "m"."chat_id" = $1"#,
+    vec![chat_id.into()],
+  )
+  .await?;
+
+  Ok(rows.iter().map(|row| row.try_get::<i64>("", "sender_id")).collect::<Result<_, _>>()?)
+}
+
+/// The people that have stood as a sender in a room, of those asked.
+pub async fn spoken_in(db: &DatabaseConnection, chat_id: i64, people: &[i64]) -> Result<Vec<i64>, Fault> {
+  let stood = senders(db, chat_id).await?;
+
+  Ok(
+    people
+      .iter()
+      .filter(|person| stood.iter().any(|sender| sender == *person))
+      .cloned()
+      .collect(),
+  )
+}
+
+/// Whether a person sent a message in a room between two moments, both included, in epoch seconds.
+pub async fn spoke_between(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  person: i64,
+  from: i64,
+  to: i64,
+) -> Result<bool, Fault> {
+  Ok(
+    one(
+      db,
+      r#"SELECT 1 AS "one" FROM "messages" "m" WHERE "m"."chat_id" = $1 AND "m"."sender_id" = $2
+         AND "m"."sent_at" BETWEEN $3 AND $4 LIMIT 1"#,
+      vec![chat_id.into(), person.into(), from.into(), to.into()],
+    )
+    .await?
+    .is_some(),
+  )
+}
+
+/// The name a person last went by, a room where the owner goes by a name of that room alone read last; none
+/// where they never spoke or spoke under no name.
+pub async fn display_name(db: &DatabaseConnection, person: i64) -> Result<Option<String>, Fault> {
+  let name =
+    one(
+      db,
+      r#"SELECT "sender_name" FROM "messages" "m" WHERE "m"."sender_id" = $1
+         ORDER BY "m"."chat_id" IN (SELECT "chat_id" FROM "provider_owner_users"), "m"."sent_at" DESC LIMIT 1"#,
+      vec![person.into()],
+    )
+  .await?;
+
+  Ok(
+    name
+      .map(|row| row.try_get::<String>("", "sender_name"))
+      .transpose()?
+      .filter(|name| !name.trim().is_empty()),
+  )
+}
+
+/// Whether a sender is the owner in a room: a road gave the sender a number out of a user id that stands as
+/// that room's owner.
+pub async fn owner_of_sender(
+  db: &DatabaseConnection,
+  via: &str,
+  chat_id: i64,
+  sender: i64,
+) -> Result<bool, Fault> {
+  Ok(
+    one(
+      db,
+      r#"SELECT 1 AS "one" WHERE EXISTS (SELECT 1 FROM "provider_users" "u" WHERE "u"."provider" = $1
+         AND "u"."sender_id" = $3
+         AND EXISTS (SELECT 1 FROM "provider_owner_users" "o" WHERE "o"."provider" = "u"."provider"
+           AND "o"."chat_id" = $2 AND "o"."user_id" = "u"."user_id"))"#,
+      vec![via.into(), chat_id.into(), sender.into()],
+    )
+    .await?
+    .is_some(),
+  )
+}
+
+/// Whether the message the room holds under that number was said by the owner.
+pub async fn sender_is_owner(
+  db: &DatabaseConnection,
+  via: &str,
+  chat_id: i64,
+  message_id: i64,
+) -> Result<bool, Fault> {
+  let Some(message) = message_of(db, chat_id, message_id).await? else {
+    return Ok(false);
+  };
+  let Some(sender) = message.sender_id else { return Ok(false) };
+
+  owner_of_sender(db, via, chat_id, sender).await
+}
+
+/// The sender numbers a road gave any of the agents named: the numbers an agent's own words stand under.
+pub async fn agent_numbers(db: &DatabaseConnection, agents: &[String]) -> Result<Vec<i64>, Fault> {
+  let named = (1..=agents.len()).map(|at| format!("${at}")).collect::<Vec<_>>();
+  let sql = format!(
+    r#"SELECT DISTINCT "sender_id" FROM "provider_users" "u" WHERE "u"."user_id" IN ({})"#,
+    named.join(","),
+  );
+
+  Ok(
+    all(db, &sql, agents.iter().map(|agent| agent.into()).collect())
+      .await?
+      .iter()
+      .map(|row| row.try_get::<i64>("", "sender_id"))
+      .collect::<Result<_, _>>()?,
+  )
+}
+
+/// The rooms the owner pinned over the rest, in his order; a number the record no longer has stands for nothing.
+pub async fn pinned(db: &DatabaseConnection) -> Result<Vec<i64>, Fault> {
+  let held = settings::get(db, PINNED_ROOMS).await?;
+
+  Ok(
+    held
+      .map(|held| serde_json::from_str::<Vec<i64>>(held.as_str()).ok().unwrap_or_default())
+      .unwrap_or_default(),
+  )
+}

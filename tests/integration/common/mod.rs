@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 pub mod alone;
+pub mod queue;
 pub mod scratch;
 pub mod units;
 

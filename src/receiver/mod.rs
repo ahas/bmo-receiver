@@ -10,6 +10,7 @@ pub mod labels;
 pub mod left_board;
 pub mod notices;
 pub mod pictures;
+pub mod reads;
 pub mod rows;
 pub mod speech;
 pub mod wake;
@@ -25,12 +26,13 @@ use receiver_ports::gate::Gate;
 use receiver_ports::http::PortFailure;
 use receiver_ports::job::Job;
 use receiver_ports::voice::Voice;
+use receiver_ports::warmer::Warmer;
 use receiver_ports::web::Web;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
 use crate::Fault;
-use crate::chat::conversation::Talking;
+use crate::chat::conversation::{Talking, Touching, Typing};
 use crate::chat::talk::{Standing, TalkState};
 use crate::data_root::DataRoot;
 use crate::roads::Roads;
@@ -256,7 +258,8 @@ pub struct Deployment {
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
 /// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, the brain that keeps what
-/// the agents remember, and the voice unit a spoken briefing is launched through.
+/// the agents remember, the voice unit a spoken briefing is launched through, and the cache warmer the chat agent's
+/// one session prefix is kept warm through.
 #[derive(Clone)]
 pub struct Units {
   pub roads: Roads,
@@ -266,6 +269,7 @@ pub struct Units {
   pub job: Arc<dyn Job>,
   pub voice: Arc<dyn Voice>,
   pub web: Arc<dyn Web>,
+  pub warmer: Arc<dyn Warmer>,
 }
 
 /// The receiver: the database it keeps messages in, the deployment it answers for, the data root it keeps files
@@ -283,6 +287,8 @@ pub struct Receiver {
   pass: Arc<OnceLock<Arc<dyn Pass>>>,
   runner: Arc<OnceLock<Arc<dyn Runner>>>,
   talking: Arc<Standing>,
+  typing: Arc<OnceLock<Arc<dyn Typing>>>,
+  touching: Arc<OnceLock<Arc<dyn Touching>>>,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -320,7 +326,29 @@ impl Receiver {
       pass: Arc::default(),
       runner: Arc::default(),
       talking: Arc::default(),
+      typing: Arc::default(),
+      touching: Arc::default(),
     }
+  }
+
+  /// The conversations that answer a line typed into the chat agent's program, and that take the warmer's touch
+  /// of a quiet room's session; the first given stands, for every clone alike.
+  pub fn hold_typing(self, typing: Arc<dyn Typing>) {
+    let _ = self.typing.set(typing);
+  }
+
+  pub fn hold_touching(self, touching: Arc<dyn Touching>) {
+    let _ = self.touching.set(touching);
+  }
+
+  /// The conversations that answer the typed-line hook, where any stand.
+  pub fn typing(&self) -> Option<Arc<dyn Typing>> {
+    self.typing.get().cloned()
+  }
+
+  /// The conversations that take the warmer's touch, where any stand.
+  pub fn touching(&self) -> Option<Arc<dyn Touching>> {
+    self.touching.get().cloned()
   }
 
   /// Where the receiver's talks stand: no talk begun, and nothing taking their turns until a taker is held.

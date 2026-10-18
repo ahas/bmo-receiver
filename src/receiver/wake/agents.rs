@@ -21,6 +21,8 @@ pub struct Designated {
   pub call_names: Vec<String>,
   pub window_seconds: Option<i64>,
   pub default_answerer: bool,
+  /// How the room's roster groups and names it, as its registration says: `worker`, `companion` or another kind.
+  pub kind: Option<String>,
 }
 
 impl Designated {
@@ -35,7 +37,13 @@ impl Designated {
       call_names: named.map(trim).filter(|word| !word.is_empty()).collect(),
       window_seconds: count(&agent.row, "window_seconds"),
       default_answerer: count(&agent.row, "default_answerer").is_some_and(|held| held != 0),
+      kind: text(&agent.row, "kind"),
     }
+  }
+
+  /// Whether it answers beside the room's voice rather than as it: a companion of its own kind.
+  pub fn companion(&self) -> bool {
+    self.kind.as_deref() == Some("companion")
   }
 
   /// Whether the words call it: its label or one of its words stands in them, in either case.
@@ -68,15 +76,38 @@ fn count(row: &Map<String, Value>, key: &str) -> Option<i64> {
 
 /// Every awake agent, as the agency registers it, by name.
 async fn awake(receiver: &Receiver) -> Result<Vec<Designated>, NotReceived> {
+  Ok(
+    listed(receiver)
+      .await?
+      .iter()
+      .filter(|(_, _, awake)| *awake)
+      .map(|(_, designated, _)| designated.clone())
+      .collect(),
+  )
+}
+
+/// The agent as the agency registers it, awake or not, by name; none where no row names it.
+pub async fn registered(receiver: &Receiver, name: &str) -> Result<Option<Designated>, NotReceived> {
+  Ok(
+    listed(receiver)
+      .await?
+      .iter()
+      .find(|(agent, _, _)| agent == name)
+      .map(|(_, designated, _)| designated.clone()),
+  )
+}
+
+/// Every agent the agency registers, awake or not, each by name with its designated form and whether it is
+/// awake.
+async fn listed(receiver: &Receiver) -> Result<Vec<(String, Designated, bool)>, NotReceived> {
   let listed: Agents = receiver.units.agency.agents().await.map_err(NotReceived::from)?;
   let mut agents = listed
     .agents
     .iter()
-    .filter(|agent| agent.awake)
-    .map(Designated::of)
-    .collect::<Vec<Designated>>();
+    .map(|agent| (agent.name.clone(), Designated::of(agent), agent.awake))
+    .collect::<Vec<(String, Designated, bool)>>();
 
-  agents.sort_by(|one, other| one.name.cmp(&other.name));
+  agents.sort_by(|one, other| one.0.cmp(&other.0));
 
   Ok(agents)
 }
@@ -95,6 +126,7 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
         call_names: Vec::new(),
         window_seconds: None,
         default_answerer: true,
+        kind: None,
       }),
   )
 }
