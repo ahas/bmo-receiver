@@ -186,13 +186,16 @@ every_ms = 4000
 
 # The instruction pass (docs/bmo-window.md, 「The agent's queue」): its regular tick in seconds, how often it looks
 # for a row another process wrote in milliseconds, the least gap between two cold wakes in milliseconds, how
-# often a restart may give one row back before it is dropped, and the line a row given back opens with.
+# often a restart may give one row back before it is dropped, the line a row given back opens with, and the line
+# a row queued for a room whose registration is gone opens with in the owner's private chat, `{room}` the room's
+# number.
 [instructions]
 tick_seconds = 15
 watch_ms = 1000
 cold_wake_gap_ms = 10000
 restart_limit = 2
 restarted = "This instruction was handed to you before, and the service restarted before that round ended. Part of it may already be done: look at what is there before you repeat anything that has an effect."
+room_removed = "This came back from work started in room {room}, whose registration has been removed; nothing goes to that room, so it is told here."
 
 # The words a restart left unread, read back as the process that holds the conversations starts: how old the
 # oldest that may still wake an agent is, in seconds, and how long the start settles before they are read, in

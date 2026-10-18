@@ -135,6 +135,36 @@ async fn the_owner_answering_a_jobs_question_in_his_chat_settles_it_or_talks_ove
 }
 
 #[tokio::test]
+async fn talk_the_question_itself_refuses_is_taken_as_an_ordinary_message() {
+  for (id, code) in ["question_absent", "question_takes_no_talk", "question_talk_settled"]
+    .into_iter()
+    .enumerate()
+  {
+    let (_scratch, _data, standing) = stood(&[OWNER]).await;
+    let id = i64::try_from(id).unwrap() + 1;
+
+    standing
+      .agency
+      .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    standing.job.asking(OWNER, asked(id, true));
+    standing.job.refusing_talk(code);
+    standing
+      .receiver
+      .message(&inbound(OWNER, id, OWNER, "wait, why that one?"), &Context::default(), owners_room())
+      .await
+      .unwrap_or_else(|why| panic!("a talk refused {code} failed the message: {why}"));
+
+    // Nothing was written over the question, and the words went on to be answered as any words are.
+    assert!(standing.job.talked().is_empty());
+    assert!(standing.job.moved().is_empty());
+    let woken = standing.taken.handed();
+
+    assert_eq!(woken.len(), 1, "a talk refused {code} was not handed on");
+    assert_eq!(woken[0].message_id, id);
+  }
+}
+
+#[tokio::test]
 async fn a_companion_called_is_taken_by_its_own_conversations_and_opens_its_window_and_its_own_words_wake_only_others()
  {
   let (scratch, _data, standing) = stood(&[-121]).await;

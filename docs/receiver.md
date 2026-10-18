@@ -159,7 +159,9 @@ flowchart TD
   the rows go in one write; once that write stands, the picture and the folders go; and the event stream carries
   one `room-removed` event naming the room.
 - **Kept work whose room is gone reaches the administrator instead:** bmo-job reads a room whose registration is
-  gone as working in the owner's private chat (`GET /rooms/{chat}`, `work_chat`).
+  gone as working in the owner's private chat (`GET /rooms/{chat}`, `work_chat`), and an instruction queued for
+  such a room, a run's ending among them, goes to the owner's private chat naming the room it came from
+  (`docs/boundary-api.md`, 「For bmo-job」).
 - **A room that speaks again afterwards is a new registration** with an empty record, answered as any room the
   receiver has never seen, numbered as its chat service numbers a room. None of the old record comes back.
 

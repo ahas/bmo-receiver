@@ -24,7 +24,7 @@ use receiver_ports::brain::{
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
-use receiver_ports::http::{Answer, PortFailure};
+use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefed, Briefing, Voice};
 use receiver_ports::warmer::{Target, Used, Warmer};
@@ -953,6 +953,7 @@ pub struct StandInJob {
   pub open: Mutex<BTreeMap<i64, Vec<OpenQuestion>>>,
   pub settled: Mutex<Vec<Chosen>>,
   pub talked: Mutex<Vec<Talked>>,
+  pub talk_refusal: Mutex<Option<String>>,
   pub moved: Mutex<Vec<Moved>>,
   pub items: Mutex<Vec<ItemRow>>,
 }
@@ -963,6 +964,7 @@ impl StandInJob {
       open: Mutex::default(),
       settled: Mutex::default(),
       talked: Mutex::default(),
+      talk_refusal: Mutex::default(),
       moved: Mutex::default(),
       items: Mutex::default(),
     }
@@ -979,6 +981,11 @@ impl StandInJob {
 
   pub fn settled(&self) -> Vec<Chosen> {
     self.settled.lock().unwrap().clone()
+  }
+
+  /// Every later talk refused with the code given, as bmo-job refuses one; none written.
+  pub fn refusing_talk(&self, code: &str) {
+    *self.talk_refusal.lock().unwrap() = Some(code.to_owned());
   }
 
   pub fn talked(&self) -> Vec<Talked> {
@@ -1016,6 +1023,19 @@ impl Job for StandInJob {
   }
 
   fn talk<'a>(&'a self, talked: &'a Talked) -> BoxFuture<'a, Answer<()>> {
+    if let Some(code) = self.talk_refusal.lock().unwrap().clone() {
+      return Box::pin(async move {
+        Err(PortFailure::Answered {
+          url: "http://job.test/question-talk".into(),
+          status: 409,
+          answer: Some(WireError {
+            code,
+            error: "The question refused the talk.".into(),
+          }),
+        })
+      });
+    }
+
     self.talked.lock().unwrap().push(talked.clone());
 
     Box::pin(async move { Ok(()) })

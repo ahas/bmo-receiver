@@ -1,7 +1,7 @@
-//! The instruction queue answered where the receiver serves it (`docs/boundary-api.md`, 「For bmo-job」 and
-//! 「For the brain」): the rows each route writes, what it tells the instruction pass, and how far a row has
-//! gone. The tests stand on the receiver's shared schema, writing rows of their own; the queue's own limits are
-//! bmo-job's, read through its port.
+//! The instruction queue answered where the receiver serves it (`docs/boundary-api.md`, 「For bmo-job」, 「For
+//! bmo-artifact」 and 「For the brain」): the rows each route writes, what it tells the instruction pass, and how
+//! far a row has gone. The tests stand on the receiver's shared schema, writing rows of their own; the queue's own
+//! limits are bmo-job's, read through its port.
 
 use axum::http::StatusCode;
 use sea_orm::Value;
@@ -31,10 +31,23 @@ async fn texts(scratch: &Scratch, sql: &str) -> Vec<String> {
   scratch.texts(sql).await
 }
 
+// The room's registration standing, as the receiver writes it on first seeing the room.
+async fn registered(scratch: &Scratch, chat_id: i64) {
+  scratch
+    .run(
+      r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES ($1, 'a room')"#,
+      vec![chat_id.into()],
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn an_order_queued_for_a_room_writes_its_row_and_is_read_back_as_pending() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
+
+  registered(&scratch, 7).await;
+
   let (made, queued) = post(
     &front,
     "/instructions",
@@ -72,6 +85,9 @@ async fn an_order_queued_for_a_room_writes_its_row_and_is_read_back_as_pending()
 async fn an_instruction_withdrawn_before_a_took_it_leaves_nothing_and_a_handed_one_is_not_withdrawn() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
+
+  registered(&scratch, 7).await;
+
   let (_, queued) = post(
     &front,
     "/instructions",
@@ -116,6 +132,9 @@ async fn an_instruction_withdrawn_before_a_took_it_leaves_nothing_and_a_handed_o
 async fn a_fact_queued_for_a_room_is_framed_for_the_rooms_voice_to_say() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
+
+  registered(&scratch, 7).await;
+
   let (_, queued) = post(
     &front,
     "/instructions",
@@ -144,6 +163,93 @@ async fn a_fact_queued_for_a_room_is_framed_for_the_rooms_voice_to_say() {
       .cloned()
       .unwrap_or_default()
       .contains("tell this chat what the system recorded."),
+  );
+}
+
+#[tokio::test]
+async fn a_runs_result_queued_for_its_room_keeps_the_agent_that_asked_its_road_and_its_run() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  registered(&scratch, 7).await;
+
+  let (made, queued) = post(
+    &front,
+    "/instructions",
+    json!({
+      "agent": "agent-b", "chat": 7, "said": { "order": "the search came back." },
+      "sort": "search", "via": "road-a", "run": 31,
+    }),
+  )
+  .await;
+
+  assert_eq!(made, StatusCode::CREATED);
+  assert_eq!(
+    rows(
+      &scratch,
+      r#"SELECT COUNT(*) FROM "instructions" WHERE "id" = $1 AND "chat_id" = 7 AND "agent" = 'agent-b'
+           AND "via" = 'road-a' AND "run_id" = 31 AND "sort" = 'search' AND "text" = 'the search came back.'"#,
+      vec![queued["id"].as_i64().unwrap().into()],
+    )
+    .await,
+    1,
+  );
+}
+
+#[tokio::test]
+async fn an_instruction_for_a_room_whose_registration_is_gone_goes_to_the_owners_chat_naming_the_room() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  front
+    .standing
+    .agency
+    .registering([registration(AGENT, "Agent A", ["a"].to_vec(), None, true)].to_vec());
+
+  // A row of the owner's own, of the kind the removed room's row names.
+  let (_, own) = post(
+    &front,
+    "/instructions",
+    json!({ "said": { "order": "the owner's own row." }, "sort": "job", "kind": "search-ended" }),
+  )
+  .await;
+  let (made, queued) = post(
+    &front,
+    "/instructions",
+    json!({
+      "agent": "agent-b", "chat": 9, "said": { "order": "the search came back." },
+      "sort": "search", "kind": "search-ended", "via": "road-a", "run": 31,
+    }),
+  )
+  .await;
+
+  assert_eq!(made, StatusCode::CREATED);
+  let id = queued["id"].as_i64().unwrap();
+
+  // It is the owner's chat's voice that takes it, on no road and of no kind, with its run kept.
+  assert_eq!(
+    rows(
+      &scratch,
+      r#"SELECT COUNT(*) FROM "instructions" WHERE "id" = $1 AND "chat_id" = $2 AND "agent" = $3
+           AND "via" IS NULL AND "kind" IS NULL AND "run_id" = 31 AND "sort" = 'search'"#,
+      vec![id.into(), OWNER.into(), AGENT.into()],
+    )
+    .await,
+    1,
+  );
+  let text = texts(&scratch, &format!(r#"SELECT "text" FROM "instructions" WHERE "id" = {id}"#)).await;
+
+  assert!(text[0].starts_with("This came back from work started in room 9,"), "{}", text[0]);
+  assert!(text[0].ends_with("\n\nthe search came back."), "{}", text[0]);
+
+  // Nothing is written for the removed room, and the owner's own row of that kind stands.
+  assert_eq!(
+    rows(&scratch, r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = 9"#, vec![]).await,
+    0
+  );
+  assert_eq!(
+    get(&front, &format!("/instructions/{}", own["id"].as_i64().unwrap())).await,
+    (StatusCode::OK, json!({ "state": "pending" })),
   );
 }
 

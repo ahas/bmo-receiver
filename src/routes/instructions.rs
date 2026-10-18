@@ -1,10 +1,11 @@
-//! The instruction queue bmo-job reaches (`docs/boundary-api.md`, 「For bmo-job」): an instruction queued for an
-//! agent's session in a room, its state read, one not yet taken withdrawn, a notice voiced as one of those rows,
-//! and a unit declared a holder of rows naming a room. Bodies are snake_case and times epoch milliseconds, as
-//! bmo-job's document states them; a refusal carries `error` and `code` in that shape.
+//! The instruction queue other units reach (`docs/boundary-api.md`, 「For bmo-job」 and 「For bmo-artifact」): an
+//! instruction queued for an agent's session in a room, its state read, one not yet taken withdrawn, a notice voiced
+//! as one of those rows, and a unit declared a holder of rows naming a room. Bodies are snake_case and times epoch
+//! milliseconds, as bmo-job's document states them; a refusal carries `error` and `code` in that shape.
 //!
 //! An instruction whose `said` holds a fact is framed the way every voiced notice is, so the room's voice says it;
-//! one whose `said` holds an order goes to the session as the words it was given.
+//! one whose `said` holds an order goes to the session as the words it was given. One for a room whose
+//! registration is gone goes to the owner's private chat instead, naming the room, never into the platform room.
 
 use axum::{
   body::Bytes,
@@ -14,11 +15,13 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use receiver_policy::chat_round::CHAT_ROUND;
+
 use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::chat::instructions::{Queued, queue};
 use crate::receiver::notices::frame;
 use crate::receiver::wake::agents;
-use crate::receiver::{NotReceived, Receiver};
+use crate::receiver::{NotReceived, Receiver, rows};
 use crate::store::settings;
 use crate::{one, run};
 
@@ -54,7 +57,7 @@ struct Said {
   order: Option<String>,
 }
 
-/// One instruction as bmo-job queues it.
+/// One instruction as a unit queues it.
 #[derive(Deserialize)]
 struct Instruction {
   #[serde(default)]
@@ -131,14 +134,16 @@ enum Effect {
   Warns,
 }
 
-/// The instruction queued, answered with its id.
+/// The instruction queued, answered with its id. One for a room whose registration is gone is queued for the voice
+/// of the owner's private chat, opening with the room's number (docs/receiver.md, 「Removing a room's
+/// registration」).
 pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Instruction>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let agent = asked.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone());
   let chat_id = asked.chat.unwrap_or(receiver.owner_id());
-  let text = said(&asked.said);
-  let queued = Queued {
+  let room = rows::kept_work_room(receiver.db(), chat_id, receiver.owner_id()).await.map_err(store)?;
+  let mut text = said(&asked.said);
+  let mut queued = Queued {
     kind: asked.kind.as_deref(),
     expires_at_ms: asked.expires_at,
     events: asked.events.clone(),
@@ -149,8 +154,21 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     via: asked.via.as_deref(),
     run_id: asked.run,
   };
+  let agent = match room.removed {
+    None => asked.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone()),
+    Some(removed) => {
+      let told_here = CHAT_ROUND.instructions.room_removed.replace("{room}", &removed.to_string());
 
-  queue(receiver.db(), &agent, chat_id, &text, &queued)
+      text = format!("{told_here}\n\n{text}");
+      // The removed room's road is not the owner's, and its kind must not replace a pending row of the owner's own.
+      queued.via = None;
+      queued.kind = None;
+
+      agents::voice_of(&receiver, room.chat_id).await.map_err(reached)?
+    }
+  };
+
+  queue(receiver.db(), &agent, room.chat_id, &text, &queued)
     .await
     .map(|id| (StatusCode::CREATED, axum::Json(json!({ "id": id }))))
     .map_err(store)

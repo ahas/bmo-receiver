@@ -173,6 +173,12 @@ the receiver serves them as stated there, with snake_case bodies.
     the next turn rather than open one, until that time; `via` is the road the session was read on, which it is
     delivered on; `run` is the run whose result it is.
   - An instruction withdrawn, replaced or lapsed reads as nothing found.
+  - **An instruction for a room whose registration is gone** (`docs/receiver.md`, 「Removing a room's
+    registration」) goes to the owner's private chat instead, never into the platform room: it is queued for
+    the voice of the owner's chat, whatever `agent` named, and opens with the line the policy keeps for it
+    (`chat-round.toml`, `[instructions]`), which names the room by its number. It goes on no road and of no
+    kind, since the removed room's road is not the owner's and its kind must not replace a pending row of the
+    owner's own; its `run`, `events`, `sort`, `summary`, `expires_at` and `rides_until` are kept.
 - **A notice:** `fact` (a fact), `intent` (what the line is for, in English for the agent), `follow_up?` (what
   follows it), `optional` (true where the voice may leave it unsaid when the fact leaves the room nothing to
   hear), `kind?`, `expires_at?`, `[events]` and `rides_until?`, the last four read as an instruction's.
@@ -196,6 +202,23 @@ the receiver serves them as stated there, with snake_case bodies.
   `warns` where the receiver shows what the unit answers before it removes the room. Declaring again replaces
   the unit's declaration. The receiver asks every declared holder `GET <address>/rooms/{chat}/holdings` before it
   removes a room (「Removing a room」 below).
+
+### For bmo-artifact
+
+A search's, a browse's or a remote browser's run hands what it came to back to the session of the room that
+asked, as a quiet instruction. bmo-artifact queues it on the same route bmo-job does, `POST /instructions`, with
+the same body and the same answers as 「For bmo-job」 states them, under its `docs/api.md`, 「What this repository
+calls」.
+
+- **What a run's ending carries:** `agent` (the agent whose turn set the run going), `chat` (the room it was
+  asked in), `said` holding an `order` (the words the session is handed), `sort` (the kind of ending), `via` (the
+  road the question came in on) and `run` (the run in the agency's ledger).
+- **A room whose registration is gone** takes nothing: the ending goes to the owner's private chat, naming the
+  room, as 「For bmo-job」 states for every instruction.
+- **The run is kept on the row,** so a companion's round can tell an ending that is no longer its to answer: a
+  row whose run the agency answers as begun at or before the companion's reset point reaches no turn, as the
+  words said before that point reach none (`GET /runs/{id}` under 「The agency」 below; `docs/wake.md`, 「A
+  companion's round」); a row whose run the agency cannot answer for is kept.
 
 ### For the chat services
 
@@ -498,7 +521,7 @@ Its `docs/api.md`, snake_case.
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | a room's holdings | `GET /rooms/{chat}/holdings` | | `[holdings]` (`RoomHoldings`) |
-| a room's open questions | `GET /questions/open?chat=` | | `questions`: each `id`, `options` (in the order they were asked), `talks` (boolean: the owner may talk it over) |
+| a room's open questions | `GET /questions/open?chat=` | | a list, the one asked last first: each `id`, `options` (in the order they were asked), `talks` (boolean: the owner may talk it over) |
 | the open items | `GET /items?open=1` | | `items`: each `id`, `approved` (boolean), `status`, `title`, `worker?` (the agent assigned where one is), oldest first |
 | a question settled | `POST /question` | `id`, `chosen` (the option's number, counted from zero) | a question answer |
 | a question talked over | `POST /question-talk` | `id`, `say` | a question answer |
@@ -509,8 +532,9 @@ The items a turn filed, read for its answer checks, are read through the same AP
 - **The owner's answer to a job's question** is read here, not in bmo-job: the receiver sees the owner's words,
   matches them against the question's options (`docs/wake.md`, and the suffixes `policy/commands.toml` names
   after an option's number) and hands bmo-job the option it chose, or the line of talk with its clock stopped.
-  A question that is gone or settled already answers the talk with a refusal of its own, and the words are
-  taken as an ordinary message instead.
+  A talk bmo-job refuses because of the question itself, `question_absent`, `question_takes_no_talk` or
+  `question_talk_settled`, is no failure to deliver: the words are taken as an ordinary message instead. Any
+  other refusal, or no answer at all, fails the message as a unit's failure does.
 
 ### The gate
 
@@ -592,18 +616,14 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** carries no sign on a failed turn's `turn-ended` that a companion's engine ended it with an
   error, nor the error's kind, which its companion turn reads and drops; the receiver reads `engineError`, for the
   agency to publish, and tells the room nothing of an engine's error until it does.
-- **The agency** serves no route reading a run by its id, which bmo-job calls as `GET /runs/{id}` too; the
-  receiver asks it for a run's `started_at`, for the agency to state, and keeps every instruction whose run it
-  cannot read.
+- **bmo-artifact** hands a run's ending to bmo-job's address, which serves no route for it, in a body of its own
+  (`run_id`, `chat_id`, `agent`, `text`, `sort`, `via`), and its 「What this repository calls」 names bmo-job for
+  it. The receiver takes it as 「For bmo-artifact」 states, at its own address with `chat`, `said` holding an
+  `order` and `run`, for bmo-artifact to take up.
 - **The agency's `companion-reset`** names the ranges and the rooms but no run, so the receiver's run records
   (`run_records`), which name a run alone, are not taken with a companion's conversation.
 - **The agency** publishes `road-walked` and `usage-spent`; the receiver writes no road and no usage rows of its
   own, and a run of a second asking that failed is written as a judgement of the round with no figures.
-- **bmo-job** states `POST /question` and `POST /question-pause` but no route that reads a room's open
-  questions with their options, nor one that writes a line of talk over a question and stops its clock; the
-  receiver asks `GET /questions/open?chat=` and `POST /question-talk`, for bmo-job to state.
-- **bmo-job** states no route that lists the items still open on the queue with the worker assigned to each;
-  the receiver asks `GET /items?open=1` for the consult block, for bmo-job to state.
 - **The agency's `room_windows`** and the receiver's are the same table: agency's `docs/store.md` lists it
   among the companions' sessions, and the receiver's `docs/store.md` keeps it as its own, since the window a
   room holds for an agent is what the wake reads. One of the two is to be moved before both stand in one

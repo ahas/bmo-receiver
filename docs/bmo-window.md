@@ -31,9 +31,10 @@ flowchart TB
 ## The agent's queue
 
 - **A unit that wants the agent's attention queues an instruction.** bmo-job posts `POST /instructions` and
-  `POST /rooms/{chat}/notices`, the brain `POST /instructions/quiet` and `POST /owner/notice`, and the
-  receiver's own producers (its rest, fallback and failure notices, its fold, the agency's events) write the row
-  themselves. The instruction store is the one writer of the table.
+  `POST /rooms/{chat}/notices`, bmo-artifact `POST /instructions` for a run's ending, the brain
+  `POST /instructions/quiet` and `POST /owner/notice`, and the receiver's own producers (its rest, fallback and
+  failure notices, its fold, the agency's events) write the row themselves. The instruction store is the one
+  writer of the table.
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
   conversation; it is the only caller of the conversation's instruct. The console's instruct writes a row and
   brings the pass forward like any other producer.
@@ -74,7 +75,7 @@ is written.
 | A document reload | the agency's `documents-moved` | instruction table | `round` | rides, for good | — |
 | A watch's memo, a reminder's moment | the brain | instruction table | `round` | opens | — |
 | A notice the brain tells the owner | the brain | instruction table | `round` | opens | — |
-| A search's, a browse's and a remote browser's result | bmo-job's instructions | instruction table | `round` | opens | — |
+| A search's, a browse's and a remote browser's result | bmo-artifact's instructions | instruction table | `round` | opens | — |
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
 | Voice and digest notices | the units that run them | instruction table | `round` | opens | — |
 | Leftover panes, pressure on the machine, a run past its clock | the agency's events | instruction table | `round` | opens | — |

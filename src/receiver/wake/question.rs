@@ -10,8 +10,8 @@ use receiver_ports::job::{Chosen, Talked};
 
 use crate::receiver::{NotReceived, Receiver};
 
-// A question that is gone or settled already answers the talk with a refusal of its own.
-const NOT_TALKABLE: [&str; 2] = ["question_absent", "question_takes_no_talk"];
+// A question that is gone, takes no talk or is settled already answers the talk with a refusal of its own.
+const NOT_TALKABLE: [&str; 3] = ["question_absent", "question_takes_no_talk", "question_talk_settled"];
 
 /// Whether the owner's words answered the question open in his chat, or were written onto it as talk. The
 /// option is read from the row's words; the talk is the words he typed.

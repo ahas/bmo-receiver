@@ -193,7 +193,8 @@ pub struct Progress {
   pub gap_ms: u64,
 }
 
-/// The instruction pass's clock, its pacing and what a row given back by a restart opens with.
+/// The instruction pass's clock, its pacing, what a row given back by a restart opens with, and what a row for a
+/// room whose registration is gone opens with in the owner's private chat, `{room}` the room's number.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Instructions {
@@ -202,6 +203,7 @@ pub struct Instructions {
   pub cold_wake_gap_ms: i64,
   pub restart_limit: i64,
   pub restarted: String,
+  pub room_removed: String,
 }
 
 /// The words a restart left unread, read back at the start.
