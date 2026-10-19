@@ -8,14 +8,14 @@
 
 use std::path::{Path, PathBuf};
 
-use bmo_chat_client::FileItem;
+use bmo_chat_client::MessageFile;
 use receiver_policy::roads::ROADS;
 use sea_orm::DatabaseConnection;
 
 use super::Inbound;
 use super::pictures::{self, Keeping};
 use crate::data_root::{DataRoot, room_path};
-use crate::{Fault, now_ms, one, run};
+use crate::{Fault, all, now_ms, one, run};
 
 /// What a kept file is, as its row names it, by the type it came under: a picture, a sound, a video, or any other
 /// file.
@@ -35,7 +35,7 @@ fn bare_type(mime: &str) -> String {
 
 /// The name a file goes by: its own, or for a sound or a video handed over with none, what it is with the extension
 /// its type implies.
-pub fn named(file: &FileItem) -> String {
+pub fn named(file: &MessageFile) -> String {
   if !file.name.trim().is_empty() {
     return file.name.clone();
   }
@@ -59,15 +59,19 @@ pub fn named(file: &FileItem) -> String {
 }
 
 // The name a file is filed under in its room's folder: its own name's last part, behind the message's number, so
-// two messages' files of one name stand apart.
-fn filed_name(message_id: i64, name: &str) -> String {
+// two messages' files of one name stand apart, and from the second `place` on behind that number too, so two files
+// of one name in one message do.
+fn filed_name(message_id: i64, place: u32, name: &str) -> String {
   let own = Path::new(name)
     .file_name()
     .map(|own| own.to_string_lossy().into_owned())
     .filter(|own| !own.is_empty() && !own.starts_with('.'))
     .unwrap_or_else(|| "file".to_owned());
 
-  format!("{message_id}-{own}")
+  match place {
+    1 => format!("{message_id}-{own}"),
+    place => format!("{message_id}-{place}-{own}"),
+  }
 }
 
 async fn written(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -85,7 +89,7 @@ pub async fn keep(
   data_root: &DataRoot,
   cap: Option<u64>,
   inbound: &Inbound,
-  files: &[FileItem],
+  files: &[MessageFile],
 ) -> Result<(), Fault> {
   let mut pictures = 0;
 
@@ -109,7 +113,7 @@ async fn picture(
   db: &DatabaseConnection,
   data_root: &DataRoot,
   inbound: &Inbound,
-  file: &FileItem,
+  file: &MessageFile,
   before: usize,
 ) -> Result<bool, Fault> {
   let name = match before {
@@ -156,11 +160,12 @@ async fn collected(
   data_root: &DataRoot,
   cap: Option<u64>,
   inbound: &Inbound,
-  file: &FileItem,
+  file: &MessageFile,
 ) -> Result<(), Fault> {
   let source = named(file);
+  let standing = standing(db, inbound, &file.id, &source).await?;
 
-  if kept_already(db, inbound, &source).await? {
+  if standing.as_ref().is_some_and(Standing::kept) {
     return Ok(());
   }
 
@@ -168,8 +173,9 @@ async fn collected(
   let (stored, summary) = match cap.filter(|cap| size > *cap) {
     Some(cap) => (None, Some(format!("past the attachment size cap of {cap} bytes"))),
     None => {
+      let taken = taken_paths(db, inbound, standing.as_ref().map(|row| row.id)).await?;
       let path =
-        room_path(&data_root.collected(), inbound.chat_id).join(filed_name(inbound.message_id, &source));
+        free_path(&room_path(&data_root.collected(), inbound.chat_id), inbound.message_id, &source, &taken);
 
       match written(&path, &file.bytes).await {
         Ok(()) => (Some(path), None),
@@ -184,48 +190,139 @@ async fn collected(
     }
   };
 
-  row(db, inbound, kind_of(&file.mime), &source, stored, summary).await
+  let kept = Kept {
+    kind: kind_of(&file.mime),
+    source: &source,
+    id: &file.id,
+    stored,
+    summary,
+  };
+
+  match standing {
+    Some(standing) => refilled(db, standing.id, kept).await,
+    None => row(db, inbound, kept).await,
+  }
 }
 
-// Whether the room's store already keeps this file of the message: its row names it and its file stands. A row
-// whose file is gone, or never was written, is kept again. The protocol hands over no identifier of a file's own, so
-// the bytes standing under a name stand for the file of that name.
-async fn kept_already(db: &DatabaseConnection, inbound: &Inbound, source: &str) -> Result<bool, Fault> {
-  let stored: Option<String> = one(
-    db,
-    r#"SELECT "stored_path" FROM "collected_items" WHERE "chat_id" = $1 AND "message_id" = $2 AND "source" = $3"#,
-    vec![inbound.chat_id.into(), inbound.message_id.into(), source.into()],
-  )
-  .await?
-  .map(|row| row.try_get::<Option<String>>("", "stored_path"))
-  .transpose()?
-  .flatten();
-
-  Ok(stored.is_some_and(|stored| Path::new(&stored).exists()))
+// The row a file of a message already has: the one of its id, or else one of its name that names no id.
+struct Standing {
+  id: i64,
+  stored: Option<String>,
 }
 
-async fn row(
+impl Standing {
+  // Whether its file stands on the disk: a row whose file is gone, or never was written, is kept again.
+  fn kept(&self) -> bool {
+    self.stored.as_deref().is_some_and(|stored| Path::new(stored).exists())
+  }
+}
+
+async fn standing(
   db: &DatabaseConnection,
   inbound: &Inbound,
-  kind: &str,
+  id: &str,
   source: &str,
+) -> Result<Option<Standing>, Fault> {
+  let Some(row) = one(
+    db,
+    r#"SELECT "id", "stored_path" FROM "collected_items"
+       WHERE "chat_id" = $1 AND "message_id" = $2
+         AND ("file_unique_id" = $3 OR ("file_unique_id" IS NULL AND "source" = $4))
+       ORDER BY "file_unique_id" IS NULL, "id"
+       LIMIT 1"#,
+    vec![inbound.chat_id.into(), inbound.message_id.into(), id.into(), source.into()],
+  )
+  .await?
+  else {
+    return Ok(None);
+  };
+
+  Ok(Some(Standing {
+    id: row.try_get("", "id")?,
+    stored: row.try_get("", "stored_path")?,
+  }))
+}
+
+// The paths the message's other files are filed under, so a file of the same name is filed beside them.
+async fn taken_paths(
+  db: &DatabaseConnection,
+  inbound: &Inbound,
+  own: Option<i64>,
+) -> Result<Vec<String>, Fault> {
+  all(
+    db,
+    r#"SELECT "stored_path" FROM "collected_items"
+       WHERE "chat_id" = $1 AND "message_id" = $2 AND "stored_path" IS NOT NULL AND "id" <> $3"#,
+    vec![inbound.chat_id.into(), inbound.message_id.into(), own.unwrap_or(-1).into()],
+  )
+  .await?
+  .iter()
+  .map(|row| row.try_get("", "stored_path").map_err(Fault::from))
+  .collect()
+}
+
+// The first path of the file's name in the room's folder that none of `taken` stands under.
+fn free_path(folder: &Path, message_id: i64, source: &str, taken: &[String]) -> PathBuf {
+  let mut place = 1;
+
+  loop {
+    let path = folder.join(filed_name(message_id, place, source));
+
+    if !taken.iter().any(|taken| Path::new(taken) == path) {
+      return path;
+    }
+
+    place += 1;
+  }
+}
+
+// What one file's row records of it.
+struct Kept<'a> {
+  kind: &'static str,
+  source: &'a str,
+  id: &'a str,
   stored: Option<PathBuf>,
   summary: Option<String>,
-) -> Result<(), Fault> {
+}
+
+fn stored_text(stored: Option<PathBuf>) -> Option<String> {
+  stored.map(|path| path.to_string_lossy().into_owned())
+}
+
+// The file's row it already has, filled afresh and naming its id.
+async fn refilled(db: &DatabaseConnection, row: i64, kept: Kept<'_>) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "collected_items" ("chat_id", "message_id", "sender_name", "kind", "source", "stored_path", "summary", "collected_at")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT ("chat_id", "message_id", "source")
+    r#"UPDATE "collected_items" SET "kind" = $1, "file_unique_id" = $2, "stored_path" = $3, "summary" = $4
+       WHERE "id" = $5"#,
+    vec![
+      kept.kind.into(),
+      kept.id.into(),
+      stored_text(kept.stored).into(),
+      kept.summary.into(),
+      row.into(),
+    ],
+  )
+  .await
+  .map(drop)
+}
+
+async fn row(db: &DatabaseConnection, inbound: &Inbound, kept: Kept<'_>) -> Result<(), Fault> {
+  run(
+    db,
+    r#"INSERT INTO "collected_items" ("chat_id", "message_id", "sender_name", "kind", "source", "file_unique_id", "stored_path", "summary", "collected_at")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT ("chat_id", "message_id", "file_unique_id")
        DO UPDATE SET "kind" = excluded."kind", "stored_path" = excluded."stored_path", "summary" = excluded."summary""#,
     vec![
       inbound.chat_id.into(),
       inbound.message_id.into(),
       inbound.sender_name.clone().into(),
-      kind.into(),
-      source.into(),
-      stored.map(|path| path.to_string_lossy().into_owned()).into(),
-      summary.into(),
+      kept.kind.into(),
+      kept.source.into(),
+      kept.id.into(),
+      stored_text(kept.stored).into(),
+      kept.summary.into(),
       (now_ms() / 1000).into(),
     ],
   )

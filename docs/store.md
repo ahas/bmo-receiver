@@ -49,7 +49,7 @@ An instruction names the agent whose session takes it outright: the table holds 
 | `bmo_rooms` | a room the chat agent's one shared session has answered in (`docs/unified-bmo.md`) | room |
 | `bmo_room_contexts` | the fingerprint of the room context a chat session was last given | session |
 | `bmo_session_rooms` | a room a chat session has been given the context of | session and room |
-| `collected_items` | a file a message carried, kept in the message-file store (`docs/room-files.md`) | its number; one per room, message and source |
+| `collected_items` | a file a message carried, kept in the message-file store (`docs/room-files.md`) | its number; one per room, message and the file's id among its message's files, `file_unique_id` |
 | `avatars` | the picture a room or a person wears, its photo id, stored path and when it was taken (`docs/pictures.md`) | kind and subject |
 | `random_draws` | a fair draw made in a room (`docs/random-draw.md`) | its number |
 | `random_draw_rooms` | the seed a room's next draw will use and its commitment | room |

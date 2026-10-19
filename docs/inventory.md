@@ -94,7 +94,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 |---|---|---|
 | `messages`, `instructions`, `bmo_rooms`, `bmo_room_contexts`, `bmo_session_rooms`, `chat_notices`, `chat_reads`, `chat_titles`, `collected_items`, `delegate_chats`, `room_answerers`, `tool_chats`, `reload_sent`, `photo_chats`, `say_relays`, `muted_members`, `random_draws`, `random_draw_rooms`, `provider_rooms`, `provider_users`, `provider_private_rooms`, `provider_owner_users`, `avatars`, `allowed_chats`, `reload_pending` | one migration, `src/store/migration/m20261017_000001_receiver.rs`, with the settings table beside them | build-4 (Stand up the store) |
 | `message_number_marks` | `src/store/migration/m20261017_000002_record_numbers.rs`: the room's own record numbers with it, so it is this repository's rather than a provider's | build-6 |
-| `room_windows` | `src/store/migration/m20261017_000003_room_windows.rs`; the wake reads it, and the agency's store document names it too — the two owners are a contract gap, not settled here | build-7 (Wake decisions) |
+| `room_windows` | `src/store/migration/m20261017_000003_room_windows.rs`; the wake reads and writes it, and the receiver alone keeps it | build-7 (Wake decisions) |
 | `run_records` | `src/store/migration/m20261017_000001_receiver.rs`: the conversations write what a turn recorded, and the shape is the pinned archive's unchanged | build-8 (Queue, window and prompt) |
 | `people_reads` | `src/store/migration/m20261017_000004_people_reads.rs`: the console's reads of a room's people | build-12 (Serve the owed contracts) |
 | the settings keys the receiver writes | `src/store/settings.rs`, which holds no key name; `docs/store.md` lists them all | build-4 |

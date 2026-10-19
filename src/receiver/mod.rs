@@ -677,7 +677,7 @@ impl Receiver {
     inbound: &Inbound,
     context: &Context,
     room: Room,
-    handed: &[bmo_chat_client::FileItem],
+    handed: &[bmo_chat_client::MessageFile],
   ) -> Result<(), NotReceived> {
     if !Self::listened(inbound.chat_id, room) {
       return Ok(());

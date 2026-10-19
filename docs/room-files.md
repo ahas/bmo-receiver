@@ -24,11 +24,16 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   under `collected/<chatId>/` of the data root. Keeping a file launches nothing and notifies nobody.
 - **The bytes come from the chat service:** with the hand-over (`POST /attachment`), or later as the message's
   `gathering` promised (`POST /gathered`), or fetched on asking (`POST /media`).
-- **Every file is recorded in `collected_items`** (chat, sender, message id, kind, source, stored path, and which
-  file it is) and keeping the same file twice is a no-op.
-- **Twice means the same file.** A file is the message's file of its name: where its row stands and its bytes are
-  still on the disk, a hand-over of a file of that name again keeps nothing, since the protocol hands over no
-  identifier of a file's own to tell another file of the same name apart by.
+- **Every file is recorded in `collected_items`** (chat, sender, message id, kind, source, stored path, and the
+  file's id among its message's files) and keeping the same file twice is a no-op.
+- **Twice means the same file.** Every file a message carried crosses as a message file, with an id the chat
+  service gives it: the same each time the same file crosses, and never shared by two files of one message
+  (bmo-chat's `docs/contract.md`, 「Files」). A file is the message's file of its id: where its row stands and its
+  bytes are still on the disk, a hand-over or a fetch of it again keeps nothing. Two files of one name in one
+  message are two files, each with its row. A row that names no id is the message's file of its name, and the
+  first file of that name handed over takes the row and records its id on it.
+- **Where a file is filed:** under `collected/<chatId>/` as `<messageId>-<name>`, by its own name's last part, or
+  as `<messageId>-<n>-<name>`, from 2 up, where another file of the message already stands under that name.
 - **Failures:** a file past the cap, or one that could not be written, keeps its row with no stored path and why,
   and a later hand-over of the same file keeps it; a failure is logged but never takes the receiver down.
 - **A video is kept as one**, whatever the chat service called it, as a row of kind `video`, by the video type it

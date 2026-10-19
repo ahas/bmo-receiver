@@ -20,7 +20,7 @@ mod worker_settings;
 
 use std::sync::Arc;
 
-use bmo_chat_client::{FileItem, GatheredOutcome};
+use bmo_chat_client::{GatheredOutcome, MessageFile};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, How, Inbound, Room};
 use receiver_policy::commands::COMMANDS;
@@ -345,8 +345,9 @@ async fn the_mode_is_set_for_the_whole_deployment_and_the_owners_own_chat_keeps_
   );
 }
 
-fn file(name: &str, mime: &str, bytes: &[u8]) -> FileItem {
-  FileItem {
+fn file(id: &str, name: &str, mime: &str, bytes: &[u8]) -> MessageFile {
+  MessageFile {
+    id: id.into(),
     name: name.into(),
     mime: mime.into(),
     bytes: bytes.to_vec(),
@@ -363,8 +364,8 @@ async fn an_attachment_keeps_its_files_beside_its_message_and_wakes_by_whose_fil
     ..Context::default()
   };
   let handed = [
-    file("notes.txt", "text/plain", b"notes"),
-    file("screen.jpg", "image/jpeg", &[0xff, 0xd8]),
+    file("1", "notes.txt", "text/plain", b"notes"),
+    file("2", "screen.jpg", "image/jpeg", &[0xff, 0xd8]),
   ];
 
   receiver
@@ -422,7 +423,7 @@ async fn a_file_still_being_gathered_wakes_once_it_is_handed_over() {
   assert!(standing.waking.woken().is_empty(), "nothing is woken ahead of the bytes");
 
   let kept = GatheredOutcome::Kept {
-    files: vec![file("voice.ogg", "audio/ogg", b"ogg")],
+    files: vec![file("1", "voice.ogg", "audio/ogg", b"ogg")],
   };
 
   receiver.gathered(-109, 1, "road-a", &kept).await.unwrap();

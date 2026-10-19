@@ -1,12 +1,12 @@
 //! The files a message carried, kept as they are handed over (docs/room-files.md, 「Message files」; docs/pictures.md,
 //! 「Pictures received」): a picture filed under its message, brought down and laid on white where it must be; a sound
-//! or a video with no name named for what it is; the same file kept once; and a file past the cap or one that failed
-//! leaving its row for a later hand-over.
+//! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
+//! name kept apart; and a file past the cap or one that failed leaving its row for a later hand-over.
 
 use std::io::Cursor;
 use std::sync::Arc;
 
-use bmo_chat_client::{FileItem, GatheredOutcome};
+use bmo_chat_client::{GatheredOutcome, MessageFile};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Room};
 use image::{ImageFormat, Rgb, RgbImage, Rgba, RgbaImage};
@@ -27,8 +27,9 @@ async fn stood() -> (Scratch, tempfile::TempDir, Standing) {
   (scratch, data, standing)
 }
 
-fn file(name: &str, mime: &str, bytes: Vec<u8>) -> FileItem {
-  FileItem {
+fn file(id: &str, name: &str, mime: &str, bytes: Vec<u8>) -> MessageFile {
+  MessageFile {
+    id: id.into(),
     name: name.into(),
     mime: mime.into(),
     bytes,
@@ -42,7 +43,7 @@ fn carrying() -> Context {
   }
 }
 
-async fn handed(standing: &Standing, message_id: i64, files: &[FileItem]) {
+async fn handed(standing: &Standing, message_id: i64, files: &[MessageFile]) {
   standing
     .receiver
     .attachment(&inbound(ROOM, message_id, 55, "[file]"), &carrying(), Room::default(), files)
@@ -92,7 +93,7 @@ async fn a_large_picture_is_brought_inside_its_longest_side_and_filed_as_a_jpeg_
     "the picture stands past the threshold"
   );
 
-  handed(&standing, 1, &[file("big.png", "image/png", large)]).await;
+  handed(&standing, 1, &[file("1", "big.png", "image/png", large)]).await;
 
   let path = image_path(&scratch, 1).await;
   let kept = std::fs::read(&path).unwrap();
@@ -108,7 +109,7 @@ async fn a_transparent_picture_is_laid_on_white_and_filed_as_a_jpeg() {
   let (scratch, _data, standing) = stood().await;
   let clear = encoded(RgbaImage::from_pixel(8, 8, Rgba([0, 0, 0, 0])).into(), ImageFormat::Png);
 
-  handed(&standing, 2, &[file("clear.png", "image/png", clear)]).await;
+  handed(&standing, 2, &[file("1", "clear.png", "image/png", clear)]).await;
 
   let kept = std::fs::read(image_path(&scratch, 2).await).unwrap();
   let read = image::load_from_memory(&kept).unwrap().to_rgb8();
@@ -126,7 +127,10 @@ async fn a_small_jpeg_is_kept_as_it_came_and_the_messages_first_picture_names_it
   handed(
     &standing,
     3,
-    &[file("a.jpg", "image/jpeg", small.clone()), file("b.png", "image/png", opaque.clone())],
+    &[
+      file("1", "a.jpg", "image/jpeg", small.clone()),
+      file("2", "b.png", "image/png", opaque.clone()),
+    ],
   )
   .await;
 
@@ -146,10 +150,10 @@ async fn a_sound_or_a_video_with_no_name_is_named_for_what_it_is() {
     &standing,
     4,
     &[
-      file("", "video/webm", b"webm".to_vec()),
-      file("", "video/x-unknown", b"what".to_vec()),
-      file("", "audio/ogg; codecs=opus", b"ogg".to_vec()),
-      file("clip.mov", "video/quicktime", b"mov".to_vec()),
+      file("1", "", "video/webm", b"webm".to_vec()),
+      file("2", "", "video/x-unknown", b"what".to_vec()),
+      file("3", "", "audio/ogg; codecs=opus", b"ogg".to_vec()),
+      file("4", "clip.mov", "video/quicktime", b"mov".to_vec()),
     ],
   )
   .await;
@@ -168,10 +172,10 @@ async fn a_sound_or_a_video_with_no_name_is_named_for_what_it_is() {
 async fn the_same_file_handed_over_twice_is_kept_once() {
   let (scratch, _data, standing) = stood().await;
 
-  handed(&standing, 5, &[file("notes.txt", "text/plain", b"first".to_vec())]).await;
+  handed(&standing, 5, &[file("1", "notes.txt", "text/plain", b"first".to_vec())]).await;
 
   let again = GatheredOutcome::Kept {
-    files: vec![file("notes.txt", "text/plain", b"second".to_vec())],
+    files: vec![file("1", "notes.txt", "text/plain", b"second".to_vec())],
   };
 
   standing.receiver.gathered(ROOM, 5, "road-a", &again).await.unwrap();
@@ -187,11 +191,65 @@ async fn the_same_file_handed_over_twice_is_kept_once() {
 }
 
 #[tokio::test]
+async fn two_files_of_one_name_in_a_message_are_two_files_filed_apart() {
+  let (scratch, data, standing) = stood().await;
+
+  handed(&standing, 7, &[file("a", "notes.txt", "text/plain", b"first".to_vec())]).await;
+
+  let other = GatheredOutcome::Kept {
+    files: vec![file("b", "notes.txt", "text/plain", b"second".to_vec())],
+  };
+
+  standing.receiver.gathered(ROOM, 7, "road-a", &other).await.unwrap();
+
+  let folder = data.path().join(format!("collected/{ROOM}"));
+
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "file_unique_id" || ' ' || "stored_path" FROM "collected_items" WHERE "chat_id" = {ROOM} AND "message_id" = 7 ORDER BY "file_unique_id""#
+      ))
+      .await,
+    [
+      format!("a {}", folder.join("7-notes.txt").to_string_lossy()),
+      format!("b {}", folder.join("7-2-notes.txt").to_string_lossy()),
+    ]
+  );
+  assert_eq!(std::fs::read(folder.join("7-notes.txt")).unwrap(), b"first");
+  assert_eq!(std::fs::read(folder.join("7-2-notes.txt")).unwrap(), b"second");
+}
+
+#[tokio::test]
+async fn a_row_that_names_no_id_is_taken_by_the_first_file_of_its_name() {
+  let (scratch, data, standing) = stood().await;
+
+  scratch
+    .run(
+      r#"INSERT INTO "collected_items" ("chat_id", "message_id", "sender_name", "kind", "source", "collected_at")
+         VALUES ($1, 8, 'tester', 'document', 'notes.txt', 0)"#,
+      vec![ROOM.into()],
+    )
+    .await;
+  handed(&standing, 8, &[file("a", "notes.txt", "text/plain", b"kept".to_vec())]).await;
+
+  let stored = data.path().join(format!("collected/{ROOM}/8-notes.txt"));
+
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "file_unique_id" || ' ' || "stored_path" FROM "collected_items" WHERE "chat_id" = {ROOM} AND "message_id" = 8"#
+      ))
+      .await,
+    [format!("a {}", stored.to_string_lossy())]
+  );
+}
+
+#[tokio::test]
 async fn a_file_past_the_cap_keeps_its_row_without_the_file_until_a_later_hand_over_keeps_it() {
   let (scratch, data, standing) = stood().await;
   let past = vec![b'x'; usize::try_from(CAP).unwrap() + 1];
 
-  handed(&standing, 6, &[file("big.bin", "application/octet-stream", past)]).await;
+  handed(&standing, 6, &[file("1", "big.bin", "application/octet-stream", past)]).await;
 
   let sql = format!(
     r#"SELECT COALESCE("stored_path", 'none') || ' | ' || COALESCE("summary", 'none') FROM "collected_items" WHERE "chat_id" = {ROOM} AND "message_id" = 6"#
@@ -203,7 +261,7 @@ async fn a_file_past_the_cap_keeps_its_row_without_the_file_until_a_later_hand_o
 
   // The same file handed over again within the cap fills the row that was left.
   let smaller = GatheredOutcome::Kept {
-    files: vec![file("big.bin", "application/octet-stream", b"fits".to_vec())],
+    files: vec![file("1", "big.bin", "application/octet-stream", b"fits".to_vec())],
   };
 
   standing.receiver.gathered(ROOM, 6, "road-a", &smaller).await.unwrap();

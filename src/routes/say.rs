@@ -9,7 +9,7 @@ use axum::{
   extract::{Multipart, State},
   http::StatusCode,
 };
-use bmo_chat_client::FileItem;
+use bmo_chat_client::MessageFile;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -266,7 +266,9 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
         via_reader: None,
         album: None,
       };
-      let item = FileItem {
+      // The record hands the file over as its own message's one file, identified by that place.
+      let item = MessageFile {
+        id: "1".to_owned(),
         name: file.name.clone(),
         mime: file.mime.clone(),
         bytes: file.bytes.clone(),

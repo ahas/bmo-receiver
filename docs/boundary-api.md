@@ -715,16 +715,11 @@ Statements the receiver makes that a sibling's document does not yet match, each
   (`run_records`), which name a run alone, are not taken with a companion's conversation.
 - **The agency** publishes `road-walked` and `usage-spent`; the receiver writes no road and no usage rows of its
   own, and a run of a second asking that failed is written as a judgement of the round with no figures.
-- **The agency's `room_windows`** and the receiver's are the same table: agency's `docs/store.md` lists it
-  among the companions' sessions, and the receiver's `docs/store.md` keeps it as its own, since the window a
-  room holds for an agent is what the wake reads. One of the two is to be moved before both stand in one
-  database.
 - **The gate, the web unit and the voice unit** state no boundary yet; their calls above are the receiver's side.
   The gate's copy of a companion's gate options, which the agency's `docs/companions.md` names the gate's, is
   among them.
-- **bmo-chat's file item** carries a name, a type and the bytes, and no identifier of the file's own, so a file
-  another replaced under the same name in an edited message is not told apart from it and the first bytes stand;
-  nor does a hand-over say whether a sound was a spoken note or a video a round note or an animation.
+- **bmo-chat's message file** does not say whether a sound was a spoken note or a video a round note or an
+  animation.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver
   learns a message was taken as a move: until one does, a move is woken on as any message is.
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver
