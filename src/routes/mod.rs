@@ -155,6 +155,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
       get(message_files::file),
     ),
     ("GET", "/console/rooms/{chat}/messages/{message}/picture", get(message_files::picture)),
+    ("GET", "/console/rooms/{chat}/pictures", get(console::pictures)),
     ("GET", "/console/rooms/{chat}/window", get(console::room_window)),
     ("PUT", "/console/pinned-rooms", put(console::pin)),
     ("POST", "/console/pinned-rooms/add", post(console::pin_one)),

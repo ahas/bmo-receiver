@@ -13,7 +13,10 @@ use sea_orm::DatabaseConnection;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use super::message_files::{inside, type_of};
 use super::{Answered, Refusal, Served, answered, read, refused, store};
+use crate::data_root::room_path;
+use crate::receiver::reads::PictureWalk;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, pinned, reads};
 use crate::{Fault, now_ms};
@@ -52,6 +55,21 @@ pub struct AfterCursor {
 #[serde(rename_all = "camelCase")]
 pub struct DayStart {
   from: i64,
+}
+
+#[derive(Deserialize)]
+pub struct PictureCursor {
+  #[serde(default)]
+  at: Option<i64>,
+
+  #[serde(default)]
+  before: Option<i64>,
+
+  #[serde(default)]
+  after: Option<i64>,
+
+  #[serde(default)]
+  limit: i64,
 }
 
 #[derive(Deserialize)]
@@ -241,6 +259,66 @@ pub async fn one(State(served): State<Served>, Path((chat, message)): Path<(i64,
     .map(|pages| json!({ "messages": pages, "hasMore": false }))
     .map_err(store)
     .and_then(answered)
+}
+
+/// A stretch of a room's pictures, oldest first, walked from a picture the reader holds, with how many of the
+/// room's pictures stand before it and how many the room holds.
+pub async fn pictures(
+  State(served): State<Served>,
+  Path(chat): Path<i64>,
+  query: Query<PictureCursor>,
+) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+  let db = receiver.db();
+  let bound = window(query.limit);
+  let walk = match (query.at, query.before, query.after) {
+    (Some(at), _, _) => PictureWalk::At(at),
+    (None, Some(before), _) => PictureWalk::Before(before),
+    (None, None, Some(after)) => PictureWalk::After(after),
+    (None, None, None) => PictureWalk::Newest,
+  };
+  let mut found = reads::pictures(db, chat, walk, i64::try_from(bound).unwrap_or(0))
+    .await
+    .map_err(store)?;
+  let has_more = found.len() == bound;
+
+  // The extra row that says there is more is the one furthest from the cursor.
+  if has_more {
+    if matches!(walk, PictureWalk::After(_)) {
+      found.pop();
+    } else {
+      found.remove(0);
+    }
+  }
+
+  let one_to_one = receiver.roads().room_facts(chat).await.private_to.is_some();
+  let folder = room_path(&receiver.data_root().images(), chat);
+  let shown: Vec<reads::Page> =
+    found.into_iter().filter(|page| spoken_by_person(one_to_one, page)).collect();
+  let (before, total) = reads::pictures_counted(db, chat, shown.first().map(|page| page.message_id))
+    .await
+    .map_err(store)?;
+  let pictures: Vec<Value> = shown
+    .iter()
+    .map(|page| {
+      let stored = page.image_path.as_deref().unwrap_or_default();
+      let name = std::path::Path::new(stored).file_name().map(|name| name.to_string_lossy().into_owned());
+      let file = inside(&folder, stored).and_then(|real| real.metadata().ok()).map(
+        |held| json!({ "name": name, "bytes": held.len(), "type": name.as_deref().and_then(type_of) }),
+      );
+
+      json!({
+        "messageId": page.message_id,
+        "album": page.album,
+        "senderName": page.sender_name,
+        "sentAt": page.sent_at,
+        "text": page.text,
+        "file": file,
+      })
+    })
+    .collect();
+
+  answered(json!({ "pictures": pictures, "hasMore": has_more, "before": before, "total": total }))
 }
 
 /// How long the chat agent's window in a room has left, in seconds, and when it closes; a room that never opened

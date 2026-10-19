@@ -25,6 +25,9 @@ const AFTER_CURSOR: &str = r#"(("m"."sent_at", "m"."rowid") > (SELECT "c"."sent_
    OR (NOT EXISTS (SELECT 1 FROM "messages" "c" WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)
      AND "m"."message_id" > $2))"#;
 
+// A message, read over the room's rows as `m`, that stored a picture.
+const PICTURED: &str = r#""m"."image_path" IS NOT NULL AND "m"."image_path" <> ''"#;
+
 // Where a message stands before the cursor message the reader holds.
 const BEFORE_CURSOR: &str = r#"("m"."sent_at", "m"."rowid") < (SELECT "c"."sent_at", "c"."rowid" FROM "messages" "c"
      WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)"#;
@@ -375,6 +378,93 @@ pub async fn before(
     .map(Page::of)
     .collect::<Result<_, _>>()?,
   )
+}
+
+/// Which stretch of a room's pictures is asked for, by a picture the reader holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PictureWalk {
+  /// The room's newest.
+  Newest,
+  /// That picture alone.
+  At(i64),
+  /// The stretch ending just before it.
+  Before(i64),
+  /// The stretch just past it.
+  After(i64),
+}
+
+/// A stretch of the room's messages that stored a picture, oldest first, at most `count` of them.
+pub async fn pictures(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  walk: PictureWalk,
+  count: i64,
+) -> Result<Vec<Page>, Fault> {
+  let (sql, values) = match walk {
+    PictureWalk::Newest => (
+      format!(
+        r#"SELECT * FROM (SELECT * FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {PICTURED}
+             ORDER BY "m"."sent_at" DESC, "m"."rowid" DESC LIMIT $2) "l"
+           ORDER BY "l"."sent_at", "l"."rowid""#
+      ),
+      vec![chat_id.into(), count.into()],
+    ),
+    PictureWalk::At(message) => (
+      format!(
+        r#"SELECT * FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {PICTURED} AND "m"."message_id" = $2"#
+      ),
+      vec![chat_id.into(), message.into()],
+    ),
+    PictureWalk::Before(message) => (
+      format!(
+        r#"SELECT * FROM (SELECT * FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {PICTURED} AND {BEFORE_CURSOR}
+             ORDER BY "m"."sent_at" DESC, "m"."rowid" DESC LIMIT $3) "l"
+           ORDER BY "l"."sent_at", "l"."rowid""#
+      ),
+      vec![chat_id.into(), message.into(), count.into()],
+    ),
+    PictureWalk::After(message) => (
+      format!(
+        r#"SELECT "m".* FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {PICTURED} AND {AFTER_CURSOR}
+           ORDER BY "m"."sent_at" ASC, "m"."rowid" ASC LIMIT $3"#
+      ),
+      vec![chat_id.into(), message.into(), count.into()],
+    ),
+  };
+
+  Ok(all(db, &sql, values).await?.iter().map(Page::of).collect::<Result<_, _>>()?)
+}
+
+/// How many of the room's pictures stand before the picture message given, and how many it holds.
+pub async fn pictures_counted(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  first: Option<i64>,
+) -> Result<(i64, i64), Fault> {
+  let counted = |sql: String, values: Vec<sea_orm::Value>| async move {
+    let row = one(db, &sql, values).await?;
+
+    Ok::<i64, Fault>(row.map(|row| row.try_get::<i64>("", "n")).transpose()?.unwrap_or(0))
+  };
+  let total = counted(
+    format!(r#"SELECT COUNT(*) AS "n" FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {PICTURED}"#),
+    vec![chat_id.into()],
+  )
+  .await?;
+  let before = match first {
+    Some(message) => {
+      counted(
+        format!(
+          r#"SELECT COUNT(*) AS "n" FROM "messages" "m" WHERE "m"."chat_id" = $1 AND {PICTURED} AND {BEFORE_CURSOR}"#
+        ),
+        vec![chat_id.into(), message.into()],
+      )
+      .await?
+    }
+    None => 0,
+  };
+
+  Ok((before, total))
 }
 
 /// The messages of a room past the cursor message the reader holds, oldest first, at most `count` of them.

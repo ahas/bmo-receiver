@@ -12,6 +12,7 @@ mod notices;
 mod owner_road;
 mod owner_sends;
 mod owner_words;
+mod room_pictures;
 mod voice;
 mod worker_settings;
 

@@ -46,7 +46,7 @@ fn nothing_held(what: &str) -> Refusal {
 }
 
 /// A stored path as it really stands, every link followed, where it is a file inside the folder given.
-fn inside(folder: &FilePath, stored: &str) -> Option<PathBuf> {
+pub(super) fn inside(folder: &FilePath, stored: &str) -> Option<PathBuf> {
   let folder = std::fs::canonicalize(folder).ok()?;
   let real = std::fs::canonicalize(stored).ok()?;
 
@@ -54,7 +54,7 @@ fn inside(folder: &FilePath, stored: &str) -> Option<PathBuf> {
 }
 
 /// The content type a file's name implies, where it implies one.
-fn type_of(name: &str) -> Option<String> {
+pub(super) fn type_of(name: &str) -> Option<String> {
   mime_guess::from_path(name).first().map(|kind| kind.essence_str().to_owned())
 }
 
