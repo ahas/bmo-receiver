@@ -210,6 +210,12 @@ fn the_version_file_holds_the_workspaces_version() {
 }
 
 #[test]
+fn the_service_answers_with_the_version_the_file_holds() {
+  let version = text_of("VERSION").expect("VERSION is at the root");
+  assert_eq!(bmo_receiver::VERSION, version.trim());
+}
+
+#[test]
 fn the_testbed_declaration_is_in_the_testbeds_format() {
   let declaration: toml::Table = text_of("testbed.toml")
     .expect("testbed.toml is at the root")
