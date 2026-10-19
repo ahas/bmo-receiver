@@ -54,6 +54,15 @@ receiver keeps the pictures and decides what a session is shown.
   naming the other messages it went out with, so an answer can still be pinned to any of them.
 - **Stored pictures are kept for good:** nothing deletes them but the room's removal.
 
+## The console's picture viewer
+
+- **A message's picture is served by its message** (`docs/boundary-api.md`, 「A message's files and picture」),
+  and only from inside the room's own folder of the picture store, its stored path followed through its links
+  first.
+- **The viewer walks a room's pictures across the whole room** (「A room's pictures」): the messages a person said
+  that stored a picture, in the order the room's line stands them, asked for by a picture the reader holds, with
+  how many stand before the stretch and how many the room holds, so the viewer can say where it stands among them.
+
 ## Profile pictures
 
 - **Every room and every person the archive knows wears, in the console, the picture its chat service shows for

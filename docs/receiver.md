@@ -133,9 +133,10 @@ flowchart TD
   unit). No other act or chat service's event removes a room.
 - **What goes is the room's whole record in the receiver:** every row of every receiver table holding the room's
   number in a `chat_id` column, the tables read off the database's own schema as the removal runs rather than off
-  any list (its registration and title, its switches and answerers, its messages, its reads, its collected-file
-  rows, its draws); what an owner of room state outside those columns declares beside its own code (its picture,
-  the settings that name it, what its runs wrote down, and its folders in the message-file store, the picture store
+  any list (its registration and title, its switches and answerers, its messages and the metadata they arrived
+  with, its reads, its collected-file rows, its draws); what an owner of room state outside those columns declares
+  beside its own code (its picture, the settings that name it, its place in the console's pinned order, what its
+  runs wrote down, and its folders in the message-file store, the picture store
   and the outboxes, `docs/room-files.md`).
 - **Every other unit's part goes through that unit:** the agency forgets the room (`POST /rooms/forget`), the brain
   removes its rows and folders (`POST /rooms/removed`), and every declared holder (`PUT /room-holders/{unit}`) is

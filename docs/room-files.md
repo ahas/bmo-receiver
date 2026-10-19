@@ -38,6 +38,15 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   the archive as the short placeholder line the chat service makes of it, so the room reads back with the note in
   its place and the console has a row to put a listen button on.
 
+### What the console reads of them
+
+- **The console plays, opens and saves a message's files through the receiver** (`docs/boundary-api.md`, 「A
+  message's files and picture」): it lists them in the order a page's files stand, each by its place among them,
+  and asks for one's bytes by that place, never by a path.
+- **Only bytes inside the room's own folder go out.** A stored path is followed through its links first and served
+  only where it resolves inside the room's folder of the message-file store; a row with no stored path, or one
+  that points anywhere else or at nothing left on the disk, is answered as nothing held.
+
 ### Who a file wakes
 
 - **Most files wake nobody:** a voice note is not something a session can hear, and waking one for every note in a

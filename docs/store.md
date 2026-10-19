@@ -29,6 +29,7 @@ An instruction names the agent whose session takes it outright: the table holds 
 | Table | One row is | Key |
 |---|---|---|
 | `messages` | a message said in a room, by a person or an agent: its sender and name, time, words, stored picture, the message it answers, how long its answer took, the round that answered it, its album and the chat service it came by | room and message |
+| `message_metadata` | what a chat service handed over beside a message as its context's `metadata`, kept as it arrived and never read into (`docs/boundary-api.md`, 「Reading a room」) | room and message |
 | `instructions` | a quiet instruction waiting for, handed to or delivered to an agent's session in a room (`docs/bmo-window.md`): its words, kind, sort and summary, events, expiry, ride, the round that settled it and the run it carries the result of | its number |
 | `settings` | one setting: a key and its text value (below) | the key |
 | `allowed_chats` | a room the receiver listens to | room |
@@ -78,7 +79,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `fallback_since`, `fallback_provider` | since when, in Unix seconds, a stand-in has answered for the chat agent, and which one | the agency's `fallback-answering` and `fallback-ended` |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |
-| `console_pinned_rooms` | the rooms the console stands over the rest, as a JSON list of room numbers in the owner's order; a number the record no longer has stands for nothing | the console's pinning, read by the console's room list |
+| `console_pinned_rooms` | the rooms the console stands over the rest, as a JSON list of room numbers in the owner's order; a room's removal takes its number out, and a number the record no longer has stands for nothing | the console's pinned order (`docs/boundary-api.md`, 「The pinned order」), read by the console's room list |
 | `room_holder:<unit>` | a unit declared a holder of rows naming a room: its API base and its holdings, as JSON | the holder's declaration (`PUT /room-holders/{unit}`) |
 | `<agent>_active_route` | the road an agent's one chat session stands on, as JSON | the chat session |
 | `<agent>_pending_summary` | the note a replaced session left for the next fresh one | the chat session |

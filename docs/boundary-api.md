@@ -384,6 +384,7 @@ room's registration」).
 
 | Route | Body | Answer |
 |---|---|---|
+| `GET /voice-briefing` | | `on`, `autoplay`: how the switch stands, read without moving it |
 | `POST /voice-briefing` | `on?`, `autoplay?` | `ok`, `on`, `autoplay` |
 | `POST /voice-briefing/line` | `chatId`, `messageId` | `ok`, `state` (`making` or `ready`) |
 
@@ -404,7 +405,9 @@ field (`name`, `label`, `provider`, `model`, `worker`; `agent` as `not-companion
 and nothing of the receiver's is written. A gate that does not copy refuses nothing: the companion stands on the gate's defaults,
 and the failure is logged.
 
-### For the web unit's console: reading a room
+### For the web unit's console: its rooms
+
+#### Reading a room
 
 | Route | Answer |
 |---|---|
@@ -415,11 +418,88 @@ and the failure is logged.
 | `GET /console/rooms/{chat}/day-start?from=` | `messageId` of the first message a person said at or after `from`, or null |
 | `GET /console/rooms/{chat}/messages/after?after=&limit=` | `messages` past `after`, oldest first, and `hasMore` |
 | `GET /console/rooms/{chat}/messages/{message}` | the one message as a page of one |
+| `GET /console/rooms/{chat}/messages/{message}/metadata` | `metadata`: what the chat service handed over beside the message as its context's `metadata`, as it arrived, or null where it handed over none |
+| `GET /console/rooms/{chat}/window` | `openFor`, the seconds the chat agent's window in the room has left, 0 where it stands closed, and `closesAt`, when it closes in Unix seconds, or null where the room has never opened one |
 
 The owner's private chat is read by `GET /owner`. A page holds only what a person said themselves; a cursor is a
 message the reader holds, and a room's line is walked by when each message was sent and the order the archive
-took it in, never by its number. A message carries its files and its audio as the archive keeps them. The
-judgements beside a page are the gate's, read there.
+took it in, never by its number. A message carries its files and its audio as the archive keeps them. Times on a
+page and in the room's figures are epoch milliseconds, as the store keeps a message's. The judgements beside a
+page are the gate's, read there.
+
+- **The metadata is opaque to the receiver:** it keeps what the chat service handed over and hands it back
+  unread, so what it holds (the custom emoji among the words, a video's shape) is the chat service's to state
+  (bmo-chat's `docs/contract.md`, the context's `metadata`). A message handed over again as edited with metadata
+  of its own replaces what was kept; one handed over with none leaves it.
+- **The window is the chat agent's,** the agent the configuration names (「Configuration」), read off the room's
+  `room_windows` row for it (`docs/wake.md`, 「The names and the window」).
+
+#### A message's files and picture
+
+| Route | Answer |
+|---|---|
+| `GET /console/rooms/{chat}/messages/{message}/files` | `files`, in the order a page's files stand: each `place` (counted from 0), `kind`, `name`, `type` (the content type its stored name implies, or null), `size` (in bytes, or null) and `kept` (whether its bytes stand in the store) |
+| `GET /console/rooms/{chat}/messages/{message}/files/{place}?download=` | the bytes of the file at that place |
+| `GET /console/rooms/{chat}/messages/{message}/picture` | the bytes of the picture the message stored |
+
+- **The bytes answer as a file does over HTTP:** `Content-Type` as the file's name implies, `Content-Length`,
+  `Accept-Ranges: bytes`, and a `Range` asked for answered 206 with its `Content-Range`, or 416 where it lies
+  outside the file. `download=true` adds `Content-Disposition: attachment` with the file's name, so a browser
+  saves it rather than opening it.
+- **Only what the store keeps is served:** a file is read only where its stored path resolves inside the room's
+  folder of the message-file store, and a picture inside the room's folder of the picture store, links followed
+  first (`docs/room-files.md`). A message the record does not hold, a place past its files, a file whose bytes
+  were not kept, a path that resolves anywhere else and a stored file gone from the disk are each answered 404
+  `not-found`.
+
+#### A room's pictures
+
+| Route | Answer |
+|---|---|
+| `GET /console/rooms/{chat}/pictures?at=&before=&after=&limit=` | `pictures`, oldest first: each `messageId`, `album`, `senderName`, `sentAt`, `text` and `file` (`name`, `bytes`, `type`), null where the stored picture is gone; `hasMore`; `before`, how many of the room's pictures stand before the first one answered; `total`, how many it holds |
+
+- **The pictures are the room's messages that stored one,** walked as its line is (by when each was sent and the
+  order the archive took it in) and held to what a person said, as a page is. A stretch is asked for by a picture
+  the reader holds: `at` answers that picture alone, `before` the stretch ending just before it, `after` the
+  stretch just past it, and none of the three the room's newest. `limit` is taken as a page of messages takes it.
+- **`hasMore`** says more pictures stand beyond the stretch on the side it was walked away from the cursor, or
+  before the newest where none was named.
+
+#### A room's figures
+
+| Route | Answer |
+|---|---|
+| `GET /console/rooms/{chat}/figures?zone=` | `chatId`; `messages`, every message the room holds; `fromPeople`, those a person said; `speakers`, how many people said them; `firstAt`, `lastAt` and `lastAnswerAt`, its first and last message and an agent's last, each null where it holds none; `top`, the three people who said most, each `name` and `messages`; `byHour`, 24 counts of its messages by the hour of the day they were sent in `zone`; `agents` (below) |
+
+- **`zone`** is an IANA time zone name, `UTC` where none is given; the database's own zone data reads it, and a
+  name it does not know is refused 400 `bad-request`.
+- **`agents`** holds the room's agents: those answering in it (`room_answerers`), and the chat agent where the
+  room is among those its session has been given (`bmo_session_rooms`). Each is:
+  - from the receiver's record: `agent`, its name; `messages`, the messages it filed in the room; `lastAnswerAt`;
+    `session`, the newest session the record holds for the room, the chat agent's alone, or null;
+  - from the agency's agent list (`GET /agents`), its row as the agency holds it across every room: `label`,
+    `lastMode`, `lastModel`, `lastEffort`;
+  - from the agency's reading of that session (`GET /session/state`): `sessionMode` (its `provider`), `model`
+    and `contextTokens` (its context's `carried`), each null where no session is held;
+  - `runs`, `lastRunAt`, `weekTokens` and `totalTokens`, the room's runs and what they spent, which no route of the
+    agency's answers by room (「Contract gaps」), so each stands null.
+- **An agency that does not answer** leaves the fields read from it null, and the figures are still answered.
+
+#### The pinned order
+
+| Route | Body | Answer |
+|---|---|---|
+| `PUT /console/pinned-rooms` | `rooms`, the room numbers in the order they stand over the rest | `rooms`, the order as it now stands |
+| `POST /console/pinned-rooms/add` | `chat` | `rooms` |
+| `POST /console/pinned-rooms/remove` | `chat` | `rooms` |
+
+- **The order is the `console_pinned_rooms` setting** (`docs/store.md`), which `GET /console/rooms` stands its
+  pinned rooms first by. Setting it replaces the whole list, a number named twice standing once at its first
+  place. Adding stands a room last unless it stands already; removing takes it out, and a room not in the list
+  is no refusal.
+- **A room the record does not hold is refused** 404 `not-found`, on setting and on adding alike, and nothing is
+  written. Removing a room's registration takes it out of the order (`docs/receiver.md`, 「Removing a room's
+  registration」).
 
 ## Calls the receiver makes
 
@@ -439,14 +519,14 @@ every room's matter.
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| the agents | `GET /agents` | | `agents`, each with its row's fields, its roads, `awake`, `brainFolder`; `roles` |
+| the agents | `GET /agents` | | `agents`, each with its row's fields, its roads, `awake`, `brainFolder`; `roles`; the console's room figures read an agent's `label`, `lastMode`, `lastModel` and `lastEffort` from it |
 | a stand-in | `GET /stand-in?agent=` | | `answers` (boolean): whether a stand-in answers the agent while the rest closes its road |
 | the rest | `GET /rest` | | `resting` (boolean), `until` in epoch seconds or null, `kind` (`limit` or `outage`) or null |
 | a rest written | `POST /rest` | `until` in epoch seconds, `kind` (`limit` or `outage`), `account` or null for the service's own | `silenced` (boolean): the rest is the one that closed every road that answers |
 | a rest passed | `GET /rest/passed` | | `kind` (`limit` or `outage`) or null: why the deployment rested where its rest has just passed, with the passed rests cleared |
 | start a session | `POST /session/start` | `agent`, `scope` (`{ "kind": "agent" }` or `{ "kind": "room", "room": <id> }`) | `id`, `agent`, `scope` |
 | send a turn | `POST /session/turn` | `session`, `prompt`, and the context: `room` (`chatId`, `text`, `mark`), `via`, `basePersona`, `privileged`, `answers`, `began` | `delivery`: `taken` or `blocked` |
-| read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` (`carried`, the tokens its last request carried, and `window`, the registration's window), which a round's fold reads |
+| read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` (`carried`, the tokens its last request carried, and `window`, the registration's window), which a round's fold reads, and the console's room figures for the session a room holds |
 | push words | `POST /session/push` | `session`, `words` | `said`: `delivered`, `waiting` or `refused` |
 | interrupt, fold, end | `POST /session/interrupt`, `POST /session/fold`, `POST /session/end` | `session` | `ok` |
 | list sessions | `GET /session/list` | | `sessions` |
@@ -642,6 +722,10 @@ Statements the receiver makes that a sibling's document does not yet match, each
   keeps what was recorded as its `restart_reason` setting (`docs/store.md`) and needs a route for it.
 - **The brain's** 「The receiver」 names the operations by path alone; every one is a `POST`, as its port calls
   them.
-- **The console's pinned-room order** is the receiver's `console_pinned_rooms` setting, which its room list reads
-  to stand the pinned rooms first; no route lets the web unit write it, so until one does the order stands only
-  where it was written into the receiver's database.
+- **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
+  did, and the tokens they spent in the last seven days and in all. Its `GET /agents` row carries `runs`,
+  `lastRunAt` and `contextTokens` across every room, and its run ledger lists runs by search alone, so the
+  console's room figures answer `runs`, `lastRunAt`, `weekTokens` and `totalTokens` null until the agency serves a
+  tally by agent and room.
+- **The agency** names no route for the session a companion keeps for a room (its `room_sessions`), so the room
+  figures name the chat agent's session alone, the one the receiver's own record holds.
