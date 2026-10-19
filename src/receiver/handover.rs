@@ -1,7 +1,8 @@
 //! The hand-overs a chat service makes (docs/boundary-api.md, 「For the chat services」): a message, a message
 //! carrying a file, an edit and a file gathered, served by bmo-chat-client's receiver routes and judged by the one
 //! receiver. What the service already knows of the room is taken as it says it; a hand-over that says nothing of
-//! the room is read off the room's road.
+//! the room is read off the room's road. What the platform handed over beside a message as its `metadata` is kept as
+//! it arrived once the message is judged.
 
 use std::sync::Arc;
 
@@ -11,7 +12,7 @@ use bmo_chat_client::{
   WireError, receiver_router,
 };
 
-use super::{Context, Inbound, NotReceived, Receiver, Room};
+use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
 
 /// The message as the receiver keeps it.
 pub fn inbound(message: &ChatMessage) -> Inbound {
@@ -59,6 +60,16 @@ impl Receiver {
       None => self.roads().room_facts(handover.message.chat_id).await,
     }
   }
+
+  // What the platform handed over beside the message, kept as it arrived once the message is judged; a hand-over
+  // carrying none leaves what was kept.
+  async fn metadata_of(&self, handover: &ChatHandover) -> Result<(), NotReceived> {
+    let Some(metadata) = handover.context.as_ref().and_then(|context| context.metadata.as_ref()) else {
+      return Ok(());
+    };
+
+    Ok(metadata::keep(self.db(), handover.message.chat_id, handover.message.message_id, metadata).await?)
+  }
 }
 
 fn failed(why: NotReceived) -> WireError {
@@ -72,7 +83,8 @@ impl ChatReceiver for Receiver {
 
     Receiver::message(self, &inbound(&handover.message), &context(handover.context.as_ref()), room)
       .await
-      .map_err(failed)
+      .map_err(failed)?;
+    self.metadata_of(&handover).await.map_err(failed)
   }
 
   async fn attachment(&self, handover: ChatHandover) -> Result<(), WireError> {
@@ -81,11 +93,13 @@ impl ChatReceiver for Receiver {
 
     Receiver::attachment(self, &said, &context(handover.context.as_ref()), room, &handover.files)
       .await
-      .map_err(failed)
+      .map_err(failed)?;
+    self.metadata_of(&handover).await.map_err(failed)
   }
 
   async fn edited(&self, handover: ChatHandover) -> Result<(), WireError> {
-    Receiver::edited(self, &inbound(&handover.message)).await.map_err(failed)
+    Receiver::edited(self, &inbound(&handover.message)).await.map_err(failed)?;
+    self.metadata_of(&handover).await.map_err(failed)
   }
 
   async fn gathered(&self, gathered: ChatGathered) -> Result<(), WireError> {

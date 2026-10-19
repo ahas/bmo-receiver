@@ -133,6 +133,12 @@ async fn fill(scratch: &Scratch, data: &std::path::Path, room: i64) {
 
   scratch.message(room, 1, 7).await;
   scratch.message(room, 2, 8).await;
+  scratch
+    .run(
+      r#"INSERT INTO "message_metadata" ("chat_id", "message_id", "metadata") VALUES ($1, 1, '{"kept":true}')"#,
+      vec![room.into()],
+    )
+    .await;
 
   for folder in ["collected", "images", "outbox"] {
     let at = data.join(folder).join(room.to_string());
@@ -203,6 +209,7 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
 
   assert_eq!(shown_rows(&goes, "messages"), 2);
   assert_eq!(shown_rows(&goes, "chat_titles"), 1);
+  assert_eq!(shown_rows(&goes, "message_metadata"), 1);
   assert_eq!(shown_rows(&goes, "avatars"), 1);
   assert_eq!(shown_rows(&goes, "run_records"), 1);
   assert!(shown["stays"].as_array().unwrap().is_empty());

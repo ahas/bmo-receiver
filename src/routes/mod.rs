@@ -148,6 +148,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/console/rooms/{chat}/day-start", get(console::day_start)),
     ("GET", "/console/rooms/{chat}/messages/after", get(console::after)),
     ("GET", "/console/rooms/{chat}/messages/{message}", get(console::one)),
+    ("GET", "/console/rooms/{chat}/messages/{message}/metadata", get(console::metadata)),
     ("GET", "/console/rooms/{chat}/messages/{message}/files", get(message_files::files)),
     (
       "GET",

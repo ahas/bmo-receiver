@@ -8,6 +8,7 @@ pub mod m20261017_000001_receiver;
 pub mod m20261017_000002_record_numbers;
 pub mod m20261017_000003_room_windows;
 pub mod m20261017_000004_people_reads;
+pub mod m20261019_000005_message_metadata;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -22,6 +23,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261017_000002_record_numbers::Migration),
       Box::new(m20261017_000003_room_windows::Migration),
       Box::new(m20261017_000004_people_reads::Migration),
+      Box::new(m20261019_000005_message_metadata::Migration),
     ]
   }
 }

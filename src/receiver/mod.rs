@@ -8,6 +8,7 @@ pub mod files;
 pub mod handover;
 pub mod labels;
 pub mod left_board;
+pub mod metadata;
 pub mod notices;
 pub mod pictures;
 pub mod pinned;

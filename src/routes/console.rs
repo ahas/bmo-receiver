@@ -18,7 +18,7 @@ use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::data_root::room_path;
 use crate::receiver::reads::PictureWalk;
 use crate::receiver::wake::agents;
-use crate::receiver::{NotReceived, Receiver, pinned, reads};
+use crate::receiver::{NotReceived, Receiver, metadata, pinned, reads};
 use crate::{Fault, now_ms};
 
 // A page of a room, and the largest one the console asks for.
@@ -257,6 +257,15 @@ pub async fn one(State(served): State<Served>, Path((chat, message)): Path<(i64,
   pages(&receiver, chat, kept_lines)
     .await
     .map(|pages| json!({ "messages": pages, "hasMore": false }))
+    .map_err(store)
+    .and_then(answered)
+}
+
+/// What the chat service handed over beside a message as its `metadata`, as it arrived, or null.
+pub async fn metadata(State(served): State<Served>, Path((chat, message)): Path<(i64, i64)>) -> Answered {
+  metadata::kept(served.receiver.db(), chat, message)
+    .await
+    .map(|kept| json!({ "metadata": kept }))
     .map_err(store)
     .and_then(answered)
 }
