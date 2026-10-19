@@ -10,6 +10,7 @@ mod consult;
 mod events;
 mod hooks;
 mod instructions;
+mod message_files;
 mod openings;
 mod owner_words;
 mod room_removal;
@@ -147,6 +148,13 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/console/rooms/{chat}/day-start", get(console::day_start)),
     ("GET", "/console/rooms/{chat}/messages/after", get(console::after)),
     ("GET", "/console/rooms/{chat}/messages/{message}", get(console::one)),
+    ("GET", "/console/rooms/{chat}/messages/{message}/files", get(message_files::files)),
+    (
+      "GET",
+      "/console/rooms/{chat}/messages/{message}/files/{place}",
+      get(message_files::file),
+    ),
+    ("GET", "/console/rooms/{chat}/messages/{message}/picture", get(message_files::picture)),
     ("GET", "/console/rooms/{chat}/window", get(console::room_window)),
     ("PUT", "/console/pinned-rooms", put(console::pin)),
     ("POST", "/console/pinned-rooms/add", post(console::pin_one)),

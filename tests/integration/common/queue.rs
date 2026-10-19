@@ -129,6 +129,17 @@ pub async fn get(front: &Front, path: &str) -> (StatusCode, Value) {
   read(answer).await
 }
 
+/// A GET asked of the front with the token and the headers given, its response as it came, for a route answering
+/// bytes.
+pub async fn fetched(front: &Front, path: &str, headers: &[(&str, &str)]) -> Response {
+  let asked = headers.iter().fold(
+    Request::get(path).header("authorization", format!("Bearer {TOKEN}")),
+    |asked, (name, value)| asked.header(*name, *value),
+  );
+
+  front.routes.clone().oneshot(asked.body(Body::empty()).unwrap()).await.unwrap()
+}
+
 /// A DELETE asked of the front with the token.
 pub async fn remove(front: &Front, path: &str) -> (StatusCode, Value) {
   let answer = front

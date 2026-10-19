@@ -7,6 +7,7 @@ mod commands;
 mod console_rooms;
 mod files;
 mod job_queue;
+mod message_files;
 mod notices;
 mod owner_road;
 mod owner_sends;

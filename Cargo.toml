@@ -56,6 +56,13 @@ tempfile = "3.20.0"
 thiserror = "2.0.21"
 tokio = { version = "1.47.0", features = ["macros", "net", "rt", "rt-multi-thread", "sync"] }
 toml = { version = "0.8.23", default-features = false, features = ["parse"] }
+tower = { version = "0.5.2", default-features = false, features = ["util"] }
+# A kept file's bytes served as HTTP serves a file: its type, its length and the ranges asked of it.
+tower-http = { version = "0.6.11", default-features = false, features = ["fs"] }
+# The content type a kept file's name implies, as the file serving reads it.
+mime_guess = "2.0.5"
+# A file's own name written into the header a download is saved under.
+percent-encoding = "2.3.2"
 # A web address read out of a text: its scheme, host and path, as the address itself says.
 url = "2.5.8"
 
@@ -104,6 +111,11 @@ tokio = { workspace = true, features = ["fs", "signal", "time"] }
 toml.workspace = true
 # The web addresses a text is read for.
 url.workspace = true
+# A message's kept files and picture served to the console, each as HTTP serves a file.
+tower.workspace = true
+tower-http.workspace = true
+mime_guess.workspace = true
+percent-encoding.workspace = true
 # The picture behind an address, fetched where the address is a web address.
 reqwest.workspace = true
 # The seed a fair draw starts from.
@@ -118,4 +130,4 @@ tempfile.workspace = true
 tokio.workspace = true
 toml.workspace = true
 # The chat services' routes asked one request at a time, with no listener.
-tower = { version = "0.5.2", default-features = false, features = ["util"] }
+tower.workspace = true
