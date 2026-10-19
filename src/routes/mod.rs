@@ -135,6 +135,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("POST", "/rooms/remove", post(room_removal::remove)),
     ("GET", "/rounds/openings", get(openings::openings)),
     ("GET", "/rounds/instruction", get(openings::instruction)),
+    ("GET", "/voice-briefing", get(voice::state)),
     ("POST", "/voice-briefing", post(voice::switch)),
     ("POST", "/voice-briefing/line", post(voice::line)),
     ("POST", "/companions/add", post(companions::add)),
@@ -146,6 +147,10 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/console/rooms/{chat}/day-start", get(console::day_start)),
     ("GET", "/console/rooms/{chat}/messages/after", get(console::after)),
     ("GET", "/console/rooms/{chat}/messages/{message}", get(console::one)),
+    ("GET", "/console/rooms/{chat}/window", get(console::room_window)),
+    ("PUT", "/console/pinned-rooms", put(console::pin)),
+    ("POST", "/console/pinned-rooms/add", post(console::pin_one)),
+    ("POST", "/console/pinned-rooms/remove", post(console::unpin)),
   ]
   .into_iter()
   .map(|(method, path, router)| (method.to_owned(), path.to_owned(), router))

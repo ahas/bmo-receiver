@@ -19,7 +19,7 @@ use receiver_ports::agency::Agent;
 use receiver_ports::voice::{Briefed, Briefing, BriefingKind};
 
 use crate::common::Scratch;
-use crate::common::queue::{Front, Kicked, TOKEN, post};
+use crate::common::queue::{Front, Kicked, TOKEN, get, post};
 use crate::common::units::{AGENT, OWNER, standing};
 
 // The room a line is read in, and the number the chat agent's words there are filed under.
@@ -125,6 +125,34 @@ async fn one_switch_is_set_at_a_time_and_moving_the_whole_briefing_queues_the_ow
 
   // A switch said as a word is not the shape the route takes.
   assert_eq!(post(&front, "/voice-briefing", json!({ "on": "yes" })).await.0, StatusCode::BAD_REQUEST);
+}
+
+// The switches are read as they stand, on by default, and reading them moves neither nor tells the owner anything
+// (docs/boundary-api.md, 「The voice briefing」).
+#[tokio::test]
+async fn the_switches_are_read_as_they_stand_without_moving_them() {
+  let (scratch, front, _news) = bench(json!(null)).await;
+  let before = told(&scratch).await;
+
+  assert_eq!(
+    get(&front, "/voice-briefing").await,
+    (StatusCode::OK, json!({ "on": true, "autoplay": true }))
+  );
+  assert_eq!(post(&front, "/voice-briefing", json!({ "on": false })).await.0, StatusCode::OK);
+  assert_eq!(post(&front, "/voice-briefing", json!({ "autoplay": false })).await.0, StatusCode::OK);
+
+  let told_after_moving = told(&scratch).await;
+
+  assert_eq!(
+    get(&front, "/voice-briefing").await,
+    (StatusCode::OK, json!({ "on": false, "autoplay": false }))
+  );
+  assert_eq!(
+    get(&front, "/voice-briefing").await,
+    (StatusCode::OK, json!({ "on": false, "autoplay": false }))
+  );
+  assert_eq!(told(&scratch).await, told_after_moving, "a reading tells the owner nothing");
+  assert_eq!(told_after_moving, before + 1);
 }
 
 // A briefing a runner put in a room reaches every listener with its title, its emotion and the face's

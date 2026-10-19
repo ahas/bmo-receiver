@@ -70,6 +70,13 @@ async fn told(receiver: &Receiver, fact: &VoiceFact) -> Result<(), Fault> {
     .map(drop)
 }
 
+/// How the two switches stand, read without moving either.
+pub async fn state(State(served): State<Served>) -> Answered {
+  let db = served.receiver.db();
+
+  answered(json!({ "on": switch_on(db).await, "autoplay": autoplay_on(db).await }))
+}
+
 /// One switch set — the whole briefing or its playing by itself — answered with both as they now stand.
 pub async fn switch(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<Switched>(&body)?;

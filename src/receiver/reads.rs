@@ -11,12 +11,8 @@ use serde::Serialize;
 
 use crate::Fault;
 use crate::now_ms;
-use crate::store::settings;
-use crate::{all, one, run};
 
-// The setting the console's pinned rooms stand in: a list of room numbers, a number that keeps its room
-// through a rename (`docs/store.md`, 「The settings」).
-pub const PINNED_ROOMS: &str = "console_pinned_rooms";
+use crate::{all, one, run};
 
 // A message of the room not in an agent's book yet, read over the room's rows as `m`.
 const UNREAD: &str = r#"NOT EXISTS (SELECT 1 FROM "people_reads" "r" WHERE "r"."agent" = $1
@@ -581,16 +577,5 @@ pub async fn agent_numbers(db: &DatabaseConnection, agents: &[String]) -> Result
       .iter()
       .map(|row| row.try_get::<i64>("", "sender_id"))
       .collect::<Result<_, _>>()?,
-  )
-}
-
-/// The rooms the owner pinned over the rest, in his order; a number the record no longer has stands for nothing.
-pub async fn pinned(db: &DatabaseConnection) -> Result<Vec<i64>, Fault> {
-  let held = settings::get(db, PINNED_ROOMS).await?;
-
-  Ok(
-    held
-      .map(|held| serde_json::from_str::<Vec<i64>>(held.as_str()).ok().unwrap_or_default())
-      .unwrap_or_default(),
   )
 }

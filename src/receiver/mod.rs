@@ -10,6 +10,7 @@ pub mod labels;
 pub mod left_board;
 pub mod notices;
 pub mod pictures;
+pub mod pinned;
 pub mod reads;
 pub mod rows;
 pub mod speech;

@@ -4,6 +4,7 @@
 //! place, and the chat services' hand-overs taken behind the receiver's token.
 
 mod commands;
+mod console_rooms;
 mod files;
 mod job_queue;
 mod notices;

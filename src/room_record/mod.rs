@@ -393,7 +393,7 @@ pub async fn take(
     all.push(counted(pick, i64::try_from(touched).unwrap_or(i64::MAX)));
   }
 
-  setting::take(&mut written, &record.settings).await?;
+  setting::take(&mut written, &record.settings, room).await?;
   written.commit().await?;
 
   Ok(all)

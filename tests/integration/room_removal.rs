@@ -183,6 +183,12 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
 
   fill(&scratch, &data, ROOM).await;
   fill(&scratch, &data, OTHER).await;
+  scratch
+    .run(
+      r#"INSERT INTO "settings" ("key", "value") VALUES ('console_pinned_rooms', $1)"#,
+      vec![format!("[{OTHER},{ROOM}]").into()],
+    )
+    .await;
 
   let other_before = rows_of(&scratch, OTHER).await;
   let before = rows_of(&scratch, ROOM).await;
@@ -204,6 +210,7 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
   assert_eq!(shown["folders"].as_array().unwrap().len(), 3);
   assert!(shown["settings"]["taken"].as_array().unwrap().is_empty());
   assert_eq!(shown["settings"]["undeclared"].as_array().unwrap().len(), 1);
+  assert_eq!(shown["settings"]["trimmed"], json!(["console_pinned_rooms"]));
   assert!(shown["warns"].as_array().unwrap().is_empty());
   assert_eq!(shown["units"]["agency"]["gone"]["sessions"], 1);
   assert!(shown["units"]["brain"].is_object());
@@ -230,6 +237,13 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
       )
       .await,
     1
+  );
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "value" FROM "settings" WHERE "key" = 'console_pinned_rooms'"#)
+      .await,
+    [format!("[{OTHER}]")],
+    "the room is taken out of the pinned order and the rest of it stands",
   );
   assert_eq!(
     scratch

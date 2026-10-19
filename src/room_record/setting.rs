@@ -2,11 +2,60 @@
 //! declared beside the code that writes it, by its prefix and the shape of the parts after it, and the declaration
 //! is the only way its keys are built. A removal takes every key a declaration matches; any other key holding the
 //! room's number as one of its parts is listed and kept, since a private chat's number is its person's number too.
+//! A setting whose value lists rooms is declared by its key, and a removal takes the room out of the list and
+//! leaves the rest of it standing.
 
 use sqlx::{AnyConnection, Row};
 
 /// The part of a key that holds the room's number.
 pub const ROOM: &str = "room";
+
+/// One setting whose value is a JSON list of room numbers, in an order its owner keeps.
+#[derive(Debug)]
+pub struct RoomList {
+  pub key: &'static str,
+  pub why: &'static str,
+}
+
+/// One declared list of rooms.
+pub struct Listed(pub &'static RoomList);
+
+inventory::collect!(Listed);
+
+/// Declares a setting listing rooms, beside the code that writes it.
+#[macro_export]
+macro_rules! room_list {
+  ($list:expr) => {
+    inventory::submit! { $crate::room_record::setting::Listed(&$list) }
+  };
+}
+
+/// Every list of rooms declared in this binary.
+pub fn listed() -> impl Iterator<Item = &'static RoomList> {
+  inventory::iter::<Listed>.into_iter().map(|entry| entry.0)
+}
+
+impl RoomList {
+  /// The rooms a held value lists, in its order; a value that is no list of numbers lists none.
+  pub fn rooms(value: &str) -> Vec<i64> {
+    serde_json::from_str::<Vec<i64>>(value).unwrap_or_default()
+  }
+
+  /// The value of a list of rooms.
+  pub fn value(rooms: &[i64]) -> String {
+    serde_json::Value::from(rooms).to_string()
+  }
+
+  // The value the setting holds in a database, where it holds one.
+  async fn held(&self, database: &mut AnyConnection) -> Result<Option<String>, sqlx::Error> {
+    sqlx::query(r#"SELECT "value" FROM settings WHERE "key" = $1"#)
+      .bind(self.key)
+      .fetch_optional(&mut *database)
+      .await?
+      .map(|row| row.try_get("value"))
+      .transpose()
+  }
+}
 
 /// One kind of setting naming a room: its prefix, ending in a colon, and the names of the colon-separated parts
 /// after it, one of them `room`.
@@ -96,12 +145,13 @@ impl RoomSetting {
   }
 }
 
-/// The settings naming a room: those a declaration matches, which go, and the undeclared keys holding its number
-/// as one of their parts, which stay.
+/// The settings naming a room: those a declaration matches, which go, the undeclared keys holding its number as
+/// one of their parts, which stay, and the declared lists holding it, which the room is taken out of.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Settled {
   pub taken: Vec<String>,
   pub undeclared: Vec<String>,
+  pub trimmed: Vec<&'static str>,
 }
 
 /// Reads the settings naming a room.
@@ -122,14 +172,33 @@ pub async fn settled(database: &mut AnyConnection, room: i64) -> Result<Settled,
     }
   }
 
+  for list in listed() {
+    if let Some(value) = list.held(database).await?
+      && RoomList::rooms(&value).contains(&room)
+    {
+      settled.trimmed.push(list.key);
+    }
+  }
+
   Ok(settled)
 }
 
-/// Deletes the settings a declaration matched.
-pub async fn take(database: &mut AnyConnection, settled: &Settled) -> Result<(), sqlx::Error> {
+/// Deletes the settings a declaration matched, and takes the room out of every list holding it.
+pub async fn take(database: &mut AnyConnection, settled: &Settled, room: i64) -> Result<(), sqlx::Error> {
   for key in &settled.taken {
     sqlx::query(r#"DELETE FROM settings WHERE "key" = $1"#)
       .bind(key)
+      .execute(&mut *database)
+      .await?;
+  }
+
+  for list in listed().filter(|list| settled.trimmed.contains(&list.key)) {
+    let Some(value) = list.held(database).await? else { continue };
+    let rest: Vec<i64> = RoomList::rooms(&value).into_iter().filter(|listed| *listed != room).collect();
+
+    sqlx::query(r#"UPDATE settings SET "value" = $1 WHERE "key" = $2"#)
+      .bind(RoomList::value(&rest))
+      .bind(list.key)
       .execute(&mut *database)
       .await?;
   }

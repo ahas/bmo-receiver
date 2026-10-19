@@ -1,19 +1,22 @@
-//! The console's reading of a room (`docs/boundary-api.md`, 「For the web unit's console」): the rooms the owner
-//! stands, one room's name, a message an agent filed, and the room's line walked by a cursor the reader holds.
+//! The console's rooms (`docs/boundary-api.md`, 「For the web unit's console」): the rooms the owner stands and the
+//! order the owner pinned them in, one room's name, a message an agent filed, the room's line walked by a cursor the reader
+//! holds, and how long the chat agent's window there has left.
 //! A page holds only what a person said themselves; the judgements beside a page are the gate's, read there, and
 //! the owner's private chat is read by `GET /owner`.
 
 use axum::{
+  body::Bytes,
   extract::{Path, Query, State},
   http::StatusCode,
 };
+use sea_orm::DatabaseConnection;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{Answered, Refusal, Served, answered, refused, store};
-use crate::Fault;
+use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::receiver::wake::agents;
-use crate::receiver::{NotReceived, Receiver, reads};
+use crate::receiver::{NotReceived, Receiver, pinned, reads};
+use crate::{Fault, now_ms};
 
 // A page of a room, and the largest one the console asks for.
 const PAGE_SIZE: usize = 100;
@@ -51,6 +54,16 @@ pub struct DayStart {
   from: i64,
 }
 
+#[derive(Deserialize)]
+pub struct Pinning {
+  rooms: Vec<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct PinnedRoom {
+  chat: i64,
+}
+
 fn failed(why: NotReceived) -> Refusal {
   refused(StatusCode::INTERNAL_SERVER_ERROR, "failed", &why.to_string())
 }
@@ -80,7 +93,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
   let db = receiver.db();
   let shown = reads::shown(db).await.map_err(store)?;
-  let pinned = reads::pinned(db).await.map_err(store)?;
+  let pinned = pinned::pinned(db).await.map_err(store)?;
   let first: Vec<reads::RoomLine> = pinned
     .iter()
     .flat_map(|chat| {
@@ -228,6 +241,72 @@ pub async fn one(State(served): State<Served>, Path((chat, message)): Path<(i64,
     .map(|pages| json!({ "messages": pages, "hasMore": false }))
     .map_err(store)
     .and_then(answered)
+}
+
+/// How long the chat agent's window in a room has left, in seconds, and when it closes; a room that never opened
+/// one closes at no time.
+pub async fn room_window(State(served): State<Served>, Path(chat): Path<i64>) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+  let until = agents::window_until(receiver.db(), chat, &receiver.deployment().agent)
+    .await
+    .map_err(failed)?;
+  let closes_at = (until > 0).then_some(until);
+
+  answered(json!({ "openFor": i64::max(until - now_ms() / 1000, 0), "closesAt": closes_at }))
+}
+
+/// The pinned order set whole, answered as it now stands.
+pub async fn pin(State(served): State<Served>, body: Bytes) -> Answered {
+  let asked = read::<Pinning>(&body)?;
+  let db = served.receiver.db();
+
+  for room in &asked.rooms {
+    unheld(db, *room).await?;
+  }
+
+  pinned::pin(db, &asked.rooms)
+    .await
+    .map(|rooms| json!({ "rooms": rooms }))
+    .map_err(store)
+    .and_then(answered)
+}
+
+/// A room stood last in the pinned order, answered as the order now stands.
+pub async fn pin_one(State(served): State<Served>, body: Bytes) -> Answered {
+  let asked = read::<PinnedRoom>(&body)?;
+  let db = served.receiver.db();
+
+  unheld(db, asked.chat).await?;
+
+  pinned::add(db, asked.chat)
+    .await
+    .map(|rooms| json!({ "rooms": rooms }))
+    .map_err(store)
+    .and_then(answered)
+}
+
+/// A room taken out of the pinned order, answered as the order now stands.
+pub async fn unpin(State(served): State<Served>, body: Bytes) -> Answered {
+  let asked = read::<PinnedRoom>(&body)?;
+
+  pinned::remove(served.receiver.db(), asked.chat)
+    .await
+    .map(|rooms| json!({ "rooms": rooms }))
+    .map_err(store)
+    .and_then(answered)
+}
+
+/// Refuses a room the record does not hold.
+async fn unheld(db: &DatabaseConnection, room: i64) -> Result<(), Refusal> {
+  if pinned::held(db, room).await.map_err(store)? {
+    return Ok(());
+  }
+
+  Err(refused(
+    StatusCode::NOT_FOUND,
+    "not-found",
+    &format!("The receiver holds no room {room}."),
+  ))
 }
 
 /// The page's messages with the files each carried kept beside it.

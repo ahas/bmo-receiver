@@ -221,7 +221,11 @@ async fn shown_removal(receiver: &Receiver, room: i64) -> Result<Value, Refusal>
     "goes": goes,
     "stays": stays,
     "pictures": pictures,
-    "settings": { "taken": record.settings.taken, "undeclared": record.settings.undeclared },
+    "settings": {
+      "taken": record.settings.taken,
+      "undeclared": record.settings.undeclared,
+      "trimmed": record.settings.trimmed,
+    },
     "folders": folders.iter().map(|held| folder_view(receiver, held)).collect::<Vec<_>>(),
     "units": json!({ "agency": unit_answer(agency), "brain": unit_answer(brain) }),
   }))
