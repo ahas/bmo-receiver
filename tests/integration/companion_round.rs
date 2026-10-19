@@ -212,6 +212,15 @@ async fn words_said_before_the_reset_reach_no_turn() {
   assert!(!prompts[0].contains(FIRST), "the words said before the reset are not");
   assert_eq!(rounds.sent().len(), 1, "the turn answers the room");
   assert!(rounds.window().await > 0, "an answered turn moves the room's window");
+
+  let attached = rounds.standing.gate.attached.lock().unwrap().clone();
+
+  assert_eq!(
+    attached.len(),
+    1,
+    "the gate is asked once to file the round's judgements under the answer"
+  );
+  assert_eq!(attached[0].0, OWNER, "in the room the answer went into");
 }
 
 #[tokio::test]

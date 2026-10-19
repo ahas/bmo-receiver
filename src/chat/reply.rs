@@ -10,9 +10,9 @@ use super::conversation::{BoxFuture, Reply, ReplyRoad, Sent};
 use super::turnover::judge;
 use super::window::gate_on;
 use crate::form::{message_label, outgoing, strip_prompt_scaffolding, without_control_markers};
+use crate::now_ms;
 use crate::receiver::{Receiver, rows};
 use crate::roads::Road;
-use crate::{now_ms, run};
 
 /// An answer bound for a room: the agent whose answer it is, its words, the message it answers, the road its words
 /// came in on, when the round that wrote it began and its name, and when the room said the earliest thing it
@@ -31,17 +31,11 @@ pub struct OutgoingReply {
   pub asked_at: Option<i64>,
 }
 
-// The round's judgements that were written before the message existed, put under the message that answers.
+// The round's judgements that were written before the message existed, filed by the gate, whose they are, under
+// the message that answers (docs/boundary-api.md, 「The gate」).
 async fn attach_judgements(receiver: &Receiver, chat_id: i64, message_id: i64, since: i64) {
-  let attached = run(
-    receiver.db(),
-    r#"UPDATE "judgements" SET "message_id" = $1 WHERE "chat_id" = $2 AND "message_id" IS NULL AND "created_at" >= $3"#,
-    vec![message_id.into(), chat_id.into(), since.into()],
-  )
-    .await;
-
-  if let Err(why) = attached {
-    eprintln!("chat {chat_id}: the round's judgements could not be attached: {}", why.detail);
+  if let Err(why) = receiver.units().gate.attach(chat_id, message_id, since).await {
+    eprintln!("chat {chat_id}: the round's judgements could not be attached: {why}");
   }
 }
 

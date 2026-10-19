@@ -628,20 +628,25 @@ The items a turn filed, read for its answer checks, are read through the same AP
 
 ### The gate
 
-The gate states no boundary yet. The receiver hands it the turn's envelope and the words on their way in and
-out; the gate reads its own material from the brain and from the receiver's routes for the brain above. Bodies
-are snake_case, as bmo-job's calls on the gate are.
+The gate's boundary is its own `docs/boundary-api.md`. The receiver hands it the turn's envelope and the words on
+their way in and out; the gate reads its own material from the brain and from the receiver's routes for the brain
+above. Bodies are snake_case, as bmo-job's calls on the gate are.
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | a turn's reference | `POST /reference/selected` | `chat`, `message?`, `lines` (the room's recent messages in the room shape with every line the turn brought, each a string), `speakers` (the people whose words the turn answers, by number), `situation?` (`agent`, `room`: `owner` or `group`, `events`: each `kind` and `item?`, `now` in Unix seconds), `holds?` (the holds' names), `round?`, `people_spoke` (boolean), `answered?` (what the turn answered already, where it is asked again), `off` (the gates switched off for the agent), `records` (boolean: whether the turn's road records its gates) | `entries`: each `path`, `text`, `source` (`document`, `person`, `rule`, `situation`, `knowledge`, `memory`, `room` or `archive`) and `fragment?` |
 | sanitise words | `POST /sanitised` | `text`, `label`, `chat?`, `message?` | `text`, `changed`; 409 `stopped` where its run was stopped |
 | a room's judgement | `POST /judgements` | `chat`, `message?`, `stage`, `verdict`, `detail?`, `ms?`, `round?` | 204 |
+| a round's judgements under its answer | `POST /judgements/attached` | `chat`, `message` (the message the answer went out as), `since` (when the round began, Unix seconds) | 204 |
 | a companion's gate options | `POST /options/copied` | `agent` (the companion), `from` (the deployment's chat agent) | 204 |
 
 The sanitiser is bmo-job's call as its `docs/api.md` states it, with `message` beside it so a verdict is kept
 under the message it was made on. A judgement is a decision written into a room's log: a round's skip, a re-ask,
-an answer sent. The road a turn walked and what it spent are published by the agency as `road-walked` and
+an answer sent. A round's judgements are written before its answer exists, so once the answer has gone out
+the receiver asks the gate to file every judgement of the room written since the round began and naming no
+message under the message the answer went out as; the judgements are the gate's, and the receiver writes none of
+them. A gate that does not take the attach costs the answer nothing: the answer has gone out, and the failure
+is said in the service's log. The road a turn walked and what it spent are published by the agency as `road-walked` and
 `usage-spent`, for the units that keep them; the receiver writes neither. A companion's gate options are the
 gate's: as a companion stands they are copied from the chat agent's as they are then, so the gates run for it
 from its first turn and are tuned apart afterwards; the receiver, which stands the companion up, asks for the

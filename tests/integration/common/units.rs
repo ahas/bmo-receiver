@@ -228,11 +228,13 @@ impl Chat for StandInChat {
   }
 }
 
-/// The gate: the sanitiser marks what it read, and every copy of gate options asked is kept, each the agent it
-/// is for and the agent copied from.
+/// The gate: the sanitiser marks what it read, every attach of a round's judgements asked is kept, each the room,
+/// the message and the round's start, and every copy of gate options asked is kept, each the agent it is for and
+/// the agent copied from.
 #[derive(Default)]
 pub struct StandInGate {
   pub read: Mutex<Vec<String>>,
+  pub attached: Mutex<Vec<(i64, i64, i64)>>,
   pub copied: Mutex<Vec<(String, String)>>,
 }
 
@@ -253,6 +255,12 @@ impl Gate for StandInGate {
   }
 
   fn judge<'a>(&'a self, _judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async { Ok(()) })
+  }
+
+  fn attach<'a>(&'a self, chat: i64, message: i64, since: i64) -> BoxFuture<'a, Answer<()>> {
+    self.attached.lock().unwrap().push((chat, message, since));
+
     Box::pin(async { Ok(()) })
   }
 

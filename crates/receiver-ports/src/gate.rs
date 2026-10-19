@@ -135,6 +135,10 @@ pub trait Gate: Send + Sync {
 
   fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>>;
 
+  /// Every judgement of the room written at or after `since`, in Unix seconds, and naming no message yet, filed
+  /// under `message`: a round's judgements under the message its answer went out as.
+  fn attach<'a>(&'a self, chat: i64, message: i64, since: i64) -> BoxFuture<'a, Answer<()>>;
+
   /// The gate options of the agent `from` copied, as they are now, for the agent that has just stood up.
   fn copy_options<'a>(&'a self, agent: &'a str, from: &'a str) -> BoxFuture<'a, Answer<()>>;
 }
@@ -161,6 +165,13 @@ struct Entries {
 }
 
 #[derive(Serialize)]
+struct Attached {
+  chat: i64,
+  message: i64,
+  since: i64,
+}
+
+#[derive(Serialize)]
 struct Copied<'a> {
   agent: &'a str,
   from: &'a str,
@@ -181,6 +192,23 @@ impl Gate for HttpGate {
 
   fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {
     Box::pin(self.caller.done(Method::POST, &["judgements"], judgement))
+  }
+
+  fn attach<'a>(&'a self, chat: i64, message: i64, since: i64) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      self
+        .caller
+        .done(
+          Method::POST,
+          &["judgements", "attached"],
+          &Attached {
+            chat,
+            message,
+            since,
+          },
+        )
+        .await
+    })
   }
 
   fn copy_options<'a>(&'a self, agent: &'a str, from: &'a str) -> BoxFuture<'a, Answer<()>> {
