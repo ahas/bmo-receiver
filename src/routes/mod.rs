@@ -8,6 +8,7 @@ mod companions;
 mod console;
 mod consult;
 mod events;
+mod figures;
 mod hooks;
 mod instructions;
 mod message_files;
@@ -157,6 +158,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ),
     ("GET", "/console/rooms/{chat}/messages/{message}/picture", get(message_files::picture)),
     ("GET", "/console/rooms/{chat}/pictures", get(console::pictures)),
+    ("GET", "/console/rooms/{chat}/figures", get(figures::figures)),
     ("GET", "/console/rooms/{chat}/window", get(console::room_window)),
     ("PUT", "/console/pinned-rooms", put(console::pin)),
     ("POST", "/console/pinned-rooms/add", post(console::pin_one)),

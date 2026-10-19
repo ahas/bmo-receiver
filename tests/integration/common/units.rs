@@ -710,6 +710,10 @@ pub struct StandInAgency {
   pub point: Mutex<Option<i64>>,
   // The runs it holds, each its id and the moment it began, in epoch seconds.
   pub runs: Mutex<BTreeMap<i64, i64>>,
+  // The sessions it lists, each with its state, where a test sets them.
+  pub listed: Mutex<Option<Vec<(Session, SessionState)>>>,
+  // Whether it answers nothing of its agents and sessions, as an agency that is down.
+  pub down: Mutex<bool>,
 }
 
 impl StandInAgency {
@@ -732,7 +736,23 @@ impl StandInAgency {
       forgotten: Mutex::default(),
       point: Mutex::default(),
       runs: Mutex::default(),
+      listed: Mutex::default(),
+      down: Mutex::default(),
     }
+  }
+
+  /// The sessions it lists, each with the state it answers for it.
+  pub fn listing(&self, sessions: Vec<(Session, SessionState)>) {
+    *self.listed.lock().unwrap() = Some(sessions);
+  }
+
+  /// Answering nothing of its agents and sessions from now on.
+  pub fn going_down(&self) {
+    *self.down.lock().unwrap() = true;
+  }
+
+  fn is_down(&self) -> bool {
+    *self.down.lock().unwrap()
   }
 
   pub fn registering(&self, agents: Vec<Agent>) {
@@ -766,8 +786,25 @@ fn not_asked_agency<T>(what: &str) -> BoxFuture<'_, Answer<T>> {
   panic!("a stand-in agency was asked {what}, which no test sets")
 }
 
+// What an agency that is down answers.
+fn agency_down<T: Send + 'static>(path: &str) -> BoxFuture<'static, Answer<T>> {
+  let url = format!("http://agency.invalid/{path}");
+
+  Box::pin(async move {
+    Err(PortFailure::Answered {
+      url,
+      status: 503,
+      answer: None,
+    })
+  })
+}
+
 impl Agency for StandInAgency {
   fn agents(&self) -> BoxFuture<'_, Answer<Agents>> {
+    if self.is_down() {
+      return agency_down("agents");
+    }
+
     Box::pin(async move {
       Ok(Agents {
         agents: self.agents.lock().unwrap().clone(),
@@ -814,7 +851,17 @@ impl Agency for StandInAgency {
     Box::pin(async move { session.turn(turn).await })
   }
 
-  fn state<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<SessionState>> {
+  fn state<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<SessionState>> {
+    if self.is_down() {
+      return agency_down("session/state");
+    }
+
+    let listed = self.listed.lock().unwrap().clone().unwrap_or_default();
+
+    if let Some((_, state)) = listed.into_iter().find(|(listed, _)| listed.id == session) {
+      return Box::pin(async move { Ok(state) });
+    }
+
     let Some(session) = self.standing_session() else {
       return not_asked_agency("a session's state");
     };
@@ -835,7 +882,13 @@ impl Agency for StandInAgency {
   }
 
   fn sessions(&self) -> BoxFuture<'_, Answer<Vec<Session>>> {
-    not_asked_agency("its sessions")
+    if self.is_down() {
+      return agency_down("session/list");
+    }
+
+    let listed = self.listed.lock().unwrap().clone().unwrap_or_default();
+
+    Box::pin(async move { Ok(listed.into_iter().map(|(session, _)| session).collect()) })
   }
 
   fn forget_room(&self, chat_id: i64, dry_run: bool) -> BoxFuture<'_, Answer<Forgotten>> {

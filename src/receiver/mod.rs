@@ -4,6 +4,7 @@
 //! wakes. Nothing here reads which service a message came from in order to decide anything.
 
 pub mod commands;
+pub mod figures;
 pub mod files;
 pub mod handover;
 pub mod labels;

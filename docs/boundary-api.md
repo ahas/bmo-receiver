@@ -473,10 +473,14 @@ page are the gate's, read there.
 
 - **`zone`** is an IANA time zone name, `UTC` where none is given; the database's own zone data reads it, and a
   name it does not know is refused 400 `bad-request`.
-- **`agents`** holds the room's agents: those answering in it (`room_answerers`), and the chat agent where the
-  room is among those its session has been given (`bmo_session_rooms`). Each is:
-  - from the receiver's record: `agent`, its name; `messages`, the messages it filed in the room; `lastAnswerAt`;
-    `session`, the newest session the record holds for the room, the chat agent's alone, or null;
+- **`agents`** holds the room's agents: those answering in it (`room_answerers`), and every agent the agency
+  lists a session of for the room (`GET /session/list`): a session of the room's own scope, or one session across
+  rooms that the receiver's record says has been given the room (`bmo_session_rooms`). Each is:
+  - from the receiver's record: `agent`, its name; `messages`, the messages it filed in the room, those under the
+    numbers its roads gave it and, for the chat agent, those under the name its own words are filed under;
+    `lastAnswerAt`, when it filed the last;
+  - `session`, the session it keeps for the room: its session of the room's own scope where it has one, its
+    session across rooms where that has been given the room otherwise, or null;
   - from the agency's agent list (`GET /agents`), its row as the agency holds it across every room: `label`,
     `lastMode`, `lastModel`, `lastEffort`;
   - from the agency's reading of that session (`GET /session/state`): `sessionMode` (its `provider`), `model`
@@ -529,7 +533,7 @@ every room's matter.
 | read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` (`carried`, the tokens its last request carried, and `window`, the registration's window), which a round's fold reads, and the console's room figures for the session a room holds |
 | push words | `POST /session/push` | `session`, `words` | `said`: `delivered`, `waiting` or `refused` |
 | interrupt, fold, end | `POST /session/interrupt`, `POST /session/fold`, `POST /session/end` | `session` | `ok` |
-| list sessions | `GET /session/list` | | `sessions` |
+| list sessions | `GET /session/list` | | `sessions`, each `id`, `agent` and `scope`; the console's room figures read the sessions an agent keeps for a room from it |
 | forget a room | `POST /rooms/forget` | `chatId`, `dryRun` | `gone`, `stayed` (each `table`, `rows`, `why`) |
 | register a hook | `POST /hooks` | `point`, `url`, `token` | |
 | a companion registered | `POST /companions/add` | `name`, `label`, `provider`, `model`, `worker` | `ok`; 400 `field`, `error` for a field that does not pass |
@@ -727,5 +731,3 @@ Statements the receiver makes that a sibling's document does not yet match, each
   `lastRunAt` and `contextTokens` across every room, and its run ledger lists runs by search alone, so the
   console's room figures answer `runs`, `lastRunAt`, `weekTokens` and `totalTokens` null until the agency serves a
   tally by agent and room.
-- **The agency** names no route for the session a companion keeps for a room (its `room_sessions`), so the room
-  figures name the chat agent's session alone, the one the receiver's own record holds.

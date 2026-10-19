@@ -655,6 +655,10 @@ pub async fn sender_is_owner(
 
 /// The sender numbers a road gave any of the agents named: the numbers an agent's own words stand under.
 pub async fn agent_numbers(db: &DatabaseConnection, agents: &[String]) -> Result<Vec<i64>, Fault> {
+  if agents.is_empty() {
+    return Ok(vec![]);
+  }
+
   let named = (1..=agents.len()).map(|at| format!("${at}")).collect::<Vec<_>>();
   let sql = format!(
     r#"SELECT DISTINCT "sender_id" FROM "provider_users" "u" WHERE "u"."user_id" IN ({})"#,
