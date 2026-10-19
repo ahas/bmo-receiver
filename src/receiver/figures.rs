@@ -42,7 +42,7 @@ impl Filed {
 }
 
 /// A room's messages counted: all of them, those people said, how many people said them, the first and last
-/// sent and the last an agent filed, in epoch milliseconds.
+/// sent and the last an agent filed, in Unix seconds.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Counted {
   pub messages: i64,
@@ -116,7 +116,7 @@ pub async fn top(
 pub async fn by_hour(db: &DatabaseConnection, chat_id: i64, zone: &str) -> Result<[i64; 24], Fault> {
   let rows = all(
     db,
-    r#"SELECT CAST(EXTRACT(HOUR FROM (to_timestamp("m"."sent_at" / 1000.0) AT TIME ZONE $2)) AS bigint) AS "hour",
+    r#"SELECT CAST(EXTRACT(HOUR FROM (to_timestamp("m"."sent_at") AT TIME ZONE $2)) AS bigint) AS "hour",
          COUNT(*) AS "messages"
        FROM "messages" "m" WHERE "m"."chat_id" = $1 GROUP BY 1"#,
     vec![chat_id.into(), zone.into()],

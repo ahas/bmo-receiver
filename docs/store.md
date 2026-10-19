@@ -16,8 +16,10 @@ data root. No other unit reads or writes either: a unit that needs a room's rows
   another on the same connection. A statement prepared before a migration moved a table under it is refused by
   the server; the helper marks the shape moved and runs it once more on a connection that prepares it afresh.
   Inside a transaction that second run can only meet the aborted transaction, so the first error stands.
-- **Times are Unix milliseconds** in a `bigint`, and a room, a person and a message are signed 64-bit numbers,
-  as the chat protocol numbers them (bmo-chat's `docs/protocol.md`, 「Numbers」).
+- **A time is a `bigint`** in the unit its column has always held: a message's sent time and a window's close
+  are Unix seconds, as the chat protocol numbers a message's `sentAt`, and a table or setting below names the
+  unit of its own times where it states one. A room, a person and a message are signed 64-bit numbers, as the chat protocol numbers them
+  (bmo-chat's `docs/protocol.md`, 「Numbers」).
 - **Every table carries a `rowid`,** the row's own number where its key is one number and an identity of its
   own otherwise, so a row can be named in one column whatever its key.
 

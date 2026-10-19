@@ -424,8 +424,8 @@ and the failure is logged.
 The owner's private chat is read by `GET /owner`. A page holds only what a person said themselves; a cursor is a
 message the reader holds, and a room's line is walked by when each message was sent and the order the archive
 took it in, never by its number. A message carries its files and its audio as the archive keeps them. Times on a
-page and in the room's figures are epoch milliseconds, as the store keeps a message's. The judgements beside a
-page are the gate's, read there.
+page, among a room's pictures and in its figures are Unix seconds, as the store keeps a message's sent time. The
+judgements beside a page are the gate's, read there.
 
 - **The metadata is opaque to the receiver:** it keeps what the chat service handed over and hands it back
   unread, so what it holds (the custom emoji among the words, a video's shape) is the chat service's to state

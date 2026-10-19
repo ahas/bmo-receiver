@@ -18,9 +18,9 @@ const OTHER_ROOM: i64 = -912;
 const PERSON: i64 = 900;
 const COMPANION: &str = "agent-b";
 const COMPANION_NUMBER: i64 = 77;
-// Midnight of a day, UTC, in epoch milliseconds, and a minute.
-const MIDNIGHT: i64 = 1_792_368_000_000;
-const MINUTE: i64 = 60_000;
+// Midnight of a day, UTC, in Unix seconds, and a minute.
+const MIDNIGHT: i64 = 1_792_368_000;
+const MINUTE: i64 = 60;
 
 fn at(hour: i64, minute: i64) -> i64 {
   MIDNIGHT + (hour * 60 + minute) * MINUTE
