@@ -323,7 +323,7 @@ async fn row(db: &DatabaseConnection, inbound: &Inbound, kept: Kept<'_>) -> Resu
       kept.id.into(),
       stored_text(kept.stored).into(),
       kept.summary.into(),
-      (now_ms() / 1000).into(),
+      now_ms().into(),
     ],
   )
   .await

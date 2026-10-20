@@ -388,7 +388,7 @@ async fn a_run_come_back_is_voiced_as_the_agency_composed_it() {
 
   assert_eq!(rows[0].chat_id, OWNER);
   assert!(rows[0].text.contains("A run answered again."));
-  assert!(rows[0].expires_at.is_some_and(|at| at > now_ms() / 1000));
+  assert!(rows[0].expires_at.is_some_and(|at| at > now_ms()));
 }
 
 #[tokio::test]

@@ -85,9 +85,9 @@ pub async fn queue(
       agent.into(),
       chat_id.into(),
       text.into(),
-      (now / 1000).into(),
+      now.into(),
       kind.into(),
-      ((now + SETTING_NOTICE_TTL_MS) / 1000).into(),
+      (now + SETTING_NOTICE_TTL_MS).into(),
     ],
   )
   .await?;

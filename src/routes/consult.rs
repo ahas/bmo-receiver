@@ -60,9 +60,7 @@ pub async fn consult_say(State(served): State<Served>, body: Bytes) -> Answered 
 
 pub async fn block(State(served): State<Served>, raw: RawQuery) -> Answered {
   let asked = query::<BlockBody>(raw)?;
-  let block = consult_block(&served.receiver, asked.agent.trim(), now_ms() / 1000)
-    .await
-    .map_err(store)?;
+  let block = consult_block(&served.receiver, asked.agent.trim(), now_ms()).await.map_err(store)?;
 
   answered(json!({ "block": block }))
 }

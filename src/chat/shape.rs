@@ -19,8 +19,8 @@ use crate::store::settings::get;
 use crate::{all, one};
 
 /// An instant as the room's transcript writes one: ISO 8601 in UTC, with its milliseconds.
-pub fn iso_instant(seconds: i64) -> String {
-  DateTime::from_timestamp(seconds, 0)
+pub fn iso_instant(milliseconds: i64) -> String {
+  DateTime::from_timestamp_millis(milliseconds)
     .unwrap_or_default()
     .format("%Y-%m-%dT%H:%M:%S%.3fZ")
     .to_string()
@@ -219,7 +219,7 @@ async fn fetch_picture(receiver: &Receiver, target: &Inbound) -> ReaderPicture {
   let request = ChatMediaRequest {
     room_id: target.chat_id,
     message_id: target.message_id,
-    sent_at: Some(target.sent_at * 1_000),
+    sent_at: Some(target.sent_at),
   };
 
   let room = target.chat_id;

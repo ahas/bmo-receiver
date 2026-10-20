@@ -632,7 +632,7 @@ pub async fn make_draw(db: &DatabaseConnection, draw: &NewDraw<'_>) -> Result<(R
       seed.clone().into(),
       next_commitment.clone().into(),
       DRAW_METHOD.into(),
-      (now_ms() / 1000).into(),
+      now_ms().into(),
     ],
   )
   .await?;

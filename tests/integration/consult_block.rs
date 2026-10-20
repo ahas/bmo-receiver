@@ -88,7 +88,7 @@ async fn a_companions_consult_block_shows_the_others_work_and_not_her_own() {
     .to_vec(),
   );
 
-  let block = consult_block(&standing.receiver, COMPANION, 1_790_000_100).await.unwrap().unwrap();
+  let block = consult_block(&standing.receiver, COMPANION, 1_790_000_100_000).await.unwrap().unwrap();
 
   assert!(block.contains("#900"), "{block}");
   assert!(!block.contains("- #901 "), "{block}");
@@ -110,7 +110,7 @@ async fn the_windows_of_a_room_more_than_one_agent_answers_stand_in_the_block() 
   scratch
     .run(
       r#"INSERT INTO "room_windows" ("chat_id", "agent", "open_until") VALUES ($1, $2, $3)"#,
-      vec![ROOM.into(), "chat-a".into(), 1_790_000_160.into()],
+      vec![ROOM.into(), "chat-a".into(), 1_790_000_160_000_i64.into()],
     )
     .await;
 
@@ -125,6 +125,6 @@ async fn the_windows_of_a_room_more_than_one_agent_answers_stand_in_the_block() 
   assert!(
     states
       .iter()
-      .any(|state| state.agent == "chat-a" && state.open_until == Some(1_790_000_160))
+      .any(|state| state.agent == "chat-a" && state.open_until == Some(1_790_000_160_000))
   );
 }

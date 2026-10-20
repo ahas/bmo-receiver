@@ -112,8 +112,8 @@ struct Row {
   restarts: i64,
   via: Option<String>,
   events: Vec<TurnEvent>,
-  // None for a row that opens a turn; for a rider, until when in epoch seconds where it says, and whether any
-  // room its session answers may carry it.
+  // None for a row that opens a turn; for a rider, until when in epoch milliseconds where it says, and whether
+  // any room its session answers may carry it.
   rides: Option<(Option<i64>, bool)>,
 }
 
@@ -122,7 +122,7 @@ impl Row {
   fn opens_turn(&self, now_ms: i64) -> bool {
     match self.rides {
       None => true,
-      Some((until, _)) => until.is_some_and(|until| until * 1000 <= now_ms),
+      Some((until, _)) => until.is_some_and(|until| until <= now_ms),
     }
   }
 }
@@ -186,7 +186,7 @@ async fn deliverable(
   row: &Row,
   now_ms: i64,
 ) -> Result<bool, Fault> {
-  if row.expires_at.is_some_and(|at| at * 1000 <= now_ms) {
+  if row.expires_at.is_some_and(|at| at <= now_ms) {
     println!("instruction {} for chat {} expired undelivered, discarding", row.id, row.chat_id);
     discard(receiver.db(), row.id).await?;
 
@@ -218,7 +218,7 @@ async fn hand(receiver: &Receiver, rooms: &dyn Rooms, row: &Row, chat_id: i64) -
   run(
     receiver.db(),
     r#"UPDATE "instructions" SET "handed_at" = $1 WHERE "id" = $2"#,
-    vec![(now_ms() / 1000).into(), row.id.into()],
+    vec![now_ms().into(), row.id.into()],
   )
   .await?;
 
@@ -422,12 +422,12 @@ pub async fn queue(
       agent.into(),
       chat_id.into(),
       text.into(),
-      (now_ms() / 1000).into(),
+      now_ms().into(),
       queued.kind.into(),
-      queued.expires_at_ms.map(|at| at.div_euclid(1000)).into(),
+      queued.expires_at_ms.into(),
       queued.events.join(",").into(),
       rides(queued).into(),
-      queued.rides_until_ms.map(|at| at.div_euclid(1000)).into(),
+      queued.rides_until_ms.into(),
       queued.sort.into(),
       queued.summary.into(),
       queued.via.into(),

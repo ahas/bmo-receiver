@@ -141,7 +141,7 @@ receiver's (the agency's `docs/companions.md`, 「What the reset cuts off」).
   overtakes it. The point is the agency's (`GET /reset-point?agent=`), read as the round takes its words and
   again whenever the turn is to keep anything.
 - **What the reset cut off reaches no turn:** words said at or before the point are dropped, a message's moment
-  being a whole second, so one said in the point's own second goes with those before it; and a quiet instruction
+  being counted to the millisecond, so one said in the point's own millisecond goes with those before it; and a quiet instruction
   handing back a run is dropped where that run began at or before the point. A run is read by its id from the
   agency; one that cannot be read keeps its instruction. A round left with nothing to answer runs no turn.
 - **A turn the reset overtook keeps nothing:** where the agency answers that it stopped the turn, or where the

@@ -109,7 +109,7 @@ pub async fn say(
   };
 
   if let Some(seconds) = designated.window_seconds {
-    open_window(db, chat_id, agent, now_ms() / 1000 + seconds).await?;
+    open_window(db, chat_id, agent, now_ms() + seconds * 1_000).await?;
     receiver.news().window(chat_id);
   }
 
@@ -118,7 +118,7 @@ pub async fn say(
   }
 
   let states = window_states(&receiver, chat_id).await;
-  let now = now_ms() / 1000;
+  let now = now_ms();
   let number =
     message_id.map_or(String::new(), |id| fill_marks(&CONSULT.number, &[("id", &id.to_string())]));
   let room = room_name(&receiver, chat_id).await?;

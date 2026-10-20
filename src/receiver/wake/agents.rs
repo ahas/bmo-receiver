@@ -238,7 +238,7 @@ pub async fn own_number(
   Ok(given.map(|row| row.try_get("", "sender_id")).transpose()?)
 }
 
-/// When an agent's window in a room closes, in epoch seconds; zero where none was opened.
+/// When an agent's window in a room closes, in epoch milliseconds; zero where none was opened.
 pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) -> Result<i64, NotReceived> {
   let row = one(
     db,
@@ -250,8 +250,8 @@ pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) ->
   Ok(row.map(|row| row.try_get("", "open_until")).transpose()?.unwrap_or(0))
 }
 
-/// An agent's window in a room opened until `until`, in epoch seconds; a window already open longer keeps its
-/// own end.
+/// An agent's window in a room opened until `until`, in epoch milliseconds; a window already open longer keeps
+/// its own end.
 pub async fn open_window(
   db: &DatabaseConnection,
   chat_id: i64,
@@ -270,7 +270,7 @@ pub async fn open_window(
   )
 }
 
-/// An agent's window in a room moved to its own end at `until`, in epoch seconds; zero closes it. A turn of the
+/// An agent's window in a room moved to its own end at `until`, in epoch milliseconds; zero closes it. A turn of the
 /// agent's sets the end it read, whatever was written before, so a window it did not open is not closed by it.
 pub async fn set_window(
   db: &DatabaseConnection,

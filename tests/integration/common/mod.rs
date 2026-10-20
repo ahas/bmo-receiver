@@ -196,7 +196,7 @@ impl Scratch {
     self
       .run(
         r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
-           VALUES ($1, $2, $3, 'someone', 1, 'words')"#,
+           VALUES ($1, $2, $3, 'someone', 1000, 'words')"#,
         vec![room.into(), message.into(), sender.into()],
       )
       .await;

@@ -26,12 +26,19 @@ fn at(hour: i64, minute: i64) -> i64 {
   MIDNIGHT + (hour * 60 + minute) * MINUTE
 }
 
+// A message said at a moment counted in seconds, kept in the store's milliseconds.
 async fn said(scratch: &Scratch, message: i64, sender: Option<i64>, name: &str, sent_at: i64) {
   scratch
     .run(
       r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
          VALUES ($1, $2, $3, $4, $5, 'words')"#,
-      vec![ROOM.into(), message.into(), sender.into(), name.to_owned().into(), sent_at.into()],
+      vec![
+        ROOM.into(),
+        message.into(),
+        sender.into(),
+        name.to_owned().into(),
+        (sent_at * 1_000).into(),
+      ],
     )
     .await;
 }

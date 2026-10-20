@@ -148,7 +148,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "id": room.chat_id,
       "title": room.title,
       "messageCount": room.message_count,
-      "lastMessageAt": room.last_message_at.map(|at| at * 1_000),
+      "lastMessageAt": room.last_message_at,
       "pinned": pinned.contains(&room.chat_id),
       "senders": senders,
       "companions": companions,
@@ -181,9 +181,7 @@ pub async fn messages(State(served): State<Served>, Path(room): Path<i64>, raw: 
 
   match (&asked.agent_name, asked.unread, asked.marked) {
     (Some(agent), true, _) => {
-      let found = reads::unread(receiver.db(), agent, room, asked.since.map(|at| at / 1_000), bound)
-        .await
-        .map_err(store)?;
+      let found = reads::unread(receiver.db(), agent, room, asked.since, bound).await.map_err(store)?;
       let more = i64::try_from(found.len()).unwrap_or(0) == bound;
       let kept = found.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect();
 
@@ -245,7 +243,7 @@ fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
         "room": message.chat_id,
         "senderId": message.sender_id,
         "senderName": message.sender_name,
-        "sentAt": message.sent_at * 1_000,
+        "sentAt": message.sent_at,
         "text": message.text,
         "imagePath": Value::Null,
         "replyToMessageId": message.reply_to_message_id,
@@ -274,7 +272,7 @@ async fn agent_names(receiver: &Receiver) -> Vec<String> {
 pub async fn day_start(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
   let asked = query::<DayStart>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let found = reads::from(receiver.db(), room, asked.from / 1_000, DAY_LOOK).await.map_err(store)?;
+  let found = reads::from(receiver.db(), room, asked.from, DAY_LOOK).await.map_err(store)?;
   let one_to_one = receiver.roads().room_facts(room).await.private_to.is_some();
   let begins = found
     .iter()
@@ -340,7 +338,7 @@ pub async fn pictures(State(served): State<Served>, Path(room): Path<i64>, raw: 
         "id": page.message_id,
         "album": page.album,
         "senderName": page.sender_name,
-        "sentAt": page.sent_at * 1_000,
+        "sentAt": page.sent_at,
         "text": page.text,
         "file": file,
       })
@@ -357,9 +355,9 @@ pub async fn room_window(State(served): State<Served>, Path(room): Path<i64>) ->
   let until = agents::window_until(receiver.db(), room, &receiver.deployment().agent)
     .await
     .map_err(failed)?;
-  let closes_at = (until > 0).then_some(until * 1_000);
+  let closes_at = (until > 0).then_some(until);
 
-  answered(json!({ "openForMs": i64::max(until - now_ms() / 1_000, 0) * 1_000, "closesAt": closes_at }))
+  answered(json!({ "openForMs": i64::max(until - now_ms(), 0), "closesAt": closes_at }))
 }
 
 /// The pinned order set whole, answered as it now stands.
@@ -429,7 +427,7 @@ async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result
           "source": file.source,
           "storedPath": file.stored_path,
           "summary": file.summary,
-          "collectedAt": file.collected_at * 1_000,
+          "collectedAt": file.collected_at,
         })
       })
       .collect();
@@ -438,7 +436,7 @@ async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result
       "room": page.chat_id,
       "senderId": page.sender_id,
       "senderName": page.sender_name,
-      "sentAt": page.sent_at * 1_000,
+      "sentAt": page.sent_at,
       "text": page.text,
       "imagePath": page.image_path,
       "replyToMessageId": page.reply_to_message_id,

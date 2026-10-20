@@ -296,11 +296,11 @@ pub async fn notices(State(served): State<Served>, Path(room): Path<i64>, raw: R
     conditions.push(format!(r#""kind" = ${}"#, values.len()));
   }
   if let Some(from) = asked.from {
-    values.push((from / 1_000).into());
+    values.push(from.into());
     conditions.push(format!(r#""created_at" >= ${}"#, values.len()));
   }
   if let Some(to) = asked.to {
-    values.push((to / 1_000).into());
+    values.push(to.into());
     conditions.push(format!(r#""created_at" <= ${}"#, values.len()));
   }
 
@@ -345,8 +345,8 @@ pub async fn notices(State(served): State<Served>, Path(room): Path<i64>, raw: R
         "kind": row.try_get::<Option<String>>("", "kind").ok().flatten(),
         "summary": row.try_get::<Option<String>>("", "summary").ok().flatten(),
         "text": row.try_get::<String>("", "text").unwrap_or_default(),
-        "createdAt": created * 1_000,
-        "expiresAt": expires.map(|at| at * 1_000),
+        "createdAt": created,
+        "expiresAt": expires,
       })
     })
     .collect();

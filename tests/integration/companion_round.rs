@@ -56,7 +56,7 @@ fn said(message_id: i64, text: &str) -> Inbound {
     message_id,
     sender_id: Some(OWNER),
     sender_name: "tester".into(),
-    sent_at: SAID_FROM + message_id,
+    sent_at: (SAID_FROM + message_id) * 1_000,
     text: text.into(),
     image_path: None,
     reply_to_message_id: None,

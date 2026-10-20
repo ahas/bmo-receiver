@@ -212,7 +212,7 @@ pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<En
     return Ok(None);
   };
   let senders: Vec<i64> = receiver.units().web.senders_of_user(&user).await.unwrap_or_default();
-  let since = now_ms() / 1000 - thread.days * 86_400;
+  let since = now_ms() - thread.days * 86_400 * 1_000;
   let mut lines = Vec::new();
 
   if !senders.is_empty() {

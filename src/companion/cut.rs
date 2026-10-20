@@ -49,7 +49,7 @@ pub async fn cut_off(receiver: &Receiver, runner: &Runner, event: &Value) {
   };
   let _cutting = conversations.cutting().await;
   let cut = conversations.cut_off();
-  let at = event.get("point").and_then(Value::as_i64).unwrap_or_else(now_ms) / 1000;
+  let at = event.get("point").and_then(Value::as_i64).unwrap_or_else(now_ms);
 
   if cut.instructions.is_empty() {
     return;

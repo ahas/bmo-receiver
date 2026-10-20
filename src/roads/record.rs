@@ -77,7 +77,7 @@ pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> R
     message_id: next_number(db, kept.chat_id).await?,
     sender_id: kept.sender_id,
     sender_name: kept.name.to_owned(),
-    sent_at: now_ms() / 1000,
+    sent_at: now_ms(),
     text: kept.text.to_owned(),
     image_path: None,
     reply_to_message_id: kept.reply_to,

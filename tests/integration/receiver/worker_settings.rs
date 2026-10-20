@@ -169,11 +169,41 @@ async fn the_console_reads_its_rooms_each_with_its_name_and_counts() {
 }
 
 #[tokio::test]
+async fn two_messages_sent_in_one_second_keep_the_order_they_were_sent_in() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  // The later message is written first, so the row order alone would put it before the earlier one.
+  for (message, sent) in [(1, 1_760_000_000_500_i64), (2, 1_760_000_000_100_i64)] {
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
+           VALUES (7, $1, $3, 'someone', $2, 'words')"#,
+        vec![message.into(), sent.into(), OWNER.into()],
+      )
+      .await;
+  }
+
+  let (_, page) = get(&front, "/rooms/7/messages?limit=10").await;
+
+  assert_eq!(
+    page["items"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|page| page["id"].as_i64().unwrap())
+      .collect::<Vec<i64>>(),
+    [2, 1],
+    "the room's line follows the moment each was sent, to the millisecond",
+  );
+}
+
+#[tokio::test]
 async fn a_page_of_a_room_walks_the_line_by_the_cursor_the_reader_holds() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
 
-  for (message, sent) in [(1, 1), (2, 2), (3, 3)].to_vec() {
+  for (message, sent) in [(1, 1_000), (2, 2_000), (3, 3_000)].to_vec() {
     scratch
       .run(
         r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")

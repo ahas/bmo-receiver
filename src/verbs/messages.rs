@@ -321,7 +321,7 @@ pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbEr
       .unwrap_or(sends.receiver().deployment().agent.clone()),
   );
   let window = window_seconds(&sends.receiver(), &speaker).await;
-  let until = (now_ms() + window * 1000) / 1000;
+  let until = now_ms() + window * 1000;
 
   wake::agents::open_window(&sends.db(), run_.chat_id, &speaker, until)
     .await
@@ -406,7 +406,7 @@ async fn arm_relay(
   text: &str,
 ) -> Result<Option<Relay>, VerbError> {
   let Some(teller) = teller.filter(|_| reply) else { return Ok(None) };
-  let since = (now_ms() - RELAY_CAP_WINDOW_MS) / 1000;
+  let since = now_ms() - RELAY_CAP_WINDOW_MS;
   let asked: i64 = one(
     &sends.db(),
     r#"SELECT COUNT(*) AS "n" FROM "say_relays" WHERE "reply_to" = $1 AND "created_at" >= $2"#,
@@ -439,8 +439,8 @@ async fn arm_relay(
       chat_id.into(),
       teller.into(),
       opening(text).into(),
-      (now_ms() / 1000).into(),
-      ((now_ms() + RELAY_LIFE_MS) / 1000).into(),
+      now_ms().into(),
+      (now_ms() + RELAY_LIFE_MS).into(),
     ],
   )
   .await.map_err(store)?;

@@ -270,7 +270,7 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
   let db = receiver.db();
   let owner = receiver.deployment().owner_id;
   let everyone = standing::hears_everyone(receiver).await.unwrap_or(false);
-  let oldest = now_ms().div_euclid(1000) - CHAT_ROUND.backlog.max_age_seconds;
+  let oldest = now_ms() - CHAT_ROUND.backlog.max_age_seconds * 1_000;
   let agent = receiver.deployment().agent.clone();
   let rooms = receiver.roads();
   let runner = receiver.runner();

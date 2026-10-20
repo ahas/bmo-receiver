@@ -122,7 +122,7 @@ fn whole_list(text: &str) -> Result<Vec<i64>, Refusal> {
 pub async fn unread_counts(State(served): State<Served>, body: axum::body::Bytes) -> Answered {
   let asked = read::<CountsAsk>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let since: Vec<(i64, i64)> = asked.since.iter().map(|one| (one.room, one.since / 1_000)).collect();
+  let since: Vec<(i64, i64)> = asked.since.iter().map(|one| (one.room, one.since)).collect();
 
   reads::unread_counts(receiver.db(), &asked.agent_name, since)
     .await
@@ -223,7 +223,7 @@ pub async fn spoke_between(State(served): State<Served>, Path(room): Path<i64>, 
   let asked = query::<SpokeAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  reads::spoke_between(receiver.db(), room, asked.person, asked.from / 1_000, asked.to / 1_000)
+  reads::spoke_between(receiver.db(), room, asked.person, asked.from, asked.to)
     .await
     .map(|spoke| json!({ "spoke": spoke }))
     .map_err(store)
@@ -338,8 +338,8 @@ pub async fn owner_spoke(State(served): State<Served>, Path(room): Path<i64>, ra
       receiver.db(),
       room,
       asked.person,
-      (asked.before - asked.window_ms) / 1_000,
-      asked.before / 1_000,
+      asked.before - asked.window_ms,
+      asked.before,
     )
     .await
     .map_err(store)?;

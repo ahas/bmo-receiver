@@ -82,7 +82,7 @@ fn opening(row: &QueryResult) -> Value {
     "id": row.try_get::<i64>("", "id").ok().unwrap_or_default(),
     "sort": sort.filter(|sort| !sort.trim().is_empty()),
     "summary": summary_of(summary.as_deref(), &text),
-    "createdAt": row.try_get::<i64>("", "created_at").ok().unwrap_or_default() * 1_000,
+    "createdAt": row.try_get::<i64>("", "created_at").ok().unwrap_or_default(),
   })
 }
 

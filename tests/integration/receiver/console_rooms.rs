@@ -127,7 +127,7 @@ async fn a_room_the_record_does_not_hold_is_refused_and_nothing_is_written() {
 #[tokio::test]
 async fn the_chat_agents_window_is_read_in_milliseconds_and_when_it_closes() {
   let (scratch, front) = rooms().await;
-  let now = now_ms() / 1000;
+  let now = now_ms();
   let window = |chat: i64, agent: &str, until: i64| {
     (
       r#"INSERT INTO "room_windows" ("chat_id", "agent", "open_until") VALUES ($1, $2, $3)"#,
@@ -136,9 +136,9 @@ async fn the_chat_agents_window_is_read_in_milliseconds_and_when_it_closes() {
   };
 
   for (sql, values) in [
-    window(SPOKEN, AGENT, now + 600),
-    window(ALSO_SPOKEN, AGENT, now - 60),
-    window(TITLED, "agent-b", now + 600),
+    window(SPOKEN, AGENT, now + 600_000),
+    window(ALSO_SPOKEN, AGENT, now - 60_000),
+    window(TITLED, "agent-b", now + 600_000),
   ] {
     scratch.run(sql, values).await;
   }
@@ -146,12 +146,12 @@ async fn the_chat_agents_window_is_read_in_milliseconds_and_when_it_closes() {
   let (status, open) = get(&front, &format!("/rooms/{SPOKEN}/window")).await;
 
   assert_eq!(status, StatusCode::OK);
-  assert_eq!(open["closesAt"], (now + 600) * 1_000);
+  assert_eq!(open["closesAt"], now + 600_000);
   assert!((595_000..=600_000).contains(&open["openForMs"].as_i64().unwrap()), "{open}");
 
   assert_eq!(
     get(&front, &format!("/rooms/{ALSO_SPOKEN}/window")).await,
-    (StatusCode::OK, json!({ "openForMs": 0, "closesAt": (now - 60) * 1_000 })),
+    (StatusCode::OK, json!({ "openForMs": 0, "closesAt": now - 60_000 })),
   );
   assert_eq!(
     get(&front, &format!("/rooms/{TITLED}/window")).await,

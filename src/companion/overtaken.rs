@@ -17,17 +17,18 @@ pub async fn overtaken(receiver: &Receiver, agent: &str, began: i64) -> bool {
   overtakes(point(receiver, agent).await, began)
 }
 
-/// The words said after the point. A message's moment is a whole second, so one said in the point's own second
-/// goes with those before it.
+/// The words said after the point. Both moments are epoch milliseconds, so a message said in the point's own
+/// millisecond goes with those before it.
 pub fn said_after(words: Vec<Inbound>, point: Option<i64>) -> Vec<Inbound> {
   match point {
-    Some(point) => words.into_iter().filter(|word| word.sent_at * 1000 > point).collect(),
+    Some(point) => words.into_iter().filter(|word| word.sent_at > point).collect(),
     None => words,
   }
 }
 
 /// Of the quiet instruction rows given, those handing back the result of a run begun at or before the point. A
-/// run's moment is a whole second, as a message's is; a run the agency cannot answer for keeps its instruction.
+/// run's moment is a whole second, as the agency keeps it; a run the agency cannot answer for keeps its
+/// instruction.
 pub async fn results_before(receiver: &Receiver, ids: &[i64], point: Option<i64>) -> Vec<i64> {
   let Some(point) = point.filter(|_| !ids.is_empty()) else {
     return vec![];

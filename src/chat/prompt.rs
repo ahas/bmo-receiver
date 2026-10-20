@@ -321,7 +321,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   parts.push(if delegating { header.delegation_on.clone() } else { header.delegation_off.clone() });
 
   // In a room more than one agent answers, each one's window there.
-  if let Some(windows) = room_windows_block(receiver, chat_id, round.agent, now_ms() / 1000).await? {
+  if let Some(windows) = room_windows_block(receiver, chat_id, round.agent, now_ms()).await? {
     parts.push(windows);
   }
 
@@ -430,7 +430,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
 
   // A notice of the queue shows the other agents' work and the consult room beside it.
   if tells_of_queue(round.events)
-    && let Some(consult) = consult_block(receiver, round.agent, now_ms() / 1000).await?
+    && let Some(consult) = consult_block(receiver, round.agent, now_ms()).await?
   {
     parts.push(String::new());
     parts.push(consult);

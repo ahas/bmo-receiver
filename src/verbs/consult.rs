@@ -68,7 +68,7 @@ pub async fn room(receiver: &Receiver, named: Option<&str>) -> Result<Vec<String
 
 /// The block an agent is shown of the other agents' work, as it would read it now.
 pub async fn state(receiver: &Receiver, agent: &str) -> Vec<String> {
-  let block = consult_block(receiver, agent, now_ms() / 1000).await.ok().flatten();
+  let block = consult_block(receiver, agent, now_ms()).await.ok().flatten();
 
   vec![block.unwrap_or_else(|| fill_marks(&CONSULT.nothing_shown, &[("agent", agent)]))]
 }

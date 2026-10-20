@@ -1167,7 +1167,7 @@ impl Runner for Taken {
 
     Box::pin(async move {
       if opens_window {
-        let until = bmo_receiver::now_ms().div_euclid(1000) + WINDOW;
+        let until = bmo_receiver::now_ms() + WINDOW * 1_000;
 
         bmo_receiver::receiver::wake::agents::open_window(&self.db, message.chat_id, agent, until)
           .await

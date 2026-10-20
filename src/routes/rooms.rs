@@ -46,7 +46,7 @@ pub async fn room(State(served): State<Served>, Path(room): Path<i64>) -> Answer
     "id": room,
     "title": line.and_then(|line| line.title.clone()),
     "messageCount": line.map_or(0, |line| line.message_count),
-    "lastMessageAt": line.and_then(|line| line.last_message_at).map(|at| at * 1_000),
+    "lastMessageAt": line.and_then(|line| line.last_message_at),
     "pinned": pinned.contains(&room),
     "senders": senders,
     "companions": companions,
@@ -97,7 +97,7 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
         "source": file.source,
         "storedPath": file.stored_path,
         "summary": file.summary,
-        "collectedAt": file.collected_at * 1_000,
+        "collectedAt": file.collected_at,
       })
     })
     .collect();
@@ -107,7 +107,7 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
     "room": kept.chat_id,
     "senderId": kept.sender_id,
     "senderName": kept.sender_name,
-    "sentAt": kept.sent_at * 1_000,
+    "sentAt": kept.sent_at,
     "text": kept.text,
     "imagePath": kept.image_path,
     "replyToMessageId": kept.reply_to_message_id,

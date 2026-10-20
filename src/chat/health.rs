@@ -157,7 +157,7 @@ impl crate::chat::conversation::Orders for FailureOrders {
         .await
         .ok().unwrap_or_default();
       let owner = receiver.deployment().owner_id;
-      let oldest = now_ms().div_euclid(1000) - CHAT_HEALTH.order.check_seconds as i64;
+      let oldest = now_ms() - CHAT_HEALTH.order.check_seconds as i64 * 1_000;
 
       for row in due {
         let chat_id = row.try_get::<i64>("", "chat_id").ok().unwrap_or(0);

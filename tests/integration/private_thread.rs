@@ -57,7 +57,7 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
     )
     .await;
 
-  let at = bmo_receiver::now_ms() / 1000 - 600;
+  let at = bmo_receiver::now_ms() - 600_000;
 
   // In the room both answer, what the person says to the companion, by its name, by a reply to its line or as
   // the words the companion answers first, stays out with its answers.

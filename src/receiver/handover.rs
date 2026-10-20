@@ -16,14 +16,14 @@ use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
 use crate::all;
 use crate::receiver::reads;
 
-/// The message as the receiver keeps it, its moment counted in seconds as the record keeps it.
+/// The message as the receiver keeps it, its moment in epoch milliseconds as the record keeps it.
 pub fn inbound(room_id: i64, message_id: i64, message: &HandedMessage) -> Inbound {
   Inbound {
     chat_id: room_id,
     message_id,
     sender_id: message.sender_id,
     sender_name: message.sender_name.clone(),
-    sent_at: message.sent_at / 1_000,
+    sent_at: message.sent_at,
     text: message.text.clone(),
     image_path: None,
     reply_to_message_id: message.reply_to_message_id,
@@ -54,7 +54,7 @@ fn handed(inbound: &Inbound, files: Vec<bmo_chat_client::MessageFile>, room: Roo
     origin: MessageOrigin::Live,
     sender_id: inbound.sender_id,
     sender_name: inbound.sender_name.clone(),
-    sent_at: inbound.sent_at * 1_000,
+    sent_at: inbound.sent_at,
     text: inbound.text.clone(),
     reply_to_message_id: inbound.reply_to_message_id,
     via: inbound.via.clone(),
@@ -184,7 +184,7 @@ impl ChatReceiver for Receiver {
       id: room_id,
       listened: Receiver::listened(room_id, room),
       oldest_message_id: Some(message_id),
-      oldest_sent_at: Some(sent_at * 1_000),
+      oldest_sent_at: Some(sent_at),
     }))
   }
 

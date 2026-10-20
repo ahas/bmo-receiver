@@ -6,7 +6,7 @@ use receiver_policy::chat_round::CHAT_ROUND;
 
 #[test]
 fn an_instant_is_written_as_the_bun_bot_writes_one() {
-  assert_eq!(iso_instant(1_760_000_000), "2025-10-09T08:53:20.000Z");
+  assert_eq!(iso_instant(1_760_000_000_000), "2025-10-09T08:53:20.000Z");
 }
 
 #[test]

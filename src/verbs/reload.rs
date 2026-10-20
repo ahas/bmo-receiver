@@ -486,7 +486,7 @@ async fn last_told(db: &DatabaseConnection, chat_id: i64) -> Option<i64> {
 }
 
 /// Every room whose gathered changes have waited out the cooldown told them, each session once for a path two
-/// of its rooms both had waiting; the rooms told are answered. `now` is in unix seconds.
+/// of its rooms both had waiting; the rooms told are answered. `now` is in epoch milliseconds.
 pub async fn flush_due(receiver: &Receiver, places: &Places, now: i64) -> Vec<i64> {
   let db = receiver.db();
   let waiting: Vec<i64> =
@@ -502,7 +502,7 @@ pub async fn flush_due(receiver: &Receiver, places: &Places, now: i64) -> Vec<i6
   for chat_id in waiting {
     let last = last_told(db, chat_id).await;
 
-    if last.is_some_and(|last| now - last < RELOAD_COOLDOWN_SECONDS) {
+    if last.is_some_and(|last| now - last < RELOAD_COOLDOWN_SECONDS * 1_000) {
       continue;
     }
 
@@ -532,7 +532,7 @@ async fn session_key(receiver: &Receiver, chat_id: i64) -> String {
 }
 
 /// A reload as the receiver runs it: the documents named told to every session of the chat agent's they concern,
-/// and what the reload came to said. `given` are as the call gave them; `now` is in unix seconds.
+/// and what the reload came to said. `given` are as the call gave them; `now` is in epoch milliseconds.
 pub async fn reload(
   receiver: &Receiver,
   places: &Places,
@@ -606,7 +606,7 @@ async fn tell_rooms(
   for (chat_id, list) in by_room {
     let last = last_told(receiver.db(), chat_id).await;
 
-    if gathered && !immediate && last.is_some_and(|last| now - last < RELOAD_COOLDOWN_SECONDS) {
+    if gathered && !immediate && last.is_some_and(|last| now - last < RELOAD_COOLDOWN_SECONDS * 1_000) {
       for path in &list {
         let _ = run(
           receiver.db(),
@@ -693,7 +693,7 @@ pub struct Moved {
 /// session of that agent told every path; where it names none, the chat agent's sessions each document concerns. A
 /// reload naming an agent and rooms is the brain's, so a relative path it names stands under the brain root.
 pub async fn documents_moved(receiver: &Receiver, places: &Places, moved: &Moved) -> Vec<String> {
-  let now = now_ms() / 1000;
+  let now = now_ms();
 
   if moved.rooms.is_empty() {
     return reload(receiver, places, &moved.paths, now, moved.now).await;

@@ -21,7 +21,7 @@ pub const ANSWERING: &str = "fallback-answering";
 /// The event Claude Code answering again across the rooms is published as.
 pub const ENDED: &str = "fallback-ended";
 
-/// Since when a stand-in has answered, in Unix seconds.
+/// Since when a stand-in has answered, in epoch milliseconds.
 pub const SINCE_KEY: &str = "fallback_since";
 
 /// Which stand-in answers.
@@ -103,7 +103,7 @@ pub async fn answered_by(receiver: &Receiver, answering: &Answering) -> Result<(
   let db = receiver.db();
 
   if settings::get(db, SINCE_KEY).await?.is_none() {
-    settings::set(db, SINCE_KEY, &(now_ms() / 1000).to_string()).await?;
+    settings::set(db, SINCE_KEY, &now_ms().to_string()).await?;
   }
 
   settings::set(db, PROVIDER_KEY, &answering.provider).await?;

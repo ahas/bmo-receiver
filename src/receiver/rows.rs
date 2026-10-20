@@ -232,7 +232,8 @@ pub async fn set_last_read(db: &DatabaseConnection, chat_id: i64, message_id: i6
 }
 
 /// How long the room waited for an answer, from when it was asked to now, written onto the message it went out
-/// as; nothing where the moment asked lies ahead.
+/// as; nothing where the moment asked lies ahead. Both moments are epoch milliseconds and the wait is kept in
+/// seconds.
 pub async fn record_answer_wait(
   db: &DatabaseConnection,
   chat_id: i64,
@@ -247,7 +248,7 @@ pub async fn record_answer_wait(
   run(
     db,
     r#"UPDATE "messages" SET "answer_seconds" = $1 WHERE "chat_id" = $2 AND "message_id" = $3"#,
-    vec![(sent_at - asked_at).into(), chat_id.into(), message_id.into()],
+    vec![((sent_at - asked_at) / 1_000).into(), chat_id.into(), message_id.into()],
   )
   .await
   .map(drop)

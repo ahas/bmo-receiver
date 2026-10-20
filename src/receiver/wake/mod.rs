@@ -49,10 +49,6 @@ pub(crate) fn asked<T>(what: &str, answer: Result<T, impl std::fmt::Display>) ->
   answer.map_err(|why| eprintln!("bmo-receiver: the wake asked {what}: {why}")).ok()
 }
 
-fn now_seconds() -> i64 {
-  crate::now_ms().div_euclid(1000)
-}
-
 /// The wake: the one rule every message is judged by.
 pub struct Waking;
 
@@ -103,7 +99,7 @@ pub async fn woken_on(
 ) -> Result<(), NotReceived> {
   let archive = receiver.db();
   let chat_id = inbound.chat_id;
-  let now = now_seconds();
+  let now = crate::now_ms();
 
   // The console reads a job's questions beside the queue, so a question settled here is news of the same kind
   // as a moved row, and so is one whose clock a talk has stopped.
@@ -217,7 +213,7 @@ pub async fn wakes(
         rule_file: false,
         by_agent: false,
       },
-      now_seconds(),
+      crate::now_ms(),
     )
     .await?
     .is_some(),
@@ -293,7 +289,7 @@ async fn files_leading_up(
   for one in before {
     let leads = one.sender_id == Some(sender)
       && one.message_id != inbound.message_id
-      && (inbound.sent_at - WAKE.file_lead_seconds..=inbound.sent_at).contains(&one.sent_at)
+      && (inbound.sent_at - WAKE.file_lead_seconds * 1_000..=inbound.sent_at).contains(&one.sent_at)
       && !agents.iter().any(|agent| agent.called_by(&one.text));
 
     if leads && rows::carries_file(archive, one.chat_id, one.message_id).await? {

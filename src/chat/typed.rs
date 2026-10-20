@@ -20,7 +20,7 @@ pub fn message(text: &str, owner: i64, name: &str, at_ms: i64) -> Inbound {
     message_id: CHAT_ROUND.typed.number,
     sender_id: Some(owner),
     sender_name: name.to_owned(),
-    sent_at: at_ms.div_euclid(1000),
+    sent_at: at_ms,
     text: text.to_owned(),
     image_path: None,
     reply_to_message_id: None,

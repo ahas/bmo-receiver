@@ -36,7 +36,7 @@ async fn bench() -> (Scratch, Front) {
           ROOM.into(),
           message.into(),
           OWNER.into(),
-          (1_760_000_000 + message).into(),
+          ((1_760_000_000_i64 + message) * 1_000).into(),
           format!("line {message}").into(),
           stored.into(),
           (message >= 5).then_some(5_i64).into(),

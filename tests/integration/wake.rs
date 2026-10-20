@@ -320,7 +320,7 @@ async fn the_chat_agents_own_words_filed_in_a_room_wake_nobody_and_a_later_word_
   assert!(standing.taken.handed().is_empty());
 
   // A person's word later, with the window still open, reaches him without a call.
-  opened(&scratch, -134, AGENT, 4_102_444_800).await;
+  opened(&scratch, -134, AGENT, 4_102_444_800_000).await;
   standing
     .receiver
     .message(&inbound(-134, 2, 55, "still worth a word"), &Context::default(), room())

@@ -16,17 +16,17 @@ data root. No other unit reads or writes either: a unit that needs a room's rows
   another on the same connection. A statement prepared before a migration moved a table under it is refused by
   the server; the helper marks the shape moved and runs it once more on a connection that prepares it afresh.
   Inside a transaction that second run can only meet the aborted transaction, so the first error stands.
-- **A time is a `bigint`** in the unit its column has always held: a message's sent time and a window's close
-  are Unix seconds, as the chat protocol numbers a message's `sentAt`, and a table or setting below names the
-  unit of its own times where it states one. A room, a person and a message are signed 64-bit numbers, as the chat protocol numbers them
-  (bmo-chat's `docs/protocol.md`, 「Numbers」).
+- **A time is a `bigint` of epoch milliseconds,** as the API's times are, and a duration is a `bigint` of the unit
+  its column names (a message's `answer_seconds` is seconds). A database holding times in Unix seconds has them
+  multiplied in place as its migrations run. A room, a person and a message are signed 64-bit numbers, as the chat
+  protocol numbers them (bmo-chat's `docs/protocol.md`, 「Numbers」).
 - **Every table carries a `rowid`,** the row's own number where its key is one number and an identity of its
   own otherwise, so a row can be named in one column whatever its key.
 
 ## The tables
 
-The shapes are the ones the receiver's rows have always had, so the switch-over moves the rows across unchanged.
-An instruction names the agent whose session takes it outright: the table holds no default agent.
+The table shapes are the ones the receiver's rows have always had. An instruction names the agent whose session
+takes it outright: the table holds no default agent.
 
 | Table | One row is | Key |
 |---|---|---|
@@ -44,7 +44,7 @@ An instruction names the agent whose session takes it outright: the table holds 
 | `chat_titles` | a room's title | room |
 | `room_answerers` | an agent answering in a room | room and agent |
 | `people_reads` | a message an agent's book of a room has read, and when the mark was made | agent, room and message |
-| `room_windows` | when a room's window for an agent closes, in Unix seconds (`docs/wake.md`, 「The names and the window」) | room and agent |
+| `room_windows` | when a room's window for an agent closes, in epoch milliseconds (`docs/wake.md`, 「The names and the window」) | room and agent |
 | `run_records` | what one of a room's runs wrote down beside it: the run it was written under, the kind of record, its words, the number of the row it wrote, whether it woke the agent and when (`docs/answer-checks.md`) | its number |
 | `bmo_rooms` | a room the chat agent's one shared session has answered in (`docs/unified-bmo.md`) | room |
 | `bmo_room_contexts` | the fingerprint of the room context a chat session was last given | session |
@@ -78,7 +78,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
 | `consult_room` | the consult room's number (`consult.toml`, its `room_setting`) | the consult room (`docs/consult.md`) |
 | `restart_reason` | what a deployment recorded before the receiver stopped: its purpose and the items going live, taken once at start-up | the restart |
-| `fallback_since`, `fallback_provider` | since when, in Unix seconds, a stand-in has answered for the chat agent, and which one | the agency's `fallback-answering` and `fallback-ended` |
+| `fallback_since`, `fallback_provider` | since when, in epoch milliseconds, a stand-in has answered for the chat agent, and which one | the agency's `fallback-answering` and `fallback-ended` |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |
 | `console_pinned_rooms` | the rooms the console stands over the rest, as a JSON list of room numbers in the owner's order; a room's removal takes its number out, and a number the record no longer has stands for nothing | the console's pinned order (`docs/boundary-api.md`, 「The pinned order」), read by the console's room list |

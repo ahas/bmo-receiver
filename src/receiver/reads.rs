@@ -245,7 +245,7 @@ pub async fn keep_marks(
   chat_id: i64,
   message_ids: &[i64],
 ) -> Result<(), Fault> {
-  let now = now_ms() / 1000;
+  let now = now_ms();
 
   for message_id in message_ids {
     run(
@@ -339,7 +339,7 @@ pub async fn title(db: &DatabaseConnection, chat_id: i64) -> Result<Option<Strin
   )
 }
 
-/// The room's oldest message, by its number and its moment in the record's own seconds.
+/// The room's oldest message, by its number and its moment in the record's own epoch milliseconds.
 pub async fn oldest(db: &DatabaseConnection, chat_id: i64) -> Result<Option<(i64, i64)>, Fault> {
   match one(
     db,
@@ -592,7 +592,7 @@ pub async fn spoken_in(db: &DatabaseConnection, chat_id: i64, people: &[i64]) ->
   )
 }
 
-/// Whether a person sent a message in a room between two moments, both included, in epoch seconds.
+/// Whether a person sent a message in a room between two moments, both included, in epoch milliseconds.
 pub async fn spoke_between(
   db: &DatabaseConnection,
   chat_id: i64,

@@ -33,11 +33,11 @@ struct Scanned {
   text: String,
 }
 
-// A moment in unix seconds as an instant, to the millisecond.
-fn instant(seconds: i64) -> String {
-  DateTime::from_timestamp(seconds, 0)
+// A moment in epoch milliseconds as an instant, to the millisecond.
+fn instant(milliseconds: i64) -> String {
+  DateTime::from_timestamp_millis(milliseconds)
     .map(|at| at.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
-    .unwrap_or_else(|| seconds.to_string())
+    .unwrap_or_else(|| milliseconds.to_string())
 }
 
 // One value a condition binds.

@@ -881,7 +881,7 @@ impl Conversations {
   async fn restart_window(&self, chat_id: i64) {
     self.restart_timer(chat_id).await;
 
-    let until = (now_ms() + self.window_ms().await) / 1000;
+    let until = now_ms() + self.window_ms().await;
 
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.window_until = until;
@@ -988,7 +988,7 @@ impl Conversations {
       return;
     }
 
-    let until = (now_ms() + self.window_ms().await) / 1000;
+    let until = now_ms() + self.window_ms().await;
 
     if self.window_until(chat_id).await < until {
       self.set_window(chat_id, until).await;
@@ -1347,7 +1347,7 @@ impl Conversations {
 
     // A round that ended, however it ended, has dealt with the rows it took.
     if !settling.is_empty() {
-      settle_instructions(self.0.receiver.db(), now_ms() / 1000, &round, settling).await;
+      settle_instructions(self.0.receiver.db(), now_ms(), &round, settling).await;
     }
 
     self.0.hooks.round_ended(chat_id).await;
@@ -2036,7 +2036,7 @@ impl Conversations {
   // The answer a room asked for of this one, as a quiet instruction to the room that asked.
   async fn relay_answer(&self, chat_id: i64, answer: &str) {
     let db = self.0.receiver.db();
-    let now = now_ms() / 1000;
+    let now = now_ms();
     let row = one(
       db,
       r#"SELECT "id", "reply_to", "opening" FROM "say_relays"
@@ -2099,7 +2099,7 @@ impl Conversations {
       self.0.receiver.db(),
       r#"SELECT count(*) AS "waiting" FROM "instructions"
          WHERE "delivered_at" IS NULL AND "handed_at" IS NULL AND "agent" = $1
-           AND ("rides" = 0 OR ("ride_until" IS NOT NULL AND "ride_until" * 1000 <= $2))"#,
+           AND ("rides" = 0 OR ("ride_until" IS NOT NULL AND "ride_until" <= $2))"#,
       vec![self.agent().into(), now_ms().into()],
     )
     .await

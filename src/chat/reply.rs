@@ -51,7 +51,7 @@ async fn mark_round(receiver: &Receiver, chat_id: i64, message_id: i64, round: O
 
 async fn answer_wait(receiver: &Receiver, chat_id: i64, message_id: i64, asked_at: Option<i64>) {
   if let Some(asked_at) = asked_at {
-    let sent_at = now_ms() / 1000;
+    let sent_at = now_ms();
 
     if let Err(why) = rows::record_answer_wait(receiver.db(), chat_id, message_id, asked_at, sent_at).await
     {

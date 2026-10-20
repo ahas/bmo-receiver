@@ -71,9 +71,9 @@ pub async fn window_states(receiver: &Receiver, chat_id: i64) -> Vec<WindowState
 }
 
 /// One agent's window as a line: open with its time left, or closed.
-pub fn window_line(state: &WindowState, own: &str, now_seconds: i64) -> String {
+pub fn window_line(state: &WindowState, own: &str, now_ms: i64) -> String {
   let lines = &CONSULT.windows;
-  let left = state.open_until.unwrap_or(0) - now_seconds;
+  let left = state.open_until.unwrap_or(0) - now_ms;
   let mine = state.agent == own;
   let who = if mine {
     fill_marks(&lines.you, &[("label", &state.label)])
@@ -84,7 +84,7 @@ pub fn window_line(state: &WindowState, own: &str, now_seconds: i64) -> String {
   if left > 0 {
     let hears = if mine { "" } else { lines.hears.as_ref() };
 
-    return fill_marks(&lines.open, &[("who", &who), ("left", &time_left(left)), ("hears", hears)]);
+    return fill_marks(&lines.open, &[("who", &who), ("left", &time_left(left / 1_000)), ("hears", hears)]);
   }
 
   let keeps = if state.open_until.is_none() { lines.keeps_none.as_ref() } else { "" };
@@ -99,7 +99,7 @@ pub async fn room_windows_block(
   receiver: &Receiver,
   chat_id: i64,
   own: &str,
-  now_seconds: i64,
+  now_ms: i64,
 ) -> Result<Option<String>, Fault> {
   let states = window_states(receiver, chat_id).await;
 
@@ -109,7 +109,7 @@ pub async fn room_windows_block(
 
   let mut lines = vec![CONSULT.windows.heading.clone()];
 
-  lines.extend(states.iter().map(|state| window_line(state, own, now_seconds)));
+  lines.extend(states.iter().map(|state| window_line(state, own, now_ms)));
 
   Ok(Some(lines.join("\n")))
 }
@@ -121,11 +121,7 @@ pub fn tells_of_queue(events: &[TurnEvent]) -> bool {
 
 /// What an agent is shown to see an overlap: the other agents' work, read from bmo-job, and the consult room
 /// with each agent's window there. None where no consult room is set or the agent does not answer in it.
-pub async fn consult_block(
-  receiver: &Receiver,
-  own: &str,
-  now_seconds: i64,
-) -> Result<Option<String>, Fault> {
+pub async fn consult_block(receiver: &Receiver, own: &str, now_ms: i64) -> Result<Option<String>, Fault> {
   let work = &CONSULT.work;
   let room = settings::get(receiver.db(), &CONSULT.room_setting)
     .await
@@ -204,7 +200,7 @@ pub async fn consult_block(
   }
 
   lines.push(fill_marks(&work.room, &[("room", &room_name)]));
-  lines.extend(states.iter().map(|state| window_line(state, own, now_seconds)));
+  lines.extend(states.iter().map(|state| window_line(state, own, now_ms)));
   lines.push(work.settle.clone());
   lines.push(work.closing.clone());
 
