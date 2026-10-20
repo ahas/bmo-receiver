@@ -19,6 +19,23 @@
     "changed": 1792508501174
   },
   {
+    "id": "service/personal-data",
+    "title": "Personal-data check",
+    "what": "The repository's rule that no personal data stands in a tracked file: the document stating the five kinds it refuses and the suite's check over every file git tracks.",
+    "files": [
+      "docs/PERSONAL-DATA.md",
+      "tests/personal_data.rs"
+    ],
+    "symbols": [],
+    "aliases": [
+      "personal data",
+      "개인정보"
+    ],
+    "needs": [],
+    "base": "96effe3c1f41ec1da39017b8c896b1f379bee32b",
+    "changed": 1792533509587
+  },
+  {
     "id": "service/start",
     "title": "The service's start and commands",
     "what": "The binary's own verbs and what a starting receiver settles before it answers: the migrations, the data root's folders, the cache warmer and the agency's hooks told, and the clocks kept.",

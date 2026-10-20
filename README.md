@@ -49,9 +49,16 @@ holds any).
 | `docs/store.md` | The receiver's database, its tables and settings keys, and its folders under the data root |
 | `docs/codes.md` | Every refusal, fact, fixed line and kind the receiver gives, with its fields and status |
 | `docs/policy.md` | The policy files and the keys the receiver reads |
-| `docs/checks.md` | The repository checks: dependencies, manifests, layout, the version, the testbed's declaration, Hangul, home paths, private addresses and names |
+| `docs/PERSONAL-DATA.md` | The personal data no tracked file may hold, and the check that holds it |
+| `docs/checks.md` | The repository checks: dependencies, manifests, layout, the version, the testbed's declaration, Hangul, personal data and names |
 | `docs/wording.md` | The terms this repository's English text bans, held to by the testbed's wording check |
 | `docs/inventory.md` | Every member of the single repository this one was separated from: where it stands here, the task that carried it, and the unit that owns the ones that did not come |
+
+## Personal data
+
+No tracked file holds a mail address, a home path, a telephone number, a token or a private network address.
+`docs/PERSONAL-DATA.md` states the rule, and the suite's `personal_data` check reads every tracked file for
+it, reporting the file, the line and the kind but never the value.
 
 ## Version
 
@@ -75,7 +82,8 @@ cargo fmt --all --check
 `bmo-testbed check quick` runs the four sweeps that read the tree before anything runs: the glossary's terms,
 Korean in the code, the README's folder table and the dependencies the manifests name. The names a person, an
 agent or a machine goes by are checked by the repository's own test, which reads the list from outside the
-checkout.
+checkout. The `personal_data` check reads every tracked file for a mail address, a home path, a telephone
+number, a token and a private network address (`docs/PERSONAL-DATA.md`).
 
 The tests that use a database make their own on the PostgreSQL server `BMO_TEST_POSTGRES` names, which the
 testbed's suite sets; with nothing named, the machine's own socket.

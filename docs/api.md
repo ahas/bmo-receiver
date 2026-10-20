@@ -1,6 +1,6 @@
 # The receiver's fixed API
 
-**Pinned 0.15.1.**
+**Pinned 0.15.2.**
 
 This document is the receiver's contract: every route it serves, in the one common wire format, grouped by the
 resource each acts on. `docs/openapi.json` is the same contract in machine form, generated from the types in

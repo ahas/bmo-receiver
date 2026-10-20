@@ -27,10 +27,13 @@ under `tools/`, with its `tool.toml`.
   a code with parameters, which the web unit's language packs render or the agent puts in its own words.
   Korean words the code reads or matches on are data, kept in `policy/*.toml` files and under
   `tests/fixtures/`, never in `.rs` files.
-- **No agent names, owner names, host names, home paths or private network addresses** in code, documents
-  or commits. An agent is named by its registration and the service's configuration; tests use neutral
-  names such as `agent-a` and `agent-b`. No list of forbidden names is kept in the repository; the names
-  check reads one from outside it (`docs/checks.md`).
+- **No personal data in a tracked file.** A mail address, a home path, a telephone number, a token or a
+  private network address stands in no file and no commit; `docs/PERSONAL-DATA.md` states the rule, and the
+  suite's `personal_data` check fails on one.
+- **No agent names, owner names or host names** in code, documents or commits. An agent is named by its
+  registration and the service's configuration; tests use neutral names such as `agent-a` and `agent-b`. No
+  list of forbidden names is kept in the repository; the names check reads one from outside it
+  (`docs/checks.md`).
 - **Tests live in `tests/`.** A crate's tests are in its own `tests/`; checks that span the repository and
   the service's own tests are in the root `tests/`, the integration tests one binary under
   `tests/integration/`. No test module sits in `src/`; a private function a test needs becomes public in
