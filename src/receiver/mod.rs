@@ -29,7 +29,6 @@ use receiver_ports::brain::Brain;
 use receiver_ports::gate::Gate;
 use receiver_ports::http::PortFailure;
 use receiver_ports::job::Job;
-use receiver_ports::voice::Voice;
 use receiver_ports::warmer::Warmer;
 use receiver_ports::web::Web;
 use sea_orm::DatabaseConnection;
@@ -304,8 +303,7 @@ pub struct Deployment {
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
 /// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, the brain that keeps what
-/// the agents remember, the voice unit a spoken briefing is launched through, and the cache warmer the chat agent's
-/// one session prefix is kept warm through.
+/// the agents remember, and the cache warmer the chat agent's one session prefix is kept warm through.
 #[derive(Clone)]
 pub struct Units {
   pub roads: Roads,
@@ -313,7 +311,6 @@ pub struct Units {
   pub brain: Arc<dyn Brain>,
   pub gate: Arc<dyn Gate>,
   pub job: Arc<dyn Job>,
-  pub voice: Arc<dyn Voice>,
   pub web: Arc<dyn Web>,
   pub warmer: Arc<dyn Warmer>,
 }

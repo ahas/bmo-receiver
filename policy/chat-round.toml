@@ -30,24 +30,9 @@ owner = "the owner's private chat"
 user = "a user's own private chat with you, where everything they say is addressed to you"
 group = "a group chat with other members"
 
-# The voice summary line a notice turn of the owner's chat is given.
-[voice]
-none = "Voice summary: none this turn. It tells of a voice briefing that did not go out, so launch no briefing of any kind; say it in text only."
-launch = "Voice summary: this turn is opened by the system's own lines alone, so it answers into the owner's chat's own record and nothing of it goes to a road; while you answer, launch its spoken summary with --title, --via this turn's road, as the voice capability says."
-waiting = "{note} Still waiting to go out, and replaced by yours, so cover them too: {titles}."
-untitled = "the opening of an earlier line"
-titled = "「{title}」"
-failed_kind = "voice-failed"
-# The notice the owner's chat is told when the owner moves the whole briefing's switch from the console (its fact
-# is the code `briefing-on` or `briefing-off`): what the line is for, the kind one switch stands under, and how long
-# it may wait to be said.
-switch_intent = "acknowledge the owner's switch in this chat."
-switch_kind = "setting:voice-briefing"
-switch_ttl_ms = 1800000
-# How long a briefing's run may take, in milliseconds.
-run_cap_ms = 600000
 # The emotions a briefing may be said with, which the listeners showing a face are told; a launch naming any
 # other is refused.
+[voice]
 emotions = ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"]
 
 # The blocks the room's words stand in.

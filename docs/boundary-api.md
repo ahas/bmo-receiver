@@ -164,9 +164,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The brain's fixed API** is generic memory, fragments and scope holdings; it serves no room rule, session load,
   handoff note or person-book route as the receiver's calls state them. Those calls stand as the receiver makes
   them until the brain states the shapes, or until the receiver's use of them is restated in the generic terms.
-- **The voice unit's fixed API** is the speech engine's: it serves syntheses, transcriptions, encodings and script
-  readings, and no briefing. The receiver's `/voice-briefing` routes are gone; a briefing is the briefing unit's
-  work, and the receiver no longer relays one.
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
   did, and the tokens they spent. The console's room figures answer `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` null until the agency serves a tally by agent and room.

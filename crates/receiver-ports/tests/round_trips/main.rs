@@ -10,6 +10,5 @@ mod chat;
 mod gate;
 mod http;
 mod job;
-mod voice;
 mod warmer;
 mod web;

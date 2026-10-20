@@ -197,8 +197,7 @@ envelope (`POST /reference/selected`) and the gate chooses what of the brain's m
 - **The standing sheets** of the people who spoke.
 - **Whether anybody spoke**: one test, kept beside the turn's shape: a message of anyone but the agent, or words
   handed in from the console. A turn it answers no to brought the system's own lines alone: a notice turn. The
-  reference gates read it, and a round that ends by sending an answer reads it over everything the round took,
-  pushes included, to tell the voice briefing that a notice turn's line went out.
+  reference gates read it.
 
 All of it goes in the one reference block, loaded in full once per session per version and as a mark after
 that; which versions a session holds is the brain's record (`POST /sessions/loads`).

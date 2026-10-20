@@ -31,10 +31,6 @@ agent that answers the room says the line.
 - **In the owner's private chat a notice stays in the chat's record.** A turn of the system's own lines answers
   into the owner's chat's record, which the console's screen shows, and the lines the receiver says itself in
   that chat do too (`docs/unified-bmo.md`, 「The cases」).
-- **In the owner's private chat a notice is also heard.** While the voice briefing switch is on, the line a turn
-  of the system's own lines sends there is spoken as a voice briefing too, sent as a reply to it, through the
-  voice unit (`docs/boundary-api.md`, 「The voice unit」). A turn carrying a failed briefing's notice is the
-  exception, and a turn somebody spoke in is not a notice turn at all.
 
 ## Delivery
 
@@ -126,16 +122,14 @@ agent that answers the room says the line.
      carries code taken out whole, so the session is never handed the internals to leave out, and its frame asks
      for nothing of the system on top of that.
   4. **The report is told once.** The ending fact names the room that heard a line of it, so the agent does not
-     tell that room again. The voice summary of the agent's turn is launched as for any notice turn, the report's
-     gist together with anything new.
+     tell that room again.
   5. A fact with no report in it is an ending the agent tells by itself, from what the fact says.
   6. bmo-job decides which room the fact goes to and queues it; the receiver delivers it by the rules standing
      when it is delivered.
 - **Background runs.** A digest or person-book run that failed, a person-book sort that gave up on a room, a rule
   candidate awaiting approval, a paused digest, a voice briefing that failed, a job that died without reporting:
-  each is voiced to the chat that would have heard it, from the code its unit sends. A notice turn's summary that
-  never got its turn is the exception and tells nobody. A failed voice run, and a dead job, say plainly that
-  nothing more is coming.
+  each is voiced to the chat that would have heard it, from the code its unit sends. A failed voice run, and a
+  dead job, say plainly that nothing more is coming.
 
 ## Operating notices per chat
 

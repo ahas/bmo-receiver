@@ -25,7 +25,7 @@ fn configuration(folder: &Path, data: &Path, listen: &str, token: &str) -> PathB
     format!("language = {}", quoted("en")),
   ];
 
-  for peer in ["agency", "brain", "gate", "job", "voice", "web", "warmer"] {
+  for peer in ["agency", "brain", "gate", "job", "web", "warmer"] {
     config.extend([
       format!("[{peer}]"),
       format!("base = {}", quoted("http://127.0.0.1:9")),

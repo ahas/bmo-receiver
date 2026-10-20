@@ -69,26 +69,10 @@ impl Timings {
   }
 }
 
-/// A round of the system's own lines alone whose answer went out, as the voice briefing is told of it.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NoticeTurn {
-  pub chat_id: i64,
-  pub message_id: i64,
-  pub text: String,
-  pub via: String,
-  pub instructions: Vec<String>,
-  pub instruction_ids: Vec<i64>,
-  pub events: Vec<TurnEvent>,
-  pub round_started_at: i64,
-}
-
-/// What a round asks of what stands around the conversations: the rows that ride a room's next round, the voice
-/// briefing told of a notice turn, the round's ending let go, and a room shown typing.
+/// What a round asks of what stands around the conversations: the rows that ride a room's next round, and a room
+/// shown typing.
 pub trait Hooks: Send + Sync + 'static {
   fn riders(&self, agent: &str, chat_id: i64) -> BoxFuture<'_, ()>;
-  fn notice_turn(&self, turn: NoticeTurn) -> BoxFuture<'_, ()>;
-  fn round_ended(&self, chat_id: i64) -> BoxFuture<'_, ()>;
   fn typing(&self, chat_id: i64, on: bool) -> BoxFuture<'_, ()>;
 }
 
@@ -1350,7 +1334,6 @@ impl Conversations {
       settle_instructions(self.0.receiver.db(), now_ms(), &round, settling).await;
     }
 
-    self.0.hooks.round_ended(chat_id).await;
     self.0.receiver.news().end_turn(turn);
     self.0.hooks.typing(chat_id, false).await;
 
@@ -1444,7 +1427,6 @@ impl Conversations {
   ) -> Result<(), Failure> {
     let receiver = self.receiver();
     let owner = self.owner();
-    let round_started_at = now_ms() / 1000;
 
     while self.state().folding.contains(&chat_id) {
       tokio::time::sleep(Duration::from_millis(50)).await;
@@ -1792,23 +1774,6 @@ impl Conversations {
 
       self.hand_filed(chat_id, sent.message_id, &via, room).await;
       self.relay_answer(chat_id, &sent.text).await;
-
-      if !window::people_spoke(room, &batch, &[]) {
-        self
-          .0
-          .hooks
-          .notice_turn(NoticeTurn {
-            chat_id,
-            message_id: sent.message_id,
-            text: sent.text.clone(),
-            via: via.clone(),
-            instructions: instructions.clone(),
-            instruction_ids: record.settling.clone(),
-            events: events.clone(),
-            round_started_at,
-          })
-          .await;
-      }
     }
 
     if let Some(conv) = self.state().active.get_mut(&chat_id) {

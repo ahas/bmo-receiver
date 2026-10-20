@@ -32,5 +32,4 @@ pub mod thread;
 pub mod touch;
 pub mod turnover;
 pub mod typed;
-pub mod voice;
 pub mod window;

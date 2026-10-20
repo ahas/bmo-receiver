@@ -8,7 +8,6 @@ use std::collections::HashSet;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 use serde::Serialize;
-use serde_json::Value;
 
 use super::conversation::unified_session;
 use super::shape::Reading;
@@ -16,7 +15,6 @@ use super::window::{self, Material, Selection};
 use crate::companion::consult::{consult_block, room_windows_block, tells_of_queue};
 use crate::receiver::{Inbound, Receiver, Room, rows};
 use crate::roads::Roads;
-use crate::store::settings;
 use crate::{Fault, now_ms, one};
 
 use receiver_ports::gate::TurnEvent;
@@ -142,56 +140,6 @@ async fn chat_kind(receiver: &Receiver, room: Room) -> Result<&'static str, Faul
   Ok(&kinds.group)
 }
 
-// The voice summary line a notice turn of the owner's chat is given, or none.
-async fn voice_note(receiver: &Receiver, round: &Round<'_>) -> Result<Option<String>, Fault> {
-  let db = receiver.db();
-  let voice = &CHAT_ROUND.voice;
-
-  if !round.room.owner_room || !round.batch.is_empty() || round.instructions.is_empty() {
-    return Ok(None);
-  }
-
-  if settings::get(db, "voice_briefing").await.ok().flatten().as_deref() == Some("off") {
-    return Ok(None);
-  }
-
-  let listed = receiver.units().agency.agents().await.ok();
-  let voiced = listed
-    .as_ref()
-    .and_then(|listed| listed.agents.iter().find(|one| one.name == round.agent))
-    .and_then(|found| found.row.get("voice").and_then(Value::as_str));
-
-  if voiced.is_none() {
-    return Ok(None);
-  }
-
-  for id in round.instruction_ids {
-    let kind = one(db, r#"SELECT "kind" FROM "instructions" WHERE "id" = $1"#, vec![(*id).into()])
-      .await?
-      .and_then(|row| row.try_get::<Option<String>>("", "kind").ok().flatten());
-
-    if kind.as_deref() == Some(voice.failed_kind.as_str()) {
-      return Ok(Some(voice.none.clone()));
-    }
-  }
-
-  let waiting = receiver.units().voice.briefings(round.chat_id, true).await.unwrap_or_default();
-
-  if waiting.is_empty() {
-    return Ok(Some(voice.launch.clone()));
-  }
-
-  let titles: Vec<String> = waiting
-    .iter()
-    .map(|briefed| fill_marks(&voice.titled, &[("title", &briefed.title)]))
-    .collect();
-
-  Ok(Some(fill_marks(
-    &voice.waiting,
-    &[("note", &voice.launch), ("titles", &titles.join(", "))],
-  )))
-}
-
 // What the session missed since it last answered, which only the first call of a round carries; the batch's own
 // messages are shown a few lines further on.
 async fn archived(receiver: &Receiver, round: &Round<'_>) -> Result<Vec<Inbound>, Fault> {
@@ -302,10 +250,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     &header.privilege,
     &[("privilege", if round.all_from_owner { &header.privileged } else { &header.restricted })],
   ));
-
-  if let Some(note) = voice_note(receiver, round).await? {
-    parts.push(note);
-  }
 
   parts.push(fill_marks(&header.owner, &[("owner", &round.owner.to_string())]));
   parts.push(if round.tools_allowed { header.tools_on.clone() } else { header.tools_off.clone() });

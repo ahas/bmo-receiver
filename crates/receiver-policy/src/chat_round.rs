@@ -31,16 +31,6 @@ pub struct Kinds {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Voice {
-  pub none: String,
-  pub launch: String,
-  pub waiting: String,
-  pub untitled: String,
-  pub titled: String,
-  pub failed_kind: String,
-  pub switch_intent: String,
-  pub switch_kind: String,
-  pub switch_ttl_ms: i64,
-  pub run_cap_ms: i64,
   pub emotions: Vec<String>,
 }
 

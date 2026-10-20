@@ -13,7 +13,6 @@ use receiver_ports::chat::ChatServices;
 use receiver_ports::gate::HttpGate;
 use receiver_ports::http::Peer;
 use receiver_ports::job::HttpJob;
-use receiver_ports::voice::HttpVoice;
 use receiver_ports::warmer::HttpWarmer;
 use receiver_ports::web::HttpWeb;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
@@ -66,7 +65,6 @@ pub struct Config {
   pub brain: Peer,
   pub gate: Peer,
   pub job: Peer,
-  pub voice: Peer,
   pub web: Peer,
   pub warmer: Peer,
   #[serde(default)]
@@ -132,7 +130,6 @@ impl Config {
       brain: Arc::new(HttpBrain::new(&self.brain)),
       gate: Arc::new(HttpGate::new(&self.gate)),
       job: Arc::new(HttpJob::new(&self.job)),
-      voice: Arc::new(HttpVoice::new(&self.voice)),
       web: Arc::new(HttpWeb::new(&self.web)),
       warmer: Arc::new(HttpWarmer::new(&self.warmer)),
     }

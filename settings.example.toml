@@ -41,10 +41,6 @@ token = "gate-token"
 base = "http://127.0.0.1:3250"
 token = "job-token"
 
-[voice]
-base = "http://127.0.0.1:3260"
-token = "voice-token"
-
 [web]
 base = "http://127.0.0.1:3270"
 token = "web-token"

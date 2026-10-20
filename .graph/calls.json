@@ -130,31 +130,6 @@
     }
   },
   {
-    "id": "calls/voice",
-    "title": "bmo-voice API",
-    "what": "The calls the receiver makes on bmo-voice: a voice briefing launched, a room's briefings read, and the line a briefing awaits.",
-    "files": [
-      "crates/receiver-ports/src/voice.rs",
-      "docs/boundary-api.md"
-    ],
-    "symbols": [
-      "Voice",
-      "Briefing",
-      "Briefed"
-    ],
-    "aliases": [],
-    "needs": [
-      "ports/units"
-    ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585020,
-    "boundary": {
-      "side": "calls",
-      "repository": "bmo-voice",
-      "api": "api/http"
-    }
-  },
-  {
     "id": "calls/warmer",
     "title": "bmo-cache-warmer API",
     "what": "The calls the receiver makes on bmo-cache-warmer: the consumer registered with its chat-touch hook as one target, and the target told each time a turn used the session.",

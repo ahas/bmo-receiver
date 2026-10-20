@@ -26,7 +26,6 @@ use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
-use receiver_ports::voice::{Briefed, Briefing, Voice};
 use receiver_ports::warmer::{Target, Used, Warmer};
 use receiver_ports::web::{
   Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web,
@@ -409,59 +408,6 @@ impl Brain for StandInBrain {
 
   fn room_removed(&self, _chat: i64, _preview: bool) -> BoxFuture<'_, Answer<Took>> {
     Box::pin(async { Ok(Took::default()) })
-  }
-}
-
-/// The voice unit: a briefing launched and kept, its line let go; nothing else asked.
-pub struct StandInVoice {
-  pub launched: Mutex<Vec<Briefing>>,
-  pub kept: Mutex<Vec<Briefed>>,
-  pub lines: Mutex<Vec<(String, i64)>>,
-}
-
-impl StandInVoice {
-  pub fn new() -> StandInVoice {
-    StandInVoice {
-      launched: Mutex::default(),
-      kept: Mutex::default(),
-      lines: Mutex::default(),
-    }
-  }
-
-  pub fn launched(&self) -> Vec<Briefing> {
-    self.launched.lock().unwrap().clone()
-  }
-
-  /// The briefings it keeps of a room, as the readings it has launched.
-  pub fn keeping(&self, kept: Vec<Briefed>) {
-    *self.kept.lock().unwrap() = kept.clone();
-  }
-}
-
-impl Voice for StandInVoice {
-  fn brief<'a>(&'a self, briefing: &'a Briefing) -> BoxFuture<'a, Answer<String>> {
-    self.launched.lock().unwrap().push(briefing.clone());
-
-    Box::pin(async { Ok("briefing-run".to_owned()) })
-  }
-
-  fn briefings(&self, chat: i64, _awaiting: bool) -> BoxFuture<'_, Answer<Vec<Briefed>>> {
-    let kept = self
-      .kept
-      .lock()
-      .unwrap()
-      .iter()
-      .filter(|one| one.chat == chat)
-      .cloned()
-      .collect::<Vec<Briefed>>();
-
-    Box::pin(async { Ok(kept) })
-  }
-
-  fn line<'a>(&'a self, run: &'a str, message: i64) -> BoxFuture<'a, Answer<()>> {
-    self.lines.lock().unwrap().push((run.to_owned(), message));
-
-    Box::pin(async { Ok(()) })
   }
 }
 
@@ -1268,7 +1214,6 @@ pub struct Standing {
   pub brain: Arc<StandInBrain>,
   pub job: Arc<StandInJob>,
   pub taken: Arc<Taken>,
-  pub voice: Arc<StandInVoice>,
   pub web: Arc<StandInWeb>,
   pub warmer: Arc<StandInWarmer>,
 }
@@ -1314,7 +1259,6 @@ pub fn unrun(
   let job = Arc::new(StandInJob::new());
   let taken = Arc::new(Taken::new(db.clone()));
   let brain = Arc::new(StandInBrain::new());
-  let voice = Arc::new(StandInVoice::new());
   let warmer = Arc::new(StandInWarmer::new());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
@@ -1323,7 +1267,6 @@ pub fn unrun(
     brain: brain.clone(),
     gate: gate.clone(),
     job: job.clone(),
-    voice: voice.clone(),
     web: web.clone(),
     warmer: warmer.clone(),
   };
@@ -1340,7 +1283,6 @@ pub fn unrun(
     brain,
     job,
     taken,
-    voice,
     web,
     warmer,
   }

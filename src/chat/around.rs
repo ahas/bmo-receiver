@@ -1,7 +1,7 @@
 //! What stands around the conversations of one agent in the running process (docs/bmo-window.md, 「The room's
-//! window」; docs/voiced-notices.md): the rows that ride a room's next round, from the instruction pass; a
-//! notice turn's voice briefing and the briefings a round lets go; and the room shown typing while its answer
-//! is on its way, on the room's own road, renewed on the round policy's clock until the round lets it go.
+//! window」): the rows that ride a room's next round, from the instruction pass, and the room shown typing while
+//! its answer is on its way, on the room's own road, renewed on the round policy's clock until the round lets it
+//! go.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
@@ -11,9 +11,8 @@ use bmo_chat_client::{ChatSend, ChatSendRequest};
 use receiver_policy::chat_round::CHAT_ROUND;
 use tokio::task::JoinHandle;
 
-use super::conversation::{BoxFuture, Hooks, NoticeTurn};
+use super::conversation::{BoxFuture, Hooks};
 use crate::receiver::Receiver;
-use receiver_ports::voice::{Briefing, BriefingKind};
 
 /// The conversations' surroundings in the running process.
 pub struct Around {
@@ -60,40 +59,6 @@ impl Hooks for Around {
     Box::pin(async move {
       if let Some(pass) = self.receiver.pass() {
         pass.riders(&agent, chat_id).await;
-      }
-    })
-  }
-
-  fn notice_turn(&self, turn: NoticeTurn) -> BoxFuture<'_, ()> {
-    Box::pin(async move {
-      let briefing = Briefing {
-        chat: turn.chat_id,
-        message: Some(turn.message_id),
-        kind: BriefingKind::Notice,
-        title: CHAT_ROUND.voice.untitled.clone(),
-        awaits_line: false,
-        text: turn.text.clone(),
-      };
-
-      let chat_id = turn.chat_id;
-
-      match self.receiver.units().voice.brief(&briefing).await {
-        Ok(_) => {}
-        Err(why) => eprintln!("chat {chat_id}: the notice turn was not briefed: {why}"),
-      }
-    })
-  }
-
-  fn round_ended(&self, chat_id: i64) -> BoxFuture<'_, ()> {
-    Box::pin(async move {
-      let awaiting = self.receiver.units().voice.briefings(chat_id, true).await.unwrap_or_default();
-
-      for briefed in awaiting {
-        let message = briefed.voice_message.unwrap_or_default();
-
-        if let Err(why) = self.receiver.units().voice.line(&briefed.run, message).await {
-          eprintln!("chat {chat_id}: the round's briefing was not let go: {why}");
-        }
       }
     })
   }
