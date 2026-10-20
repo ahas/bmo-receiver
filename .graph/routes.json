@@ -20,8 +20,8 @@
       "store/database",
       "roads/roads"
     ],
-    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
-    "changed": 1792508501136
+    "base": "186d007d07bb4f864709c4d1a256778d7ed084b8",
+    "changed": 1792534417472
   },
   {
     "id": "routes/consult",
@@ -89,8 +89,8 @@
       "chat/instruction-pass",
       "receiver/notices"
     ],
-    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
-    "changed": 1792508501151
+    "base": "186d007d07bb4f864709c4d1a256778d7ed084b8",
+    "changed": 1792534417483
   },
   {
     "id": "routes/openings",
@@ -190,8 +190,8 @@
       "roads/roads",
       "calls/chat"
     ],
-    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
-    "changed": 1792508501165
+    "base": "186d007d07bb4f864709c4d1a256778d7ed084b8",
+    "changed": 1792534417493
   },
   {
     "id": "routes/talks",
