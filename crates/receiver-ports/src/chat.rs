@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use bmo_chat_client::{
-  ChatDeclaration, ChatHealth, ChatMediaRequest, ChatMediaResult, ChatProviderClient, ChatSendRequest,
-  ChatSendResult, ClientFailure, DialectChecked, DialectReading, RoomKind,
+  ChatDeclaration, ChatHealth, ChatMediaRequest, ChatProviderClient, ChatSendRequest, ChatSent,
+  ClientFailure, DialectChecked, DialectReading, MessageFile, Page, RoomKind,
 };
 use futures_util::future::BoxFuture;
 
@@ -24,9 +24,13 @@ pub trait Chat: Send + Sync {
   fn health(&self) -> BoxFuture<'_, ChatAnswer<ChatHealth>>;
 
   /// A send; one the service does not perform comes back as its refusal.
-  fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSendResult>>;
+  fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSent>>;
 
-  fn media<'a>(&'a self, request: &'a ChatMediaRequest) -> BoxFuture<'a, ChatAnswer<ChatMediaResult>>;
+  /// The files and pictures a message carried, fetched from the service again.
+  fn message_files<'a>(
+    &'a self,
+    request: &'a ChatMediaRequest,
+  ) -> BoxFuture<'a, ChatAnswer<Page<MessageFile>>>;
 
   fn dialect_read<'a>(&'a self, text: &'a str) -> BoxFuture<'a, ChatAnswer<DialectReading>>;
 
@@ -59,44 +63,59 @@ impl Chat for ChatProviderClient {
     Box::pin(ChatProviderClient::health(self))
   }
 
-  fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSendResult>> {
+  fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSent>> {
     Box::pin(ChatProviderClient::send(self, request))
   }
 
-  fn media<'a>(&'a self, request: &'a ChatMediaRequest) -> BoxFuture<'a, ChatAnswer<ChatMediaResult>> {
-    Box::pin(ChatProviderClient::media(self, request))
+  fn message_files<'a>(
+    &'a self,
+    request: &'a ChatMediaRequest,
+  ) -> BoxFuture<'a, ChatAnswer<Page<MessageFile>>> {
+    Box::pin(ChatProviderClient::message_files(self, request))
   }
 
   fn dialect_read<'a>(&'a self, text: &'a str) -> BoxFuture<'a, ChatAnswer<DialectReading>> {
-    Box::pin(ChatProviderClient::dialect_read(self, text))
+    Box::pin(async move { ChatProviderClient::dialect_reading(self, text).await })
   }
 
   fn dialect_check<'a>(&'a self, markup: &'a str) -> BoxFuture<'a, ChatAnswer<DialectChecked>> {
-    Box::pin(ChatProviderClient::dialect_check(self, markup))
+    Box::pin(async move { ChatProviderClient::dialect_check(self, markup).await })
   }
 
   fn room_owns(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<bool>> {
-    Box::pin(ChatProviderClient::room_owns(self, chat_id))
+    Box::pin(async move {
+      match self.room(chat_id).await {
+        Ok(room) => Ok(room.owns),
+        Err(ClientFailure::Answered { status: 404, .. }) => Ok(false),
+        Err(why) => Err(why),
+      }
+    })
   }
 
   fn room_identity(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
-    Box::pin(ChatProviderClient::room_identity(self, chat_id))
+    Box::pin(async move { self.room(chat_id).await.map(|room| room.identity) })
   }
 
   fn room_kind(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<RoomKind>> {
-    Box::pin(ChatProviderClient::room_kind(self, chat_id))
+    Box::pin(async move { self.room(chat_id).await.map(|room| room.kind) })
   }
 
   fn room_private_of(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
-    Box::pin(ChatProviderClient::room_private_of(self, chat_id))
+    Box::pin(async move { self.room(chat_id).await.map(|room| room.private_to) })
   }
 
   fn room_title(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<String>>> {
-    Box::pin(ChatProviderClient::room_title(self, chat_id))
+    Box::pin(async move {
+      match self.room(chat_id).await {
+        Ok(room) => Ok(room.title),
+        Err(ClientFailure::Answered { status: 404, .. }) => Ok(None),
+        Err(why) => Err(why),
+      }
+    })
   }
 
   fn owner_room(&self) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
-    Box::pin(ChatProviderClient::owner_room(self))
+    Box::pin(async move { self.owner().await.map(|owner| owner.room_id) })
   }
 }
 

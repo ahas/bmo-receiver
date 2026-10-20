@@ -41,7 +41,7 @@ agent that answers the room says the line.
 - **Through the instruction queue, always.** A notice is a queued instruction row, never a direct hand-off to a
   live session: the queue holds a row while its chat is silenced, where a direct hand-off into a silenced chat
   would be lost. bmo-job queues its notices with `POST /rooms/{chat}/notices`, the brain its owner notices with
-  `POST /owner/notice`.
+  `POST /owner/notices`.
 - **Delivered at once, unless it rides.** The instruction pass delivers pending rows on its regular tick; a
   notice queued through a route or by the receiver itself also asks for a pass straight away, so it does not wait
   for the tick. A notice queued to ride waits for the next round its room opens for something else instead

@@ -6,7 +6,7 @@
 //! several at once.
 
 use axum::http::StatusCode;
-use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, ChatSendResult, FileItem};
+use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, FileItem};
 
 use std::path::Path;
 
@@ -114,15 +114,15 @@ pub async fn say(
   let Some(road) = receiver.roads().unasked(chat_id).await else {
     return Err(no_room(chat_id));
   };
-  let request = ChatSendRequest::new(
+  let mut request = ChatSendRequest::new(
     chat_id,
     ChatSend::Text {
       text: text.to_owned(),
-      reply_to,
       silent: false,
       fold: true,
     },
   );
+  request.reply_to_message_id = reply_to;
 
   receiver.speech().act(road.key(), &request).await.map_err(not_said)
 }
@@ -173,7 +173,6 @@ pub async fn send_files(
             ChatSend::Document {
               bytes: file.bytes.clone(),
               file_name: file.name.clone(),
-              reply_to: reply,
             },
           )
         })
@@ -193,35 +192,34 @@ pub async fn send_files(
             })
             .collect(),
           caption: (!words.is_empty()).then_some(words),
-          reply_to: reply,
         },
       )]
     };
 
     for (held, send) in sends {
-      let answer = receiver
-        .speech()
-        .carried(key, &ChatSendRequest::new(chat_id, send))
-        .await
-        .map_err(not_said)?;
+      let mut request = ChatSendRequest::new(chat_id, send);
+      request.reply_to_message_id = reply;
+      let answer = match receiver.speech().carried(key, &request).await {
+        Ok(sent) => sent,
+        Err(why) => {
+          let refusal = why.to_string();
 
-      match answer {
-        ChatSendResult::Sent { message_id, missed } => {
-          for file in held {
-            outcome.sent.push(json!({ "name": file.name, "messageId": message_id }));
-          }
-
-          for one in missed {
-            outcome.failed.push(json!({ "name": one.address, "reason": one.reason.to_string() }));
-          }
-        }
-        ChatSendResult::Refused { refusal, .. } => {
-          outcome.refusal.get_or_insert(refusal.to_string());
+          outcome.refusal.get_or_insert(refusal.clone());
 
           for file in held {
-            outcome.failed.push(json!({ "name": file.name, "reason": refusal.to_string() }));
+            outcome.failed.push(json!({ "name": file.name, "reason": refusal.clone() }));
           }
+
+          continue;
         }
+      };
+
+      for file in held {
+        outcome.sent.push(json!({ "name": file.name, "id": answer.message_id }));
+      }
+
+      for one in answer.missed {
+        outcome.failed.push(json!({ "name": one.address, "reason": one.reason.to_string() }));
       }
     }
   }

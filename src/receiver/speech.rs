@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSendResult, ClientFailure};
+use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSent, ClientFailure};
 use receiver_codes::FixedLine;
 use receiver_ports::PortFailure;
 use receiver_ports::gate::Sanitise;
@@ -150,7 +150,6 @@ impl Speech {
   async fn sent(&self, key: &str, chat_id: i64, text: &str) -> Result<Option<i64>, NotSaid> {
     let send = ChatSend::Text {
       text: text.to_owned(),
-      reply_to: None,
       silent: false,
       fold: false,
     };
@@ -160,24 +159,28 @@ impl Speech {
 
   /// One send carried on a road: the number of the message it went out as, where the road gives one.
   pub async fn act(&self, key: &str, request: &ChatSendRequest) -> Result<Option<i64>, NotSaid> {
-    match self.carried(key, request).await? {
-      ChatSendResult::Sent { message_id, .. } => Ok(message_id),
-      ChatSendResult::Refused { refusal, .. } => Err(NotSaid::Refused {
-        road: key.to_owned(),
-        refusal: refusal.to_string(),
-      }),
-    }
+    self.carried(key, request).await.map(|sent| sent.message_id)
   }
 
   /// One send carried on a road, its result as the road answers it: what went and its number, or the refusal.
-  pub async fn carried(&self, key: &str, request: &ChatSendRequest) -> Result<ChatSendResult, NotSaid> {
+  pub async fn carried(&self, key: &str, request: &ChatSendRequest) -> Result<ChatSent, NotSaid> {
     let service = self.units.roads.chats().road(key).ok_or_else(|| NotSaid::Unlisted {
       road: key.to_owned(),
     })?;
 
-    service.send(request).await.map_err(|why| NotSaid::Chat {
-      road: key.to_owned(),
-      why,
-    })
+    match service.send(request).await {
+      Ok(sent) => Ok(sent),
+      Err(ClientFailure::Answered {
+        answer: Some(answer),
+        ..
+      }) => Err(NotSaid::Refused {
+        road: key.to_owned(),
+        refusal: answer.error,
+      }),
+      Err(why) => Err(NotSaid::Chat {
+        road: key.to_owned(),
+        why,
+      }),
+    }
   }
 }

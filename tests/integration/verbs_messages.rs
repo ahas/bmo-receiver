@@ -256,7 +256,6 @@ async fn the_owners_line_goes_through_the_receivers_own_lines_with_no_gate_and_n
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
     [ChatSend::Text {
       text: "The job is done.".to_owned(),
-      reply_to: None,
       silent: false,
       fold: false
     }]

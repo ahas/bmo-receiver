@@ -20,7 +20,7 @@ mod worker_settings;
 
 use std::sync::Arc;
 
-use bmo_chat_client::{GatheredOutcome, MessageFile};
+use bmo_chat_client::{GatheredPatch, MessageFile};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, How, Inbound, Room};
 use receiver_policy::commands::COMMANDS;
@@ -351,6 +351,7 @@ fn file(id: &str, name: &str, mime: &str, bytes: &[u8]) -> MessageFile {
     name: name.into(),
     mime: mime.into(),
     bytes: bytes.to_vec(),
+    kind: None,
   }
 }
 
@@ -422,9 +423,7 @@ async fn a_file_still_being_gathered_wakes_once_it_is_handed_over() {
     .unwrap();
   assert!(standing.waking.woken().is_empty(), "nothing is woken ahead of the bytes");
 
-  let kept = GatheredOutcome::Kept {
-    files: vec![file("1", "voice.ogg", "audio/ogg", b"ogg")],
-  };
+  let kept = GatheredPatch::kept(vec![file("1", "voice.ogg", "audio/ogg", b"ogg")]);
 
   receiver.gathered(-109, 1, "road-a", &kept).await.unwrap();
 
@@ -480,27 +479,33 @@ async fn the_chat_services_hand_overs_are_taken_behind_the_token_and_read_as_the
   let (scratch, _data, standing) = stood(&[-110]).await;
   let routes = bmo_receiver::receiver::handover::routes(standing.receiver.clone(), "the-token");
   let handed = serde_json::json!({
-    "message": {
-      "chatId": -110, "messageId": 1, "senderId": 55, "senderName": "tester", "sentAt": 1760000000,
-      "text": "hello", "replyToMessageId": null, "via": "road-a", "album": null, "mode": "bot-account",
-    },
+    "origin": "live",
+    "senderId": 55,
+    "senderName": "tester",
+    "sentAt": 1_760_000_000_000_i64,
+    "text": "hello",
+    "replyToMessageId": null,
+    "via": "road-a",
+    "album": null,
+    "mode": "bot-account",
     "context": { "roomTitle": "a room" },
     "room": { "kind": "group", "identity": AGENT_NUMBER },
   });
-  let post = |path: &str, token: &str, body: String| {
-    Request::post(path)
+  let taken_path = "/chat/rooms/-110/messages/1";
+  let put = |path: &str, token: &str, body: String| {
+    Request::put(path)
       .header("authorization", format!("Bearer {token}"))
       .header("content-type", "application/json")
       .body(Body::from(body))
       .unwrap()
   };
 
-  let refused = routes.clone().oneshot(post("/message", "wrong", handed.to_string())).await.unwrap();
-  let taken = routes.clone().oneshot(post("/message", "the-token", handed.to_string())).await.unwrap();
-  let unread = routes.oneshot(post("/message", "the-token", "{}".into())).await.unwrap();
+  let refused = routes.clone().oneshot(put(taken_path, "wrong", handed.to_string())).await.unwrap();
+  let taken = routes.clone().oneshot(put(taken_path, "the-token", handed.to_string())).await.unwrap();
+  let unread = routes.oneshot(put(taken_path, "the-token", "{}".into())).await.unwrap();
 
   assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
-  assert_eq!(taken.status(), StatusCode::OK);
+  assert_eq!(taken.status(), StatusCode::CREATED);
   assert_eq!(unread.status(), StatusCode::BAD_REQUEST);
   assert_eq!(standing.heard.told(), [(-110, 1)]);
   assert_eq!(

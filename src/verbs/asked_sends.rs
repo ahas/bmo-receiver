@@ -14,9 +14,9 @@ use crate::verbs::{VerbError, turn};
 /// whose turn the shell works in, with whether a job runs it.
 pub fn shell_asker(chat: i64, via: Option<String>, by: Option<String>) -> Asker {
   Asker {
-    chat: Some(chat),
+    room: Some(chat),
     via,
-    agent: turn::agent(),
+    agent_name: turn::agent(),
     by,
     job: turn::inside_job(),
   }

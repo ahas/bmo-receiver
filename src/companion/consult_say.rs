@@ -97,16 +97,13 @@ pub async fn say(
     Some(Road::Service(key)) => {
       let send = ChatSend::Text {
         text: words.clone(),
-        reply_to,
         silent: false,
         fold: false,
       };
+      let mut request = ChatSendRequest::new(chat_id, send);
+      request.reply_to_message_id = reply_to;
 
-      receiver
-        .speech()
-        .act(&key, &ChatSendRequest::new(chat_id, send))
-        .await
-        .map_err(NotReceived::Said)?
+      receiver.speech().act(&key, &request).await.map_err(NotReceived::Said)?
     }
     None => return Ok(Err(ConsultRefusal::NoRoom)),
   };

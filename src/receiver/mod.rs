@@ -670,6 +670,15 @@ impl Receiver {
     Ok(())
   }
 
+  /// A past message read back from a room, kept for the rooms the receiver listens to and waking nobody.
+  pub async fn history(&self, inbound: &Inbound, context: &Context, room: Room) -> Result<(), NotReceived> {
+    if !Self::listened(inbound.chat_id, room) {
+      return Ok(());
+    }
+
+    self.keep(inbound, context).await
+  }
+
   /// A message carrying a file, kept: the files it came with kept beside it and woken on, unless it is the
   /// agent's own; a file the chat service is still gathering is woken on once it is handed over.
   pub async fn attachment(
@@ -710,21 +719,17 @@ impl Receiver {
     chat_id: i64,
     message_id: i64,
     via: &str,
-    outcome: &bmo_chat_client::GatheredOutcome,
+    patch: &bmo_chat_client::GatheredPatch,
   ) -> Result<(), NotReceived> {
     let Some(inbound) = rows::message(&self.db, chat_id, message_id, via).await? else {
       return Ok(());
     };
 
-    match outcome {
-      bmo_chat_client::GatheredOutcome::Kept { files } => {
-        files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, &inbound, files).await?;
-      }
-      bmo_chat_client::GatheredOutcome::NotKept { reason } => {
-        eprintln!(
-          "bmo-receiver: the file of message {message_id} in room {chat_id} was not kept: {reason}"
-        );
-      }
+    if let Some(reason) = &patch.gather_failure {
+      eprintln!("bmo-receiver: the file of message {message_id} in room {chat_id} was not kept: {reason}");
+    } else {
+      files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, &inbound, &patch.files)
+        .await?;
     }
 
     let room = self.roads().room_facts(chat_id).await;

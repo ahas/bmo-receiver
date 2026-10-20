@@ -18,7 +18,7 @@ receiver takes a reminder asked in a room to the brain, and delivers its moment'
 
 ## Its moment wakes the agent in its room
 
-- **The brain queues the wake** with `POST /instructions/quiet`, kind `reminder`, for the agent in the reminder's
+- **The brain queues the wake** with `POST /instructions`, kind `reminder`, for the agent in the reminder's
   room, carrying the reason, the memory as it stands at that moment and who it is for.
 - **The receiver queues it as a quiet instruction** of that room and wakes the agent's turn there through the
   instruction pass (`docs/bmo-window.md`, 「Quiet instruction」). The agent looks at how things stand and writes

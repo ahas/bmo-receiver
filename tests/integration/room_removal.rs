@@ -19,7 +19,7 @@ use bmo_receiver::room_record::chat_tables;
 use bmo_receiver::routes::routes;
 
 use crate::common::Scratch;
-use crate::common::queue::{Front, Kicked, TOKEN, get, post};
+use crate::common::queue::{Front, Kicked, TOKEN, remove};
 use crate::common::units::{AGENT, StandInChat, deployment, standing_on};
 
 const ADMIN: &str = "the-administrator";
@@ -69,11 +69,6 @@ async fn bench() -> (Scratch, Front, Events) {
     },
     news,
   )
-}
-
-// The room a request names, as the route reads one.
-fn asked(room: i64) -> Value {
-  json!({ "chat": room, "by": ADMIN })
 }
 
 /// A room filled across the receiver's record, its files and the units it reaches: its rows, its title and read
@@ -199,7 +194,7 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
   let other_before = rows_of(&scratch, OTHER).await;
   let before = rows_of(&scratch, ROOM).await;
 
-  let (status, shown) = get(&front, &format!("/rooms/remove?chat={ROOM}&by={ADMIN}")).await;
+  let (status, shown) = remove(&front, &format!("/rooms/{ROOM}?by={ADMIN}&dryRun=true")).await;
 
   assert_eq!(status, StatusCode::OK, "{shown}");
   assert!(shown["refused"].is_null(), "{shown}");
@@ -222,7 +217,7 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
   assert_eq!(shown["units"]["agency"]["gone"]["sessions"], 1);
   assert!(shown["units"]["brain"].is_object());
 
-  let (status, taken) = post(&front, "/rooms/remove", asked(ROOM)).await;
+  let (status, taken) = remove(&front, &format!("/rooms/{ROOM}?by={ADMIN}")).await;
 
   assert_eq!(status, StatusCode::OK, "{taken}");
   assert_eq!(taken["taken"], shown["goes"], "what the preview counted is what the removal took");
@@ -301,22 +296,19 @@ async fn anyone_but_the_administrator_is_refused_and_nothing_is_written() {
 
   for by in ["stranger", ""] {
     assert_eq!(
-      get(&front, &format!("/rooms/remove?chat={ROOM}&by={by}")).await.0,
+      remove(&front, &format!("/rooms/{ROOM}?by={by}&dryRun=true")).await.0,
       StatusCode::FORBIDDEN
     );
-    assert_eq!(
-      post(&front, "/rooms/remove", json!({ "chat": ROOM, "by": by })).await.0,
-      StatusCode::FORBIDDEN
-    );
+    assert_eq!(remove(&front, &format!("/rooms/{ROOM}?by={by}")).await.0, StatusCode::FORBIDDEN);
   }
 
   assert_eq!(
-    get(&front, &format!("/rooms/remove?chat=not-a-room&by={ADMIN}")).await.0,
+    remove(&front, &format!("/rooms/not-a-room?by={ADMIN}&dryRun=true")).await.0,
     StatusCode::BAD_REQUEST
   );
   assert_eq!(rows_of(&scratch, ROOM).await, before, "a refusal writes nothing");
   assert!(data.join("collected").join(ROOM.to_string()).exists());
-  assert_eq!(get(&front, &format!("/rooms/remove?chat={ROOM}&by={ADMIN}")).await.0, StatusCode::OK);
+  assert_eq!(remove(&front, &format!("/rooms/{ROOM}?by={ADMIN}&dryRun=true")).await.0, StatusCode::OK);
 }
 
 #[tokio::test]
@@ -328,12 +320,12 @@ async fn the_board_for_the_machines_and_the_administrators_own_private_chat_are_
     fill(&scratch, &data, room).await;
 
     let before = rows_of(&scratch, room).await;
-    let (status, shown) = get(&front, &format!("/rooms/remove?chat={room}&by={ADMIN}")).await;
+    let (status, shown) = remove(&front, &format!("/rooms/{room}?by={ADMIN}&dryRun=true")).await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(shown["refused"].is_string(), "{room}: {shown}");
 
-    let (status, refused) = post(&front, "/rooms/remove", asked(room)).await;
+    let (status, refused) = remove(&front, &format!("/rooms/{room}?by={ADMIN}")).await;
 
     assert_eq!(status, StatusCode::CONFLICT, "{room}: {refused}");
     assert_eq!(refused["code"], shown["refused"], "{room}");
@@ -349,7 +341,7 @@ async fn a_room_that_speaks_again_afterwards_is_a_new_registration_with_an_empty
 
   fill(&scratch, &data, ROOM).await;
 
-  let (status, taken) = post(&front, "/rooms/remove", asked(ROOM)).await;
+  let (status, taken) = remove(&front, &format!("/rooms/{ROOM}?by={ADMIN}")).await;
 
   assert_eq!(status, StatusCode::OK, "{taken}");
 

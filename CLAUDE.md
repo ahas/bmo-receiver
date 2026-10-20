@@ -12,8 +12,9 @@ under `tools/`, with its `tool.toml`.
 
 - **`docs/` is canonical.** Read the document covering a change before changing code. A change that would
   make it wrong or incomplete repairs it first, stating what is true now, and the code is then written to
-  match. `docs/boundary-api.md` states every route this service serves, every call it makes on another unit
-  and every code it answers with.
+  match. `docs/api.md` and the OpenAPI document `docs/openapi.json` state every route this service serves, in
+  the one fixed wire format; `docs/boundary-api.md` states its configuration, its commands, every call it
+  makes on another unit and the gaps a sibling's document has not yet matched.
 - **No `bmo-*` dependency but the base libraries** `bmo-chat`, `bmo-chat-client` and `bmo-ui`. Another unit
   is reached through a port in this repository, over HTTP; a helper an old shared crate held is copied into
   a crate here. `tests/repository.rs` fails on any other `bmo-*` dependency and on the old shared crate

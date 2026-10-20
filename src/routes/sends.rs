@@ -7,7 +7,11 @@
 //! A line asked to be said is said in a run of its own, whose launcher the receiver's binary fills; asked of a
 //! service that stands without one, it is turned away before the words are put on the disk.
 
-use axum::{body::Bytes, extract::State, http::StatusCode};
+use axum::{
+  body::Bytes,
+  extract::{Path, RawQuery, State},
+  http::StatusCode,
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -17,7 +21,7 @@ use room_calls::turn::{NO_AGENT, NO_ROOM};
 use receiver_ports::brain::Reminder;
 use receiver_ports::http::PortFailure;
 
-use super::{Answered, Served, answered, read, refused};
+use super::{Answered, Served, answered, query, read, refused};
 use crate::receiver::Receiver;
 use crate::verbs::sends::Sends;
 use crate::verbs::{VerbError, draws, messages};
@@ -25,8 +29,8 @@ use crate::verbs::{VerbError, draws, messages};
 // One send carried as its asker, answering the lines it said, or those lines with the refusal it ended in.
 async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, VerbError> {
   let Asked { asker, act } = asked;
-  let chat = asker.chat.ok_or_else(|| VerbError::Refused(NO_ROOM.to_owned()))?;
-  let sends = Sends::new(receiver.clone(), asker.agent.clone(), asker.via.clone());
+  let chat = asker.room.ok_or_else(|| VerbError::Refused(NO_ROOM.to_owned()))?;
+  let sends = Sends::new(receiver.clone(), asker.agent_name.clone(), asker.via.clone());
 
   match act {
     Act::Say(input) => {
@@ -69,7 +73,7 @@ async fn remind(
   chat: i64,
   input: &RemindInput,
 ) -> Result<Vec<String>, VerbError> {
-  let Some(agent) = asker.agent.clone() else {
+  let Some(agent) = asker.agent_name.clone() else {
     return Err(VerbError::Refused(NO_AGENT.to_owned()));
   };
   let reminder = Reminder {
@@ -104,22 +108,20 @@ pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {
   answered(said)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct CanBody {
-  chat: i64,
-
   #[serde(default)]
   via: Option<String>,
 }
 
-pub async fn can(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<CanBody>(&body)?;
+pub async fn can(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<CanBody>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
   let sends = Sends::new(receiver.clone(), None, asked.via.clone());
 
-  match sends.answering_can(asked.chat).await {
-    Ok(can) => answered(json!({ "can": can })),
-    Err(VerbError::Refused(why)) => Err(refused(StatusCode::CONFLICT, "no-route", &why)),
-    Err(why) => Err(refused(StatusCode::CONFLICT, "no-route", &why.to_string())),
+  match sends.answering_can(room).await {
+    Ok(can) => answered(json!({ "items": can, "more": false })),
+    Err(VerbError::Refused(why)) => Err(refused(StatusCode::CONFLICT, "conflict", &why)),
+    Err(why) => Err(refused(StatusCode::CONFLICT, "conflict", &why.to_string())),
   }
 }

@@ -6,7 +6,6 @@ use serde::de::DeserializeOwned;
 pub mod chat_health;
 pub mod chat_line;
 pub mod chat_round;
-pub mod code_review;
 pub mod commands;
 pub mod companion_runner;
 pub mod companions;

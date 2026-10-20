@@ -6,7 +6,6 @@
 //! session keeps its own memory of the talk, but it is folded and replaced over time, so a turn restates the last
 //! few turns.
 
-use receiver_policy::code_review::CODE_REVIEW;
 use receiver_policy::fill_marks;
 use receiver_policy::talk::TALK;
 
@@ -277,104 +276,32 @@ pub fn document_request(topic: &DocumentTopic, turns: Vec<SaidTurn>, said: Strin
   }
 }
 
-/// A code review as its talk's head and its filed row name it.
-pub struct CodeReviewTopic {
-  pub id: i64,
-  pub worker: String,
-  /// What the owner calls the worker whose checkout it is.
-  pub label: String,
-  pub root: String,
-  pub commit: String,
-  /// `line`, `range`, `file` or `folder`.
-  pub scope: String,
-  /// Inside the checkout; empty for the whole repository.
-  pub path: String,
-  pub start_line: Option<i64>,
-  pub end_line: Option<i64>,
-  pub excerpt: Option<String>,
-}
+/// The talk about anything a caller names: the kind of thing it is, the head paragraph the caller writes and the
+/// fields it hands, with no kind enumerated here. A caller's own subject needs no code in the receiver.
+pub fn general_request(
+  kind: &str,
+  heading: Option<&str>,
+  fields: &serde_json::Map<String, serde_json::Value>,
+  turns: Vec<SaidTurn>,
+  said: String,
+) -> TalkRequest {
+  let mut head = vec![HeadPart::Line(format!("This talk is about a {kind}."))];
 
-/// The place the review is pinned to, in the words a row and a turn both use.
-pub fn place(topic: &CodeReviewTopic) -> String {
-  let places = &CODE_REVIEW.places;
-  let line = match topic.scope.as_str() {
-    "line" => &places.line,
-    "range" => &places.range,
-    "folder" => &places.folder,
-    _ => &places.file,
-  };
-  let path = if topic.path.is_empty() { places.whole.as_str() } else { topic.path.as_str() };
-  let start = topic.start_line.map(|line| line.to_string()).unwrap_or_else(|| "null".to_owned());
-  let end = topic.end_line.map(|line| line.to_string()).unwrap_or_else(|| "null".to_owned());
-
-  fill_marks(line, &[("path", path), ("start", &start), ("end", &end)])
-}
-
-/// How the reviewed words are read for the turn: the whole folder's tree, or one file at the commit.
-pub fn reading(topic: &CodeReviewTopic) -> String {
-  let talk = &CODE_REVIEW.talk;
-
-  if topic.scope == "folder" {
-    let tree = if topic.path.is_empty() {
-      topic.commit.clone()
-    } else {
-      format!("{}:{}", topic.commit, topic.path)
-    };
-
-    return fill_marks(&talk.folder_reading, &[("root", &topic.root), ("tree", &tree)]);
-  }
-
-  fill_marks(
-    &talk.file_reading,
-    &[("root", &topic.root), ("commit", &topic.commit), ("path", &topic.path)],
-  )
-}
-
-/// The talk under one code review: the head, then the reviewed lines, cleaned, where the review carries them.
-pub fn code_review_request(topic: &CodeReviewTopic, turns: Vec<SaidTurn>, said: String) -> TalkRequest {
-  let talk = &CODE_REVIEW.talk;
-  let id = topic.id.to_string();
-  let pinned = place(topic);
-  let short: String = topic.commit.chars().take(12).collect();
-  let lines = match (topic.start_line, topic.end_line) {
-    (Some(start), end) => fill_marks(
-      &talk.lines,
-      &[
-        ("start", &start.to_string()),
-        ("end", &end.map(|end| end.to_string()).unwrap_or_else(|| "null".to_owned())),
-      ],
-    ),
-    (None, _) => String::new(),
-  };
-  let read = reading(topic);
-  let marks = [
-    ("id", id.as_str()),
-    ("place", pinned.as_str()),
-    ("worker", topic.worker.as_str()),
-    ("label", topic.label.as_str()),
-    ("short", short.as_str()),
-    ("root", topic.root.as_str()),
-    ("commit", topic.commit.as_str()),
-    ("scope", topic.scope.as_str()),
-    ("path", topic.path.as_str()),
-    ("lines", lines.as_str()),
-    ("reading", read.as_str()),
-  ];
-  let mut head: Vec<HeadPart> =
-    talk.head.iter().map(|line| HeadPart::Line(fill_marks(line, &marks))).collect();
-
-  if let Some(excerpt) = &topic.excerpt {
-    head.push(HeadPart::Line(String::new()));
-    head.push(HeadPart::Line(talk.excerpt.clone()));
+  if let Some(heading) = heading.filter(|line| !line.trim().is_empty()) {
     head.push(HeadPart::Cleaned {
       line: "{text}".to_owned(),
-      text: clip(excerpt, CODE_REVIEW.excerpt_clip),
+      text: heading.to_owned(),
     });
-    head.push(HeadPart::Line(talk.excerpt_end.clone()));
+  }
+
+  for (name, value) in fields {
+    let written = value.as_str().map(str::to_owned).unwrap_or_else(|| value.to_string());
+
+    head.push(HeadPart::Line(format!("{name}: {written}")));
   }
 
   TalkRequest {
-    words: talk.words.clone(),
+    words: format!("the {kind} the owner is talking about"),
     head,
     turns,
     said,

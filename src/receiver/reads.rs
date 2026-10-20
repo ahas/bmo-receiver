@@ -339,6 +339,21 @@ pub async fn title(db: &DatabaseConnection, chat_id: i64) -> Result<Option<Strin
   )
 }
 
+/// The room's oldest message, by its number and its moment in the record's own seconds.
+pub async fn oldest(db: &DatabaseConnection, chat_id: i64) -> Result<Option<(i64, i64)>, Fault> {
+  match one(
+    db,
+    r#"SELECT "message_id", "sent_at" FROM "messages" WHERE "chat_id" = $1
+       ORDER BY "sent_at" ASC, "rowid" ASC LIMIT 1"#,
+    vec![chat_id.into()],
+  )
+  .await?
+  {
+    Some(row) => Ok(Some((row.try_get::<i64>("", "message_id")?, row.try_get::<i64>("", "sent_at")?))),
+    None => Ok(None),
+  }
+}
+
 /// The room's latest messages, oldest first, at most `count` of them.
 pub async fn latest(db: &DatabaseConnection, chat_id: i64, count: i64) -> Result<Vec<Page>, Fault> {
   Ok(
@@ -555,7 +570,8 @@ pub async fn files(db: &DatabaseConnection, chat_id: i64, message_id: i64) -> Re
 pub async fn senders(db: &DatabaseConnection, chat_id: i64) -> Result<Vec<i64>, Fault> {
   let rows = all(
     db,
-    r#"SELECT DISTINCT "sender_id" FROM "messages" "m" WHERE "m"."chat_id" = $1"#,
+    r#"SELECT DISTINCT "sender_id" FROM "messages" "m"
+       WHERE "m"."chat_id" = $1 AND "sender_id" IS NOT NULL"#,
     vec![chat_id.into()],
   )
   .await?;

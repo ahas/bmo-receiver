@@ -6,9 +6,7 @@
 //! is sent. Every send goes through bmo-chat-client to the chat service the room's road names, or is kept in the
 //! room's own record where the road is that one.
 
-use bmo_chat_client::{
-  ChatCapability, ChatSend, ChatSendRequest, ChatSendResult, ChatSpeaker, ClientFailure, MissedPicture,
-};
+use bmo_chat_client::{ChatCapability, ChatSend, ChatSendRequest, ChatSent, ClientFailure, MissedPicture};
 
 use receiver_codes::SendRefusal;
 use receiver_policy::fill_marks;
@@ -220,12 +218,12 @@ impl Sends {
         .await
         .ok()
         .flatten(),
-      None => self.receiver.roads().identity_in(request.chat_id).await,
+      None => self.receiver.roads().identity_in(request.room_id).await,
     };
     let line = record::Kept {
-      chat_id: request.chat_id,
+      chat_id: request.room_id,
       text: &text,
-      reply_to: reply_of(&request.send),
+      reply_to: request.reply_to_message_id,
       via: Road::Record.key(),
       sender_id,
       name: &name,
@@ -240,20 +238,23 @@ impl Sends {
 
   async fn carried(&self, key: &str, going: &Going, asked: &ChatSendRequest) -> Result<Sent, NotSent> {
     let request = ChatSendRequest {
-      chat_id: asked.chat_id,
+      room_id: asked.room_id,
       send: asked.send.clone(),
-      voice: asked.voice,
-      speaker: going.speaker.as_ref().map(|speaker| ChatSpeaker {
-        agent: speaker.agent.clone(),
-      }),
-      tag: None,
+      mode: asked.mode,
+      speaker: going.speaker.as_ref().map(|speaker| speaker.agent.clone()),
+      tag: asked.tag.clone(),
+      prefix: asked.prefix.clone(),
+      reply_to_message_id: asked.reply_to_message_id,
     };
     let service = self.receiver.roads().chats().road(key).ok_or_else(|| NotSent::Failed(unlisted(key)));
     let result = service?.send(&request).await;
 
     match result {
-      Ok(ChatSendResult::Sent { message_id, missed }) => Ok(Sent { message_id, missed }),
-      Ok(ChatSendResult::Refused { refusal, .. }) => Err(NotSent::Refused(refusal.to_string())),
+      Ok(ChatSent { message_id, missed }) => Ok(Sent { message_id, missed }),
+      Err(ClientFailure::Answered {
+        answer: Some(answer),
+        ..
+      }) => Err(NotSent::Refused(answer.error)),
       Err(why) => Err(NotSent::Failed(failed(why))),
     }
   }
@@ -344,24 +345,6 @@ fn kept_line(send: &ChatSend) -> String {
     | ChatSend::Pin { .. }
     | ChatSend::Typing { .. }
     | ChatSend::Delete { .. } => String::new(),
-  }
-}
-
-/// The message a send answers, where it answers one.
-fn reply_of(send: &ChatSend) -> Option<i64> {
-  match send {
-    ChatSend::Text { reply_to, .. } => *reply_to,
-    ChatSend::Photo { reply_to, .. } => *reply_to,
-    ChatSend::Album { reply_to, .. } => *reply_to,
-    ChatSend::Document { reply_to, .. } => *reply_to,
-    ChatSend::Audio { reply_to, .. } => *reply_to,
-    ChatSend::Voice { reply_to, .. } => *reply_to,
-    ChatSend::Sticker { .. }
-    | ChatSend::Reaction { .. }
-    | ChatSend::Pin { .. }
-    | ChatSend::Typing { .. }
-    | ChatSend::Edit { .. }
-    | ChatSend::Delete { .. } => None,
   }
 }
 

@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use axum::{
-  extract::{Query, State},
+  extract::{Path, RawQuery, State},
   http::StatusCode,
 };
 use serde::Deserialize;
@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use sea_orm::{DatabaseConnection, QueryResult, Value as SeaValue};
 
 use crate::receiver::Receiver;
-use crate::routes::{Answered, Refusal, Served, answered, refused, store};
+use crate::routes::{Answered, Served, answered, refused, store};
 use crate::store::Fault;
 use crate::{all, one};
 
@@ -27,7 +27,7 @@ pub const SUMMARY_CHARS: usize = 300;
 
 #[derive(Deserialize)]
 pub struct Asked {
-  chat: String,
+  room: i64,
 
   #[serde(default)]
   rounds: String,
@@ -35,8 +35,7 @@ pub struct Asked {
 
 #[derive(Deserialize)]
 pub struct OneAsked {
-  chat: String,
-  id: String,
+  room: i64,
 }
 
 /// The line a person reads an instruction by: the summary its producer gave where it gave one, and
@@ -73,21 +72,6 @@ fn numbered(from: usize, count: usize) -> String {
   (from..from + count).map(|at| format!("${at}")).collect::<Vec<_>>().join(", ")
 }
 
-fn chat_of(asked: &str) -> Result<i64, Refusal> {
-  match asked.trim().parse::<i64>() {
-    Err(_) => Err(bad("chat must be a room's number")),
-    Ok(one) => Ok(one),
-  }
-}
-
-fn bad(what: &str) -> Refusal {
-  refused(
-    StatusCode::BAD_REQUEST,
-    "bad-request",
-    &format!("The ask is not what this route takes: {what}."),
-  )
-}
-
 /// What one instruction a round settled is, without its text.
 fn opening(row: &QueryResult) -> Value {
   let summary: Option<String> = row.try_get("", "summary").ok().flatten();
@@ -98,16 +82,16 @@ fn opening(row: &QueryResult) -> Value {
     "id": row.try_get::<i64>("", "id").ok().unwrap_or_default(),
     "sort": sort.filter(|sort| !sort.trim().is_empty()),
     "summary": summary_of(summary.as_deref(), &text),
-    "created_at": row.try_get::<i64>("", "created_at").ok().unwrap_or_default(),
+    "createdAt": row.try_get::<i64>("", "created_at").ok().unwrap_or_default() * 1_000,
   })
 }
 
 /// The instructions each round named settled, a round that settled none not in it.
-async fn read_rounds(db: &DatabaseConnection, rounds: &[String]) -> Result<BTreeMap<String, Value>, Fault> {
+async fn read_rounds(db: &DatabaseConnection, rounds: &[String]) -> Result<Vec<Value>, Fault> {
   let mut read: BTreeMap<String, Vec<Value>> = BTreeMap::new();
 
   if rounds.is_empty() {
-    return Ok(BTreeMap::new());
+    return Ok(vec![]);
   }
 
   let statement = format!(
@@ -125,28 +109,26 @@ async fn read_rounds(db: &DatabaseConnection, rounds: &[String]) -> Result<BTree
   Ok(
     read
       .into_iter()
-      .map(|(round, instructions)| (round, json!({ "instructions": instructions })))
+      .map(|(round, instructions)| json!({ "round": round, "instructions": instructions }))
       .collect(),
   )
 }
 
 /// For a room and the rounds named, what each of them settled.
-pub async fn openings(State(served): State<Served>, query: Query<Asked>) -> Answered {
+pub async fn openings(State(served): State<Served>, raw: RawQuery) -> Answered {
+  let asked = super::query::<Asked>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let chat = chat_of(&query.chat)?;
-  let rounds = rounds_of(chat, &query.rounds);
+  let chat = asked.room;
+  let rounds = rounds_of(chat, &asked.rounds);
 
-  answered(json!({ "rounds": read_rounds(receiver.db(), &rounds).await.map_err(store)? }))
+  answered(json!({ "items": read_rounds(receiver.db(), &rounds).await.map_err(store)?, "more": false }))
 }
 
 /// One quiet instruction's whole text, asked by the room it was queued for or the room whose round settled it.
-pub async fn instruction(State(served): State<Served>, query: Query<OneAsked>) -> Answered {
+pub async fn instruction(State(served): State<Served>, Path(id): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = super::query::<OneAsked>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let chat = chat_of(&query.chat)?;
-  let id = match query.id.trim().parse::<i64>() {
-    Err(_) => return Err(bad("id must be an instruction's number")),
-    Ok(one) => one,
-  };
+  let chat = asked.room;
   let row = one(
     receiver.db(),
     r#"SELECT "text" FROM "instructions" WHERE "id" = $1 AND ("chat_id" = $2 OR "round" LIKE $3)"#,

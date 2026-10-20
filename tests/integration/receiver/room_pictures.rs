@@ -49,7 +49,7 @@ async fn bench() -> (Scratch, Front) {
 }
 
 async fn walked(front: &Front, query: &str) -> Value {
-  let (status, page) = get(front, &format!("/console/rooms/{ROOM}/pictures{query}")).await;
+  let (status, page) = get(front, &format!("/rooms/{ROOM}/pictures{query}")).await;
 
   assert_eq!(status, StatusCode::OK, "{query}: {page}");
   page
@@ -58,13 +58,13 @@ async fn walked(front: &Front, query: &str) -> Value {
 // The messages a page shows, then whether more stand, how many before and how many in all.
 fn shape(page: &Value) -> (Vec<i64>, bool, i64, i64) {
   (
-    page["pictures"]
+    page["items"]
       .as_array()
       .unwrap()
       .iter()
-      .map(|picture| picture["messageId"].as_i64().unwrap())
+      .map(|picture| picture["id"].as_i64().unwrap())
       .collect(),
-    page["hasMore"].as_bool().unwrap(),
+    page["more"].as_bool().unwrap(),
     page["before"].as_i64().unwrap(),
     page["total"].as_i64().unwrap(),
   )
@@ -80,21 +80,17 @@ async fn the_newest_pictures_are_walked_with_their_place_among_the_rooms() {
   let page = walked(&front, "?limit=2").await;
 
   assert_eq!(
-    page["pictures"][0],
+    page["items"][0],
     json!({
-      "messageId": 6,
+      "id": 6,
       "album": 5,
       "senderName": "someone",
-      "sentAt": 1_760_000_006_i64,
+      "sentAt": 1_760_000_006_000_i64,
       "text": "line 6",
       "file": { "name": "6.jpg", "bytes": 60, "type": "image/jpeg" },
     }),
   );
-  assert_eq!(
-    page["pictures"][1]["file"],
-    Value::Null,
-    "a picture whose file is gone stands without one"
-  );
+  assert_eq!(page["items"][1]["file"], Value::Null, "a picture whose file is gone stands without one");
 }
 
 #[tokio::test]

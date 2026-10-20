@@ -148,7 +148,7 @@ async fn say_is_asked_of_the_receivers_sends_route_with_the_turn_as_its_asker() 
   assert_eq!(
     body,
     json!({
-      "asker": { "chat": ROOM, "via": "road-a", "agent": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "say",
       "input": { "text": "hello there" },
     }),
@@ -169,7 +169,7 @@ async fn consult_is_asked_of_the_receivers_consult_route_under_the_turns_agent()
   assert!(!answered.is_error, "{}", answered.plain());
   let (route, body) = asked_of(&book);
 
-  assert_eq!(route.as_str(), "/consult/say");
+  assert_eq!(route.as_str(), "/consult-lines");
   assert_eq!(body, json!({ "agent": "agent-a", "text": "we take the second one", "replyTo": 12 }));
 }
 
@@ -200,7 +200,7 @@ async fn photo_is_asked_as_its_pictures_and_caption_with_the_room_the_call_names
   assert_eq!(
     body,
     json!({
-      "asker": { "chat": -700, "agent": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": -700, "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "photo",
       "input": {
         "chat": -700,
@@ -268,7 +268,7 @@ async fn react_is_asked_on_the_message_it_acts_on_with_the_emoji_it_clears_with(
   assert_eq!(
     body,
     json!({
-      "asker": { "chat": ROOM, "via": "road-a", "agent": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "react",
       "input": { "message": 900, "emoji": "" },
     }),
@@ -293,7 +293,7 @@ async fn pin_is_asked_on_its_message_or_unpinned_there() {
   assert_eq!(
     body,
     json!({
-      "asker": { "chat": ROOM, "via": "road-a", "agent": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "pin",
       "input": { "message": 900, "unpin": true },
     }),
@@ -318,7 +318,7 @@ async fn sticker_is_asked_by_its_emoji_alone() {
   assert_eq!(
     body,
     json!({
-      "asker": { "chat": ROOM, "via": "road-a", "agent": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "sticker",
       "input": { "emoji": ":+1:" },
     }),
@@ -355,7 +355,7 @@ async fn a_draw_is_asked_with_its_shape_and_the_mode_its_result_comes_back_in() 
   assert_eq!(
     body,
     json!({
-      "asker": { "chat": ROOM, "via": "road-a", "agent": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "random_draw",
       "input": {
         "mode": "sync",

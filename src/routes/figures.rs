@@ -115,9 +115,9 @@ pub async fn figures(State(served): State<Served>, Path(chat): Path<i64>, query:
     let row = listed.iter().find(|listed| listed.name == *agent);
 
     rows.push(json!({
-      "agent": agent,
+      "agentName": agent,
       "messages": messages,
-      "lastAnswerAt": last_answer_at,
+      "lastAnswerAt": last_answer_at.map(|at| at * 1_000),
       "session": session.map(|session| session.id.clone()),
       "label": row.and_then(|row| row.label.clone()),
       "lastMode": row_field(row, "lastMode"),
@@ -134,13 +134,13 @@ pub async fn figures(State(served): State<Served>, Path(chat): Path<i64>, query:
   }
 
   answered(json!({
-    "chatId": chat,
+    "room": chat,
     "messages": counted.messages,
     "fromPeople": counted.from_people,
     "speakers": counted.speakers,
-    "firstAt": counted.first_at,
-    "lastAt": counted.last_at,
-    "lastAnswerAt": counted.last_answer_at,
+    "firstAt": counted.first_at.map(|at| at * 1_000),
+    "lastAt": counted.last_at.map(|at| at * 1_000),
+    "lastAnswerAt": counted.last_answer_at.map(|at| at * 1_000),
     "top": top.iter().map(|(name, messages)| json!({ "name": name, "messages": messages })).collect::<Vec<_>>(),
     "byHour": by_hour,
     "agents": rows,

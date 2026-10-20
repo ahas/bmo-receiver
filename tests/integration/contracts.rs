@@ -9,7 +9,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 use crate::common::Scratch;
-use crate::common::queue::{TOKEN, get, pinged, post, put, remove, stood, stood_on};
+use crate::common::queue::{TOKEN, get, patch, pinged, post, put, remove, stood, stood_on};
 use crate::common::units::{AGENT, OWNER, StandInChat};
 
 #[tokio::test]
@@ -38,7 +38,10 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
     get(&front, &format!("/instructions/{id}")).await.1["state"].as_str().unwrap(),
     "pending",
   );
-  assert!(remove(&front, &format!("/instructions/{id}")).await.1["withdrawn"].as_bool().unwrap());
+  assert_eq!(
+    remove(&front, &format!("/instructions/{id}")).await,
+    (StatusCode::NO_CONTENT, json!({})),
+  );
 
   // A room reads as a room whatever it is; the owner is read once.
   assert_eq!(
@@ -50,7 +53,18 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
       .iter()
       .map(|(key, _)| key.to_owned())
       .collect::<Vec<String>>(),
-    ["chat", "owner_room", "registered", "work_chat"],
+    [
+      "companions",
+      "id",
+      "lastMessageAt",
+      "messageCount",
+      "ownerRoom",
+      "pinned",
+      "registered",
+      "senders",
+      "title",
+      "workRoom",
+    ],
   );
   assert_eq!(
     get(&front, "/rooms/7/answerers")
@@ -61,7 +75,7 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
       .iter()
       .map(|(key, _)| key.to_owned())
       .collect::<Vec<String>>(),
-    ["answerers", "default", "voice"],
+    ["default", "items", "more", "voice"],
   );
   assert_eq!(
     get(&front, "/owner")
@@ -72,7 +86,7 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
       .iter()
       .map(|(key, _)| key.to_owned())
       .collect::<Vec<String>>(),
-    ["chat", "sender"]
+    ["room", "senderId"]
   );
 
   // A holder declared answers 204 with no body.
@@ -91,33 +105,53 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
 async fn the_chat_protocols_handovers_are_served_behind_the_receivers_token() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await.handovers();
-  let handover = json!({
-    "message": {
-      "chatId": 7,
-      "messageId": 21,
-      "senderId": OWNER,
-      "senderName": "someone",
-      "sentAt": 1,
-      "text": "said",
-      "replyToMessageId": null,
-      "via": "road-a",
-      "album": null,
-      "mode": "bot-account",
-    },
+  let handed = json!({
+    "origin": "live",
+    "senderId": OWNER,
+    "senderName": "someone",
+    "sentAt": 1_000,
+    "text": "said",
+    "replyToMessageId": null,
+    "via": "road-a",
+    "album": null,
+    "mode": "bot-account",
   });
+  let path = "/chat/rooms/7/messages/21";
 
-  assert_eq!(post(&front, "/message", handover.clone()).await.0, StatusCode::OK);
-  assert_eq!(post(&front, "/attachment", handover.clone()).await.0, StatusCode::OK);
-  assert_eq!(post(&front, "/edited", handover.clone()).await.0, StatusCode::OK);
+  assert_eq!(put(&front, path, handed.clone()).await.0, StatusCode::CREATED);
   assert_eq!(
-    post(
+    put(
       &front,
-      "/gathered",
-      json!({ "chatId": 7, "messageId": 21, "via": "road", "outcome": "not-kept", "reason": "gone" })
+      path,
+      json!({
+        "origin": "live",
+        "senderId": OWNER,
+        "senderName": "someone",
+        "sentAt": 1_000,
+        "text": "said",
+        "replyToMessageId": null,
+        "via": "road-a",
+        "album": null,
+        "mode": "bot-account",
+        "files": [{ "id": "1", "name": "a.txt", "mime": "text/plain", "bytes": "aGk=" }],
+      }),
     )
     .await
     .0,
     StatusCode::OK,
+  );
+  assert_eq!(
+    put(&front, path, json!({ "origin": "edit", "senderId": OWNER, "senderName": "someone", "sentAt": 1_000, "text": "said again", "replyToMessageId": null, "via": "road-a", "album": null, "mode": "bot-account" }))
+      .await
+      .0,
+    StatusCode::OK,
+  );
+  let patched = patch(&front, path, json!({ "files": [], "gatherFailure": "gone" })).await;
+
+  assert_eq!(patched.0, StatusCode::OK, "{patched:?}");
+  assert_eq!(
+    patch(&front, "/chat/rooms/7/messages/99", json!({ "files": [] })).await.0,
+    StatusCode::NOT_FOUND,
   );
 }
 
@@ -164,27 +198,19 @@ async fn the_agency_hooks_answer_their_points_in_the_hooks_envelope() {
 
   // The room's title.
   assert_eq!(
-    post(&front, "/agency/hooks/room-title", json!({ "point": "room-title", "ask": 7 }))
-      .await
-      .1["answer"]
+    post(&front, "/hooks/room-title", json!({ "point": "room-title", "ask": 7 })).await.1["answer"]
       .as_str()
       .unwrap(),
     "The room",
   );
   assert!(
-    post(&front, "/agency/hooks/room-title", json!({ "point": "room-title", "ask": 8 }))
-      .await
-      .1["answer"]
+    post(&front, "/hooks/room-title", json!({ "point": "room-title", "ask": 8 })).await.1["answer"]
       .is_null(),
   );
 
   // The verbs the road the room is answered on performs, by the protocol's names for them.
-  let verbs = post(
-    &front,
-    "/agency/hooks/road-verbs",
-    json!({ "point": "road-verbs", "ask": { "chat": 7 } }),
-  )
-  .await;
+  let verbs =
+    post(&front, "/hooks/road-verbs", json!({ "point": "road-verbs", "ask": { "chat": 7 } })).await;
 
   assert_eq!(verbs.0, StatusCode::OK);
   assert_eq!(
@@ -210,7 +236,7 @@ async fn the_agency_hooks_answer_their_points_in_the_hooks_envelope() {
   assert!(
     post(
       &front,
-      "/agency/hooks/typed-line",
+      "/hooks/typed-line",
       json!({ "point": "typed-line", "ask": { "text": "a line", "sessionId": "s-1" } }),
     )
     .await
@@ -220,9 +246,7 @@ async fn the_agency_hooks_answer_their_points_in_the_hooks_envelope() {
 
   // A point the receiver answers no hook for is refused.
   assert_eq!(
-    post(&front, "/agency/hooks/pane-claims", json!({ "point": "pane-claims", "ask": {} }))
-      .await
-      .0,
+    post(&front, "/hooks/pane-claims", json!({ "point": "pane-claims", "ask": {} })).await.0,
     StatusCode::BAD_REQUEST,
   );
 }

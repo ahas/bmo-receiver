@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use receiver_ports::agency::{Agent, CompanionRemoval, FieldRefusal};
 
 use crate::common::Scratch;
-use crate::common::queue::{Front, post, stood};
+use crate::common::queue::{Front, post, remove, stood};
 use crate::common::units::{AGENT, OWNER};
 
 const COMPANION: &str = "companion-a";
@@ -53,11 +53,11 @@ async fn answerers(scratch: &Scratch) -> i64 {
 async fn a_companion_stands_with_its_gate_options_copied_and_its_rooms_go_to_the_agencys_removal() {
   let scratch = Scratch::new().await;
   let front = bench(&scratch).await;
-  let (status, answer) = post(&front, "/companions/add", added()).await;
+  let (status, answer) = post(&front, "/companions", added()).await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
 
-  let room = answer["room"]["chatId"].as_i64().unwrap();
+  let room = answer["room"]["id"].as_i64().unwrap();
 
   assert_eq!(
     *front.standing.gate.copied.lock().unwrap(),
@@ -66,8 +66,7 @@ async fn a_companion_stands_with_its_gate_options_copied_and_its_rooms_go_to_the
   );
   assert_eq!(answerers(&scratch).await, 1);
 
-  let (status, answer) =
-    post(&front, "/companions/remove", json!({ "name": COMPANION, "by": "tester" })).await;
+  let (status, answer) = remove(&front, &format!("/companions/{COMPANION}?by=tester")).await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
   assert_eq!(
@@ -92,7 +91,7 @@ async fn a_field_the_agency_refuses_comes_back_as_the_receivers_code_and_nothing
     error: "The provider carries no companion.".to_owned(),
   });
 
-  let (status, answer) = post(&front, "/companions/add", added()).await;
+  let (status, answer) = post(&front, "/companions", added()).await;
 
   assert_eq!((status, answer["code"].clone()), (StatusCode::BAD_REQUEST, json!("provider")));
   assert_eq!(answer["error"], "the provider provider-a cannot carry a companion");

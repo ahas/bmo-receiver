@@ -10,7 +10,7 @@ use serde_json::json;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 
-use super::{Answered, Served, answered, read, refused, store};
+use super::{Accepted, Served, read, refused, store};
 use crate::chat::instructions::{Queued, queue};
 use crate::receiver::{Receiver, rows, wake};
 use crate::routes::say::known;
@@ -33,7 +33,7 @@ struct InstructBody {
   text: String,
 }
 
-pub async fn instruct(State(served): State<Served>, body: Bytes) -> Answered {
+pub async fn instruct(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<InstructBody>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
   let text = asked.text.trim();
@@ -54,7 +54,7 @@ pub async fn instruct(State(served): State<Served>, body: Bytes) -> Answered {
   if asked.chat_id != receiver.owner_id() && !rows::is_chat_allowed(asked.chat_id) {
     return Err(refused(
       StatusCode::FORBIDDEN,
-      "not-allowed",
+      "forbidden",
       &format!("chat {} is not allowed", asked.chat_id),
     ));
   }
@@ -76,5 +76,5 @@ pub async fn instruct(State(served): State<Served>, body: Bytes) -> Answered {
     pass.kick();
   }
 
-  answered(json!({ "ok": true }))
+  Ok((StatusCode::NO_CONTENT, axum::Json(json!({}))))
 }

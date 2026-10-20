@@ -66,7 +66,7 @@ receiver keeps the pictures and decides what a session is shown.
 ## Profile pictures
 
 - **Every room and every person the archive knows wears, in the console, the picture its chat service shows for
-  it.** The chat service that can see them hands them over, and tells the receiver with `POST /event`
+  it.** The chat service that can see them hands them over, and tells the receiver with `POST /events`
   `avatars-updated`; the receiver keeps them under the data root as `avatars/room/<chatId>.jpg` or
   `avatars/person/<userId>.jpg`.
 - **The `avatars` table** keeps each subject's photo id, its stored path and when it was last taken; the console

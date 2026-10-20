@@ -14,17 +14,27 @@ async fn a_road_named_in_the_configuration_is_reached_through_the_chat_client() 
   let unit = StandIn::start().await;
   let chats = ChatServices::from_peers(&BTreeMap::from([("road-a".to_owned(), unit.peer("chat-token"))]));
 
-  unit.answer("GET /health", 200, json!({ "ready": true, "reason": null }));
-  unit.answer("POST /room/owns", 200, json!({ "owns": true }));
-  unit.answer("POST /room/title", 200, json!({ "title": "a room" }));
-  unit.answer("GET /owner-room", 200, json!({ "chatId": -7 }));
+  unit.answer("GET /health", 200, json!({ "ready": true, "reason": null, "version": "0.1.0" }));
+  unit.answer(
+    "GET /rooms/-7",
+    200,
+    json!({
+      "id": -7,
+      "owns": true,
+      "identity": null,
+      "kind": "group",
+      "privateTo": null,
+      "title": "a room"
+    }),
+  );
+  unit.answer("GET /owner", 200, json!({ "roomId": -7 }));
 
   assert!(chats.road("road-b").is_none(), "a road the configuration does not list is none");
   assert_eq!(chats.names().collect::<Vec<_>>(), ["road-a"]);
 
   let road = chats.road("road-a").unwrap();
 
-  assert_eq!(road.health().await.unwrap(), ChatHealth::ready());
+  assert_eq!(road.health().await.unwrap(), ChatHealth::ready("0.1.0"));
   assert!(road.room_owns(-7).await.unwrap());
   assert_eq!(road.room_title(-7).await.unwrap().as_deref(), Some("a room"));
   assert_eq!(road.owner_room().await.unwrap(), Some(-7));
@@ -33,9 +43,9 @@ async fn a_road_named_in_the_configuration_is_reached_through_the_chat_client() 
     unit.took(),
     [
       call("GET /health", "", None),
-      call("POST /room/owns", "", Some(json!({ "chatId": -7 }))),
-      call("POST /room/title", "", Some(json!({ "chatId": -7 }))),
-      call("GET /owner-room", "", None),
+      call("GET /rooms/-7", "", None),
+      call("GET /rooms/-7", "", None),
+      call("GET /owner", "", None),
     ]
   );
   assert!(

@@ -19,14 +19,13 @@ mod rooms;
 mod say;
 mod sends;
 mod talks;
-mod voice;
 
 use std::sync::Arc;
 
 use axum::{
   Router,
   body::Bytes,
-  extract::{Request, State},
+  extract::{RawQuery, Request, State},
   http::StatusCode,
   middleware::{Next, from_fn_with_state},
   response::{IntoResponse, Json, Response},
@@ -45,7 +44,7 @@ use crate::receiver::Receiver;
 use crate::routes::consult::{block, consult_say};
 use crate::routes::owner_words::instruct;
 use crate::routes::say::{say, say_file};
-use crate::routes::sends::{can, sends};
+use crate::routes::sends::sends;
 use crate::routes::talks::talk;
 
 // The readings a route's own tests hold, kept beside the handler that uses them.
@@ -85,6 +84,9 @@ impl IntoResponse for Refusal {
 /// An answer with a body, or the refusal.
 type Answered = Result<Json<serde_json::Value>, Refusal>;
 
+/// An answer with its status beside the body, for the routes that answer 201 or 204.
+type Accepted = Result<(StatusCode, Json<serde_json::Value>), Refusal>;
+
 fn answered(body: serde_json::Value) -> Answered {
   Ok(Json(body))
 }
@@ -93,76 +95,66 @@ fn answered(body: serde_json::Value) -> Answered {
 /// The table is what the `routes` command prints, so the router is built from it rather than beside it.
 fn table() -> Vec<(String, String, MethodRouter<Served>)> {
   [
-    ("POST", "/consult/say", post(consult_say)),
-    ("POST", "/consult/block", post(block)),
-    ("POST", "/instruct", post(instruct)),
-    ("POST", "/say", post(say)),
-    ("POST", "/say-file", post(say_file)),
-    ("POST", "/sends", post(sends)),
-    ("POST", "/sends/can", post(can)),
-    ("POST", "/talks", post(talk)),
-    ("POST", "/instructions", post(instructions::queue_instruction)),
-    ("GET", "/instructions/{id}", get(instructions::instruction_state)),
-    ("DELETE", "/instructions/{id}", delete(instructions::withdraw)),
-    ("POST", "/rooms/{chat}/notices", post(instructions::notice)),
-    ("PUT", "/room-holders/{unit}", put(instructions::declare)),
-    ("GET", "/owner", get(rooms::owner)),
-    ("GET", "/rooms/{chat}", get(rooms::room)),
-    ("GET", "/rooms/{chat}/answerers", get(rooms::answerers)),
-    ("GET", "/rooms/{chat}/messages/{message}", get(rooms::message)),
-    ("POST", "/messages/unread", post(brain::unread)),
-    ("POST", "/messages/unread-counts", post(brain::unread_counts)),
-    ("POST", "/messages/read", post(brain::read_messages)),
-    ("POST", "/read-marks/count", post(brain::read_count)),
-    ("POST", "/read-marks/keep", post(brain::keep)),
-    ("POST", "/read-marks/forget", post(brain::forget)),
-    ("POST", "/rooms/titles", post(brain::titles)),
-    ("POST", "/rooms/answerers", post(brain::answerers)),
-    ("POST", "/rooms/spoke-between", post(brain::spoke_between)),
-    ("POST", "/rooms/own-number", post(brain::own_number)),
-    ("POST", "/rooms/spoken-in", post(brain::spoken_in)),
-    ("POST", "/people/names", post(brain::names)),
-    ("POST", "/promises/waits", post(brain::waits)),
-    ("POST", "/rooms/roads", post(brain::roads)),
-    ("POST", "/messages/sender-is-owner", post(brain::sender_is_owner)),
-    ("POST", "/rooms/owner-spoke", post(brain::owner_spoke)),
-    ("POST", "/owner/notice", post(brain::notice)),
-    ("POST", "/instructions/quiet", post(brain::quiet)),
-    ("POST", "/agency/hooks/{point}", post(hooks::hook)),
-    ("POST", "/event", post(events::told)),
-    ("GET", "/events", get(events::stream)),
-    ("GET", "/live", get(events::live)),
     ("GET", "/health", get(events::health)),
-    ("GET", "/rooms/remove", get(room_removal::preview)),
-    ("POST", "/rooms/remove", post(room_removal::remove)),
-    ("GET", "/rounds/openings", get(openings::openings)),
-    ("GET", "/rounds/instruction", get(openings::instruction)),
-    ("GET", "/voice-briefing", get(voice::state)),
-    ("POST", "/voice-briefing", post(voice::switch)),
-    ("POST", "/voice-briefing/line", post(voice::line)),
-    ("POST", "/companions/add", post(companions::add)),
-    ("POST", "/companions/remove", post(companions::remove)),
-    ("GET", "/console/rooms", get(console::rooms)),
-    ("GET", "/console/rooms/{chat}/title", get(console::title)),
-    ("GET", "/console/rooms/{chat}/agent-message/{message}", get(console::agent_message)),
-    ("GET", "/console/rooms/{chat}/messages", get(console::page)),
-    ("GET", "/console/rooms/{chat}/day-start", get(console::day_start)),
-    ("GET", "/console/rooms/{chat}/messages/after", get(console::after)),
-    ("GET", "/console/rooms/{chat}/messages/{message}", get(console::one)),
-    ("GET", "/console/rooms/{chat}/messages/{message}/metadata", get(console::metadata)),
-    ("GET", "/console/rooms/{chat}/messages/{message}/files", get(message_files::files)),
+    ("GET", "/owner", get(rooms::owner)),
+    ("GET", "/rooms", get(console::rooms)),
+    ("GET", "/rooms/{roomId}", get(rooms::room)),
+    ("GET", "/rooms/{roomId}/title", get(console::title)),
+    ("GET", "/answerers", get(brain::all_answerers)),
+    ("GET", "/rooms/{roomId}/answerers", get(rooms::answerers)),
+    ("GET", "/rooms/{roomId}/messages", get(console::messages)),
+    ("GET", "/rooms/{roomId}/messages/{messageId}", get(rooms::message)),
+    ("GET", "/rooms/{roomId}/messages/{messageId}/metadata", get(console::metadata)),
     (
       "GET",
-      "/console/rooms/{chat}/messages/{message}/files/{place}",
-      get(message_files::file),
+      "/rooms/{roomId}/messages/{messageId}/sender-is-owner",
+      get(brain::sender_is_owner),
     ),
-    ("GET", "/console/rooms/{chat}/messages/{message}/picture", get(message_files::picture)),
-    ("GET", "/console/rooms/{chat}/pictures", get(console::pictures)),
-    ("GET", "/console/rooms/{chat}/figures", get(figures::figures)),
-    ("GET", "/console/rooms/{chat}/window", get(console::room_window)),
-    ("PUT", "/console/pinned-rooms", put(console::pin)),
-    ("POST", "/console/pinned-rooms/add", post(console::pin_one)),
-    ("POST", "/console/pinned-rooms/remove", post(console::unpin)),
+    ("GET", "/rooms/{roomId}/messages/{messageId}/files", get(message_files::files)),
+    ("GET", "/rooms/{roomId}/messages/{messageId}/files/{place}", get(message_files::file)),
+    ("GET", "/rooms/{roomId}/messages/{messageId}/picture", get(message_files::picture)),
+    ("GET", "/rooms/{roomId}/day-start", get(console::day_start)),
+    ("GET", "/rooms/{roomId}/pictures", get(console::pictures)),
+    ("GET", "/rooms/{roomId}/figures", get(figures::figures)),
+    ("GET", "/rooms/{roomId}/window", get(console::room_window)),
+    ("GET", "/rooms/{roomId}/roads", get(brain::roads)),
+    ("GET", "/rooms/{roomId}/own-number", get(brain::own_number)),
+    ("GET", "/rooms/{roomId}/spoke-between", get(brain::spoke_between)),
+    ("GET", "/rooms/{roomId}/people", get(brain::spoken_in)),
+    ("GET", "/rooms/{roomId}/owner-spoke", get(brain::owner_spoke)),
+    ("GET", "/rooms/{roomId}/read-marks", get(brain::read_count)),
+    ("POST", "/rooms/{roomId}/read-marks", post(brain::keep)),
+    ("DELETE", "/rooms/{roomId}/read-marks", delete(brain::forget)),
+    ("POST", "/read-mark-counts", post(brain::unread_counts)),
+    ("GET", "/rooms/{roomId}/notices", get(instructions::notices)),
+    ("POST", "/rooms/{roomId}/notices", post(instructions::notice)),
+    ("GET", "/rooms/{roomId}/send-verbs", get(sends::can)),
+    ("GET", "/people", get(brain::names)),
+    ("POST", "/promise-readings", post(brain::waits)),
+    ("POST", "/instructions", post(instructions::queue_instruction)),
+    ("GET", "/instructions/{instructionId}", get(instructions::instruction_state)),
+    ("DELETE", "/instructions/{instructionId}", delete(instructions::withdraw)),
+    ("POST", "/owner/notices", post(brain::notice)),
+    ("POST", "/owner/instructions", post(instruct)),
+    ("PUT", "/room-holders/{holderName}", put(instructions::declare)),
+    ("POST", "/sends", post(sends)),
+    ("POST", "/owner/messages", post(say)),
+    ("POST", "/owner/message-files", post(say_file)),
+    ("POST", "/consult-lines", post(consult_say)),
+    ("GET", "/consult-lines", get(block)),
+    ("POST", "/talks", post(talk)),
+    ("POST", "/events", post(events::told)),
+    ("GET", "/events", get(events::stream)),
+    ("GET", "/live", get(events::live)),
+    ("POST", "/hooks/{point}", post(hooks::hook)),
+    ("DELETE", "/rooms/{roomId}", delete(room_removal::remove)),
+    ("GET", "/rounds/openings", get(openings::openings)),
+    ("GET", "/rounds/openings/{instructionId}", get(openings::instruction)),
+    ("POST", "/companions", post(companions::add)),
+    ("DELETE", "/companions/{companion}", delete(companions::remove)),
+    ("PUT", "/pinned-rooms", put(console::pin)),
+    ("POST", "/pinned-rooms", post(console::pin_one)),
+    ("DELETE", "/pinned-rooms/{room}", delete(console::unpin)),
   ]
   .into_iter()
   .map(|(method, path, router)| (method.to_owned(), path.to_owned(), router))
@@ -181,10 +173,11 @@ pub fn served() -> Vec<String> {
     .into_iter()
     .chain(
       [
-        "POST /message",
-        "POST /attachment",
-        "POST /edited",
-        "POST /gathered",
+        "GET /chat/rooms",
+        "GET /chat/rooms/{room_id}",
+        "PUT /chat/rooms/{room_id}/messages/{message_id}",
+        "PATCH /chat/rooms/{room_id}/messages/{message_id}",
+        "POST /chat/avatar-changes",
         "POST /warmer/ping",
       ]
       .into_iter()
@@ -237,6 +230,17 @@ async fn no_route(request: Request) -> Answered {
   Err(refused(StatusCode::NOT_FOUND, "no-route", &where_none))
 }
 
+/// The query read as the shape the route takes; a query naming nothing reads as the shape's defaults.
+fn query<T: serde::de::DeserializeOwned>(raw: RawQuery) -> Result<T, Refusal> {
+  let text = raw.0.unwrap_or_default();
+
+  serde_urlencoded::from_str(&text).map_err(|error| {
+    let why = format!("The query is not the shape this route takes: {error}.");
+
+    refused(StatusCode::BAD_REQUEST, "bad-request", &why)
+  })
+}
+
 /// The body read as the shape the route takes.
 fn read<T: serde::de::DeserializeOwned>(body: &Bytes) -> Result<T, Refusal> {
   serde_json::from_slice(body).map_err(|error| {
@@ -257,7 +261,7 @@ fn code<T: Refused>(why: &T) -> Refusal {
 fn unit(why: PortFailure) -> Refusal {
   let sentence = why.to_string();
 
-  refused(StatusCode::BAD_GATEWAY, "unit-failed", &sentence)
+  refused(StatusCode::BAD_GATEWAY, "upstream-failed", &sentence)
 }
 
 /// The store failed while answering.
@@ -269,5 +273,5 @@ fn store(why: Fault) -> Refusal {
 fn ready(what: &str) -> Refusal {
   let why = format!("{} are not standing.", what);
 
-  refused(StatusCode::CONFLICT, "not-ready", &why)
+  refused(StatusCode::SERVICE_UNAVAILABLE, "not-ready", &why)
 }

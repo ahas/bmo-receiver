@@ -6,10 +6,7 @@
 
 use std::path::Path;
 
-use axum::{
-  body::Bytes,
-  extract::{Query, State},
-};
+use axum::extract::{Path as RoutePath, RawQuery, State};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -25,47 +22,24 @@ use crate::room_record::{
   Act, Counted, Facing, Held, count, files, folders, record, refusals, take, warnings,
 };
 use crate::routes::instructions::HOLDER_KEY;
-use crate::routes::{Answered, Refusal, Served, answered, code, read, ready, store};
+use crate::routes::{Answered, Refusal, Served, answered, code, ready, store};
 use crate::store::{Fault, settings};
 
-#[derive(Deserialize)]
-pub struct Asked {
-  chat: String,
-
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RemovalQuery {
   #[serde(default)]
   by: String,
+
+  /// What the removal would do, nothing written.
+  #[serde(default)]
+  dry_run: bool,
 }
 
 // A declared holder, as its declaration is kept: the base its unit is reached at.
 #[derive(Deserialize)]
 pub struct Declared {
   address: String,
-}
-
-#[derive(Deserialize)]
-pub struct Posted {
-  chat: Value,
-
-  #[serde(default)]
-  by: String,
-}
-
-// The room a request names, a whole number given as a number or as text.
-fn room_of(value: &Value) -> Result<i64, Refusal> {
-  let room = match value {
-    Value::Number(number) => number.as_i64(),
-    Value::String(text) => text.trim().parse().ok(),
-    _ => None,
-  };
-
-  room.ok_or_else(|| code(&RoomRemovalRefusal::Chat))
-}
-
-fn room_text(asked: &str) -> Result<i64, Refusal> {
-  match asked.trim().parse::<i64>() {
-    Err(_) => Err(code(&RoomRemovalRefusal::Chat)),
-    Ok(one) => Ok(one),
-  }
 }
 
 async fn administrator(receiver: &Receiver, by: &str) -> Result<(), Refusal> {
@@ -214,7 +188,7 @@ async fn shown_removal(receiver: &Receiver, room: i64) -> Result<Value, Refusal>
   let brain = receiver.units().brain.room_removed(room, true).await;
 
   Ok(json!({
-    "chat": room,
+    "room": room,
     "refused": refused.map(|why| code(why).code),
     "warnings": warnings,
     "warns": units,
@@ -237,17 +211,6 @@ fn unit_answer<T: serde::Serialize>(asked: Result<T, PortFailure>) -> Value {
     Ok(one) => json!(one),
     Err(why) => json!({ "failure": format!("{why}") }),
   }
-}
-
-/// What removing a room would take, nothing written.
-pub async fn preview(State(served): State<Served>, query: Query<Asked>) -> Answered {
-  let receiver: Receiver = (*served.receiver).clone();
-
-  administrator(&receiver, &query.by).await?;
-
-  let room = room_text(&query.chat)?;
-
-  answered(shown_removal(&receiver, room).await?)
 }
 
 /// The removal carried out: what it took, and anything it could not remove.
@@ -316,7 +279,7 @@ async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusa
   let (goes, stays) = split(&counted);
 
   Ok(json!({
-    "chat": room,
+    "room": room,
     "taken": goes,
     "cleared": stays,
     "pictures": removed_pictures,
@@ -338,15 +301,22 @@ fn failed(why: sqlx::Error) -> Refusal {
   store(Fault::new(why.to_string()))
 }
 
-/// A room's registration removed, its whole record with it.
-pub async fn remove(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<Posted>(&body)?;
+/// A room's registration removed, its whole record with it; with `dryRun`, what the removal would do and nothing
+/// written.
+pub async fn remove(
+  State(served): State<Served>,
+  RoutePath(room): RoutePath<i64>,
+  raw: RawQuery,
+) -> Answered {
+  let asked = super::query::<RemovalQuery>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
   let by = asked.by.trim();
 
   administrator(&receiver, by).await?;
 
-  let room = room_of(&asked.chat)?;
+  if asked.dry_run {
+    return answered(shown_removal(&receiver, room).await?);
+  }
 
   if let Some(refusal) = refusals(&Facing {
     receiver: &receiver,

@@ -30,9 +30,9 @@ flowchart TB
 
 ## The agent's queue
 
-- **A unit that wants the agent's attention queues an instruction.** bmo-job posts `POST /instructions` and
-  `POST /rooms/{chat}/notices`, bmo-artifact `POST /instructions` for a run's ending, the brain
-  `POST /instructions/quiet` and `POST /owner/notice`, and the receiver's own producers (its rest, fallback and
+- **A unit that wants the agent's attention queues an instruction.** bmo-job posts `POST /owner/instructionsions` and
+  `POST /rooms/{roomId}/notices`, bmo-artifact `POST /owner/instructionsions` for a run's ending, the brain
+  `POST /owner/instructionsions` and `POST /owner/notices`, and the receiver's own producers (its rest, fallback and
   failure notices, its fold, the agency's events) write the row themselves. The instruction store is the one
   writer of the table.
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
@@ -79,7 +79,7 @@ is written.
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
 | Voice and digest notices | the units that run them | instruction table | `round` | opens | — |
 | Leftover panes, pressure on the machine, a run past its clock | the agency's events | instruction table | `round` | opens | — |
-| An instruction typed on the console | `POST /instruct` | instruction table | `round` | opens | — |
+| An instruction typed on the console | `POST /owner/instructions` | instruction table | `round` | opens | — |
 | A talk from the console about an item or a document | `POST /talks` | — | `talk` | opens | — |
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
 | The words before a fold | the conversation's fold | — | `nap` | opens | — |

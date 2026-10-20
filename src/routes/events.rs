@@ -22,8 +22,8 @@ use crate::receiver::Receiver;
 use crate::routes::{Answered, Refusal, Served, answered, read, refused};
 use crate::store::settings;
 
-/// The events a writer outside the receiver may say, in the order the parity fixture keeps them.
-pub const TYPES: [&str; 3] = ["message", "briefing", "avatars-updated"];
+/// The events a writer outside the receiver may say.
+pub const TYPES: [&str; 3] = ["message.created", "briefing.created", "avatars.changed"];
 
 /// A stream's cursor: the event it was taken against, and the run it was taken in.
 #[derive(Deserialize)]
@@ -60,44 +60,43 @@ pub async fn live(State(served): State<Served>) -> Answered {
   answered(receiver.news().picture())
 }
 
-/// `GET /health`: that the receiver is up — this process and the moment it started, which the deployment's
-/// wait matches against the unit — whose chat is the owner's, and its version.
+/// `GET /health`: whether the receiver is ready, why not where it is not, and its version.
 pub async fn health(State(served): State<Served>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
+  let standing = receiver.db().ping().await.is_ok() && receiver.pass().is_some();
 
   answered(json!({
-    "ok": true,
-    "ownerId": receiver.owner_id(),
-    "bot": { "pid": std::process::id(), "since": receiver.news().started() },
+    "ready": standing,
+    "reason": if standing { Value::Null } else { json!("the receiver is not standing") },
     "version": crate::VERSION,
   }))
 }
 
 /// The news a writer outside the receiver brings.
-pub async fn told(State(served): State<Served>, body: Bytes) -> Answered {
+pub async fn told(State(served): State<Served>, body: Bytes) -> super::Accepted {
   let asked = read::<Value>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let kind = match asked.get("type") {
+  let kind = match asked.get("kind") {
     None => "undefined".to_owned(),
     Some(Value::String(kind)) => kind.clone(),
     Some(other) => other.to_string(),
   };
+  let data = asked.get("data").unwrap_or(&Value::Null);
   let who = events::relay_caller(asked.get("who").and_then(Value::as_str));
-
   match kind.as_str() {
-    "message" => message(&receiver, &asked, &who).await,
-    "briefing" => briefing(&receiver, &asked, &who).await,
-    "avatars-updated" => {
-      receiver.news().publish(&events::avatars());
-
-      answered(json!({ "ok": true }))
+    "message.created" => message(&receiver, data, &who).await?,
+    "briefing.created" => briefing(&receiver, data, &who).await?,
+    "avatars.changed" => receiver.news().publish(&events::avatars()),
+    kind => {
+      return Err(refused(
+        StatusCode::BAD_REQUEST,
+        "bad-request",
+        &format!("Unknown event {}; this route takes {}.", kind, TYPES.join(", ")),
+      ));
     }
-    kind => Err(refused(
-      StatusCode::BAD_REQUEST,
-      "bad-request",
-      &format!("Unknown event {}; this route takes {}.", kind, TYPES.join(", ")),
-    )),
   }
+
+  Ok((StatusCode::NO_CONTENT, axum::Json(json!({}))))
 }
 
 fn bad(error: &str) -> Refusal {
@@ -111,22 +110,23 @@ fn number(body: &Value, key: &str) -> Option<i64> {
 
 // A message event names its room and its message, and the row must stand: the event is news of a row,
 // and a row nobody can read is no news.
-async fn message(receiver: &Receiver, body: &Value, who: &str) -> Answered {
+async fn message(receiver: &Receiver, body: &Value, who: &str) -> Result<(), Refusal> {
   let (Some(chat_id), Some(message_id)) = (number(body, "chatId"), number(body, "messageId")) else {
     return Err(bad("a message event names its chatId and messageId as integers"));
   };
 
   held(receiver.db(), chat_id, message_id).await?;
-  receiver
-    .news()
-    .publish(&json!({ "type": "message", "chatId": chat_id, "messageId": message_id, "detail": who }));
+  let mut event = events::message(chat_id, message_id);
+  event["detail"] = json!(who);
 
-  answered(json!({ "ok": true }))
+  receiver.news().publish(&event);
+
+  Ok(())
 }
 
 // A voice briefing a runner put in a room, for every listener to play (docs/voiced-notices.md, 「What a
 // listener hears」), stamped with whether it plays by itself as the owner's switch stands now.
-async fn briefing(receiver: &Receiver, body: &Value, who: &str) -> Answered {
+async fn briefing(receiver: &Receiver, body: &Value, who: &str) -> Result<(), Refusal> {
   let (Some(chat_id), Some(message_id)) = (number(body, "chatId"), number(body, "messageId")) else {
     return Err(bad("a briefing event names its chatId and messageId as integers"));
   };
@@ -186,7 +186,7 @@ async fn briefing(receiver: &Receiver, body: &Value, who: &str) -> Answered {
     "briefing": heard,
   }));
 
-  answered(json!({ "ok": true }))
+  Ok(())
 }
 
 // A unit outside the receiver saved a message it sent: the row must stand in the room's record.

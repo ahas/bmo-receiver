@@ -1,0 +1,4846 @@
+{
+  "components": {
+    "schemas": {
+      "AgentFigure": {
+        "description": "One agent's figures in a room.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          },
+          "contextTokens": true,
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastAnswerAt": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lastEffort": true,
+          "lastMode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastModel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastRunAt": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "messages": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runs": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "session": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sessionMode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "totalTokens": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "weekTokens": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "agentName",
+          "messages",
+          "lastAnswerAt",
+          "session",
+          "label",
+          "lastMode",
+          "lastModel",
+          "lastEffort",
+          "sessionMode",
+          "model",
+          "contextTokens",
+          "runs",
+          "lastRunAt",
+          "weekTokens",
+          "totalTokens"
+        ],
+        "type": "object"
+      },
+      "Answerer": {
+        "description": "One agent answering a room.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          },
+          "companion": {
+            "description": "Whether it answers beside the room's voice rather than as it.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "agentName",
+          "companion"
+        ],
+        "type": "object"
+      },
+      "Answerers": {
+        "description": "`GET /rooms/{roomId}/answerers`: the room's default answerer, its voice, and every agent answering it.",
+        "properties": {
+          "default": {
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Answerer"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "voice": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "default",
+          "voice",
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Asker": {
+        "description": "Who asks a send.",
+        "properties": {
+          "agentName": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "by": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "job": {
+            "default": false,
+            "type": "boolean"
+          },
+          "room": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "via": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "room",
+          "via",
+          "agentName",
+          "by",
+          "job"
+        ],
+        "type": "object"
+      },
+      "Compacting": {
+        "description": "A room whose session is folding.",
+        "properties": {
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "since": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "since"
+        ],
+        "type": "object"
+      },
+      "Companion": {
+        "description": "One companion.",
+        "properties": {
+          "id": {
+            "description": "The room the receiver stood up for it, where it did.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "id"
+        ],
+        "type": "object"
+      },
+      "CompanionRequest": {
+        "description": "A companion added on the console.",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "room": {
+            "type": "string"
+          },
+          "worker": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "provider",
+          "model",
+          "worker",
+          "room"
+        ],
+        "type": "object"
+      },
+      "CompanionRoom": {
+        "description": "A companion and the room it answers.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "said": true,
+          "takenBack": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "takenBack",
+          "said"
+        ],
+        "type": "object"
+      },
+      "Companions": {
+        "description": "Every companion as it now stands.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Companion"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompanionRoom"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "said": true
+        },
+        "required": [
+          "items",
+          "more",
+          "room",
+          "said"
+        ],
+        "type": "object"
+      },
+      "ConsultBlock": {
+        "description": "What an agent is shown of the other agents' work.",
+        "properties": {
+          "block": true
+        },
+        "required": [
+          "block"
+        ],
+        "type": "object"
+      },
+      "ConsultLine": {
+        "description": "A line said in the consult room.",
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "replyTo": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent",
+          "text",
+          "replyTo"
+        ],
+        "type": "object"
+      },
+      "ConsultSaid": {
+        "description": "What a consult line came to.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "id",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "Created": {
+        "description": "The id a created member answers with.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "Figures": {
+        "description": "A room's figures.",
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentFigure"
+            },
+            "type": "array"
+          },
+          "byHour": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "firstAt": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "fromPeople": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "lastAnswerAt": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lastAt": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "messages": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "speakers": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/Speaker"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "room",
+          "messages",
+          "fromPeople",
+          "speakers",
+          "firstAt",
+          "lastAt",
+          "lastAnswerAt",
+          "top",
+          "byHour",
+          "agents"
+        ],
+        "type": "object"
+      },
+      "FileEntry": {
+        "description": "One of a message's files, by its place among them.",
+        "properties": {
+          "kept": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "place": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "place",
+          "kind",
+          "name",
+          "type",
+          "size",
+          "kept"
+        ],
+        "type": "object"
+      },
+      "Forgotten": {
+        "description": "What a delete of an agent's marks let go.",
+        "properties": {
+          "forgotten": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "forgotten"
+        ],
+        "type": "object"
+      },
+      "Health": {
+        "description": "`GET /health`.",
+        "properties": {
+          "ready": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ready",
+          "reason",
+          "version"
+        ],
+        "type": "object"
+      },
+      "Holding": {
+        "description": "One thing a unit holds of a room.",
+        "properties": {
+          "effect": {
+            "description": "`kept` where the rows stay, `warns` where the unit shows what it answers before the removal.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effect"
+        ],
+        "type": "object"
+      },
+      "HookAnswer": {
+        "description": "What the agency reads from a hook the receiver serves.",
+        "properties": {
+          "answer": true
+        },
+        "required": [
+          "answer"
+        ],
+        "type": "object"
+      },
+      "Instruction": {
+        "description": "An instruction and how far it has gone.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/InstructionState"
+          }
+        },
+        "required": [
+          "id",
+          "state"
+        ],
+        "type": "object"
+      },
+      "InstructionRequest": {
+        "description": "An instruction queued for an agent's session.",
+        "properties": {
+          "agentName": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "events": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "expiresAt": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "kind": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ridesUntil": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "room": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "run": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "said": {
+            "$ref": "#/components/schemas/Said"
+          },
+          "sort": {
+            "type": "string"
+          },
+          "summary": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "via": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "agentName",
+          "room",
+          "said",
+          "kind",
+          "sort",
+          "summary",
+          "expiresAt",
+          "events",
+          "ridesUntil",
+          "via",
+          "run"
+        ],
+        "type": "object"
+      },
+      "InstructionState": {
+        "description": "How far an instruction has gone.",
+        "enum": [
+          "pending",
+          "handed",
+          "delivered"
+        ],
+        "type": "string"
+      },
+      "KeepMarks": {
+        "description": "The body that marks a room's messages read into an agent's book.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          },
+          "messageIds": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "agentName",
+          "messageIds"
+        ],
+        "type": "object"
+      },
+      "KeptFile": {
+        "description": "A file a message carried, as the record kept it.",
+        "properties": {
+          "collectedAt": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "storedPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "storedPath",
+          "summary",
+          "collectedAt"
+        ],
+        "type": "object"
+      },
+      "Live": {
+        "description": "The live board: the process's turns, folds and each room's queued message.",
+        "properties": {
+          "at": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "compacting": {
+            "items": {
+              "$ref": "#/components/schemas/Compacting"
+            },
+            "type": "array"
+          },
+          "queued": {
+            "items": {
+              "$ref": "#/components/schemas/QueuedMessage"
+            },
+            "type": "array"
+          },
+          "turns": {
+            "items": true,
+            "type": "array"
+          }
+        },
+        "required": [
+          "at",
+          "turns",
+          "compacting",
+          "queued"
+        ],
+        "type": "object"
+      },
+      "Message": {
+        "description": "One message, wherever it is answered.",
+        "properties": {
+          "album": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "answerSeconds": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/KeptFile"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "imagePath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "replyToMessageId": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "round": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "senderId": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "sentAt": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          },
+          "via": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "room",
+          "senderId",
+          "senderName",
+          "sentAt",
+          "text",
+          "imagePath",
+          "replyToMessageId",
+          "answerSeconds",
+          "round",
+          "album",
+          "via",
+          "files"
+        ],
+        "type": "object"
+      },
+      "MessageMetadata": {
+        "description": "What a chat service handed over beside a message, opaque to the receiver.",
+        "properties": {
+          "metadata": true
+        },
+        "required": [
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "Notice": {
+        "description": "One notice a room was voiced.",
+        "properties": {
+          "createdAt": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "summary",
+          "text",
+          "createdAt",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "Opening": {
+        "description": "One quiet instruction a round settled.",
+        "properties": {
+          "createdAt": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sort",
+          "summary",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "OpeningText": {
+        "description": "One quiet instruction's whole text.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "type": "object"
+      },
+      "OwnNumber": {
+        "description": "The sender an agent's own words stand under in a room.",
+        "properties": {
+          "number": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "type": "object"
+      },
+      "Owner": {
+        "description": "`GET /owner`: the deployment's owner as a sender, and the owner's private room.",
+        "properties": {
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "senderId": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "senderId",
+          "room"
+        ],
+        "type": "object"
+      },
+      "OwnerInstruction": {
+        "description": "Words the owner typed for a room's session.",
+        "properties": {
+          "chatId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "chatId",
+          "text"
+        ],
+        "type": "object"
+      },
+      "OwnerMessage": {
+        "description": "The owner's words typed on a screen.",
+        "properties": {
+          "chatId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "replyTo": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "chatId",
+          "text",
+          "replyTo"
+        ],
+        "type": "object"
+      },
+      "OwnerNotice": {
+        "additionalProperties": true,
+        "description": "An item filed with a notice.",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "OwnerSpoke": {
+        "description": "Whether the person is the owner, and whether the owner spoke in the span.",
+        "properties": {
+          "owner": {
+            "type": "boolean"
+          },
+          "spoke": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "owner",
+          "spoke"
+        ],
+        "type": "object"
+      },
+      "Page": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Room"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page2": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoomAnswerers"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page3": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page4": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FileEntry"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page5": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Person"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page6": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoomReadCount"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page7": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Notice"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page8": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoundOpening"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Person": {
+        "description": "One person.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Picture": {
+        "description": "One picture of a room.",
+        "properties": {
+          "album": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PictureFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "sentAt": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "album",
+          "senderName",
+          "sentAt",
+          "text",
+          "file"
+        ],
+        "type": "object"
+      },
+      "PictureFile": {
+        "description": "The file behind a picture.",
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "bytes",
+          "type"
+        ],
+        "type": "object"
+      },
+      "Pictures": {
+        "description": "A room's pictures, oldest first.",
+        "properties": {
+          "before": {
+            "description": "How many of the room's pictures stand before the first one answered.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Picture"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "more",
+          "before",
+          "total"
+        ],
+        "type": "object"
+      },
+      "PinRoom": {
+        "description": "One room pinned.",
+        "properties": {
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room"
+        ],
+        "type": "object"
+      },
+      "PinRooms": {
+        "description": "The pinned order set whole.",
+        "properties": {
+          "roomIds": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roomIds"
+        ],
+        "type": "object"
+      },
+      "PinnedRooms": {
+        "description": "The pinned order as it now stands.",
+        "properties": {
+          "roomIds": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roomIds"
+        ],
+        "type": "object"
+      },
+      "PromiseAsk": {
+        "description": "The body `POST /promise-readings` takes.",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "PromiseReading": {
+        "description": "Whether a text waits for something to happen first.",
+        "properties": {
+          "waits": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "waits"
+        ],
+        "type": "object"
+      },
+      "PublishedEvent": {
+        "description": "The event a process beside the receiver publishes.",
+        "properties": {
+          "data": {
+            "default": null
+          },
+          "kind": {
+            "description": "`message.created`, `briefing.created` or `avatars.changed`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "data"
+        ],
+        "type": "object"
+      },
+      "QueuedMessage": {
+        "description": "The message a room queued for a turn.",
+        "properties": {
+          "messageId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "since": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "messageId",
+          "since"
+        ],
+        "type": "object"
+      },
+      "ReadMarkCount": {
+        "description": "How many of a room's messages an agent has marked.",
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
+      "ReadMarkCounts": {
+        "description": "The body that counts the messages past an agent's marks.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          },
+          "since": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RoomSince"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "agentName",
+          "since"
+        ],
+        "type": "object"
+      },
+      "Road": {
+        "description": "A room's road.",
+        "properties": {
+          "kind": {
+            "description": "`owner` or `group`.",
+            "type": "string"
+          },
+          "oneToOne": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "oneToOne"
+        ],
+        "type": "object"
+      },
+      "Room": {
+        "description": "One room, as the room list and one room's read answer it.",
+        "properties": {
+          "companions": {
+            "description": "The companions answering in the room.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "lastMessageAt": {
+            "description": "Epoch milliseconds; null where the room holds no message.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "messageCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ownerRoom": {
+            "type": "boolean"
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "registered": {
+            "type": "boolean"
+          },
+          "senders": {
+            "description": "The people that have stood as a sender in the room.",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workRoom": {
+            "description": "The room where work filed from this one is told.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "messageCount",
+          "lastMessageAt",
+          "pinned",
+          "senders",
+          "companions",
+          "ownerRoom",
+          "registered",
+          "workRoom"
+        ],
+        "type": "object"
+      },
+      "RoomAnswerers": {
+        "description": "Every room with its agents answering it.",
+        "properties": {
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "agents"
+        ],
+        "type": "object"
+      },
+      "RoomHolder": {
+        "description": "A unit declaring what it holds of a room.",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "holdings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Holding"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "address",
+          "holdings"
+        ],
+        "type": "object"
+      },
+      "RoomReadCount": {
+        "description": "A room and how many of its messages an agent has not marked.",
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "count"
+        ],
+        "type": "object"
+      },
+      "RoomSince": {
+        "description": "One room's moment to count from.",
+        "properties": {
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "since": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "since"
+        ],
+        "type": "object"
+      },
+      "RoomTitle": {
+        "description": "A room's name alone.",
+        "properties": {
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
+      "RoundOpening": {
+        "description": "What a round settled, without the instructions' text.",
+        "properties": {
+          "instructions": {
+            "items": {
+              "$ref": "#/components/schemas/Opening"
+            },
+            "type": "array"
+          },
+          "round": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "round",
+          "instructions"
+        ],
+        "type": "object"
+      },
+      "Said": {
+        "description": "What an instruction hands a session: a fact, or the words of an order.",
+        "properties": {
+          "fact": {
+            "default": null
+          },
+          "order": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "fact",
+          "order"
+        ],
+        "type": "object"
+      },
+      "SendAnswer": {
+        "description": "What a send came to.",
+        "properties": {
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "lines",
+          "refusal"
+        ],
+        "type": "object"
+      },
+      "SendRequest": {
+        "description": "A send asked of the receiver.",
+        "properties": {
+          "asker": {
+            "$ref": "#/components/schemas/Asker"
+          },
+          "input": true,
+          "tool": {
+            "description": "The tool's name: `say`, `photo`, `remind`, `react`, `pin`, `sticker` or `random_draw`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asker",
+          "tool",
+          "input"
+        ],
+        "type": "object"
+      },
+      "SendVerbs": {
+        "description": "The verbs the road a room is answered on performs.",
+        "properties": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Speaker": {
+        "description": "One speaker among the room's most talkative people.",
+        "properties": {
+          "messages": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "messages"
+        ],
+        "type": "object"
+      },
+      "Spoke": {
+        "description": "Whether a person spoke in a room in a span.",
+        "properties": {
+          "spoke": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "spoke"
+        ],
+        "type": "object"
+      },
+      "Talk": {
+        "description": "A talk's topic and what the owner says.",
+        "properties": {
+          "said": {
+            "type": "string"
+          },
+          "topic": {
+            "description": "What the talk is about: `kind` names it, `heading` is its head paragraph and `fields` are the values its\nhead carries; a caller's own kind needs no code in the receiver."
+          },
+          "turns": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TalkTurn"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "topic",
+          "turns",
+          "said"
+        ],
+        "type": "object"
+      },
+      "TalkAnswer": {
+        "description": "What a talk's turn answered.",
+        "properties": {
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "type": "object"
+      },
+      "TalkTurn": {
+        "description": "A turn of a talk.",
+        "properties": {
+          "owner": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "text"
+        ],
+        "type": "object"
+      },
+      "Window": {
+        "description": "How long the chat agent's window in a room has left.",
+        "properties": {
+          "closesAt": {
+            "description": "Epoch milliseconds; null where the room never opened one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "openForMs": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "openForMs",
+          "closesAt"
+        ],
+        "type": "object"
+      },
+      "WireError": {
+        "description": "The body every non-2xx answer carries.",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "error"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "The chat receiver: the rooms and their messages, the rules, rights and windows of each room, the envelope a turn goes out in, and the waking of the agents a room's words, a quiet instruction or a job's end calls for. Every route answers in the common wire format: camelCase keys, times as integers of epoch milliseconds, rooms, messages and people as signed 64-bit integers, lists as pages of items and more, and every failure as a non-2xx answer carrying code and error. The routes a chat provider hands messages over on stand under /chat, as bmo-chat's protocol states them.",
+    "title": "bmo-receiver",
+    "version": "0.11.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/answerers": {
+      "get": {
+        "operationId": "answerers",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "room",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page2"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, upstream-failed, failed"
+          }
+        },
+        "summary": "Every room with its agents answering it, or one room's where named.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/companions": {
+      "post": {
+        "operationId": "addCompanion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Companions"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
+          }
+        },
+        "summary": "A companion added with a room of the console's own.",
+        "tags": [
+          "Companions"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/companions/{companionName}": {
+      "delete": {
+        "operationId": "removeCompanion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companionName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Companions"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, forbidden, upstream-failed, failed"
+          }
+        },
+        "summary": "A companion taken out, its room half given up.",
+        "tags": [
+          "Companions"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "forbidden",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/consult-lines": {
+      "get": {
+        "operationId": "consultBlock",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultBlock"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "The block an agent is shown of the other agents' work.",
+        "tags": [
+          "Consult"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      },
+      "post": {
+        "operationId": "consultLine",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsultLine"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultSaid"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
+          }
+        },
+        "summary": "A line said in the consult room under an agent's own name.",
+        "tags": [
+          "Consult"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "events",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "run",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kinds",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "roomId",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized"
+          }
+        },
+        "summary": "The receiver's one stream, as server-sent events.",
+        "tags": [
+          "Events"
+        ],
+        "x-codes": [
+          "unauthorized"
+        ]
+      },
+      "post": {
+        "operationId": "publishEvent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishedEvent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found"
+          }
+        },
+        "summary": "An event a process beside the receiver publishes.",
+        "tags": [
+          "Events"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: bad-request, unauthorized, failed"
+          }
+        },
+        "summary": "Whether the receiver is ready, why not where it is not, and its version.",
+        "tags": [
+          "Health"
+        ],
+        "x-codes": [
+          "bad-request",
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/hooks/{point}": {
+      "post": {
+        "operationId": "hook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "point",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HookAnswer"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "A hook the agency calls at a point of its work.",
+        "tags": [
+          "Hooks"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/instructions": {
+      "post": {
+        "operationId": "queueInstruction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstructionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Created."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
+          }
+        },
+        "summary": "An instruction queued for an agent's session in a room.",
+        "tags": [
+          "Instructions"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/instructions/{instructionId}": {
+      "delete": {
+        "operationId": "withdrawInstruction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instructionId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "The instruction not yet taken withdrawn.",
+        "tags": [
+          "Instructions"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      },
+      "get": {
+        "operationId": "instruction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instructionId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Instruction"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, failed"
+          }
+        },
+        "summary": "How far the instruction named has gone.",
+        "tags": [
+          "Instructions"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "failed"
+        ]
+      }
+    },
+    "/live": {
+      "get": {
+        "operationId": "live",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Live"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized"
+          }
+        },
+        "summary": "The picture of what the process runs, asked for once.",
+        "tags": [
+          "Events"
+        ],
+        "x-codes": [
+          "unauthorized"
+        ]
+      }
+    },
+    "/owner": {
+      "get": {
+        "operationId": "owner",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Owner"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "The deployment's owner as a sender, and the owner's private room.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/owner/instructions": {
+      "post": {
+        "operationId": "ownerInstruction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerInstruction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, forbidden, failed"
+          }
+        },
+        "summary": "The owner's words queued for a room's session.",
+        "tags": [
+          "Instructions"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "forbidden",
+          "failed"
+        ]
+      }
+    },
+    "/owner/message-files": {
+      "post": {
+        "operationId": "ownerMessageFiles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, too-large, failed"
+          }
+        },
+        "summary": "The owner's files sent into a room on a screen, as a form.",
+        "tags": [
+          "Sends"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "too-large",
+          "failed"
+        ]
+      }
+    },
+    "/owner/messages": {
+      "post": {
+        "operationId": "ownerMessage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed, failed"
+          }
+        },
+        "summary": "The owner's words typed into a room on a screen.",
+        "tags": [
+          "Sends"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "conflict",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/owner/notices": {
+      "post": {
+        "operationId": "ownerNotice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerNotice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Created."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "A code and its parameters queued for the chat agent in the owner's private chat.",
+        "tags": [
+          "Notices"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/people": {
+      "get": {
+        "operationId": "people",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page5"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "Each person asked with the name they last went by.",
+        "tags": [
+          "People"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/pinned-rooms": {
+      "post": {
+        "operationId": "pinRoom",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinRoom"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinnedRooms"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
+          }
+        },
+        "summary": "A room stood last in the pinned order.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "pinRooms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinRooms"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinnedRooms"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
+          }
+        },
+        "summary": "The pinned order set whole.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "failed"
+        ]
+      }
+    },
+    "/pinned-rooms/{roomId}": {
+      "delete": {
+        "operationId": "unpinRoom",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinnedRooms"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "A room taken out of the pinned order.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/promise-readings": {
+      "post": {
+        "operationId": "promiseReading",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromiseAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromiseReading"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request"
+          }
+        },
+        "summary": "Whether a text waits for something to happen first.",
+        "tags": [
+          "Readings"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request"
+        ]
+      }
+    },
+    "/read-mark-counts": {
+      "post": {
+        "operationId": "readMarkCounts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadMarkCounts"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page6"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "Every room holding messages past an agent's marks, each with how many.",
+        "tags": [
+          "Read marks"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/room-holders/{holderName}": {
+      "put": {
+        "operationId": "declareHolder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "holderName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomHolder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "A unit declared a holder of rows naming a room.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/rooms": {
+      "get": {
+        "operationId": "rooms",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, upstream-failed, failed"
+          }
+        },
+        "summary": "Every room the record shows, the pinned ones first.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}": {
+      "delete": {
+        "operationId": "removeRoom",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dryRun",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, forbidden, not-found, failed"
+          }
+        },
+        "summary": "A room's registration removed, or with dryRun what the removal would do.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "forbidden",
+          "not-found",
+          "failed"
+        ]
+      },
+      "get": {
+        "operationId": "room",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Room"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, upstream-failed, failed"
+          }
+        },
+        "summary": "One room.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/answerers": {
+      "get": {
+        "operationId": "roomAnswerers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Answerers"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, upstream-failed, failed"
+          }
+        },
+        "summary": "The default answerer, the voice and every agent answering a room.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/day-start": {
+      "get": {
+        "operationId": "dayStart",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "The first message a person said at or after a moment.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/figures": {
+      "get": {
+        "operationId": "figures",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "zone",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Figures"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "A room's figures, by hour and agent.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages": {
+      "get": {
+        "operationId": "messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "marked",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unread",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page3"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, failed"
+          }
+        },
+        "summary": "A room's messages, by a cursor and a limit, or an agent's unread or marked ones.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "get": {
+        "operationId": "message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, failed"
+          }
+        },
+        "summary": "One message.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}/files": {
+      "get": {
+        "operationId": "messageFiles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page4"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "A message's files, by their place.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}/files/{place}": {
+      "get": {
+        "operationId": "messageFile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "place",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "download",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found"
+          }
+        },
+        "summary": "The bytes of one of a message's files.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}/metadata": {
+      "get": {
+        "operationId": "messageMetadata",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageMetadata"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "What the chat service handed over beside a message.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}/picture": {
+      "get": {
+        "operationId": "messagePicture",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found"
+          }
+        },
+        "summary": "The bytes of a message's picture.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}/sender-is-owner": {
+      "get": {
+        "operationId": "senderIsOwner",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spoke"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "Whether the message's sender is the owner in that room.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/notices": {
+      "get": {
+        "operationId": "notices",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page7"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "The notices a room was voiced, by kind and span.",
+        "tags": [
+          "Notices"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      },
+      "post": {
+        "operationId": "notice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Created."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
+          }
+        },
+        "summary": "A notice queued for the room's voice.",
+        "tags": [
+          "Notices"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/own-number": {
+      "get": {
+        "operationId": "ownNumber",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnNumber"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, upstream-failed, failed"
+          }
+        },
+        "summary": "The sender an agent's own words stand under in a room.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/owner-spoke": {
+      "get": {
+        "operationId": "ownerSpoke",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "person",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "windowMs",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerSpoke"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "Whether the person is the owner, and whether the owner spoke in the span.",
+        "tags": [
+          "People"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/people": {
+      "get": {
+        "operationId": "roomPeople",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page5"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "Of those asked, the people who have stood as a sender in a room.",
+        "tags": [
+          "People"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/pictures": {
+      "get": {
+        "operationId": "pictures",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pictures"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "A room's pictures, walked from a picture the reader holds.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/read-marks": {
+      "delete": {
+        "operationId": "forgetMarks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forgotten"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "Every mark of an agent's book let go, off one room.",
+        "tags": [
+          "Read marks"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      },
+      "get": {
+        "operationId": "readMarks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadMarkCount"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "How many of a room's messages an agent has marked.",
+        "tags": [
+          "Read marks"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      },
+      "post": {
+        "operationId": "keepMarks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepMarks"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "The room's messages marked as read into an agent's book.",
+        "tags": [
+          "Read marks"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/roads": {
+      "get": {
+        "operationId": "road",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Road"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "A room's road: the owner's own or a group, and whether a one-to-one.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/send-verbs": {
+      "get": {
+        "operationId": "sendVerbs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "via",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendVerbs"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, conflict, failed"
+          }
+        },
+        "summary": "The verbs the road a room is answered on performs.",
+        "tags": [
+          "Sends"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "conflict",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/spoke-between": {
+      "get": {
+        "operationId": "spokeBetween",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "person",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spoke"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "Whether a person spoke in a room in a span.",
+        "tags": [
+          "People"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/title": {
+      "get": {
+        "operationId": "roomTitle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomTitle"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "A room's name.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/window": {
+      "get": {
+        "operationId": "window",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Window"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, upstream-failed, failed"
+          }
+        },
+        "summary": "How long the chat agent's window in a room has left.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rounds/openings": {
+      "get": {
+        "operationId": "roundOpenings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "room",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "rounds",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page8"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "For a room and the rounds named, what each settled.",
+        "tags": [
+          "Rounds"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rounds/openings/{instructionId}": {
+      "get": {
+        "operationId": "roundOpening",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instructionId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "room",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningText"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, failed"
+          }
+        },
+        "summary": "One quiet instruction's whole text.",
+        "tags": [
+          "Rounds"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "failed"
+        ]
+      }
+    },
+    "/sends": {
+      "post": {
+        "operationId": "send",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendAnswer"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "A send carried as its asker, answered with its lines or its refusal.",
+        "tags": [
+          "Sends"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/talks": {
+      "post": {
+        "operationId": "talk",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Talk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalkAnswer"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, conflict, not-ready, failed"
+          }
+        },
+        "summary": "A talk the owner has with the chat agent about a topic it names.",
+        "tags": [
+          "Talks"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "conflict",
+          "not-ready",
+          "failed"
+        ]
+      }
+    }
+  },
+  "x-layer": "downstream",
+  "x-stage": 5
+}

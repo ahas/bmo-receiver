@@ -1,0 +1,891 @@
+//! The receiver's OpenAPI 3.1 document (`docs/openapi.json`): every route of the fixed API, in the common wire
+//! format. The bodies' schemas are generated from this crate's own types; the TypeScript package is generated from
+//! this document.
+
+use std::collections::BTreeMap;
+
+use schemars::JsonSchema;
+use schemars::Schema;
+use schemars::generate::{SchemaGenerator, SchemaSettings};
+use serde_json::{Map, Value, json};
+
+use crate::types::*;
+use crate::wire::{Page, WireError};
+
+/// Where the schemas the routes refer to stand in the document.
+const SCHEMAS: &str = "/components/schemas";
+
+const DESCRIPTION: &str = "The chat receiver: the rooms and their messages, the rules, rights and windows of each \
+  room, the envelope a turn goes out in, and the waking of the agents a room's words, a quiet instruction or a \
+  job's end calls for. Every route answers in the common wire format: camelCase keys, times as integers of epoch \
+  milliseconds, rooms, messages and people as signed 64-bit integers, lists as pages of items and more, and every \
+  failure as a non-2xx answer carrying code and error. The routes a chat provider hands messages over on stand \
+  under /chat, as bmo-chat's protocol states them.";
+
+/// One route as the document states it.
+struct Route {
+  id: &'static str,
+  tag: &'static str,
+  summary: &'static str,
+  parameters: Vec<Value>,
+  body: Option<Schema>,
+  answers: Vec<(u16, Option<Value>)>,
+  codes: Vec<&'static str>,
+}
+
+fn parameter(name: &str, kind: &str, required: bool) -> Value {
+  json!({
+    "name": name,
+    "in": "query",
+    "required": required,
+    "schema": { "type": kind },
+  })
+}
+
+fn path_parameter(name: &str) -> Value {
+  json!({
+    "name": name,
+    "in": "path",
+    "required": true,
+    "schema": { "type": "integer", "format": "int64" },
+  })
+}
+
+fn name_parameter(name: &str) -> Value {
+  json!({
+    "name": name,
+    "in": "path",
+    "required": true,
+    "schema": { "type": "string" },
+  })
+}
+
+fn json_answer<Answer: JsonSchema>(generator: &mut SchemaGenerator) -> Option<Value> {
+  Some(json!({ "application/json": { "schema": generator.subschema_for::<Answer>() } }))
+}
+
+fn bytes_answer() -> Option<Value> {
+  Some(json!({ "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } }))
+}
+
+fn empty_answer() -> Option<Value> {
+  None
+}
+
+impl Route {
+  fn operation(self, error: &Schema) -> Value {
+    let mut responses = Map::new();
+
+    for (status, content) in self.answers {
+      let description = match status {
+        201 => "Created.",
+        204 => "Done; no content.",
+        _ => "Answered.",
+      };
+      let mut answer = json!({ "description": description });
+      if let Some(content) = content {
+        answer["content"] = content;
+      }
+      responses.insert(status.to_string(), answer);
+    }
+
+    if !self.codes.is_empty() {
+      let codes = self.codes.join(", ");
+      responses.insert(
+        "default".to_owned(),
+        json!({
+          "description": format!("A refusal or failure: {}", codes),
+          "content": { "application/json": { "schema": error } },
+        }),
+      );
+    }
+
+    let mut operation = json!({
+      "operationId": self.id,
+      "tags": [self.tag],
+      "summary": self.summary,
+      "responses": responses,
+      "x-codes": self.codes,
+    });
+    if !self.parameters.is_empty() {
+      operation["parameters"] = self.parameters.into();
+    }
+    if let Some(body) = self.body {
+      operation["requestBody"] = json!({
+        "required": true,
+        "content": { "application/json": { "schema": body } },
+      });
+    }
+
+    operation
+  }
+}
+
+/// The document as JSON.
+pub fn openapi() -> Value {
+  let mut generator = SchemaSettings::draft2020_12()
+    .for_serialize()
+    .with(|settings| {
+      settings.definitions_path = SCHEMAS.into();
+      settings.meta_schema = None;
+    })
+    .into_generator();
+  let error: Schema = generator.subschema_for::<WireError>();
+  let route = |item: Route| item.operation(&error);
+  let mut paths: BTreeMap<String, Value> = BTreeMap::new();
+
+  macro_rules! on {
+    ($method:literal, $path:literal, $id:literal, $tag:literal, $summary:literal, { params: $params:expr, body: $body:expr, answers: $answers:expr, codes: $codes:expr }) => {{
+      let item = Route {
+        id: $id,
+        tag: $tag,
+        summary: $summary,
+        parameters: $params,
+        body: $body,
+        answers: $answers,
+        codes: $codes,
+      };
+      route(item)
+    }};
+  }
+
+  let put = |paths: &mut BTreeMap<String, Value>, path: &str, method: &str, operation: Value| {
+    let entry = paths.entry(path.to_owned()).or_insert_with(|| json!({}));
+    entry[method.to_lowercase()] = operation;
+  };
+
+  macro_rules! add {
+    ($method:literal, $path:literal, $id:literal, $tag:literal, $summary:literal, $params:expr, $body:expr, $answers:expr, $codes:expr) => {{
+      let operation = on!($method, $path, $id, $tag, $summary, {
+        params: $params,
+        body: $body,
+        answers: $answers,
+        codes: $codes
+      });
+      put(&mut paths, $path, $method, operation);
+    }};
+  }
+
+  add!(
+    "GET",
+    "/health",
+    "health",
+    "Health",
+    "Whether the receiver is ready, why not where it is not, and its version.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Health>(&mut generator))],
+    vec!["bad-request", "unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/owner",
+    "owner",
+    "Rooms",
+    "The deployment's owner as a sender, and the owner's private room.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Owner>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms",
+    "rooms",
+    "Rooms",
+    "Every room the record shows, the pinned ones first.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Page<Room>>(&mut generator))],
+    vec!["unauthorized", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}",
+    "room",
+    "Rooms",
+    "One room.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<Room>(&mut generator))],
+    vec!["unauthorized", "not-found", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/title",
+    "roomTitle",
+    "Rooms",
+    "A room's name.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomTitle>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/answerers",
+    "roomAnswerers",
+    "Rooms",
+    "The default answerer, the voice and every agent answering a room.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<Answerers>(&mut generator))],
+    vec!["unauthorized", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/answerers",
+    "answerers",
+    "Rooms",
+    "Every room with its agents answering it, or one room's where named.",
+    vec![parameter("room", "integer", false)],
+    None,
+    vec![(200, json_answer::<Page<RoomAnswerers>>(&mut generator))],
+    vec!["unauthorized", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/messages",
+    "messages",
+    "Messages",
+    "A room's messages, by a cursor and a limit, or an agent's unread or marked ones.",
+    vec![
+      path_parameter("roomId"),
+      parameter("before", "integer", false),
+      parameter("after", "integer", false),
+      parameter("limit", "integer", false),
+      parameter("agentName", "string", false),
+      parameter("since", "integer", false),
+      parameter("marked", "boolean", false),
+      parameter("unread", "boolean", false),
+      parameter("by", "string", false)
+    ],
+    None,
+    vec![(200, json_answer::<Page<Message>>(&mut generator))],
+    vec!["unauthorized", "not-found", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/messages/{messageId}",
+    "message",
+    "Messages",
+    "One message.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, json_answer::<Message>(&mut generator))],
+    vec!["unauthorized", "not-found", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/messages/{messageId}/metadata",
+    "messageMetadata",
+    "Messages",
+    "What the chat service handed over beside a message.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, json_answer::<MessageMetadata>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/messages/{messageId}/sender-is-owner",
+    "senderIsOwner",
+    "Messages",
+    "Whether the message's sender is the owner in that room.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, json_answer::<Spoke>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/messages/{messageId}/files",
+    "messageFiles",
+    "Messages",
+    "A message's files, by their place.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, json_answer::<Page<FileEntry>>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/messages/{messageId}/files/{place}",
+    "messageFile",
+    "Messages",
+    "The bytes of one of a message's files.",
+    vec![
+      path_parameter("roomId"),
+      path_parameter("messageId"),
+      name_parameter("place"),
+      parameter("download", "boolean", false)
+    ],
+    None,
+    vec![(200, bytes_answer()), (206, bytes_answer())],
+    vec!["unauthorized", "not-found"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/messages/{messageId}/picture",
+    "messagePicture",
+    "Messages",
+    "The bytes of a message's picture.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, bytes_answer())],
+    vec!["unauthorized", "not-found"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/day-start",
+    "dayStart",
+    "Messages",
+    "The first message a person said at or after a moment.",
+    vec![path_parameter("roomId"), parameter("from", "integer", true)],
+    None,
+    vec![(200, json_answer::<Value>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/pictures",
+    "pictures",
+    "Rooms",
+    "A room's pictures, walked from a picture the reader holds.",
+    vec![
+      path_parameter("roomId"),
+      parameter("at", "integer", false),
+      parameter("before", "integer", false),
+      parameter("after", "integer", false),
+      parameter("limit", "integer", false)
+    ],
+    None,
+    vec![(200, json_answer::<Pictures>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/figures",
+    "figures",
+    "Rooms",
+    "A room's figures, by hour and agent.",
+    vec![path_parameter("roomId"), parameter("zone", "string", false)],
+    None,
+    vec![(200, json_answer::<Figures>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/window",
+    "window",
+    "Rooms",
+    "How long the chat agent's window in a room has left.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<Window>(&mut generator))],
+    vec!["unauthorized", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/roads",
+    "road",
+    "Rooms",
+    "A room's road: the owner's own or a group, and whether a one-to-one.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<Road>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/own-number",
+    "ownNumber",
+    "Rooms",
+    "The sender an agent's own words stand under in a room.",
+    vec![path_parameter("roomId"), parameter("agentName", "string", true)],
+    None,
+    vec![(200, json_answer::<OwnNumber>(&mut generator))],
+    vec!["unauthorized", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/spoke-between",
+    "spokeBetween",
+    "People",
+    "Whether a person spoke in a room in a span.",
+    vec![
+      path_parameter("roomId"),
+      parameter("person", "integer", true),
+      parameter("from", "integer", true),
+      parameter("to", "integer", true)
+    ],
+    None,
+    vec![(200, json_answer::<Spoke>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/people",
+    "roomPeople",
+    "People",
+    "Of those asked, the people who have stood as a sender in a room.",
+    vec![path_parameter("roomId"), parameter("ids", "string", true)],
+    None,
+    vec![(200, json_answer::<Page<Person>>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/owner-spoke",
+    "ownerSpoke",
+    "People",
+    "Whether the person is the owner, and whether the owner spoke in the span.",
+    vec![
+      path_parameter("roomId"),
+      parameter("person", "integer", true),
+      parameter("before", "integer", true),
+      parameter("windowMs", "integer", true)
+    ],
+    None,
+    vec![(200, json_answer::<OwnerSpoke>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/read-marks",
+    "readMarks",
+    "Read marks",
+    "How many of a room's messages an agent has marked.",
+    vec![path_parameter("roomId"), parameter("agentName", "string", true)],
+    None,
+    vec![(200, json_answer::<ReadMarkCount>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/read-marks",
+    "keepMarks",
+    "Read marks",
+    "The room's messages marked as read into an agent's book.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<KeepMarks>()),
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/rooms/{roomId}/read-marks",
+    "forgetMarks",
+    "Read marks",
+    "Every mark of an agent's book let go, off one room.",
+    vec![path_parameter("roomId"), parameter("agentName", "string", true)],
+    None,
+    vec![(200, json_answer::<Forgotten>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "POST",
+    "/read-mark-counts",
+    "readMarkCounts",
+    "Read marks",
+    "Every room holding messages past an agent's marks, each with how many.",
+    vec![],
+    Some(generator.subschema_for::<ReadMarkCounts>()),
+    vec![(200, json_answer::<Page<RoomReadCount>>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/notices",
+    "notices",
+    "Notices",
+    "The notices a room was voiced, by kind and span.",
+    vec![
+      path_parameter("roomId"),
+      parameter("before", "integer", false),
+      parameter("after", "integer", false),
+      parameter("limit", "integer", false),
+      parameter("kind", "string", false),
+      parameter("from", "integer", false),
+      parameter("to", "integer", false)
+    ],
+    None,
+    vec![(200, json_answer::<Page<Notice>>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/notices",
+    "notice",
+    "Notices",
+    "A notice queued for the room's voice.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<Value>()),
+    vec![(201, json_answer::<Created>(&mut generator))],
+    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/send-verbs",
+    "sendVerbs",
+    "Sends",
+    "The verbs the road a room is answered on performs.",
+    vec![path_parameter("roomId"), parameter("via", "string", false)],
+    None,
+    vec![(200, json_answer::<SendVerbs>(&mut generator))],
+    vec!["unauthorized", "conflict", "failed"]
+  );
+  add!(
+    "GET",
+    "/people",
+    "people",
+    "People",
+    "Each person asked with the name they last went by.",
+    vec![parameter("ids", "string", true)],
+    None,
+    vec![(200, json_answer::<Page<Person>>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "POST",
+    "/promise-readings",
+    "promiseReading",
+    "Readings",
+    "Whether a text waits for something to happen first.",
+    vec![],
+    Some(generator.subschema_for::<PromiseAsk>()),
+    vec![(200, json_answer::<PromiseReading>(&mut generator))],
+    vec!["unauthorized", "bad-request"]
+  );
+  add!(
+    "POST",
+    "/instructions",
+    "queueInstruction",
+    "Instructions",
+    "An instruction queued for an agent's session in a room.",
+    vec![],
+    Some(generator.subschema_for::<InstructionRequest>()),
+    vec![(201, json_answer::<Created>(&mut generator))],
+    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/instructions/{instructionId}",
+    "instruction",
+    "Instructions",
+    "How far the instruction named has gone.",
+    vec![path_parameter("instructionId")],
+    None,
+    vec![(200, json_answer::<Instruction>(&mut generator))],
+    vec!["unauthorized", "not-found", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/instructions/{instructionId}",
+    "withdrawInstruction",
+    "Instructions",
+    "The instruction not yet taken withdrawn.",
+    vec![path_parameter("instructionId")],
+    None,
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "POST",
+    "/owner/notices",
+    "ownerNotice",
+    "Notices",
+    "A code and its parameters queued for the chat agent in the owner's private chat.",
+    vec![],
+    Some(generator.subschema_for::<OwnerNotice>()),
+    vec![(201, json_answer::<Created>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "POST",
+    "/owner/instructions",
+    "ownerInstruction",
+    "Instructions",
+    "The owner's words queued for a room's session.",
+    vec![],
+    Some(generator.subschema_for::<OwnerInstruction>()),
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "bad-request", "not-found", "forbidden", "failed"]
+  );
+  add!(
+    "PUT",
+    "/room-holders/{holderName}",
+    "declareHolder",
+    "Rooms",
+    "A unit declared a holder of rows naming a room.",
+    vec![name_parameter("holderName")],
+    Some(generator.subschema_for::<RoomHolder>()),
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "POST",
+    "/sends",
+    "send",
+    "Sends",
+    "A send carried as its asker, answered with its lines or its refusal.",
+    vec![],
+    Some(generator.subschema_for::<SendRequest>()),
+    vec![(200, json_answer::<SendAnswer>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "POST",
+    "/owner/messages",
+    "ownerMessage",
+    "Sends",
+    "The owner's words typed into a room on a screen.",
+    vec![],
+    Some(generator.subschema_for::<OwnerMessage>()),
+    vec![(200, json_answer::<Created>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "conflict", "upstream-failed", "failed"]
+  );
+  add!(
+    "POST",
+    "/owner/message-files",
+    "ownerMessageFiles",
+    "Sends",
+    "The owner's files sent into a room on a screen, as a form.",
+    vec![],
+    Some(generator.subschema_for::<Value>()),
+    vec![(200, json_answer::<Value>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "too-large", "failed"]
+  );
+  add!(
+    "POST",
+    "/consult-lines",
+    "consultLine",
+    "Consult",
+    "A line said in the consult room under an agent's own name.",
+    vec![],
+    Some(generator.subschema_for::<ConsultLine>()),
+    vec![(200, json_answer::<ConsultSaid>(&mut generator))],
+    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/consult-lines",
+    "consultBlock",
+    "Consult",
+    "The block an agent is shown of the other agents' work.",
+    vec![parameter("agentName", "string", true)],
+    None,
+    vec![(200, json_answer::<ConsultBlock>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "POST",
+    "/talks",
+    "talk",
+    "Talks",
+    "A talk the owner has with the chat agent about a topic it names.",
+    vec![],
+    Some(generator.subschema_for::<Talk>()),
+    vec![(200, json_answer::<TalkAnswer>(&mut generator))],
+    vec!["unauthorized", "bad-request", "conflict", "not-ready", "failed"]
+  );
+  add!(
+    "POST",
+    "/events",
+    "publishEvent",
+    "Events",
+    "An event a process beside the receiver publishes.",
+    vec![],
+    Some(generator.subschema_for::<PublishedEvent>()),
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "bad-request", "not-found"]
+  );
+  add!(
+    "GET",
+    "/events",
+    "events",
+    "Events",
+    "The receiver's one stream, as server-sent events.",
+    vec![
+      parameter("after", "string", false),
+      parameter("run", "string", false),
+      parameter("kinds", "string", false),
+      parameter("roomId", "integer", false)
+    ],
+    None,
+    vec![(200, Some(json!({ "text/event-stream": { "schema": { "type": "string" } } })))],
+    vec!["unauthorized"]
+  );
+  add!(
+    "GET",
+    "/live",
+    "live",
+    "Events",
+    "The picture of what the process runs, asked for once.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Live>(&mut generator))],
+    vec!["unauthorized"]
+  );
+  add!(
+    "POST",
+    "/hooks/{point}",
+    "hook",
+    "Hooks",
+    "A hook the agency calls at a point of its work.",
+    vec![name_parameter("point")],
+    Some(generator.subschema_for::<Value>()),
+    vec![(200, json_answer::<HookAnswer>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/rooms/{roomId}",
+    "removeRoom",
+    "Rooms",
+    "A room's registration removed, or with dryRun what the removal would do.",
+    vec![
+      path_parameter("roomId"),
+      parameter("by", "string", true),
+      parameter("dryRun", "boolean", false)
+    ],
+    None,
+    vec![(200, json_answer::<Value>(&mut generator))],
+    vec!["unauthorized", "forbidden", "not-found", "failed"]
+  );
+  add!(
+    "GET",
+    "/rounds/openings",
+    "roundOpenings",
+    "Rounds",
+    "For a room and the rounds named, what each settled.",
+    vec![parameter("room", "integer", true), parameter("rounds", "string", false)],
+    None,
+    vec![(200, json_answer::<Page<RoundOpening>>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rounds/openings/{instructionId}",
+    "roundOpening",
+    "Rounds",
+    "One quiet instruction's whole text.",
+    vec![path_parameter("instructionId"), parameter("room", "integer", true)],
+    None,
+    vec![(200, json_answer::<OpeningText>(&mut generator))],
+    vec!["unauthorized", "not-found", "failed"]
+  );
+  add!(
+    "POST",
+    "/companions",
+    "addCompanion",
+    "Companions",
+    "A companion added with a room of the console's own.",
+    vec![],
+    Some(generator.subschema_for::<CompanionRequest>()),
+    vec![(200, json_answer::<Companions>(&mut generator))],
+    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/companions/{companionName}",
+    "removeCompanion",
+    "Companions",
+    "A companion taken out, its room half given up.",
+    vec![name_parameter("companionName"), parameter("by", "string", false)],
+    None,
+    vec![(200, json_answer::<Companions>(&mut generator))],
+    vec!["unauthorized", "forbidden", "upstream-failed", "failed"]
+  );
+  add!(
+    "PUT",
+    "/pinned-rooms",
+    "pinRooms",
+    "Rooms",
+    "The pinned order set whole.",
+    vec![],
+    Some(generator.subschema_for::<PinRooms>()),
+    vec![(200, json_answer::<PinnedRooms>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "failed"]
+  );
+  add!(
+    "POST",
+    "/pinned-rooms",
+    "pinRoom",
+    "Rooms",
+    "A room stood last in the pinned order.",
+    vec![],
+    Some(generator.subschema_for::<PinRoom>()),
+    vec![(200, json_answer::<PinnedRooms>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/pinned-rooms/{roomId}",
+    "unpinRoom",
+    "Rooms",
+    "A room taken out of the pinned order.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<PinnedRooms>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+
+  let schemas: Map<String, Value> = generator.take_definitions(true);
+
+  json!({
+    "openapi": "3.1.0",
+    "info": {
+      "title": "bmo-receiver",
+      "version": crate::VERSION,
+      "description": DESCRIPTION,
+    },
+    "x-layer": "downstream",
+    "x-stage": 5,
+    "paths": paths,
+    "components": {
+      "schemas": schemas,
+    },
+  })
+}
+
+/// The document as `docs/openapi.json` keeps it: pretty, ending in a line break.
+pub fn openapi_json() -> String {
+  let mut written = serde_json::to_string_pretty(&openapi()).expect("the document is JSON");
+
+  written.push('\n');
+  written
+}
+
+/// The body `POST /promise-readings` takes.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PromiseAsk {
+  pub text: String,
+}
+
+/// The body that marks a room's messages read into an agent's book.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct KeepMarks {
+  pub agent_name: String,
+  pub message_ids: Vec<i64>,
+}
+
+/// The body that counts the messages past an agent's marks.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadMarkCounts {
+  pub agent_name: String,
+  #[serde(default)]
+  pub since: Vec<RoomSince>,
+}
+
+/// One room's moment to count from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomSince {
+  pub room: i64,
+  /// Epoch milliseconds.
+  pub since: i64,
+}

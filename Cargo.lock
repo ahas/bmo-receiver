@@ -243,7 +243,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-chat-client"
-version = "0.3.0"
+version = "0.1.0-rev.5"
 dependencies = [
  "async-trait",
  "axum",
@@ -259,7 +259,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-receiver"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -273,6 +273,7 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "rand 0.9.5",
+ "receiver-client",
  "receiver-codes",
  "receiver-policy",
  "receiver-ports",
@@ -284,6 +285,7 @@ dependencies = [
  "sea-orm-migration",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sha2",
  "sqlx",
  "tempfile",
@@ -1943,8 +1945,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "receiver-client"
+version = "0.11.0"
+dependencies = [
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "receiver-codes"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "bmo-chat-client",
  "http",
@@ -1957,7 +1970,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-policy"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "serde",
  "toml",
@@ -1965,7 +1978,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-ports"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "axum",
  "bmo-chat-client",
@@ -2064,6 +2077,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "serde",
+ "serde_json",
  "serde_urlencoded",
  "sync_wrapper",
  "tokio",
@@ -2121,7 +2135,7 @@ dependencies = [
 
 [[package]]
 name = "room-calls"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "bmo-chat-client",
  "chrono",
@@ -2420,7 +2434,7 @@ checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
 name = "send-tool"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "axum",
  "receiver-ports",
@@ -3175,7 +3189,7 @@ dependencies = [
 
 [[package]]
 name = "tool-call"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "dotenvy",
  "receiver-ports",

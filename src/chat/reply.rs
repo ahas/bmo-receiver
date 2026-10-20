@@ -130,15 +130,14 @@ async fn carry(
   let chat_id = reply.chat_id;
   let send = ChatSend::Text {
     text: text.to_owned(),
-    reply_to: reply.reply_to,
     silent: false,
     fold: true,
   };
+  let mut request = ChatSendRequest::new(chat_id, send);
+  request.reply_to_message_id = reply.reply_to;
   let message_id = match road {
     Road::Record => receiver.speech().kept(chat_id, text).await.ok(),
-    Road::Service(key) => {
-      receiver.speech().act(&key, &ChatSendRequest::new(chat_id, send)).await.ok().flatten()
-    }
+    Road::Service(key) => receiver.speech().act(&key, &request).await.ok().flatten(),
   };
 
   let Some(message_id) = message_id else {

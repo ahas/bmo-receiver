@@ -15,8 +15,8 @@ const ROOM: i64 = 4_200;
 fn an_asked_send_is_written_with_its_tool_its_input_and_its_asker() {
   let asked = Asked {
     asker: Asker {
-      chat: Some(ROOM),
-      agent: Some("agent-a".to_owned()),
+      room: Some(ROOM),
+      agent_name: Some("agent-a".to_owned()),
       by: Some(format!("chat:{ROOM}")),
       ..Asker::default()
     },
@@ -31,7 +31,7 @@ fn an_asked_send_is_written_with_its_tool_its_input_and_its_asker() {
   assert_eq!(
     written,
     json!({
-      "asker": { "chat": ROOM, "agent": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "sticker",
       "input": { "emoji": ":+1:" },
     }),
@@ -67,9 +67,9 @@ fn the_asker_of_a_turn_sets_the_send_off_from_the_turns_own_chat() {
   assert_eq!(
     Asker::of_turn(&turn, turn.room(Some(-200)).as_ref()),
     Asker {
-      chat: Some(-200),
+      room: Some(-200),
       via: None,
-      agent: Some("agent-a".to_owned()),
+      agent_name: Some("agent-a".to_owned()),
       by: Some(format!("chat:{ROOM}")),
       job: true,
     },

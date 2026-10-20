@@ -19,8 +19,14 @@ use crate::common::units::OWNER;
 
 use bmo_receiver::routes::served;
 
-// The routes the base library's own router serves, which the service mounts beside the receiver's table.
-const HANDOVERS: [&str; 4] = ["POST /message", "POST /attachment", "POST /edited", "POST /gathered"];
+// The routes the base library's own router serves, mounted under `/chat` beside the receiver's table.
+const HANDOVERS: [&str; 5] = [
+  "GET /chat/rooms",
+  "GET /chat/rooms/{room_id}",
+  "PUT /chat/rooms/{room_id}/messages/{message_id}",
+  "PATCH /chat/rooms/{room_id}/messages/{message_id}",
+  "POST /chat/avatar-changes",
+];
 
 /// A response's status and JSON body.
 async fn read(answer: Response) -> (StatusCode, Value) {
@@ -76,10 +82,16 @@ async fn every_route_of_the_table_stands_once() {
   let handovers = front.handovers();
 
   for name in HANDOVERS {
-    let Some((_, path)) = name.split_once(" ") else {
+    let Some((method, path)) = name.split_once(" ") else {
       panic!("{name} names no path");
     };
-    let (status, body) = post(&handovers, path, json!({})).await;
+    let path = path.replace("{room_id}", "7").replace("{message_id}", "21");
+    let (status, body) = match method {
+      "GET" => get(&handovers, &path).await,
+      "PUT" => put(&handovers, &path, json!({})).await,
+      "PATCH" => crate::common::queue::patch(&handovers, &path, json!({})).await,
+      _ => post(&handovers, &path, json!({})).await,
+    };
 
     assert_ne!(refused(&body), "no-route", "{name} answers the no-route refusal: {status} {body}");
   }
@@ -134,7 +146,7 @@ async fn a_route_whose_needs_are_not_met_names_what_is_missing() {
   assert_eq!(
     post(&front, "/talks", body).await,
     (
-      StatusCode::CONFLICT,
+      StatusCode::SERVICE_UNAVAILABLE,
       json!({ "code": "not-ready", "error": "the chat agent's conversations are not standing." }),
     ),
   );

@@ -92,7 +92,7 @@ pub async fn files(State(served): State<Served>, Path((chat, message)): Path<(i6
     })
     .collect();
 
-  answered(json!({ "files": listed }))
+  answered(json!({ "items": listed, "more": false }))
 }
 
 /// The bytes of the file at a place among a message's files.

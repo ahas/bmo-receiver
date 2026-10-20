@@ -6,7 +6,7 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use bmo_chat_client::{GatheredOutcome, MessageFile};
+use bmo_chat_client::{GatheredPatch, MessageFile};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Room};
 use image::{ImageFormat, Rgb, RgbImage, Rgba, RgbaImage};
@@ -33,6 +33,7 @@ fn file(id: &str, name: &str, mime: &str, bytes: Vec<u8>) -> MessageFile {
     name: name.into(),
     mime: mime.into(),
     bytes,
+    kind: None,
   }
 }
 
@@ -174,9 +175,7 @@ async fn the_same_file_handed_over_twice_is_kept_once() {
 
   handed(&standing, 5, &[file("1", "notes.txt", "text/plain", b"first".to_vec())]).await;
 
-  let again = GatheredOutcome::Kept {
-    files: vec![file("1", "notes.txt", "text/plain", b"second".to_vec())],
-  };
+  let again = GatheredPatch::kept(vec![file("1", "notes.txt", "text/plain", b"second".to_vec())]);
 
   standing.receiver.gathered(ROOM, 5, "road-a", &again).await.unwrap();
 
@@ -196,9 +195,7 @@ async fn two_files_of_one_name_in_a_message_are_two_files_filed_apart() {
 
   handed(&standing, 7, &[file("a", "notes.txt", "text/plain", b"first".to_vec())]).await;
 
-  let other = GatheredOutcome::Kept {
-    files: vec![file("b", "notes.txt", "text/plain", b"second".to_vec())],
-  };
+  let other = GatheredPatch::kept(vec![file("b", "notes.txt", "text/plain", b"second".to_vec())]);
 
   standing.receiver.gathered(ROOM, 7, "road-a", &other).await.unwrap();
 
@@ -260,9 +257,8 @@ async fn a_file_past_the_cap_keeps_its_row_without_the_file_until_a_later_hand_o
   assert!(!data.path().join(format!("collected/{ROOM}/6-big.bin")).exists());
 
   // The same file handed over again within the cap fills the row that was left.
-  let smaller = GatheredOutcome::Kept {
-    files: vec![file("1", "big.bin", "application/octet-stream", b"fits".to_vec())],
-  };
+  let smaller =
+    GatheredPatch::kept(vec![file("1", "big.bin", "application/octet-stream", b"fits".to_vec())]);
 
   standing.receiver.gathered(ROOM, 6, "road-a", &smaller).await.unwrap();
 

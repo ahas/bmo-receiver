@@ -1,7 +1,7 @@
-//! What a chat service hands over beside a message as its context's `metadata` (`docs/boundary-api.md`, 「Reading a
-//! room」): kept as it arrived by each hand-over that carries a message — a message, one carrying a file, an edit —
-//! replaced by an edit that carries its own and left by one that carries none, kept for no message the record does
-//! not hold, and read back unread beside the message's page.
+//! What a chat service hands over beside a message as its context's `metadata` (`docs/api.md`, 「Messages」): kept
+//! as it arrived by each hand-over that carries a message — a message, one carrying a file, an edit — replaced by
+//! an edit that carries its own and left by one that carries none, kept for no message the record does not hold,
+//! and read back unread beside the message.
 
 use std::sync::Arc;
 
@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use serde_json::{Value, json};
 
 use crate::common::Scratch;
-use crate::common::queue::{Front, get, post, stood_on};
+use crate::common::queue::{Front, get, put, stood_on};
 use crate::common::units::{OWNER, StandInChat};
 
 const ROOM: i64 = -811;
@@ -23,20 +23,17 @@ fn payload(words: &str) -> Value {
   })
 }
 
-fn handover(message: i64, words: &str, metadata: Option<Value>) -> Value {
+fn handover(_message: i64, words: &str, metadata: Option<Value>, origin: &str) -> Value {
   let mut handed = json!({
-    "message": {
-      "chatId": ROOM,
-      "messageId": message,
-      "senderId": OWNER,
-      "senderName": "someone",
-      "sentAt": 1,
-      "text": words,
-      "replyToMessageId": null,
-      "via": "road-a",
-      "album": null,
-      "mode": "bot-account",
-    },
+    "origin": origin,
+    "senderId": OWNER,
+    "senderName": "someone",
+    "sentAt": 1_000,
+    "text": words,
+    "replyToMessageId": null,
+    "via": "road-a",
+    "album": null,
+    "mode": "bot-account",
   });
 
   if let Some(metadata) = metadata {
@@ -55,8 +52,12 @@ async fn bench() -> (Scratch, Front, Front) {
   (scratch, handovers, console)
 }
 
+fn path(message: i64) -> String {
+  format!("/chat/rooms/{ROOM}/messages/{message}")
+}
+
 async fn read_back(console: &Front, room: i64, message: i64) -> Value {
-  let (status, answer) = get(console, &format!("/console/rooms/{room}/messages/{message}/metadata")).await;
+  let (status, answer) = get(console, &format!("/rooms/{room}/messages/{message}/metadata")).await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
   answer["metadata"].clone()
@@ -67,14 +68,17 @@ async fn a_message_and_one_carrying_a_file_keep_what_arrived_beside_them() {
   let (scratch, handovers, console) = bench().await;
 
   assert_eq!(
-    post(&handovers, "/message", handover(1, "said", Some(payload("said")))).await.0,
-    StatusCode::OK
+    put(&handovers, &path(1), handover(1, "said", Some(payload("said")), "live")).await.0,
+    StatusCode::CREATED
   );
+  let mut carried = handover(2, "a file", Some(payload("a file")), "live");
+
+  carried["files"] = json!([{ "id": "1", "name": "a.txt", "mime": "text/plain", "bytes": "aGk=" }]);
+  assert_eq!(put(&handovers, &path(2), carried).await.0, StatusCode::CREATED);
   assert_eq!(
-    post(&handovers, "/attachment", handover(2, "a file", Some(payload("a file")))).await.0,
-    StatusCode::OK,
+    put(&handovers, &path(3), handover(3, "plain", None, "live")).await.0,
+    StatusCode::CREATED
   );
-  assert_eq!(post(&handovers, "/message", handover(3, "plain", None)).await.0, StatusCode::OK);
 
   assert_eq!(
     scratch
@@ -94,18 +98,21 @@ async fn an_edit_replaces_what_was_kept_and_one_carrying_none_leaves_it() {
   let (_scratch, handovers, console) = bench().await;
 
   assert_eq!(
-    post(&handovers, "/message", handover(1, "said", Some(payload("said")))).await.0,
-    StatusCode::OK
+    put(&handovers, &path(1), handover(1, "said", Some(payload("said")), "live")).await.0,
+    StatusCode::CREATED
   );
   assert_eq!(
-    post(&handovers, "/edited", handover(1, "said again", Some(payload("said again"))))
+    put(&handovers, &path(1), handover(1, "said again", Some(payload("said again")), "edit"))
       .await
       .0,
     StatusCode::OK,
   );
   assert_eq!(read_back(&console, ROOM, 1).await, payload("said again"));
 
-  assert_eq!(post(&handovers, "/edited", handover(1, "said once more", None)).await.0, StatusCode::OK);
+  assert_eq!(
+    put(&handovers, &path(1), handover(1, "said once more", None, "edit")).await.0,
+    StatusCode::OK
+  );
   assert_eq!(read_back(&console, ROOM, 1).await, payload("said again"));
 }
 
@@ -114,7 +121,7 @@ async fn a_message_the_record_does_not_hold_keeps_nothing() {
   let (scratch, handovers, console) = bench().await;
 
   assert_eq!(
-    post(&handovers, "/edited", handover(5, "never said", Some(payload("never said"))))
+    put(&handovers, &path(5), handover(5, "never said", Some(payload("never said")), "edit"))
       .await
       .0,
     StatusCode::OK,

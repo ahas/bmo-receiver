@@ -4,7 +4,11 @@
 //! its place are the agency's, and go through it; its gate options are the gate's, copied from the chat agent's
 //! as it stands.
 
-use axum::{body::Bytes, extract::State, http::StatusCode};
+use axum::{
+  body::Bytes,
+  extract::{Path, RawQuery, State},
+  http::StatusCode,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -37,8 +41,9 @@ pub struct Added {
   room: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct Removed {
+  #[serde(default)]
   name: String,
   #[serde(default)]
   by: Option<String>,
@@ -62,7 +67,7 @@ fn refused_field(refusal: FieldRefusal, provider: &str, worker: &str, agent: &st
     }),
     field => refused(
       StatusCode::BAD_GATEWAY,
-      "unit-failed",
+      "upstream-failed",
       &format!("The agency refused the field {field}: {}", refusal.error),
     ),
   }
@@ -93,7 +98,7 @@ async fn listed(receiver: &Receiver) -> Result<Vec<Value>, Refusal> {
     shown.push(json!({
       "name": agent.name,
       "label": agent.label,
-      "chatId": room_of(receiver.db(), &agent.name).await.ok().flatten(),
+      "id": room_of(receiver.db(), &agent.name).await.ok().flatten(),
     }));
   }
 
@@ -246,14 +251,16 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   });
 
   answered(json!({
-    "companions": listed(&receiver).await.unwrap_or_default(),
-    "room": { "chatId": chat_id, "takenBack": taken_back, "said": said },
+    "items": listed(&receiver).await.unwrap_or_default(),
+    "more": false,
+    "room": { "id": chat_id, "takenBack": taken_back, "said": said },
   }))
 }
 
 /// A companion the console added taken out, answered with every companion as it then stands.
-pub async fn remove(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<Removed>(&body)?;
+pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw: RawQuery) -> Answered {
+  let mut asked = super::query::<Removed>(raw)?;
+  asked.name = name;
   let receiver: Receiver = (*served.receiver).clone();
 
   if asked.name.trim().is_empty() {
@@ -342,7 +349,8 @@ pub async fn remove(State(served): State<Served>, body: Bytes) -> Answered {
   .map_err(store)?;
 
   answered(json!({
-    "companions": listed(&receiver).await.unwrap_or_default(),
+    "items": listed(&receiver).await.unwrap_or_default(),
+    "more": false,
     "said": Value::Null,
   }))
 }

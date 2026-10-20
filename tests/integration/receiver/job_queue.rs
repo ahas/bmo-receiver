@@ -76,7 +76,7 @@ async fn an_order_queued_for_a_room_writes_its_row_and_is_read_back_as_pending()
     &front,
     "/instructions",
     json!({
-      "agent": AGENT, "chat": 7, "said": { "order": "check the queue and say nothing." },
+      "agentName": AGENT, "room": 7, "said": { "order": "check the queue and say nothing." },
       "sort": "job", "summary": "the queue standing",
     }),
   )
@@ -87,7 +87,7 @@ async fn an_order_queued_for_a_room_writes_its_row_and_is_read_back_as_pending()
 
   assert_eq!(
     get(&front, &format!("/instructions/{id}")).await,
-    (StatusCode::OK, json!({ "state": "pending" })),
+    (StatusCode::OK, json!({ "id": id, "state": "pending" })),
   );
   assert_eq!(
     rows(
@@ -115,14 +115,14 @@ async fn an_instruction_withdrawn_before_a_took_it_leaves_nothing_and_a_handed_o
   let (_, queued) = post(
     &front,
     "/instructions",
-    json!({ "chat": 7, "said": { "order": "an order for the room." }, "sort": "job" }),
+    json!({ "room": 7, "said": { "order": "an order for the room." }, "sort": "job" }),
   )
   .await;
   let id = queued["id"].as_i64().unwrap();
 
   assert_eq!(
     remove(&front, &format!("/instructions/{id}")).await,
-    (StatusCode::OK, json!({ "withdrawn": true }))
+    (StatusCode::NO_CONTENT, json!({}))
   );
   assert_eq!(
     rows(&scratch, r#"SELECT COUNT(*) FROM "instructions" WHERE "id" = $1"#, vec![id.into()]).await,
@@ -133,7 +133,7 @@ async fn an_instruction_withdrawn_before_a_took_it_leaves_nothing_and_a_handed_o
   let (_, queued) = post(
     &front,
     "/instructions",
-    json!({ "chat": 7, "said": { "order": "an order a turn took." }, "sort": "job" }),
+    json!({ "room": 7, "said": { "order": "an order a turn took." }, "sort": "job" }),
   )
   .await;
   let handed = queued["id"].as_i64().unwrap();
@@ -144,11 +144,11 @@ async fn an_instruction_withdrawn_before_a_took_it_leaves_nothing_and_a_handed_o
 
   assert_eq!(
     remove(&front, &format!("/instructions/{handed}")).await,
-    (StatusCode::OK, json!({ "withdrawn": false })),
+    (StatusCode::NO_CONTENT, json!({})),
   );
   assert_eq!(
     get(&front, &format!("/instructions/{handed}")).await,
-    (StatusCode::OK, json!({ "state": "handed" })),
+    (StatusCode::OK, json!({ "id": handed, "state": "handed" })),
   );
 }
 
@@ -162,7 +162,7 @@ async fn a_fact_queued_for_a_room_is_framed_for_the_rooms_voice_to_say() {
   let (_, queued) = post(
     &front,
     "/instructions",
-    json!({ "chat": 7, "said": { "fact": { "code": "job-ended", "item": 12 } }, "sort": "job" }),
+    json!({ "room": 7, "said": { "fact": { "code": "job-ended", "item": 12 } }, "sort": "job" }),
   )
   .await;
   let id = queued["id"].as_i64().unwrap();
@@ -202,7 +202,7 @@ async fn a_runs_result_queued_for_its_room_keeps_the_agent_that_asked_its_road_a
     &front,
     "/instructions",
     json!({
-      "agent": "agent-b", "chat": 7, "said": { "order": "the search came back." },
+      "agentName": "agent-b", "room": 7, "said": { "order": "the search came back." },
       "sort": "search", "via": "road-a", "run": 31,
     }),
   )
@@ -237,7 +237,7 @@ async fn run_ending(front: &Front, asker: &str) -> i64 {
     front,
     "/instructions",
     json!({
-      "agent": asker, "chat": 7, "said": { "order": "the search came back." },
+      "agentName": asker, "room": 7, "said": { "order": "the search came back." },
       "sort": "search", "via": "road-a", "run": 31,
     }),
   )
@@ -297,7 +297,7 @@ async fn an_instruction_for_a_room_whose_registration_is_gone_goes_to_the_owners
     &front,
     "/instructions",
     json!({
-      "agent": "agent-b", "chat": 9, "said": { "order": "the search came back." },
+      "agentName": "agent-b", "room": 9, "said": { "order": "the search came back." },
       "sort": "search", "kind": "search-ended", "via": "road-a", "run": 31,
     }),
   )
@@ -329,7 +329,7 @@ async fn an_instruction_for_a_room_whose_registration_is_gone_goes_to_the_owners
   );
   assert_eq!(
     get(&front, &format!("/instructions/{}", own["id"].as_i64().unwrap())).await,
-    (StatusCode::OK, json!({ "state": "pending" })),
+    (StatusCode::OK, json!({ "id": own["id"].as_i64().unwrap(), "state": "pending" })),
   );
 }
 
@@ -349,7 +349,7 @@ async fn a_notice_voiced_in_a_room_is_queued_for_the_rooms_voice_and_replaces_on
     json!({
       "fact": { "code": "rest-lifted" },
       "intent": "tell the chat you are answering again.",
-      "follow_up": "nothing follows.",
+      "followUp": "nothing follows.",
       "optional": false,
       "kind": "rest-lifted",
     }),
@@ -400,15 +400,22 @@ async fn a_quiet_instruction_is_queued_under_the_sort_its_kind_names_and_wakes_t
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
 
+  registered(&scratch, 7).await;
+
   for kind in ["watch", "reminder"].to_vec() {
     let (made, _) = post(
       &front,
-      "/instructions/quiet",
-      json!({ "agent": AGENT, "chatId": 7, "text": "the memo the brain wrote.", "kind": kind }),
+      "/instructions",
+      json!({
+        "agentName": AGENT,
+        "room": 7,
+        "said": { "order": "the memo the brain wrote." },
+        "sort": kind,
+      }),
     )
     .await;
 
-    assert_eq!(made, StatusCode::OK);
+    assert_eq!(made, StatusCode::CREATED);
     assert_eq!(
       rows(
         &scratch,
@@ -420,8 +427,6 @@ async fn a_quiet_instruction_is_queued_under_the_sort_its_kind_names_and_wakes_t
     );
   }
 
-  // Read as a GET, the path names no instruction: the state route takes a number, and `quiet` is none.
-  assert_eq!(get(&front, "/instructions/quiet").await.0, StatusCode::NOT_FOUND);
   assert_eq!(front.kicked.times(), 2);
 }
 
@@ -431,12 +436,12 @@ async fn an_owner_notice_is_queued_for_the_chat_agent_in_the_owners_private_chat
   let front = stood(&scratch, OWNER).await;
   let (made, _) = post(
     &front,
-    "/owner/notice",
+    "/owner/notices",
     json!({ "code": "rule-candidate", "agent": "someone", "candidate": "a rule" }),
   )
   .await;
 
-  assert_eq!(made, StatusCode::OK);
+  assert_eq!(made, StatusCode::CREATED);
   assert_eq!(
     rows(
       &scratch,

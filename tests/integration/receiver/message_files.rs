@@ -89,11 +89,11 @@ fn header_of(answer: &Response, name: header::HeaderName) -> Option<String> {
 #[tokio::test]
 async fn a_messages_files_are_listed_in_a_pages_order_each_by_its_place() {
   let (_scratch, front) = bench().await;
-  let (status, listed) = get(&front, &format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files")).await;
+  let (status, listed) = get(&front, &format!("/rooms/{ROOM}/messages/{MESSAGE}/files")).await;
 
   assert_eq!(status, StatusCode::OK, "{listed}");
   assert_eq!(
-    listed["files"],
+    listed["items"],
     json!([
       { "place": 0, "kind": "voice", "name": "voice.ogg", "type": "audio/ogg", "size": 10, "kept": true },
       { "place": 1, "kind": "document", "name": "report final.pdf", "type": "application/pdf", "size": 4, "kept": true },
@@ -104,7 +104,7 @@ async fn a_messages_files_are_listed_in_a_pages_order_each_by_its_place() {
     ]),
   );
 
-  let (status, refused) = get(&front, &format!("/console/rooms/{ROOM}/messages/99/files")).await;
+  let (status, refused) = get(&front, &format!("/rooms/{ROOM}/messages/99/files")).await;
 
   assert_eq!((status, refused["code"].as_str()), (StatusCode::NOT_FOUND, Some("not-found")));
 }
@@ -112,7 +112,7 @@ async fn a_messages_files_are_listed_in_a_pages_order_each_by_its_place() {
 #[tokio::test]
 async fn a_file_is_served_whole_by_its_place_and_saved_under_its_own_name_when_downloaded() {
   let (_scratch, front) = bench().await;
-  let answer = fetched(&front, &format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/0"), &[]).await;
+  let answer = fetched(&front, &format!("/rooms/{ROOM}/messages/{MESSAGE}/files/0"), &[]).await;
 
   assert_eq!(answer.status(), StatusCode::OK);
   assert_eq!(header_of(&answer, header::CONTENT_TYPE).as_deref(), Some("audio/ogg"));
@@ -122,7 +122,7 @@ async fn a_file_is_served_whole_by_its_place_and_saved_under_its_own_name_when_d
   assert_eq!(bytes_of(answer).await, b"0123456789");
 
   let saved =
-    fetched(&front, &format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/1?download=true"), &[]).await;
+    fetched(&front, &format!("/rooms/{ROOM}/messages/{MESSAGE}/files/1?download=true"), &[]).await;
 
   assert_eq!(saved.status(), StatusCode::OK);
   assert_eq!(
@@ -135,7 +135,7 @@ async fn a_file_is_served_whole_by_its_place_and_saved_under_its_own_name_when_d
 #[tokio::test]
 async fn a_range_is_answered_partial_and_one_outside_the_file_is_refused() {
   let (_scratch, front) = bench().await;
-  let path = format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/0");
+  let path = format!("/rooms/{ROOM}/messages/{MESSAGE}/files/0");
   let part = fetched(&front, &path, &[("range", "bytes=2-5")]).await;
 
   assert_eq!(part.status(), StatusCode::PARTIAL_CONTENT);
@@ -154,12 +154,12 @@ async fn nothing_held_a_place_past_the_files_and_a_path_outside_the_rooms_folder
   // Not kept, kept for another room, a link leading out of the store, gone from the disk, past the files, and a
   // message the record does not hold.
   for path in [
-    format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/2"),
-    format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/3"),
-    format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/4"),
-    format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/5"),
-    format!("/console/rooms/{ROOM}/messages/{MESSAGE}/files/6"),
-    format!("/console/rooms/{ROOM}/messages/99/files/0"),
+    format!("/rooms/{ROOM}/messages/{MESSAGE}/files/2"),
+    format!("/rooms/{ROOM}/messages/{MESSAGE}/files/3"),
+    format!("/rooms/{ROOM}/messages/{MESSAGE}/files/4"),
+    format!("/rooms/{ROOM}/messages/{MESSAGE}/files/5"),
+    format!("/rooms/{ROOM}/messages/{MESSAGE}/files/6"),
+    format!("/rooms/{ROOM}/messages/99/files/0"),
   ] {
     let (status, refused) = get(&front, &path).await;
 
@@ -180,7 +180,7 @@ async fn a_messages_picture_is_served_from_the_rooms_own_folder_alone() {
   scratch.message(ROOM, 4, OWNER).await;
   scratch.run(set, vec![theirs.into(), ROOM.into(), 4_i64.into()]).await;
 
-  let answer = fetched(&front, &format!("/console/rooms/{ROOM}/messages/{MESSAGE}/picture"), &[]).await;
+  let answer = fetched(&front, &format!("/rooms/{ROOM}/messages/{MESSAGE}/picture"), &[]).await;
 
   assert_eq!(answer.status(), StatusCode::OK);
   assert_eq!(header_of(&answer, header::CONTENT_TYPE).as_deref(), Some("image/jpeg"));
@@ -190,7 +190,7 @@ async fn a_messages_picture_is_served_from_the_rooms_own_folder_alone() {
 
   // A picture kept for another room, a message that stored none, and one the record does not hold.
   for message in [4, 5, 99] {
-    let (status, refused) = get(&front, &format!("/console/rooms/{ROOM}/messages/{message}/picture")).await;
+    let (status, refused) = get(&front, &format!("/rooms/{ROOM}/messages/{message}/picture")).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND, "{message}: {refused}");
   }

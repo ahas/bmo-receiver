@@ -3,10 +3,11 @@
 //! of the chat on its road — deleted, or unpinned where the road will not delete it — and the numbers are forgotten
 //! once each is gone. A number whose take-down failed any other way is kept for the next look.
 
-use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSendResult};
+use bmo_chat_client::{ChatSend, ChatSendRequest};
 use serde_json::Value;
 
 use super::Receiver;
+use super::speech::NotSaid;
 use crate::store::settings;
 
 // The settings the numbers stand under: every board's, oldest first, and the single number kept before there was a
@@ -67,8 +68,8 @@ async fn taken_out(receiver: &Receiver, road: &str, chat_id: i64, message_id: i6
   let delete = ChatSendRequest::new(chat_id, ChatSend::Delete { message_id });
 
   match speech.carried(road, &delete).await {
-    Ok(ChatSendResult::Refused { .. }) => {}
-    Ok(ChatSendResult::Sent { .. }) => return true,
+    Ok(_) => return true,
+    Err(NotSaid::Refused { .. }) => {}
     Err(why) => {
       eprintln!("bmo-receiver: the board {message_id} left in the owner's chat was not deleted: {why}");
       return false;
@@ -85,16 +86,13 @@ async fn taken_out(receiver: &Receiver, road: &str, chat_id: i64, message_id: i6
   );
 
   match speech.carried(road, &unpin).await {
-    Ok(ChatSendResult::Refused {
-      refusal,
-      gone: false,
-    }) => {
+    Ok(_) => true,
+    Err(NotSaid::Refused { refusal, .. }) => {
       eprintln!(
         "bmo-receiver: the board {message_id} left in the owner's chat was neither deleted nor unpinned: {refusal}"
       );
       true
     }
-    Ok(_) => true,
     Err(why) => {
       eprintln!("bmo-receiver: the board {message_id} left in the owner's chat was not unpinned: {why}");
       false

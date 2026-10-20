@@ -1,11 +1,15 @@
 //! The consult tool's routes (docs/consult.md, 「The consult tool」): a line said in the consult room under an
 //! agent's own name, and the block an agent is shown of the other agents' work.
 
-use axum::{body::Bytes, extract::State, http::StatusCode};
+use axum::{
+  body::Bytes,
+  extract::{RawQuery, State},
+  http::StatusCode,
+};
 use serde::Deserialize;
 use serde_json::json;
 
-use super::{Answered, Refusal, Served, answered, code, read, refused, store, unit};
+use super::{Answered, Refusal, Served, answered, code, query, read, refused, store, unit};
 use crate::companion::consult::consult_block;
 use crate::companion::consult_say::say;
 use crate::now_ms;
@@ -16,10 +20,12 @@ use crate::receiver::{NotReceived, Receiver};
 struct SayBody {
   agent: String,
   text: String,
+  #[serde(default)]
   reply_to: Option<i64>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct BlockBody {
   agent: String,
 }
@@ -32,7 +38,7 @@ fn failed(why: NotReceived) -> Refusal {
     NotReceived::Said(why) => {
       let sentence = why.to_string();
 
-      refused(StatusCode::BAD_GATEWAY, "unit-failed", &sentence)
+      refused(StatusCode::BAD_GATEWAY, "upstream-failed", &sentence)
     }
   }
 }
@@ -43,9 +49,8 @@ pub async fn consult_say(State(served): State<Served>, body: Bytes) -> Answered 
 
   match say(receiver, asked.agent.trim(), &asked.text, asked.reply_to).await {
     Ok(Ok(said)) => answered(json!({
-      "ok": true,
-      "chatId": said.chat_id,
-      "messageId": said.message_id,
+      "room": said.chat_id,
+      "id": said.message_id,
       "lines": said.lines,
     })),
     Ok(Err(refusal)) => Err(code(&refusal)),
@@ -53,11 +58,11 @@ pub async fn consult_say(State(served): State<Served>, body: Bytes) -> Answered 
   }
 }
 
-pub async fn block(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<BlockBody>(&body)?;
+pub async fn block(State(served): State<Served>, raw: RawQuery) -> Answered {
+  let asked = query::<BlockBody>(raw)?;
   let block = consult_block(&served.receiver, asked.agent.trim(), now_ms() / 1000)
     .await
     .map_err(store)?;
 
-  answered(json!({ "ok": true, "block": block }))
+  answered(json!({ "block": block }))
 }

@@ -1,12 +1,11 @@
-//! The console's rooms (`docs/boundary-api.md`, 「For the web unit's console」): the rooms the owner stands and the
-//! order the owner pinned them in, one room's name, a message an agent filed, the room's line walked by a cursor the reader
-//! holds, and how long the chat agent's window there has left.
-//! A page holds only what a person said themselves; the judgements beside a page are the gate's, read there, and
-//! the owner's private chat is read by `GET /owner`.
+//! A room's line, its pictures, its figures' window and the pinned order (`docs/api.md`, 「Rooms」 and
+//! 「Messages」). A room's line is walked by a cursor the reader holds and by when each message was sent, never by
+//! its number; a page holds only what a person said unless an agent's marks are asked for; and the owner's private
+//! chat is read as any room is.
 
 use axum::{
   body::Bytes,
-  extract::{Path, Query, State},
+  extract::{Path, RawQuery, State},
   http::StatusCode,
 };
 use sea_orm::DatabaseConnection;
@@ -14,16 +13,16 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::message_files::{inside, type_of};
-use super::{Answered, Refusal, Served, answered, read, refused, store};
+use super::{Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::data_root::room_path;
 use crate::receiver::reads::PictureWalk;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, metadata, pinned, reads};
 use crate::{Fault, now_ms};
 
-// A page of a room, and the largest one the console asks for.
-const PAGE_SIZE: usize = 100;
-const MAX_PAGE: usize = 500;
+// A page of a room, and the largest one a caller asks for.
+const PAGE_SIZE: i64 = 100;
+const MAX_PAGE: i64 = 500;
 
 // How far a day is looked over for its first line.
 const DAY_LOOK: i64 = 50;
@@ -32,27 +31,39 @@ const DAY_LOOK: i64 = 50;
 // nothing is removed — the record keeps the row.
 const OPENING: &str = "/start";
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct Paged {
+pub struct MessageQuery {
   #[serde(default)]
   before: Option<i64>,
 
   #[serde(default)]
-  limit: i64,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AfterCursor {
-  after: i64,
+  after: Option<i64>,
 
   #[serde(default)]
-  limit: i64,
+  limit: Option<i64>,
+
+  #[serde(default)]
+  agent_name: Option<String>,
+
+  /// A moment in epoch milliseconds: only messages sent at or after it.
+  #[serde(default)]
+  since: Option<i64>,
+
+  /// The messages an agent has marked as read, after `after`.
+  #[serde(default)]
+  marked: bool,
+
+  /// The messages an agent has not marked yet, oldest first.
+  #[serde(default)]
+  unread: bool,
+
+  /// `person`, `agent` or `any`: whose messages the page holds.
+  #[serde(default)]
+  by: Option<String>,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct DayStart {
   from: i64,
 }
@@ -69,44 +80,34 @@ pub struct PictureCursor {
   after: Option<i64>,
 
   #[serde(default)]
-  limit: i64,
+  limit: Option<i64>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Pinning {
-  rooms: Vec<i64>,
+  room_ids: Vec<i64>,
 }
 
 #[derive(Deserialize)]
 pub struct PinnedRoom {
-  chat: i64,
+  room: i64,
 }
 
 fn failed(why: NotReceived) -> Refusal {
-  refused(StatusCode::INTERNAL_SERVER_ERROR, "failed", &why.to_string())
-}
-
-fn absent(chat: i64, message: i64) -> Refusal {
-  refused(
-    StatusCode::NOT_FOUND,
-    "not-found",
-    &format!("The receiver keeps no message {message} in room {chat} that an agent filed."),
-  )
+  refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string())
 }
 
 /// How many messages a page asks for, one more than it shows so the reader learns the gap was wider.
-fn window(limit: i64) -> usize {
-  let asked = if limit <= 0 {
-    PAGE_SIZE
-  } else {
-    usize::min(usize::try_from(limit).unwrap_or(MAX_PAGE), MAX_PAGE)
-  };
-
-  asked + 1
+fn window(limit: Option<i64>) -> i64 {
+  match limit {
+    None | Some(0) => PAGE_SIZE + 1,
+    Some(asked) => i64::min(asked, MAX_PAGE) + 1,
+  }
 }
 
 /// Every room the record shows, the pinned ones first in the owner's order, each with its name, how many
-/// messages it holds, when the last was sent, and the companions among those who answer there.
+/// messages it holds, when the last was sent, and the people and companions it holds.
 pub async fn rooms(State(served): State<Served>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
   let db = receiver.db();
@@ -114,10 +115,10 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
   let pinned = pinned::pinned(db).await.map_err(store)?;
   let first: Vec<reads::RoomLine> = pinned
     .iter()
-    .flat_map(|chat| {
+    .flat_map(|room| {
       shown
         .iter()
-        .filter(|room| room.chat_id == *chat)
+        .filter(|shown| shown.chat_id == *room)
         .cloned()
         .collect::<Vec<reads::RoomLine>>()
     })
@@ -128,7 +129,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     .chain(shown.iter().filter(|room| !standing.contains(&room.chat_id)))
     .cloned()
     .collect();
-  let mut lines: Vec<Value> = vec![];
+  let mut items: Vec<Value> = vec![];
 
   for room in listed {
     let answerers = agents::named_designated(&receiver, room.chat_id).await.map_err(failed)?;
@@ -137,82 +138,144 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       .filter(|agent| agent.companion())
       .map(|agent| agent.name.clone())
       .collect();
-    let mut line = json!({
-      "chatId": room.chat_id,
+    let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
+    let owner_room = receiver.roads().is_owner_room(room.chat_id).await;
+    let registered = crate::receiver::rows::is_registered(db, room.chat_id).await.map_err(store)?;
+    let work = crate::receiver::rows::kept_work_room(db, room.chat_id, receiver.owner_id())
+      .await
+      .map_err(store)?;
+    items.push(json!({
+      "id": room.chat_id,
       "title": room.title,
       "messageCount": room.message_count,
-      "lastMessageAt": room.last_message_at,
+      "lastMessageAt": room.last_message_at.map(|at| at * 1_000),
       "pinned": pinned.contains(&room.chat_id),
-    });
-
-    if !companions.is_empty() {
-      line["companions"] = json!(companions);
-    }
-    lines.push(line);
+      "senders": senders,
+      "companions": companions,
+      "ownerRoom": owner_room,
+      "registered": registered,
+      "workRoom": work.chat_id,
+    }));
   }
 
-  answered(json!({ "rooms": lines }))
+  answered(json!({ "items": items, "more": false }))
 }
 
 /// A room's name, as the room list gives it.
-pub async fn title(State(served): State<Served>, Path(chat): Path<i64>) -> Answered {
+pub async fn title(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
 
-  reads::title(receiver.db(), chat)
+  reads::title(receiver.db(), room)
     .await
     .map(|title| json!({ "title": title }))
     .map_err(store)
     .and_then(answered)
 }
 
-/// A message an agent filed in a room; nothing found for a person's or one the record does not hold.
-pub async fn agent_message(
-  State(served): State<Served>,
-  Path((chat, message)): Path<(i64, i64)>,
-) -> Answered {
+/// One room's line: the messages a person said, a stretch an agent has read or has not, walked by `before` or
+/// `after` and answered as a page.
+pub async fn messages(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<MessageQuery>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let Some(kept) = reads::message_of(receiver.db(), chat, message).await.map_err(store)? else {
-    return Err(absent(chat, message));
-  };
+  let bound = window(asked.limit);
 
-  if !filed_by_agent(&receiver, &kept).await {
-    return Err(absent(chat, message));
-  };
+  match (&asked.agent_name, asked.unread, asked.marked) {
+    (Some(agent), true, _) => {
+      let found = reads::unread(receiver.db(), agent, room, asked.since.map(|at| at / 1_000), bound)
+        .await
+        .map_err(store)?;
+      let more = i64::try_from(found.len()).unwrap_or(0) == bound;
+      let kept = found.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect();
 
-  let mut whole = kept;
-  whole.files = reads::files(receiver.db(), chat, message).await.map_err(store)?;
+      answered(json!({ "items": listed(kept), "more": more }))
+    }
+    (Some(agent), _, true) => {
+      let from = asked.after.unwrap_or(0);
+      let found = reads::read_messages(receiver.db(), agent, room, from, bound).await.map_err(store)?;
+      let more = i64::try_from(found.len()).unwrap_or(0) == bound;
+      let kept = found.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect();
 
-  answered(json!(whole))
+      answered(json!({ "items": listed(kept), "more": more }))
+    }
+    _ => {
+      let found = match (asked.before, asked.after) {
+        (Some(before), _) => reads::before(receiver.db(), room, before, bound).await,
+        (None, Some(after)) => reads::after(receiver.db(), room, after, bound).await,
+        (None, None) => reads::latest(receiver.db(), room, bound).await,
+      }
+      .map_err(store)?;
+      let more = i64::try_from(found.len()).unwrap_or(0) == bound;
+      let mut kept: Vec<reads::Page> = if asked.after.is_some() && asked.before.is_none() {
+        found.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect()
+      } else if more {
+        found.into_iter().skip(1).collect()
+      } else {
+        found
+      };
+      match asked.by.as_deref() {
+        Some("any") => {}
+        Some("agent") => {
+          let names = agent_names(&receiver).await;
+          kept.retain(|page| {
+            page.sender_name == receiver.deployment().sender_name || names.contains(&page.sender_name)
+          });
+        }
+        _ => {
+          let one_to_one = receiver.roads().room_facts(room).await.private_to.is_some();
+          kept.retain(|page| spoken_by_person(one_to_one, page));
+        }
+      }
+
+      pages(&receiver, room, kept)
+        .await
+        .map(|items| json!({ "items": items, "more": more }))
+        .map_err(store)
+        .and_then(answered)
+    }
+  }
 }
 
-/// One page of a room, oldest first, ending just before the cursor the reader holds.
-pub async fn page(State(served): State<Served>, Path(chat): Path<i64>, query: Query<Paged>) -> Answered {
-  let receiver: Receiver = (*served.receiver).clone();
-  let bound = window(query.limit);
-  let found = match query.before {
-    Some(before) => reads::before(receiver.db(), chat, before, i64::try_from(bound).unwrap_or(0)).await,
-    None => reads::latest(receiver.db(), chat, i64::try_from(bound).unwrap_or(0)).await,
-  }
-  .map_err(store)?;
-  let has_more = found.len() > bound - 1;
-  let kept = if has_more { found.into_iter().skip(1).collect() } else { found };
+// A list of messages an agent's marks answered, each in the one message shape.
+fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
+  messages
+    .into_iter()
+    .map(|message| {
+      json!({
+        "id": message.message_id,
+        "room": message.chat_id,
+        "senderId": message.sender_id,
+        "senderName": message.sender_name,
+        "sentAt": message.sent_at * 1_000,
+        "text": message.text,
+        "imagePath": Value::Null,
+        "replyToMessageId": message.reply_to_message_id,
+        "answerSeconds": Value::Null,
+        "round": Value::Null,
+        "album": Value::Null,
+        "via": Value::Null,
+        "files": [],
+      })
+    })
+    .collect()
+}
 
-  pages(&receiver, chat, kept)
+// Every agent the agency registers, by name, for a page asked by an agent.
+async fn agent_names(receiver: &Receiver) -> Vec<String> {
+  receiver
+    .units()
+    .agency
+    .agents()
     .await
-    .map(|pages| json!({ "messages": pages, "hasMore": has_more }))
-    .map_err(store)
-    .and_then(answered)
+    .map(|agents| agents.agents.iter().map(|agent| agent.name.clone()).collect())
+    .unwrap_or_default()
 }
 
 /// Where a day begins in a room: the first message a person said at or after a moment.
-pub async fn day_start(
-  State(served): State<Served>,
-  Path(chat): Path<i64>,
-  query: Query<DayStart>,
-) -> Answered {
+pub async fn day_start(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<DayStart>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let found = reads::from(receiver.db(), chat, query.from, DAY_LOOK).await.map_err(store)?;
-  let one_to_one = receiver.roads().room_facts(chat).await.private_to.is_some();
+  let found = reads::from(receiver.db(), room, asked.from / 1_000, DAY_LOOK).await.map_err(store)?;
+  let one_to_one = receiver.roads().room_facts(room).await.private_to.is_some();
   let begins = found
     .iter()
     .filter(|page| spoken_by_person(one_to_one, page))
@@ -223,47 +286,9 @@ pub async fn day_start(
   answered(json!({ "messageId": start }))
 }
 
-/// The messages of a room past a number the reader already holds, oldest first.
-pub async fn after(
-  State(served): State<Served>,
-  Path(chat): Path<i64>,
-  query: Query<AfterCursor>,
-) -> Answered {
-  let receiver: Receiver = (*served.receiver).clone();
-  let bound = window(query.limit);
-  let found = reads::after(receiver.db(), chat, query.after, i64::try_from(bound).unwrap_or(0))
-    .await
-    .map_err(store)?;
-  let has_more = found.len() > bound - 1;
-  let kept = if has_more { found.into_iter().take(bound - 1).collect() } else { found };
-
-  pages(&receiver, chat, kept)
-    .await
-    .map(|pages| json!({ "messages": pages, "hasMore": has_more }))
-    .map_err(store)
-    .and_then(answered)
-}
-
-/// The one message as a page of one.
-pub async fn one(State(served): State<Served>, Path((chat, message)): Path<(i64, i64)>) -> Answered {
-  let receiver: Receiver = (*served.receiver).clone();
-  let none: Vec<reads::Page> = vec![];
-  let Some(kept) = reads::message_of(receiver.db(), chat, message).await.map_err(store)? else {
-    return answered(json!({ "messages": none, "hasMore": false }));
-  };
-  let one_to_one = receiver.roads().room_facts(chat).await.private_to.is_some();
-  let kept_lines = if spoken_by_person(one_to_one, &kept) { vec![kept] } else { none };
-
-  pages(&receiver, chat, kept_lines)
-    .await
-    .map(|pages| json!({ "messages": pages, "hasMore": false }))
-    .map_err(store)
-    .and_then(answered)
-}
-
 /// What the chat service handed over beside a message as its `metadata`, as it arrived, or null.
-pub async fn metadata(State(served): State<Served>, Path((chat, message)): Path<(i64, i64)>) -> Answered {
-  metadata::kept(served.receiver.db(), chat, message)
+pub async fn metadata(State(served): State<Served>, Path((room, message)): Path<(i64, i64)>) -> Answered {
+  metadata::kept(served.receiver.db(), room, message)
     .await
     .map(|kept| json!({ "metadata": kept }))
     .map_err(store)
@@ -272,27 +297,22 @@ pub async fn metadata(State(served): State<Served>, Path((chat, message)): Path<
 
 /// A stretch of a room's pictures, oldest first, walked from a picture the reader holds, with how many of the
 /// room's pictures stand before it and how many the room holds.
-pub async fn pictures(
-  State(served): State<Served>,
-  Path(chat): Path<i64>,
-  query: Query<PictureCursor>,
-) -> Answered {
+pub async fn pictures(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<PictureCursor>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
   let db = receiver.db();
-  let bound = window(query.limit);
-  let walk = match (query.at, query.before, query.after) {
+  let bound = i64::min(asked.limit.unwrap_or(PAGE_SIZE), MAX_PAGE) + 1;
+  let walk = match (asked.at, asked.before, asked.after) {
     (Some(at), _, _) => PictureWalk::At(at),
     (None, Some(before), _) => PictureWalk::Before(before),
     (None, None, Some(after)) => PictureWalk::After(after),
     (None, None, None) => PictureWalk::Newest,
   };
-  let mut found = reads::pictures(db, chat, walk, i64::try_from(bound).unwrap_or(0))
-    .await
-    .map_err(store)?;
-  let has_more = found.len() == bound;
+  let mut found = reads::pictures(db, room, walk, bound).await.map_err(store)?;
+  let more = i64::try_from(found.len()).unwrap_or(0) == bound;
 
   // The extra row that says there is more is the one furthest from the cursor.
-  if has_more {
+  if more {
     if matches!(walk, PictureWalk::After(_)) {
       found.pop();
     } else {
@@ -300,14 +320,14 @@ pub async fn pictures(
     }
   }
 
-  let one_to_one = receiver.roads().room_facts(chat).await.private_to.is_some();
-  let folder = room_path(&receiver.data_root().images(), chat);
+  let one_to_one = receiver.roads().room_facts(room).await.private_to.is_some();
+  let folder = room_path(&receiver.data_root().images(), room);
   let shown: Vec<reads::Page> =
     found.into_iter().filter(|page| spoken_by_person(one_to_one, page)).collect();
-  let (before, total) = reads::pictures_counted(db, chat, shown.first().map(|page| page.message_id))
+  let (before, total) = reads::pictures_counted(db, room, shown.first().map(|page| page.message_id))
     .await
     .map_err(store)?;
-  let pictures: Vec<Value> = shown
+  let items: Vec<Value> = shown
     .iter()
     .map(|page| {
       let stored = page.image_path.as_deref().unwrap_or_default();
@@ -317,29 +337,29 @@ pub async fn pictures(
       );
 
       json!({
-        "messageId": page.message_id,
+        "id": page.message_id,
         "album": page.album,
         "senderName": page.sender_name,
-        "sentAt": page.sent_at,
+        "sentAt": page.sent_at * 1_000,
         "text": page.text,
         "file": file,
       })
     })
     .collect();
 
-  answered(json!({ "pictures": pictures, "hasMore": has_more, "before": before, "total": total }))
+  answered(json!({ "items": items, "more": more, "before": before, "total": total }))
 }
 
-/// How long the chat agent's window in a room has left, in seconds, and when it closes; a room that never opened
-/// one closes at no time.
-pub async fn room_window(State(served): State<Served>, Path(chat): Path<i64>) -> Answered {
+/// How long the chat agent's window in a room has left, in milliseconds, and when it closes, in epoch milliseconds;
+/// a room that never opened one closes at no time.
+pub async fn room_window(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let until = agents::window_until(receiver.db(), chat, &receiver.deployment().agent)
+  let until = agents::window_until(receiver.db(), room, &receiver.deployment().agent)
     .await
     .map_err(failed)?;
-  let closes_at = (until > 0).then_some(until);
+  let closes_at = (until > 0).then_some(until * 1_000);
 
-  answered(json!({ "openFor": i64::max(until - now_ms() / 1000, 0), "closesAt": closes_at }))
+  answered(json!({ "openForMs": i64::max(until - now_ms() / 1_000, 0) * 1_000, "closesAt": closes_at }))
 }
 
 /// The pinned order set whole, answered as it now stands.
@@ -347,13 +367,13 @@ pub async fn pin(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<Pinning>(&body)?;
   let db = served.receiver.db();
 
-  for room in &asked.rooms {
+  for room in &asked.room_ids {
     unheld(db, *room).await?;
   }
 
-  pinned::pin(db, &asked.rooms)
+  pinned::pin(db, &asked.room_ids)
     .await
-    .map(|rooms| json!({ "rooms": rooms }))
+    .map(|rooms| json!({ "roomIds": rooms }))
     .map_err(store)
     .and_then(answered)
 }
@@ -363,22 +383,20 @@ pub async fn pin_one(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<PinnedRoom>(&body)?;
   let db = served.receiver.db();
 
-  unheld(db, asked.chat).await?;
+  unheld(db, asked.room).await?;
 
-  pinned::add(db, asked.chat)
+  pinned::add(db, asked.room)
     .await
-    .map(|rooms| json!({ "rooms": rooms }))
+    .map(|rooms| json!({ "roomIds": rooms }))
     .map_err(store)
     .and_then(answered)
 }
 
 /// A room taken out of the pinned order, answered as the order now stands.
-pub async fn unpin(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<PinnedRoom>(&body)?;
-
-  pinned::remove(served.receiver.db(), asked.chat)
+pub async fn unpin(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
+  pinned::remove(served.receiver.db(), room)
     .await
-    .map(|rooms| json!({ "rooms": rooms }))
+    .map(|rooms| json!({ "roomIds": rooms }))
     .map_err(store)
     .and_then(answered)
 }
@@ -396,13 +414,40 @@ async fn unheld(db: &DatabaseConnection, room: i64) -> Result<(), Refusal> {
   ))
 }
 
-/// The page's messages with the files each carried kept beside it.
-async fn pages(receiver: &Receiver, chat: i64, kept: Vec<reads::Page>) -> Result<Vec<reads::Page>, Fault> {
-  let mut lines: Vec<reads::Page> = vec![];
+/// The page's messages with the files each carried kept beside it, in the one message shape.
+async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result<Vec<Value>, Fault> {
+  let mut lines: Vec<Value> = vec![];
 
   for mut page in kept {
-    page.files = reads::files(receiver.db(), chat, page.message_id).await?;
-    lines.push(page);
+    page.files = reads::files(receiver.db(), room, page.message_id).await?;
+    let files: Vec<Value> = page
+      .files
+      .iter()
+      .map(|file| {
+        json!({
+          "kind": file.kind,
+          "source": file.source,
+          "storedPath": file.stored_path,
+          "summary": file.summary,
+          "collectedAt": file.collected_at * 1_000,
+        })
+      })
+      .collect();
+    lines.push(json!({
+      "id": page.message_id,
+      "room": page.chat_id,
+      "senderId": page.sender_id,
+      "senderName": page.sender_name,
+      "sentAt": page.sent_at * 1_000,
+      "text": page.text,
+      "imagePath": page.image_path,
+      "replyToMessageId": page.reply_to_message_id,
+      "answerSeconds": page.answer_seconds,
+      "round": page.round,
+      "album": page.album,
+      "via": page.via,
+      "files": files,
+    }));
   }
 
   Ok(lines)
@@ -413,18 +458,4 @@ fn spoken_by_person(one_to_one: bool, page: &reads::Page) -> bool {
   let said = page.text.trim();
 
   !(one_to_one && (said == OPENING || said.starts_with(&format!("{OPENING} "))))
-}
-
-/// Whether an agent filed this message: its sender is one a road gave an agent, or it stands under the name the
-/// deployment files the chat agent's own words under.
-async fn filed_by_agent(receiver: &Receiver, page: &reads::Page) -> bool {
-  let listed = receiver.units().agency.agents().await.ok();
-  let names: Vec<String> = match listed {
-    Some(agents) => agents.agents.iter().map(|agent| agent.name.clone()).collect(),
-    None => vec![],
-  };
-  let numbers = reads::agent_numbers(receiver.db(), &names).await.ok().unwrap_or(vec![]);
-
-  page.sender_name == receiver.deployment().sender_name
-    || page.sender_id.is_some_and(|sender| numbers.contains(&sender))
 }

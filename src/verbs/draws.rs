@@ -726,7 +726,6 @@ pub async fn draw(
         chat_id,
         ChatSend::Text {
           text: line.clone(),
-          reply_to: None,
           silent: false,
           fold: false,
         },

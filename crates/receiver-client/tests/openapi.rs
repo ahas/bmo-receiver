@@ -1,0 +1,19 @@
+//! The committed OpenAPI document is the one the code generates.
+
+use std::path::PathBuf;
+
+fn document() -> PathBuf {
+  PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/openapi.json")
+}
+
+#[test]
+fn the_kept_document_is_the_one_the_code_generates() {
+  let kept = std::fs::read_to_string(document()).expect("docs/openapi.json is committed");
+  let made = receiver_client::openapi_json();
+
+  assert_eq!(
+    kept, made,
+    "docs/openapi.json differs from the document the code generates: run \
+     `cargo run -p receiver-client --example openapi > docs/openapi.json`"
+  );
+}

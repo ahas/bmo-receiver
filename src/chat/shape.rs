@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::js;
-use bmo_chat_client::{ChatMediaRequest, ChatMediaResult};
+use bmo_chat_client::ChatMediaRequest;
 use chrono::DateTime;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
@@ -217,21 +217,21 @@ async fn fetch_picture(receiver: &Receiver, target: &Inbound) -> ReaderPicture {
     return ReaderPicture::NoReader;
   };
   let request = ChatMediaRequest {
-    chat_id: target.chat_id,
+    room_id: target.chat_id,
     message_id: target.message_id,
-    sent_at: Some(target.sent_at),
+    sent_at: Some(target.sent_at * 1_000),
   };
 
   let room = target.chat_id;
 
-  match service.media(&request).await {
-    Ok(ChatMediaResult::Fetched(file)) => {
+  match service.message_files(&request).await {
+    Ok(page) if !page.items.is_empty() => {
       if let Err(why) = files::keep(
         receiver.db(),
         receiver.data_root(),
         receiver.deployment().attachment_bytes,
         target,
-        &[file],
+        &page.items,
       )
       .await
       {
@@ -247,16 +247,7 @@ async fn fetch_picture(receiver: &Receiver, target: &Inbound) -> ReaderPicture {
         None => ReaderPicture::None,
       }
     }
-    Ok(ChatMediaResult::Unavailable { reason }) => {
-      eprintln!("chat {room}: a reply's picture could not be fetched: {reason}");
-
-      ReaderPicture::Failed
-    }
-    Ok(ChatMediaResult::Refused { refusal }) => {
-      eprintln!("chat {room}: a reply's picture was refused: {refusal}");
-
-      ReaderPicture::Failed
-    }
+    Ok(_) => ReaderPicture::None,
     Err(why) => {
       eprintln!("chat {room}: the road did not answer for a reply's picture: {why}");
 

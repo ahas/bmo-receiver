@@ -1,17 +1,17 @@
-//! The brain's reads of a room (`docs/boundary-api.md`, 「For the brain」): every one a `POST` in the brain's
-//! camelCase shape, answered as the brain's document states it, so the brain reads the receiver as its own
-//! document says. The brain keeps what the agents remember; the marks of an agent's book of a room are the
-//! receiver's rows, which the brain moves through these routes. An owner notice and a quiet instruction are the
-//! two ways the brain puts a row into a room's session.
+//! What a room's record is read for, across every caller (`docs/api.md`, 「People」, 「Answerers」 and
+//! 「Read marks」): the people a room has heard, the agents answering it, an agent's marks of what it has read,
+//! the room's road, and the readings a turn is held to. Every route is a resource read in the common wire format:
+//! camelCase keys, epoch milliseconds, signed 64-bit ids and one page of items and more.
 
-use axum::{body::Bytes, extract::State, http::StatusCode};
+use axum::extract::{Path, RawQuery, State};
+use axum::http::StatusCode;
 use sea_orm::DatabaseConnection;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use room_calls::promises::waits_on_happening;
 
-use super::{Answered, Refusal, Served, answered, read, refused, store};
+use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::Fault;
 use crate::chat::instructions::{Queued, queue};
 use crate::receiver::notices::frame;
@@ -23,24 +23,13 @@ const OWNER_INTENT: &str = "tell the owner what the system recorded.";
 
 // A read of the room that could not be made because a unit it reaches did not answer.
 fn reached(why: NotReceived) -> Refusal {
-  refused(StatusCode::INTERNAL_SERVER_ERROR, "failed", &why.to_string())
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UnreadAsk {
-  agent: String,
-  chat_id: i64,
-  limit: i64,
-
-  #[serde(default)]
-  since: Option<i64>,
+  refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string())
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CountsAsk {
-  agent: String,
+  agent_name: String,
 
   #[serde(default)]
   since: Vec<RoomSince>,
@@ -49,54 +38,38 @@ struct CountsAsk {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RoomSince {
-  chat_id: i64,
+  room: i64,
   since: i64,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ReadAsk {
-  agent: String,
-  chat_id: i64,
-  from: i64,
-  limit: i64,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CountAsk {
-  agent: String,
-  chat_id: i64,
+struct MarkAsk {
+  agent_name: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct KeepAsk {
-  agent: String,
-  chat_id: i64,
+  agent_name: String,
   message_ids: Vec<i64>,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ForgetAsk {
-  agent: String,
-
+struct RoomAsked {
   #[serde(default)]
-  chat_id: Option<i64>,
+  room: Option<i64>,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AnswerersAsk {
+struct PeopleAsked {
   #[serde(default)]
-  chat_id: Option<i64>,
+  ids: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SpokeAsk {
-  chat_id: i64,
   person: i64,
   from: i64,
   to: i64,
@@ -105,113 +78,73 @@ struct SpokeAsk {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OwnNumberAsk {
-  agent: String,
-  chat_id: i64,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SpokenInAsk {
-  chat_id: i64,
-  people: Vec<i64>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct NamesAsk {
-  people: Vec<i64>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WaitsAsk {
-  text: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RoadsAsk {
-  chat_id: i64,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SenderAsk {
-  chat_id: i64,
-  message_id: i64,
+  agent_name: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OwnerSpokeAsk {
-  chat_id: i64,
   person: i64,
   before: i64,
-  seconds: i64,
+  window_ms: i64,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct QuietAsk {
-  agent: String,
-  chat_id: i64,
+struct WaitsAsk {
   text: String,
-  kind: String,
 }
 
-/// A route that takes no body, or one that names nothing, reads as the shape's defaults.
-fn taken<T: serde::de::DeserializeOwned>(body: Bytes) -> Result<T, Refusal> {
-  let whole: &[u8] = if body.is_empty() { b"{}" } else { &body };
-
-  serde_json::from_slice(whole).map_err(|error| {
-    let why = format!("The body is not the shape this route takes: {error}.");
-
-    refused(StatusCode::BAD_REQUEST, "bad-request", &why)
-  })
+#[derive(Deserialize)]
+struct SenderAsk {
+  #[serde(default)]
+  _unused: Option<()>,
 }
 
-/// The room's messages not in an agent's book yet, oldest first.
-pub async fn unread(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<UnreadAsk>(&body)?;
-  let receiver: Receiver = (*served.receiver).clone();
-
-  reads::unread(receiver.db(), &asked.agent, asked.chat_id, asked.since, asked.limit)
-    .await
-    .map(|messages| json!({ "messages": messages }))
-    .map_err(store)
-    .and_then(answered)
+/// The whole numbers a comma-separated query lists.
+fn whole_list(text: &str) -> Result<Vec<i64>, Refusal> {
+  text
+    .split(',')
+    .filter(|one| !one.trim().is_empty())
+    .map(|one| {
+      one.trim().parse::<i64>().map_err(|_| {
+        refused(
+          StatusCode::BAD_REQUEST,
+          "bad-request",
+          &format!("`{}` is not a whole number.", one.trim()),
+        )
+      })
+    })
+    .collect()
 }
 
-/// Every room holding messages past an agent's marks, each with how many.
-pub async fn unread_counts(State(served): State<Served>, body: Bytes) -> Answered {
+/// Every room with messages past an agent's read marks, each with how many; a room named in `since` counts only
+/// the messages sent at or after its moment.
+pub async fn unread_counts(State(served): State<Served>, body: axum::body::Bytes) -> Answered {
   let asked = read::<CountsAsk>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let since: Vec<(i64, i64)> = asked.since.iter().map(|one| (one.chat_id, one.since)).collect();
+  let since: Vec<(i64, i64)> = asked.since.iter().map(|one| (one.room, one.since / 1_000)).collect();
 
-  reads::unread_counts(receiver.db(), &asked.agent, since)
+  reads::unread_counts(receiver.db(), &asked.agent_name, since)
     .await
-    .map(|rooms| json!({ "rooms": rooms.iter().map(|(chat_id, count)| json!({ "chatId": chat_id, "count": count })).collect::<Vec<Value>>() }))
-    .map_err(store).and_then(answered)
-}
-
-/// The room's messages an agent has marked, after the one given in the room's line.
-pub async fn read_messages(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<ReadAsk>(&body)?;
-  let receiver: Receiver = (*served.receiver).clone();
-
-  reads::read_messages(receiver.db(), &asked.agent, asked.chat_id, asked.from, asked.limit)
-    .await
-    .map(|messages| json!({ "messages": messages }))
+    .map(|rooms| {
+      json!({
+        "items": rooms
+          .iter()
+          .map(|(room, count)| json!({ "room": room, "count": count }))
+          .collect::<Vec<Value>>(),
+        "more": false,
+      })
+    })
     .map_err(store)
     .and_then(answered)
 }
 
 /// How many of a room's messages an agent has marked, of the ones that still stand.
-pub async fn read_count(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<CountAsk>(&body)?;
+pub async fn read_count(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<MarkAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  reads::read_count(receiver.db(), &asked.agent, asked.chat_id)
+  reads::read_count(receiver.db(), &asked.agent_name, room)
     .await
     .map(|count| json!({ "count": count }))
     .map_err(store)
@@ -219,66 +152,45 @@ pub async fn read_count(State(served): State<Served>, body: Bytes) -> Answered {
 }
 
 /// The room's messages marked as read into an agent's book.
-pub async fn keep(State(served): State<Served>, body: Bytes) -> Answered {
+pub async fn keep(
+  State(served): State<Served>,
+  Path(room): Path<i64>,
+  body: axum::body::Bytes,
+) -> Accepted {
   let asked = read::<KeepAsk>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  reads::keep_marks(receiver.db(), &asked.agent, asked.chat_id, &asked.message_ids)
+  reads::keep_marks(receiver.db(), &asked.agent_name, room, &asked.message_ids)
     .await
-    .map(|_| json!({ "ok": true }))
+    .map(|_| (StatusCode::NO_CONTENT, axum::Json(json!({}))))
     .map_err(store)
-    .and_then(answered)
 }
 
-/// Every mark of an agent's book let go, off one room or off every room; how many were.
-pub async fn forget(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<ForgetAsk>(&body)?;
+/// Every mark of an agent's book let go, off one room; how many were.
+pub async fn forget(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<MarkAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  reads::forget_marks(receiver.db(), &asked.agent, asked.chat_id)
+  reads::forget_marks(receiver.db(), &asked.agent_name, Some(room))
     .await
     .map(|forgotten| json!({ "forgotten": forgotten }))
     .map_err(store)
     .and_then(answered)
 }
 
-/// Every room, its title and the people that stood as a sender in it.
-pub async fn titles(State(served): State<Served>, _: Bytes) -> Answered {
-  let receiver: Receiver = (*served.receiver).clone();
-  let db = receiver.db();
-  let rooms = reads::rooms(db).await.map_err(store)?;
-  let listed = listed_titles(db, rooms).await.map_err(store)?;
-
-  answered(json!({ "rooms": listed }))
-}
-
-/// Each room with its title and the people that stood as a sender in it.
-async fn listed_titles(db: &DatabaseConnection, rooms: Vec<i64>) -> Result<Vec<Value>, Fault> {
-  let mut listed: Vec<Value> = vec![];
-
-  for chat_id in rooms {
-    listed.push(json!({
-      "chatId": chat_id,
-      "title": reads::title(db, chat_id).await?,
-      "senders": reads::senders(db, chat_id).await?,
-    }));
-  }
-
-  Ok(listed)
-}
-
 /// Every room, and the agents answering it: the awake agents it names, or the default answerer where it names
 /// none awake.
-pub async fn answerers(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = taken::<AnswerersAsk>(body)?;
+pub async fn all_answerers(State(served): State<Served>, raw: RawQuery) -> Answered {
+  let asked = query::<RoomAsked>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let rooms = match asked.chat_id {
-    Some(chat_id) => vec![chat_id],
+  let rooms = match asked.room {
+    Some(room) => vec![room],
     None => reads::rooms(receiver.db()).await.map_err(store)?,
   };
+
   listed_answerers(&receiver, rooms)
     .await
-    .map(|listed| json!({ "rooms": listed }))
+    .map(|listed| json!({ "items": listed, "more": false }))
     .map_err(reached)
     .and_then(answered)
 }
@@ -287,8 +199,8 @@ pub async fn answerers(State(served): State<Served>, body: Bytes) -> Answered {
 async fn listed_answerers(receiver: &Receiver, rooms: Vec<i64>) -> Result<Vec<Value>, NotReceived> {
   let mut listed: Vec<Value> = vec![];
 
-  for chat_id in rooms {
-    listed.push(json!({ "chatId": chat_id, "agents": answering(receiver, chat_id).await? }));
+  for room in rooms {
+    listed.push(json!({ "room": room, "agents": answering(receiver, room).await? }));
   }
 
   Ok(listed)
@@ -296,8 +208,8 @@ async fn listed_answerers(receiver: &Receiver, rooms: Vec<i64>) -> Result<Vec<Va
 
 /// The names of the agents answering a room, as the wake judges them: the awake agents it names, or the default
 /// answerer where it names none awake.
-async fn answering(receiver: &Receiver, chat_id: i64) -> Result<Vec<String>, NotReceived> {
-  let named = agents::named_designated(receiver, chat_id).await?;
+async fn answering(receiver: &Receiver, room: i64) -> Result<Vec<String>, NotReceived> {
+  let named = agents::named_designated(receiver, room).await?;
 
   if named.is_empty() {
     return Ok(vec![agents::default_designated(receiver).await?.name]);
@@ -307,11 +219,11 @@ async fn answering(receiver: &Receiver, chat_id: i64) -> Result<Vec<String>, Not
 }
 
 /// Whether a person sent a message in a room between two moments, both included.
-pub async fn spoke_between(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<SpokeAsk>(&body)?;
+pub async fn spoke_between(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<SpokeAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  reads::spoke_between(receiver.db(), asked.chat_id, asked.person, asked.from, asked.to)
+  reads::spoke_between(receiver.db(), room, asked.person, asked.from / 1_000, asked.to / 1_000)
     .await
     .map(|spoke| json!({ "spoke": spoke }))
     .map_err(store)
@@ -319,16 +231,16 @@ pub async fn spoke_between(State(served): State<Served>, body: Bytes) -> Answere
 }
 
 /// The sender the agent's own words stand under in a room, or null.
-pub async fn own_number(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<OwnNumberAsk>(&body)?;
+pub async fn own_number(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<OwnNumberAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let Some(road) = receiver.roads().room_road(asked.chat_id).await else {
+  let Some(road) = receiver.roads().room_road(room).await else {
     return answered(json!({ "number": null }));
   };
-  let Some(designated) = agents::registered(&receiver, &asked.agent).await.map_err(reached)? else {
+  let Some(designated) = agents::registered(&receiver, &asked.agent_name).await.map_err(reached)? else {
     return answered(json!({ "number": null }));
   };
-  let identity = receiver.roads().identity_in(asked.chat_id).await;
+  let identity = receiver.roads().identity_in(room).await;
 
   agents::own_number(&receiver, &designated, &road, identity)
     .await
@@ -338,25 +250,32 @@ pub async fn own_number(State(served): State<Served>, body: Bytes) -> Answered {
 }
 
 /// Of those asked, the people who have stood as a sender in the room.
-pub async fn spoken_in(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<SpokenInAsk>(&body)?;
+pub async fn spoken_in(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<PeopleAsked>(raw)?;
+  let people = whole_list(&asked.ids)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  reads::spoken_in(receiver.db(), asked.chat_id, &asked.people)
-    .await
-    .map(|people| json!({ "people": people }))
-    .map_err(store)
-    .and_then(answered)
+  let stood = reads::spoken_in(receiver.db(), room, &people).await.map_err(store)?;
+  let mut items: Vec<Value> = vec![];
+
+  for person in stood {
+    items.push(
+      json!({ "id": person, "name": reads::display_name(receiver.db(), person).await.map_err(store)? }),
+    );
+  }
+
+  answered(json!({ "items": items, "more": false }))
 }
 
 /// Each person's name as their latest message went under, or null.
-pub async fn names(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<NamesAsk>(&body)?;
+pub async fn names(State(served): State<Served>, raw: RawQuery) -> Answered {
+  let asked = query::<PeopleAsked>(raw)?;
+  let people = whole_list(&asked.ids)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  listed_names(receiver.db(), asked.people)
+  listed_names(receiver.db(), people)
     .await
-    .map(|listed| json!({ "names": listed }))
+    .map(|listed| json!({ "items": listed, "more": false }))
     .map_err(store)
     .and_then(answered)
 }
@@ -366,39 +285,42 @@ async fn listed_names(db: &DatabaseConnection, people: Vec<i64>) -> Result<Vec<V
   let mut listed: Vec<Value> = vec![];
 
   for person in people {
-    listed.push(json!({ "person": person, "name": reads::display_name(db, person).await? }));
+    listed.push(json!({ "id": person, "name": reads::display_name(db, person).await? }));
   }
 
   Ok(listed)
 }
 
 /// Whether the text waits for something to happen first, by the receiver's reading of promises.
-pub async fn waits(State(_served): State<Served>, body: Bytes) -> Answered {
+pub async fn waits(State(_served): State<Served>, body: axum::body::Bytes) -> Answered {
   let asked = read::<WaitsAsk>(&body)?;
 
   answered(json!({ "waits": waits_on_happening(&asked.text) }))
 }
 
 /// The room's road: whether it is the owner's own, and whether the room is a one-to-one.
-pub async fn roads(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<RoadsAsk>(&body)?;
+pub async fn roads(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let room = receiver.roads().room_facts(asked.chat_id).await;
-  let owner_room = receiver.roads().is_owner_room(asked.chat_id).await;
+  let facts = receiver.roads().room_facts(room).await;
+  let owner_room = receiver.roads().is_owner_room(room).await;
 
   answered(json!({
     "kind": if owner_room { "owner" } else { "group" },
-    "oneToOne": room.private_to.is_some(),
+    "oneToOne": facts.private_to.is_some(),
   }))
 }
 
 /// Whether the message's sender is the owner in that room.
-pub async fn sender_is_owner(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<SenderAsk>(&body)?;
+pub async fn sender_is_owner(
+  State(served): State<Served>,
+  Path((room, message)): Path<(i64, i64)>,
+  raw: RawQuery,
+) -> Answered {
+  let _: SenderAsk = query(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let road = receiver.roads().room_road(asked.chat_id).await.unwrap_or_default();
+  let road = receiver.roads().room_road(room).await.unwrap_or_default();
 
-  reads::sender_is_owner(receiver.db(), &road, asked.chat_id, asked.message_id)
+  reads::sender_is_owner(receiver.db(), &road, room, message)
     .await
     .map(|owner| json!({ "owner": owner }))
     .map_err(store)
@@ -406,20 +328,18 @@ pub async fn sender_is_owner(State(served): State<Served>, body: Bytes) -> Answe
 }
 
 /// Whether the person is the owner, and whether the owner spoke in the room in that span.
-pub async fn owner_spoke(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<OwnerSpokeAsk>(&body)?;
+pub async fn owner_spoke(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<OwnerSpokeAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let road = receiver.roads().room_road(asked.chat_id).await.unwrap_or_default();
-  let owner = reads::owner_of_sender(receiver.db(), &road, asked.chat_id, asked.person)
-    .await
-    .map_err(store)?;
+  let road = receiver.roads().room_road(room).await.unwrap_or_default();
+  let owner = reads::owner_of_sender(receiver.db(), &road, room, asked.person).await.map_err(store)?;
   let spoke = owner
     && reads::spoke_between(
       receiver.db(),
-      asked.chat_id,
+      room,
       asked.person,
-      asked.before - asked.seconds,
-      asked.before,
+      (asked.before - asked.window_ms) / 1_000,
+      asked.before / 1_000,
     )
     .await
     .map_err(store)?;
@@ -428,7 +348,7 @@ pub async fn owner_spoke(State(served): State<Served>, body: Bytes) -> Answered 
 }
 
 /// The code and its parameters queued as an instruction for the chat agent in the owner's private chat.
-pub async fn notice(State(served): State<Served>, body: Bytes) -> Answered {
+pub async fn notice(State(served): State<Served>, body: axum::body::Bytes) -> Accepted {
   let asked = read::<Map<String, Value>>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
   let Some(code) = asked.get("code").and_then(|code| code.as_str()) else {
@@ -441,8 +361,7 @@ pub async fn notice(State(served): State<Served>, body: Bytes) -> Answered {
     summary: Some(code),
     ..Queued::default()
   };
-
-  queue(
+  let id = queue(
     receiver.db(),
     &receiver.deployment().agent,
     receiver.owner_id(),
@@ -456,33 +375,5 @@ pub async fn notice(State(served): State<Served>, body: Bytes) -> Answered {
     pass.kick();
   }
 
-  answered(json!({ "ok": true }))
-}
-
-/// The quiet instruction queued for the agent in the room, under the sort its kind names, and its turn woken.
-pub async fn quiet(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<QuietAsk>(&body)?;
-  let receiver: Receiver = (*served.receiver).clone();
-
-  if asked.kind != "watch" && asked.kind != "reminder" {
-    return Err(refused(
-      StatusCode::BAD_REQUEST,
-      "bad-request",
-      &format!("`kind` is neither `watch` nor `reminder` but {}.", asked.kind),
-    ));
-  }
-  let queued = Queued {
-    sort: Some(&asked.kind),
-    ..Queued::default()
-  };
-
-  queue(receiver.db(), &asked.agent, asked.chat_id, &asked.text, &queued)
-    .await
-    .map_err(store)?;
-
-  if let Some(pass) = receiver.pass() {
-    pass.kick();
-  }
-
-  answered(json!({ "ok": true }))
+  Ok((StatusCode::CREATED, axum::Json(json!({ "id": id }))))
 }

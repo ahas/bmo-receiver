@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use bmo_chat_client::{
   ChatCapability, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits, ChatHealth, ChatMediaRequest,
-  ChatMediaResult, ChatNumberSpace, ChatNumbering, ChatSendRequest, ChatSendResult, DialectChecked,
-  DialectReading, RoomKind,
+  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatSendRequest, ChatSent, DialectChecked,
+  DialectReading, MessageFile, Page, RoomKind,
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{
@@ -57,7 +57,7 @@ pub struct StandInChat {
   pub reaches_owner: Option<i64>,
   pub sends: Mutex<Vec<ChatSendRequest>>,
   /// What each send is answered with; sent as message 900 where none is set.
-  pub answer: Mutex<Option<ChatSendResult>>,
+  pub answer: Mutex<Option<ChatSent>>,
   // The next send, held until the test lets it go, and whether one stands held now.
   held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
   holding_send: Mutex<bool>,
@@ -150,6 +150,7 @@ impl Chat for StandInChat {
         rooms: ChatNumberSpace::Native,
         people: ChatNumberSpace::Native,
         messages: ChatNumberSpace::Native,
+        ranges: ChatNumberRanges::default(),
       },
       speakers: false,
     };
@@ -158,12 +159,12 @@ impl Chat for StandInChat {
   }
 
   fn health(&self) -> BoxFuture<'_, ChatAnswer<ChatHealth>> {
-    Box::pin(async { Ok(ChatHealth::ready()) })
+    Box::pin(async { Ok(ChatHealth::ready("0.1.0")) })
   }
 
-  fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSendResult>> {
+  fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSent>> {
     let held = self.held_send.lock().unwrap().take();
-    let answer = self.answer.lock().unwrap().clone().unwrap_or(ChatSendResult::Sent {
+    let answer = self.answer.lock().unwrap().clone().unwrap_or(ChatSent {
       message_id: Some(900),
       missed: vec![],
     });
@@ -181,8 +182,11 @@ impl Chat for StandInChat {
     })
   }
 
-  fn media<'a>(&'a self, _request: &'a ChatMediaRequest) -> BoxFuture<'a, ChatAnswer<ChatMediaResult>> {
-    not_asked("for media")
+  fn message_files<'a>(
+    &'a self,
+    _request: &'a ChatMediaRequest,
+  ) -> BoxFuture<'a, ChatAnswer<Page<MessageFile>>> {
+    not_asked("for a message's files")
   }
 
   fn dialect_read<'a>(&'a self, _text: &'a str) -> BoxFuture<'a, ChatAnswer<DialectReading>> {

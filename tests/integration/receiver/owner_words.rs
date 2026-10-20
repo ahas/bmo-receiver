@@ -57,26 +57,32 @@ async fn the_owners_console_words_are_queued_for_a_rooms_session_and_a_room_nobo
     .await;
 
   assert_eq!(
-    asked(&port, "/instruct", json!({ "chatId": ROOM, "text": "  Later, please.  " })).await,
-    (StatusCode::OK, json!({ "ok": true })),
+    asked(&port, "/owner/instructions", json!({ "chatId": ROOM, "text": "  Later, please.  " })).await,
+    (StatusCode::NO_CONTENT, json!({})),
   );
   // The owner's own chat counts before it has said anything.
   assert_eq!(
-    asked(&port, "/instruct", json!({ "chatId": OWNER, "text": "Words for the owner's own chat" }))
-      .await
-      .0,
-    StatusCode::OK
+    asked(
+      &port,
+      "/owner/instructions",
+      json!({ "chatId": OWNER, "text": "Words for the owner's own chat" })
+    )
+    .await
+    .0,
+    StatusCode::NO_CONTENT
   );
   assert_eq!(
-    asked(&port, "/instruct", json!({ "chatId": -7, "text": "Hello" })).await.0,
+    asked(&port, "/owner/instructions", json!({ "chatId": -7, "text": "Hello" })).await.0,
     StatusCode::NOT_FOUND
   );
   assert_eq!(
-    asked(&port, "/instruct", json!({ "chatId": ROOM, "text": " " })).await.0,
+    asked(&port, "/owner/instructions", json!({ "chatId": ROOM, "text": " " })).await.0,
     StatusCode::BAD_REQUEST
   );
   assert_eq!(
-    asked(&port, "/instruct", json!({ "chatId": "-100", "text": "Hello" })).await.0,
+    asked(&port, "/owner/instructions", json!({ "chatId": "-100", "text": "Hello" }))
+      .await
+      .0,
     StatusCode::BAD_REQUEST
   );
 

@@ -1,0 +1,19 @@
+# The receiver service's client: every body and member of its API as a Rust type, one call for each route, and
+# the OpenAPI document generated from those types. The TypeScript package beside it is generated from the same
+# document.
+[package]
+name = "receiver-client"
+description = "The chat receiver's fixed API: every body and member as a Rust type, one call for each route, and the OpenAPI document generated from them."
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+reqwest = { workspace = true, features = ["json", "query"] }
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

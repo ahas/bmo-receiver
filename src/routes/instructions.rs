@@ -1,7 +1,6 @@
-//! The instruction queue other units reach (`docs/boundary-api.md`, 「For bmo-job」 and 「For bmo-artifact」): an
-//! instruction queued for an agent's session in a room, its state read, one not yet taken withdrawn, a notice voiced
-//! as one of those rows, and a unit declared a holder of rows naming a room. Bodies are snake_case and times epoch
-//! milliseconds, as bmo-job's document states them; a refusal carries `error` and `code` in that shape.
+//! The instruction queue (`docs/api.md`, 「Instructions」): an instruction queued for an agent's session in a room,
+//! its state read, one not yet taken withdrawn, and the notices a room was voiced. Bodies are camelCase, times are
+//! epoch milliseconds and every refusal is the common error shape.
 //!
 //! An instruction whose `said` holds a fact is framed the way every voiced notice is, so the room's voice says it;
 //! one whose `said` holds an order goes to the session as the words it was given. One for a room whose
@@ -10,7 +9,7 @@
 
 use axum::{
   body::Bytes,
-  extract::{Path, State},
+  extract::{Path, RawQuery, State},
   http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
@@ -18,7 +17,7 @@ use serde_json::{Value, json};
 
 use receiver_policy::chat_round::CHAT_ROUND;
 
-use super::{Answered, Refusal, Served, answered, read, refused, store};
+use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::chat::instructions::{Queued, queue};
 use crate::receiver::notices::frame;
 use crate::receiver::wake::agents;
@@ -37,16 +36,13 @@ pub const HOLDER_KEY: &str = "room_holder:";
 
 /// A read of the room that could not be made because a unit it reaches did not answer.
 fn reached(why: NotReceived) -> Refusal {
-  refused(StatusCode::INTERNAL_SERVER_ERROR, "failed", &why.to_string())
+  refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string())
 }
 
 /// The room, message, instruction or run named does not exist.
 fn absent(what: &str) -> Refusal {
   refused(StatusCode::NOT_FOUND, "not-found", &format!("Nothing stands under {what}."))
 }
-
-/// An answer with its status beside the body, for the routes that answer 201 or 204.
-type Accepted = Result<(StatusCode, axum::Json<serde_json::Value>), Refusal>;
 
 /// What an instruction hands the session: a fact, or the words of an order.
 #[derive(Deserialize)]
@@ -60,11 +56,12 @@ struct Said {
 
 /// One instruction as a unit queues it.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Instruction {
   #[serde(default)]
-  agent: Option<String>,
+  agent_name: Option<String>,
   #[serde(default)]
-  chat: Option<i64>,
+  room: Option<i64>,
   said: Said,
   #[serde(default)]
   kind: Option<String>,
@@ -83,8 +80,9 @@ struct Instruction {
   run: Option<i64>,
 }
 
-/// One notice as bmo-job voices it.
+/// One notice as a room voices it.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Notice {
   fact: Value,
   intent: String,
@@ -113,7 +111,6 @@ pub enum Stood {
 
 /// A unit's declaration as a holder.
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
 pub struct Holder {
   address: String,
 
@@ -122,7 +119,6 @@ pub struct Holder {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
 struct Hold {
   name: String,
   effect: Effect,
@@ -141,8 +137,8 @@ enum Effect {
 pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Instruction>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let chat_id = asked.chat.unwrap_or(receiver.owner_id());
-  let room = rows::kept_work_room(receiver.db(), chat_id, receiver.owner_id()).await.map_err(store)?;
+  let room_id = asked.room.unwrap_or(receiver.owner_id());
+  let room = rows::kept_work_room(receiver.db(), room_id, receiver.owner_id()).await.map_err(store)?;
   let mut text = said(&asked.said);
   let mut queued = Queued {
     kind: asked.kind.as_deref(),
@@ -156,10 +152,10 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     run_id: asked.run,
   };
   let agent = match room.removed {
-    None => match asked.agent.clone() {
+    None => match asked.agent_name.clone() {
       None => receiver.deployment().agent.clone(),
-      Some(asker) if agents::answers(&receiver, &asker, chat_id).await.map_err(reached)? => asker,
-      Some(_) => agents::voice_of(&receiver, chat_id).await.map_err(reached)?,
+      Some(asker) if agents::answers(&receiver, &asker, room_id).await.map_err(reached)? => asker,
+      Some(_) => agents::voice_of(&receiver, room_id).await.map_err(reached)?,
     },
     Some(removed) => {
       let told_here = CHAT_ROUND.instructions.room_removed.replace("{room}", &removed.to_string());
@@ -173,10 +169,16 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     }
   };
 
-  queue(receiver.db(), &agent, room.chat_id, &text, &queued)
-    .await
-    .map(|id| (StatusCode::CREATED, axum::Json(json!({ "id": id }))))
-    .map_err(store)
+  let id = queue(receiver.db(), &agent, room.chat_id, &text, &queued).await.map_err(store)?;
+
+  // A quiet instruction opens the agent's turn there; an instruction of a job or a notice rides what waits.
+  if matches!(asked.sort.as_str(), "watch" | "reminder")
+    && let Some(pass) = receiver.pass()
+  {
+    pass.kick();
+  }
+
+  Ok((StatusCode::CREATED, axum::Json(json!({ "id": id }))))
 }
 
 /// The words the session is handed: an order as it was given, a fact in the notice's frame.
@@ -215,14 +217,14 @@ pub async fn instruction_state(State(served): State<Served>, Path(id): Path<i64>
     (None, None) => Stood::Pending,
   };
 
-  answered(json!({ "state": stood }))
+  answered(json!({ "id": id, "state": stood }))
 }
 
-/// The instruction not yet taken withdrawn; false where it was handed already or is gone.
-pub async fn withdraw(State(served): State<Served>, Path(id): Path<i64>) -> Answered {
+/// The instruction not yet taken withdrawn. One handed already or gone is no refusal: it is no longer pending.
+pub async fn withdraw(State(served): State<Served>, Path(id): Path<i64>) -> Accepted {
   let receiver: Receiver = (*served.receiver).clone();
 
-  let taken = run(
+  run(
     receiver.db(),
     r#"DELETE FROM "instructions" WHERE "id" = $1 AND "handed_at" IS NULL AND "delivered_at" IS NULL"#,
     vec![id.into()],
@@ -230,14 +232,14 @@ pub async fn withdraw(State(served): State<Served>, Path(id): Path<i64>) -> Answ
   .await
   .map_err(store)?;
 
-  answered(json!({ "withdrawn": taken > 0 }))
+  Ok((StatusCode::NO_CONTENT, axum::Json(json!({}))))
 }
 
 /// The notice queued for the room's voice, answered with the id of the instruction it was queued as.
-pub async fn notice(State(served): State<Served>, Path(chat): Path<i64>, body: Bytes) -> Accepted {
+pub async fn notice(State(served): State<Served>, Path(room): Path<i64>, body: Bytes) -> Accepted {
   let asked = read::<Notice>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let agent = agents::voice_of(&receiver, chat).await.map_err(reached)?;
+  let agent = agents::voice_of(&receiver, room).await.map_err(reached)?;
   let text = frame(
     &json!(asked.fact).to_string(),
     &asked.intent,
@@ -253,18 +255,114 @@ pub async fn notice(State(served): State<Served>, Path(chat): Path<i64>, body: B
     ..Queued::default()
   };
 
-  queue(receiver.db(), &agent, chat, &text, &queued)
+  queue(receiver.db(), &agent, room, &text, &queued)
     .await
     .map(|id| (StatusCode::CREATED, axum::Json(json!({ "id": id }))))
     .map_err(store)
 }
 
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NoticeQuery {
+  #[serde(default)]
+  before: Option<i64>,
+
+  #[serde(default)]
+  after: Option<i64>,
+
+  #[serde(default)]
+  limit: Option<i64>,
+
+  #[serde(default)]
+  kind: Option<String>,
+
+  /// The span a notice was queued in, in epoch milliseconds, both ends included.
+  #[serde(default)]
+  from: Option<i64>,
+
+  #[serde(default)]
+  to: Option<i64>,
+}
+
+/// The notices a room was voiced, oldest first, by `before` or `after` and `limit`.
+pub async fn notices(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<NoticeQuery>(raw)?;
+  let bound = i64::min(asked.limit.unwrap_or(50), 500) + 1;
+  let mut conditions = vec![r#""chat_id" = $1"#.to_owned(), r#""sort" = 'notice'"#.to_owned()];
+  let mut values: Vec<sea_orm::Value> = vec![room.into()];
+
+  if let Some(kind) = &asked.kind {
+    values.push(kind.clone().into());
+    conditions.push(format!(r#""kind" = ${}"#, values.len()));
+  }
+  if let Some(from) = asked.from {
+    values.push((from / 1_000).into());
+    conditions.push(format!(r#""created_at" >= ${}"#, values.len()));
+  }
+  if let Some(to) = asked.to {
+    values.push((to / 1_000).into());
+    conditions.push(format!(r#""created_at" <= ${}"#, values.len()));
+  }
+
+  let (order, cursor) = match (asked.before, asked.after) {
+    (Some(before), _) => {
+      values.push(before.into());
+      conditions.push(format!(r#""id" < ${}"#, values.len()));
+      ("DESC", true)
+    }
+    (None, Some(after)) => {
+      values.push(after.into());
+      conditions.push(format!(r#""id" > ${}"#, values.len()));
+      ("ASC", false)
+    }
+    (None, None) => ("DESC", true),
+  };
+
+  values.push(bound.into());
+  let sql = format!(
+    r#"SELECT "id", "kind", "summary", "text", "created_at", "expires_at" FROM "instructions"
+       WHERE {} ORDER BY "id" {} LIMIT ${}"#,
+    conditions.join(" AND "),
+    order,
+    values.len(),
+  );
+  let receiver: Receiver = (*served.receiver).clone();
+  let rows = crate::all(receiver.db(), &sql, values).await.map_err(store)?;
+  let more = i64::try_from(rows.len()).unwrap_or(0) == bound;
+  let kept: Vec<_> = if cursor {
+    rows.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect()
+  } else {
+    rows
+  };
+  let mut items: Vec<Value> = kept
+    .iter()
+    .map(|row| {
+      let created: i64 = row.try_get("", "created_at").unwrap_or(0);
+      let expires: Option<i64> = row.try_get("", "expires_at").ok().flatten();
+
+      json!({
+        "id": row.try_get::<i64>("", "id").ok(),
+        "kind": row.try_get::<Option<String>>("", "kind").ok().flatten(),
+        "summary": row.try_get::<Option<String>>("", "summary").ok().flatten(),
+        "text": row.try_get::<String>("", "text").unwrap_or_default(),
+        "createdAt": created * 1_000,
+        "expiresAt": expires.map(|at| at * 1_000),
+      })
+    })
+    .collect();
+  if cursor {
+    items.reverse();
+  }
+
+  answered(json!({ "items": items, "more": more }))
+}
+
 /// The unit declared a holder of rows naming a room; its earlier declaration replaced.
-pub async fn declare(State(served): State<Served>, Path(unit): Path<String>, body: Bytes) -> Accepted {
+pub async fn declare(State(served): State<Served>, Path(holder): Path<String>, body: Bytes) -> Accepted {
   let asked = read::<Holder>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  settings::set(receiver.db(), &key(&unit), &json!(asked).to_string())
+  settings::set(receiver.db(), &key(&holder), &json!(asked).to_string())
     .await
     .map(|_| (StatusCode::NO_CONTENT, axum::Json(json!({}))))
     .map_err(store)

@@ -175,6 +175,24 @@ pub async fn put(front: &Front, path: &str, body: Value) -> (StatusCode, Value) 
   read(answer).await
 }
 
+/// A PATCH asked of the front with the token.
+pub async fn patch(front: &Front, path: &str, body: Value) -> (StatusCode, Value) {
+  let answer = front
+    .routes
+    .clone()
+    .oneshot(
+      Request::patch(path)
+        .header("authorization", format!("Bearer {TOKEN}"))
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+  read(answer).await
+}
+
 /// The warmer's hook posted with no header at all, the token standing in the URL it registers.
 pub async fn pinged(front: &Front, path: &str, body: Value) -> (StatusCode, Value) {
   let answer = front

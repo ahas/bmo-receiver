@@ -4,7 +4,6 @@
 use receiver_policy::chat_health::CHAT_HEALTH;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::code_review::CODE_REVIEW;
 use receiver_policy::commands::COMMANDS;
 use receiver_policy::companion_runner::COMPANION_RUNNER;
 use receiver_policy::companions::COMPANIONS;
@@ -30,7 +29,7 @@ const POLICY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy");
 
 /// Every part, by its file, read here so a file that does not read as its type fails this test.
 fn parts() -> Vec<&'static str> {
-  let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*CODE_REVIEW, &*COMMANDS, &*COMPANION_RUNNER);
+  let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS, &*COMPANION_RUNNER);
   let _ = (&*COMPANIONS, &*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SECOND_ASKS);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS);
@@ -39,7 +38,6 @@ fn parts() -> Vec<&'static str> {
     "chat-health.toml",
     "chat-line.toml",
     "chat-round.toml",
-    "code-review.toml",
     "commands.toml",
     "companion-runner.toml",
     "companions.toml",
@@ -95,7 +93,6 @@ fn the_talks_name_the_owner_the_agent_and_the_language_by_their_marks() {
   assert_eq!((TALK.owner.as_str(), TALK.agent.as_str()), ("{owner}", "{agent}"));
   assert!(TALK.item.head.iter().any(|line| line.contains("{language}")));
   assert!(TALK.document.head.iter().any(|line| line.contains("{language}")));
-  assert!(CODE_REVIEW.talk.head.iter().any(|line| line.contains("{owner}")));
   assert!(CHAT_LINE.room.roster.contains("{agent}") && CHAT_LINE.room.roster.contains("{owner}"));
   assert_eq!(fill_marks(&TALK.says_now, &[("owner", "the-owner")]), "the-owner says now:");
 }

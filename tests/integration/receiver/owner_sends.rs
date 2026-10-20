@@ -88,11 +88,16 @@ fn form(fields: &[(String, String)], files: &[(String, String, String)]) -> Stri
 #[tokio::test]
 async fn a_line_the_owner_typed_in_his_own_chat_is_kept_under_a_console_number_and_handed_to_his_session() {
   let (scratch, port, road) = stood(&[ROOM]).await;
-  let (status, answer) =
-    asked(&port, "/say", TOKEN, json_post(json!({ "chatId": OWNER, "text": "  Later, please.  "}))).await;
+  let (status, answer) = asked(
+    &port,
+    "/owner/messages",
+    TOKEN,
+    json_post(json!({ "chatId": OWNER, "text": "  Later, please.  "})),
+  )
+  .await;
 
   assert_eq!(status, StatusCode::OK);
-  assert_eq!(answer["ok"], json!(true), "{answer:?}");
+  assert!(answer["id"].is_i64(), "{answer:?}");
   assert!(road.sent().is_empty(), "his own chat keeps the words, nothing goes to a road");
   assert_eq!(
     scratch
@@ -111,27 +116,35 @@ async fn a_line_the_owner_typed_in_another_room_goes_on_that_rooms_road_and_an_u
     .await;
 
   assert_eq!(
-    asked(&port, "/say", TOKEN, json_post(json!({ "chatId": ROOM, "text": "The game begins."})))
-      .await
-      .0,
+    asked(
+      &port,
+      "/owner/messages",
+      TOKEN,
+      json_post(json!({ "chatId": ROOM, "text": "The game begins."}))
+    )
+    .await
+    .0,
     StatusCode::OK
   );
   assert_eq!(
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
     [ChatSend::Text {
       text: "The game begins.".to_owned(),
-      reply_to: None,
       silent: false,
       fold: true
     }]
     .to_vec(),
   );
   assert_eq!(
-    asked(&port, "/say", TOKEN, json_post(json!({ "chatId": -7, "text": "Hello"}))).await.0,
+    asked(&port, "/owner/messages", TOKEN, json_post(json!({ "chatId": -7, "text": "Hello"})))
+      .await
+      .0,
     StatusCode::NOT_FOUND
   );
   assert_eq!(
-    asked(&port, "/say", TOKEN, json_post(json!({ "chatId": ROOM, "text": " "}))).await.0,
+    asked(&port, "/owner/messages", TOKEN, json_post(json!({ "chatId": ROOM, "text": " "})))
+      .await
+      .0,
     StatusCode::BAD_REQUEST
   );
 }
@@ -148,7 +161,7 @@ async fn a_reply_to_a_message_the_room_does_not_hold_is_refused_and_one_it_holds
   assert_eq!(
     asked(
       &port,
-      "/say",
+      "/owner/messages",
       TOKEN,
       json_post(json!({ "chatId": ROOM, "text": "words", "replyTo": 999}))
     )
@@ -157,21 +170,26 @@ async fn a_reply_to_a_message_the_room_does_not_hold_is_refused_and_one_it_holds
     StatusCode::CONFLICT
   );
   assert_eq!(
-    asked(&port, "/say", TOKEN, json_post(json!({ "chatId": ROOM, "text": "words", "replyTo": 7})))
-      .await
-      .0,
+    asked(
+      &port,
+      "/owner/messages",
+      TOKEN,
+      json_post(json!({ "chatId": ROOM, "text": "words", "replyTo": 7}))
+    )
+    .await
+    .0,
     StatusCode::OK
   );
   assert_eq!(
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
     [ChatSend::Text {
       text: "words".to_owned(),
-      reply_to: Some(7),
       silent: false,
       fold: true
     }]
     .to_vec(),
   );
+  assert_eq!(road.sent()[0].reply_to_message_id, Some(7));
 }
 
 #[tokio::test]
@@ -193,7 +211,7 @@ async fn files_the_owner_put_in_a_room_go_as_the_albums_the_road_takes_with_the_
       ("application/pdf".to_owned(), "paper.pdf".to_owned(), "pdf".to_owned()),
     ],
   );
-  let (status, answer) = form_asked(&port, "/say-file", body).await;
+  let (status, answer) = form_asked(&port, "/owner/message-files", body).await;
 
   assert_eq!(status, StatusCode::OK, "{answer:?}");
   assert_eq!(answer["sent"].as_array().map(Vec::len), Some(3), "{answer:?}");
@@ -216,12 +234,10 @@ async fn files_the_owner_put_in_a_room_go_as_the_albums_the_road_takes_with_the_
         ]
         .to_vec(),
         caption: Some("Two pictures\nand a paper".to_owned()),
-        reply_to: None,
       },
       ChatSend::Document {
         bytes: b"pdf".to_vec(),
         file_name: "paper.pdf".to_owned(),
-        reply_to: None
       },
     ]
     .to_vec(),
@@ -242,7 +258,7 @@ async fn a_send_asked_of_the_receiver_is_carried_as_its_asker_and_one_no_agent_a
     "/sends",
     TOKEN,
     json_post(json!({
-      "asker": { "chat": ROOM, "agent": AGENT, "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "agentName": AGENT, "by": format!("chat:{ROOM}") },
       "tool": "pin",
       "input": { "chat": ROOM, "message": 7, "unpin": false },
     })),
@@ -258,7 +274,7 @@ async fn a_send_asked_of_the_receiver_is_carried_as_its_asker_and_one_no_agent_a
     "/sends",
     TOKEN,
     json_post(json!({
-      "asker": json!({ "chat": ROOM }),
+      "asker": json!({ "room": ROOM }),
       "tool": "remind",
       "input": { "reason": "the check is due" },
     })),
@@ -273,7 +289,7 @@ async fn a_send_asked_of_the_receiver_is_carried_as_its_asker_and_one_no_agent_a
     "/sends",
     TOKEN,
     json_post(json!({
-      "asker": json!({ "chat": ROOM, "agent": AGENT }),
+      "asker": json!({ "room": ROOM, "agentName": AGENT }),
       "tool": "remind",
       "input": { "reason": "the check is due", "every": "daily 07:00" },
     })),

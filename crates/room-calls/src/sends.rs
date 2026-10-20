@@ -20,7 +20,7 @@ use crate::turn::{Room, Turn};
 pub const SENDS_PATH: &str = "/sends";
 
 /// The route a line in the consult room is asked of.
-pub const CONSULT_PATH: &str = "/consult/say";
+pub const CONSULT_PATH: &str = "/consult-lines";
 
 // Long enough for an album to be drawn on and uploaded, short of the tool host's limit on a call.
 const SEND_WAIT: Duration = Duration::from_secs(170);
@@ -236,11 +236,11 @@ pub enum Act {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Asker {
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub chat: Option<i64>,
+  pub room: Option<i64>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub agent: Option<String>,
+  pub agent_name: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub by: Option<String>,
   #[serde(default, skip_serializing_if = "off")]
@@ -252,9 +252,9 @@ impl Asker {
   /// one that set the send off, and whether a job runs it.
   pub fn of_turn(turn: &Turn, room: Option<&Room>) -> Self {
     Self {
-      chat: room.map(|room| room.chat),
+      room: room.map(|room| room.chat),
       via: room.and_then(|room| room.via.clone()),
-      agent: turn.agent.clone(),
+      agent_name: turn.agent.clone(),
       by: turn.chat.or(room.map(|room| room.chat)).map(|chat| format!("chat:{chat}")),
       job: turn.job,
     }

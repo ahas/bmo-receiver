@@ -267,7 +267,6 @@ pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbEr
           run_.chat_id,
           ChatSend::Text {
             text: text.clone(),
-            reply_to: None,
             silent: false,
             fold: true,
           },
@@ -627,7 +626,6 @@ pub async fn photo(
         ChatSend::Album {
           items,
           caption: caption.map(str::to_owned),
-          reply_to: None,
         },
       ),
     )
@@ -708,7 +706,6 @@ pub async fn tell_owner(sends: &Sends, text: &str) -> Result<Vec<String>, VerbEr
 
   let send = ChatSend::Text {
     text: text.to_owned(),
-    reply_to: None,
     silent: false,
     fold: false,
   };

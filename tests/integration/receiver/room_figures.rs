@@ -124,7 +124,7 @@ async fn bench() -> (Scratch, Front) {
 }
 
 async fn figures(front: &Front, query: &str) -> Value {
-  let (status, figures) = get(front, &format!("/console/rooms/{ROOM}/figures{query}")).await;
+  let (status, figures) = get(front, &format!("/rooms/{ROOM}/figures{query}")).await;
 
   assert_eq!(status, StatusCode::OK, "{figures}");
   figures
@@ -145,13 +145,13 @@ async fn a_rooms_messages_are_counted_with_the_people_who_said_most() {
   let (_scratch, front) = bench().await;
   let figures = figures(&front, "").await;
 
-  assert_eq!(figures["chatId"], ROOM);
+  assert_eq!(figures["room"], ROOM);
   assert_eq!(figures["messages"], 7);
   assert_eq!(figures["fromPeople"], 5, "the agents' words are not a person's");
   assert_eq!(figures["speakers"], 2);
-  assert_eq!(figures["firstAt"], at(0, 30));
-  assert_eq!(figures["lastAt"], at(23, 40));
-  assert_eq!(figures["lastAnswerAt"], at(23, 30));
+  assert_eq!(figures["firstAt"], at(0, 30) * 1_000);
+  assert_eq!(figures["lastAt"], at(23, 40) * 1_000);
+  assert_eq!(figures["lastAnswerAt"], at(23, 30) * 1_000);
   assert_eq!(
     figures["top"],
     json!([{ "name": "someone", "messages": 3 }, { "name": "a person", "messages": 2 }]),
@@ -169,7 +169,7 @@ async fn the_hours_are_counted_in_the_zone_asked_for() {
     hours(&[(9, 1), (10, 2), (22, 2), (8, 2)]),
   );
 
-  let (status, refused) = get(&front, &format!("/console/rooms/{ROOM}/figures?zone=Nowhere/Atall")).await;
+  let (status, refused) = get(&front, &format!("/rooms/{ROOM}/figures?zone=Nowhere/Atall")).await;
 
   assert_eq!((status, refused["code"].as_str()), (StatusCode::BAD_REQUEST, Some("bad-request")));
 }
@@ -183,9 +183,9 @@ async fn each_agent_stands_with_its_share_its_row_and_the_session_it_keeps_for_t
     figures["agents"],
     json!([
       {
-        "agent": COMPANION,
+        "agentName": COMPANION,
         "messages": 1,
-        "lastAnswerAt": at(23, 30),
+        "lastAnswerAt": at(23, 30) * 1_000,
         "session": "room-b",
         "label": "Agent B",
         "lastMode": null,
@@ -200,9 +200,9 @@ async fn each_agent_stands_with_its_share_its_row_and_the_session_it_keeps_for_t
         "totalTokens": null,
       },
       {
-        "agent": AGENT,
+        "agentName": AGENT,
         "messages": 1,
-        "lastAnswerAt": at(13, 5),
+        "lastAnswerAt": at(13, 5) * 1_000,
         "session": "shared-a",
         "label": "Agent A",
         "lastMode": "provider-a",
@@ -235,7 +235,7 @@ async fn an_agency_that_answers_nothing_leaves_its_fields_null_and_the_figures_s
     1,
     "the answerer stands; no session is listed"
   );
-  assert_eq!(figures["agents"][0]["agent"], COMPANION);
+  assert_eq!(figures["agents"][0]["agentName"], COMPANION);
   assert_eq!(figures["agents"][0]["messages"], 1);
 
   for field in ["session", "label", "lastMode", "sessionMode", "model", "contextTokens"] {
@@ -252,7 +252,7 @@ async fn a_room_holding_nothing_counts_nothing() {
   assert_eq!(
     figures,
     json!({
-      "chatId": ROOM,
+      "room": ROOM,
       "messages": 0,
       "fromPeople": 0,
       "speakers": 0,

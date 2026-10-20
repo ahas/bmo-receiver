@@ -7,12 +7,12 @@ What the receiver is, what it carries, and how it stands among the units around 
 ```mermaid
 flowchart TD
   CS[Chat services<br/>through bmo-chat] -->|POST /message, /attachment, /edited, /gathered| Rx[Receiver: rooms, wake, roads]
-  Console[Console] -->|POST /say, /say-file, /instruct, reads| Rx
+  Console[Console] -->|POST /owner/messages, /owner/message-files, /owner/instructions, reads| Rx
   Rx --> DB[(The receiver's database)]
   Rx --> Conv[The one runner:<br/>each agent's conversations]
   Pass[The instruction pass] --> Conv
-  Job[bmo-job] -->|POST /instructions, /rooms/.../notices, /talks| Pass
-  Brain[the brain] -->|POST /instructions/quiet, /owner/notice| Pass
+  Job[bmo-job] -->|POST /instructions, /rooms/{roomId}/notices, /talks| Pass
+  Brain[the brain] -->|POST /instructions, /owner/notices| Pass
   Conv -->|the envelope| Gate[the gate]
   Conv -->|POST /session/turn| Agency[the agency]
   Agency -->|turn-ended and its other events| Conv
@@ -51,7 +51,7 @@ flowchart TD
   - the one runner: each woken agent's turns in its conversations, the chat agent's and every companion's alike,
     every agent's rows of the instruction pass, and the words the room sessions left untaken taken up as the
     receiver starts, each answer handed back to the receiver like any word filed in the room;
-  - the console's road in: `POST /say` into the owner's private chat and the rooms the console made;
+  - the console's road in: `POST /owner/messages` into the owner's private chat and the rooms the console made;
   - the words' form of its own sends: the scaffolding guard, the sanitiser's pass unless the words come already
     read, under the label the send names where the text is no message, the dash net, and the words handed to the
     room's chat service in the form its dialect reads; refused where nothing but scaffolding is left;
@@ -92,7 +92,7 @@ flowchart TD
 
 ## The owner's words
 
-- **`POST /say` and `POST /say-file` put the owner's words into a room from the console.**
+- **`POST /owner/messages` and `POST /owner/message-files` put the owner's words into a room from the console.**
   - In the owner's private chat the words reach no other service: they are archived under a console number and
     handed to that chat's conversation (`docs/unified-bmo.md`, 「Console conversation in the private chat」).
   - In a room the console made the same holds.
@@ -103,7 +103,7 @@ flowchart TD
   - Files go each as its own message where the road takes them that way, as albums where it takes those, the
     caption on the first; a file past the road's ceiling is refused 413, and a call none of whose files went
     answers as one refusal.
-- **`POST /instruct` says the owner's words to a room's session**, framed as the owner speaking from the console,
+- **`POST /owner/instructions` says the owner's words to a room's session**, framed as the owner speaking from the console,
   delivered as a quiet instruction, so the room sees nothing but the answer it leads to; a chat the archive has
   never seen is refused.
 
@@ -118,7 +118,7 @@ flowchart TD
   - `event: stopping` with no id when the receiver stops on purpose, after which the stream ends.
 - **What goes into it** is the news the receiver makes itself: a message it kept or wrote again, a window opened
   or restarted, a room whose registration was removed as `room-removed` with its number, the picture whenever it
-  changes, and what `POST /event` says (a message or a briefing checked against the archive first, the profile
+  changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile
   pictures a chat service took).
 - **The picture (`GET /live`) is drawn of what the receiver runs itself:** the chat turns of its conversations and
   companions, the rooms whose session it is folding and the message each room queued for a turn, the picture going

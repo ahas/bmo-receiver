@@ -101,7 +101,7 @@ async fn reply_target(
 fn failed(why: NotReceived) -> Refusal {
   match why {
     NotReceived::Store(why) => store(why),
-    why => refused(StatusCode::BAD_GATEWAY, "unit-failed", &why.to_string()),
+    why => refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()),
   }
 }
 
@@ -150,12 +150,12 @@ pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
     .await
     .map_err(failed)?;
 
-    return answered(json!({ "ok": true, "messageId": message_id }));
+    return answered(json!({ "id": message_id }));
   }
 
   let message_id = owner_say(&receiver, asked.chat_id, text, reply).await?;
 
-  answered(json!({ "ok": true, "messageId": message_id }))
+  answered(json!({ "id": message_id }))
 }
 
 pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered {
@@ -272,6 +272,7 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
         name: file.name.clone(),
         mime: file.mime.clone(),
         bytes: file.bytes.clone(),
+        kind: None,
       };
       let room = receiver.roads().room_facts(chat_id).await;
 
@@ -287,11 +288,11 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
       )
       .await
       .map_err(failed)?;
-      sent.push(json!({ "name": file.name, "messageId": message_id }));
+      sent.push(json!({ "name": file.name, "id": message_id }));
     }
 
     return answered(
-      json!({ "ok": true, "messageId": sent.first().and_then(|held| held.get("messageId")), "sent": sent, "checking": [], "failed": turned_away }),
+      json!({ "id": sent.first().and_then(|held| held.get("id")), "sent": sent, "checking": [], "failed": turned_away }),
     );
   }
 
@@ -315,8 +316,7 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
   turned_away.append(&mut outcome.failed);
 
   answered(json!({
-    "ok": true,
-    "messageId": outcome.sent.first().and_then(|held| held.get("messageId")),
+    "id": outcome.sent.first().and_then(|held| held.get("id")),
     "sent": outcome.sent,
     "checking": outcome.checking,
     "failed": turned_away,

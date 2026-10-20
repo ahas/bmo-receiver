@@ -4,28 +4,24 @@
 
 use axum::{body::Bytes, extract::State, http::StatusCode};
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 
 use super::{Answered, Served, answered, code, read, ready, refused};
-use crate::chat::talk::{DocumentTopic, ItemTopic, SaidTurn, TalkFailure, document_request, item_request};
+use crate::chat::talk::{
+  DocumentTopic, ItemTopic, SaidTurn, TalkFailure, TalkRequest, document_request, general_request,
+  item_request,
+};
 use receiver_codes::TalkRefusal;
 
 #[derive(Deserialize)]
 struct TalkBody {
-  topic: TopicBody,
+  topic: Value,
   turns: Vec<Turn>,
   said: String,
 }
 
-/// What a talk is about, as bmo-job hands it.
 #[derive(Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-enum TopicBody {
-  Item(ItemBody),
-  Document(DocBody),
-}
-
-#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ItemBody {
   id: i64,
   title: String,
@@ -39,6 +35,7 @@ struct ItemBody {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DocBody {
   document: String,
   label: String,
@@ -82,42 +79,70 @@ pub async fn talk(State(served): State<Served>, body: Bytes) -> Answered {
       text: turn.text.clone(),
     })
     .collect();
-  let (request, key) = match asked.topic {
-    TopicBody::Item(item) => (
-      item_request(
-        &ItemTopic {
-          id: item.id,
-          title: item.title.clone(),
-          done: item.done,
-          merged_into: item.merged_into,
-          held: item.held,
-          hold: item.hold.clone(),
-          stopping: item.stopping,
-          approved: item.approved,
-          status: item.status.clone(),
-        },
-        turns,
-        said.to_owned(),
-      ),
-      format!("item:{}", item.id),
-    ),
-    TopicBody::Document(document) => (
-      document_request(
-        &DocumentTopic {
-          document: document.document.clone(),
-          label: document.label.clone(),
-          writer: document.writer.clone(),
-          file: document.file.clone(),
-          version: document.version.clone(),
-          heading: document.heading.clone(),
-          passage: document.passage.clone(),
-          translated: document.translated,
-        },
-        turns,
-        said.to_owned(),
-      ),
-      format!("document:{}", document.document),
-    ),
+  let kind = asked
+    .topic
+    .get("kind")
+    .and_then(Value::as_str)
+    .ok_or_else(|| refused(StatusCode::BAD_REQUEST, "bad-request", "topic.kind (a string) is required"))?
+    .to_owned();
+  let (request, key): (TalkRequest, String) = match kind.as_str() {
+    "item" => {
+      let item: ItemBody = serde_json::from_value(asked.topic.clone()).map_err(|error| {
+        refused(StatusCode::BAD_REQUEST, "bad-request", &format!("topic is not an item's: {error}."))
+      })?;
+
+      (
+        item_request(
+          &ItemTopic {
+            id: item.id,
+            title: item.title.clone(),
+            done: item.done,
+            merged_into: item.merged_into,
+            held: item.held,
+            hold: item.hold.clone(),
+            stopping: item.stopping,
+            approved: item.approved,
+            status: item.status.clone(),
+          },
+          turns,
+          said.to_owned(),
+        ),
+        format!("item:{}", item.id),
+      )
+    }
+    "document" => {
+      let document: DocBody = serde_json::from_value(asked.topic.clone()).map_err(|error| {
+        refused(StatusCode::BAD_REQUEST, "bad-request", &format!("topic is not a document's: {error}."))
+      })?;
+
+      (
+        document_request(
+          &DocumentTopic {
+            document: document.document.clone(),
+            label: document.label.clone(),
+            writer: document.writer.clone(),
+            file: document.file.clone(),
+            version: document.version.clone(),
+            heading: document.heading.clone(),
+            passage: document.passage.clone(),
+            translated: document.translated,
+          },
+          turns,
+          said.to_owned(),
+        ),
+        format!("document:{}", document.document),
+      )
+    }
+    other => {
+      let heading = asked.topic.get("heading").and_then(Value::as_str);
+      let fields = asked.topic.get("fields").and_then(Value::as_object);
+      let empty = serde_json::Map::new();
+
+      (
+        general_request(other, heading, fields.unwrap_or(&empty), turns, said.to_owned()),
+        format!("{other}:{}", asked.topic.get("key").and_then(Value::as_str).unwrap_or("")),
+      )
+    }
   };
   let standing = served.receiver.talking();
 

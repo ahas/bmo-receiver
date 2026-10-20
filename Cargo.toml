@@ -2,11 +2,11 @@
 # and the tools bound to it under `tools/`. The root package also holds the checks that span the repository and
 # the service's integration tests in `tests/`. Each crate and tool is named as a member as it stands.
 [workspace]
-members = ["crates/receiver-codes", "crates/receiver-policy", "crates/receiver-ports", "crates/room-calls", "crates/tool-call", "tools/send"]
+members = ["crates/receiver-client", "crates/receiver-codes", "crates/receiver-policy", "crates/receiver-ports", "crates/room-calls", "crates/tool-call", "tools/send"]
 resolver = "3"
 
 [workspace.package]
-version = "0.10.0"
+version = "0.11.0"
 edition = "2024"
 
 [workspace.dependencies]
@@ -30,6 +30,7 @@ pulldown-cmark = { version = "0.13.0", default-features = false }
 # The shapes a text is cut by: the scaffolding, the markers, a wrapped document, a recording verb's call. The
 # Unicode classes stand on because a digit class is read over any script's words.
 regex = { version = "1.13.1", default-features = false, features = ["std", "unicode"] }
+receiver-client = { path = "crates/receiver-client" }
 receiver-codes = { path = "crates/receiver-codes" }
 receiver-policy = { path = "crates/receiver-policy" }
 receiver-ports = { path = "crates/receiver-ports" }
@@ -49,6 +50,8 @@ sea-orm = { version = "1.1.20", default-features = false, features = ["macros", 
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio-rustls", "sqlx-postgres"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.138"
+# A route's query, read into the shape the route takes.
+serde_urlencoded = "0.7.1"
 sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio"] }
 sse-stream = "0.2.6"
 strum = { version = "0.28.0", features = ["derive"] }
@@ -92,6 +95,7 @@ inventory.workspace = true
 headers.workspace = true
 # The shapes a text is cut by.
 regex.workspace = true
+receiver-client.workspace = true
 receiver-codes.workspace = true
 receiver-policy.workspace = true
 receiver-ports.workspace = true
@@ -104,6 +108,7 @@ sea-orm.workspace = true
 sea-orm-migration.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_urlencoded.workspace = true
 sqlx = { workspace = true, features = ["any", "sqlite"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "signal", "time"] }

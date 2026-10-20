@@ -1,0 +1,528 @@
+//! One call for each route of the receiver's fixed API, behind its token (`docs/api.md`).
+
+use reqwest::{Client, Method, RequestBuilder, StatusCode, Url};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde_json::Value;
+
+use crate::types::*;
+use crate::wire::{Answer, ClientFailure, Page, WireError};
+
+/// The receiver at one base address, called with one bearer token.
+#[derive(Debug, Clone)]
+pub struct ReceiverClient {
+  http: Client,
+  base: Url,
+  token: String,
+}
+
+impl ReceiverClient {
+  /// The receiver whose routes stand at `base`, called with `token`; `None` where the address does not read.
+  pub fn new(base: &str, token: impl Into<String>) -> Result<Self, String> {
+    let base = Url::parse(base).map_err(|why| format!("{base} is no address: {why}"))?;
+    if base.cannot_be_a_base() {
+      return Err(format!("{base} is no base address"));
+    }
+
+    Ok(Self {
+      http: Client::new(),
+      base,
+      token: token.into(),
+    })
+  }
+
+  /// The same receiver called through another HTTP client, such as one with a timeout of its own.
+  pub fn with_http(mut self, http: Client) -> Self {
+    self.http = http;
+    self
+  }
+
+  fn url(&self, segments: &[&str]) -> Url {
+    let mut url = self.base.clone();
+    {
+      let mut path = url.path_segments_mut().expect("the base address takes segments");
+      path.pop_if_empty();
+      path.extend(segments);
+    }
+    url
+  }
+
+  fn request(&self, method: Method, segments: &[&str]) -> RequestBuilder {
+    self.http.request(method, self.url(segments)).bearer_auth(&self.token)
+  }
+
+  async fn answered<T: DeserializeOwned>(request: RequestBuilder) -> Answer<T> {
+    let answer = Self::sent(request).await?;
+    let bytes = answer.bytes().await.map_err(|why| ClientFailure::Unreadable(why.to_string()))?;
+    serde_json::from_slice(&bytes).map_err(|why| ClientFailure::Unreadable(why.to_string()))
+  }
+
+  async fn sent(request: RequestBuilder) -> Answer<reqwest::Response> {
+    let answer = request.send().await.map_err(|why| ClientFailure::Unreachable(why.to_string()))?;
+    let status = answer.status();
+    if status.is_success() {
+      return Ok(answer);
+    }
+    let body = answer.bytes().await.unwrap_or_default();
+
+    Err(ClientFailure::Answered {
+      status: status.as_u16(),
+      answer: serde_json::from_slice(&body).ok(),
+    })
+  }
+
+  async fn nothing(request: RequestBuilder) -> Answer<()> {
+    let answer = Self::sent(request).await?;
+
+    match answer.status() {
+      StatusCode::NO_CONTENT => Ok(()),
+      status => Err(ClientFailure::Unreadable(format!("{status} where 204 was due"))),
+    }
+  }
+
+  async fn bytes(request: RequestBuilder) -> Answer<Vec<u8>> {
+    let answer = Self::sent(request).await?;
+
+    answer
+      .bytes()
+      .await
+      .map(|bytes| bytes.to_vec())
+      .map_err(|why| ClientFailure::Unreadable(why.to_string()))
+  }
+
+  fn get<Q: Serialize>(&self, segments: &[&str], query: &Q) -> RequestBuilder {
+    self.request(Method::GET, segments).query(query)
+  }
+
+  fn send<B: Serialize>(&self, method: Method, segments: &[&str], body: &B) -> RequestBuilder {
+    self.request(method, segments).json(body)
+  }
+
+  /// `GET /health`.
+  pub async fn health(&self) -> Answer<Health> {
+    Self::answered(self.request(Method::GET, &["health"])).await
+  }
+
+  /// `GET /owner`.
+  pub async fn owner(&self) -> Answer<Owner> {
+    Self::answered(self.request(Method::GET, &["owner"])).await
+  }
+
+  /// `GET /rooms`.
+  pub async fn rooms(&self) -> Answer<Page<Room>> {
+    Self::answered(self.request(Method::GET, &["rooms"])).await
+  }
+
+  /// `GET /rooms/{roomId}`.
+  pub async fn room(&self, room_id: i64) -> Answer<Room> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string()])).await
+  }
+
+  /// `GET /rooms/{roomId}/title`.
+  pub async fn room_title(&self, room_id: i64) -> Answer<RoomTitle> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "title"])).await
+  }
+
+  /// `GET /rooms/{roomId}/answerers`.
+  pub async fn answerers(&self, room_id: i64) -> Answer<Answerers> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "answerers"])).await
+  }
+
+  /// `GET /answerers`, narrowed to one room where one is named.
+  pub async fn all_answerers(&self, room_id: Option<i64>) -> Answer<Page<RoomAnswerers>> {
+    let request = match room_id {
+      Some(room_id) => self.get(&["answerers"], &[("room", room_id.to_string())]),
+      None => self.request(Method::GET, &["answerers"]),
+    };
+
+    Self::answered(request).await
+  }
+
+  /// `GET /rooms/{roomId}/messages`.
+  pub async fn messages(&self, room_id: i64, query: &MessageQuery) -> Answer<Page<Message>> {
+    Self::answered(self.get(&["rooms", &room_id.to_string(), "messages"], query)).await
+  }
+
+  /// `GET /rooms/{roomId}/messages/{messageId}`.
+  pub async fn message(&self, room_id: i64, message_id: i64) -> Answer<Message> {
+    Self::answered(
+      self.request(Method::GET, &["rooms", &room_id.to_string(), "messages", &message_id.to_string()]),
+    )
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/messages/{messageId}/metadata`.
+  pub async fn message_metadata(&self, room_id: i64, message_id: i64) -> Answer<MessageMetadata> {
+    Self::answered(self.request(
+      Method::GET,
+      &["rooms", &room_id.to_string(), "messages", &message_id.to_string(), "metadata"],
+    ))
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/messages/{messageId}/files`.
+  pub async fn message_files(&self, room_id: i64, message_id: i64) -> Answer<Page<FileEntry>> {
+    Self::answered(self.request(
+      Method::GET,
+      &["rooms", &room_id.to_string(), "messages", &message_id.to_string(), "files"],
+    ))
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/messages/{messageId}/files/{place}`.
+  pub async fn message_file(
+    &self,
+    room_id: i64,
+    message_id: i64,
+    place: usize,
+    download: bool,
+  ) -> Answer<Vec<u8>> {
+    let mut request = self.request(
+      Method::GET,
+      &[
+        "rooms",
+        &room_id.to_string(),
+        "messages",
+        &message_id.to_string(),
+        "files",
+        &place.to_string(),
+      ],
+    );
+    if download {
+      request = request.query(&[("download", "true")]);
+    }
+
+    Self::bytes(request).await
+  }
+
+  /// `GET /rooms/{roomId}/messages/{messageId}/picture`.
+  pub async fn message_picture(&self, room_id: i64, message_id: i64) -> Answer<Vec<u8>> {
+    Self::bytes(self.request(
+      Method::GET,
+      &["rooms", &room_id.to_string(), "messages", &message_id.to_string(), "picture"],
+    ))
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/messages/{messageId}/sender-is-owner`.
+  pub async fn sender_is_owner(&self, room_id: i64, message_id: i64) -> Answer<Value> {
+    Self::answered(self.request(
+      Method::GET,
+      &["rooms", &room_id.to_string(), "messages", &message_id.to_string(), "sender-is-owner"],
+    ))
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/day-start`.
+  pub async fn day_start(&self, room_id: i64, from: i64) -> Answer<Value> {
+    Self::answered(self.get(&["rooms", &room_id.to_string(), "day-start"], &[("from", from.to_string())]))
+      .await
+  }
+
+  /// `GET /rooms/{roomId}/pictures`.
+  pub async fn pictures(&self, room_id: i64, query: &PictureQuery) -> Answer<Pictures> {
+    Self::answered(self.get(&["rooms", &room_id.to_string(), "pictures"], query)).await
+  }
+
+  /// `GET /rooms/{roomId}/figures`.
+  pub async fn figures(&self, room_id: i64, zone: Option<&str>) -> Answer<Figures> {
+    let request = match zone {
+      Some(zone) => self.get(&["rooms", &room_id.to_string(), "figures"], &[("zone", zone)]),
+      None => self.request(Method::GET, &["rooms", &room_id.to_string(), "figures"]),
+    };
+
+    Self::answered(request).await
+  }
+
+  /// `GET /rooms/{roomId}/window`.
+  pub async fn window(&self, room_id: i64) -> Answer<Window> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "window"])).await
+  }
+
+  /// `GET /rooms/{roomId}/roads`.
+  pub async fn road(&self, room_id: i64) -> Answer<Road> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "roads"])).await
+  }
+
+  /// `GET /rooms/{roomId}/own-number`.
+  pub async fn own_number(&self, room_id: i64, agent_name: &str) -> Answer<OwnNumber> {
+    Self::answered(
+      self.get(&["rooms", &room_id.to_string(), "own-number"], &[("agentName", agent_name.to_owned())]),
+    )
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/spoke-between`.
+  pub async fn spoke_between(&self, room_id: i64, person: i64, from: i64, to: i64) -> Answer<Spoke> {
+    Self::answered(self.get(
+      &["rooms", &room_id.to_string(), "spoke-between"],
+      &[("person", person.to_string()), ("from", from.to_string()), ("to", to.to_string())],
+    ))
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/people`.
+  pub async fn room_people(&self, room_id: i64, ids: &[i64]) -> Answer<Page<Person>> {
+    Self::answered(self.get(&["rooms", &room_id.to_string(), "people"], &[("ids", joined(ids))])).await
+  }
+
+  /// `GET /rooms/{roomId}/owner-spoke`.
+  pub async fn owner_spoke(
+    &self,
+    room_id: i64,
+    person: i64,
+    before: i64,
+    window_ms: i64,
+  ) -> Answer<OwnerSpoke> {
+    Self::answered(self.get(
+      &["rooms", &room_id.to_string(), "owner-spoke"],
+      &[
+        ("person", person.to_string()),
+        ("before", before.to_string()),
+        ("windowMs", window_ms.to_string()),
+      ],
+    ))
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/read-marks`.
+  pub async fn read_marks(&self, room_id: i64, agent_name: &str) -> Answer<ReadMarkCount> {
+    Self::answered(
+      self.get(&["rooms", &room_id.to_string(), "read-marks"], &[("agentName", agent_name.to_owned())]),
+    )
+    .await
+  }
+
+  /// `POST /rooms/{roomId}/read-marks`.
+  pub async fn keep_marks(&self, room_id: i64, agent_name: &str, message_ids: &[i64]) -> Answer<()> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Keep<'a> {
+      agent_name: &'a str,
+      message_ids: &'a [i64],
+    }
+
+    Self::nothing(self.send(
+      Method::POST,
+      &["rooms", &room_id.to_string(), "read-marks"],
+      &Keep {
+        agent_name,
+        message_ids,
+      },
+    ))
+    .await
+  }
+
+  /// `DELETE /rooms/{roomId}/read-marks`.
+  pub async fn forget_marks(&self, room_id: i64, agent_name: &str) -> Answer<Forgotten> {
+    Self::answered(
+      self
+        .request(Method::DELETE, &["rooms", &room_id.to_string(), "read-marks"])
+        .query(&[("agentName", agent_name.to_owned())]),
+    )
+    .await
+  }
+
+  /// `POST /read-mark-counts`.
+  pub async fn read_mark_counts(
+    &self,
+    agent_name: &str,
+    since: &[(i64, i64)],
+  ) -> Answer<Page<RoomReadCount>> {
+    #[derive(Serialize)]
+    struct RoomSince {
+      room: i64,
+      since: i64,
+    }
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Counts<'a> {
+      agent_name: &'a str,
+      since: Vec<RoomSince>,
+    }
+
+    Self::answered(
+      self.send(
+        Method::POST,
+        &["read-mark-counts"],
+        &Counts {
+          agent_name,
+          since: since
+            .iter()
+            .map(|(room, at)| RoomSince {
+              room: *room,
+              since: *at,
+            })
+            .collect(),
+        },
+      ),
+    )
+    .await
+  }
+
+  /// `GET /rooms/{roomId}/notices`.
+  pub async fn notices(&self, room_id: i64, query: &NoticeQuery) -> Answer<Page<Notice>> {
+    Self::answered(self.get(&["rooms", &room_id.to_string(), "notices"], query)).await
+  }
+
+  /// `POST /rooms/{roomId}/notices`.
+  pub async fn notice(&self, room_id: i64, fact: Value) -> Answer<Created> {
+    Self::answered(self.send(Method::POST, &["rooms", &room_id.to_string(), "notices"], &fact)).await
+  }
+
+  /// `GET /rooms/{roomId}/send-verbs`.
+  pub async fn send_verbs(&self, room_id: i64, via: Option<&str>) -> Answer<SendVerbs> {
+    let request = match via {
+      Some(via) => self.get(&["rooms", &room_id.to_string(), "send-verbs"], &[("via", via)]),
+      None => self.request(Method::GET, &["rooms", &room_id.to_string(), "send-verbs"]),
+    };
+
+    Self::answered(request).await
+  }
+
+  /// `GET /people`.
+  pub async fn people(&self, ids: &[i64]) -> Answer<Page<Person>> {
+    Self::answered(self.get(&["people"], &[("ids", joined(ids))])).await
+  }
+
+  /// `POST /promise-readings`.
+  pub async fn promise_reading(&self, text: &str) -> Answer<PromiseReading> {
+    Self::answered(self.send(Method::POST, &["promise-readings"], &serde_json::json!({ "text": text })))
+      .await
+  }
+
+  /// `POST /instructions`.
+  pub async fn queue_instruction(&self, instruction: &InstructionRequest) -> Answer<Created> {
+    Self::answered(self.send(Method::POST, &["instructions"], instruction)).await
+  }
+
+  /// `GET /instructions/{instructionId}`.
+  pub async fn instruction(&self, instruction_id: i64) -> Answer<Instruction> {
+    Self::answered(self.request(Method::GET, &["instructions", &instruction_id.to_string()])).await
+  }
+
+  /// `DELETE /instructions/{instructionId}`.
+  pub async fn withdraw_instruction(&self, instruction_id: i64) -> Answer<()> {
+    Self::nothing(self.request(Method::DELETE, &["instructions", &instruction_id.to_string()])).await
+  }
+
+  /// `POST /owner/notices`.
+  pub async fn owner_notice(&self, notice: &OwnerNotice) -> Answer<Created> {
+    Self::answered(self.send(Method::POST, &["owner", "notices"], notice)).await
+  }
+
+  /// `POST /owner/instructions`.
+  pub async fn owner_instruction(&self, instruction: &OwnerInstruction) -> Answer<()> {
+    Self::nothing(self.send(Method::POST, &["owner", "instructions"], instruction)).await
+  }
+
+  /// `PUT /room-holders/{holderName}`.
+  pub async fn declare_holder(&self, holder_name: &str, holder: &RoomHolder) -> Answer<()> {
+    Self::nothing(self.send(Method::PUT, &["room-holders", holder_name], holder)).await
+  }
+
+  /// `POST /sends`.
+  pub async fn send_tool(&self, request: &SendRequest) -> Answer<SendAnswer> {
+    Self::answered(self.send(Method::POST, &["sends"], request)).await
+  }
+
+  /// `POST /owner/messages`.
+  pub async fn owner_message(&self, message: &OwnerMessage) -> Answer<Created> {
+    Self::answered(self.send(Method::POST, &["owner", "messages"], message)).await
+  }
+
+  /// `POST /consult-lines`.
+  pub async fn consult_line(&self, line: &ConsultLine) -> Answer<ConsultSaid> {
+    Self::answered(self.send(Method::POST, &["consult-lines"], line)).await
+  }
+
+  /// `GET /consult-lines`.
+  pub async fn consult_block(&self, agent_name: &str) -> Answer<ConsultBlock> {
+    Self::answered(self.get(&["consult-lines"], &[("agentName", agent_name.to_owned())])).await
+  }
+
+  /// `POST /talks`.
+  pub async fn talk(&self, talk: &Talk) -> Answer<TalkAnswer> {
+    Self::answered(self.send(Method::POST, &["talks"], talk)).await
+  }
+
+  /// `POST /events`.
+  pub async fn publish_event(&self, event: &PublishedEvent) -> Answer<Created> {
+    Self::answered(self.send(Method::POST, &["events"], event)).await
+  }
+
+  /// `GET /live`.
+  pub async fn live(&self) -> Answer<Live> {
+    Self::answered(self.request(Method::GET, &["live"])).await
+  }
+
+  /// `POST /hooks/{point}`.
+  pub async fn hook(&self, point: &str, ask: Value) -> Answer<HookAnswer> {
+    Self::answered(self.send(Method::POST, &["hooks", point], &ask)).await
+  }
+
+  /// `DELETE /rooms/{roomId}`, its preview where `dry_run`.
+  pub async fn remove_room(&self, room_id: i64, by: &str, dry_run: bool) -> Answer<Value> {
+    let query = [("by", by.to_owned()), ("dryRun", dry_run.to_string())];
+
+    Self::answered(self.request(Method::DELETE, &["rooms", &room_id.to_string()]).query(&query)).await
+  }
+
+  /// `GET /rounds/openings`.
+  pub async fn openings(&self, room_id: i64, rounds: &[String]) -> Answer<Page<RoundOpening>> {
+    Self::answered(
+      self.get(&["rounds", "openings"], &[("room", room_id.to_string()), ("rounds", rounds.join(","))]),
+    )
+    .await
+  }
+
+  /// `GET /rounds/openings/{instructionId}`.
+  pub async fn opening(&self, room_id: i64, instruction_id: i64) -> Answer<OpeningText> {
+    Self::answered(
+      self.get(&["rounds", "openings", &instruction_id.to_string()], &[("room", room_id.to_string())]),
+    )
+    .await
+  }
+
+  /// `POST /companions`.
+  pub async fn add_companion(&self, companion: &CompanionRequest) -> Answer<Companions> {
+    Self::answered(self.send(Method::POST, &["companions"], companion)).await
+  }
+
+  /// `DELETE /companions/{companionName}`.
+  pub async fn remove_companion(&self, name: &str, by: Option<&str>) -> Answer<Companions> {
+    let mut request = self.request(Method::DELETE, &["companions", name]);
+    if let Some(by) = by {
+      request = request.query(&[("by", by)]);
+    }
+
+    Self::answered(request).await
+  }
+
+  /// `PUT /pinned-rooms`.
+  pub async fn pin_rooms(&self, rooms: &PinRooms) -> Answer<PinnedRooms> {
+    Self::answered(self.send(Method::PUT, &["pinned-rooms"], rooms)).await
+  }
+
+  /// `POST /pinned-rooms`.
+  pub async fn pin_room(&self, room: &PinRoom) -> Answer<PinnedRooms> {
+    Self::answered(self.send(Method::POST, &["pinned-rooms"], room)).await
+  }
+
+  /// `DELETE /pinned-rooms/{roomId}`.
+  pub async fn unpin_room(&self, room_id: i64) -> Answer<PinnedRooms> {
+    Self::answered(self.request(Method::DELETE, &["pinned-rooms", &room_id.to_string()])).await
+  }
+}
+
+fn joined(ids: &[i64]) -> String {
+  ids.iter().map(i64::to_string).collect::<Vec<String>>().join(",")
+}
+
+/// The error shape a refusal carries, for a caller matching on its code.
+pub fn wire_error(answer: &ClientFailure) -> Option<&WireError> {
+  match answer {
+    ClientFailure::Answered { answer, .. } => answer.as_ref(),
+    _ => None,
+  }
+}

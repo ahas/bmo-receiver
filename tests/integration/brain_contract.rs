@@ -1,16 +1,15 @@
-//! The brain's reads of a room, checked against the brain's own document (`docs/boundary-api.md`, 「For the
-//! brain」, word for word against the brain's `docs/boundary-api.md`, 「The receiver」): every one a `POST` in
-//! camelCase, answered with the fields the brain's document names.
+//! A room's record read through the fixed API (`docs/api.md`): the messages, the read marks, the people, the
+//! answerers and the readings a turn is held to, every one a resource read in the common wire format.
 
 use axum::http::StatusCode;
 use serde_json::json;
 
 use crate::common::Scratch;
-use crate::common::queue::{get, post, stood};
+use crate::common::queue::{get, post, put, remove, stood};
 use crate::common::units::{AGENT, OWNER};
 
 #[tokio::test]
-async fn the_brains_routes_answer_the_fields_its_document_names() {
+async fn a_rooms_record_answers_the_fields_the_api_names() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
 
@@ -18,51 +17,50 @@ async fn the_brains_routes_answer_the_fields_its_document_names() {
 
   // The unread messages, the counts, the read ones and the marks.
   assert_eq!(
-    post(
-      &front,
-      "/messages/unread",
-      json!({ "agent": AGENT, "chatId": 7, "limit": 10, "since": null })
-    )
-    .await,
+    get(&front, &format!("/rooms/7/messages?agentName={AGENT}&unread=true&limit=10")).await,
     (
       StatusCode::OK,
-      json!({ "messages": [json!({ "chatId": 7, "messageId": 1, "senderId": OWNER, "senderName": "someone", "sentAt": 1, "text": "words", "replyToMessageId": null })] })
+      json!({ "items": [json!({
+        "id": 1, "room": 7, "senderId": OWNER, "senderName": "someone", "sentAt": 1_000,
+        "text": "words", "imagePath": null, "replyToMessageId": null, "answerSeconds": null,
+        "round": null, "album": null, "via": null, "files": [],
+      })], "more": false })
     ),
   );
   assert_eq!(
-    post(&front, "/messages/unread-counts", json!({ "agent": AGENT, "since": [] })).await.1["rooms"]
+    post(&front, "/read-mark-counts", json!({ "agentName": AGENT, "since": [] })).await.1["items"]
       .as_array()
       .unwrap()
       .iter()
-      .map(|room| room["chatId"].as_i64().unwrap())
+      .map(|room| room["room"].as_i64().unwrap())
       .collect::<Vec<i64>>(),
     [7],
   );
   assert_eq!(
-    post(&front, "/messages/read", json!({ "agent": AGENT, "chatId": 7, "from": 0, "limit": 10 }))
+    get(&front, &format!("/rooms/7/messages?agentName={AGENT}&marked=true&after=0&limit=10"))
       .await
-      .1["messages"]
+      .1["items"]
       .as_array()
       .unwrap()
       .len(),
     0,
   );
   assert_eq!(
-    post(&front, "/read-marks/count", json!({ "agent": AGENT, "chatId": 7 })).await,
+    get(&front, &format!("/rooms/7/read-marks?agentName={AGENT}")).await,
     (StatusCode::OK, json!({ "count": 0 })),
   );
   assert_eq!(
-    post(&front, "/read-marks/keep", json!({ "agent": AGENT, "chatId": 7, "messageIds": [1] })).await,
-    (StatusCode::OK, json!({ "ok": true })),
+    post(&front, "/rooms/7/read-marks", json!({ "agentName": AGENT, "messageIds": [1] })).await,
+    (StatusCode::NO_CONTENT, json!({})),
   );
   assert_eq!(
-    post(&front, "/read-marks/count", json!({ "agent": AGENT, "chatId": 7 })).await.1["count"]
+    get(&front, &format!("/rooms/7/read-marks?agentName={AGENT}")).await.1["count"]
       .as_i64()
       .unwrap(),
     1,
   );
   assert_eq!(
-    post(&front, "/read-marks/forget", json!({ "agent": AGENT, "chatId": null })).await.1["forgotten"]
+    remove(&front, &format!("/rooms/7/read-marks?agentName={AGENT}")).await.1["forgotten"]
       .as_i64()
       .unwrap(),
     1,
@@ -70,47 +68,42 @@ async fn the_brains_routes_answer_the_fields_its_document_names() {
 
   // The rooms, their titles, their answerers and their roads.
   assert_eq!(
-    post(&front, "/rooms/titles", json!([])).await.1["rooms"]
+    get(&front, "/rooms").await.1["items"]
       .as_array()
       .unwrap()
       .iter()
-      .map(|room| room["chatId"].as_i64().unwrap())
+      .map(|room| room["id"].as_i64().unwrap())
       .collect::<Vec<i64>>(),
     [7],
   );
   assert_eq!(
-    post(&front, "/rooms/answerers", json!({ "chatId": null })).await.1["rooms"]
+    get(&front, "/answerers").await.1["items"]
       .as_array()
       .unwrap()
       .iter()
-      .map(|room| room["chatId"].as_i64().unwrap())
+      .map(|room| room["room"].as_i64().unwrap())
       .collect::<Vec<i64>>(),
     [7],
   );
   assert_eq!(
-    post(&front, "/rooms/roads", json!({ "chatId": 7 })).await,
+    get(&front, "/rooms/7/roads").await,
     (StatusCode::OK, json!({ "kind": "group", "oneToOne": false })),
   );
 
   // The people.
   assert_eq!(
-    post(
-      &front,
-      "/rooms/spoke-between",
-      json!({ "chatId": 7, "person": OWNER, "from": 0, "to": 5 })
-    )
-    .await,
+    get(&front, &format!("/rooms/7/spoke-between?person={OWNER}&from=0&to=5000")).await,
     (StatusCode::OK, json!({ "spoke": true })),
   );
   assert_eq!(
-    post(&front, "/rooms/spoken-in", json!({ "chatId": 7, "people": [OWNER, 8] })).await.1["people"]
+    get(&front, &format!("/rooms/7/people?ids={OWNER},8")).await.1["items"]
       .as_array()
       .unwrap()
       .len(),
     1,
   );
   assert_eq!(
-    post(&front, "/people/names", json!({ "people": [OWNER] })).await.1["names"]
+    get(&front, &format!("/people?ids={OWNER}")).await.1["items"]
       .as_array()
       .unwrap()
       .iter()
@@ -119,22 +112,17 @@ async fn the_brains_routes_answer_the_fields_its_document_names() {
     ["someone"],
   );
   assert_eq!(
-    post(
-      &front,
-      "/rooms/owner-spoke",
-      json!({ "chatId": 7, "person": OWNER, "before": 5, "seconds": 10 })
-    )
-    .await,
+    get(&front, &format!("/rooms/7/owner-spoke?person={OWNER}&before=5000&windowMs=10000")).await,
     (StatusCode::OK, json!({ "owner": false, "spoke": false })),
   );
   assert_eq!(
-    post(&front, "/messages/sender-is-owner", json!({ "chatId": 7, "messageId": 1 })).await,
+    get(&front, "/rooms/7/messages/1/sender-is-owner").await,
     (StatusCode::OK, json!({ "owner": false })),
   );
 
   // The agent's own number, and the two ways a row is queued.
   assert_eq!(
-    post(&front, "/rooms/own-number", json!({ "agent": AGENT, "chatId": 7 })).await,
+    get(&front, &format!("/rooms/7/own-number?agentName={AGENT}")).await,
     (StatusCode::OK, json!({ "number": null })),
   );
   // Whether a text waits for something to happen first, by the receiver's reading of promises: the words it
@@ -145,47 +133,60 @@ async fn the_brains_routes_answer_the_fields_its_document_names() {
     .to_owned();
 
   assert!(
-    post(&front, "/promises/waits", json!({ "text": waiting })).await.1["waits"]
+    post(&front, "/promise-readings", json!({ "text": waiting })).await.1["waits"]
       .as_bool()
       .unwrap(),
   );
+  let not_waiting = std::fs::read_to_string("tests/fixtures/promises-not-waiting.txt")
+    .unwrap()
+    .trim()
+    .to_owned();
+
   assert!(
-    !post(&front, "/promises/waits", json!({ "text": "I will tell you when it is done." }))
-      .await
-      .1["waits"]
+    !post(&front, "/promise-readings", json!({ "text": not_waiting })).await.1["waits"]
       .as_bool()
       .unwrap(),
   );
   assert_eq!(
-    post(&front, "/owner/notice", json!({ "code": "digest-paused" })).await.0,
-    StatusCode::OK
+    post(&front, "/owner/notices", json!({ "code": "digest-paused" })).await.0,
+    StatusCode::CREATED
   );
   assert_eq!(
     post(
       &front,
-      "/instructions/quiet",
-      json!({ "agent": AGENT, "chatId": 7, "text": "a memo.", "kind": "watch" })
+      "/instructions",
+      json!({
+        "agentName": AGENT,
+        "room": 7,
+        "said": { "order": "a memo." },
+        "sort": "watch"
+      }),
     )
     .await
     .0,
-    StatusCode::OK,
+    StatusCode::CREATED,
+  );
+  assert_eq!(
+    put(&front, "/room-holders/unit-a", json!({ "address": "http://unit", "holdings": [] }))
+      .await
+      .0,
+    StatusCode::NO_CONTENT,
   );
 }
 
 #[tokio::test]
-async fn a_route_the_brain_reaches_wrongly_is_refused() {
+async fn a_route_reached_wrongly_is_refused() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
 
-  // A body that is not the shape the route takes is refused with the words naming it.
-  let (status, answer) = post(&front, "/messages/unread", json!({})).await;
+  // A query that is not the shape the route takes is refused with the words naming it.
+  let (status, answer) = get(&front, "/rooms/7/messages?marked=maybe").await;
 
   assert_eq!(status, StatusCode::BAD_REQUEST);
   assert_eq!(answer["code"].as_str().unwrap(), "bad-request");
 
-  // Reached by a method the route does not answer, the path names no route: the receiver answers where it
-  // holds none, whatever the method was.
-  let (method, where_none) = get(&front, "/messages/unread").await;
+  // A method the route does not answer names no route.
+  let (method, where_none) = post(&front, "/rooms/7/messages", json!({})).await;
 
   assert_eq!(method, StatusCode::NOT_FOUND);
   assert_eq!(where_none["code"].as_str().unwrap(), "no-route");
