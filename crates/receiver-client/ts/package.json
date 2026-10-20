@@ -1,7 +1,8 @@
 {
   "name": "@bmo/receiver-client",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "The chat receiver's fixed API as a TypeScript caller reaches it: types generated from docs/openapi.json, one call for each route over HTTP with a bearer token.",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "exports": {

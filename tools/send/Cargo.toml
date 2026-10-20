@@ -3,6 +3,7 @@ name = "send-tool"
 description = "The sends the agents make into rooms: a line, a picture, a reminder, a reaction, a pin, a sticker and a fair draw."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 
 [[bin]]

@@ -3,6 +3,7 @@ name = "room-calls"
 description = "What the send tool and the receiver's own verbs share: the turn a call is made in, the sends asked of the receiver, and the readings an answer is held to."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 
 [dependencies]

@@ -3,6 +3,7 @@ name = "receiver-codes"
 description = "The receiver's codes: every refusal it answers, every fact it hands a room's agent and every fixed line a room hears, as enums of kebab-case codes with structured fields."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 
 [dependencies]

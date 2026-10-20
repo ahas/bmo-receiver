@@ -6,7 +6,7 @@ name = "receiver-client"
 description = "The chat receiver's fixed API: every body and member as a Rust type, one call for each route, and the OpenAPI document generated from them."
 version.workspace = true
 edition.workspace = true
-publish = false
+license.workspace = true
 
 [dependencies]
 reqwest = { workspace = true, features = ["json", "query"] }

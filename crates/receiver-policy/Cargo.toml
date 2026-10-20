@@ -3,6 +3,7 @@ name = "receiver-policy"
 description = "The receiver's policy: its fixed numbers and words, read from the TOML files under the repository's policy/."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 
 [dependencies]

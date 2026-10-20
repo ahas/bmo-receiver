@@ -96,7 +96,10 @@ async fn an_agent_that_does_not_answer_in_the_consult_room_is_shown_nothing() {
 
   room(receiver, Some("Lab")).await.unwrap();
 
-  assert_eq!(state(receiver, "agent-c").await, vec![CONSULT.nothing_shown.replace("{agent}", "agent-c")]);
+  assert_eq!(
+    state(receiver, "agent-c").await,
+    vec![CONSULT.nothing_shown.replace("{agent}", "agent-c")]
+  );
   assert!(state(receiver, "agent-a").await[0].contains("Agent B"));
   assert_eq!(window_states(receiver, SHARED).await.len(), 2);
 }

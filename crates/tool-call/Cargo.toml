@@ -3,6 +3,7 @@ name = "tool-call"
 description = "The receiver's side of the tool host's call protocol, which the tools bound to it share."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 
 [dependencies]

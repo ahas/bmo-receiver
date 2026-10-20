@@ -3,6 +3,7 @@ name = "receiver-ports"
 description = "The receiver's ports to the other units: each call it makes there, as a trait and an HTTP client."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 
 [dependencies]
