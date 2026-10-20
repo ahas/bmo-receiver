@@ -22,8 +22,8 @@
       "policy/files",
       "receiver/wake"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585115
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508501028
   },
   {
     "id": "companion/reset",
@@ -47,8 +47,8 @@
       "store/database",
       "chat/conversations"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585111
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508501032
   },
   {
     "id": "companion/turn",
@@ -75,7 +75,7 @@
       "companion/reset",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585107
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508501038
   }
 ]

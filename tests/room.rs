@@ -13,9 +13,9 @@ fn a_name_list_opens_on_the_owners_word() {
 
 #[test]
 fn names_compare_with_case_set_aside_first() {
-  let mut names = vec!["b", "A", "a", "agent-w2", "agent-w10"];
+  let mut names = vec!["b", "A", "a", "tester-w2", "tester-w10"];
 
   names.sort_by(|left, right| name_order(left, right));
 
-  assert_eq!(names, vec!["a", "A", "b", "agent-w10", "agent-w2"]);
+  assert_eq!(names, vec!["a", "A", "b", "tester-w10", "tester-w2"]);
 }

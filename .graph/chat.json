@@ -27,8 +27,8 @@
       "calls/agency",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585080
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500958
   },
   {
     "id": "chat/conversations",
@@ -59,8 +59,8 @@
       "calls/gate",
       "calls/chat"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585065
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500962
   },
   {
     "id": "chat/instruction-pass",
@@ -81,8 +81,8 @@
       "chat/conversations",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585073
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500966
   },
   {
     "id": "chat/notices",
@@ -113,8 +113,8 @@
       "codes/codes",
       "policy/files"
     ],
-    "base": "02427dfbabcd2cc02a80343186fbeb110cfe364e",
-    "changed": 1792506418739
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500969
   },
   {
     "id": "chat/private-thread",
@@ -132,8 +132,8 @@
       "store/database",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585102
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500973
   },
   {
     "id": "chat/restart",
@@ -157,8 +157,8 @@
       "store/database",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585085
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500976
   },
   {
     "id": "chat/room-block",
@@ -180,8 +180,8 @@
       "calls/web",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585071
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500980
   },
   {
     "id": "chat/round",
@@ -213,8 +213,8 @@
       "calls/brain",
       "calls/gate"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585077
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500984
   },
   {
     "id": "chat/session",
@@ -240,8 +240,8 @@
       "store/database",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585088
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500988
   },
   {
     "id": "chat/talk",
@@ -263,8 +263,8 @@
       "chat/conversations",
       "calls/job"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585094
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500991
   },
   {
     "id": "chat/touch",
@@ -287,8 +287,8 @@
       "chat/conversations",
       "calls/warmer"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585091
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500995
   },
   {
     "id": "chat/typed-line",
@@ -307,8 +307,8 @@
       "chat/window",
       "chat/room-block"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585098
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508500999
   },
   {
     "id": "chat/window",
@@ -334,7 +334,7 @@
       "chat/room-block",
       "policy/files"
     ],
-    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
-    "changed": 1792499585068
+    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
+    "changed": 1792508501002
   }
 ]
