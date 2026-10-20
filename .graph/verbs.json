@@ -1,0 +1,93 @@
+[
+  {
+    "id": "verbs/commands",
+    "title": "The bmo verbs over the receiver's record",
+    "what": "The receiver's command-line verbs that stand on its own record: the sends a person, a job or a failed tool call makes, the room's switches, rules, files and notices, photo repair, consult, and the reload.",
+    "files": [
+      "docs/boundary-api.md",
+      "docs/chat-mcp.md",
+      "src/verbs/asked_sends.rs",
+      "src/verbs/consult.rs",
+      "src/verbs/messages.rs",
+      "src/verbs/mod.rs",
+      "src/verbs/photo_repair.rs",
+      "src/verbs/room_files.rs",
+      "src/verbs/room_rules.rs",
+      "src/verbs/room_switches.rs",
+      "src/verbs/sends.rs",
+      "src/verbs/turn.rs"
+    ],
+    "symbols": [
+      "VerbError",
+      "say",
+      "photo",
+      "file",
+      "voice",
+      "notice",
+      "change",
+      "room_file_refusal"
+    ],
+    "aliases": [],
+    "needs": [
+      "roads/roads",
+      "receiver/inbound",
+      "receiver/pictures",
+      "receiver/wake",
+      "calls/chat",
+      "calls/brain",
+      "calls/web",
+      "store/database"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585173
+  },
+  {
+    "id": "verbs/draws",
+    "title": "Fair draws",
+    "what": "The fair draw an agent asks for: the request read and refused, the room's committed seed consumed, the draw recorded, the room line posted and a published draw checked again.",
+    "files": [
+      "crates/receiver-codes/src/draws.rs",
+      "docs/random-draw.md",
+      "src/verbs/draws.rs"
+    ],
+    "symbols": [
+      "draw",
+      "verify_recorded",
+      "verify_published",
+      "commitment_of",
+      "DRAW_METHOD"
+    ],
+    "aliases": [],
+    "needs": [
+      "store/database",
+      "roads/roads",
+      "routes/sends",
+      "calls/web"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585176
+  },
+  {
+    "id": "verbs/reload",
+    "title": "Document reload",
+    "what": "Every session concerned told to read the documents a reload named: the rooms each document concerns, the rows folded into one still waiting, and the chats told at once or with their next reload.",
+    "files": [
+      "docs/bmo-window.md",
+      "src/verbs/reload.rs"
+    ],
+    "symbols": [
+      "reload",
+      "documents_moved",
+      "reload_instruction",
+      "chats_concerned"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/agency",
+      "routes/instructions",
+      "store/database"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585179
+  }
+]

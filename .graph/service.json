@@ -1,0 +1,69 @@
+[
+  {
+    "id": "service/config",
+    "title": "The receiver's configuration",
+    "what": "The one settings.toml the binary reads at start: its own address, token and database, and for each unit it calls that unit's address and token, with the deployment's names.",
+    "files": [
+      "docs/boundary-api.md",
+      "settings.example.toml",
+      "src/config.rs"
+    ],
+    "symbols": [
+      "Config",
+      "path",
+      "SETTINGS"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585188
+  },
+  {
+    "id": "service/start",
+    "title": "The service's start and commands",
+    "what": "The binary's own verbs and what a starting receiver settles before it answers: the migrations, the data root's folders, the cache warmer and the agency's hooks told, and the clocks kept.",
+    "files": [
+      "docs/boundary-api.md",
+      "src/bin/bmo-receiver.rs",
+      "src/service_start.rs"
+    ],
+    "symbols": [
+      "settle",
+      "Standing",
+      "call_names",
+      "chat_touch"
+    ],
+    "aliases": [],
+    "needs": [
+      "store/migrations",
+      "store/data-root",
+      "calls/warmer",
+      "calls/agency",
+      "events/hearing",
+      "chat/restart"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585191
+  },
+  {
+    "id": "service/tool-env",
+    "title": "Where the tools find the receiver",
+    "what": "The data root's environment file, which the receiver writes at deployment so its tools find its address and token.",
+    "files": [
+      "docs/chat-mcp.md",
+      "src/tool_env.rs"
+    ],
+    "symbols": [
+      "write_env",
+      "base_address",
+      "env_text",
+      "Written"
+    ],
+    "aliases": [],
+    "needs": [
+      "service/config"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585194
+  }
+]

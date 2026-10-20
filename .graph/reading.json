@@ -1,0 +1,43 @@
+[
+  {
+    "id": "reading/run-log",
+    "title": "A run's log lines",
+    "what": "One line of a run's log read into the tools it called and the actions it took, for a Claude Code record or a Codex rollout.",
+    "files": [
+      "src/run_lines.rs"
+    ],
+    "symbols": [
+      "record_lines",
+      "rollout_lines",
+      "called_tool",
+      "reached"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585185
+  },
+  {
+    "id": "reading/text",
+    "title": "The readings a text is cut by",
+    "what": "A text measured, cleaned of dashes and prompt scaffolding, its words' form read into a road's marks, its JSON keys kept in order, and the web addresses it names found.",
+    "files": [
+      "src/dashes.rs",
+      "src/form.rs",
+      "src/json.rs",
+      "src/text.rs",
+      "src/web_address.rs"
+    ],
+    "symbols": [
+      "without_dashes",
+      "strip_prompt_scaffolding",
+      "outgoing",
+      "Json",
+      "web_addresses"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585182
+  }
+]

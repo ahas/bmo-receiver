@@ -1,0 +1,42 @@
+[
+  {
+    "id": "api/http",
+    "title": "The receiver's HTTP API",
+    "what": "The routes the receiver serves over HTTP in the common wire format, the Rust and TypeScript clients written from one OpenAPI document, and the bearer token every route but the warmer's ping stands behind.",
+    "files": [
+      "crates/receiver-client/src/client.rs",
+      "crates/receiver-client/src/lib.rs",
+      "crates/receiver-client/src/openapi.rs",
+      "crates/receiver-client/src/types.rs",
+      "crates/receiver-client/src/wire.rs",
+      "crates/receiver-client/ts/",
+      "docs/api.md",
+      "docs/openapi.json"
+    ],
+    "symbols": [
+      "ReceiverClient",
+      "Page",
+      "WireError",
+      "VERSION"
+    ],
+    "aliases": [],
+    "needs": [
+      "routes/rooms",
+      "routes/owner-words",
+      "routes/instructions",
+      "routes/sends",
+      "routes/consult",
+      "routes/hooks",
+      "routes/openings",
+      "routes/companions",
+      "routes/talks",
+      "events/stream",
+      "rooms/removal"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585003,
+    "boundary": {
+      "side": "exposes"
+    }
+  }
+]

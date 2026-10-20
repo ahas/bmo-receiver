@@ -1,0 +1,81 @@
+[
+  {
+    "id": "companion/consult",
+    "title": "The consult room block and line",
+    "what": "What an agent's turn is shown of the other agents' work and each agent's window in the consult room, and one line said there under the calling agent's own name.",
+    "files": [
+      "docs/consult.md",
+      "src/companion/consult.rs",
+      "src/companion/consult_say.rs"
+    ],
+    "symbols": [
+      "consult_block",
+      "window_states",
+      "say",
+      "Said"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/job",
+      "calls/chat",
+      "store/database",
+      "policy/files",
+      "receiver/wake"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585115
+  },
+  {
+    "id": "companion/reset",
+    "title": "A companion's reset",
+    "what": "The point an agency reset cuts a companion off at, the words and turns it overtakes, and the receiver's own rows the reset takes in one write.",
+    "files": [
+      "docs/wake.md",
+      "src/companion/cut.rs",
+      "src/companion/overtaken.rs",
+      "src/companion/reset.rs"
+    ],
+    "symbols": [
+      "CutOffs",
+      "Resets",
+      "overtaken",
+      "point"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/agency",
+      "store/database",
+      "chat/conversations"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585111
+  },
+  {
+    "id": "companion/turn",
+    "title": "A companion's turn",
+    "what": "A companion's own turn: its words and quiet instructions composed into one prompt, carried into its room's session, its answer read as the companion wrote it, and the words a stopped session left untaken.",
+    "files": [
+      "docs/wake.md",
+      "src/companion/mod.rs",
+      "src/companion/pass.rs",
+      "src/companion/turn.rs",
+      "src/companion/words.rs"
+    ],
+    "symbols": [
+      "Companion",
+      "Turn",
+      "line_of",
+      "new_turns",
+      "replay"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/agency",
+      "calls/chat",
+      "companion/reset",
+      "policy/files"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585107
+  }
+]

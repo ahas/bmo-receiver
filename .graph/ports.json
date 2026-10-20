@@ -1,0 +1,21 @@
+[
+  {
+    "id": "ports/units",
+    "title": "The ports to the other units",
+    "what": "The traits the receiver's code is written against and the HTTP clients that answer them, one module to a unit, with the retry, clock and failure each call shares.",
+    "files": [
+      "crates/receiver-ports/src/http.rs",
+      "crates/receiver-ports/src/lib.rs"
+    ],
+    "symbols": [
+      "Peer",
+      "PortFailure",
+      "Caller",
+      "Answer"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585029
+  }
+]

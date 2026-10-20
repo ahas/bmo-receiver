@@ -1,0 +1,216 @@
+[
+  {
+    "id": "routes/companions",
+    "title": "Companions with a room",
+    "what": "A companion added on the console with a room of its own and removed there, its console room, number and answerers written by the receiver and its agent's half by the agency.",
+    "files": [
+      "docs/api.md",
+      "src/routes/companions.rs"
+    ],
+    "symbols": [
+      "add",
+      "remove",
+      "Added",
+      "Removed"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/agency",
+      "calls/gate",
+      "store/database",
+      "roads/roads"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585164
+  },
+  {
+    "id": "routes/consult",
+    "title": "The consult routes",
+    "what": "The routes the consult tool asks: a line said in the consult room under an agent's own name, and the block an agent is shown of the other agents' work.",
+    "files": [
+      "docs/consult.md",
+      "src/routes/consult.rs"
+    ],
+    "symbols": [
+      "consult_say",
+      "block"
+    ],
+    "aliases": [],
+    "needs": [
+      "companion/consult",
+      "receiver/inbound"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585152
+  },
+  {
+    "id": "routes/hooks",
+    "title": "The router and the agency's hooks",
+    "what": "The route table the service is built from, the bearer token check and refusal shape every route shares, and the agency's three hooks with the cache warmer's ping.",
+    "files": [
+      "docs/boundary-api.md",
+      "src/routes/hooks.rs",
+      "src/routes/mod.rs"
+    ],
+    "symbols": [
+      "routes",
+      "served",
+      "hook",
+      "ping"
+    ],
+    "aliases": [],
+    "needs": [
+      "chat/typed-line",
+      "roads/roads",
+      "chat/touch",
+      "chat/room-block"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585155
+  },
+  {
+    "id": "routes/instructions",
+    "title": "The instruction queue route",
+    "what": "The route an instruction is queued on for an agent's session in a room, read by its state and withdrawn, with the notices a room or the owner is told.",
+    "files": [
+      "docs/api.md",
+      "src/routes/instructions.rs"
+    ],
+    "symbols": [
+      "queue_instruction",
+      "instruction_state",
+      "withdraw",
+      "notice",
+      "notices"
+    ],
+    "aliases": [],
+    "needs": [
+      "store/database",
+      "chat/instruction-pass",
+      "receiver/notices"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585145
+  },
+  {
+    "id": "routes/openings",
+    "title": "The round openings",
+    "what": "What opened a room's turns, read back with the verdicts a round left, for the console to stand beside the instructions they carried.",
+    "files": [
+      "docs/bmo-window.md",
+      "src/routes/openings.rs"
+    ],
+    "symbols": [
+      "openings",
+      "instruction",
+      "summary_of",
+      "rounds_of"
+    ],
+    "aliases": [],
+    "needs": [
+      "store/database",
+      "chat/instruction-pass"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585161
+  },
+  {
+    "id": "routes/owner-words",
+    "title": "The owner's words from the console",
+    "what": "The routes that put the owner's words, instructions and files into a room from the console, archived under a console number or sent on the room's road as the owner.",
+    "files": [
+      "docs/receiver.md",
+      "docs/unified-bmo.md",
+      "src/routes/as_owner.rs",
+      "src/routes/owner_words.rs",
+      "src/routes/say.rs"
+    ],
+    "symbols": [
+      "instruct",
+      "say",
+      "say_file",
+      "send_files"
+    ],
+    "aliases": [],
+    "needs": [
+      "receiver/inbound",
+      "roads/roads",
+      "chat/conversations",
+      "calls/chat",
+      "store/database"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585142
+  },
+  {
+    "id": "routes/rooms",
+    "title": "The console's room reads",
+    "what": "The routes a room is read on: its rooms and their titles, answerers, windows and figures, read marks, people, a message's metadata and files, and a day's first message.",
+    "files": [
+      "src/routes/brain.rs",
+      "src/routes/console.rs",
+      "src/routes/figures.rs",
+      "src/routes/message_files.rs",
+      "src/routes/rooms.rs"
+    ],
+    "symbols": [
+      "rooms",
+      "room",
+      "answerers",
+      "messages",
+      "figures",
+      "read_count",
+      "files"
+    ],
+    "aliases": [],
+    "needs": [
+      "receiver/reads",
+      "receiver/message-files",
+      "receiver/pictures",
+      "store/database"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585137
+  },
+  {
+    "id": "routes/sends",
+    "title": "The sends route",
+    "what": "The route an agent's send is asked of the running receiver on, and the route that answers which sending verbs a room's road performs.",
+    "files": [
+      "docs/api.md",
+      "src/routes/sends.rs"
+    ],
+    "symbols": [
+      "sends",
+      "can"
+    ],
+    "aliases": [],
+    "needs": [
+      "verbs/commands",
+      "roads/roads",
+      "calls/chat"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585149
+  },
+  {
+    "id": "routes/talks",
+    "title": "Console talks",
+    "what": "A talk the owner holds with the chat agent about an item or a document, handed over by bmo-job and answered as a round of the owner's private chat.",
+    "files": [
+      "src/routes/talks.rs"
+    ],
+    "symbols": [
+      "talk"
+    ],
+    "aliases": [],
+    "needs": [
+      "chat/talk",
+      "chat/window",
+      "calls/gate",
+      "calls/job"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585168
+  }
+]

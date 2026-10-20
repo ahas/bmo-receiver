@@ -1,0 +1,27 @@
+[
+  {
+    "id": "roads/roads",
+    "title": "The roads a room is answered on",
+    "what": "The road a room's words and an agent's answer go out on, what each chat service declares of it, and the room's own record of numbers and words written in one line.",
+    "files": [
+      "docs/receiver.md",
+      "src/roads/declared.rs",
+      "src/roads/mod.rs",
+      "src/roads/record.rs"
+    ],
+    "symbols": [
+      "Roads",
+      "Road",
+      "Facts",
+      "record",
+      "keep"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/chat",
+      "store/database"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585063
+  }
+]

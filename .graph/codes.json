@@ -1,0 +1,34 @@
+[
+  {
+    "id": "codes/codes",
+    "title": "The receiver's codes",
+    "what": "Every refusal, fact and fixed line the receiver gives, as codes with structured fields, one module to the kind of act they answer.",
+    "files": [
+      "crates/receiver-codes/src/companions.rs",
+      "crates/receiver-codes/src/consult.rs",
+      "crates/receiver-codes/src/draws.rs",
+      "crates/receiver-codes/src/fixed_lines.rs",
+      "crates/receiver-codes/src/health.rs",
+      "crates/receiver-codes/src/kinds.rs",
+      "crates/receiver-codes/src/lib.rs",
+      "crates/receiver-codes/src/owner_sends.rs",
+      "crates/receiver-codes/src/room_grants.rs",
+      "crates/receiver-codes/src/room_removal.rs",
+      "crates/receiver-codes/src/sends.rs",
+      "crates/receiver-codes/src/settings.rs",
+      "crates/receiver-codes/src/talk.rs",
+      "crates/receiver-codes/src/voice.rs",
+      "docs/codes.md"
+    ],
+    "symbols": [
+      "Code",
+      "Refused",
+      "Fact",
+      "ReceiverError"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585032
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "events/hearing",
+    "title": "The agency's events and their facts",
+    "what": "The one stream the agency's events are heard on and handed to the parts their effects belong to, with the pressure facts and the workers' facts the owner's session is told.",
+    "files": [
+      "docs/wake.md",
+      "src/hearing.rs",
+      "src/machine.rs",
+      "src/workers.rs"
+    ],
+    "symbols": [
+      "Hearing",
+      "Hearer",
+      "Pressure",
+      "fact",
+      "Downgraded"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/agency",
+      "chat/notices",
+      "receiver/notices",
+      "routes/instructions",
+      "policy/files"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585121
+  },
+  {
+    "id": "events/stream",
+    "title": "The event stream and the live board",
+    "what": "The receiver's ring of the last events, each server-sent stream replayed after its cursor with a ping every fifteen seconds, the live board of what it runs, and the news a writer outside brings.",
+    "files": [
+      "docs/receiver.md",
+      "src/events/mod.rs",
+      "src/events/relay.rs",
+      "src/events/stream.rs",
+      "src/routes/events.rs"
+    ],
+    "symbols": [
+      "Events",
+      "message",
+      "window",
+      "room_removed",
+      "relay_caller"
+    ],
+    "aliases": [],
+    "needs": [
+      "store/database",
+      "chat/conversations"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585118
+  }
+]

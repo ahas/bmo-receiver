@@ -1,0 +1,31 @@
+[
+  {
+    "id": "command/nouns",
+    "title": "The unit command's nouns",
+    "what": "The eight nouns bmo-receiver declares to bmo, each dispatching to a route or a verb of the receiver's command line.",
+    "files": [
+      "docs/boundary-api.md",
+      "src/command.rs"
+    ],
+    "symbols": [
+      "NOUNS",
+      "room_say",
+      "photo",
+      "react",
+      "pin",
+      "sticker",
+      "reminder_set",
+      "consult",
+      "draw"
+    ],
+    "aliases": [],
+    "needs": [
+      "verbs/commands",
+      "verbs/draws",
+      "routes/sends",
+      "routes/consult"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585197
+  }
+]

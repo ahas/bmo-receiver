@@ -1,0 +1,32 @@
+[
+  {
+    "id": "rooms/removal",
+    "title": "Removing a room's registration",
+    "what": "The whole record of a room read off the database's own schema and taken in one write, what each declared holder keeps, the folders that go with it, and the requests it refuses.",
+    "files": [
+      "docs/receiver.md",
+      "src/room_record/forget.rs",
+      "src/room_record/mod.rs",
+      "src/room_record/setting.rs",
+      "src/routes/room_removal.rs"
+    ],
+    "symbols": [
+      "record",
+      "take",
+      "forget",
+      "holders"
+    ],
+    "aliases": [],
+    "needs": [
+      "store/database",
+      "store/data-root",
+      "calls/agency",
+      "calls/brain",
+      "calls/job",
+      "calls/web",
+      "events/stream"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585060
+  }
+]

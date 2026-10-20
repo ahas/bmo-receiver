@@ -1,0 +1,88 @@
+[
+  {
+    "id": "tooling/protocol",
+    "title": "The tool call protocol",
+    "what": "The receiver's side of the tool host's call protocol: the request handed on standard input, the object answered on standard output, the session record read, and the manifest held to its executable.",
+    "files": [
+      "crates/tool-call/src/answer.rs",
+      "crates/tool-call/src/handed.rs",
+      "crates/tool-call/src/lib.rs",
+      "crates/tool-call/src/manifest.rs",
+      "crates/tool-call/src/peers.rs",
+      "crates/tool-call/src/session.rs"
+    ],
+    "symbols": [
+      "Handed",
+      "Asked",
+      "Answer",
+      "Session",
+      "differences",
+      "PROTOCOL"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585202
+  },
+  {
+    "id": "tooling/send",
+    "title": "The send tool",
+    "what": "The send tool's entries, the executable the tool host places and calls, and the route a call reaches the running receiver on.",
+    "files": [
+      "docs/chat-mcp.md",
+      "tools/send/src/lib.rs",
+      "tools/send/src/main.rs",
+      "tools/send/tool.toml"
+    ],
+    "symbols": [
+      "ENTRIES",
+      "call",
+      "answer"
+    ],
+    "aliases": [],
+    "needs": [
+      "tooling/protocol",
+      "tooling/shared",
+      "routes/sends"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585199
+  },
+  {
+    "id": "tooling/shared",
+    "title": "What the tools and verbs share",
+    "what": "The turn a call is made in, the message it acts on, when its result comes back, the sends and readings it asks of the running receiver, and the readings an answer is held to.",
+    "files": [
+      "crates/room-calls/src/accounts.rs",
+      "crates/room-calls/src/acted_on.rs",
+      "crates/room-calls/src/bot.rs",
+      "crates/room-calls/src/js.rs",
+      "crates/room-calls/src/lib.rs",
+      "crates/room-calls/src/messages.rs",
+      "crates/room-calls/src/mode.rs",
+      "crates/room-calls/src/procedures.rs",
+      "crates/room-calls/src/promises.rs",
+      "crates/room-calls/src/reading.rs",
+      "crates/room-calls/src/sends.rs",
+      "crates/room-calls/src/turn.rs"
+    ],
+    "symbols": [
+      "Turn",
+      "ActedOn",
+      "Mode",
+      "Act",
+      "scan",
+      "Answer",
+      "procedures_dir"
+    ],
+    "aliases": [],
+    "needs": [
+      "calls/web",
+      "routes/sends",
+      "routes/consult",
+      "service/config"
+    ],
+    "base": "f71b785fd05e2b72a78da5678f6e0fa02b297efe",
+    "changed": 1792499585206
+  }
+]
