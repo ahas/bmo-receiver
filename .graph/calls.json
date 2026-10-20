@@ -69,12 +69,13 @@
     "needs": [
       "ports/units"
     ],
-    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
-    "changed": 1792508500941,
+    "base": "1e715b03b47064ed8b63af1d997e57228bfffa25",
+    "changed": 1792534778492,
     "boundary": {
       "side": "calls",
       "repository": "bmo-chat",
-      "api": "api/provider"
+      "api": "api/provider",
+      "build": true
     }
   },
   {
