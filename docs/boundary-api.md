@@ -13,10 +13,12 @@ in and out, and the brain keeps what the agents remember.
 
 ## Configuration
 
-The receiver reads one configuration file, `settings.toml` in its working directory — the release's own, which
-each release links to the data root's `env/receiver.toml`. A deployment that finds no such file is refused, and
-the unit does not start where the data root holds none. `settings.example.toml` at the repository root is the
-checked-in example, naming a database and neutral names, and it loads as it stands.
+The receiver reads one configuration file, `settings.toml`. The file `--config` names is read first; with none
+named, the file stands in the folder `BMO_RECEIVER_SETTINGS` names, else in the folder above the binary's own, a
+release's root, else in the working directory. Each release links its own to the data root's `env/receiver.toml`.
+A deployment that finds no such file is refused, and the unit does not start where the data root holds none.
+`settings.example.toml` at the repository root is the checked-in example, naming a database and neutral names,
+and it loads as it stands.
 
 Beside its own listen address, its token and its database it names, for each unit it calls, that unit's base
 address and the token that unit takes. A chat service's base address names the receiver's `/chat` prefix, where
@@ -43,8 +45,36 @@ stand; and each chat service's road name with its base address and token.
   receiver's.
 - **`tool-env`** writes where the receiver's tools find it and ends.
 - **`health`** asks the service the configuration names whether it is ready and ends.
+- **`nouns`** prints the nouns `bmo` dispatches to this command, one a line (「The unit command」).
 - **The consumer's name** the receiver registers with the cache warmer is `receiver`, unless the configuration
   names another.
+
+### The unit command
+
+`bmo-receiver` is the unit command bmo-cli finds (bmo-cli's `docs/api.md`, 「The unit command」). Asked `nouns`,
+it declares eight, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
+the operations machine's:
+
+| Noun | Words | What it asks |
+|---|---|---|
+| `room say` | `[--chat <id>] [--by <who>] [--reply] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's chat where `--chat` names none |
+| `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
+| `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
+| `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
+| `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
+| `reminder set` | `--chat <id> (--at <moment> \| --every <rule>) --reason <words> [--memory <id>] [--user <id>] [--agent <name>]` | `POST /sends`, the act `remind`; the agent is the one the turn names where `--agent` names none |
+| `consult` | `room [<room>]`, `state`, or `say <words> [--reply <id>]`, each with `[--agent <name>]` | `room` and `state` read the store; `say` asks `POST /consult-lines` under the agent's own name |
+| `draw` | `draw --chat <id> --mode sync\|async --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
+
+- **A send is asked as the shell's turn:** the room, the agent whose turn the process works in, the chat that set
+  it off and whether a job asks are read from the environment, and the running receiver carries it on its own
+  lines. The address and token come from the process's environment, else from the data root's `env/receiver.env`
+  (「Its tools」).
+- **`--via <road>`** is taken after the noun's words as bmo-cli hands it on, and names the road a send goes out
+  on where that road answers in the room.
+- **Every noun ends 0** where it did what it was asked, 1 where it refused, and 2 where its words or the
+  configuration could not be read. The lines it said of what it did go to standard output; a refusal goes to
+  standard error.
 
 ## Calls the receiver makes
 

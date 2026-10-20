@@ -14,12 +14,16 @@ use std::time::Duration;
 
 use bmo_receiver::chat::instructions::{Rooms, deliver_pending};
 use bmo_receiver::chat::restart::say_stop;
-use bmo_receiver::config::Config;
+use bmo_receiver::command::{
+  self, ConsultArgs, DrawWord, PhotoArgs, PinArgs, ReactArgs, RemindArgs, SayArgs, StickerArgs,
+};
+use bmo_receiver::config::{self, Config};
 use bmo_receiver::receiver::handover::routes as handover_routes;
 use bmo_receiver::routes::{routes, served};
 use bmo_receiver::service_start::{Standing, keep, settle};
 use bmo_receiver::store::migration::migrate;
 use bmo_receiver::tool_env::{Written, base_address, write_env};
+use bmo_receiver::verbs::VerbError;
 use clap::{Parser, Subcommand};
 use reqwest::Client;
 use serde::Deserialize;
@@ -32,9 +36,6 @@ const STOP_LINE_WAIT: Duration = Duration::from_secs(5);
 /// How long the service is waited on for one health answer.
 const PATIENCE: Duration = Duration::from_secs(5);
 
-/// The configuration file the service reads, in the release that links to the data root's own.
-const SETTINGS: &str = "settings.toml";
-
 #[derive(Parser)]
 #[command(
   name = "bmo-receiver",
@@ -42,9 +43,12 @@ const SETTINGS: &str = "settings.toml";
   about = "The chat receiver: rooms, their rules and rights, room windows and the wake."
 )]
 struct Cli {
-  /// The configuration file.
-  #[arg(long, default_value = SETTINGS)]
-  config: PathBuf,
+  /// The configuration file; the release's own where none is given.
+  #[arg(long)]
+  config: Option<PathBuf>,
+  /// The road the caller's turn is read on, which a send goes out on where it answers in the room.
+  #[arg(long, global = true)]
+  via: Option<String>,
   #[command(subcommand)]
   command: Command,
 }
@@ -61,6 +65,45 @@ enum Command {
   ToolEnv,
   /// Whether the service the configuration names answers ready: exit code 0 where it does, 1 where it does not.
   Health,
+  /// The nouns `bmo` dispatches to this command, one a line.
+  Nouns,
+  /// A line said in a room, through the running receiver.
+  Room {
+    #[command(subcommand)]
+    word: RoomWord,
+  },
+  /// A picture, or several as one album, through the running receiver.
+  Photo(PhotoArgs),
+  /// An emoji reaction on a message, through the running receiver.
+  React(ReactArgs),
+  /// A message pinned, or unpinned, through the running receiver.
+  Pin(PinArgs),
+  /// One of the deployment's stickers, or the set listed, through the running receiver.
+  Sticker(StickerArgs),
+  /// A reminder set for the agent in its room, through the running receiver.
+  Reminder {
+    #[command(subcommand)]
+    word: ReminderWord,
+  },
+  /// The consult room read or set, the block an agent is shown, or a line said there.
+  Consult(ConsultArgs),
+  /// The fair draw made in a room or checked.
+  Draw {
+    #[command(subcommand)]
+    word: DrawWord,
+  },
+}
+
+#[derive(Subcommand)]
+enum RoomWord {
+  /// A line said in a room, without waiting for it.
+  Say(SayArgs),
+}
+
+#[derive(Subcommand)]
+enum ReminderWord {
+  /// A reminder set for the agent in its room.
+  Set(RemindArgs),
 }
 
 fn refused(why: impl std::fmt::Display) -> ExitCode {
@@ -175,21 +218,58 @@ async fn ask_health(config: &Config) -> Result<(), String> {
   health.ok.then_some(()).ok_or_else(|| format!("{} answers not up", url))
 }
 
+/// What a noun's words came to: the lines it said, printed, and how it ended.
+fn answered(done: Result<Vec<String>, VerbError>) -> u8 {
+  match done {
+    Ok(lines) => {
+      for line in lines {
+        println!("{line}");
+      }
+
+      0
+    }
+    Err(VerbError::Partly { lines, refusal }) => {
+      for line in lines {
+        println!("{line}");
+      }
+
+      if !refusal.is_empty() {
+        eprintln!("bmo-receiver: {refusal}");
+      }
+
+      1
+    }
+    Err(why) => {
+      eprintln!("bmo-receiver: {why}");
+
+      1
+    }
+  }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
   let cli = Cli::parse();
 
-  if let Command::Routes = cli.command {
-    let names = served();
+  match cli.command {
+    Command::Routes => {
+      for name in served() {
+        println!("{name}");
+      }
 
-    for name in names {
-      println!("{name}");
+      return ExitCode::SUCCESS;
     }
+    Command::Nouns => {
+      for noun in command::NOUNS {
+        println!("{noun}");
+      }
 
-    return ExitCode::SUCCESS;
+      return ExitCode::SUCCESS;
+    }
+    _ => {}
   }
 
-  let config = match Config::read(&cli.config) {
+  let config = match Config::read(&config::path(cli.config.as_deref())) {
     Ok(config) => config,
     Err(why) => {
       eprintln!("bmo-receiver: the configuration could not be read: {why}");
@@ -210,7 +290,21 @@ async fn main() -> ExitCode {
 
       0
     }),
-    Command::Routes => unreachable!("the routes are printed before the configuration is read"),
+    Command::Room {
+      word: RoomWord::Say(args),
+    } => Ok(answered(command::room_say(&config, cli.via.clone(), args).await)),
+    Command::Photo(args) => Ok(answered(command::photo(&config, cli.via.clone(), args).await)),
+    Command::React(args) => Ok(answered(command::react(&config, cli.via.clone(), args).await)),
+    Command::Pin(args) => Ok(answered(command::pin(&config, cli.via.clone(), args).await)),
+    Command::Sticker(args) => Ok(answered(command::sticker(&config, cli.via.clone(), args).await)),
+    Command::Reminder {
+      word: ReminderWord::Set(args),
+    } => Ok(answered(command::reminder_set(&config, cli.via.clone(), args).await)),
+    Command::Consult(args) => Ok(answered(command::consult(&config, args).await)),
+    Command::Draw { word } => Ok(answered(command::draw(&config, cli.via.clone(), word).await)),
+    Command::Routes | Command::Nouns => {
+      unreachable!("routes and nouns are printed before the configuration is read")
+    }
   };
 
   match ended {

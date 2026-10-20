@@ -4,6 +4,7 @@
 //! reached through a port over HTTP; the chat services through bmo-chat-client.
 
 pub mod chat;
+pub mod command;
 pub mod companion;
 pub mod config;
 pub mod dashes;

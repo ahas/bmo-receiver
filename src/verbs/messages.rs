@@ -550,7 +550,7 @@ pub async fn sticker(sends: &Sends, chat_id: i64, emoji: &str) -> Result<Vec<Str
 
 /// The set the deployment's stickers are sent out of: the set belongs to the chat service, which says what it
 /// carries in its own words, so the listing names the road rather than a set of our own.
-pub async fn sticker_list(_sends: &Sends) -> Result<Vec<String>, VerbError> {
+pub fn sticker_list() -> Result<Vec<String>, VerbError> {
   Ok(vec!["the stickers there are belong to the road the room is answered on, which says in its own words when a sticker is not one of them".to_owned()])
 }
 

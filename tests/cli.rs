@@ -7,10 +7,53 @@ use std::process::{Command, Output};
 use bmo_receiver::routes::served;
 
 // The commands the binary declares, as its subcommands' names come to.
-const COMMANDS: [&str; 5] = ["serve", "routes", "deliver-waiting", "tool-env", "health"];
+const COMMANDS: [&str; 14] = [
+  "serve",
+  "routes",
+  "deliver-waiting",
+  "tool-env",
+  "health",
+  "nouns",
+  "room",
+  "photo",
+  "react",
+  "pin",
+  "sticker",
+  "reminder",
+  "consult",
+  "draw",
+];
 
 // What the help lists: the commands, and the built-in `help` beside them.
-const LISTED: [&str; 6] = ["serve", "routes", "deliver-waiting", "tool-env", "health", "help"];
+const LISTED: [&str; 15] = [
+  "serve",
+  "routes",
+  "deliver-waiting",
+  "tool-env",
+  "health",
+  "nouns",
+  "room",
+  "photo",
+  "react",
+  "pin",
+  "sticker",
+  "reminder",
+  "consult",
+  "draw",
+  "help",
+];
+
+// The nouns `bmo` dispatches to this command, each on the operations machine.
+const NOUNS: [&str; 8] = [
+  "room say\thome",
+  "photo\thome",
+  "react\thome",
+  "pin\thome",
+  "sticker\thome",
+  "reminder set\thome",
+  "consult\thome",
+  "draw\thome",
+];
 
 // The binary run with `words`, from wherever the test stands.
 fn run(words: &[&str]) -> Output {
@@ -65,6 +108,44 @@ fn every_flat_name_reads_as_its_command() {
   let words = said(&unknown);
 
   assert_eq!(unknown.status.code(), Some(2), "an unknown command is taken: {words}");
+}
+
+#[test]
+fn the_nouns_bmo_dispatches_are_declared_one_a_line() {
+  let printed = run(&["nouns"]);
+  let words = said(&printed);
+
+  assert!(printed.status.success(), "the nouns were refused: {words}");
+
+  let lines: Vec<String> = String::from_utf8_lossy(&printed.stdout).lines().map(str::to_owned).collect();
+  let wanted: Vec<String> = NOUNS.iter().map(|noun| (*noun).to_owned()).collect();
+
+  assert_eq!(lines, wanted, "the command declares {lines:?} instead of {wanted:?}");
+}
+
+#[test]
+fn every_noun_reads_as_the_command_bmo_dispatches() {
+  let nouns: [&[&str]; 8] = [
+    &["room", "say"],
+    &["photo"],
+    &["react"],
+    &["pin"],
+    &["sticker"],
+    &["reminder", "set"],
+    &["consult"],
+    &["draw"],
+  ];
+
+  for noun in nouns {
+    let mut asked = noun.to_vec();
+
+    asked.push("--help");
+    let help = run(&asked);
+    let words = said(&help);
+
+    assert!(help.status.success(), "{noun:?} is not a command: {words}");
+    assert!(words.contains(noun[noun.len() - 1]), "{noun:?} reads as another command: {words}");
+  }
 }
 
 #[test]

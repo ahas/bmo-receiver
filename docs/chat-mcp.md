@@ -37,7 +37,7 @@ needs its road to perform, so the room's block names the sending entries a room'
   arguments as `input`, and the asker (the room, the road the turn names for it, the turn's agent, the chat that
   set it off as `by`, and whether a job asks). The receiver carries the act as that agent, on its own lines, and
   answers the lines it said, or those lines with the refusal it ended in.
-- **`consult`** asks `POST /consult/say` with the turn's agent, the words and the consult room's message it
+- **`consult`** asks `POST /consult-lines` with the turn's agent, the words and the consult room's message it
   answers; a call made outside any agent's turn is refused here, since there is no agent to speak as.
 - **`remind`** posts to the brain directly: `POST /reminders/set` with the turn's agent and room, `at` or `every`,
   `reason`, `memory` and `user` as the call gives them, and answers the reading the brain gives. The brain's
@@ -86,6 +86,6 @@ needs its road to perform, so the room's block names the sending entries a room'
 ## The verbs beside it
 
 The receiver's command line carries the same sends for a person, a job and a turn whose tool call failed:
-`bmo room say`, `bmo room photo`, `bmo room react`, `bmo room pin`, `bmo room sticker`, `bmo consult say` and
-`bmo draw draw`. Each asks the receiver the same way, from its own shell's turn, so a tool and a command cannot
-send differently.
+`bmo room say`, `bmo photo`, `bmo react`, `bmo pin`, `bmo sticker`, `bmo reminder set`, `bmo consult say` and
+`bmo draw draw` (docs/boundary-api.md, 「The unit command」). Each asks the receiver the same way, from its own
+shell's turn, so a tool and a command cannot send differently.

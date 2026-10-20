@@ -27,21 +27,19 @@ agent has read) and what an agent can send back and when a room sees it typing.
 
 ## What an agent can send back
 
-- **Each send is an entry of the send tool** (`docs/chat-mcp.md`), and a verb a shell runs, one of the receiver's
-  command line:
-  - text (`say`, `bmo room say`, whose words are said by a run of their own);
-  - a photo, or several as one album (`photo`, `bmo room photo`);
+- **Each send is an entry of the send tool** (`docs/chat-mcp.md`), and some are a noun of the receiver's command
+  line (docs/boundary-api.md, 「The unit command」):
+  - text (`say`; `bmo room say`, whose words are said by a run of their own);
+  - a photo, or several as one album (`photo`; `bmo photo`);
   - a file from this machine, or several as one album (`file`);
   - a voice note, OGG/Opus with its caption (`voice`);
   - a fixed line, a code and its fields the web unit renders, said without the output gate or any session
     (`fixed_line`);
-  - a posted file back as a document (`bmo room file`);
-  - a document it made (`bmo room upload`);
   - a reply pinned to a message (`<<REPLY>>`);
-  - an emoji reaction (`react`, `bmo room react`, allowed in restricted runs too);
-  - one of its own stickers (`sticker`, `bmo room sticker`, from the sticker set the deployment names, picked by
+  - an emoji reaction (`react`; `bmo react`, allowed in restricted runs too);
+  - one of its own stickers (`sticker`; `bmo sticker`, from the sticker set the deployment names, picked by
     feeling emoji, allowed in restricted runs too, archived like a received sticker);
-  - a pinned message (`pin`, `bmo room pin`, the owner's alone by the session's judgement).
+  - a pinned message (`pin`; `bmo pin`, the owner's alone by the session's judgement).
 - **A send asks the room's road first:** the road its caller's turn is read on (`via`) where that road answers in
   the room, the room's own otherwise; the agent whose turn it is, which sends only into a room it answers and only
   where its role gives sending; and whether the road performs the verb at all, as its chat service's capabilities

@@ -27,6 +27,12 @@ use crate::verbs::reload::Places;
 /// The consumer the receiver registers with the cache warmer, unless the configuration names another.
 const CONSUMER: &str = "receiver";
 
+/// The configuration file's own name.
+pub const SETTINGS: &str = "settings.toml";
+
+/// The variable naming the folder a release's configuration stands in.
+pub const SETTINGS_FOLDER: &str = "BMO_RECEIVER_SETTINGS";
+
 /// The folder under the data root the brain's documents stand in, unless the configuration names another root.
 const BRAIN: &str = "brain";
 
@@ -70,6 +76,20 @@ pub struct Config {
 /// The consumer's name where the configuration leaves it out.
 fn consumer_name() -> String {
   CONSUMER.to_owned()
+}
+
+/// The configuration file this process reads: the one `--config` names, else `settings.toml` in the folder
+/// `BMO_RECEIVER_SETTINGS` names, else in the folder above the binary's own — a release's root — else in this
+/// directory.
+pub fn path(explicit: Option<&Path>) -> PathBuf {
+  if let Some(explicit) = explicit {
+    return explicit.to_path_buf();
+  }
+
+  let named = std::env::var_os(SETTINGS_FOLDER).filter(|folder| !folder.is_empty()).map(PathBuf::from);
+  let release = || std::env::current_exe().ok()?.parent()?.parent().map(Path::to_path_buf);
+
+  named.or_else(release).unwrap_or_else(|| PathBuf::from(".")).join(SETTINGS)
 }
 
 impl Config {
