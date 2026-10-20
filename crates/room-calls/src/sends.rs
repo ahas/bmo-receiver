@@ -1,9 +1,9 @@
 //! The sends the receiver's tools and the `bmo` commands doing the same sends ask the running receiver for
 //! (docs/chat-mcp.md, 「How a call runs」): a line said in a room or in the consult room, a picture or an album,
-//! a reminder, a reaction, a pin, a sticker and a fair draw, each the arguments its tool takes, asked with who
-//! asks it — the room, the road the turn names for it, the agent whose turn it is, the chat that set it off and
-//! whether a job asks — since only the running receiver carries a send on its own lines (docs/messages.md,
-//! 「What an agent can send back」).
+//! a reminder, a reaction, a pin, a sticker, a fair draw, a file or an album of files, a voice note and a fixed
+//! line, each the arguments its tool takes, asked with who asks it — the room, the road the turn names for it,
+//! the agent whose turn it is, the chat that set it off and whether a job asks — since only the running receiver
+//! carries a send on its own lines (docs/messages.md, 「What an agent can send back」).
 
 use std::time::Duration;
 
@@ -80,6 +80,72 @@ pub struct PhotoInput {
   /// The caption.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub caption: Option<String>,
+}
+
+/// One file of a file send.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FileToSend {
+  /// The path of a file on this machine.
+  pub path: String,
+  /// The name the room reads it under, its own name where none is given.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub name: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FileInput {
+  /// The room, by chat id, where it is not this turn's own.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub chat: Option<i64>,
+  /// The road to send on, where the room block names the room's own road for this.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub via: Option<String>,
+  /// The files, in order: one goes as a document, several as one album.
+  pub files: Vec<FileToSend>,
+  /// The caption.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub caption: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct VoiceInput {
+  /// The room, by chat id, where it is not this turn's own.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub chat: Option<i64>,
+  /// The road to send on, where the room block names the room's own road for this.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub via: Option<String>,
+  /// The path of an OGG/Opus file on this machine.
+  pub path: String,
+  /// The caption the room reads under the note.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub caption: Option<String>,
+  /// What the note says, where the caption is not it.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub said: Option<String>,
+  /// What was actually read out, where that differs from the caption.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub transcript: Option<String>,
+}
+
+/// A fixed line asked of a room: its code, and the fields the code carries.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FixedLineInput {
+  /// The room, by chat id, where it is not this turn's own.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub chat: Option<i64>,
+  /// The road to send on, where the room block names the room's own road for this.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub via: Option<String>,
+  /// The line's code, as the web unit's language packs name it.
+  pub code: String,
+  /// The fields the code carries.
+  #[serde(default, skip_serializing_if = "Map::is_empty")]
+  pub fields: Map<String, Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -223,11 +289,14 @@ impl RandomDrawInput {
 pub enum Act {
   Say(SayInput),
   Photo(PhotoInput),
+  File(FileInput),
+  Voice(VoiceInput),
   Remind(RemindInput),
   React(ReactInput),
   Pin(PinInput),
   Sticker(StickerInput),
   RandomDraw(RandomDrawInput),
+  FixedLine(FixedLineInput),
 }
 
 /// Who asks a send: the room it goes into and the road the turn names for it, the agent whose turn asks — none

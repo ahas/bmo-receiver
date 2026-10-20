@@ -1,6 +1,6 @@
 {
   "name": "@bmo/receiver-client",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "description": "The chat receiver's fixed API as a TypeScript caller reaches it: types generated from docs/openapi.json, one call for each route over HTTP with a bearer token.",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     ".": "./index.ts"
   },
   "scripts": {
-    "generate": "openapi-typescript ../../../../docs/openapi.json --output generated/openapi.d.ts",
+    "generate": "openapi-typescript ../../../docs/openapi.json --output generated/openapi.d.ts",
     "check": "tsc --noEmit"
   },
   "dependencies": {

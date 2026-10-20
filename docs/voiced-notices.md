@@ -187,9 +187,14 @@ agent that answers the room says the line.
 
 ## Lines that stay fixed
 
-Each is sent as a code with its fields, because no session can say it at that moment or it is not a sentence to
-a chat. Its words in the room's language are rendered by the web unit's language packs (`POST /words/render`,
-`docs/boundary-api.md`, 「The web unit」); the receiver keeps none.
+Each is sent as a code with its fields, because no session is to say it in its own words: no session can say it
+at that moment, or the line must reach the room as itself. Its words in the room's language are rendered by the
+web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The web unit」); the receiver keeps none.
+
+- **A session may ask for one through a send.** The send tool's `fixed_line` kind carries a code and its fields,
+  and the receiver renders and says it without the output gate or any session, for a line that must reach
+  the room as itself (`docs/chat-mcp.md`, 「Its entries」). A code the pack does not hold goes as its code and
+  fields, as every fixed line does where the web unit cannot render it.
 
 | Line | Why it stays fixed |
 | --- | --- |

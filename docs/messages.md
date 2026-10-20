@@ -31,6 +31,10 @@ agent has read) and what an agent can send back and when a room sees it typing.
   command line:
   - text (`say`, `bmo room say`, whose words are said by a run of their own);
   - a photo, or several as one album (`photo`, `bmo room photo`);
+  - a file from this machine, or several as one album (`file`);
+  - a voice note, OGG/Opus with its caption (`voice`);
+  - a fixed line, a code and its fields the web unit renders, said without the output gate or any session
+    (`fixed_line`);
   - a posted file back as a document (`bmo room file`);
   - a document it made (`bmo room upload`);
   - a reply pinned to a message (`<<REPLY>>`);

@@ -3,11 +3,11 @@
 
 use room_calls::bot::Service;
 use room_calls::sends::{
-  Act, Asked, Asker, CONSULT_PATH, ConsultInput, RandomDrawInput, SENDS_PATH, StickerInput, Unsent,
-  answered, ask_consult,
+  Act, Asked, Asker, CONSULT_PATH, ConsultInput, FileInput, FileToSend, FixedLineInput, RandomDrawInput,
+  SENDS_PATH, StickerInput, Unsent, VoiceInput, answered, ask_consult,
 };
 use room_calls::turn::{Room, Turn};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 const ROOM: i64 = 4_200;
 
@@ -34,6 +34,120 @@ fn an_asked_send_is_written_with_its_tool_its_input_and_its_asker() {
       "asker": { "room": ROOM, "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "sticker",
       "input": { "emoji": ":+1:" },
+    }),
+  );
+  assert_eq!(serde_json::from_value::<Asked>(written).unwrap(), asked);
+}
+
+#[test]
+fn a_file_send_is_written_with_its_files_and_caption() {
+  let asked = Asked {
+    asker: Asker {
+      room: Some(ROOM),
+      agent_name: Some("agent-a".to_owned()),
+      ..Asker::default()
+    },
+    act: Act::File(FileInput {
+      chat: None,
+      via: None,
+      files: vec![
+        FileToSend {
+          path: "/tmp/notes.txt".to_owned(),
+          name: None,
+        },
+        FileToSend {
+          path: "/tmp/report.pdf".to_owned(),
+          name: Some("report.pdf".to_owned()),
+        },
+      ],
+      caption: Some("the two of them".to_owned()),
+    }),
+  };
+  let written = serde_json::to_value(&asked).unwrap();
+
+  assert_eq!(
+    written,
+    json!({
+      "asker": { "room": ROOM, "agentName": "agent-a" },
+      "tool": "file",
+      "input": {
+        "files": [
+          { "path": "/tmp/notes.txt" },
+          { "path": "/tmp/report.pdf", "name": "report.pdf" },
+        ],
+        "caption": "the two of them",
+      },
+    }),
+  );
+  assert_eq!(serde_json::from_value::<Asked>(written).unwrap(), asked);
+}
+
+#[test]
+fn a_voice_send_is_written_with_its_path_its_caption_and_what_it_says() {
+  let asked = Asked {
+    asker: Asker {
+      room: Some(ROOM),
+      agent_name: Some("agent-a".to_owned()),
+      ..Asker::default()
+    },
+    act: Act::Voice(VoiceInput {
+      chat: None,
+      via: None,
+      path: "/tmp/note.ogg".to_owned(),
+      caption: Some("the news".to_owned()),
+      said: Some("today's news".to_owned()),
+      transcript: Some("the whole of the news".to_owned()),
+    }),
+  };
+  let written = serde_json::to_value(&asked).unwrap();
+
+  assert_eq!(
+    written,
+    json!({
+      "asker": { "room": ROOM, "agentName": "agent-a" },
+      "tool": "voice",
+      "input": {
+        "path": "/tmp/note.ogg",
+        "caption": "the news",
+        "said": "today's news",
+        "transcript": "the whole of the news",
+      },
+    }),
+  );
+  assert_eq!(serde_json::from_value::<Asked>(written).unwrap(), asked);
+}
+
+#[test]
+fn a_fixed_line_is_written_with_its_code_and_fields() {
+  let mut fields = Map::new();
+
+  fields.insert("label".to_owned(), json!("the word chain"));
+  fields.insert("result".to_owned(), json!("apple"));
+
+  let asked = Asked {
+    asker: Asker {
+      room: Some(ROOM),
+      agent_name: Some("agent-a".to_owned()),
+      ..Asker::default()
+    },
+    act: Act::FixedLine(FixedLineInput {
+      chat: None,
+      via: None,
+      code: "draw".to_owned(),
+      fields,
+    }),
+  };
+  let written = serde_json::to_value(&asked).unwrap();
+
+  assert_eq!(
+    written,
+    json!({
+      "asker": { "room": ROOM, "agentName": "agent-a" },
+      "tool": "fixed_line",
+      "input": {
+        "code": "draw",
+        "fields": { "label": "the word chain", "result": "apple" },
+      },
     }),
   );
   assert_eq!(serde_json::from_value::<Asked>(written).unwrap(), asked);

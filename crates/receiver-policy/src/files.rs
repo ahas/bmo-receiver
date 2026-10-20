@@ -1,4 +1,4 @@
-//! The files the owner attaches from the console.
+//! The files the console attaches and an agent sends.
 
 use serde::Deserialize;
 

@@ -1,6 +1,6 @@
 # The receiver's fixed API
 
-**고정됨 0.11.1.**
+**고정됨 0.12.0.**
 
 This document is the receiver's contract: every route it serves, in the one common wire format, grouped by the
 resource each acts on. `docs/openapi.json` is the same contract in machine form, generated from the types in
@@ -187,9 +187,18 @@ of `docs/codes.md`, each with its status and its fields.
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, and up to ten `file` fields | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
 
-- **`tool` and `input`:** `say`, `photo`, `remind`, `react`, `pin`, `sticker` and `random_draw`, each the arguments
-  its tool takes (`docs/chat-mcp.md`). A file send is `document`, `audio`, `voice` or `album` in the chat protocol,
-  and an owner's file send is the form above. The act goes out as the asker's agent, on the road the turn names.
+- **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `remind`, `react`, `pin`, `sticker` and
+  `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`). The act goes out as the asker's agent, on
+  the road the turn names.
+- **A file send** is one document, or several files as one album: each file a `path` on this machine and an
+  optional `name`, with an optional `caption`. The bytes go to the verb the room's road declares, `document` for
+  one file and `album` for several; a file a room's folder holds goes only into that room, and a job sends none.
+- **A voice note** is an OGG/Opus file at `path`, with its `caption`, what it `said` and the `transcript` read out,
+  sent as the chat protocol's `voice` kind.
+- **A fixed line** is a `code` and its `fields`, rendered by the web unit's `POST /words/render` in the
+  rooms' language and said into the room without the output gate or any session, since the line is already read.
+  Where the web unit cannot render it, its code and fields go as they stand, so the room is never left silent.
+- An owner's file send is the form above.
 - **`remind`** is carried to the brain's reminder route and answered with the reading the brain gives. Asked
   outside any agent's turn, it is refused, since a reminder is one agent's.
 - **The owner's words** in the owner's private room are archived under a console number and handed to that chat's

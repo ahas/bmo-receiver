@@ -1,8 +1,8 @@
 //! A send asked of the running receiver (docs/boundary-api.md, 「Sends」; docs/chat-mcp.md, 「How a call runs」):
-//! a line said, a picture or an album, a reminder set, a reaction, a pin, a sticker or a fair draw, carried on the
-//! receiver's own lines as the agent the asker names, on the road the turn names — since a sending tool's process
-//! and a shell's hold none of them — and the verbs the road a room is answered on performs, which a procedure read
-//! there is held to.
+//! a line said, a picture or an album, a file or an album of files, a voice note, a reminder set, a reaction, a
+//! pin, a sticker, a fair draw or a fixed line, carried on the receiver's own lines as the agent the asker names,
+//! on the road the turn names — since a sending tool's process and a shell's hold none of them — and the verbs the
+//! road a room is answered on performs, which a procedure read there is held to.
 //!
 //! A line asked to be said is said in a run of its own, whose launcher the receiver's binary fills; asked of a
 //! service that stands without one, it is turned away before the words are put on the disk.
@@ -56,6 +56,28 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
       messages::photo(&sends, receiver.data_root(), chat, &pictures, input.caption.as_deref(), asker.job)
         .await
     }
+    Act::File(input) => {
+      let files: Vec<messages::SendFile> = input
+        .files
+        .iter()
+        .map(|file| messages::SendFile {
+          path: file.path.clone(),
+          name: file.name.clone(),
+        })
+        .collect();
+
+      messages::file(&sends, receiver.data_root(), chat, &files, input.caption.as_deref(), asker.job).await
+    }
+    Act::Voice(input) => {
+      let note = messages::VoiceNote {
+        path: &input.path,
+        caption: input.caption.as_deref(),
+        said: input.said.as_deref(),
+        transcript: input.transcript.as_deref(),
+      };
+
+      messages::voice(&sends, receiver.data_root(), chat, note, asker.job).await
+    }
     Act::Remind(input) => remind(receiver, asker, chat, input).await,
     Act::React(input) => messages::react(&sends, chat, input.message, &input.emoji).await,
     Act::Pin(input) => messages::pin(&sends, chat, input.message, input.unpin).await,
@@ -63,6 +85,7 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
     Act::RandomDraw(input) => {
       draws::draw(&sends, chat, Some(input.mode.word()), &input.request(), asker.via.as_deref()).await
     }
+    Act::FixedLine(input) => messages::fixed_line(&sends, chat, &input.code, &input.fields).await,
   }
 }
 

@@ -10,6 +10,12 @@ catalogue and how its calls reach the receiver. The other tools of the catalogue
   `reply` asks for an answer back.
 - **`consult`**: one line in the consult room under the calling agent's own name (`docs/consult.md`).
 - **`photo`**: one picture or an album, each `url` with an optional `label`, and a `caption` (`docs/pictures.md`).
+- **`file`**: one file from this machine, or several as one album, each a `path` and an optional `name`, with a
+  `caption`. A file a room's folder holds goes only into that room, and a job sends none of them
+  (`docs/room-files.md`).
+- **`voice`**: an OGG/Opus voice note at `path`, with its `caption`, what it `said` and the `transcript` read out.
+- **`fixed_line`**: a fixed line's `code` and its `fields`, which the web unit's language packs render
+  (`docs/voiced-notices.md`); the receiver says it without the output gate or any session.
 - **`remind`**: a reminder set for the turn's agent in its room, at a moment (`at`) or on a repeating rule
   (`every`), with its `reason`, and optionally the `memory` it serves and the `user` it is for
   (`docs/reminders.md`).

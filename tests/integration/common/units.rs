@@ -55,6 +55,7 @@ pub struct StandInChat {
   pub identities: BTreeMap<i64, i64>,
   pub private: BTreeMap<i64, i64>,
   pub reaches_owner: Option<i64>,
+  pub cans: Mutex<BTreeSet<ChatCapability>>,
   pub sends: Mutex<Vec<ChatSendRequest>>,
   /// What each send is answered with; sent as message 900 where none is set.
   pub answer: Mutex<Option<ChatSent>>,
@@ -96,6 +97,12 @@ impl StandInChat {
     self
   }
 
+  /// The send verbs the service declares beside the three every road carries.
+  pub fn canning(mut self, verbs: &[ChatCapability]) -> Self {
+    self.cans.get_mut().unwrap().extend(verbs.iter().copied());
+    self
+  }
+
   /// A room of the service's own that is one person's private chat with the chat agent.
   pub fn privating(mut self, room: i64, person: i64) -> Self {
     self.owns.insert(room);
@@ -128,12 +135,16 @@ fn not_asked<T>(what: &str) -> BoxFuture<'_, ChatAnswer<T>> {
 
 impl Chat for StandInChat {
   fn declaration(&self) -> BoxFuture<'_, ChatAnswer<ChatDeclaration>> {
+    let mut can = BTreeSet::from([ChatCapability::Text, ChatCapability::Delete, ChatCapability::Pin]);
+
+    can.extend(self.cans.lock().unwrap().iter().copied());
+
     let declared = ChatDeclaration {
       key: self.key.clone(),
       label: format!("the {} road", self.key),
       configured: None,
       modes: vec![],
-      can: BTreeSet::from([ChatCapability::Text, ChatCapability::Delete, ChatCapability::Pin]),
+      can,
       dialect: ChatDialectDeclaration {
         name: "plain".to_owned(),
         limits: ChatDialectLimits {

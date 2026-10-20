@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "description": "A fixed line asked of a room: its code, and the fields the code carries.",
+  "properties": {
+    "chat": {
+      "description": "The room, by chat id, where it is not this turn's own.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "code": {
+      "description": "The line's code, as the web unit's language packs name it.",
+      "type": "string"
+    },
+    "fields": {
+      "additionalProperties": true,
+      "description": "The fields the code carries.",
+      "type": "object"
+    },
+    "via": {
+      "description": "The road to send on, where the room block names the room's own road for this.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "code"
+  ],
+  "type": "object"
+}

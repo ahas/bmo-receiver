@@ -10,14 +10,16 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest};
+use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, FileItem};
 use room_calls::procedures;
 use room_calls::reading::count_text;
 use room_calls::turn::AGENT_VARIABLE as TURN_AGENT;
+use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use receiver_codes::RunTitle;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::files::FILES;
 
 use crate::chat::instructions::{Queued, queue};
 use crate::data_root::DataRoot;
@@ -665,6 +667,280 @@ pub async fn photo(
   });
 
   Ok(lines)
+}
+
+/// One file of a file send: the path it stands at, and the name the room reads it under where one is named.
+#[derive(Clone, Debug)]
+pub struct SendFile {
+  pub path: String,
+  pub name: Option<String>,
+}
+
+// One file read off this machine for a send: the name the room reads, its type and its bytes.
+struct ReadFile {
+  name: String,
+  mime: String,
+  bytes: Vec<u8>,
+}
+
+// A file read for a send, held to the ceiling one file may be, refused where it is past it or is no file; a
+// file a room's folder holds goes only into that room and out of no job.
+async fn read_file(
+  data_root: &DataRoot,
+  chat_id: i64,
+  path: &str,
+  name: Option<&str>,
+  job: bool,
+) -> Result<ReadFile, VerbError> {
+  if let Some(refusal) = room_file_refusal(path, chat_id, &room_stores(data_root), job) {
+    return Err(VerbError::Refused(refusal));
+  }
+
+  let length = tokio::fs::metadata(path)
+    .await
+    .map_err(|why| VerbError::Refused(format!("{path} is no file on this machine: {why}")))?
+    .len();
+
+  if length > FILES.largest_bytes {
+    return Err(VerbError::Refused(format!(
+      "{path} is {length} bytes, past the {} a send takes a file at",
+      FILES.largest_bytes
+    )));
+  }
+
+  let bytes = tokio::fs::read(path)
+    .await
+    .map_err(|why| VerbError::Refused(format!("{path} could not be read: {why}")))?;
+  let named = name
+    .map(str::trim)
+    .filter(|name| !name.is_empty())
+    .and_then(|name| Path::new(name).file_name())
+    .or_else(|| Path::new(path).file_name())
+    .map(|name| name.to_string_lossy().into_owned())
+    .unwrap_or_else(|| FILES.unnamed.clone());
+  let mime = mime_guess::from_path(&named)
+    .first()
+    .map(|kind| kind.essence_str().to_owned())
+    .unwrap_or_else(|| "application/octet-stream".to_owned());
+
+  Ok(ReadFile {
+    name: named,
+    mime,
+    bytes,
+  })
+}
+
+/// One file or several: one goes as a document, several as one album, each read from this machine. A caption goes
+/// on an album, and ahead of a document as a line of its own, since the document kind carries none.
+pub async fn file(
+  sends: &Sends,
+  data_root: &DataRoot,
+  chat_id: i64,
+  files: &[SendFile],
+  caption: Option<&str>,
+  job: bool,
+) -> Result<Vec<String>, VerbError> {
+  let mut held: Vec<ReadFile> = vec![];
+
+  for file in files {
+    let path = file.path.trim();
+
+    if !path.is_empty() {
+      held.push(read_file(data_root, chat_id, path, file.name.as_deref(), job).await?);
+    }
+  }
+
+  if held.is_empty() {
+    return Err(VerbError::Refused("a file to send and the room to send it to".to_owned()));
+  }
+
+  let caption = caption.map(str::trim).filter(|caption| !caption.is_empty());
+  let mut lines: Vec<String> = vec![];
+
+  if held.len() == 1 {
+    let file = held.remove(0);
+    let road = sends.road(chat_id, "document").await?;
+
+    if let Some(caption) = caption {
+      sends
+        .send(
+          &road,
+          &ChatSendRequest::new(
+            chat_id,
+            ChatSend::Text {
+              text: caption.to_owned(),
+              silent: false,
+              fold: false,
+            },
+          ),
+        )
+        .await
+        .map_err(refused)?;
+      lines.push("said the caption".to_owned());
+    }
+
+    let sent = sends
+      .send(
+        &road,
+        &ChatSendRequest::new(
+          chat_id,
+          ChatSend::Document {
+            bytes: file.bytes,
+            file_name: file.name.clone(),
+          },
+        ),
+      )
+      .await;
+
+    match sent {
+      Ok(_) => lines.push(format!("sent {} to chat {chat_id}", file.name)),
+      Err(why) if lines.is_empty() => return Err(refused(why)),
+      Err(why) => {
+        return Err(VerbError::Partly {
+          lines,
+          refusal: why.to_string(),
+        });
+      }
+    }
+  } else {
+    let road = sends.road(chat_id, "album").await?;
+    let count = held.len();
+    let items: Vec<AlbumItem> = held
+      .into_iter()
+      .map(|file| {
+        AlbumItem::File(FileItem {
+          name: file.name,
+          mime: file.mime,
+          bytes: file.bytes,
+        })
+      })
+      .collect();
+    let sent = sends
+      .send(
+        &road,
+        &ChatSendRequest::new(
+          chat_id,
+          ChatSend::Album {
+            items,
+            caption: caption.map(str::to_owned),
+          },
+        ),
+      )
+      .await
+      .map_err(refused)?;
+
+    if !sent.missed.is_empty() {
+      let missed: Vec<String> =
+        sent.missed.iter().map(|one| format!("{} — {}", one.address, one.reason)).collect();
+
+      lines.push(format!("not sent as files ({}):\n{}", sent.missed.len(), missed.join("\n")));
+    }
+
+    lines.push(format!(
+      "sent {} of {count} files as an album to chat {chat_id}",
+      count - sent.missed.len()
+    ));
+  }
+
+  Ok(lines)
+}
+
+/// A voice note asked of a room: the file's path, its caption, what it says and what was read out.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct VoiceNote<'a> {
+  pub path: &'a str,
+  pub caption: Option<&'a str>,
+  pub said: Option<&'a str>,
+  pub transcript: Option<&'a str>,
+}
+
+/// A voice note: an OGG/Opus file read from this machine, with its caption and what it says, sent as a voice
+/// message the room can play.
+pub async fn voice(
+  sends: &Sends,
+  data_root: &DataRoot,
+  chat_id: i64,
+  note: VoiceNote<'_>,
+  job: bool,
+) -> Result<Vec<String>, VerbError> {
+  let path = note.path.trim();
+  let file = read_file(data_root, chat_id, path, None, job).await?;
+
+  if !file.bytes.starts_with(b"OggS") {
+    return Err(VerbError::Refused(format!(
+      "{path} is not an OGG/Opus file, so it is not sent as a voice note"
+    )));
+  }
+
+  let caption = note.caption.map(str::trim).filter(|caption| !caption.is_empty()).map(str::to_owned);
+  let transcript = note
+    .transcript
+    .map(str::trim)
+    .filter(|transcript| !transcript.is_empty())
+    .map(str::to_owned);
+  let said = note
+    .said
+    .map(str::trim)
+    .filter(|said| !said.is_empty())
+    .map(str::to_owned)
+    .or_else(|| transcript.clone())
+    .or_else(|| caption.clone())
+    .or_else(|| Path::new(&file.name).file_stem().map(|stem| stem.to_string_lossy().into_owned()))
+    .unwrap_or_else(|| "voice".to_owned());
+  let road = sends.road(chat_id, "voice").await?;
+
+  sends
+    .send(
+      &road,
+      &ChatSendRequest::new(
+        chat_id,
+        ChatSend::Voice {
+          audio: file.bytes,
+          said,
+          caption,
+          transcript,
+        },
+      ),
+    )
+    .await
+    .map_err(refused)?;
+
+  Ok(vec![format!("sent the voice note {} to chat {chat_id}", file.name)])
+}
+
+/// A fixed line: its code and fields rendered by the web unit's language packs, said into the room without the
+/// output gate or any session, since the line is already read.
+pub async fn fixed_line(
+  sends: &Sends,
+  chat_id: i64,
+  code: &str,
+  fields: &Map<String, Value>,
+) -> Result<Vec<String>, VerbError> {
+  let code = code.trim();
+
+  if code.is_empty() {
+    return Err(VerbError::Refused("a fixed line's code to send".to_owned()));
+  }
+
+  let road = sends.road(chat_id, "text").await?;
+  let text = sends.speech().rendered_code(code, fields.clone()).await;
+
+  sends
+    .send(
+      &road,
+      &ChatSendRequest::new(
+        chat_id,
+        ChatSend::Text {
+          text,
+          silent: false,
+          fold: false,
+        },
+      ),
+    )
+    .await
+    .map_err(refused)?;
+
+  Ok(vec![format!("said the fixed line {code} in chat {chat_id}")])
 }
 
 /// Where labelled pictures are kept: under the data root, since a room is only ever sent a file that stands

@@ -1,10 +1,10 @@
 //! The sends the agents make into rooms, the entries of the `send` tool (docs/chat-mcp.md, 「Its entries」;
-//! 「How a call runs」): a line said in a room or in the consult room, a picture or an album, a reminder, a
-//! reaction, a pin, a sticker and a fair draw. Every entry but the reminder asks the running receiver for the
-//! send, as the `bmo` commands doing the same sends ask it; a reminder is the brain's own, so that entry posts
-//! it to the brain. A call reads its turn afresh from the session's record and refuses one its agent's reset
-//! overtook before it asks anything, and reaches each unit where the record's data root names it
-//! (docs/chat-mcp.md, 「Where each unit is found」).
+//! 「How a call runs」): a line said in a room or in the consult room, a picture or an album, a file or an album
+//! of files, a voice note, a reminder, a reaction, a pin, a sticker, a fair draw and a fixed line. Every entry
+//! but the reminder asks the running receiver for the send, as the `bmo` commands doing the same sends ask it; a
+//! reminder is the brain's own, so that entry posts it to the brain. A call reads its turn afresh from the
+//! session's record and refuses one its agent's reset overtook before it asks anything, and reaches each unit
+//! where the record's data root names it (docs/chat-mcp.md, 「Where each unit is found」).
 
 use serde_json::{Value, json};
 
@@ -16,8 +16,8 @@ use receiver_ports::{
 use room_calls::{
   bot::Service,
   sends::{
-    Act, Asker, ConsultInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, RemindInput, SayInput,
-    StickerInput, Unsent, ask, ask_consult,
+    Act, Asker, ConsultInput, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput,
+    RemindInput, SayInput, StickerInput, Unsent, VoiceInput, ask, ask_consult,
   },
   turn::{NO_AGENT, NO_ROOM, Turn},
 };
@@ -74,6 +74,20 @@ pub const ENTRIES: &[Entry] = &[
     None,
   ),
   entry(
+    "file",
+    "Send a file from this machine, or several as one album, with a caption.",
+    "file.json",
+    input_schema::<FileInput>,
+    None,
+  ),
+  entry(
+    "voice",
+    "Send an OGG/Opus voice note from this machine, with its caption.",
+    "voice.json",
+    input_schema::<VoiceInput>,
+    None,
+  ),
+  entry(
     "remind",
     "Set a reminder that wakes you in the room at its moment, once or repeating, with its reason and memory; it keeps no words to say.",
     "remind.json",
@@ -100,6 +114,13 @@ pub const ENTRIES: &[Entry] = &[
     "Draw fairly for anything decided by chance — dice, a number, winners, an order, a tie-break — and post the result with its seed in the room. sync hands the result back to state in this reply; async hands it to the next turn, for a turn that announces the draw and ends.",
     "random_draw.json",
     input_schema::<RandomDrawInput>,
+    None,
+  ),
+  entry(
+    "fixed_line",
+    "Say a fixed line in a room by its code and fields, rendered by the web unit's language packs without the output gates or any session.",
+    "fixed_line.json",
+    input_schema::<FixedLineInput>,
     None,
   ),
 ];
@@ -206,6 +227,16 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
 
         send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Photo(input)).await
       }
+      "file" => {
+        let input: FileInput = read(name, arguments)?;
+
+        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::File(input)).await
+      }
+      "voice" => {
+        let input: VoiceInput = read(name, arguments)?;
+
+        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Voice(input)).await
+      }
       "remind" => {
         let input: RemindInput = read(name, arguments)?;
 
@@ -230,6 +261,11 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
         let input: RandomDrawInput = read(name, arguments)?;
 
         send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::RandomDraw(input)).await
+      }
+      "fixed_line" => {
+        let input: FixedLineInput = read(name, arguments)?;
+
+        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::FixedLine(input)).await
       }
       other => Answer::failure(format!("this executable holds no entry {other}")),
     })

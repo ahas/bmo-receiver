@@ -15,6 +15,7 @@ mod owner_sends;
 mod owner_words;
 mod room_figures;
 mod room_pictures;
+mod send_kinds;
 mod voice;
 mod worker_settings;
 

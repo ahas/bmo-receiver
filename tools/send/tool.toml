@@ -1,8 +1,8 @@
 # The sends the agents make into rooms, each asking the running receiver for the send through its routes, as the
 # `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): a line said in a room or in
-# the consult room, a picture or an album, a reminder, a reaction, a pin, a sticker and a fair draw. The reminder
-# is the brain's, so that entry asks the brain directly. The crate's own test holds every entry here to the Rust
-# tool answering it.
+# the consult room, a picture or an album, a file or an album of files, a voice note, a reminder, a reaction, a
+# pin, a sticker, a fair draw and a fixed line. The reminder is the brain's, so that entry asks the brain
+# directly. The crate's own test holds every entry here to the Rust tool answering it.
 
 [tool]
 name = "send"
@@ -48,6 +48,34 @@ shown = ["pictures", "caption"]
 
 [entry.facts]
 verb = "album"
+
+[[entry]]
+namespace = "bmo"
+name = "file"
+description = "Send a file from this machine, or several as one album, with a caption."
+input = "file.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.send"]
+shown = ["files", "caption"]
+
+[entry.facts]
+verb = "document"
+
+[[entry]]
+namespace = "bmo"
+name = "voice"
+description = "Send an OGG/Opus voice note from this machine, with its caption."
+input = "voice.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.send"]
+shown = ["path", "caption", "transcript"]
+
+[entry.facts]
+verb = "voice"
 
 [[entry]]
 namespace = "bmo"
@@ -114,3 +142,17 @@ capabilities = ["room.tools"]
 [entry.facts]
 verb = "text"
 icon = "material-symbols:casino-outline-sharp"
+
+[[entry]]
+namespace = "bmo"
+name = "fixed_line"
+description = "Say a fixed line in a room by its code and fields, rendered by the web unit's language packs without the output gates or any session."
+input = "fixed_line.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[entry.bundle."room.send"]
+shown = ["code", "fields"]
+
+[entry.facts]
+verb = "text"

@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "caption": {
+      "description": "The caption the room reads under the note.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "chat": {
+      "description": "The room, by chat id, where it is not this turn's own.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "path": {
+      "description": "The path of an OGG/Opus file on this machine.",
+      "type": "string"
+    },
+    "said": {
+      "description": "What the note says, where the caption is not it.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "transcript": {
+      "description": "What was actually read out, where that differs from the caption.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "via": {
+      "description": "The road to send on, where the room block names the room's own road for this.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "path"
+  ],
+  "type": "object"
+}

@@ -97,9 +97,16 @@ impl Speech {
       .remove("code")
       .and_then(|code| code.as_str().map(str::to_owned))
       .unwrap_or_default();
+
+    self.rendered_code(&code, fields).await
+  }
+
+  /// A line's words where its code and fields are the caller's, rendered in the rooms' language; its code and
+  /// fields where the web unit cannot render it, so the room is never left silent.
+  pub async fn rendered_code(&self, code: &str, fields: Map<String, Value>) -> String {
     let asked = Render {
-      code,
-      fields: fields.into_iter().collect::<Map<String, Value>>(),
+      code: code.to_owned(),
+      fields: fields.clone(),
       language: self.deployment.language.clone(),
     };
 
@@ -107,7 +114,17 @@ impl Speech {
       Ok(text) => text,
       Err(why) => {
         eprintln!("bmo-receiver: the {} line went unrendered: {why}", asked.code);
-        line.unrendered()
+        let mut held = Map::new();
+
+        held.insert("code".to_owned(), Value::String(code.to_owned()));
+
+        for (name, value) in fields {
+          if name != "code" {
+            held.insert(name, value);
+          }
+        }
+
+        Value::Object(held).to_string()
       }
     }
   }

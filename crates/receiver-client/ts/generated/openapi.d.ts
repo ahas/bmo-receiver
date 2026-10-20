@@ -1400,7 +1400,10 @@ export interface components {
         SendRequest: {
             asker: components["schemas"]["Asker"];
             input: unknown;
-            /** @description The tool's name: `say`, `photo`, `remind`, `react`, `pin`, `sticker` or `random_draw`. */
+            /**
+             * @description The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `remind`, `react`, `pin`, `sticker` or
+             *     `random_draw`.
+             */
             tool: string;
         };
         /** @description The verbs the road a room is answered on performs. */
@@ -1670,14 +1673,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Answered. */
-            200: {
+            /** @description Done; no content. */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["Created"];
-                };
+                content?: never;
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found */
             default: {

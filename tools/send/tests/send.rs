@@ -17,7 +17,8 @@ use tempfile::tempdir;
 
 use receiver_ports::brain::{Brain, HttpBrain, Refusal};
 use room_calls::sends::{
-  ConsultInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, RemindInput, SayInput, StickerInput,
+  ConsultInput, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, RemindInput,
+  SayInput, StickerInput, VoiceInput,
 };
 use room_calls::turn::{NO_AGENT, NO_ROOM};
 use send_tool::{ENTRIES, call};
@@ -207,6 +208,114 @@ async fn photo_is_asked_as_its_pictures_and_caption_with_the_room_the_call_names
         "pictures": [{ "url": "https://example.org/a.png", "label": "first" }],
         "caption": "the two of them",
       },
+    }),
+  );
+}
+
+#[tokio::test]
+async fn file_is_asked_as_its_files_and_caption_with_the_room_the_call_names() {
+  let book = Book::default();
+  let (base, port) = stood(book.clone()).await;
+  let data = tempdir().unwrap();
+  write_env(data.path(), base, port);
+  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
+
+  let answered = call(
+    &session,
+    "file",
+    json!({
+      "chat": -700,
+      "files": [{ "path": "/tmp/notes.txt" }, { "path": "/tmp/report.pdf", "name": "report.pdf" }],
+      "caption": "the two of them",
+    }),
+  )
+  .await;
+
+  assert_eq!(schema_of("file.json"), input_schema::<FileInput>());
+  assert!(!answered.is_error, "{}", answered.plain());
+  let (route, body) = asked_of(&book);
+
+  assert_eq!(route.as_str(), "/sends");
+  assert_eq!(
+    body,
+    json!({
+      "asker": { "room": -700, "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "tool": "file",
+      "input": {
+        "chat": -700,
+        "files": [{ "path": "/tmp/notes.txt" }, { "path": "/tmp/report.pdf", "name": "report.pdf" }],
+        "caption": "the two of them",
+      },
+    }),
+  );
+}
+
+#[tokio::test]
+async fn voice_is_asked_with_its_path_its_caption_and_what_it_says() {
+  let book = Book::default();
+  let (base, port) = stood(book.clone()).await;
+  let data = tempdir().unwrap();
+  write_env(data.path(), base, port);
+  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
+
+  let answered = call(
+    &session,
+    "voice",
+    json!({
+      "path": "/tmp/note.ogg",
+      "caption": "the news",
+      "said": "today's news",
+      "transcript": "the whole of the news",
+    }),
+  )
+  .await;
+
+  assert_eq!(schema_of("voice.json"), input_schema::<VoiceInput>());
+  assert!(!answered.is_error, "{}", answered.plain());
+  let (route, body) = asked_of(&book);
+
+  assert_eq!(route.as_str(), "/sends");
+  assert_eq!(
+    body,
+    json!({
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "tool": "voice",
+      "input": {
+        "path": "/tmp/note.ogg",
+        "caption": "the news",
+        "said": "today's news",
+        "transcript": "the whole of the news",
+      },
+    }),
+  );
+}
+
+#[tokio::test]
+async fn a_fixed_line_is_asked_by_its_code_and_fields() {
+  let book = Book::default();
+  let (base, port) = stood(book.clone()).await;
+  let data = tempdir().unwrap();
+  write_env(data.path(), base, port);
+  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
+
+  let answered = call(
+    &session,
+    "fixed_line",
+    json!({ "code": "draw", "fields": { "label": "the word chain", "result": "apple" } }),
+  )
+  .await;
+
+  assert_eq!(schema_of("fixed_line.json"), input_schema::<FixedLineInput>());
+  assert!(!answered.is_error, "{}", answered.plain());
+  let (route, body) = asked_of(&book);
+
+  assert_eq!(route.as_str(), "/sends");
+  assert_eq!(
+    body,
+    json!({
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "tool": "fixed_line",
+      "input": { "code": "draw", "fields": { "label": "the word chain", "result": "apple" } },
     }),
   );
 }
