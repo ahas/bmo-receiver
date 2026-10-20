@@ -2,7 +2,8 @@
 //! 「The web unit」).
 
 use receiver_ports::web::{
-  Checked, Grant, GrantMessage, Grantee, HttpWeb, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web,
+  Checked, Grant, GrantMessage, GrantRow, Grantee, HttpWeb, MessageCheck, ObjectCheck, Render, RoomCheck,
+  User, Web,
 };
 use serde_json::{Map, json};
 
@@ -23,7 +24,7 @@ async fn the_account_model_the_checks_the_grants_and_a_fixed_line_go_out_as_the_
   let web = HttpWeb::new(&unit.peer("t"));
   let allowed = json!({ "allowed": true, "grant": "room:-7#talk" });
 
-  unit.answer("GET /accounts/model", 200, json!({ "in_force": true }));
+  unit.answer("GET /accounts/model", 200, json!({ "inForce": true }));
   unit.answer("GET /senders/42/user", 200, json!({ "user": "user-a" }));
   unit.answer(
     "GET /senders/43/user",
@@ -38,6 +39,18 @@ async fn the_account_model_the_checks_the_grants_and_a_fixed_line_go_out_as_the_
   );
   unit.answer("POST /checks/message", 200, allowed.clone());
   unit.answer("POST /checks/object", 200, allowed);
+  unit.answer(
+    "GET /grants",
+    200,
+    json!({
+      "grants": [{
+        "relation": "talk",
+        "subjectKey": "user:user-a",
+        "expiresAt": 1_700_000_000_000_i64,
+        "words": "you may talk",
+      }],
+    }),
+  );
   unit.answer("POST /grants", 200, json!({ "grant": "room:-7#talk" }));
   unit.answer("DELETE /grants", 200, json!({ "grant": "room:-7#talk" }));
   unit.answer("POST /words/render", 200, json!({ "text": "Resting until nine." }));
@@ -77,6 +90,16 @@ async fn the_account_model_the_checks_the_grants_and_a_fixed_line_go_out_as_the_
   assert_eq!(web.check_room(&room).await.unwrap(), checked(Some("user-a")));
   assert_eq!(web.check_message(&message).await.unwrap(), checked(None));
   assert_eq!(web.check_object(&object).await.unwrap(), checked(None));
+  assert_eq!(
+    web.room_grants(-7).await.unwrap(),
+    [GrantRow {
+      relation: "talk".to_owned(),
+      subject_key: "user:user-a".to_owned(),
+      expires_at: Some(1_700_000_000_000),
+      words: Some("you may talk".to_owned()),
+    }],
+    "a grant's subject and expiry are read as the web unit names them"
+  );
 
   let mut grant = Grant {
     room: Some(-7),
@@ -89,12 +112,13 @@ async fn the_account_model_the_checks_the_grants_and_a_fixed_line_go_out_as_the_
       members: false,
     },
     words: Some("you may talk".to_owned()),
-    expires_at: None,
+    expires_at: Some(1_700_000_000_000),
     message: GrantMessage { room: -7, id: 11 },
   };
 
   assert_eq!(web.grant(&grant).await.unwrap(), "room:-7#talk");
   grant.words = None;
+  grant.expires_at = None;
   assert_eq!(web.revoke(&grant).await.unwrap(), "room:-7#talk");
 
   let mut fields = Map::new();
@@ -114,6 +138,7 @@ async fn the_account_model_the_checks_the_grants_and_a_fixed_line_go_out_as_the_
     "relation": "talk",
     "to": { "sender": 43, "members": false },
     "words": "you may talk",
+    "expiresAt": 1_700_000_000_000_i64,
     "message": { "room": -7, "id": 11 },
   });
   let revoked = json!({
@@ -141,6 +166,7 @@ async fn the_account_model_the_checks_the_grants_and_a_fixed_line_go_out_as_the_
         "",
         Some(json!({ "kind": "bmo_worker", "object": "w-1", "relation": "run", "user": "user-a" }))
       ),
+      call("GET /grants", "room=-7", None),
       call("POST /grants", "", Some(granted)),
       call("DELETE /grants", "", Some(revoked)),
       call(

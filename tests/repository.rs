@@ -234,7 +234,7 @@ fn the_testbed_declaration_is_in_the_testbeds_format() {
   }
   assert_eq!(
     declaration["test"].get("languages").and_then(toml::Value::as_array),
-    Some(&vec![toml::Value::from("cargo")])
+    Some(&vec![toml::Value::from("cargo"), toml::Value::from("bun")])
   );
   assert_eq!(
     declaration["check"].get("base_libraries").and_then(toml::Value::as_array),

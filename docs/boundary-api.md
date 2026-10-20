@@ -135,9 +135,11 @@ companion's gate options copied from the chat agent's.
 
 ### The web unit
 
-Its account model: whether the model is in force, a sender's user, a user and its senders, the grants in a room,
-a sender's relation in a room, a message's sender's relation, a user's relation on an object, making and revoking
-a grant, and a fixed line's words.
+Its `docs/boundary.md` and `docs/openapi.json`, in the common format: the account model, a sender's user, a user
+and its senders, the grants in a room, a sender's relation in a room, a message's sender's relation, a user's
+relation on an object, making and revoking a grant, and a fixed line's words. The port reads the model as
+`inForce`, a grant's holder as `subjectKey` and a grant's lapse as `expiresAt`, and sends a grant's lapse as
+`expiresAt`.
 
 ### The cache warmer
 

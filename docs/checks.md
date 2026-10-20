@@ -17,8 +17,8 @@ dependencies check reads every manifest against the base libraries the declarati
 - **Layout.** No tracked path holds a directory named after the directory it stands in.
 - **The version.** `VERSION` holds the workspace's version.
 - **The testbed's declaration.** `testbed.toml` names only keys of the testbed's format, its major version,
-  the Cargo suite and the three base libraries.
-- **Hangul.** No tracked Rust file holds a Hangul character. Korean words the code matches on are data,
+  the Cargo and Bun suites and the three base libraries.
+- **Hangul.** No tracked code file holds a Hangul character. Korean words the code matches on are data,
   kept under `policy/` and `tests/fixtures/`.
 - **Home paths and private addresses.** No tracked file holds a path under a home directory or an address
   of a private network range.

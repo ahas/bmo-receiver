@@ -54,6 +54,22 @@ of its own.
 A route's own refusals, the facts the receiver hands a room's agent and the fixed lines a room hears are the codes
 of `docs/codes.md`, each with its status and its fields.
 
+## The clients
+
+`docs/openapi.json` is one document, and both clients are written from it.
+
+- **The Rust crate** `receiver-client`, in this workspace, holds every body and member as a type and one call for
+  each route.
+- **The TypeScript package** `@bmo/receiver-client`, in `crates/receiver-client/ts`, holds the same types and one
+  call for each route. `receiverClient({ baseUrl, token })` makes a client; a call answers the route's type, and
+  a refusal throws `ReceiverError` carrying its status and code. The generated types stand at
+  `@bmo/receiver-client/schema`.
+
+A downstream installs the package from a tarball: `bun pm pack` in `crates/receiver-client/ts` writes
+`bmo-receiver-client-<version>.tgz`, which it keeps under `vendor/` and depends on as
+`"@bmo/receiver-client": "file:vendor/bmo-receiver-client-<version>.tgz"`. The package's version is the
+repository's, in `VERSION`; it is never taken from a registry.
+
 ## Health
 
 | Route | Answers |

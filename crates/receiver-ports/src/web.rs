@@ -1,7 +1,6 @@
 //! The web unit's port: the account model, a sender's user, a user, the relation checks, the grants, and the
-//! words of a fixed line (`docs/boundary-api.md`, 「The web unit」). The web unit states no boundary yet, so these
-//! calls are stated as bmo-job's `docs/api.md` states its own calls on it, snake_case, with the room checks, the
-//! grants and the fixed lines added.
+//! words of a fixed line (`docs/boundary-api.md`, 「The web unit」). The web unit's `docs/boundary.md` states these
+//! routes in the common wire format, so every body here is camelCase.
 
 use futures_util::future::BoxFuture;
 use reqwest::Method;
@@ -74,6 +73,7 @@ pub struct GrantMessage {
 
 /// A grant made or revoked: on a room, or on an object of a kind, of a relation, to its grantee, on a message.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Grant {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub room: Option<i64>,
@@ -157,6 +157,7 @@ impl HttpWeb {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Model {
   in_force: bool,
 }
@@ -178,6 +179,7 @@ struct Grants {
 
 /// A grant standing in a room, as the account model keeps it.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GrantRow {
   pub relation: String,
   pub subject_key: String,

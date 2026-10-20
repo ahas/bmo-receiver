@@ -3,8 +3,12 @@
 testbed = 0
 name = "receiver"
 
+# The Cargo workspace is tested as the root project. The TypeScript client in `crates/receiver-client/ts` is a
+# project of its own, found by its manifest and its lockfile, and checked and tested by its manifest's `check`
+# script.
 [test]
-languages = ["cargo"]
+languages = ["cargo", "bun"]
+setup = ["bun install --frozen-lockfile --cwd crates/receiver-client/ts"]
 
 # The tests make their own scratch databases on the server, so no template is named.
 [test.database]
