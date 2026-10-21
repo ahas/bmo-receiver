@@ -116,16 +116,17 @@ its rounds.
   room would read two answers to one thing, the older one arriving last.
 - **What arrives while a round is running waits in the buffer** and is read when that round hands over.
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
-  window is carried into the agent's session through the agency (`POST /session/start`, `GET /session/state`,
-  `POST /session/turn`, and the turn's `turn-started` and `turn-ended` on the event stream); a companion's round
-  is its own turn, sent on the road its room answers on; any other answer is held to the answer checks
-  (`docs/answer-checks.md`) and sent on the road the turn answers on, then handed back to the receiver as filed.
-  The round's session is noted, a failed round tells its room's health, and the failure orders are looked over on
-  the conversations' own clock.
-- **Words that come while the turn works are pushed into it** (`POST /session/push`) at the round's next look at
-  the working turn: what the agency says was `delivered` joins the round, which answers it with the rest; what is
-  `waiting` or `refused` goes back to the front of the room's buffer for the round after, and a `waiting` turn is
-  offered nothing more (`docs/bmo-window.md`, `push`).
+  window is carried into the agent's session through the agency (`POST /sessions`, `GET /sessions/{sessionId}`,
+  `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); a
+  companion's round is its own turn, sent on the road its room answers on; any other answer is held to the answer
+  checks (`docs/answer-checks.md`) and sent on the road the turn answers on, then handed back to the receiver as
+  filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
+  over on the conversations' own clock.
+- **Words that come while the turn works are pushed into it**
+  (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at the working turn: what the
+  agency says was `delivered` joins the round, which answers it with the rest; what is `waiting` or `refused` goes
+  back to the front of the room's buffer for the round after, and a `waiting` turn is offered nothing more
+  (`docs/bmo-window.md`, `push`).
 - **A round folds its session only past the fold share:** once its answer has gone out, the session is folded as
   work of its own where the context the agency reports it carrying (`carried` against `window`) has reached the
   resident turn policy's `fold_ratio`, and not otherwise.
@@ -138,7 +139,7 @@ answers on under the companion's name. Its reset is the agency's; what the reset
 receiver's (the agency's `docs/companions.md`, 「What the reset cuts off」).
 
 - **A turn begins as its round takes its words,** and a reset whose point stands at or after that moment
-  overtakes it. The point is the agency's (`GET /reset-point?agent=`), read as the round takes its words and
+  overtakes it. The point is the agency's (`GET /agents/{agent}`), read as the round takes its words and
   again whenever the turn is to keep anything.
 - **What the reset cut off reaches no turn:** words said at or before the point are dropped, a message's moment
   being counted to the millisecond, so one said in the point's own millisecond goes with those before it; and a quiet instruction
@@ -157,21 +158,22 @@ receiver's (the agency's `docs/companions.md`, 「What the reset cuts off」).
   turn's line under the companion's name, the room counts as answered and its window moves, and words that came
   meanwhile follow as the next round. No health line and no failure order is raised for it.
 - **A turn its engine ended with an error tells the room in one line** under the companion's own name: the fixed
-  line `companion-engine-error`, its kind read from the error kind the failed turn's `turn-ended` carries
+  line `companion-engine-error`, its kind read from the error kind the failed turn's `turn.ended` carries
   (`docs/codes.md`, `EngineError`), sent on the road the room answers on. Any other failure says nothing in the
   room.
-- **The cut-off itself,** `companion-cut-off` on the agency's event stream, is heard for as long as the service
-  runs. Under the hold every answer is kept under, everything waiting for the companion's turns in every room is
-  let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on, and its
-  quiet instructions, whose rows are settled as delivered so no turn takes them again. A companion whose
-  conversations do not stand in this process has nothing waiting.
+- **The cut-off itself** is published with the reset point alone, under the kind `companion-reset.created`,
+  and is heard for as long as the service runs. Under the hold every answer is kept under, everything waiting
+  for the companion's turns in every room is let go unread: the words its rooms' queues are gathering, the words
+  its conversations hold or wait on, and its quiet instructions, whose rows are settled as delivered so no turn
+  takes them again. A companion whose conversations do not stand in this process has nothing waiting.
 
 ## A companion's reset
 
-The reset is the agency's; it tells each unit holding the companion's rows to take its own, by
-`companion-reset` on the agency's event stream (the agency's `docs/companions.md`, 「Starting it afresh」),
-once the cut-off has let go what waited for the companion's turns. The receiver takes its own rows of the
-ranges the event names, in one write:
+The reset is the agency's; it tells each unit holding the companion's rows to take its own, under the same
+`companion-reset.created` kind, naming the ranges it took and the rooms it took them in (the agency's
+`docs/companions.md`, 「Starting it afresh」), once the cut-off has let go what waited for the companion's
+turns. The two parts of the kind are told apart by their fields: a cut-off names the `point` alone, a reset
+names its `ranges`. The receiver takes its own rows of the ranges the event names, in one write:
 
 - **The conversation range** takes the whole record of each room the companion answers alone (its messages and
   the receiver's read mark of it) and, in every room, the companion's own quiet instructions and the windows its
@@ -189,16 +191,8 @@ Each event the receiver reads (`docs/boundary-api.md`, 「The agency」) is hear
 to, and those that tell the chat agent something wake it as an instruction in the owner's private chat, which
 opens a round there like any instruction:
 
-- **A fact the system recorded,** framed as every voiced notice is and summed up on the console by its own
-  account: what a job's end left standing in herdr (`herdr-leftovers`, its `panes`, its `workspaces` and its
-  `account` as the agency gave them), and pressure on the machine (`machine-pressure`). A pressure fact names
-  its `cause`; for the memory the `minutes` it stood, the `alertPct` line and the `memoryFullPct` it stands at,
-  and for the disk the `limitGb` line and the `diskFreeGb` left; then the node service's `reading`, the `jobs`
-  and `browserJobs` open, the eight largest `holders`, each its `place`, `worker`, `jobId`, `todoId`,
-  `megabytes` and `browsers`, the `largest` processes as the agency named them, and an English `account` naming
-  the four largest holders. A newer fact of the same cause replaces one not yet handed over.
-- **A voiced notice:** a stand-in answering or ended, a run come back after a failure, a worker fallen to a
-  lesser model (`docs/voiced-notices.md`, 「Rest and fallback」).
+- **A voiced notice:** a stand-in answering or ended, and a worker fallen to a lesser model
+  (`docs/voiced-notices.md`, 「Rest and fallback」).
 - **An order:** a run past its clock, withdrawn where its ask closes first (`docs/voiced-notices.md`, 「A turn
   past its clock」).
 - **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency

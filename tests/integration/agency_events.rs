@@ -10,18 +10,16 @@ use bmo_receiver::chat::fallback::{self, Fallbacks};
 use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::logins::{LOGIN_NOTICE, Logins};
 use bmo_receiver::chat::overtime::{self, Overtime};
-use bmo_receiver::chat::recovered::{RECOVERED, Recoveries};
 use bmo_receiver::companion::reset::{RESET, Resets};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::hearing::{Hearer, Hearing};
-use bmo_receiver::machine::{PRESSURE, Pressure};
 use bmo_receiver::receiver::wake::rest::{RESTING, Rests};
 use bmo_receiver::store::settings;
 use bmo_receiver::verbs::reload::{DOCUMENTS_MOVED, Places, Reloads};
-use bmo_receiver::workers::{DOWNGRADED, LEFTOVERS, Workers};
+use bmo_receiver::workers::{DOWNGRADED, Workers};
 use bmo_receiver::{all, now_ms, run};
 use sea_orm::DatabaseConnection;
-use serde_json::{Value, json};
+use serde_json::json;
 
 use crate::common::Scratch;
 use crate::common::session::StandInSession;
@@ -47,7 +45,6 @@ struct Row {
   text: String,
   kind: Option<String>,
   sort: Option<String>,
-  summary: Option<String>,
   expires_at: Option<i64>,
   rides: i64,
   ride_until: Option<i64>,
@@ -88,9 +85,7 @@ impl Heard {
       Arc::new(Fallbacks::new(receiver.clone())),
       Arc::new(Rests::new(receiver.clone())),
       Arc::new(Logins::new(receiver.clone())),
-      Arc::new(Recoveries::new(receiver.clone())),
       Arc::new(Workers::new(receiver.clone())),
-      Arc::new(Pressure::new(receiver.clone())),
       Arc::new(Overtime::new(receiver.clone())),
     ];
 
@@ -133,7 +128,7 @@ impl Heard {
   async fn rows(&self) -> Vec<Row> {
     all(
       self.db(),
-      r#"SELECT "agent", "chat_id", "text", "kind", "sort", "summary", "expires_at", "rides", "ride_until"
+      r#"SELECT "agent", "chat_id", "text", "kind", "sort", "expires_at", "rides", "ride_until"
          FROM "instructions" ORDER BY "id""#,
       vec![],
     )
@@ -146,7 +141,6 @@ impl Heard {
       text: row.try_get("", "text").unwrap(),
       kind: row.try_get("", "kind").unwrap(),
       sort: row.try_get("", "sort").unwrap(),
-      summary: row.try_get("", "summary").unwrap(),
       expires_at: row.try_get("", "expires_at").unwrap(),
       rides: row.try_get("", "rides").unwrap(),
       ride_until: row.try_get("", "ride_until").unwrap(),
@@ -272,91 +266,6 @@ async fn a_reset_of_the_person_range_alone_keeps_the_companions_conversation() {
   assert_eq!(heard.rows().await.len(), 1, "the companion's instruction stays");
 }
 
-// One holder of the machine's memory as the agency names it.
-fn holder(place: usize, job: Option<i64>) -> Value {
-  json!({
-    "place": format!("place-{place}"),
-    "megabytes": if place == 1 { 2047 } else { 1000 - place as i64 },
-    "browsers": if place == 1 { 2 } else { 0 },
-    "worker": job.map(|_| "worker-a"),
-    "jobId": job,
-    "todoId": job.map(|job| job + 100),
-  })
-}
-
-#[tokio::test]
-async fn pressure_on_the_machine_is_told_to_the_owners_session_as_a_fact_naming_the_jobs_behind_it() {
-  let heard = Heard::on().await;
-  let holders: Vec<Value> = (1..=10).map(|place| holder(place, (place == 1).then_some(12))).collect();
-  let pressure = json!({
-    "cause": "memory", "fullPct": 91.5, "alertPct": 85, "minutes": 3,
-    "reading": { "memAvailableGb": 1.5 }, "holders": holders,
-    "largest": [{ "pid": 7, "name": "browser", "megabytes": 900, "place": "place-1", "jobId": 12 }],
-    "jobs": 4, "browserJobs": 1,
-  });
-
-  heard.session.told(PRESSURE, pressure.clone());
-
-  let rows = heard.kept("machine-pressure:memory", 1).await;
-  let row = &rows[0];
-  let summary = row.summary.clone().unwrap();
-
-  assert_eq!(
-    (row.agent.as_str(), row.chat_id, row.sort.as_deref()),
-    (AGENT, OWNER, Some("run_state"))
-  );
-  assert!(summary.starts_with(
-    "The machine's memory pressure has stood at 91.5% for 3 minutes, over the alert line of 85%."
-  ));
-  assert!(
-    summary.contains("job #12 (item #112) of worker-a in place-1 2.0GB, 2 browsers; place-2 998MB"),
-    "{summary}"
-  );
-  assert!(!summary.contains("place-5"), "the account names the four largest holders");
-  assert!(row.text.contains(r#""state":"machine-pressure""#), "{}", row.text);
-  assert!(row.text.contains(r#""memoryFullPct":91.5"#));
-  assert!(row.text.contains(r#""browserJobs":1"#));
-  assert!(row.text.contains(r#""jobId":12"#));
-  assert!(
-    row.text.contains("place-8") && !row.text.contains("place-9"),
-    "the fact carries the eight largest"
-  );
-
-  // A newer fact of the same cause replaces the one not yet handed over.
-  heard.session.told(PRESSURE, pressure);
-  heard
-    .session
-    .told(PRESSURE, json!({ "cause": "disk", "freeGb": 4.25, "limitGb": 10, "holders": [] }));
-
-  let disk = heard.kept("machine-pressure:disk", 1).await;
-
-  assert_eq!(heard.of_kind("machine-pressure:memory").await.len(), 1);
-  assert!(
-    disk[0]
-      .summary
-      .as_deref()
-      .unwrap()
-      .starts_with("The disk the data root stands on has 4.3GB free, under the 10GB line")
-  );
-  assert!(disk[0].text.contains(r#""diskFreeGb":4.25"#));
-}
-
-#[tokio::test]
-async fn what_a_jobs_end_left_in_herdr_is_told_as_a_fact_summed_up_by_its_account() {
-  let heard = Heard::on().await;
-
-  heard.session.told(
-    LEFTOVERS,
-    json!({ "panes": 3, "workspaces": [{ "workspaceId": "w-1", "label": "job 9", "panes": 3, "marked": true }], "account": "Three panes stand in one workspace." }),
-  );
-
-  let rows = heard.kept("herdr-leftovers", 1).await;
-
-  assert_eq!(rows[0].summary.as_deref(), Some("Three panes stand in one workspace."));
-  assert!(rows[0].text.contains(r#""state":"herdr-leftovers""#));
-  assert!(rows[0].text.contains(r#""workspaceId":"w-1""#));
-}
-
 #[tokio::test]
 async fn a_worker_fallen_to_a_lesser_model_is_voiced_to_the_owner() {
   let heard = Heard::on().await;
@@ -376,27 +285,11 @@ async fn a_worker_fallen_to_a_lesser_model_is_voiced_to_the_owner() {
 }
 
 #[tokio::test]
-async fn a_run_come_back_is_voiced_as_the_agency_composed_it() {
-  let heard = Heard::on().await;
-
-  heard.session.told(
-    RECOVERED,
-    json!({ "fact": "A run answered again.", "intent": "say the agent is working.", "kind": "doctor-recovered", "ttlMs": 3_600_000 }),
-  );
-
-  let rows = heard.kept("doctor-recovered", 1).await;
-
-  assert_eq!(rows[0].chat_id, OWNER);
-  assert!(rows[0].text.contains("A run answered again."));
-  assert!(rows[0].expires_at.is_some_and(|at| at > now_ms()));
-}
-
-#[tokio::test]
 async fn a_stand_in_answering_is_kept_and_told_and_its_end_clears_it() {
   let heard = Heard::on().await;
 
   heard.session.told(
-    fallback::ANSWERING,
+    fallback::CHANGED,
     json!({ "ownerId": OWNER, "previous": "codex", "provider": "openrouter", "model": "model-b" }),
   );
 
@@ -412,7 +305,7 @@ async fn a_stand_in_answering_is_kept_and_told_and_its_end_clears_it() {
 
   heard
     .session
-    .told(fallback::ENDED, json!({ "ownerId": OWNER, "previous": "openrouter" }));
+    .told(fallback::CHANGED, json!({ "ownerId": OWNER, "previous": "openrouter" }));
   heard.kept("fallback-lifted", 1).await;
 
   assert!(settings::get(heard.db(), fallback::SINCE_KEY).await.unwrap().is_none());

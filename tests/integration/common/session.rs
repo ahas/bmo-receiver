@@ -142,12 +142,7 @@ impl StandInSession {
       *self.working.lock().unwrap() = true;
       self.told(
         "turn.created",
-        json!({
-          "id": number,
-          "kind": "turn.created",
-          "at": 0,
-          "data": { "session": self.id, "run": format!("run-{number}"), "turnId": number, "at": 0 },
-        }),
+        json!({ "session": self.id, "run": format!("run-{number}"), "turnId": number, "at": 0 }),
       );
 
       if holds {
@@ -163,7 +158,7 @@ impl StandInSession {
 
       ended["session"] = json!(self.id);
       *self.working.lock().unwrap() = false;
-      self.told("turn.ended", json!({ "id": number, "kind": "turn.ended", "at": 0, "data": ended }));
+      self.told("turn.ended", ended);
 
       Ok(Delivery::Delivered)
     })

@@ -126,7 +126,7 @@ impl Rounds {
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
     let mut companion = registration(COMPANION, "Agent C", vec!["agent-c"], None, false);
 
-    companion.row.insert("turn_shape".to_owned(), json!("pieces"));
+    companion.row.insert("turnShape".to_owned(), json!("pieces"));
     standing
       .agency
       .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true), companion]);

@@ -8,8 +8,8 @@ use serde_json::Value;
 use crate::hearing::Hearer;
 use crate::receiver::Receiver;
 
-/// The event a login's end is published as.
-pub const LOGIN_NOTICE: &str = "account-login-notice";
+/// The kind a login's end is published under.
+pub const LOGIN_NOTICE: &str = "account.changed";
 
 /// A login's end as the service hears it on the agency's stream.
 pub struct Logins {

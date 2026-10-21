@@ -1,24 +1,20 @@
-//! What the agency tells of its job workers (docs/wake.md, 「What the agency's events wake」): a worker's session that
-//! answered on a lesser model, voiced to the owner by the chat agent, and what a job's end left standing in herdr,
-//! told to the chat agent in the owner's own chat as a fact the system recorded.
+//! What the agency tells of its job workers (docs/wake.md, 「What the agency's events wake」): a worker's session
+//! that answered on a lesser model, voiced to the owner by the chat agent.
 
 use futures_util::future::BoxFuture;
 use receiver_policy::fill_marks;
 use receiver_policy::owner_facts::OWNER_FACTS;
 use receiver_ports::agency::Event;
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::Value;
 
-use crate::chat::notices::{Recorded, Voiced, queue_fact, queue_notice};
+use crate::chat::notices::{Voiced, queue_notice};
 use crate::chat::restart::kick;
 use crate::hearing::Hearer;
 use crate::receiver::{NotReceived, Receiver};
 
-/// The event a worker's fall to a lesser model is published as.
-pub const DOWNGRADED: &str = "worker-downgraded";
-
-/// The event what a job's end left in herdr is published as.
-pub const LEFTOVERS: &str = "herdr-leftovers";
+/// The kind a worker's fall to a lesser model is published under.
+pub const DOWNGRADED: &str = "worker.changed";
 
 /// A worker's session that answered on a lesser model: the worker, the model it was launched on, the models it
 /// answered on, whether its session was dropped, and the job it ran for.
@@ -64,19 +60,6 @@ impl Downgraded {
   }
 }
 
-/// The fact a herdr leftovers picture is told by: the panes and workspaces it names and its account, as the agency
-/// gave them.
-pub fn leftovers_fact(event: &Value) -> Value {
-  let field = |key: &str| event.get(key).cloned().unwrap_or(Value::Null);
-
-  json!({
-    "state": LEFTOVERS,
-    "panes": field("panes"),
-    "workspaces": event.get("workspaces").cloned().unwrap_or_else(|| json!([])),
-    "account": field("account"),
-  })
-}
-
 /// The workers' facts as the service hears them on the agency's stream.
 pub struct Workers {
   receiver: Receiver,
@@ -98,23 +81,6 @@ impl Workers {
       .map(drop)
       .map_err(told)
   }
-
-  async fn leftovers(&self, event: &Value) -> Result<(), String> {
-    let said = &OWNER_FACTS.herdr_leftovers;
-    let fact = leftovers_fact(event);
-    let recorded = Recorded {
-      fact: &fact,
-      intent: &said.intent,
-      kind: &said.kind,
-      sort: &said.sort,
-      summary: fact["account"].as_str().unwrap_or_default(),
-    };
-
-    queue_fact(&self.receiver, self.receiver.owner_id(), &recorded)
-      .await
-      .map(drop)
-      .map_err(told)
-  }
 }
 
 fn told(why: NotReceived) -> String {
@@ -123,18 +89,12 @@ fn told(why: NotReceived) -> String {
 
 impl Hearer for Workers {
   fn kinds(&self) -> &'static [&'static str] {
-    &[DOWNGRADED, LEFTOVERS]
+    &[DOWNGRADED]
   }
 
   fn hear<'a>(&'a self, event: &'a Event) -> BoxFuture<'a, ()> {
     Box::pin(async move {
-      let done = if event.kind == DOWNGRADED {
-        self.downgraded(&event.data).await
-      } else {
-        self.leftovers(&event.data).await
-      };
-
-      match done {
+      match self.downgraded(&event.data).await {
         Ok(()) => kick(&self.receiver),
         Err(why) => eprintln!("bmo-receiver: the {} was not told: {why}", event.kind),
       }

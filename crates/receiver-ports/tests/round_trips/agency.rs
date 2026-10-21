@@ -2,7 +2,7 @@
 
 use futures_util::StreamExt;
 use receiver_ports::agency::{
-  Agency, CompanionRemoval, CompanionRow, Delivery, Event, FieldRefusal, HttpAgency, RestKind, Run, Said,
+  Agency, CompanionRow, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, RestKind, Resting, Run, Said,
   Scope, Turn, TurnRoom,
 };
 use serde_json::json;
@@ -38,11 +38,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   unit.answer("GET /sessions/agent-a@-7", 200, session.clone());
   unit.answer("POST /sessions/agent-a@-7/folds", 201, json!({ "sessionId": "agent-a@-7", "at": 5 }));
   unit.answer("GET /sessions", 200, json!({ "items": [session], "more": false }));
-  unit.answer(
-    "POST /rooms/forget",
-    200,
-    json!({ "gone": { "room_sessions": 1 }, "stayed": [{ "table": "agent_log", "rows": 3, "why": "the job's" }] }),
-  );
+  unit.answer_empty("DELETE /room-holdings/-7", 204);
   unit.answer_empty("PUT /hooks/room-title", 200);
   unit.answer(
     "GET /log-lines",
@@ -54,6 +50,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     200,
     json!({ "name": "agent-a", "resetAt": 2_000, "standInAvailable": true }),
   );
+  unit.answer("GET /runs/7", 200, json!({ "id": 7, "startedAt": 1_700_000 }));
 
   let agents = agency.agents().await.unwrap();
 
@@ -85,6 +82,16 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   assert_eq!(agency.state("agent-a@-7").await.unwrap().provider.as_deref(), Some("claude-code"));
   agency.fold("agent-a@-7").await.unwrap();
   assert_eq!(agency.sessions().await.unwrap(), [started]);
+  assert_eq!(
+    agency.forget_room(-7, false).await.unwrap(),
+    Forgotten::default(),
+    "a removal answers nothing"
+  );
+  unit.answer(
+    "DELETE /room-holdings/-7",
+    200,
+    json!({ "gone": { "room_sessions": 1 }, "stayed": [{ "table": "agent_log", "rows": 3, "why": "the job's" }] }),
+  );
   assert_eq!(agency.forget_room(-7, true).await.unwrap().stayed[0].rows, 3);
   agency
     .register_hook("room-title", "http://receiver/agency/hooks/room-title", "t")
@@ -92,6 +99,12 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     .unwrap();
   assert_eq!(agency.run_log("run-1", Some(3)).await.unwrap()[0]["id"], 4);
   assert_eq!(agency.reset_point("agent-a").await.unwrap(), Some(2_000));
+  assert_eq!(
+    agency.run(7).await.unwrap(),
+    Some(Run {
+      started_at: 1_700_000
+    })
+  );
 
   assert_eq!(
     unit.took(),
@@ -116,7 +129,8 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
       call("GET /sessions/agent-a@-7", "", None),
       call("POST /sessions/agent-a@-7/folds", "", Some(json!({}))),
       call("GET /sessions", "", None),
-      call("POST /rooms/forget", "", Some(json!({ "chatId": -7, "dryRun": true }))),
+      call("DELETE /room-holdings/-7", "", None),
+      call("DELETE /room-holdings/-7", "dryRun=true", None),
       call(
         "PUT /hooks/room-title",
         "",
@@ -124,6 +138,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
       ),
       call("GET /log-lines", "run=run-1&after=3", None),
       call("GET /agents/agent-a", "", None),
+      call("GET /runs/7", "", None),
     ]
   );
 }
@@ -150,15 +165,15 @@ async fn the_event_stream_reads_each_event_by_its_kind_and_ends_with_the_stream(
   unit.answer_events(
     "GET /events",
     concat!(
-      "event: turn-started\ndata: {\"session\":\"s\",\"run\":\"r\",\"at\":5}\n\n",
+      "event: turn.created\ndata: {\"id\":1,\"kind\":\"turn.created\",\"at\":7,\"data\":{\"session\":\"s\",\"run\":\"r\",\"turnId\":2,\"at\":5}}\n\n",
       ": a comment\n\n",
-      "event: turn-ended\ndata: {\"session\":\"s\",\"run\":\"r\",\"outcome\":\"answered\",\"answer\":\"hi\"}\n\n",
+      "event: turn.ended\ndata: {\"id\":2,\"kind\":\"turn.ended\",\"at\":9,\"data\":{\"session\":\"s\",\"run\":\"r\",\"outcome\":\"answered\",\"answer\":\"hi\"}}\n\n",
     ),
   );
 
   let agency = HttpAgency::new(&unit.peer("t"));
   let events: Vec<Event> = agency
-    .events(&["turn-started", "turn-ended"])
+    .events(&["turn.created", "turn.ended"])
     .await
     .unwrap()
     .map(|event| event.unwrap())
@@ -169,16 +184,16 @@ async fn the_event_stream_reads_each_event_by_its_kind_and_ends_with_the_stream(
     events,
     [
       Event {
-        kind: "turn-started".to_owned(),
-        data: json!({ "session": "s", "run": "r", "at": 5 }),
+        kind: "turn.created".to_owned(),
+        data: json!({ "session": "s", "run": "r", "turnId": 2, "at": 5 }),
       },
       Event {
-        kind: "turn-ended".to_owned(),
+        kind: "turn.ended".to_owned(),
         data: json!({ "session": "s", "run": "r", "outcome": "answered", "answer": "hi" }),
       },
     ]
   );
-  assert_eq!(unit.took(), [call("GET /events", "kinds=turn-started%2Cturn-ended", None)]);
+  assert_eq!(unit.took(), [call("GET /events", "kinds=turn.created%2Cturn.ended", None)]);
 }
 
 #[tokio::test]
@@ -192,36 +207,20 @@ async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_
     model: "model-a".to_owned(),
     worker: "worker-a".to_owned(),
   };
-  let removal = CompanionRemoval {
-    agent: "companion-a".to_owned(),
-    rooms: vec![-7, -8],
-    by: Some("tester".to_owned()),
-  };
-
-  unit.answer("POST /companions/add", 200, json!({ "ok": true }));
-  unit.answer("POST /companions/remove", 200, json!({ "ok": true }));
+  unit.answer("POST /companions", 201, json!({ "ok": true }));
+  unit.answer_empty("DELETE /companions/companion-a", 204);
 
   assert_eq!(agency.add_companion(&row).await.unwrap(), Ok(()));
-  assert_eq!(agency.remove_companion(&removal).await.unwrap(), Ok(()));
-  assert_eq!(
-    agency
-      .remove_companion(&CompanionRemoval {
-        by: None,
-        ..removal.clone()
-      })
-      .await
-      .unwrap(),
-    Ok(()),
-    "an asker the console does not name is left out, for the agency's own default"
-  );
+  assert_eq!(agency.remove_companion("companion-a").await.unwrap(), Ok(()));
+  assert_eq!(agency.remove_companion("companion-a").await.unwrap(), Ok(()));
 
   unit.answer(
-    "POST /companions/add",
+    "POST /companions",
     400,
     json!({ "field": "model", "error": "The model has no address." }),
   );
   unit.answer(
-    "POST /companions/remove",
+    "DELETE /companions/companion-a",
     400,
     json!({ "field": "agent", "error": "companion-a is not a companion." }),
   );
@@ -232,9 +231,9 @@ async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_
   };
 
   assert_eq!(agency.add_companion(&row).await.unwrap(), Err(refused));
-  assert_eq!(agency.remove_companion(&removal).await.unwrap().unwrap_err().field, "agent");
+  assert_eq!(agency.remove_companion("companion-a").await.unwrap().unwrap_err().field, "agent");
 
-  unit.answer("POST /companions/add", 400, json!({ "code": "bad-request", "error": "Not JSON." }));
+  unit.answer("POST /companions", 400, json!({ "code": "bad-request", "error": "Not JSON." }));
 
   let failure = agency.add_companion(&row).await.unwrap_err();
 
@@ -251,21 +250,16 @@ async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_
     "model": "model-a",
     "worker": "worker-a",
   });
-  let removed = json!({ "agent": "companion-a", "rooms": [-7, -8], "by": "tester" });
 
   assert_eq!(
     unit.took(),
     [
-      call("POST /companions/add", "", Some(added.clone())),
-      call("POST /companions/remove", "", Some(removed.clone())),
-      call(
-        "POST /companions/remove",
-        "",
-        Some(json!({ "agent": "companion-a", "rooms": [-7, -8] }))
-      ),
-      call("POST /companions/add", "", Some(added.clone())),
-      call("POST /companions/remove", "", Some(removed)),
-      call("POST /companions/add", "", Some(added)),
+      call("POST /companions", "", Some(added.clone())),
+      call("DELETE /companions/companion-a", "", None),
+      call("DELETE /companions/companion-a", "", None),
+      call("POST /companions", "", Some(added.clone())),
+      call("DELETE /companions/companion-a", "", None),
+      call("POST /companions", "", Some(added)),
     ]
   );
 }
@@ -304,13 +298,23 @@ async fn a_reset_point_and_a_passed_rest_read_their_empty_answers_and_a_missing_
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
 
+  let cleared = json!({ "clearPassed": true, "until": null, "kind": null, "account": null });
+
   unit.answer("GET /agents/agent-a", 200, json!({ "resetAt": null }));
-  unit.answer("GET /rest/passed", 200, json!({ "kind": "limit" }));
+  unit.answer(
+    "PATCH /rest",
+    200,
+    json!({ "resting": false, "until": null, "kind": "limit", "accountId": null }),
+  );
 
   assert_eq!(agency.reset_point("agent-a").await.unwrap(), None);
   assert_eq!(agency.passed_rest().await.unwrap().kind, Some(RestKind::Limit));
 
-  unit.answer("GET /rest/passed", 200, json!({ "kind": null }));
+  unit.answer(
+    "PATCH /rest",
+    200,
+    json!({ "resting": false, "until": null, "kind": null, "accountId": null }),
+  );
 
   assert_eq!(agency.passed_rest().await.unwrap().kind, None);
 
@@ -325,10 +329,39 @@ async fn a_reset_point_and_a_passed_rest_read_their_empty_answers_and_a_missing_
     unit.took(),
     [
       call("GET /agents/agent-a", "", None),
-      call("GET /rest/passed", "", None),
-      call("GET /rest/passed", "", None),
+      call("PATCH /rest", "", Some(cleared.clone())),
+      call("PATCH /rest", "", Some(cleared)),
       call("GET /agents/no-agent", "", None),
     ]
+  );
+}
+
+#[tokio::test]
+async fn a_rest_is_written_and_its_silence_read_across_the_one_patch_route() {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+  let resting = Resting {
+    until: 1_900_000_000,
+    kind: RestKind::Limit,
+    account: Some("account-a".to_owned()),
+  };
+
+  unit.answer(
+    "PATCH /rest",
+    200,
+    json!({ "resting": true, "until": 1_900_000_000, "kind": "limit", "accountId": "account-a", "silenced": true }),
+  );
+
+  assert!(agency.write_rest(&resting).await.unwrap().silenced);
+  assert_eq!(
+    unit.took(),
+    [call(
+      "PATCH /rest",
+      "",
+      Some(
+        json!({ "clearPassed": false, "until": 1_900_000_000, "kind": "limit", "account": "account-a" })
+      )
+    )]
   );
 }
 
@@ -337,10 +370,15 @@ async fn a_run_reads_the_moment_it_began_and_one_the_agency_holds_none_of_reads_
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
 
-  unit.answer("GET /runs/7", 200, json!({ "id": 7, "agent": "agent-a", "started_at": 1_700 }));
+  unit.answer("GET /runs/7", 200, json!({ "id": 7, "agentName": "agent-a", "startedAt": 1_700_000 }));
   unit.answer("GET /runs/8", 404, json!({ "error": "No run is numbered 8." }));
 
-  assert_eq!(agency.run(7).await.unwrap(), Some(Run { started_at: 1_700 }));
+  assert_eq!(
+    agency.run(7).await.unwrap(),
+    Some(Run {
+      started_at: 1_700_000
+    })
+  );
   assert_eq!(agency.run(8).await.unwrap(), None);
   assert_eq!(unit.took(), [call("GET /runs/7", "", None), call("GET /runs/8", "", None)]);
 }

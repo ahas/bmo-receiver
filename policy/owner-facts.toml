@@ -1,35 +1,6 @@
 # What the owner's session is told of the agency's events that no other part words (docs/wake.md, 「What the
-# agency's events wake」): the account of pressure on the machine, a herdr leftovers fact, a worker fallen to a
-# lesser model, and the overtime order. `{name}` marks what each line carries.
-
-# Pressure on the machine, told as a fact the system recorded: the account for the memory ({minutes} it stood at
-# {full} per cent over the {alert} line) and for the disk ({free} gigabytes over a {limit} line), each closed by the
-# {holders} line where any place holds memory.
-[machine]
-memory = "The machine's memory pressure has stood at {full}% for {minutes} minutes, over the alert line of {alert}%.{holders}"
-disk = "The disk the data root stands on has {free}GB free, under the {limit}GB line new jobs are launched above: no new job launches until there is room again.{holders}"
-# Who holds the most of the memory, with its own lead space: the {holders} joined, each the {who} with its {size} and
-# its {browsers} where it holds any; a job's {who} is the {job} with its {todo} where it names one, the {worker} at
-# work and its {place}, and a place no job holds is named by its {place} alone.
-holders = " Holding the most memory: {holders}."
-joiner = "; "
-holder = "{who} {size}{browsers}"
-job = "job #{job}{todo} of {worker} in {place}"
-todo = " (item #{todo})"
-browsers = ", {browsers} browsers"
-# How many holders the account names, and how many the fact carries.
-account_holders = 4
-fact_holders = 8
-intent = "tell the owner what presses on the machine and which jobs hold it, and what follows for the work."
-# A newer fact of the same cause replaces one not yet handed over: the kind is this and the cause.
-kind = "machine-pressure"
-sort = "run_state"
-
-# What a job's end left standing in herdr, told as a fact the system recorded.
-[herdr_leftovers]
-intent = "tell the owner what a job's end left standing in herdr and that it needs a look."
-kind = "herdr-leftovers"
-sort = "run_state"
+# agency's events wake」): a worker fallen to a lesser model, and the overtime order. `{name}` marks what each
+# line carries.
 
 # A worker's session that answered on a lesser model than its job was launched on: the {worker}, the {model} it fell
 # to and the one it was {launched} on, the {job} it ran for where it names one, and what became of the session.

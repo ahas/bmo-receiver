@@ -20,7 +20,6 @@ pub mod progress;
 pub use room_calls::promises;
 pub mod prompt;
 pub mod records;
-pub mod recovered;
 pub mod reply;
 pub mod restart;
 pub mod room;

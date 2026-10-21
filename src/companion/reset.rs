@@ -1,8 +1,8 @@
 //! The receiver's rows of a companion's reset (docs/wake.md, 「A companion's reset」; the agency's
-//! `docs/companions.md`, 「Starting it afresh」): the agency takes its own part and publishes `companion-reset`, and
-//! the receiver takes its own rows of the ranges it names, in one write. The conversation range takes the whole
-//! record of each room the companion answers alone, and its own instructions and windows in every room; the person
-//! range takes the marks its book of each room has read.
+//! `docs/companions.md`, 「Starting it afresh」): the agency takes its own part and publishes the kind
+//! `companion-reset.created`, and the receiver takes its own rows of the ranges the event names, in one write. The
+//! conversation range takes the whole record of each room the companion answers alone, and its own instructions and
+//! windows in every room; the person range takes the marks its book of each room has read.
 
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::Event;
@@ -13,8 +13,8 @@ use crate::hearing::Hearer;
 use crate::receiver::Receiver;
 use crate::{Fault, all, run};
 
-/// The event a reset that has taken the agency's part is published as.
-pub const RESET: &str = "companion-reset";
+/// The kind a reset that has taken the agency's part is published under.
+pub const RESET: &str = "companion-reset.created";
 
 /// The range of what the companion said: its conversations.
 pub const CONVERSATION: &str = "conversation";
@@ -53,6 +53,11 @@ impl Hearer for Resets {
 
   fn hear<'a>(&'a self, event: &'a Event) -> BoxFuture<'a, ()> {
     Box::pin(async move {
+      // A move of the point shares the kind and names no ranges; only a reset has rows of its own to take.
+      if event.data.get("ranges").is_none() {
+        return;
+      }
+
       let reset = match serde_json::from_value::<Reset>(event.data.clone()) {
         Ok(reset) => reset,
         Err(why) => {

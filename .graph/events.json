@@ -2,18 +2,15 @@
   {
     "id": "events/hearing",
     "title": "The agency's events and their facts",
-    "what": "The one stream the agency's events are heard on and handed to the parts their effects belong to, with the pressure facts and the workers' facts the owner's session is told.",
+    "what": "The one stream the agency's events are heard on and handed to the parts their effects belong to, with the workers' facts the owner's session is told.",
     "files": [
       "docs/wake.md",
       "src/hearing.rs",
-      "src/machine.rs",
       "src/workers.rs"
     ],
     "symbols": [
       "Hearing",
       "Hearer",
-      "Pressure",
-      "fact",
       "Downgraded"
     ],
     "aliases": [],
@@ -24,8 +21,8 @@
       "routes/instructions",
       "policy/files"
     ],
-    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
-    "changed": 1792508501058
+    "base": "086947c7109cce67157110837453e8ee3e2f2479",
+    "changed": 1792551291688
   },
   {
     "id": "events/stream",

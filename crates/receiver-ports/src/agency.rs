@@ -229,16 +229,6 @@ pub struct CompanionRow {
   pub worker: String,
 }
 
-/// A companion taken out: its registration name, the chat ids of the rooms it answers, and who asked, where the
-/// asker is named.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CompanionRemoval {
-  pub agent: String,
-  pub rooms: Vec<i64>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub by: Option<String>,
-}
-
 /// A field of the body the agency refused: the field's name and the English sentence saying why.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FieldRefusal {
@@ -255,7 +245,7 @@ pub struct Stayed {
 }
 
 /// What forgetting a room took, table by table, or would take in a dry run, and what stayed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Forgotten {
   #[serde(default)]
   pub gone: Map<String, Value>,
@@ -284,6 +274,16 @@ pub enum RestKind {
   Outage,
 }
 
+impl RestKind {
+  /// The word the agency names the kind by.
+  pub fn word(self) -> &'static str {
+    match self {
+      Self::Limit => "limit",
+      Self::Outage => "outage",
+    }
+  }
+}
+
 /// The deployment's rest: whether it stands now, until when in epoch seconds, and why.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Rest {
@@ -297,6 +297,7 @@ pub struct Rest {
 /// A rest written down: whether it is the one that silenced the deployment.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Written {
+  #[serde(default)]
   pub silenced: bool,
 }
 
@@ -317,8 +318,9 @@ pub struct Passed {
   pub kind: Option<RestKind>,
 }
 
-/// A run as the agency keeps its row, of which the receiver reads the moment it began, in epoch seconds.
+/// A run as the agency keeps its row, of which the receiver reads the moment it began, in epoch milliseconds.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Run {
   pub started_at: i64,
 }
@@ -386,10 +388,7 @@ pub trait Agency: Send + Sync {
   ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
 
   /// A companion's half taken out with everything of its own, or the field the agency refused.
-  fn remove_companion<'a>(
-    &'a self,
-    removal: &'a CompanionRemoval,
-  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
+  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
 
   /// The stream of the events of the kinds named, from the moment it is opened.
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>>;
@@ -445,11 +444,14 @@ struct SessionPage {
   items: Vec<SessionMember>,
 }
 
+/// The body that writes a rest down or clears the rests that have passed.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Forget {
-  chat_id: i64,
-  dry_run: bool,
+struct RestAsk<'a> {
+  clear_passed: bool,
+  until: Option<i64>,
+  kind: Option<&'a str>,
+  account: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -461,6 +463,15 @@ struct Hook<'a> {
 #[derive(Deserialize)]
 struct Lines {
   items: Vec<RunLine>,
+}
+
+// The event's own data: the agency's stream wraps each event as its number, kind, moment and data, and a reader
+// that unwraps none of it is left with the body as the member answers it.
+fn body_of(data: Value, kind: &str) -> Value {
+  match data.get("kind").and_then(Value::as_str) {
+    Some(named) if named == kind => data.get("data").cloned().unwrap_or(Value::Null),
+    _ => data,
+  }
 }
 
 // One log line as the receiver reads it: the agency's own fields, with the line's structured fields laid
@@ -510,11 +521,29 @@ impl Agency for HttpAgency {
   }
 
   fn write_rest<'a>(&'a self, resting: &'a Resting) -> BoxFuture<'a, Answer<Written>> {
-    Box::pin(self.caller.post(&["rest"], resting))
+    Box::pin(async move {
+      let ask = RestAsk {
+        clear_passed: false,
+        until: Some(resting.until),
+        kind: Some(resting.kind.word()),
+        account: resting.account.as_deref(),
+      };
+
+      self.caller.patch(&["rest"], &ask).await
+    })
   }
 
   fn passed_rest(&self) -> BoxFuture<'_, Answer<Passed>> {
-    Box::pin(self.caller.get(&["rest", "passed"], &[]))
+    Box::pin(async move {
+      let ask = RestAsk {
+        clear_passed: true,
+        until: None,
+        kind: None,
+        account: None,
+      };
+
+      self.caller.patch(&["rest"], &ask).await
+    })
   }
 
   fn start<'a>(&'a self, agent: &'a str, scope: Scope) -> BoxFuture<'a, Answer<Session>> {
@@ -587,7 +616,18 @@ impl Agency for HttpAgency {
   }
 
   fn forget_room(&self, chat_id: i64, dry_run: bool) -> BoxFuture<'_, Answer<Forgotten>> {
-    Box::pin(async move { self.caller.post(&["rooms", "forget"], &Forget { chat_id, dry_run }).await })
+    Box::pin(async move {
+      let room = chat_id.to_string();
+      let room = ["room-holdings", room.as_str()];
+
+      if !dry_run {
+        return self.caller.without(Method::DELETE, &room).await.map(|()| Forgotten::default());
+      }
+
+      let query = [("dryRun", "true".to_owned())];
+
+      self.caller.delete(&room, &query).await
+    })
   }
 
   fn register_hook<'a>(
@@ -642,22 +682,14 @@ impl Agency for HttpAgency {
     companion: &'a CompanionRow,
   ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
     Box::pin(async move {
-      let done: Result<Done, FieldRefusal> = self.caller.checked(&["companions", "add"], companion).await?;
+      let done: Result<Done, FieldRefusal> = self.caller.checked(&["companions"], companion).await?;
 
       Ok(done.map(|_| ()))
     })
   }
 
-  fn remove_companion<'a>(
-    &'a self,
-    removal: &'a CompanionRemoval,
-  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
-    Box::pin(async move {
-      let done: Result<Done, FieldRefusal> =
-        self.caller.checked(&["companions", "remove"], removal).await?;
-
-      Ok(done.map(|_| ()))
-    })
+  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+    Box::pin(async move { self.caller.checked_delete(&["companions", agent]).await })
   }
 
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
@@ -678,8 +710,8 @@ impl Agency for HttpAgency {
             Ok(sse) => {
               let kind = sse.event?;
               let data = match sse.data.as_deref() {
-                Some(data) => match serde_json::from_str(data) {
-                  Ok(data) => data,
+                Some(data) => match serde_json::from_str::<Value>(data) {
+                  Ok(data) => body_of(data, &kind),
                   Err(why) => {
                     return Some(Err(PortFailure::Undecodable {
                       url,

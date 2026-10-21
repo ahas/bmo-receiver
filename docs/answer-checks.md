@@ -58,7 +58,7 @@ Each sends an answer back to the same session at most a fixed number of times.
     under the turn's agent and room since the turn began (`GET /memories`, `POST /notes/list`,
     `POST /watches/list`), and the items bmo-job holds filed or appended from the room since then.
   - **A run that wrote nothing is read off its calls instead**, out of the agency's run log
-    (`GET /run-log`): a call of one of the recording tools, or of the `bmo` verbs under them, that did not
+    (`GET /log-lines`): a call of one of the recording tools, or of the `bmo` verbs under them, that did not
     fail. A tool call counts by the record its catalogue entry declares for what it named. A verb is recognised
     by the word after the binary, the binary being the word `bmo` standing alone or ending a path however the
     path was written.

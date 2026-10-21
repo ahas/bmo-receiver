@@ -14,8 +14,8 @@ flowchart TD
   Job[bmo-job] -->|POST /instructions, /rooms/{roomId}/notices, /talks| Pass
   Brain[the brain] -->|POST /instructions, /owner/notices| Pass
   Conv -->|the envelope| Gate[the gate]
-  Conv -->|POST /session/turn| Agency[the agency]
-  Agency -->|turn-ended and its other events| Conv
+  Conv -->|POST /sessions/{sessionId}/turns| Agency[the agency]
+  Agency -->|turn.ended and its other events| Conv
   Conv -->|answers, through bmo-chat-client| CS
   Rx -->|GET /events, GET /live| Screens[Console screens]
 ```
@@ -138,7 +138,8 @@ flowchart TD
   beside its own code (its picture, the settings that name it, its place in the console's pinned order, what its
   runs wrote down, and its folders in the message-file store, the picture store
   and the outboxes, `docs/room-files.md`).
-- **Every other unit's part goes through that unit:** the agency forgets the room (`POST /rooms/forget`), the brain
+- **Every other unit's part goes through that unit:** the agency forgets the room
+  (`DELETE /room-holdings/{roomId}`), the brain
   removes its rows and folders (`POST /rooms/removed`), and every declared holder (`PUT /room-holders/{unit}`) is
   asked what it holds (`GET <address>/rooms/{chat}/holdings`): what it keeps stays and keeps the room's chat, what
   it warns of is shown in the confirmation.
@@ -183,7 +184,7 @@ flowchart TD
   receiver turns the answer into a user's private chat only where that person's sender is linked to a user
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
 - **In a room the console made, the agent and each companion have numbers of the console's own,** given as the
-  rooms are stood up (`POST /companions/add`), and a companion's words are filed under the number it was given and
+  rooms are stood up (`POST /companions`), and a companion's words are filed under the number it was given and
   under its name, so one room holds both speakers apart.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
   asking each chat service for the owner's room (`GET /owner-room`): the first of the rooms whose record is shown,

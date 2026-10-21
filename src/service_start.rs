@@ -20,7 +20,6 @@ use crate::chat::fallback::Fallbacks;
 use crate::chat::instructions::{Pass, Rooms};
 use crate::chat::logins::Logins;
 use crate::chat::overtime::Overtime;
-use crate::chat::recovered::Recoveries;
 use crate::chat::restart::keep as keep_restart;
 use crate::chat::runner::Runner;
 use crate::companion::cut::CutOffs;
@@ -29,7 +28,6 @@ use crate::config::Config;
 use crate::data_root::DataRoot;
 use crate::events::Events;
 use crate::hearing::{Hearer, Hearing};
-use crate::machine::Pressure;
 use crate::receiver::wake::Waking;
 use crate::receiver::wake::agents::{Designated, default_designated};
 use crate::receiver::wake::rest::Rests;
@@ -190,9 +188,7 @@ pub fn hearing(standing: &Standing) -> Hearing {
     Arc::new(Fallbacks::new(receiver.clone())),
     Arc::new(Rests::new(receiver.clone())),
     Arc::new(Logins::new(receiver.clone())),
-    Arc::new(Recoveries::new(receiver.clone())),
     Arc::new(Workers::new(receiver.clone())),
-    Arc::new(Pressure::new(receiver.clone())),
     Arc::new(Overtime::new(receiver.clone())),
   ];
 

@@ -7,10 +7,10 @@
   conversational agent; nothing of this document is read off its name.
   - The chat agent in the owner's private chat and in the group rooms is the same agent.
   - The job, search, editor and gate agents are separate.
-- **Who carries it:** the agency, on the one session its row keeps across rooms (`POST /session/start` with the
+- **Who carries it:** the agency, on the one session its row keeps across rooms (`POST /sessions` with the
   `agent` scope), as the resident program standing in the agent's one pane. Every round, fold and touch of every
-  room is a turn put into it (`POST /session/turn`), and a person watching the pane sees it working and can type
-  into it.
+  room is a turn put into it (`POST /sessions/{sessionId}/turns`), and a person watching the pane sees it working
+  and can type into it.
 - **Every room but one a companion answers alone.** A room made for a companion names who answers in it. Where
   the chat agent is not among them, its words never reach this session, the room is never recorded among the
   agent's rooms, and nothing of it is in the transcript; where it is, the room is one more group room of this

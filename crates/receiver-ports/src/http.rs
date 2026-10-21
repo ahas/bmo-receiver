@@ -229,6 +229,11 @@ impl Caller {
     self.call(Method::POST, segments, body).await
   }
 
+  /// A PATCH with a JSON body, its successful answer decoded as the call's.
+  pub async fn patch<T: DeserializeOwned>(&self, segments: &[&str], body: &impl Serialize) -> Answer<T> {
+    self.call(Method::PATCH, segments, body).await
+  }
+
   /// A POST with a JSON body whose refusal of the body is an answer of its own: success decoded as the call's,
   /// a 400 whose body reads as the unit's refusal handed back as that refusal, and anything else the failure it
   /// is.
@@ -243,24 +248,39 @@ impl Caller {
       return decoded(url, answer).await.map(Ok);
     }
 
-    let bytes = answer.bytes().await.map_err(|error| PortFailure::Transport {
-      url: url.clone(),
-      why: chain(&error),
-    })?;
+    read_refusal(url, answer).await.map(Err)
+  }
 
-    match serde_json::from_slice(&bytes) {
-      Ok(refusal) => Ok(Err(refusal)),
-      Err(_) => Err(PortFailure::Answered {
-        url,
-        status: 400,
-        answer: serde_json::from_slice(&bytes).ok(),
-      }),
+  /// A DELETE whose refusal of its path is an answer of its own: success carries nothing the receiver reads, a
+  /// 400 whose body reads as the unit's refusal handed back as that refusal, and anything else the failure it is.
+  pub async fn checked_delete<R: DeserializeOwned>(&self, segments: &[&str]) -> Answer<Result<(), R>> {
+    let (url, answer) = self.sent::<()>(Method::DELETE, segments, None, &[]).await?;
+
+    if answer.status().is_success() {
+      return Ok(Ok(()));
     }
+
+    if answer.status() != reqwest::StatusCode::BAD_REQUEST {
+      return Err(failed(url, answer).await);
+    }
+
+    read_refusal(url, answer).await.map(Err)
   }
 
   /// A GET with the query's fields, its successful answer decoded as the call's.
   pub async fn get<T: DeserializeOwned>(&self, segments: &[&str], query: &[(&str, String)]) -> Answer<T> {
     let (url, answer) = self.sent::<()>(Method::GET, segments, None, query).await?;
+
+    decoded(url, answer).await
+  }
+
+  /// A DELETE with the query's fields, its successful answer decoded as the call's.
+  pub async fn delete<T: DeserializeOwned>(
+    &self,
+    segments: &[&str],
+    query: &[(&str, String)],
+  ) -> Answer<T> {
+    let (url, answer) = self.sent::<()>(Method::DELETE, segments, None, query).await?;
 
     decoded(url, answer).await
   }
@@ -380,6 +400,20 @@ async fn succeeded(url: String, answer: reqwest::Response) -> Answer<()> {
   }
 
   Err(failed(url, answer).await)
+}
+
+// A 400's body read as the unit's refusal of a field.
+async fn read_refusal<R: DeserializeOwned>(url: String, answer: reqwest::Response) -> Answer<R> {
+  let bytes = answer.bytes().await.map_err(|error| PortFailure::Transport {
+    url: url.clone(),
+    why: chain(&error),
+  })?;
+
+  serde_json::from_slice(&bytes).map_err(|_| PortFailure::Answered {
+    url,
+    status: 400,
+    answer: serde_json::from_slice(&bytes).ok(),
+  })
 }
 
 // An answer that is no success, with the error shape it carried where it carried one.

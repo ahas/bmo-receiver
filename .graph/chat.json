@@ -87,22 +87,20 @@
   {
     "id": "chat/notices",
     "title": "The system's own lines in a room",
-    "what": "Every line the system says in a chat on its own account: the facts a room's voice is handed, a failed round's health, the stand-in and the run that came back, a login's end, and a run past its clock.",
+    "what": "Every line the system says in a chat on its own account: the facts a room's voice is handed, a failed round's health, the stand-in, a login's end, and a run past its clock.",
     "files": [
       "docs/voiced-notices.md",
       "src/chat/fallback.rs",
       "src/chat/health.rs",
       "src/chat/logins.rs",
       "src/chat/notices.rs",
-      "src/chat/overtime.rs",
-      "src/chat/recovered.rs"
+      "src/chat/overtime.rs"
     ],
     "symbols": [
       "Voiced",
       "queue_notice",
       "RoomHealth",
       "Fallbacks",
-      "Recovered",
       "Logins",
       "Overtime"
     ],
@@ -113,8 +111,8 @@
       "codes/codes",
       "policy/files"
     ],
-    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
-    "changed": 1792508500969
+    "base": "086947c7109cce67157110837453e8ee3e2f2479",
+    "changed": 1792551291315
   },
   {
     "id": "chat/private-thread",

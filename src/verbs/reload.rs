@@ -671,8 +671,8 @@ async fn tell_rooms(
   said
 }
 
-/// The event a reload naming documents is published as.
-pub const DOCUMENTS_MOVED: &str = "documents-moved";
+/// The kind a reload naming documents is published under.
+pub const DOCUMENTS_MOVED: &str = "document-move.created";
 
 /// A reload as the agency publishes it: the paths, whether it is due at once, and where the caller named them, whose
 /// documents they are and the rooms they concern.

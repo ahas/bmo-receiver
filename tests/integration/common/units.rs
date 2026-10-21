@@ -16,8 +16,8 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, CompanionRemoval, CompanionRow, Delivery, Events, FieldRefusal, Forgotten, Passed,
-  Rest, RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
+  Agency, Agent, Agents, CompanionRow, Delivery, Events, FieldRefusal, Forgotten, Passed, Rest, RestKind,
+  Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::brain::{
   BeforeFold, Brain, Load, Reading, Refused, Reminder, Reminders, RoomRule, Row, RuleText, Took,
@@ -664,7 +664,7 @@ pub fn registration(
 /// nothing), and the session its turns go on where a test stands one.
 pub struct StandInAgency {
   pub session: Mutex<Option<Arc<StandInSession>>>,
-  pub removals: Mutex<Vec<CompanionRemoval>>,
+  pub removals: Mutex<Vec<String>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
   pub pushes: Mutex<Vec<(String, i64, String)>>,
   pub saying: Mutex<Option<Said>>,
@@ -935,7 +935,7 @@ impl Agency for StandInAgency {
     let mut row = serde_json::Map::<String, Value>::new();
 
     row.insert("kind".to_owned(), serde_json::json!("chat"));
-    row.insert("turn_shape".to_owned(), serde_json::json!("pieces"));
+    row.insert("turnShape".to_owned(), serde_json::json!("pieces"));
     row.insert("builtin".to_owned(), serde_json::json!(0));
     row.insert("window_seconds".to_owned(), serde_json::json!(180));
 
@@ -950,19 +950,16 @@ impl Agency for StandInAgency {
     Box::pin(async { Ok(Ok(())) })
   }
 
-  fn remove_companion<'a>(
-    &'a self,
-    removal: &'a CompanionRemoval,
-  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
     if let Some(refusal) = self.refusing.lock().unwrap().clone() {
       return Box::pin(async move { Ok(Err(refusal)) });
     }
 
-    self.removals.lock().unwrap().push(removal.clone());
+    self.removals.lock().unwrap().push(agent.to_owned());
 
     let mut held = self.agents.lock().unwrap();
 
-    if let Some(at) = held.iter().position(|one| one.name == removal.agent) {
+    if let Some(at) = held.iter().position(|one| one.name == agent) {
       held.remove(at);
     }
 

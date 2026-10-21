@@ -1,12 +1,12 @@
 //! A companion added on the console and removed there (docs/boundary-api.md, 「Companions with a room of their
 //! own」): the agency writes the agent's half and the gate copies the chat agent's options before the receiver
-//! writes the room half; the rooms the companion answers go to the agency's removal, read before the receiver
-//! gives them up; and a field the agency refuses comes back as the receiver's code with nothing written.
+//! writes the room half; the companion's name goes to the agency's removal; and a field the agency refuses comes
+//! back as the receiver's code with nothing written.
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 
-use receiver_ports::agency::{Agent, CompanionRemoval, FieldRefusal};
+use receiver_ports::agency::{Agent, FieldRefusal};
 
 use crate::common::Scratch;
 use crate::common::queue::{Front, post, remove, stood};
@@ -50,14 +50,12 @@ async fn answerers(scratch: &Scratch) -> i64 {
 }
 
 #[tokio::test]
-async fn a_companion_stands_with_its_gate_options_copied_and_its_rooms_go_to_the_agencys_removal() {
+async fn a_companion_stands_with_its_gate_options_copied_and_its_name_goes_to_the_agencys_removal() {
   let scratch = Scratch::new().await;
   let front = bench(&scratch).await;
   let (status, answer) = post(&front, "/companions", added()).await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
-
-  let room = answer["room"]["id"].as_i64().unwrap();
 
   assert_eq!(
     *front.standing.gate.copied.lock().unwrap(),
@@ -71,12 +69,8 @@ async fn a_companion_stands_with_its_gate_options_copied_and_its_rooms_go_to_the
   assert_eq!(status, StatusCode::OK, "{answer}");
   assert_eq!(
     *front.standing.agency.removals.lock().unwrap(),
-    [CompanionRemoval {
-      agent: COMPANION.to_owned(),
-      rooms: vec![room],
-      by: Some("tester".to_owned()),
-    }],
-    "the rooms it answered are read before the receiver gives them up"
+    [COMPANION.to_owned()],
+    "the companion is removed by the name the agency registers it under"
   );
   assert_eq!(answerers(&scratch).await, 0);
 }

@@ -72,13 +72,13 @@ is written.
 | The back-up line after a restart no deployment announced | start-up | instruction table | `round` | opens | — |
 | The line after a fold | the conversation's fold | instruction table | `round` | opens | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
-| A document reload | the agency's `documents-moved` | instruction table | `round` | rides, for good | — |
+| A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
 | A watch's memo, a reminder's moment | the brain | instruction table | `round` | opens | — |
 | A notice the brain tells the owner | the brain | instruction table | `round` | opens | — |
 | A search's, a browse's and a remote browser's result | bmo-artifact's instructions | instruction table | `round` | opens | — |
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
 | Voice and digest notices | the units that run them | instruction table | `round` | opens | — |
-| Leftover panes, pressure on the machine, a run past its clock | the agency's events | instruction table | `round` | opens | — |
+| A run past its clock | the agency's events | instruction table | `round` | opens | — |
 | An instruction typed on the console | `POST /owner/instructions` | instruction table | `round` | opens | — |
 | A talk from the console about an item or a document | `POST /talks` | — | `talk` | opens | — |
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
@@ -286,7 +286,7 @@ flowchart TD
 
 ## Document reload
 
-- **The agency publishes `documents-moved`** when a reload names documents. The receiver tells the sessions it
+- **The agency publishes `document-move.created`** when a reload names documents. The receiver tells the sessions it
   concerns by a riding instruction for each room, folded into the one still waiting there, which rides for good
   in a round of any room the session answers.
   - Where the event names rooms, the named agent's sessions in those rooms are told, the chat agent's where it

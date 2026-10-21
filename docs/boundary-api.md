@@ -94,8 +94,8 @@ room's matter.
 | the agents | `GET /agents` | | `items`, the agents each with its row's fields, its roads and whether it is awake, `roles` and `more` |
 | a stand-in | `GET /agents/{agent}` | | `standInAvailable`, whether a stand-in answers the agent while the rest closes its road |
 | the rest | `GET /rest` | | `resting`, `until`, `kind` |
-| a rest written | `POST /rest` | `until`, `kind`, `account` | `silenced` |
-| a rest passed | `GET /rest/passed` | | `kind` |
+| a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
+| a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
 | start a session | `POST /sessions` | `agentName`, `scope`, `roomId` | the session's `id`, `agentName`, `scope`, `roomId` |
 | send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context | `id`, `delivery` |
 | read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation` |
@@ -104,19 +104,18 @@ room's matter.
 | fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
 | end a session | `DELETE /sessions/{sessionId}` | | nothing |
 | list sessions | `GET /sessions` | | `items` |
-| forget a room | `POST /rooms/forget` | `chatId`, `dryRun` | `gone`, `stayed` |
+| forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, `token` | the registration |
-| a companion registered or taken out | `POST /companions/add`, `POST /companions/remove` | the companion's fields, or `agent`, `rooms`, `by` | `ok` |
+| a companion registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the companion's fields; nothing | `ok`; nothing |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
 | an agent's reset point | `GET /agents/{agent}` | | `resetAt` |
-| a run | `GET /runs/{id}` | | the run's row |
+| a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
-and is opened again when it drops: `turn.created`, `turn.ended`, `companion-cut-off`, `companion-reset`,
-`documents-moved`, `fallback-answering`, `fallback-ended`, `deployment-resting`, `account-login-notice`,
-`run-recovered`, `worker-downgraded`, `herdr-leftovers`, `machine-pressure`, `clock-asked` and `clock-ask-closed`.
-`companion-run-going` is read by none of it.
+and is opened again when it drops: `turn.created`, `turn.ended`, `companion-reset.created`,
+`document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
+`overtime-request.created` and `overtime-request.changed`.
 
 ### The brain
 

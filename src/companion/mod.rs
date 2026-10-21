@@ -40,7 +40,7 @@ impl Companion {
     let found = listed
       .as_ref()
       .and_then(|listed| listed.agents.iter().find(|one| one.name == name))
-      .filter(|found| found.row.get("turn_shape").is_some_and(|shape| shape.as_str() == Some("pieces")))?;
+      .filter(|found| found.row.get("turnShape").is_some_and(|shape| shape.as_str() == Some("pieces")))?;
 
     let text = |key: &str| found.row.get(key).and_then(|held| held.as_str().map(str::to_owned));
 

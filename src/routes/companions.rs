@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use receiver_codes::{CompanionFact, CompanionRefusal, RoomRemovalWarning};
 use receiver_policy::companions::COMPANIONS;
 use receiver_policy::roads::ROADS;
-use receiver_ports::agency::{Agent, CompanionRemoval, CompanionRow, FieldRefusal};
+use receiver_ports::agency::{Agent, CompanionRow, FieldRefusal};
 
 use regex::Regex;
 use std::sync::LazyLock;
@@ -80,7 +80,7 @@ fn console_road() -> String {
 
 /// Whether an agent's row is the companion's shape of turn, which is what makes it a companion.
 fn companion_shape(agent: &Agent) -> bool {
-  agent.row.get("turn_shape").is_some_and(|shape| shape.as_str() == Some("pieces"))
+  agent.row.get("turnShape").is_some_and(|shape| shape.as_str() == Some("pieces"))
 }
 
 /// Whether an agent is a worker, which is what a companion is asked to run its turns on.
@@ -282,26 +282,12 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
     return Err(code(&CompanionRefusal::SeededCompanion { label }));
   }
 
-  // The rooms it answers are read before the receiver gives any up, so the agency's reset keeps each one's record.
-  let rooms: Vec<i64> = all(
-    receiver.db(),
-    r#"SELECT "chat_id" FROM "room_answerers" WHERE "agent" = $1 ORDER BY "chat_id""#,
-    vec![asked.name.clone().into()],
-  )
-  .await
-  .map_err(store)?
-  .iter()
-  .map(|row| row.try_get::<i64>("", "chat_id"))
-  .collect::<Result<Vec<i64>, _>>()
-  .map_err(|why| store(why.into()))?;
-  let removal = CompanionRemoval {
-    agent: asked.name.clone(),
-    rooms,
-    by: asked.by.clone().filter(|by| !by.trim().is_empty()),
-  };
-
-  if let Err(refusal) = receiver.units().agency.remove_companion(&removal).await.map_err(unit)? {
+  if let Err(refusal) = receiver.units().agency.remove_companion(&asked.name).await.map_err(unit)? {
     return Err(refused_field(refusal, "", "", &asked.name));
+  }
+
+  if let Some(by) = asked.by.as_deref().filter(|by| !by.trim().is_empty()) {
+    println!("companion {}: removed, as {by} asked", asked.name);
   }
 
   // A number a kept message is still filed under stays, so it is never handed to anybody else.

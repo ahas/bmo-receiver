@@ -137,8 +137,8 @@ pub async fn tell_rest(receiver: &Receiver, line: &FixedLine) -> Result<(), NotS
   receiver.speech().say(receiver.deployment().owner_id, &line, true).await.map(drop)
 }
 
-/// The deployment resting, as the agency publishes it where a rest closed the last login that would answer.
-pub const RESTING: &str = "deployment-resting";
+/// The kind a rest is published under where it closed the last login that would answer.
+pub const RESTING: &str = "rest.changed";
 
 /// A rest that silenced the deployment: why, and until when in epoch seconds where it is known.
 #[derive(Debug, Deserialize)]

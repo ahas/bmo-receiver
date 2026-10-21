@@ -13,7 +13,6 @@ pub mod events;
 pub mod form;
 pub mod hearing;
 pub mod json;
-pub mod machine;
 pub mod receiver;
 pub mod roads;
 pub mod room_record;

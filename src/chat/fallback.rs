@@ -1,6 +1,7 @@
 //! The stand-in answering while Claude Code's road is closed, as the agency tells it (docs/voiced-notices.md, 「Rest
-//! and fallback」): `fallback-answering` keeps which stand-in answers and since when, and `fallback-ended` clears
-//! it, and each is told to the owner by the chat agent in the owner's own chat as a voiced notice.
+//! and fallback」): `fallback.changed` keeps which stand-in answers and since when where it names the provider and
+//! model answering now, and clears it where it names the stand-in ended alone, and each is told to the owner by
+//! the chat agent in the owner's own chat as a voiced notice.
 
 use futures_util::future::BoxFuture;
 use receiver_policy::chat_line::CHAT_LINE;
@@ -15,11 +16,8 @@ use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::store::{Fault, settings};
 
-/// The event a stand-in's move onto the rooms is published as.
-pub const ANSWERING: &str = "fallback-answering";
-
-/// The event Claude Code answering again across the rooms is published as.
-pub const ENDED: &str = "fallback-ended";
+/// The kind a stand-in's move onto the rooms and Claude Code's answering again are published under.
+pub const CHANGED: &str = "fallback.changed";
 
 /// Since when a stand-in has answered, in epoch milliseconds.
 pub const SINCE_KEY: &str = "fallback_since";
@@ -54,12 +52,14 @@ impl Fallbacks {
 
 impl Hearer for Fallbacks {
   fn kinds(&self) -> &'static [&'static str] {
-    &[ANSWERING, ENDED]
+    &[CHANGED]
   }
 
   fn hear<'a>(&'a self, event: &'a Event) -> BoxFuture<'a, ()> {
     Box::pin(async move {
-      let told = if event.kind == ANSWERING {
+      // The answering part names the provider and model answering now; the ending part names the stand-in that
+      // answered before alone.
+      let told = if event.data.get("provider").is_some() {
         match serde_json::from_value::<Answering>(event.data.clone()) {
           Ok(answering) => answered_by(&self.receiver, &answering).await,
           Err(why) => Err(Fault::new(format!("a stand-in answering that does not read: {why}"))),

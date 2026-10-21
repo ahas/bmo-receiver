@@ -1,6 +1,6 @@
 //! A run past its clock, as the agency asks about it (docs/voiced-notices.md, 「A turn past its clock」): the order
-//! to keep or cut it queued for the chat agent in the owner's own chat on `clock-asked`, under the run's own kind,
-//! and withdrawn on `clock-ask-closed` where no round has taken it yet.
+//! to keep or cut it queued for the chat agent in the owner's own chat on `overtime-request.created`, under the
+//! run's own kind, and withdrawn on `overtime-request.changed` where no round has taken it yet.
 
 use chrono::DateTime;
 use futures_util::future::BoxFuture;
@@ -16,11 +16,11 @@ use crate::receiver::Receiver;
 use crate::store::Fault;
 use crate::{now_ms, run};
 
-/// The event an ask on a clocked run is published as.
-pub const ASKED: &str = "clock-asked";
+/// The kind an ask on a clocked run is published under.
+pub const ASKED: &str = "overtime-request.created";
 
-/// The event an ask settled is published as.
-pub const CLOSED: &str = "clock-ask-closed";
+/// The kind an ask settled is published under.
+pub const CLOSED: &str = "overtime-request.changed";
 
 /// An ask on a run past its clock, as the agency publishes it: times in epoch milliseconds.
 #[derive(Debug, Deserialize)]

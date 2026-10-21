@@ -9,10 +9,10 @@ use serde_json::Value;
 use crate::chat::runner::Runner;
 use crate::hearing::Hearer;
 use crate::receiver::Receiver;
-use crate::{now_ms, run};
+use crate::run;
 
-/// The event a reset's move of the point is published as.
-pub const CUT_OFF: &str = "companion-cut-off";
+/// The kind a reset's move of the point is published under.
+pub const CUT_OFF: &str = "companion-reset.created";
 
 /// The cut-off as the service hears it on the agency's stream: each one lets go what waited for the companion's
 /// turns in the conversations the runner holds.
@@ -44,12 +44,15 @@ pub async fn cut_off(receiver: &Receiver, runner: &Runner, event: &Value) {
   let Some(agent) = event.get("agent").and_then(Value::as_str) else {
     return;
   };
+  // A reset's own part shares the kind and names its ranges, and only a move of the point cuts anything off.
+  let Some(at) = event.get("point").and_then(Value::as_i64) else {
+    return;
+  };
   let Some(conversations) = runner.standing(agent) else {
     return;
   };
   let _cutting = conversations.cutting().await;
   let cut = conversations.cut_off();
-  let at = event.get("point").and_then(Value::as_i64).unwrap_or_else(now_ms);
 
   if cut.instructions.is_empty() {
     return;

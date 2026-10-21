@@ -110,14 +110,6 @@ fn fault_of(why: PortFailure) -> Failure {
   Failure::Failed(why.to_string())
 }
 
-// The member an event carries: the agency's envelope around it, or the member itself where it comes without one.
-fn carried_event(data: &Value) -> &Value {
-  match data.get("data") {
-    Some(body) if data.get("kind").is_some() => body,
-    _ => data,
-  }
-}
-
 /// The session scope an agent's turns go on: one across its rooms, or the room's own.
 pub fn scope_of(unified: bool, chat_id: i64) -> Scope {
   if unified { Scope::Agent } else { Scope::Room { room: chat_id } }
@@ -261,7 +253,7 @@ impl Carry {
       match read {
         None => break,
         Some(Ok(Event { kind, data })) => {
-          let body = carried_event(&data);
+          let body = &data;
           let mine = body.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
 
           if mine && kind == "turn.created" {
