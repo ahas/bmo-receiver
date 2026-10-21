@@ -41,8 +41,10 @@ under `tools/`, with its `tool.toml`.
 - **No directory named after its parent** (no `x/x`), and **only Cargo manifests at the root**: the root
   `Cargo.toml` is the workspace and also the service's package.
 - **The code graph in `.graph/` is written only with `bmo graph`**: one node per feature, with its files, its
-  exported names, the features it needs and its exposed or called API. `bmo graph check` says nothing before a
-  commit, and the graph goes into the same commit as the code and documents it names.
+  exported names, the features it needs and its exposed or called API. `bmo graph check` says nothing where the
+  graph is whole, and the graph is brought up to date in the checkout before the commit. Its area files are
+  generated and untracked, so a fresh checkout builds them again, while `settings.toml` is the repository's
+  configuration and stays tracked.
 - **Documents state what is true now**: no change history, no quoted source and no file-and-line pins.
 
 ## Checks
