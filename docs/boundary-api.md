@@ -48,8 +48,12 @@ stand; and each chat service's road name with its base address and token.
 - **`nouns`** prints the nouns `bmo` dispatches to this command, one a line (「The unit command」).
 - **`import`** moves the old archive's exported rows into this store. It reads one export directory — a manifest
   carrying each source table's exact count and key, and one NDJSON file a table — and writes only this store,
-  refusing one that already holds rows of its tables. It runs whole inside one transaction, so a dry run or a
-  failed run leaves the store as it stood; `--dry-run` reads, checks and counts everything and writes nothing.
+  refusing one that already holds rows of its tables. Two path columns are rewritten on the way: `--stale-root`
+  names the prefix the old archive's paths carry, and `--data-root` names the data root those files stand under
+  here, whose relative layout the old paths keep. Only that prefix is rewritten, and a relative path is written
+  as it stands. The import reads its arguments and never the deployment's configuration, so both roots are
+  always given. It runs whole inside one transaction, so a dry run or a failed run leaves the store as it stood;
+  `--dry-run` reads, checks and counts everything and writes nothing.
 - **The consumer's name** the receiver registers with the cache warmer is `receiver`, unless the configuration
   names another.
 

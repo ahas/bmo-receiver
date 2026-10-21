@@ -11,13 +11,14 @@
 //! time is epoch seconds in the old archive and epoch milliseconds here, so the columns
 //! `m20261020_000007_millisecond_times` multiplies are multiplied as they are written.
 //!
-//! Two path columns are rewritten to the live data root: the old archive still names
-//! `/home/ahas/repos/ahas/infra/bmo/data` in 189 `messages.image_path` rows and 11
-//! `collected_items.stored_path` rows, and every one of those files exists under the same relative
-//! path at the live root. Only that prefix is rewritten; a relative path is written as it stands.
+//! Two path columns are rewritten: the old archive's `messages.image_path` and
+//! `collected_items.stored_path` carry paths under the data root of their day, and those files
+//! stand under the same relative path at this deployment's data root. The command names both the
+//! stale prefix and the live root, since the import reads its arguments and never the deployment's
+//! configuration; only that prefix is rewritten, and a relative path is written as it stands.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -27,10 +28,38 @@ use sqlx::postgres::{PgPool, PgPoolOptions};
 use crate::store::migration::migrate;
 use crate::store::pool::connect as sea_connect;
 
-/// The root the old archive's stale paths name.
-pub const STALE_ROOT: &str = "/home/ahas/repos/ahas/infra/bmo/data";
-/// The root every one of those files actually stands under.
-pub const LIVE_ROOT: &str = "/home/ahas/.local/share/bmo/data";
+/// The two roots the path rewrite needs: the prefix the old archive's paths carry, and the data
+/// root those files stand under here. The command names both, since the import reads its arguments
+/// and never the deployment's configuration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Roots {
+  /// The prefix an old path carries, as the caller gives it.
+  pub stale: String,
+  /// This deployment's data root, whose relative layout the old paths keep.
+  pub live: PathBuf,
+}
+
+impl Roots {
+  pub fn new(stale: impl Into<String>, live: impl Into<PathBuf>) -> Self {
+    Self {
+      stale: stale.into(),
+      live: live.into(),
+    }
+  }
+
+  /// The old root rewritten to the live one, and every other path as it stands. An empty prefix
+  /// rewrites nothing.
+  pub fn live_path(&self, said: &str) -> String {
+    if self.stale.is_empty() {
+      return said.to_owned();
+    }
+
+    match said.strip_prefix(&self.stale) {
+      Some(rest) => format!("{}{rest}", self.live.display()),
+      None => said.to_owned(),
+    }
+  }
+}
 
 /// One value written to the store, already in the target's shape.
 #[derive(Clone, Debug, PartialEq)]
@@ -326,16 +355,8 @@ fn int(value: Option<&Value>) -> Option<i64> {
   }
 }
 
-/// The old root rewritten to the live one, and every other path as it stands.
-pub fn live_path(said: &str) -> String {
-  match said.strip_prefix(STALE_ROOT) {
-    Some(rest) => format!("{LIVE_ROOT}{rest}"),
-    None => said.to_owned(),
-  }
-}
-
 /// One source row written in its target's columns.
-pub fn row(table: &TableMap, old: &Value) -> Vec<(&'static str, Cell)> {
+pub fn row(table: &TableMap, old: &Value, roots: &Roots) -> Vec<(&'static str, Cell)> {
   let mut out = Vec::with_capacity(table.columns.len());
   for column in table.columns {
     let source = table
@@ -360,7 +381,7 @@ pub fn row(table: &TableMap, old: &Value) -> Vec<(&'static str, Cell)> {
         None | Some(Value::Null) => Cell::Null,
         Some(Value::String(said)) => {
           if *column == "image_path" || *column == "stored_path" {
-            Cell::Text(live_path(said))
+            Cell::Text(roots.live_path(said))
           } else {
             Cell::Text(said.clone())
           }
@@ -453,12 +474,12 @@ pub struct Prepared {
 }
 
 /// Reads the export and maps every row to its target's shape.
-pub fn prepare(export: &Path) -> Result<Prepared, String> {
+pub fn prepare(export: &Path, roots: &Roots) -> Result<Prepared, String> {
   let manifest = read_manifest(export)?;
   let mut tables = Vec::new();
   for table in TABLES {
     let old = rows(export, &manifest, table.source)?;
-    let mapped: Vec<_> = old.iter().map(|old| row(table, old)).collect();
+    let mapped: Vec<_> = old.iter().map(|old| row(table, old, roots)).collect();
     tables.push((table.source, table.target, mapped));
   }
 
@@ -680,8 +701,8 @@ async fn compare(pool: &PgPool, prepared: &Prepared) -> Sample {
 
 /// Runs the import: reads the export, refuses a store holding rows, writes every row, and compares
 /// what it wrote. A dry run rolls the transaction back and reports what would have been written.
-pub async fn run(database: &str, export: &Path, dry_run: bool) -> Result<Report, String> {
-  let prepared = prepare(export)?;
+pub async fn run(database: &str, export: &Path, dry_run: bool, roots: &Roots) -> Result<Report, String> {
+  let prepared = prepare(export, roots)?;
   // The repository's own migrations, run over the store before anything is read into it.
   let sea = sea_connect(database, PgPoolOptions::new().max_connections(2))
     .await
@@ -754,8 +775,8 @@ pub async fn run(database: &str, export: &Path, dry_run: bool) -> Result<Report,
 }
 
 /// The count-and-sample compare alone, against a store the import wrote.
-pub async fn verify(database: &str, export: &Path) -> Result<Sample, String> {
-  let prepared = prepare(export)?;
+pub async fn verify(database: &str, export: &Path, roots: &Roots) -> Result<Sample, String> {
+  let prepared = prepare(export, roots)?;
   let pool = PgPoolOptions::new()
     .max_connections(1)
     .connect(database)

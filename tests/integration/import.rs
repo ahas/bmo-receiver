@@ -11,14 +11,18 @@ use serde_json::{Value, json};
 use crate::common::Scratch;
 
 /// A small export in the shape the item's export hand writes: every table the import knows, with the
-/// rows given and none elsewhere.
-fn fixture() -> (tempfile::TempDir, PathBuf) {
+/// rows given and none elsewhere. The stale prefix and the live root stand under the test's own
+/// temporary folder, so no deployment's path is a fixture.
+fn fixture() -> (tempfile::TempDir, PathBuf, import::Roots) {
   let dir = tempfile::tempdir().expect("a temporary folder");
+  let roots =
+    import::Roots::new(dir.path().join("old-root").to_string_lossy(), dir.path().join("live-root"));
+  let stale = roots.stale.clone();
   let rows: Vec<(&str, Vec<Value>, Vec<&str>)> = vec![
     (
       "messages",
       vec![
-        json!({"chat_id": 1, "message_id": 10, "sender_id": 7, "sender_name": "BMO", "sent_at": 100, "text": "hello", "image_path": "/home/ahas/repos/ahas/infra/bmo/data/images/1/10.jpg", "reply_to_message_id": null, "answer_seconds": null, "round": null, "album": null, "via": "record"}),
+        json!({"chat_id": 1, "message_id": 10, "sender_id": 7, "sender_name": "BMO", "sent_at": 100, "text": "hello", "image_path": format!("{stale}/images/1/10.jpg"), "reply_to_message_id": null, "answer_seconds": null, "round": null, "album": null, "via": "record"}),
         json!({"chat_id": 1, "message_id": 11, "sender_id": 7, "sender_name": "BMO", "sent_at": 200, "text": "two", "image_path": null, "reply_to_message_id": null, "answer_seconds": null, "round": null, "album": null, "via": "record"}),
       ],
       vec!["chat_id", "message_id"],
@@ -26,7 +30,7 @@ fn fixture() -> (tempfile::TempDir, PathBuf) {
     (
       "collected_items",
       vec![
-        json!({"id": 1, "chat_id": 1, "message_id": 10, "sender_name": "BMO", "kind": "audio", "source": "bmo:voice", "stored_path": "/home/ahas/repos/ahas/infra/bmo/data/collected/1/a.ogg", "summary": null, "collected_at": 150, "file_unique_id": null}),
+        json!({"id": 1, "chat_id": 1, "message_id": 10, "sender_name": "BMO", "kind": "audio", "source": "bmo:voice", "stored_path": format!("{stale}/collected/1/a.ogg"), "summary": null, "collected_at": 150, "file_unique_id": null}),
       ],
       vec!["id"],
     ),
@@ -74,24 +78,26 @@ fn fixture() -> (tempfile::TempDir, PathBuf) {
   .expect("the manifest");
 
   let path = dir.path().to_path_buf();
-  (dir, path)
+  (dir, path, roots)
 }
 
 #[test]
 fn the_stale_root_is_rewritten_and_every_other_path_stands() {
-  assert_eq!(
-    import::live_path("/home/ahas/repos/ahas/infra/bmo/data/images/1/10.jpg"),
-    "/home/ahas/.local/share/bmo/data/images/1/10.jpg"
-  );
-  assert_eq!(import::live_path("images/1/10.jpg"), "images/1/10.jpg");
+  let roots = import::Roots::new("/archive/old-root", "/data/live-root");
+
+  assert_eq!(roots.live_path("/archive/old-root/images/1/10.jpg"), "/data/live-root/images/1/10.jpg");
+  assert_eq!(roots.live_path("images/1/10.jpg"), "images/1/10.jpg");
+  assert_eq!(import::Roots::new("", "/data/live-root").live_path("/archive/a.jpg"), "/archive/a.jpg");
 }
 
 #[test]
 fn a_time_is_written_in_milliseconds_and_a_number_path_column_keeps_its_text() {
   let table = import::TABLES.iter().find(|table| table.source == "messages").expect("messages");
+  let roots = import::Roots::new("/archive/old-root", "/data/live-root");
   let row = import::row(
     table,
     &json!({"chat_id": 1, "message_id": 10, "sender_id": 7, "sender_name": "BMO", "sent_at": 100, "text": "hello", "image_path": null, "reply_to_message_id": null, "answer_seconds": null, "round": null, "album": null, "via": "record"}),
+    &roots,
   );
   let get = |column: &str| {
     row
@@ -107,34 +113,32 @@ fn a_time_is_written_in_milliseconds_and_a_number_path_column_keeps_its_text() {
 
 #[tokio::test]
 async fn the_import_writes_its_rows_refuses_a_second_run_and_the_compare_finds_a_changed_row() {
-  let (_folder, export) = fixture();
+  let (_folder, export, roots) = fixture();
   let scratch = Scratch::new().await;
   let address = scratch.address();
 
-  let report = import::run(&address, &export, false).await.expect("the import");
+  let report = import::run(&address, &export, false, &roots).await.expect("the import");
   assert_eq!(report.snapshot, "1:1:");
   assert!(report.sample.failures.is_empty(), "{:?}", report.sample.failures);
 
   let image = scratch
     .texts("SELECT image_path FROM messages WHERE chat_id = 1 AND message_id = 10")
     .await;
-  assert_eq!(
-    image.first().map(String::as_str),
-    Some("/home/ahas/.local/share/bmo/data/images/1/10.jpg")
-  );
+  let wanted = roots.live.join("images/1/10.jpg");
+  assert_eq!(image.first().map(String::as_str), Some(wanted.to_string_lossy().as_ref()));
   assert_eq!(scratch.count("SELECT COUNT(*) FROM message_metadata", vec![]).await, 1);
 
-  let again = import::run(&address, &export, false).await;
+  let again = import::run(&address, &export, false, &roots).await;
   assert!(again.is_err(), "a store holding rows is refused");
   assert!(again.unwrap_err().contains("already holds rows"));
 
-  let passes = import::verify(&address, &export).await.expect("the compare");
+  let passes = import::verify(&address, &export, &roots).await.expect("the compare");
   assert!(passes.failures.is_empty(), "{:?}", passes.failures);
 
   scratch
     .run("UPDATE messages SET text = 'changed' WHERE chat_id = 1 AND message_id = 10", vec![])
     .await;
-  let changed = import::verify(&address, &export).await.expect("the compare");
+  let changed = import::verify(&address, &export, &roots).await.expect("the compare");
   assert!(
     changed.failures.iter().any(|failure| failure.contains("text")),
     "{:?}",
@@ -144,11 +148,11 @@ async fn the_import_writes_its_rows_refuses_a_second_run_and_the_compare_finds_a
 
 #[tokio::test]
 async fn a_dry_run_writes_nothing() {
-  let (_folder, export) = fixture();
+  let (_folder, export, roots) = fixture();
   let scratch = Scratch::new().await;
   let address = scratch.address();
 
-  let report = import::run(&address, &export, true).await.expect("the dry run");
+  let report = import::run(&address, &export, true, &roots).await.expect("the dry run");
   assert!(report.dry_run);
 
   assert_eq!(scratch.count("SELECT COUNT(*) FROM messages", vec![]).await, 0);

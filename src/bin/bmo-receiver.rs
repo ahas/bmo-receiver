@@ -75,6 +75,12 @@ enum Command {
     /// The PostgreSQL database written.
     #[arg(long, value_name = "url")]
     database: String,
+    /// The prefix the old archive's paths carry in the two path columns, rewritten to the data root.
+    #[arg(long, value_name = "prefix")]
+    stale_root: String,
+    /// The data root those files stand under here, whose relative layout the old paths keep.
+    #[arg(long, value_name = "dir")]
+    data_root: PathBuf,
     /// Reads, checks and counts everything, and writes nothing.
     #[arg(long)]
     dry_run: bool,
@@ -285,10 +291,13 @@ async fn main() -> ExitCode {
   if let Command::Import {
     ref export,
     ref database,
+    ref stale_root,
+    ref data_root,
     dry_run,
   } = cli.command
   {
-    let ended = match bmo_receiver::import::run(database, export, dry_run).await {
+    let roots = bmo_receiver::import::Roots::new(stale_root.clone(), data_root.clone());
+    let ended = match bmo_receiver::import::run(database, export, dry_run, &roots).await {
       Ok(report) => {
         for moved in &report.tables {
           println!(
