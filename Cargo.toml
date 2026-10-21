@@ -138,3 +138,13 @@ tokio.workspace = true
 toml.workspace = true
 # The chat services' routes asked one request at a time, with no listener.
 tower.workspace = true
+
+# Build output kept small: line tables alone for a backtrace, split out, and no incremental cache.
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "unpacked"
+incremental = false
+
+[profile.release]
+debug = false
+strip = "debuginfo"
