@@ -15,8 +15,8 @@
     ],
     "aliases": [],
     "needs": [],
-    "base": "6b1904e66a2f55236522384bd8ff775a192e8d86",
-    "changed": 1792548850065
+    "base": "1d856205d2685e49c2fe4dc6dbe9a0a9533cd741",
+    "changed": 1792555687527
   },
   {
     "id": "service/personal-data",
@@ -59,8 +59,8 @@
       "events/hearing",
       "chat/restart"
     ],
-    "base": "6b1904e66a2f55236522384bd8ff775a192e8d86",
-    "changed": 1792548850077
+    "base": "1d856205d2685e49c2fe4dc6dbe9a0a9533cd741",
+    "changed": 1792555687541
   },
   {
     "id": "service/tool-env",

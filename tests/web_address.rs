@@ -6,12 +6,18 @@ use bmo_receiver::web_address::{address_as_written, markdown_link_at, web_addres
 
 #[test]
 fn an_address_ends_where_the_sentence_takes_over() {
+  let korean = std::fs::read_to_string("tests/fixtures/korean-address-path.txt")
+    .expect("the Korean address path fixture reads");
+
   assert_eq!(address_as_written("https://example.com/a)."), "https://example.com/a");
   assert_eq!(
     address_as_written("https://en.wikipedia.org/wiki/A_(b))"),
     "https://en.wikipedia.org/wiki/A_(b)",
   );
-  assert_eq!(address_as_written("https://example.com/\u{c8fc}\u{c18c}"), "https://example.com/");
+  assert_eq!(
+    address_as_written(&format!("https://example.com/{}", korean.trim())),
+    "https://example.com/",
+  );
 }
 
 #[test]

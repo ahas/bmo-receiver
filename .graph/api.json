@@ -33,8 +33,8 @@
       "events/stream",
       "rooms/removal"
     ],
-    "base": "186d007d07bb4f864709c4d1a256778d7ed084b8",
-    "changed": 1792534415502,
+    "base": "1d856205d2685e49c2fe4dc6dbe9a0a9533cd741",
+    "changed": 1792555687254,
     "boundary": {
       "side": "exposes"
     }

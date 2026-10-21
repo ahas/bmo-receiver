@@ -8,10 +8,11 @@ Each sends an answer back to the same session at most a fixed number of times.
 
 - **The round holds an answer to these checks, in this order:** an owed answer over a skip (`docs/wake.md`), the
   language, a promise recorded, a promise set to wake, a rule the owner set, and the banned words.
-- **What the checks read stands in the receiver's policy** (`policy/second-asks.toml`): the words of time to
-  come, of keeping in mind, of waiting on something, of a condition and of a manner, the volitional and
-  imperative endings, and the language check's thresholds. These are words of the room's language the code
-  matches on, and so data. So is every errand a second asking sends, in English as every agent's text is.
+- **What the checks read stands in the receiver's policy**: the words of time to come, of keeping in mind, of
+  waiting on something, of a condition and of a manner, the volitional and imperative endings, and the
+  language check's thresholds (`policy/second-asks.toml`), and the Hangul syllable block a word is told by
+  (`policy/scripts.toml`). These are words of the room's language the code matches on, and so data. So is
+  every errand a second asking sends, in English as every agent's text is.
 - **A second asking goes back to the same session** with the round's reference, the turn's scope, the messages
   waiting for the next turn, and a line saying later messages are not acted on now.
   - Its answer is written down as a turn's is, under the asking's own stage, as a judgement of the room

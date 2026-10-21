@@ -21,6 +21,7 @@ use receiver_policy::restart::RESTART;
 use receiver_policy::roads::ROADS;
 use receiver_policy::roles::ROLES;
 use receiver_policy::run_lines::RUN_LINES;
+use receiver_policy::scripts::SCRIPTS;
 use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_policy::talk::TALK;
 use receiver_policy::wake::WAKE;
@@ -31,7 +32,8 @@ const POLICY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy");
 fn parts() -> Vec<&'static str> {
   let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS, &*COMPANION_RUNNER);
   let _ = (&*COMPANIONS, &*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
-  let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SECOND_ASKS);
+  let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
+  let _ = &*SECOND_ASKS;
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS);
 
   vec![
@@ -54,6 +56,7 @@ fn parts() -> Vec<&'static str> {
     "roads.toml",
     "roles.toml",
     "run-lines.toml",
+    "scripts.toml",
     "second-asks.toml",
     "talk.toml",
     "wake.toml",

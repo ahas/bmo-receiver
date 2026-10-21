@@ -24,6 +24,7 @@
       "crates/receiver-policy/src/roads.rs",
       "crates/receiver-policy/src/roles.rs",
       "crates/receiver-policy/src/run_lines.rs",
+      "crates/receiver-policy/src/scripts.rs",
       "crates/receiver-policy/src/second_asks.rs",
       "crates/receiver-policy/src/talk.rs",
       "crates/receiver-policy/src/wake.rs",
@@ -35,7 +36,7 @@
     ],
     "aliases": [],
     "needs": [],
-    "base": "64e8ec929bbb913933379a7863bfce4209b02a8a",
-    "changed": 1792508501068
+    "base": "1d856205d2685e49c2fe4dc6dbe9a0a9533cd741",
+    "changed": 1792555638529
   }
 ]

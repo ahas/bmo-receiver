@@ -22,6 +22,7 @@ pub mod restart;
 pub mod roads;
 pub mod roles;
 pub mod run_lines;
+pub mod scripts;
 pub mod second_asks;
 pub mod talk;
 pub mod wake;

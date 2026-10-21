@@ -19,8 +19,8 @@ names.
 - **The version.** `VERSION` holds the workspace's version.
 - **The testbed's declaration.** `testbed.toml` names only keys of the testbed's format, its major version,
   the Cargo and Bun suites and the three base libraries.
-- **Hangul.** No tracked code file holds a Hangul character. Korean words the code matches on are data,
-  kept under `policy/` and `tests/fixtures/`.
+- **Hangul.** No tracked code file holds a Hangul character. Korean words the code matches on, and the
+  script ranges it tells them by, are data, kept under `policy/` and `tests/fixtures/`.
 - **Personal data.** No tracked file holds a mail address, a home path, a telephone number, a token or a
   private network address. A finding names the file, the line and the kind, never the value; an address at a
   domain RFC 2606 and RFC 6761 reserve for documentation and the loopback address are let stand

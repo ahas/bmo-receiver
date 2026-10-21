@@ -5,6 +5,8 @@ use bmo_receiver::js::{bun_hash, chars, find, is_space, rfind, trim, units, with
 
 #[test]
 fn bun_s_hash_is_zig_s_wyhash() {
+  let korean = std::fs::read_to_string("tests/fixtures/korean-hash-input.txt")
+    .expect("the Korean hash input fixture reads");
   let cases = [
     ("", 290_873_116_282_709_081),
     ("a", 2_941_419_223_392_617_777),
@@ -15,7 +17,7 @@ fn bun_s_hash_is_zig_s_wyhash() {
       "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
       5_216_907_898_075_982_647,
     ),
-    ("\u{d55c}\u{ae00} \u{bb38}\u{c11c}", 2_141_189_721_873_594_033),
+    (korean.trim(), 2_141_189_721_873_594_033),
   ];
 
   for (text, hashed) in cases {

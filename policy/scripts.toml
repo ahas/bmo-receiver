@@ -1,0 +1,34 @@
+# The scripts and widths the receiver tells characters by (docs/policy.md): the blocks Hangul and kana
+# are written in, the modern Hangul syllable block, and the ranges a label's width counts as a whole em.
+# A range is its first and last code point, both inclusive, written in hexadecimal.
+
+# The Hangul letters: jamo, compatibility jamo, the syllables and their extended blocks, and the
+# halfwidth forms.
+hangul_letters = [
+  { first = 0x1100, last = 0x11ff },
+  { first = 0x3130, last = 0x318f },
+  { first = 0xa960, last = 0xa97f },
+  { first = 0xac00, last = 0xd7af },
+  { first = 0xd7b0, last = 0xd7ff },
+  { first = 0xffa0, last = 0xffdc },
+]
+
+# The modern Hangul syllables: the block a syllable's number is read in, and the block a letter beside a
+# word is told by.
+syllables = { first = 0xac00, last = 0xd7a3 }
+
+# The kana: Hiragana, then Katakana.
+kana_letters = [
+  { first = 0x3040, last = 0x309f },
+  { first = 0x30a0, last = 0x30ff },
+]
+
+# The letters a label's width counts as a whole em: Hangul jamo, the CJK, kana, Bopomofo and Yi range,
+# the Hangul syllables, the CJK compatibility ideographs, and the halfwidth and fullwidth forms.
+wide_letters = [
+  { first = 0x1100, last = 0x11ff },
+  { first = 0x2e80, last = 0xa4cf },
+  { first = 0xac00, last = 0xd7af },
+  { first = 0xf900, last = 0xfaff },
+  { first = 0xff00, last = 0xffef },
+]

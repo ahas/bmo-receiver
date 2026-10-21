@@ -4,6 +4,7 @@
 use std::path::Path;
 use std::sync::LazyLock;
 
+use receiver_policy::scripts::{SCRIPTS, holds_any};
 use regex::Regex;
 
 use crate::js::units;
@@ -58,9 +59,8 @@ const KNOWN_LANGUAGES: [&str; 3] = ["ko", "ja", "en"];
 /// The language a line is written in, told by its script: Korean where it holds Hangul, Japanese where it holds
 /// kana alone, English otherwise.
 pub fn line_language(line: &str) -> &'static str {
-  let korean =
-    |c: char| matches!(c, '\u{1100}'..='\u{11FF}' | '\u{3130}'..='\u{318F}' | '\u{AC00}'..='\u{D7AF}');
-  let japanese = |c: char| matches!(c, '\u{3040}'..='\u{30FF}');
+  let korean = |c: char| holds_any(&SCRIPTS.hangul_letters, c);
+  let japanese = |c: char| holds_any(&SCRIPTS.kana_letters, c);
 
   if line.chars().any(korean) {
     "ko"
@@ -147,7 +147,7 @@ pub fn read_glossary(source: &Path) -> Vec<BannedTerm> {
 }
 
 fn hangul_syllable(c: char) -> bool {
-  matches!(c, '\u{AC00}'..='\u{D7A3}')
+  SCRIPTS.syllables.holds(c)
 }
 
 // Whether the term stands on its own where it was found, rather than being the tail of a longer word: a Korean

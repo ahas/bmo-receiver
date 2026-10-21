@@ -7,6 +7,7 @@ use std::collections::HashSet;
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
+use receiver_policy::scripts::SCRIPTS;
 use serde::Serialize;
 
 use super::conversation::unified_session;
@@ -106,7 +107,7 @@ pub async fn quiet_room(receiver: &Receiver, _owner: i64, chat_id: i64) -> Resul
 /// syllable block its script is written in, and a language of no script of its own matches nothing.
 fn in_machine_script(text: &str, language: &str) -> bool {
   match language {
-    "ko" => text.chars().any(|character| ('\u{ac00}'..='\u{d7a3}').contains(&character)),
+    "ko" => text.chars().any(|character| SCRIPTS.syllables.holds(character)),
     _ => false,
   }
 }

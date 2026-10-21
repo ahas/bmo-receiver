@@ -8,14 +8,16 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::js::{SPACE, chars, is_space, trim};
+use receiver_policy::scripts::{SCRIPTS, Span};
 use receiver_policy::second_asks::SECOND_ASKS;
 
-// A Korean syllable, as a character class's body.
-const SYLLABLE: &str = r"\x{AC00}-\x{D7A3}";
+// A range as a regular expression character class's body.
+fn class_body(span: Span) -> String {
+  format!(r"\x{{{:x}}}-\x{{{:x}}}", span.first, span.last)
+}
 
-// The first syllable and how many there are.
-const FIRST_SYLLABLE: u32 = 0xAC00;
-const SYLLABLES: u32 = 11_172;
+// The modern Hangul syllables, as a character class's body.
+static SYLLABLE: LazyLock<String> = LazyLock::new(|| class_body(SCRIPTS.syllables));
 
 // How a syllable's number is made: its final consonant varies fastest, its vowel next.
 const FINALS: u32 = 28;
@@ -29,7 +31,7 @@ fn compiled(pattern: &str) -> Regex {
 // A policy pattern followed by no syllable: the next character, consumed, is none or no syllable. A match read
 // for whether it is there, or for its first group, reads the same as a lookahead would.
 fn followed_by_no_syllable(pattern: &str) -> Regex {
-  compiled(&format!("(?:{pattern})(?:$|[^{SYLLABLE}])"))
+  compiled(&format!("(?:{pattern})(?:$|[^{}])", *SYLLABLE))
 }
 
 struct Reading {
@@ -84,9 +86,10 @@ static NOT_OWN: LazyLock<Vec<Regex>> = LazyLock::new(|| {
 const SENTENCE_ENDS: [char; 5] = ['.', '!', '?', '。', '\n'];
 
 fn syllable(character: char) -> Option<u32> {
-  let code = u32::from(character).checked_sub(FIRST_SYLLABLE)?;
+  let span = SCRIPTS.syllables;
+  let code = u32::from(character).checked_sub(span.first)?;
 
-  (code < SYLLABLES).then_some(code)
+  (code < span.count()).then_some(code)
 }
 
 fn is_syllable(character: char) -> bool {
@@ -204,7 +207,7 @@ fn ends_imperative(character: char) -> bool {
 }
 
 static LAST_SYLLABLE: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(&format!(r"([{SYLLABLE}])[.!。]?$")).expect("a closing syllable"));
+  LazyLock::new(|| Regex::new(&format!(r"([{}])[.!。]?$", *SYLLABLE)).expect("a closing syllable"));
 
 // Somebody told to do something: a request made of them, a plain imperative, or a standing obligation.
 pub fn orders(sentence: &str) -> bool {

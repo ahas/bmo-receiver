@@ -9,6 +9,7 @@ use std::sync::{Arc, LazyLock};
 use image::imageops::FilterType;
 use image::{DynamicImage, RgbImage, RgbaImage};
 
+use receiver_policy::scripts::{SCRIPTS, holds_any};
 use resvg::{tiny_skia, usvg};
 
 use super::pictures::{NotAPicture, decode, jpeg, on_white};
@@ -38,12 +39,7 @@ fn failed(why: impl std::fmt::Display) -> NotAPicture {
 // A CJK character is drawn about a whole em wide and a Latin one about half of that, so the width of a line
 // is estimated in ems rather than measured: the font is whatever the machine has.
 fn ems_of(character: char) -> f64 {
-  let wide = matches!(
-    character,
-    '\u{1100}'..='\u{11FF}' | '\u{2E80}'..='\u{A4CF}' | '\u{AC00}'..='\u{D7AF}' | '\u{F900}'..='\u{FAFF}' | '\u{FF00}'..='\u{FFEF}'
-  );
-
-  if wide { 1.0 } else { 0.55 }
+  if holds_any(&SCRIPTS.wide_letters, character) { 1.0 } else { 0.55 }
 }
 
 fn ems(text: &[char]) -> f64 {

@@ -4,9 +4,10 @@ The receiver's fixed numbers and words, as TOML files under `policy/`, read by t
 built into the binary: one module to a file, each file read once on first use into its type, a file that does not
 read as its type failing the crate's load test. A line an agent reads is English, and its `{name}` marks say what
 each line carries; `fill_marks` fills them. Korean words the code matches on (the command phrases, the words the
-answer checks read promises and rules by, the marks a picture and a voice are kept under) are data and stand here,
-never in code. No sentence a person reads in a room stands here: those are codes the agent says, or the few fixed
-lines the web unit's language packs render (`docs/codes.md`).
+answer checks read promises and rules by, the marks a picture and a voice are kept under), and the script ranges
+the code tells a character's script and width by, are data and stand here, never in code. No sentence a person
+reads in a room stands here: those are codes the agent says, or the few fixed lines the web unit's language packs
+render (`docs/codes.md`).
 
 ## The receiver's own files
 
@@ -25,6 +26,7 @@ lines the web unit's language packs render (`docs/codes.md`).
 | `queue.toml` | how long the owner may hold a job's question clock stopped from the console | the owner's answer to a job's question |
 | `owner-facts.toml` | what the owner's session is told of the agency's events that no other part words: the facts and follow-ups of a worker fallen to a lesser model, and the lines of the overtime order | the workers' facts, the overtime order |
 | `commands.toml` | the owner's in-room command phrases (each command's plain form first), the polite endings a command may carry, and the suffix an answer to a job's question may put after an option's number | the receiver's commands, a question's answer |
+| `scripts.toml` | the Hangul and kana blocks, the modern Hangul syllables, and the ranges a label's width counts as a whole em | the wording check, a round's language note, the web addresses a text names, the answer checks, a labelled picture |
 
 ## Keys the receiver takes from files the agency also holds
 

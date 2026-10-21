@@ -9,18 +9,25 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::js::{SPACE, chars, is_space, text};
+use receiver_policy::scripts::SCRIPTS;
 
-// Korean letters: jamo, compatibility jamo, and the syllables with their extensions.
-const HANGUL: &str =
-  r"\x{1100}-\x{11ff}\x{3130}-\x{318f}\x{a960}-\x{a97f}\x{ac00}-\x{d7af}\x{d7b0}-\x{d7ff}";
+// The Hangul letters as a regular expression character class's body.
+fn hangul_body() -> String {
+  SCRIPTS
+    .hangul_letters
+    .iter()
+    .map(|span| format!(r"\x{{{:x}}}-\x{{{:x}}}", span.first, span.last))
+    .collect()
+}
 
 static BARE: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(&format!(r#"(?i)^https?://[^{SPACE}<>"'`{HANGUL}]+"#)).expect("a bare address")
+  Regex::new(&format!(r#"(?i)^https?://[^{SPACE}<>"'`{}]+"#, hangul_body())).expect("a bare address")
 });
-static SENTENCE_LETTER: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(&format!(r#"[{SPACE}<>"'`{HANGUL}]"#)).expect("a sentence's letter"));
+static SENTENCE_LETTER: LazyLock<Regex> = LazyLock::new(|| {
+  Regex::new(&format!(r#"[{SPACE}<>"'`{}]"#, hangul_body())).expect("a sentence's letter")
+});
 static GLUED: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(&format!(r"^[)\]}}.,;:!?]*[{HANGUL}]")).expect("a glued letter"));
+  LazyLock::new(|| Regex::new(&format!(r"^[)\]}}.,;:!?]*[{}]", hangul_body())).expect("a glued letter"));
 static TRAILING: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new("[.,;:!?'\"\u{2026}\u{3002}\u{3001}\u{300d}\u{300f}\u{300b}\u{ff09}]+$")
     .expect("trailing marks")
