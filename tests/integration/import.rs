@@ -111,6 +111,34 @@ fn a_time_is_written_in_milliseconds_and_a_number_path_column_keeps_its_text() {
   assert_eq!(get("image_path"), Cell::Null);
 }
 
+#[test]
+fn a_morning_edition_keeps_its_time_and_a_holiday_keeps_its_day() {
+  let roots = import::Roots::new("", "/data/live-root");
+  let cell = |row: &[(&'static str, Cell)], column: &str| {
+    row
+      .iter()
+      .find(|(held, _)| *held == column)
+      .map(|(_, cell)| cell.clone())
+      .expect("a mapped column")
+  };
+
+  let brief = import::TABLES.iter().find(|table| table.source == "news_briefs").expect("news_briefs");
+  let row = import::row(
+    brief,
+    &json!({"id": 3, "chat_id": -7, "send_at": "08:30", "lead_minutes": 40, "share_hours": 24, "enabled": 1, "last_day": "2026-10-21", "created_at": 1_700_000_000}),
+    &roots,
+  );
+  assert_eq!(cell(&row, "created_at"), Cell::Int(1_700_000_000_000));
+  assert_eq!(cell(&row, "send_at"), Cell::Text("08:30".to_owned()));
+  assert_eq!(cell(&row, "enabled"), Cell::Int(1));
+  assert_eq!(cell(&row, "last_day"), Cell::Text("2026-10-21".to_owned()));
+
+  let holidays = import::TABLES.iter().find(|table| table.source == "holidays").expect("holidays");
+  let row = import::row(holidays, &json!({"day": "2026-10-03", "name": "day off"}), &roots);
+  assert_eq!(cell(&row, "day"), Cell::Text("2026-10-03".to_owned()));
+  assert_eq!(cell(&row, "name"), Cell::Text("day off".to_owned()));
+}
+
 #[tokio::test]
 async fn the_import_writes_its_rows_refuses_a_second_run_and_the_compare_finds_a_changed_row() {
   let (_folder, export, roots) = fixture();

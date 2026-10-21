@@ -6,6 +6,7 @@ use bmo_receiver::store::migration::m20261017_000002_record_numbers::TABLE as RE
 use bmo_receiver::store::migration::m20261017_000003_room_windows::TABLE as ROOM_WINDOWS;
 use bmo_receiver::store::migration::m20261017_000004_people_reads::TABLE as PEOPLE_READS;
 use bmo_receiver::store::migration::m20261019_000005_message_metadata::TABLE as MESSAGE_METADATA;
+use bmo_receiver::store::migration::m20261022_000008_news_briefs::TABLES as NEWS_BRIEFS_TABLES;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -35,10 +36,11 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .iter()
     .copied()
     .chain([RECORD_NUMBERS, ROOM_WINDOWS, PEOPLE_READS, MESSAGE_METADATA, RECORD_TABLE])
+    .chain(NEWS_BRIEFS_TABLES)
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 7);
+  assert_eq!(migrate(db).await.unwrap(), 8);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 

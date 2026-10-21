@@ -176,6 +176,7 @@ const COLLECTED_ITEMS: TableMap = TableMap {
   )
 };
 const DELEGATE_CHATS: TableMap = same("delegate_chats", "delegate_chats", &["chat_id"]);
+const HOLIDAYS: TableMap = same("holidays", "holidays", &["day", "name"]);
 const INSTRUCTIONS: TableMap = TableMap {
   times: &["created_at", "delivered_at", "expires_at", "handed_at", "ride_until"],
   ..same(
@@ -227,6 +228,23 @@ const MESSAGES: TableMap = TableMap {
   )
 };
 const MUTED_MEMBERS: TableMap = same("muted_members", "muted_members", &["chat_id", "user_id"]);
+const NEWS_BRIEFS: TableMap = TableMap {
+  times: &["created_at"],
+  ..same(
+    "news_briefs",
+    "news_briefs",
+    &[
+      "id",
+      "chat_id",
+      "send_at",
+      "lead_minutes",
+      "share_hours",
+      "enabled",
+      "last_day",
+      "created_at",
+    ],
+  )
+};
 const PEOPLE_READS: TableMap = TableMap {
   times: &["read_at"],
   ..same("people_reads", "people_reads", &["agent", "chat_id", "message_id", "read_at"])
@@ -311,10 +329,12 @@ pub const TABLES: &[TableMap] = &[
   CHAT_TITLES,
   COLLECTED_ITEMS,
   DELEGATE_CHATS,
+  HOLIDAYS,
   INSTRUCTIONS,
   MESSAGE_NUMBER_MARKS,
   MESSAGES,
   MUTED_MEMBERS,
+  NEWS_BRIEFS,
   PEOPLE_READS,
   PHOTO_CHATS,
   PROVIDER_OWNER_USERS,
