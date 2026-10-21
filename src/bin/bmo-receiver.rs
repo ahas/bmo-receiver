@@ -67,6 +67,18 @@ enum Command {
   Health,
   /// The nouns `bmo` dispatches to this command, one a line.
   Nouns,
+  /// Moves the old archive's exported rows into this store (docs/store.md, TODO #1923).
+  Import {
+    /// The export directory the item's export hand wrote.
+    #[arg(long, value_name = "dir")]
+    export: PathBuf,
+    /// The PostgreSQL database written.
+    #[arg(long, value_name = "url")]
+    database: String,
+    /// Reads, checks and counts everything, and writes nothing.
+    #[arg(long)]
+    dry_run: bool,
+  },
   /// A line said in a room, through the running receiver.
   Room {
     #[command(subcommand)]
@@ -269,6 +281,43 @@ async fn main() -> ExitCode {
     _ => {}
   }
 
+  // The import reads its own arguments and never the deployment's configuration.
+  if let Command::Import {
+    ref export,
+    ref database,
+    dry_run,
+  } = cli.command
+  {
+    let ended = match bmo_receiver::import::run(database, export, dry_run).await {
+      Ok(report) => {
+        for moved in &report.tables {
+          println!(
+            "{} -> {}: {} exported, {} written",
+            moved.source, moved.target, moved.exported, moved.written
+          );
+        }
+        println!(
+          "{} at snapshot {} read {}: {} rows sampled, {} failures",
+          if report.dry_run { "dry run" } else { "import" },
+          report.snapshot,
+          report.read_at,
+          report.sample.checked,
+          report.sample.failures.len()
+        );
+        for failure in &report.sample.failures {
+          eprintln!("  {failure}");
+        }
+        if report.sample.failures.is_empty() { 0 } else { 1 }
+      }
+      Err(why) => {
+        eprintln!("bmo-receiver: {why}");
+        1
+      }
+    };
+
+    return ExitCode::from(ended);
+  }
+
   let config = match Config::read(&config::path(cli.config.as_deref())) {
     Ok(config) => config,
     Err(why) => {
@@ -302,8 +351,8 @@ async fn main() -> ExitCode {
     } => Ok(answered(command::reminder_set(&config, cli.via.clone(), args).await)),
     Command::Consult(args) => Ok(answered(command::consult(&config, args).await)),
     Command::Draw { word } => Ok(answered(command::draw(&config, cli.via.clone(), word).await)),
-    Command::Routes | Command::Nouns => {
-      unreachable!("routes and nouns are printed before the configuration is read")
+    Command::Routes | Command::Nouns | Command::Import { .. } => {
+      unreachable!("routes, nouns and the import are answered before the configuration is read")
     }
   };
 

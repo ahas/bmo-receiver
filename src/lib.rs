@@ -12,6 +12,7 @@ pub mod data_root;
 pub mod events;
 pub mod form;
 pub mod hearing;
+pub mod import;
 pub mod json;
 pub mod receiver;
 pub mod roads;
