@@ -46,6 +46,10 @@ stand; and each chat service's road name with its base address and token.
 - **`tool-env`** writes where the receiver's tools find it and ends.
 - **`health`** asks the service the configuration names whether it is ready and ends.
 - **`nouns`** prints the nouns `bmo` dispatches to this command, one a line (「The unit command」).
+- **`import`** moves the old archive's exported rows into this store. It reads one export directory — a manifest
+  carrying each source table's exact count and key, and one NDJSON file a table — and writes only this store,
+  refusing one that already holds rows of its tables. It runs whole inside one transaction, so a dry run or a
+  failed run leaves the store as it stood; `--dry-run` reads, checks and counts everything and writes nothing.
 - **The consumer's name** the receiver registers with the cache warmer is `receiver`, unless the configuration
   names another.
 
