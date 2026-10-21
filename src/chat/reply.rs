@@ -111,7 +111,7 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
       receiver,
       chat_id,
       sent.message_id,
-      reply.round_started_at.unwrap_or_else(|| now_ms() / 1000),
+      reply.round_started_at.map(|at| at * 1000).unwrap_or_else(now_ms),
     )
     .await;
   }

@@ -23,8 +23,8 @@ brain_root = ".local/share/bmo/data/brain"
 document_tree = ".local/share/bmo-agency/deploy"
 consumer = "receiver"
 
-# Each unit the receiver calls, with its base address and the token it takes. The cache warmer takes none, so its
-# token is left empty and no header is sent.
+# Each unit the receiver calls, with its base address and the token it takes. Every unit takes one, the cache
+# warmer included: its token stands in its data root's `token` file.
 [agency]
 base = "http://127.0.0.1:3220"
 token = "agency-token"
@@ -47,7 +47,7 @@ token = "web-token"
 
 [warmer]
 base = "http://127.0.0.1:3280"
-token = ""
+token = "warmer-token"
 
 # Each chat service's road, by its key, with its base address and token. The keys are the deployment's; nothing
 # in the receiver compares one to a literal.

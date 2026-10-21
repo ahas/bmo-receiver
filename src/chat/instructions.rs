@@ -88,14 +88,14 @@ fn read_event(text: &str) -> Option<TurnEvent> {
   match parts.as_slice() {
     [_] => Some(TurnEvent {
       kind: kind.to_string(),
-      item: None,
+      item_id: None,
     }),
     [_, item] if names_item => {
       let item = js::trim(item).trim_start_matches('#').parse::<i64>().ok().filter(|one| *one > 0)?;
 
       Some(TurnEvent {
         kind: kind.to_string(),
-        item: Some(item),
+        item_id: Some(item),
       })
     }
     _ => None,

@@ -61,25 +61,25 @@ pub async fn call_names(agency: Arc<dyn Agency>, agent: &str) -> Vec<String> {
   if names.is_empty() { vec![agent.to_owned()] } else { names }
 }
 
-/// The chat touch target, as the receiver declares it (docs/boundary-api.md, 「For the cache warmer: the chat
-/// touch」, its values the receiver's own policy's).
+/// The chat touch target, as the receiver declares it (docs/boundary-api.md, 「The cache warmer」, its values
+/// the receiver's own policy's).
 pub fn chat_touch(agent: &str) -> Target {
   let touch = &CHAT_HEALTH.touch;
 
   Target {
-    kind: "chat_touch".to_owned(),
+    kind: "chat-touch".to_owned(),
     label: touch.label.clone(),
-    subject: Some(agent.to_owned()),
+    subject_name: Some(agent.to_owned()),
     rank: touch.rank,
     idle_ms: touch.idle_ms,
-    lifetime_ms: Some(touch.lifetime_ms),
+    ttl_ms: Some(touch.lifetime_ms),
     margin_ms: touch.margin_ms,
     ping_bound_ms: touch.ping_bound_ms,
-    group: None,
+    group_name: None,
     warm_by_default: Some(touch.warm_by_default),
     failure_touches: touch.failure_touches,
     honours_idle_override: touch.honours_idle_override,
-    last_used_at: None,
+    used_at: None,
   }
 }
 

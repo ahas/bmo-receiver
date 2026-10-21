@@ -54,9 +54,9 @@ pub async fn judge(
   ms: Option<i64>,
 ) {
   let asked = Judgement {
-    chat: chat_id,
-    message,
-    stage: stage.to_owned(),
+    room_id: chat_id,
+    message_id: message,
+    gate_name: stage.to_owned(),
     verdict: verdict.to_owned(),
     detail: detail.map(str::to_owned),
     ms,

@@ -1,8 +1,8 @@
 //! The gate port: a turn's envelope handed over for its reference, words through the sanitiser on their way in
 //! and out, a room's judgements written and a new companion's gate options copied (`docs/boundary-api.md`, 「The
-//! gate」). The gate states no boundary
-//! yet, so these calls are the receiver's statement for it to match; bodies are snake_case, and the gate reads
-//! the rest of its material back from the brain and from the receiver's own routes.
+//! gate」). The bodies are the gate's published shapes (`docs/api.md`): camelCase keys, epoch milliseconds, and the
+//! gate's own names — `roomId`, `messageId`, `speakerIds`, `peopleSpoke`, `offGates`, `gateName`, `agentName` and
+//! `fromAgentName`, with the situation road carrying `agentName`, `roomKind`, its events and `nowAt`.
 
 use futures_util::future::BoxFuture;
 use reqwest::Method;
@@ -20,32 +20,35 @@ pub enum RoomKind {
 
 /// An event a turn carries: its kind, and the item it is about where it is about one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TurnEvent {
   pub kind: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub item: Option<i64>,
+  pub item_id: Option<i64>,
 }
 
 /// The situation a turn is read in: the agent whose turn it is, the room's kind, the events it carries and the
-/// moment it is read at, in Unix seconds.
+/// moment it is read at, in epoch milliseconds.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Situation {
-  pub agent: String,
-  pub room: RoomKind,
+  pub agent_name: String,
+  pub room_kind: RoomKind,
   pub events: Vec<TurnEvent>,
-  pub now: i64,
+  pub now_at: i64,
 }
 
-/// A turn's envelope, as the gate chooses its reference by it.
+/// A turn's envelope, as the gate's reference road reads it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Envelope {
-  pub chat: i64,
+  pub room_id: i64,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub message: Option<i64>,
+  pub message_id: Option<i64>,
   /// The room's recent messages in the room shape, with every line the turn brought.
   pub lines: Vec<String>,
   /// The people whose words the turn answers.
-  pub speakers: Vec<i64>,
+  pub speaker_ids: Vec<i64>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub situation: Option<Situation>,
   /// The holds the turn stands under, where it names any.
@@ -59,7 +62,7 @@ pub struct Envelope {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub answered: Option<String>,
   /// The gates switched off for the agent.
-  pub off: Vec<String>,
+  pub off_gates: Vec<String>,
   /// Whether the turn's road records its gates.
   pub records: bool,
 }
@@ -81,6 +84,7 @@ pub enum Source {
 /// One piece a turn is handed: where it was read from, its text, its sort, and the fragment row it was offered
 /// from where it was offered from one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Entry {
   pub path: String,
   pub text: String,
@@ -91,20 +95,22 @@ pub struct Entry {
 
 /// Words asked of the sanitiser.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Sanitise {
   pub text: String,
   /// What the words are, for the sanitiser's instructions.
   pub label: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub chat: Option<i64>,
+  pub room_id: Option<i64>,
   /// The message a verdict on the words is kept under.
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub message: Option<i64>,
+  pub message_id: Option<i64>,
 }
 
 /// What the sanitiser answered: the words as they are to be handed on, and whether anything was defused. A run
 /// somebody stopped is answered 409 with the code `stopped`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Sanitised {
   pub text: String,
   pub changed: bool,
@@ -112,11 +118,12 @@ pub struct Sanitised {
 
 /// A decision written into a room's log: a round's skip, a re-ask, an answer sent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Judgement {
-  pub chat: i64,
+  pub room_id: i64,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub message: Option<i64>,
-  pub stage: String,
+  pub message_id: Option<i64>,
+  pub gate_name: String,
   pub verdict: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub detail: Option<String>,
@@ -135,12 +142,13 @@ pub trait Gate: Send + Sync {
 
   fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>>;
 
-  /// Every judgement of the room written at or after `since`, in Unix seconds, and naming no message yet, filed
-  /// under `message`: a round's judgements under the message its answer went out as.
-  fn attach<'a>(&'a self, chat: i64, message: i64, since: i64) -> BoxFuture<'a, Answer<()>>;
+  /// Every judgement of the room written at or after `since`, in epoch milliseconds, and naming no message yet,
+  /// filed under `message_id`: a round's judgements under the message its answer went out as.
+  fn attach<'a>(&'a self, room_id: i64, message_id: i64, since: i64) -> BoxFuture<'a, Answer<()>>;
 
-  /// The gate options of the agent `from` copied, as they are now, for the agent that has just stood up.
-  fn copy_options<'a>(&'a self, agent: &'a str, from: &'a str) -> BoxFuture<'a, Answer<()>>;
+  /// The gate options of `from_agent_name` copied, as they are now, for the agent that has just stood up.
+  fn copy_options<'a>(&'a self, agent_name: &'a str, from_agent_name: &'a str)
+  -> BoxFuture<'a, Answer<()>>;
 }
 
 /// The gate over HTTP.
@@ -165,16 +173,18 @@ struct Entries {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Attached {
-  chat: i64,
-  message: i64,
+  room_id: i64,
+  message_id: i64,
   since: i64,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Copied<'a> {
-  agent: &'a str,
-  from: &'a str,
+  agent_name: &'a str,
+  from_agent_name: &'a str,
 }
 
 impl Gate for HttpGate {
@@ -194,7 +204,7 @@ impl Gate for HttpGate {
     Box::pin(self.caller.done(Method::POST, &["judgements"], judgement))
   }
 
-  fn attach<'a>(&'a self, chat: i64, message: i64, since: i64) -> BoxFuture<'a, Answer<()>> {
+  fn attach<'a>(&'a self, room_id: i64, message_id: i64, since: i64) -> BoxFuture<'a, Answer<()>> {
     Box::pin(async move {
       self
         .caller
@@ -202,8 +212,8 @@ impl Gate for HttpGate {
           Method::POST,
           &["judgements", "attached"],
           &Attached {
-            chat,
-            message,
+            room_id,
+            message_id,
             since,
           },
         )
@@ -211,9 +221,23 @@ impl Gate for HttpGate {
     })
   }
 
-  fn copy_options<'a>(&'a self, agent: &'a str, from: &'a str) -> BoxFuture<'a, Answer<()>> {
+  fn copy_options<'a>(
+    &'a self,
+    agent_name: &'a str,
+    from_agent_name: &'a str,
+  ) -> BoxFuture<'a, Answer<()>> {
     Box::pin(async move {
-      self.caller.done(Method::POST, &["options", "copied"], &Copied { agent, from }).await
+      self
+        .caller
+        .done(
+          Method::POST,
+          &["options", "copied"],
+          &Copied {
+            agent_name,
+            from_agent_name,
+          },
+        )
+        .await
     })
   }
 }

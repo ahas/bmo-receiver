@@ -147,8 +147,8 @@ pub async fn clean(
   let asked = Sanitise {
     text: text.to_owned(),
     label: label.to_owned(),
-    chat: Some(chat_id),
-    message: message_id,
+    room_id: Some(chat_id),
+    message_id,
   };
   let cleaned = receiver
     .units()
@@ -266,30 +266,30 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
   situation_lines.extend(instruction_lines);
   situation_lines.extend(material.said.iter().cloned());
 
-  let mut off = Vec::new();
+  let mut off_gates = Vec::new();
 
   for gate in REFERENCE_GATES {
     if !gate_on(receiver, material.agent, gate).await {
-      off.push(gate.to_owned());
+      off_gates.push(gate.to_owned());
     }
   }
 
   let envelope = Envelope {
-    chat: chat_id,
-    message: message_id,
+    room_id: chat_id,
+    message_id,
     lines,
-    speakers,
+    speaker_ids: speakers,
     situation: Some(Situation {
-      agent: material.agent.to_owned(),
-      room: if material.room.owner_room { RoomKind::Owner } else { RoomKind::Group },
+      agent_name: material.agent.to_owned(),
+      room_kind: if material.room.owner_room { RoomKind::Owner } else { RoomKind::Group },
       events: material.events.to_vec(),
-      now: now_ms() / 1000,
+      now_at: now_ms(),
     }),
     holds: material.holds.map(|holds| holds.iter().map(String::clone).collect()),
     round: material.round.clone(),
     people_spoke: spoke,
     answered,
-    off,
+    off_gates,
     records: true,
   };
   let mut entries = match receiver.units().gate.reference(&envelope).await {

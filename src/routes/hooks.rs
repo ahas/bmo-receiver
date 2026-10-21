@@ -1,5 +1,5 @@
-//! The agency's hooks the receiver answers, and the cache warmer's ping (`docs/boundary-api.md`, 「For the agency:
-//! its hooks」 and 「For the cache warmer」). The agency posts `{"point", "ask"}` and reads the `answer` of a 2xx
+//! The agency's hooks the receiver answers, and the cache warmer's ping (`docs/api.md`, 「Hooks」). The agency
+//! posts `{"point", "ask"}` and reads the `answer` of a 2xx
 //! answer; the warmer posts its ping with no header at all, the token standing in the hook's URL the receiver
 //! registered instead, so this route alone reads the token from the query.
 
@@ -126,7 +126,7 @@ pub async fn ping(State(served): State<Served>, query: Query<Tokened>, body: Byt
 
 /// The touch the ping asks for, as the conversations hold it.
 async fn touched(receiver: &Receiver, ping: &Ping) -> Result<TouchAnswer, Fault> {
-  if ping.kind != "chat_touch" || ping.target != "chat-touch" {
+  if ping.kind != "chat-touch" || ping.target != "chat-touch" {
     return Ok(TouchAnswer {
       outcome: TouchOutcome::Skipped,
       code: None,

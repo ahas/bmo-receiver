@@ -227,7 +227,7 @@ Beside the reference, a turn carries the room's messages since the agent last an
 
 ## The touch
 
-- **The cache warmer pings the chat touch** (`docs/boundary-api.md`, 「For the cache warmer」): a quiet room's
+- **The cache warmer pings the chat touch** (`docs/boundary-api.md`, 「The cache warmer」): a quiet room's
   session touched before its cached prefix cools, so its next word is answered from a warm cache.
 - **The touch is a turn of the room the session last stood in,** opened as `keepalive` with the keepalive
   prompt.

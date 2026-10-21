@@ -234,8 +234,8 @@ pub async fn outgoing(
     let asked = Sanitise {
       text: text.to_owned(),
       label: label.to_owned(),
-      chat: Some(chat_id),
-      message: None,
+      room_id: Some(chat_id),
+      message_id: None,
     };
 
     match gate.sanitise(&asked).await {

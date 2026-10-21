@@ -1,5 +1,5 @@
 //! The cache warmer's touch of a quiet room's session (docs/bmo-window.md, 「The touch」; docs/boundary-api.md,
-//! 「For the cache warmer: the chat touch」): the touch is a turn of the room the chat agent's session last stood
+//! 「The cache warmer」): the touch is a turn of the room the chat agent's session last stood
 //! in, handed the keepalive prompt; it goes in only where nothing else of the conversation stands, and the answer
 //! to the warmer's ping names which of the four it was — warmed, busy, skipped with a code, or failed with a
 //! reason.
@@ -263,7 +263,7 @@ pub async fn touch(
 
 /// The warmer's ping answered: the touch of the chat agent's one session, where the ping is of that target.
 pub async fn ping(conversations: &Conversations, ping: &Ping) -> TouchAnswer {
-  if ping.kind != "chat_touch" || ping.target != "chat-touch" {
+  if ping.kind != "chat-touch" || ping.target != "chat-touch" {
     return TouchAnswer {
       outcome: TouchOutcome::Skipped,
       code: None,

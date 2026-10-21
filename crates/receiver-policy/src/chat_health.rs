@@ -38,7 +38,7 @@ pub struct Fold {
 }
 
 /// The cache warmer's touch of a quiet room's session: its note, and the chat touch target as the receiver
-/// declares it to the warmer (docs/boundary-api.md, 「For the cache warmer: the chat touch」).
+/// declares it to the warmer (docs/boundary-api.md, 「The cache warmer」).
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Touch {

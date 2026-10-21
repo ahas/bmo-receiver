@@ -78,9 +78,9 @@ the operations machine's:
 
 ## Calls the receiver makes
 
-Each call goes to the serving unit's configured base address, carrying that unit's token as a bearer (a unit that
-takes none, as the cache warmer, is configured with none and called with no `Authorization` header), by the
-method, path and body the serving unit's own boundary document gives it. Each unit is a port of the crate
+Each call goes to the serving unit's configured base address, carrying that unit's token as a bearer, by the
+method, path and body the serving unit's own boundary document gives it. Every unit the receiver calls takes a
+token, the cache warmer included, and the receiver is configured with each. Each unit is a port of the crate
 `receiver-ports`: a trait the receiver's code is written against and the HTTP client that answers it. A call is
 retried only where the connection was refused, within two minutes, offered every two seconds.
 
@@ -130,9 +130,16 @@ the questions of a job the owner answers in his chat, and tells the queue it mov
 
 ### The gate
 
-Its `docs/boundary-api.md`. The receiver hands it the turn's envelope and the words on their way in and out: a
-turn's reference, the sanitiser, a room's judgements, the judgements a round's answer is attached to, and a
-companion's gate options copied from the chat agent's.
+Its `docs/api.md` and `docs/boundary-api.md`, in the common format: camelCase keys and epoch milliseconds. The
+receiver hands it the turn's envelope and the words on their way in and out, every body in the gate's own shape:
+
+| Call | Route | Sends | Answers |
+|---|---|---|---|
+| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `offGates`, `records` | `entries`, each `path`, `text` and `source` |
+| the sanitiser | `POST /sanitised` | `text`, `label`, `roomId?`, `messageId?` | `text`, `changed` |
+| a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |
+| a round's judgements attached | `POST /judgements/attached` | `roomId`, `messageId`, `since` in epoch milliseconds | 204 |
+| a companion's options copied | `POST /options/copied` | `agentName`, `fromAgentName` | 204 |
 
 ### The web unit
 
@@ -144,8 +151,9 @@ relation on an object, making and revoking a grant, and a fixed line's words. Th
 
 ### The cache warmer
 
-Its `docs/api.md`: `PUT /consumers/{consumer}`, `PUT /consumers/{consumer}/targets/chat-touch` and
-`POST /consumers/{consumer}/targets/chat-touch/used`.
+Its `docs/api.md`, in camelCase and behind its token: `PUT /consumers/{consumer}` with `url`, the consumer's
+target-ping hook; `PUT /consumers/{consumer}/targets/chat-touch` with the target's clocks, `ttlMs` among them; and
+`POST /consumers/{consumer}/targets/chat-touch/uses`, a use of the target reported with `at?` and `startedAt?`.
 
 ### The chat services
 

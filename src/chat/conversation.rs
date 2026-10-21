@@ -1981,9 +1981,9 @@ impl Conversations {
   // A round that ended in silence is written down as the ending it was, on the message it read.
   async fn record_skip(&self, chat_id: i64, message_id: Option<i64>) {
     let judgement = Judgement {
-      chat: chat_id,
-      message: message_id,
-      stage: "skipped".to_owned(),
+      room_id: chat_id,
+      message_id,
+      gate_name: "skipped".to_owned(),
       verdict: "SKIP".to_owned(),
       detail: None,
       ms: None,

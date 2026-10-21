@@ -133,8 +133,8 @@ impl Speech {
     let asked = Sanitise {
       text: text.to_owned(),
       label: LABEL.to_owned(),
-      chat: Some(chat_id),
-      message: None,
+      room_id: Some(chat_id),
+      message_id: None,
     };
 
     Ok(self.units.gate.sanitise(&asked).await.map_err(NotSaid::Sanitiser)?.text)

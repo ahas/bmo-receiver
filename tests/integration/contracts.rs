@@ -162,7 +162,7 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
   let (status, answer) = pinged(
     &front,
     &format!("/warmer/ping?token={TOKEN}"),
-    json!({ "consumer": "receiver", "target": "chat-touch", "kind": "chat_touch", "subject": AGENT, "bound_ms": 1800000 }),
+    json!({ "consumer": "receiver", "target": "chat-touch", "kind": "chat-touch", "subject": AGENT, "bound_ms": 1800000 }),
   )
     .await;
 
@@ -175,12 +175,12 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
     pinged(
       &front,
       &format!("/warmer/ping?token={TOKEN}"),
-      json!({ "consumer": "receiver", "target": "other", "kind": "chat_touch", "subject": AGENT, "bound_ms": 1 }),
+      json!({ "consumer": "receiver", "target": "other", "kind": "chat-touch", "subject": AGENT, "bound_ms": 1 }),
     ).await.1["reason"].as_str().unwrap(),
     "the ping is not of the chat touch",
   );
   assert_eq!(
-    pinged(&front, "/warmer/ping?token=wrong", json!({ "consumer": "receiver", "target": "chat-touch", "kind": "chat_touch", "subject": AGENT, "bound_ms": 1 })).await.0,
+    pinged(&front, "/warmer/ping?token=wrong", json!({ "consumer": "receiver", "target": "chat-touch", "kind": "chat-touch", "subject": AGENT, "bound_ms": 1 })).await.0,
     StatusCode::UNAUTHORIZED,
   );
 }

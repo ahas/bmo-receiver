@@ -1,5 +1,5 @@
-//! The gate port against a stand-in of the routes the receiver states for the gate (`docs/boundary-api.md`,
-//! 「The gate」).
+//! The gate port against a stand-in of the gate's published routes (`docs/api.md`, 「Reference」, 「Sanitiser」,
+//! 「Judgements」 and 「Gates」).
 
 use receiver_ports::gate::{
   Entry, Envelope, Gate, HttpGate, Judgement, RoomKind, Sanitise, Sanitised, Situation, Source, TurnEvent,
@@ -9,39 +9,39 @@ use serde_json::json;
 use crate::stand_in::{StandIn, call};
 
 #[tokio::test]
-async fn every_call_on_the_gate_goes_out_as_the_receiver_states_it() {
+async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
   let unit = StandIn::start().await;
   let gate = HttpGate::new(&unit.peer("t"));
 
   unit.answer(
     "POST /reference/selected",
     200,
-    json!({ "entries": [{ "path": "docs/a.md", "text": "a", "source": "document", "fragment": 5 }] }),
+    json!({ "entries": [{ "path": "docs/a.md", "text": "a", "source": "document" }] }),
   );
   unit.answer("POST /sanitised", 200, json!({ "text": "clean", "changed": true }));
-  unit.answer_empty("POST /judgements", 204);
+  unit.answer("POST /judgements", 201, json!({ "id": 1 }));
   unit.answer_empty("POST /judgements/attached", 204);
   unit.answer_empty("POST /options/copied", 204);
 
   let envelope = Envelope {
-    chat: -7,
-    message: Some(11),
+    room_id: -7,
+    message_id: Some(11),
     lines: vec!["someone: words".to_owned()],
-    speakers: vec![42],
+    speaker_ids: vec![42],
     situation: Some(Situation {
-      agent: "agent-a".to_owned(),
-      room: RoomKind::Group,
+      agent_name: "agent-a".to_owned(),
+      room_kind: RoomKind::Group,
       events: vec![TurnEvent {
         kind: "job-ended".to_owned(),
-        item: Some(3),
+        item_id: Some(3),
       }],
-      now: 100,
+      now_at: 1_700_000_000_000,
     }),
     holds: None,
     round: Some("r-1".to_owned()),
     people_spoke: true,
     answered: None,
-    off: vec![],
+    off_gates: vec![],
     records: true,
   };
 
@@ -51,15 +51,15 @@ async fn every_call_on_the_gate_goes_out_as_the_receiver_states_it() {
       path: "docs/a.md".to_owned(),
       text: "a".to_owned(),
       source: Source::Document,
-      fragment: Some(5),
+      fragment: None,
     }]
   );
 
   let asked = Sanitise {
     text: "words".to_owned(),
     label: "a message".to_owned(),
-    chat: Some(-7),
-    message: Some(11),
+    room_id: Some(-7),
+    message_id: Some(11),
   };
 
   assert_eq!(
@@ -71,9 +71,9 @@ async fn every_call_on_the_gate_goes_out_as_the_receiver_states_it() {
   );
 
   let judgement = Judgement {
-    chat: -7,
-    message: None,
-    stage: "round".to_owned(),
+    room_id: -7,
+    message_id: None,
+    gate_name: "round".to_owned(),
     verdict: "skip".to_owned(),
     detail: None,
     ms: Some(12),
@@ -81,7 +81,7 @@ async fn every_call_on_the_gate_goes_out_as_the_receiver_states_it() {
   };
 
   gate.judge(&judgement).await.unwrap();
-  gate.attach(-7, 12, 1_700_000_000).await.unwrap();
+  gate.attach(-7, 12, 1_700_000_000_000).await.unwrap();
   gate.copy_options("companion-a", "agent-a").await.unwrap();
 
   assert_eq!(
@@ -91,35 +91,45 @@ async fn every_call_on_the_gate_goes_out_as_the_receiver_states_it() {
         "POST /reference/selected",
         "",
         Some(json!({
-          "chat": -7,
-          "message": 11,
+          "roomId": -7,
+          "messageId": 11,
           "lines": ["someone: words"],
-          "speakers": [42],
-          "situation": { "agent": "agent-a", "room": "group", "events": [{ "kind": "job-ended", "item": 3 }], "now": 100 },
+          "speakerIds": [42],
+          "situation": {
+            "agentName": "agent-a",
+            "roomKind": "group",
+            "events": [{ "kind": "job-ended", "itemId": 3 }],
+            "nowAt": 1_700_000_000_000_i64,
+          },
           "round": "r-1",
-          "people_spoke": true,
-          "off": [],
+          "peopleSpoke": true,
+          "offGates": [],
           "records": true,
         }))
       ),
       call(
         "POST /sanitised",
         "",
-        Some(json!({ "text": "words", "label": "a message", "chat": -7, "message": 11 }))
+        Some(json!({ "text": "words", "label": "a message", "roomId": -7, "messageId": 11 }))
       ),
       call(
         "POST /judgements",
         "",
-        Some(json!({ "chat": -7, "stage": "round", "verdict": "skip", "ms": 12 }))
+        Some(json!({ "roomId": -7, "gateName": "round", "verdict": "skip", "ms": 12 }))
       ),
       call(
         "POST /judgements/attached",
         "",
-        Some(json!({ "chat": -7, "message": 12, "since": 1_700_000_000 }))
+        Some(json!({ "roomId": -7, "messageId": 12, "since": 1_700_000_000_000_i64 }))
       ),
-      call("POST /options/copied", "", Some(json!({ "agent": "companion-a", "from": "agent-a" }))),
+      call(
+        "POST /options/copied",
+        "",
+        Some(json!({ "agentName": "companion-a", "fromAgentName": "agent-a" }))
+      ),
     ]
   );
+  assert!(unit.calls().iter().all(|call| call.authorization.as_deref() == Some("Bearer t")));
 }
 
 #[tokio::test]
@@ -131,8 +141,8 @@ async fn a_stopped_sanitiser_run_comes_back_with_its_code() {
   let asked = Sanitise {
     text: "words".to_owned(),
     label: "a message".to_owned(),
-    chat: None,
-    message: None,
+    room_id: None,
+    message_id: None,
   };
   let failure = HttpGate::new(&unit.peer("t")).sanitise(&asked).await.unwrap_err();
 
