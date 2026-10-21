@@ -170,14 +170,18 @@ receiver's (the agency's `docs/companions.md`, 「What the reset cuts off」).
 ## A companion's reset
 
 The reset is the agency's; it tells each unit holding the companion's rows to take its own, under the same
-`companion-reset.created` kind, naming the ranges it took and the rooms it took them in (the agency's
-`docs/companions.md`, 「Starting it afresh」), once the cut-off has let go what waited for the companion's
-turns. The two parts of the kind are told apart by their fields: a cut-off names the `point` alone, a reset
-names its `ranges`. The receiver takes its own rows of the ranges the event names, in one write:
+`companion-reset.created` kind, naming the ranges it took, the rooms it took them in and the runs its own log
+named (the agency's `docs/companions.md`, 「Starting it afresh」), once the cut-off has let go what waited for
+the companion's turns. The two parts of the kind are told apart by their fields: a cut-off names the `point`
+alone, a reset names its `ranges`. The receiver takes its own rows of the ranges the event names, in one write:
 
 - **The conversation range** takes the whole record of each room the companion answers alone (its messages and
   the receiver's read mark of it) and, in every room, the companion's own quiet instructions and the windows its
   rooms hold for it.
+- **The run records go with them:** every record of a room the companion answers alone, read by the run name
+  the room's chat runs open with, and every record written under one of the companion's own runs, whose names
+  the event carries from the agency's log. A chat run's name says its room but not the agent that ran it, so a
+  shared room keeps the records of the runs its other agents ran and loses only the companion's.
 - **The person range** takes the marks the companion's book of each room has read.
 - **A room counts as answered alone** where the event names it so and the receiver's own record holds the
   companion as its one answerer, so a room another agent also answers keeps its record whatever the event says.

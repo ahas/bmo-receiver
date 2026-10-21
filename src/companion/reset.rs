@@ -1,8 +1,9 @@
 //! The receiver's rows of a companion's reset (docs/wake.md, 「A companion's reset」; the agency's
 //! `docs/companions.md`, 「Starting it afresh」): the agency takes its own part and publishes the kind
 //! `companion-reset.created`, and the receiver takes its own rows of the ranges the event names, in one write. The
-//! conversation range takes the whole record of each room the companion answers alone, and its own instructions and
-//! windows in every room; the person range takes the marks its book of each room has read.
+//! conversation range takes the whole record of each room the companion answers alone, the run records those rooms'
+//! runs wrote down and those of the companion's own runs, and its own instructions and windows in every room; the
+//! person range takes the marks its book of each room has read.
 
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::Event;
@@ -22,7 +23,11 @@ pub const CONVERSATION: &str = "conversation";
 /// The range of what the companion remembers: its person book among it.
 pub const PERSON: &str = "person";
 
-/// A reset as the agency publishes it: the companion, the ranges taken, and the rooms it answers alone.
+/// The most run names one statement names, so a long list stays under what the database takes.
+const RUNS_PER_WRITE: usize = 500;
+
+/// A reset as the agency publishes it: the companion, the ranges taken, the rooms it answers alone, and the runs
+/// its own log named before its lines went.
 #[derive(Debug, Deserialize)]
 pub struct Reset {
   pub agent: String,
@@ -30,6 +35,10 @@ pub struct Reset {
   pub ranges: Vec<String>,
   #[serde(default)]
   pub alone: Vec<i64>,
+  /// The runs the companion's own log lines went under: what a run wrote down is kept under the run's name, which
+  /// says its room but not the agent that ran it.
+  #[serde(default)]
+  pub runs: Vec<String>,
 }
 
 /// What a reset took of the receiver's rows: each table it wrote, with the rows it took there.
@@ -66,7 +75,7 @@ impl Hearer for Resets {
         }
       };
 
-      match take(&self.receiver, &reset).await {
+      match take(&self.receiver, &reset, false).await {
         Ok(taken) => {
           let counts: Vec<String> = taken.iter().map(|(table, rows)| format!("{table} {rows}")).collect();
 
@@ -103,8 +112,33 @@ fn numbered(from: usize, count: usize) -> String {
   (from..from + count).map(|place| format!("${place}")).collect::<Vec<_>>().join(", ")
 }
 
-/// The receiver's rows of the ranges the reset names taken in one write, answered with what each table gave up.
-pub async fn take(receiver: &Receiver, reset: &Reset) -> Result<Taken, Fault> {
+/// One table's rows gone by the condition given, or counted where `dry_run`.
+async fn take_rows<C: ConnectionTrait>(
+  db: &C,
+  dry_run: bool,
+  table: &str,
+  condition: &str,
+  values: Vec<sea_orm::Value>,
+) -> Result<u64, Fault> {
+  if dry_run {
+    let rows =
+      all(db, &format!(r#"SELECT count(*) AS "rows" FROM "{table}" WHERE {condition}"#), values).await?;
+    let counted = rows
+      .first()
+      .map(|row| row.try_get::<i64>("", "rows"))
+      .transpose()
+      .map_err(Fault::from)?
+      .unwrap_or(0);
+
+    return Ok(u64::try_from(counted).unwrap_or(0));
+  }
+
+  run(db, &format!(r#"DELETE FROM "{table}" WHERE {condition}"#), values).await
+}
+
+/// The receiver's rows of the ranges the reset names, counted where `dry_run` and taken in one write otherwise,
+/// answered with what each table gave up.
+pub async fn take(receiver: &Receiver, reset: &Reset, dry_run: bool) -> Result<Taken, Fault> {
   let named = |range: &str| reset.ranges.iter().any(|one| one == range);
   let transaction = receiver.db().begin().await.map_err(Fault::from)?;
   let mut taken: Taken = vec![];
@@ -116,26 +150,67 @@ pub async fn take(receiver: &Receiver, reset: &Reset) -> Result<Taken, Fault> {
       let rooms: Vec<sea_orm::Value> = alone.iter().map(|room| (*room).into()).collect();
 
       for table in ["messages", "chat_reads"] {
-        let sql = format!(r#"DELETE FROM "{table}" WHERE "chat_id" IN ({})"#, numbered(1, alone.len()));
+        let condition = format!(r#""chat_id" IN ({})"#, numbered(1, alone.len()));
 
-        taken.push((table, run(&transaction, &sql, rooms.clone()).await?));
+        taken.push((table, take_rows(&transaction, dry_run, table, &condition, rooms.clone()).await?));
       }
     }
 
-    for table in ["instructions", "room_windows"] {
-      let sql = format!(r#"DELETE FROM "{table}" WHERE "agent" = $1"#);
+    // A chat run's name opens with its room, so a room's whole record goes by the name; the companion's own
+    // runs in the rooms it shares are named by the agency's log, the only record that says which agent a run
+    // ran for, and go by those names too.
+    let mut runs = 0;
 
-      taken.push((table, run(&transaction, &sql, vec![reset.agent.clone().into()]).await?));
+    if !alone.is_empty() {
+      let condition = alone
+        .iter()
+        .enumerate()
+        .map(|(at, _)| format!(r#""run" LIKE 'chat:' || CAST(${} AS TEXT) || ':%'"#, at + 1))
+        .collect::<Vec<_>>()
+        .join(" OR ");
+      let rooms: Vec<sea_orm::Value> = alone.iter().map(|room| (*room).into()).collect();
+
+      runs += take_rows(&transaction, dry_run, "run_records", &condition, rooms).await?;
+    }
+
+    for chunk in reset.runs.chunks(RUNS_PER_WRITE) {
+      let condition = format!(r#""run" IN ({})"#, numbered(1, chunk.len()));
+      let values: Vec<sea_orm::Value> = chunk.iter().map(|run| run.clone().into()).collect();
+
+      runs += take_rows(&transaction, dry_run, "run_records", &condition, values).await?;
+    }
+
+    taken.push(("run_records", runs));
+
+    for table in ["instructions", "room_windows"] {
+      let condition = r#""agent" = $1"#;
+
+      taken.push((
+        table,
+        take_rows(&transaction, dry_run, table, condition, vec![reset.agent.clone().into()]).await?,
+      ));
     }
   }
 
   if named(PERSON) {
-    let sql = r#"DELETE FROM "people_reads" WHERE "agent" = $1"#;
-
-    taken.push(("people_reads", run(&transaction, sql, vec![reset.agent.clone().into()]).await?));
+    taken.push((
+      "people_reads",
+      take_rows(
+        &transaction,
+        dry_run,
+        "people_reads",
+        r#""agent" = $1"#,
+        vec![reset.agent.clone().into()],
+      )
+      .await?,
+    ));
   }
 
-  transaction.commit().await.map_err(Fault::from)?;
+  if dry_run {
+    transaction.rollback().await.map_err(Fault::from)?;
+  } else {
+    transaction.commit().await.map_err(Fault::from)?;
+  }
 
   Ok(taken)
 }
