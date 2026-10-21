@@ -1,7 +1,7 @@
 //! One contract test per sibling document (`docs/boundary-api.md`): what each sibling's own document states of
 //! the routes the receiver serves, checked as that document words it — bmo-job's `docs/api.md` 「bmo-receiver」,
-//! bmo-chat's `docs/protocol.md` 「Receiver routes」, the cache warmer's `docs/api.md` 「The ping hook」, and the
-//! agency's `docs/api.md` 「Hooks」. The brain's 18 routes are `brain_contract.rs`.
+//! bmo-chat's `docs/protocol.md` 「Receiver routes」, the cache warmer's `docs/api.md` 「The target-ping hook」,
+//! and the agency's `docs/api.md` 「Hooks」. The brain's 18 routes are `brain_contract.rs`.
 
 use axum::http::StatusCode;
 use serde_json::json;
@@ -162,25 +162,46 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
   let (status, answer) = pinged(
     &front,
     &format!("/warmer/ping?token={TOKEN}"),
-    json!({ "consumer": "receiver", "target": "chat-touch", "kind": "chat-touch", "subject": AGENT, "bound_ms": 1800000 }),
+    json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "kind": "chat-touch", "dueAt": 1_800_000, "boundMs": 1_800_000 }),
   )
     .await;
 
   assert_eq!(status, StatusCode::OK);
   assert_eq!(answer["outcome"].as_str().unwrap(), "skipped");
+  assert_eq!(answer["code"].as_str().unwrap(), "no-conversation");
   assert_eq!(answer["reason"].as_str().unwrap(), "no conversations stand to be touched",);
 
-  // A ping of another target is passed over, and one behind a wrong token is refused.
+  // A skipped answer carries the code the warmer reads it under (its `docs/api.md`, 「The target-ping hook」).
+  let (_, answered) = pinged(
+    &front,
+    &format!("/warmer/ping?token={TOKEN}"),
+    json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "dueAt": 0, "boundMs": 1 }),
+  )
+  .await;
+  assert_eq!(answered["outcome"].as_str().unwrap(), "skipped");
+  assert_eq!(answered["code"].as_str().unwrap(), "no-conversation");
+
+  // A ping of another target or another kind is passed over, and one behind a wrong token is refused.
+  let (_, other_target) = pinged(
+    &front,
+    &format!("/warmer/ping?token={TOKEN}"),
+    json!({ "consumerName": "receiver", "targetName": "other", "subjectName": AGENT, "kind": "chat-touch", "dueAt": 0, "boundMs": 1 }),
+  )
+  .await;
+  assert_eq!(other_target["outcome"].as_str().unwrap(), "skipped");
+  assert_eq!(other_target["code"].as_str().unwrap(), "not-chat-touch");
+  assert_eq!(other_target["reason"].as_str().unwrap(), "the ping is not of the chat touch");
+
+  let (_, other_kind) = pinged(
+    &front,
+    &format!("/warmer/ping?token={TOKEN}"),
+    json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "kind": "other", "dueAt": 0, "boundMs": 1 }),
+  )
+  .await;
+  assert_eq!(other_kind["outcome"].as_str().unwrap(), "skipped");
+  assert_eq!(other_kind["code"].as_str().unwrap(), "not-chat-touch");
   assert_eq!(
-    pinged(
-      &front,
-      &format!("/warmer/ping?token={TOKEN}"),
-      json!({ "consumer": "receiver", "target": "other", "kind": "chat-touch", "subject": AGENT, "bound_ms": 1 }),
-    ).await.1["reason"].as_str().unwrap(),
-    "the ping is not of the chat touch",
-  );
-  assert_eq!(
-    pinged(&front, "/warmer/ping?token=wrong", json!({ "consumer": "receiver", "target": "chat-touch", "kind": "chat-touch", "subject": AGENT, "bound_ms": 1 })).await.0,
+    pinged(&front, "/warmer/ping?token=wrong", json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "kind": "chat-touch", "dueAt": 0, "boundMs": 1 })).await.0,
     StatusCode::UNAUTHORIZED,
   );
 }

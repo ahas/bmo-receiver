@@ -262,12 +262,13 @@ repository's, in `VERSION`; it is never taken from a registry.
 | Route | Body | Answers |
 |---|---|---|
 | `POST /hooks/{point}` | the agency's `{point, ask}` | `answer` |
-| `POST /warmer/ping?token=` | `consumer`, `target`, `kind`, `subject`, `boundMs` | `outcome` (`warmed`, `busy`, `skipped` or `failed`), `code?`, `reason?` |
+| `POST /warmer/ping?token=` | `consumerName`, `targetName`, `subjectName`, `kind?`, `dueAt`, `boundMs` | `outcome` (`warmed`, `busy`, `skipped` or `failed`), `code?`, `reason?` |
 
 - **The points** are `room-title` (the room's title, or null), `typed-line` (the context a typed line goes on
   with, or null) and `road-verbs` (the verbs the road performs).
 - **The warmer's ping** is the one route outside the bearer check; the token stands in the URL the receiver
-  registered.
+  registered. Its body is the warmer's own published body, `kind` among it optional, and a `skipped` answer
+  carries its code (`docs/codes.md`, 「SkipReason」), which the warmer requires of every skip.
 
 ## Rounds
 

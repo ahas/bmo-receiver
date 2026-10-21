@@ -25,17 +25,27 @@ use crate::receiver::wake::rest;
 use crate::receiver::{Inbound, Receiver, Room};
 use crate::store::{Fault, settings};
 
-/// What the warmer's ping names the touch of: the consumer, the target, its kind and subject, and the stretch it
-/// is bound to, in the names the warmer's own document gives them.
+/// What the warmer's ping names the touch of: the consumer, the target, its subject and its kind, when it fell
+/// due and the stretch it is bound to, in the camelCase the warmer's own document gives them (the cache warmer's
+/// `docs/api.md`, 「The target-ping hook」).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct Ping {
-  pub consumer: String,
-  pub target: String,
-  pub kind: String,
+  pub consumer_name: String,
+  pub target_name: String,
+  pub subject_name: String,
   #[serde(default)]
-  pub subject: Option<String>,
+  pub kind: Option<String>,
+  pub due_at: i64,
   pub bound_ms: i64,
+}
+
+impl Ping {
+  /// Whether the ping is of the chat touch the receiver registered: its target, and its kind where the warmer
+  /// hands the registered kind back.
+  pub fn is_chat_touch(&self) -> bool {
+    self.target_name == "chat-touch" && self.kind.as_deref().is_none_or(|kind| kind == "chat-touch")
+  }
 }
 
 /// Which of the four a touch was.
@@ -109,7 +119,7 @@ pub async fn skipped(receiver: &Receiver, agent: &str) -> Option<TouchAnswer> {
   if !unified_session(receiver, agent).await {
     return Some(TouchAnswer {
       outcome: TouchOutcome::Skipped,
-      code: None,
+      code: Some(SkipReason::PerRoom),
       reason: Some("the agent keeps a session in each room".to_owned()),
     });
   }
@@ -167,7 +177,7 @@ pub async fn touch(
   let Some(last) = last_launch(db, agent).await else {
     return TouchAnswer {
       outcome: TouchOutcome::Skipped,
-      code: None,
+      code: Some(SkipReason::NoSession),
       reason: Some("the session never stood in a room".to_owned()),
     };
   };
@@ -182,7 +192,7 @@ pub async fn touch(
   if now - last.at < idle_ms {
     return TouchAnswer {
       outcome: TouchOutcome::Skipped,
-      code: None,
+      code: Some(SkipReason::UsedRecently),
       reason: Some("the session answered not long enough ago".to_owned()),
     };
   }
@@ -263,10 +273,10 @@ pub async fn touch(
 
 /// The warmer's ping answered: the touch of the chat agent's one session, where the ping is of that target.
 pub async fn ping(conversations: &Conversations, ping: &Ping) -> TouchAnswer {
-  if ping.kind != "chat-touch" || ping.target != "chat-touch" {
+  if !ping.is_chat_touch() {
     return TouchAnswer {
       outcome: TouchOutcome::Skipped,
-      code: None,
+      code: Some(SkipReason::NotChatTouch),
       reason: Some("the ping is not of the chat touch".to_owned()),
     };
   }

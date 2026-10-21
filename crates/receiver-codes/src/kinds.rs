@@ -58,7 +58,7 @@ pub enum TurnOpening {
   FoldDeferred,
 }
 
-/// Why a road was passed over for a turn.
+/// Why a road was passed over for a turn, or a keepalive touch passed over for a session.
 #[derive(
   Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display, IntoStaticStr, VariantNames,
 )]
@@ -67,6 +67,16 @@ pub enum TurnOpening {
 pub enum SkipReason {
   /// The provider is switched off.
   ProviderOff,
+  /// The agent keeps a session in each room, so it has no one session to keep warm.
+  PerRoom,
+  /// The session never stood in a room.
+  NoSession,
+  /// The session was used not long enough ago for a touch.
+  UsedRecently,
+  /// No conversations stand to be touched.
+  NoConversation,
+  /// The ping names a target other than the chat touch.
+  NotChatTouch,
 }
 
 /// How a companion's engine ended its turn with an error.

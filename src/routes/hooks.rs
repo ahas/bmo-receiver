@@ -8,6 +8,7 @@ use axum::{
   extract::{Path, Query, State},
   http::StatusCode,
 };
+use receiver_codes::SkipReason;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -126,17 +127,17 @@ pub async fn ping(State(served): State<Served>, query: Query<Tokened>, body: Byt
 
 /// The touch the ping asks for, as the conversations hold it.
 async fn touched(receiver: &Receiver, ping: &Ping) -> Result<TouchAnswer, Fault> {
-  if ping.kind != "chat-touch" || ping.target != "chat-touch" {
+  if !ping.is_chat_touch() {
     return Ok(TouchAnswer {
       outcome: TouchOutcome::Skipped,
-      code: None,
+      code: Some(SkipReason::NotChatTouch),
       reason: Some("the ping is not of the chat touch".to_owned()),
     });
   }
   let Some(touching) = receiver.touching() else {
     return Ok(TouchAnswer {
       outcome: TouchOutcome::Skipped,
-      code: None,
+      code: Some(SkipReason::NoConversation),
       reason: Some("no conversations stand to be touched".to_owned()),
     });
   };

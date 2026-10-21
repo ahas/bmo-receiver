@@ -223,6 +223,11 @@ session once the setting has changed, one waiting per setting.
 | Kind | Meaning |
 |---|---|
 | `provider-off` | the provider is switched off |
+| `per-room` | the agent keeps a session in each room, so it has no one session to keep warm |
+| `no-session` | the session never stood in a room |
+| `used-recently` | the session was used not long enough ago for a touch |
+| `no-conversation` | no conversations stand to be touched |
+| `not-chat-touch` | the ping names a target other than the chat touch |
 
 ### EngineError
 
