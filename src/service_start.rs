@@ -47,6 +47,7 @@ pub async fn call_names(agency: Arc<dyn Agency>, agent: &str) -> Vec<String> {
   let listed = agency.agents().await.unwrap_or(Agents {
     agents: vec![],
     roles: vec![],
+    more: false,
   });
 
   let names: BTreeSet<String> = listed

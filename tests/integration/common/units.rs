@@ -666,7 +666,7 @@ pub struct StandInAgency {
   pub session: Mutex<Option<Arc<StandInSession>>>,
   pub removals: Mutex<Vec<CompanionRemoval>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
-  pub pushes: Mutex<Vec<(String, String)>>,
+  pub pushes: Mutex<Vec<(String, i64, String)>>,
   pub saying: Mutex<Option<Said>>,
   pub agents: Mutex<Vec<Agent>>,
   pub stand_ins: Mutex<BTreeSet<String>>,
@@ -778,6 +778,7 @@ impl Agency for StandInAgency {
       Ok(Agents {
         agents: self.agents.lock().unwrap().clone(),
         roles: vec![],
+        more: false,
       })
     })
   }
@@ -838,7 +839,7 @@ impl Agency for StandInAgency {
     Box::pin(async move { session.state().await })
   }
 
-  fn interrupt<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
+  fn interrupt<'a>(&'a self, _session: &'a str, _turn: i64) -> BoxFuture<'a, Answer<()>> {
     not_asked_agency("an interrupt")
   }
 
@@ -910,8 +911,8 @@ impl Agency for StandInAgency {
     Box::pin(async move { session.events().await })
   }
 
-  fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>> {
-    self.pushes.lock().unwrap().push((session.to_owned(), words.to_owned()));
+  fn push<'a>(&'a self, session: &'a str, turn: i64, words: &'a str) -> BoxFuture<'a, Answer<Said>> {
+    self.pushes.lock().unwrap().push((session.to_owned(), turn, words.to_owned()));
 
     let said = *self.saying.lock().unwrap();
 

@@ -13,30 +13,47 @@ use crate::stand_in::{StandIn, call};
 async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads() {
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
-  let session = json!({ "id": "agent-a@-7", "agent": "agent-a", "scope": { "kind": "room", "room": -7 } });
+  let session = json!({
+    "id": "agent-a@-7",
+    "agentName": "agent-a",
+    "scope": "room",
+    "roomId": -7,
+    "provider": "claude-code",
+    "model": "m",
+    "place": null,
+    "generation": 2,
+  });
 
   unit.answer(
     "GET /agents",
     200,
-    json!({ "agents": [{ "name": "agent-a", "awake": false, "brainFolder": "", "roads": ["chat"] }], "roles": ["chat"] }),
+    json!({
+      "items": [{ "name": "agent-a", "awake": false, "brainFolder": "", "roads": ["chat"] }],
+      "roles": ["chat"],
+      "more": false,
+    }),
   );
-  unit.answer("POST /session/start", 200, session.clone());
-  unit.answer("POST /session/turn", 200, json!({ "delivery": "blocked" }));
-  unit.answer(
-    "GET /session/state",
-    200,
-    json!({ "session": "agent-a@-7", "provider": "claude-code", "model": "m", "place": null, "generation": 2, "context": {} }),
-  );
-  unit.answer("POST /session/fold", 200, json!({ "ok": true }));
-  unit.answer("GET /session/list", 200, json!({ "sessions": [session] }));
+  unit.answer("POST /sessions", 201, session.clone());
+  unit.answer("POST /sessions/agent-a@-7/turns", 201, json!({ "delivery": "blocked" }));
+  unit.answer("GET /sessions/agent-a@-7", 200, session.clone());
+  unit.answer("POST /sessions/agent-a@-7/folds", 201, json!({ "sessionId": "agent-a@-7", "at": 5 }));
+  unit.answer("GET /sessions", 200, json!({ "items": [session], "more": false }));
   unit.answer(
     "POST /rooms/forget",
     200,
     json!({ "gone": { "room_sessions": 1 }, "stayed": [{ "table": "agent_log", "rows": 3, "why": "the job's" }] }),
   );
-  unit.answer_empty("POST /hooks", 204);
-  unit.answer("GET /run-log", 200, json!({ "lines": [{ "id": 4, "text": "a line" }] }));
-  unit.answer("GET /reset-point", 200, json!({ "point": 2_000 }));
+  unit.answer_empty("PUT /hooks/room-title", 200);
+  unit.answer(
+    "GET /log-lines",
+    200,
+    json!({ "items": [{ "id": 4, "text": "a line" }], "more": false }),
+  );
+  unit.answer(
+    "GET /agents/agent-a",
+    200,
+    json!({ "name": "agent-a", "resetAt": 2_000, "standInAvailable": true }),
+  );
 
   let agents = agency.agents().await.unwrap();
 
@@ -81,15 +98,14 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     [
       call("GET /agents", "", None),
       call(
-        "POST /session/start",
+        "POST /sessions",
         "",
-        Some(json!({ "agent": "agent-a", "scope": { "kind": "room", "room": -7 } }))
+        Some(json!({ "agentName": "agent-a", "scope": "room", "roomId": -7 }))
       ),
       call(
-        "POST /session/turn",
+        "POST /sessions/agent-a@-7/turns",
         "",
         Some(json!({
-          "session": "agent-a@-7",
           "prompt": "words",
           "room": { "chatId": -7, "text": "the room", "mark": "m" },
           "privileged": true,
@@ -97,19 +113,17 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
           "began": 1000,
         }))
       ),
-      call("GET /session/state", "session=agent-a%40-7", None),
-      call("POST /session/fold", "", Some(json!({ "session": "agent-a@-7" }))),
-      call("GET /session/list", "", None),
+      call("GET /sessions/agent-a@-7", "", None),
+      call("POST /sessions/agent-a@-7/folds", "", Some(json!({}))),
+      call("GET /sessions", "", None),
       call("POST /rooms/forget", "", Some(json!({ "chatId": -7, "dryRun": true }))),
       call(
-        "POST /hooks",
+        "PUT /hooks/room-title",
         "",
-        Some(
-          json!({ "point": "room-title", "url": "http://receiver/agency/hooks/room-title", "token": "t" })
-        )
+        Some(json!({ "url": "http://receiver/agency/hooks/room-title", "token": "t" }))
       ),
-      call("GET /run-log", "run=run-1&after=3", None),
-      call("GET /reset-point", "agent=agent-a", None),
+      call("GET /log-lines", "run=run-1&after=3", None),
+      call("GET /agents/agent-a", "", None),
     ]
   );
 }
@@ -119,7 +133,7 @@ async fn a_session_fault_comes_back_with_its_outcome_code() {
   let unit = StandIn::start().await;
 
   unit.answer(
-    "POST /session/end",
+    "DELETE /sessions/agent-a@-7",
     409,
     json!({ "code": "session-busy", "error": "The session is in a turn." }),
   );
@@ -264,28 +278,24 @@ async fn words_pushed_into_a_working_turn_read_each_answer_the_agency_gives() {
   for (said, read) in
     [("delivered", Said::Delivered), ("waiting", Said::Waiting), ("refused", Said::Refused)]
   {
-    unit.answer("POST /session/push", 200, json!({ "said": said }));
+    unit.answer("POST /sessions/agent-a@-7/turns/4/inputs", 201, json!({ "said": said }));
 
-    assert_eq!(agency.push("agent-a@-7", "more words").await.unwrap(), read);
+    assert_eq!(agency.push("agent-a@-7", 4, "more words").await.unwrap(), read);
   }
 
   unit.answer(
-    "POST /session/push",
+    "POST /sessions/agent-a@-7/turns/4/inputs",
     404,
     json!({ "code": "unknown-session", "error": "No such session." }),
   );
 
   assert_eq!(
-    agency.push("agent-a@-7", "more words").await.unwrap_err().code(),
+    agency.push("agent-a@-7", 4, "more words").await.unwrap_err().code(),
     Some("unknown-session")
   );
   assert_eq!(
     unit.took()[0],
-    call(
-      "POST /session/push",
-      "",
-      Some(json!({ "session": "agent-a@-7", "words": "more words" }))
-    )
+    call("POST /sessions/agent-a@-7/turns/4/inputs", "", Some(json!({ "words": "more words" })))
   );
 }
 
@@ -294,7 +304,7 @@ async fn a_reset_point_and_a_passed_rest_read_their_empty_answers_and_a_missing_
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
 
-  unit.answer("GET /reset-point", 200, json!({ "point": null }));
+  unit.answer("GET /agents/agent-a", 200, json!({ "resetAt": null }));
   unit.answer("GET /rest/passed", 200, json!({ "kind": "limit" }));
 
   assert_eq!(agency.reset_point("agent-a").await.unwrap(), None);
@@ -304,16 +314,20 @@ async fn a_reset_point_and_a_passed_rest_read_their_empty_answers_and_a_missing_
 
   assert_eq!(agency.passed_rest().await.unwrap().kind, None);
 
-  unit.answer("GET /reset-point", 400, json!({ "error": "No agent is named." }));
+  unit.answer(
+    "GET /agents/no-agent",
+    404,
+    json!({ "code": "not-found", "error": "No agent is named no-agent." }),
+  );
 
-  assert_eq!(agency.reset_point("").await.unwrap_err().status(), Some(400));
+  assert_eq!(agency.reset_point("no-agent").await.unwrap_err().status(), Some(404));
   assert_eq!(
     unit.took(),
     [
-      call("GET /reset-point", "agent=agent-a", None),
+      call("GET /agents/agent-a", "", None),
       call("GET /rest/passed", "", None),
       call("GET /rest/passed", "", None),
-      call("GET /reset-point", "agent=", None),
+      call("GET /agents/no-agent", "", None),
     ]
   );
 }

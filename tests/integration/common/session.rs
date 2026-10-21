@@ -1,5 +1,5 @@
 //! A stand-in for the agency's sessions (docs/boundary-api.md, 「The agency」): a session started for every asking,
-//! its state, the turn-started and turn-ended events of every turn it carries on its event stream, with whatever
+//! its state, the turn.created and turn.ended events of every turn it carries on its event stream, with whatever
 //! else a test publishes there, and an empty run log. A turn it is told to hold stands working after it started
 //! until the test lets it go, so words can come into the room while it works; a turn ends answered, or as the
 //! test set it to end.
@@ -140,7 +140,15 @@ impl StandInSession {
       };
 
       *self.working.lock().unwrap() = true;
-      self.told("turn-started", json!({ "session": self.id, "run": format!("run-{number}") }));
+      self.told(
+        "turn.created",
+        json!({
+          "id": number,
+          "kind": "turn.created",
+          "at": 0,
+          "data": { "session": self.id, "run": format!("run-{number}"), "turnId": number, "at": 0 },
+        }),
+      );
 
       if holds {
         self.let_go.notified().await;
@@ -155,9 +163,9 @@ impl StandInSession {
 
       ended["session"] = json!(self.id);
       *self.working.lock().unwrap() = false;
-      self.told("turn-ended", ended);
+      self.told("turn.ended", json!({ "id": number, "kind": "turn.ended", "at": 0, "data": ended }));
 
-      Ok(Delivery::Taken)
+      Ok(Delivery::Delivered)
     })
   }
 

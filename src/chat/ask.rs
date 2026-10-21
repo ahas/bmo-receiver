@@ -110,6 +110,14 @@ fn fault_of(why: PortFailure) -> Failure {
   Failure::Failed(why.to_string())
 }
 
+// The member an event carries: the agency's envelope around it, or the member itself where it comes without one.
+fn carried_event(data: &Value) -> &Value {
+  match data.get("data") {
+    Some(body) if data.get("kind").is_some() => body,
+    _ => data,
+  }
+}
+
 /// The session scope an agent's turns go on: one across its rooms, or the room's own.
 pub fn scope_of(unified: bool, chat_id: i64) -> Scope {
   if unified { Scope::Agent } else { Scope::Room { room: chat_id } }
@@ -218,7 +226,7 @@ impl Carry {
     };
 
     let turn = turn_of(asking, &session, &room, &prompt);
-    let kinds: Vec<&'static str> = vec!["turn-started", "turn-ended"];
+    let kinds: Vec<&'static str> = vec!["turn.created", "turn.ended"];
     let mut stream = agency.events(&kinds).await.map_err(fault_of)?;
 
     // The turn is sent apart, so the room's picture of it can be drawn from the run's log while it works.
@@ -228,6 +236,7 @@ impl Carry {
     let handed = handed_of(chat_id, send, &asking.context, &marked);
     let mut picture = RunProgress::starting(&handed);
     let mut run: Option<String> = None;
+    let mut turning: Option<i64> = None;
     let mut after: i64 = 0;
     let mut ended: Option<Value> = None;
     let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
@@ -239,8 +248,10 @@ impl Carry {
       let read = tokio::select! {
         read = stream.next() => read,
         _ = look.tick() => {
-          if run.is_some() && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until) {
-            quiet_until = pushed(agency.as_ref(), &session.id, follower).await;
+          if let Some(turning) = turning
+            && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
+          {
+            quiet_until = pushed(agency.as_ref(), &session.id, turning, follower).await;
           }
 
           continue;
@@ -250,12 +261,14 @@ impl Carry {
       match read {
         None => break,
         Some(Ok(Event { kind, data })) => {
-          let mine = data.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
+          let body = carried_event(&data);
+          let mine = body.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
 
-          if mine && kind == "turn-started" {
-            run = data.get("run").and_then(Value::as_str).map(str::to_owned);
-          } else if mine && kind == "turn-ended" {
-            ended = Some(data.clone());
+          if mine && kind == "turn.created" {
+            run = body.get("run").and_then(Value::as_str).map(str::to_owned);
+            turning = body.get("turnId").and_then(Value::as_i64);
+          } else if mine && kind == "turn.ended" {
+            ended = Some(body.clone());
           }
         }
         Some(Err(why)) => return Err(fault_of(why)),
@@ -265,7 +278,11 @@ impl Carry {
         let since = if after == 0 { None } else { Some(after) };
 
         for line in agency.run_log(run, since).await.map_err(fault_of)? {
-          let text = serde_json::to_string(&line).unwrap_or_default();
+          let text = line
+            .get("text")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .unwrap_or_else(|| serde_json::to_string(&line).unwrap_or_default());
 
           if let Some(read) = picture.read(&text) {
             picture = read;
@@ -289,7 +306,7 @@ impl Carry {
     let answer = ended.get("answer").and_then(Value::as_str).unwrap_or_default();
     let outcome = ended.get("outcome").and_then(Value::as_str).unwrap_or_default();
 
-    if delivered == Delivery::Taken {
+    if delivered == Delivery::Delivered {
       let _ =
         remember_held(receiver, Some(started_id.as_str()), &session.id, Some(&room), true, &asking.prompt)
           .await;
@@ -345,9 +362,14 @@ impl Carry {
 /// The words that came for the round's room while its turn works, offered to the turn and settled on what the
 /// agency said became of them; answered with the moment before which nothing more is offered, where a refusal
 /// or a push that failed asks for that gap.
-pub async fn pushed(agency: &dyn Agency, session: &str, aside: &dyn Aside) -> Option<tokio::time::Instant> {
+pub async fn pushed(
+  agency: &dyn Agency,
+  session: &str,
+  turn: i64,
+  aside: &dyn Aside,
+) -> Option<tokio::time::Instant> {
   let words = aside.offer().await?;
-  let said = match agency.push(session, &words).await {
+  let said = match agency.push(session, turn, &words).await {
     Ok(said) => said,
     Err(why) => {
       eprintln!("session {session}: words for the working turn did not go in: {why}");

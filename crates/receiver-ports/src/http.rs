@@ -217,6 +217,13 @@ impl Caller {
     succeeded(url, answer).await
   }
 
+  /// A call of `method` with no body, whose success carries nothing the receiver reads.
+  pub async fn without(&self, method: Method, segments: &[&str]) -> Answer<()> {
+    let (url, answer) = self.sent::<()>(method, segments, None, &[]).await?;
+
+    succeeded(url, answer).await
+  }
+
   /// A POST with a JSON body, its successful answer decoded as the call's.
   pub async fn post<T: DeserializeOwned>(&self, segments: &[&str], body: &impl Serialize) -> Answer<T> {
     self.call(Method::POST, segments, body).await

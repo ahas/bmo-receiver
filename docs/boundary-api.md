@@ -91,27 +91,29 @@ room's matter.
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| the agents | `GET /agents` | | `agents`, each with its row's fields, its roads and whether it is awake |
-| a stand-in | `GET /stand-in?agent=` | | whether a stand-in answers the agent while the rest closes its road |
+| the agents | `GET /agents` | | `items`, the agents each with its row's fields, its roads and whether it is awake, `roles` and `more` |
+| a stand-in | `GET /agents/{agent}` | | `standInAvailable`, whether a stand-in answers the agent while the rest closes its road |
 | the rest | `GET /rest` | | `resting`, `until`, `kind` |
 | a rest written | `POST /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `GET /rest/passed` | | `kind` |
-| start a session | `POST /session/start` | `agent`, `scope` | `id`, `agent`, `scope` |
-| send a turn | `POST /session/turn` | `session`, `prompt`, the context | `delivery` |
-| read a session | `GET /session/state?session=` | | `session`, `provider`, `model`, `place`, `generation`, `context` |
-| push words | `POST /session/push` | `session`, `words` | `said` |
-| interrupt, fold, end | `POST /session/interrupt`, `POST /session/fold`, `POST /session/end` | `session` | `ok` |
-| list sessions | `GET /session/list` | | `sessions` |
+| start a session | `POST /sessions` | `agentName`, `scope`, `roomId` | the session's `id`, `agentName`, `scope`, `roomId` |
+| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context | `id`, `delivery` |
+| read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation` |
+| push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
+| interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
+| fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
+| end a session | `DELETE /sessions/{sessionId}` | | nothing |
+| list sessions | `GET /sessions` | | `items` |
 | forget a room | `POST /rooms/forget` | `chatId`, `dryRun` | `gone`, `stayed` |
-| register a hook | `POST /hooks` | `point`, `url`, `token` | |
+| register a hook | `PUT /hooks/{point}` | `url`, `token` | the registration |
 | a companion registered or taken out | `POST /companions/add`, `POST /companions/remove` | the companion's fields, or `agent`, `rooms`, `by` | `ok` |
-| a run's log | `GET /run-log?run=&after=` | | `lines` |
-| an agent's reset point | `GET /reset-point?agent=` | | `point` |
+| a run's log | `GET /log-lines?run=&after=` | | `items` |
+| an agent's reset point | `GET /agents/{agent}` | | `resetAt` |
 | a run | `GET /runs/{id}` | | the run's row |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
-and is opened again when it drops: `turn-started`, `turn-ended`, `companion-cut-off`, `companion-reset`,
+and is opened again when it drops: `turn.created`, `turn.ended`, `companion-cut-off`, `companion-reset`,
 `documents-moved`, `fallback-answering`, `fallback-ended`, `deployment-resting`, `account-login-notice`,
 `run-recovered`, `worker-downgraded`, `herdr-leftovers`, `machine-pressure`, `clock-asked` and `clock-ask-closed`.
 `companion-run-going` is read by none of it.

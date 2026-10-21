@@ -526,13 +526,13 @@ async fn a_turn_its_agent_reset_after_it_began_is_refused_before_anything_is_ask
     .answers
     .lock()
     .unwrap()
-    .insert("/reset-point".to_string(), json!({ "point": 2_000 }));
+    .insert("/agents/agent-a".to_string(), json!({ "resetAt": 2_000 }));
 
   let answered = call(&session, "say", json!({ "text": "late" })).await;
 
   assert!(answered.is_error);
   assert!(answered.plain().contains("reset after this turn began"));
-  assert_eq!(routes_of(&book), Vec::from(["/reset-point"]));
+  assert_eq!(routes_of(&book), Vec::from(["/agents/agent-a"]));
 }
 
 #[tokio::test]
@@ -597,5 +597,5 @@ async fn the_executable_answers_one_request_on_its_standard_streams() {
     serde_json::from_slice::<Value>(&done.stdout).unwrap(),
     json!({ "content": [{ "type": "text", "text": "sent" }], "isError": false }),
   );
-  assert_eq!(routes_of(&book), Vec::from(["/reset-point", "/sends"]));
+  assert_eq!(routes_of(&book), Vec::from(["/agents/agent-a", "/sends"]));
 }

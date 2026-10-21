@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sse_stream::SseStream;
 
-use crate::http::{Answer, Caller, Done, Peer, PortFailure};
+use crate::http::{Answer, Caller, Done, Nothing, Peer, PortFailure};
 
 /// One agent as the agency lists it: its registration name, whether it is awake, the brain folder its long-term
 /// memory is in, and every other field of its row and roads as the agency gives them.
@@ -33,12 +33,16 @@ fn listed_awake() -> bool {
   true
 }
 
-/// Every agent, and every role an agent may hold.
+/// Every agent, every role an agent may hold, and whether more stand beyond the page (the agency's page of
+/// agents).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Agents {
+  #[serde(rename = "items")]
   pub agents: Vec<Agent>,
   #[serde(default)]
   pub roles: Vec<Value>,
+  #[serde(default)]
+  pub more: bool,
 }
 
 /// The scope a session is kept for.
@@ -53,6 +57,46 @@ pub enum Scope {
   },
   Worker,
   Editor,
+  /// A session thrown away after its one use.
+  Apart,
+  /// A conversation the caller keeps for itself.
+  Conversation,
+}
+
+impl Scope {
+  /// The scope's word, as a session's start and its member name it.
+  pub fn word(&self) -> &'static str {
+    match self {
+      Self::Agent => "agent",
+      Self::Room { .. } => "room",
+      Self::Worker => "worker",
+      Self::Editor => "editor",
+      Self::Apart => "apart",
+      Self::Conversation => "conversation",
+    }
+  }
+
+  /// The room a room's scope names, and none for any other.
+  pub fn room(&self) -> Option<i64> {
+    match self {
+      Self::Room { room } => Some(*room),
+      _ => None,
+    }
+  }
+}
+
+// The scope a session's member names by its word and its room, or the agent's where it names neither.
+fn scope_of(word: &str, room: Option<i64>) -> Scope {
+  match word {
+    "room" => Scope::Room {
+      room: room.unwrap_or_default(),
+    },
+    "worker" => Scope::Worker,
+    "editor" => Scope::Editor,
+    "apart" => Scope::Apart,
+    "conversation" => Scope::Conversation,
+    _ => Scope::Agent,
+  }
 }
 
 /// A session: its id, its agent and its scope.
@@ -61,6 +105,47 @@ pub struct Session {
   pub id: String,
   pub agent: String,
   pub scope: Scope,
+}
+
+/// A session's member as the agency answers it, by its id: the agent and scope it names, and what its route
+/// answers beside them.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionMember {
+  id: String,
+  agent_name: String,
+  scope: String,
+  #[serde(default)]
+  room_id: Option<i64>,
+  #[serde(default)]
+  provider: Option<String>,
+  #[serde(default)]
+  model: Option<String>,
+  #[serde(default)]
+  place: Value,
+  #[serde(default)]
+  generation: Value,
+}
+
+impl SessionMember {
+  fn session(self) -> Session {
+    Session {
+      id: self.id,
+      agent: self.agent_name,
+      scope: scope_of(&self.scope, self.room_id),
+    }
+  }
+
+  fn state(self) -> SessionState {
+    SessionState {
+      session: self.id,
+      provider: self.provider.filter(|provider| !provider.is_empty()),
+      model: self.model.filter(|model| !model.is_empty()),
+      place: self.place,
+      generation: self.generation,
+      context: Value::Null,
+    }
+  }
 }
 
 /// The room a turn answers: its chat, its block's text and the mark its answer carries.
@@ -77,6 +162,8 @@ pub struct TurnRoom {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Turn {
+  /// The session the turn goes into, named in the route rather than the body.
+  #[serde(skip_serializing)]
   pub session: String,
   pub prompt: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -100,7 +187,7 @@ pub struct Turn {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Delivery {
-  Taken,
+  Delivered,
   Blocked,
 }
 
@@ -230,12 +317,6 @@ pub struct Passed {
   pub kind: Option<RestKind>,
 }
 
-/// Whether a stand-in answers an agent while the rest closes the agent's road.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct Answers {
-  pub answers: bool,
-}
-
 /// A run as the agency keeps its row, of which the receiver reads the moment it began, in epoch seconds.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Run {
@@ -268,7 +349,8 @@ pub trait Agency: Send + Sync {
 
   fn state<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<SessionState>>;
 
-  fn interrupt<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>>;
+  /// The turn a session is working cut short.
+  fn interrupt<'a>(&'a self, session: &'a str, turn: i64) -> BoxFuture<'a, Answer<()>>;
 
   fn fold<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>>;
 
@@ -295,7 +377,7 @@ pub trait Agency: Send + Sync {
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>>;
 
   /// Words put into the turn the session is working, answered with what became of them.
-  fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>>;
+  fn push<'a>(&'a self, session: &'a str, turn: i64, words: &'a str) -> BoxFuture<'a, Answer<Said>>;
 
   /// A companion's row stood up, or the field the agency refused.
   fn add_companion<'a>(
@@ -330,9 +412,12 @@ impl HttpAgency {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Start<'a> {
-  agent: &'a str,
-  scope: Scope,
+  agent_name: &'a str,
+  scope: &'a str,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  room_id: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -341,13 +426,7 @@ struct Delivered {
 }
 
 #[derive(Serialize)]
-struct Named<'a> {
-  session: &'a str,
-}
-
-#[derive(Serialize)]
-struct Pushing<'a> {
-  session: &'a str,
+struct Words<'a> {
   words: &'a str,
 }
 
@@ -356,9 +435,14 @@ struct Pushed {
   said: Said,
 }
 
+#[derive(Serialize)]
+struct Operated<'a> {
+  state: &'a str,
+}
+
 #[derive(Deserialize)]
-struct Sessions {
-  sessions: Vec<Session>,
+struct SessionPage {
+  items: Vec<SessionMember>,
 }
 
 #[derive(Serialize)]
@@ -370,28 +454,42 @@ struct Forget {
 
 #[derive(Serialize)]
 struct Hook<'a> {
-  point: &'a str,
   url: &'a str,
   token: &'a str,
 }
 
 #[derive(Deserialize)]
 struct Lines {
-  lines: Vec<RunLine>,
+  items: Vec<RunLine>,
 }
 
-#[derive(Deserialize)]
-struct Point {
-  #[serde(default)]
-  point: Option<i64>,
-}
+// One log line as the receiver reads it: the agency's own fields, with the line's structured fields laid
+// beside them, its reference under the name the receiver reads it by.
+fn run_line(line: RunLine) -> RunLine {
+  let Some(fields) = line.get("fields").and_then(Value::as_object).cloned() else {
+    return line;
+  };
+  let mut read = line;
 
-impl HttpAgency {
-  async fn operated(&self, operation: &str, session: &str) -> Answer<()> {
-    let _: Done = self.caller.post(&["session", operation], &Named { session }).await?;
-
-    Ok(())
+  for (key, value) in fields {
+    read.entry(key).or_insert(value);
   }
+
+  if let Some(reference) = read.get("reference").cloned() {
+    read.entry("ref".to_owned()).or_insert(reference);
+  }
+
+  read
+}
+
+/// The fields an agent's own route answers that the rest of its row does not carry.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentFields {
+  #[serde(default)]
+  reset_at: Option<i64>,
+  #[serde(default)]
+  stand_in_available: bool,
 }
 
 impl Agency for HttpAgency {
@@ -401,11 +499,9 @@ impl Agency for HttpAgency {
 
   fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>> {
     Box::pin(async move {
-      let query = vec![("agent", agent.to_owned())];
+      let read: AgentFields = self.caller.get(&["agents", agent], &[]).await?;
 
-      let answers: Answers = self.caller.get(&["stand-in"], &query).await?;
-
-      Ok(answers.answers)
+      Ok(read.stand_in_available)
     })
   }
 
@@ -422,40 +518,71 @@ impl Agency for HttpAgency {
   }
 
   fn start<'a>(&'a self, agent: &'a str, scope: Scope) -> BoxFuture<'a, Answer<Session>> {
-    Box::pin(async move { self.caller.post(&["session", "start"], &Start { agent, scope }).await })
+    Box::pin(async move {
+      let read: SessionMember = self
+        .caller
+        .post(
+          &["sessions"],
+          &Start {
+            agent_name: agent,
+            scope: scope.word(),
+            room_id: scope.room(),
+          },
+        )
+        .await?;
+
+      Ok(read.session())
+    })
   }
 
   fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
     Box::pin(async move {
-      let delivered: Delivered = self.caller.post(&["session", "turn"], turn).await?;
+      let delivered: Delivered = self.caller.post(&["sessions", &turn.session, "turns"], turn).await?;
 
       Ok(delivered.delivery)
     })
   }
 
   fn state<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<SessionState>> {
-    Box::pin(
-      async move { self.caller.get(&["session", "state"], &[("session", session.to_owned())]).await },
-    )
+    Box::pin(async move {
+      let read: SessionMember = self.caller.get(&["sessions", session], &[]).await?;
+
+      Ok(read.state())
+    })
   }
 
-  fn interrupt<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
-    Box::pin(self.operated("interrupt", session))
+  fn interrupt<'a>(&'a self, session: &'a str, turn: i64) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      let turn = turn.to_string();
+
+      self
+        .caller
+        .done(
+          Method::PATCH,
+          &["sessions", session, "turns", &turn],
+          &Operated {
+            state: "interrupted",
+          },
+        )
+        .await
+    })
   }
 
   fn fold<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
-    Box::pin(self.operated("fold", session))
+    Box::pin(
+      async move { self.caller.done(Method::POST, &["sessions", session, "folds"], &Nothing {}).await },
+    )
   }
 
   fn end<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
-    Box::pin(self.operated("end", session))
+    Box::pin(async move { self.caller.without(Method::DELETE, &["sessions", session]).await })
   }
 
   fn sessions(&self) -> BoxFuture<'_, Answer<Vec<Session>>> {
     Box::pin(async move {
-      let sessions: Sessions = self.caller.get(&["session", "list"], &[]).await?;
+      let page: SessionPage = self.caller.get(&["sessions"], &[]).await?;
 
-      Ok(sessions.sessions)
+      Ok(page.items.into_iter().map(SessionMember::session).collect())
     })
   }
 
@@ -469,7 +596,7 @@ impl Agency for HttpAgency {
     url: &'a str,
     token: &'a str,
   ) -> BoxFuture<'a, Answer<()>> {
-    Box::pin(async move { self.caller.done(Method::POST, &["hooks"], &Hook { point, url, token }).await })
+    Box::pin(async move { self.caller.done(Method::PUT, &["hooks", point], &Hook { url, token }).await })
   }
 
   fn run_log<'a>(&'a self, run: &'a str, after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>> {
@@ -480,18 +607,17 @@ impl Agency for HttpAgency {
         query.push(("after", after.to_string()));
       }
 
-      let lines: Lines = self.caller.get(&["run-log"], &query).await?;
+      let lines: Lines = self.caller.get(&["log-lines"], &query).await?;
 
-      Ok(lines.lines)
+      Ok(lines.items.into_iter().map(run_line).collect())
     })
   }
 
   fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
     Box::pin(async move {
-      let query = vec![("agent", agent.to_owned())];
-      let point: Point = self.caller.get(&["reset-point"], &query).await?;
+      let read: AgentFields = self.caller.get(&["agents", agent], &[]).await?;
 
-      Ok(point.point)
+      Ok(read.reset_at)
     })
   }
 
@@ -499,9 +625,13 @@ impl Agency for HttpAgency {
     Box::pin(async move { self.caller.found(&["runs", &id.to_string()], &[]).await })
   }
 
-  fn push<'a>(&'a self, session: &'a str, words: &'a str) -> BoxFuture<'a, Answer<Said>> {
+  fn push<'a>(&'a self, session: &'a str, turn: i64, words: &'a str) -> BoxFuture<'a, Answer<Said>> {
     Box::pin(async move {
-      let pushed: Pushed = self.caller.post(&["session", "push"], &Pushing { session, words }).await?;
+      let turn = turn.to_string();
+      let pushed: Pushed = self
+        .caller
+        .post(&["sessions", session, "turns", &turn, "inputs"], &Words { words })
+        .await?;
 
       Ok(pushed.said)
     })

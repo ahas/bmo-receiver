@@ -149,7 +149,7 @@ impl Round {
       .unwrap();
   }
 
-  fn pushes(&self) -> Vec<(String, String)> {
+  fn pushes(&self) -> Vec<(String, i64, String)> {
     self.standing.agency.pushes.lock().unwrap().clone()
   }
 
@@ -169,7 +169,8 @@ fn carried_and_pushed(round: &Round) {
   assert!(!prompts[0].contains(LATER), "words said after the turn went out are not in its prompt");
   assert_eq!(pushes.len(), 1, "the words said meanwhile are pushed once");
   assert_eq!(pushes[0].0, SESSION);
-  assert!(pushes[0].1.contains(LATER), "the push carries the words said meanwhile");
+  assert_eq!(pushes[0].1, 1, "the push names the turn the session is working");
+  assert!(pushes[0].2.contains(LATER), "the push carries the words said meanwhile");
 }
 
 #[tokio::test]

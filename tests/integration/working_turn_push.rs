@@ -13,6 +13,7 @@ use receiver_ports::agency::Said;
 use crate::common::units::StandInAgency;
 
 const SESSION: &str = "agent-a@-7";
+const TURN: i64 = 7;
 
 // A round offering its words once, and keeping what it was told became of them.
 struct Offering {
@@ -60,8 +61,8 @@ async fn words_the_turn_took_settle_as_delivered_and_hold_no_gap() {
   let agency = saying(Some(Said::Delivered));
   let round = Offering::of(Some("more words"));
 
-  assert_eq!(pushed(&agency, SESSION, &round).await, None);
-  assert_eq!(*agency.pushes.lock().unwrap(), [(SESSION.to_owned(), "more words".to_owned())]);
+  assert_eq!(pushed(&agency, SESSION, TURN, &round).await, None);
+  assert_eq!(*agency.pushes.lock().unwrap(), [(SESSION.to_owned(), TURN, "more words".to_owned())]);
   assert_eq!(round.settled(), [AsideOutcome::Delivered]);
 }
 
@@ -70,7 +71,7 @@ async fn a_turn_waiting_on_a_person_settles_as_waiting_and_holds_no_gap() {
   let agency = saying(Some(Said::Waiting));
   let round = Offering::of(Some("more words"));
 
-  assert_eq!(pushed(&agency, SESSION, &round).await, None);
+  assert_eq!(pushed(&agency, SESSION, TURN, &round).await, None);
   assert_eq!(round.settled(), [AsideOutcome::Waiting]);
 }
 
@@ -82,7 +83,7 @@ async fn a_refused_push_and_a_failed_one_settle_as_refused_and_hold_the_next_off
     let agency = saying(said);
     let round = Offering::of(Some("more words"));
     let before = tokio::time::Instant::now();
-    let until = pushed(&agency, SESSION, &round).await.expect("a refusal holds a gap");
+    let until = pushed(&agency, SESSION, TURN, &round).await.expect("a refusal holds a gap");
 
     assert!(until >= before + gap, "the next offer waits the policy's gap");
     assert_eq!(round.settled(), [AsideOutcome::Refused]);
@@ -94,7 +95,7 @@ async fn a_round_with_nothing_to_offer_pushes_nothing() {
   let agency = saying(Some(Said::Delivered));
   let round = Offering::of(None);
 
-  assert_eq!(pushed(&agency, SESSION, &round).await, None);
+  assert_eq!(pushed(&agency, SESSION, TURN, &round).await, None);
   assert!(agency.pushes.lock().unwrap().is_empty());
   assert!(round.settled().is_empty());
 }
