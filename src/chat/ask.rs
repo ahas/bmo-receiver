@@ -178,7 +178,9 @@ impl Carry {
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
     let marked = states(&asking.prompt, &loaded);
-    let standing = agency.state(&started_id).await.map_err(fault_of)?;
+    // A session the agency has just started is not opened until its first turn, so a state it answers
+    // "not opened" for is the fresh session's, with no provider or model to resume yet.
+    let standing = agency.state(&started_id).await.unwrap_or_default();
 
     // The one session an agent keeps across its rooms, where the road says it may not be resumed, is let go
     // here and started again, the note it left — the handoff note the brain holds where it has one, the
