@@ -84,6 +84,7 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
   }
 
   let started = now_ms();
+  eprintln!("DBG send_reply chat {chat_id} words {}", stripped.chars().take(40).collect::<String>());
   let default = receiver.deployment().agent.clone();
   let agent = reply.agent.clone().unwrap_or_else(|| default.to_owned());
   let cleaned = gate_on(receiver, &agent, "sanitizer").await;
@@ -96,6 +97,14 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
     }
   };
   let road = receiver.roads().answering(chat_id, reply.via.as_deref()).await;
+  eprintln!(
+    "DBG road for {chat_id}: {}",
+    match &road {
+      None => "none".to_owned(),
+      Some(Road::Record) => "record".to_owned(),
+      Some(Road::Service(key)) => format!("service {key}"),
+    }
+  );
 
   let sent = match road {
     None => {
@@ -106,6 +115,7 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
     Some(road) => carry(receiver, road, reply, &text, started).await,
   };
 
+  eprintln!("DBG sent for {chat_id}: {}", sent.is_some());
   if let Some(sent) = &sent {
     attach_judgements(
       receiver,
