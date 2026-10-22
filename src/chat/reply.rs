@@ -138,14 +138,13 @@ async fn carry(
   let message_id = match road {
     Road::Record => receiver.speech().kept(chat_id, text).await.ok(),
     Road::Service(key) => match receiver.speech().act(&key, &request).await.ok().flatten() {
-      // A service's road sends through that service; the room's own store keeps a copy beside it, and the
-      // console and every other reader of the room's conversation read that copy. Its id is the one the
-      // round, the wait and the verdicts are marked on, so the message a room shows is the one they name; the
-      // service's id stands where no copy was kept.
-      Some(id) => match receiver.speech().kept(chat_id, text).await {
-        Ok(kept) => Some(kept),
-        Err(_) => Some(id),
-      },
+      // A service's road sends through that service; the room's own store keeps a copy beside it, which
+      // the console and every other reader of the room's conversation read.
+      Some(id) => {
+        let _ = receiver.speech().kept(chat_id, text).await;
+
+        Some(id)
+      }
       None => None,
     },
   };
