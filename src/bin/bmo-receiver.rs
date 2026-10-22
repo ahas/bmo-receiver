@@ -164,7 +164,17 @@ async fn serve(config: &Config) -> Result<(), String> {
 
   let standing = Standing::stood(config, db).await?;
 
-  settle(&standing.receiver, &config.consumer, &config.listen, &config.token).await;
+  // What only tells another unit this one stands — the cache warmer's targets and the agency's hook
+  // points — is offered beside the serve rather than before it: a unit down when the receiver starts
+  // costs its own patience, never the rooms' first answer.
+  let _settling = {
+    let receiver = standing.receiver.clone();
+    let consumer = config.consumer.clone();
+    let listen = config.listen.clone();
+    let token = config.token.clone();
+
+    tokio::spawn(async move { settle(&receiver, &consumer, &listen, &token).await })
+  };
 
   keep(&standing);
 
