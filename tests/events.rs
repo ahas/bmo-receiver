@@ -98,11 +98,13 @@ fn draws_its_folds_and_queued_messages_and_a_turn_reading_the_queued_one_takes_i
   assert_eq!(picture["compacting"].as_array().map(Vec::len), Some(1));
   assert_eq!(picture["compacting"][0]["chatId"], -7);
 
-  // A companion's turn, shown as another speaker, takes none of it.
+  // A turn shown as another speaker and reading the queued message takes it as any turn does: what says
+  // the message was taken is that the turn read it.
   events.queue_message(-105, 10);
   events.begin_turn(json!({ "chatId": -105, "messageId": 10, "speaker": { "agent": "companion-a" } }));
 
-  assert_eq!(events.picture()["queued"][0]["messageId"], 10);
+  assert_eq!(events.picture()["queued"].as_array().map(Vec::len), Some(1));
+  assert_eq!(events.picture()["queued"][0]["chatId"], -7);
 }
 
 #[test]

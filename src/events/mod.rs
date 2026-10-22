@@ -293,15 +293,11 @@ impl Hub {
     })
   }
 
-  // A turn of BMO's reading the room's queued message last has taken it; one reading another leaves it standing.
-  // The messages the turn read are what it took, so the queued message goes where the turn read it at all —
-  // a batch of several leaves the queue's last message read and taken, and a turn whose reading it names
-  // nowhere still counts the messages it carries.
+  // A turn that read the room's queued message has taken it; one reading another leaves it standing. What
+  // says it was taken is the message standing among the turn's own, whether or not the room's road gives the
+  // turn a speaker to be shown as — a companion's turn reading the message answered it as surely as the
+  // chat agent's.
   fn take_queued(&mut self, turn: &Value) {
-    if turn.get("speaker").is_some() {
-      return;
-    }
-
     let Some(chat) = turn["chatId"].as_i64() else {
       return;
     };
