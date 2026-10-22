@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use bmo_chat_client::{
   ChatCapability, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits, ChatHealth, ChatMediaRequest,
-  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatSendRequest, ChatSent, ClientFailure, DialectChecked,
-  DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
+  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatSendRequest, ChatSent, ClientFailure,
+  DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{
