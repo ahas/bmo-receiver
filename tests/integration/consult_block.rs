@@ -20,10 +20,10 @@ fn registered() -> Vec<Agent> {
   let row = |worker: &str| {
     let mut held = serde_json::Map::<String, Value>::new();
 
-    held.insert("default_answerer".to_owned(), json!(false));
-    held.insert("window_seconds".to_owned(), json!(60));
+    held.insert("defaultAnswerer".to_owned(), json!(false));
+    held.insert("windowSeconds".to_owned(), json!(60));
     held.insert(
-      "item_worker".to_owned(),
+      "itemWorker".to_owned(),
       worker.is_empty().then_some(json!(null)).unwrap_or(json!(worker)),
     );
 

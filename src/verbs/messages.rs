@@ -392,7 +392,7 @@ async fn window_seconds(receiver: &Receiver, agent: &str) -> i64 {
         .agents
         .iter()
         .find(|one| one.name == agent)
-        .and_then(|one| one.row.get("window_seconds").and_then(|held| held.as_i64()))
+        .and_then(|one| one.row.get("windowSeconds").and_then(|held| held.as_i64()))
     })
     .unwrap_or(CHAT_ROUND.conversation.window_seconds)
 }

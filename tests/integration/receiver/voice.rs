@@ -31,7 +31,7 @@ async fn bench(voice: Value) -> (Scratch, Front, Events) {
       label: Some("Agent A".into()),
       awake: true,
       brain_folder: None,
-      row: json!({ "voice": voice, "default_answerer": 1 }).as_object().unwrap().clone(),
+      row: json!({ "voice": voice, "defaultAnswerer": true }).as_object().unwrap().clone(),
     }]
     .to_vec(),
   );

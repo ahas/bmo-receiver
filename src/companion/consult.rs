@@ -155,7 +155,7 @@ pub async fn consult_block(receiver: &Receiver, own: &str, now_ms: i64) -> Resul
           .find(|one| {
             one
               .row
-              .get("item_worker")
+              .get("itemWorker")
               .and_then(Value::as_str)
               .map(str::to_owned)
               .unwrap_or_default()

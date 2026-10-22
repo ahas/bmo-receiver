@@ -68,7 +68,7 @@ impl Heard {
     let session = Arc::new(StandInSession::new("agent-a@agent", "unused"));
     let mut agent = registration(AGENT, "Agent A", vec!["agent-a"], None, true);
 
-    agent.row.insert("session_scope".to_owned(), json!("unified"));
+    agent.row.insert("sessionScope".to_owned(), json!("agent"));
     standing
       .agency
       .registering(vec![agent, registration(COMPANION, "Agent C", vec!["agent-c"], None, false)]);

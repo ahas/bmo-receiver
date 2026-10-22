@@ -17,7 +17,7 @@ const ALONE: i64 = -122;
 fn window(seconds: i64) -> serde_json::Map<String, serde_json::Value> {
   let mut held = serde_json::Map::<String, serde_json::Value>::new();
 
-  held.insert("window_seconds".to_owned(), serde_json::json!(seconds));
+  held.insert("windowSeconds".to_owned(), serde_json::json!(seconds));
 
   held
 }

@@ -642,11 +642,11 @@ pub fn registration(
 ) -> Agent {
   let mut row = serde_json::Map::<String, Value>::new();
 
-  row.insert("wake_words".to_owned(), serde_json::json!(words.join(",")));
-  row.insert("default_answerer".to_owned(), serde_json::json!(if default { 1 } else { 0 }));
+  row.insert("aliases".to_owned(), serde_json::json!(words.join(",")));
+  row.insert("defaultAnswerer".to_owned(), serde_json::json!(default));
 
   if let Some(window) = window {
-    row.insert("window_seconds".to_owned(), serde_json::json!(window));
+    row.insert("windowSeconds".to_owned(), serde_json::json!(window));
   }
 
   Agent {
@@ -937,7 +937,7 @@ impl Agency for StandInAgency {
     row.insert("kind".to_owned(), serde_json::json!("chat"));
     row.insert("turnShape".to_owned(), serde_json::json!("pieces"));
     row.insert("builtin".to_owned(), serde_json::json!(0));
-    row.insert("window_seconds".to_owned(), serde_json::json!(180));
+    row.insert("windowSeconds".to_owned(), serde_json::json!(180));
 
     self.agents.lock().unwrap().push(Agent {
       name: companion.name.clone(),

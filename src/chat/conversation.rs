@@ -763,7 +763,7 @@ impl Conversations {
       .as_ref()
       .and_then(|listed| listed.agents.iter().find(|one| one.name == self.agent()));
     let seconds = match row {
-      Some(row) => row.row.get("window_seconds").and_then(Value::as_i64).unwrap_or(0),
+      Some(row) => row.row.get("windowSeconds").and_then(Value::as_i64).unwrap_or(0),
       None => CHAT_ROUND.conversation.window_seconds,
     };
 
@@ -2570,6 +2570,6 @@ pub async fn unified_session(receiver: &Receiver, agent: &str) -> bool {
   listed
     .as_ref()
     .and_then(|listed| listed.agents.iter().find(|one| one.name == agent))
-    .and_then(|found| found.row.get("session_scope").and_then(Value::as_str))
-    .is_some_and(|scope| scope == "unified")
+    .and_then(|found| found.row.get("sessionScope").and_then(Value::as_str))
+    .is_some_and(|scope| scope == "agent")
 }

@@ -29,14 +29,14 @@ impl Designated {
   /// The agent as its registration gives it: its label and the words its row names, held as one line
   /// separated by commas.
   pub fn of(agent: &Agent) -> Self {
-    let words = text(&agent.row, "wake_words").unwrap_or_default();
+    let words = text(&agent.row, "aliases").unwrap_or_default();
     let named = agent.label.clone().into_iter().chain(words.split(',').map(str::to_owned));
 
     Self {
       name: agent.name.clone(),
       call_names: named.map(trim).filter(|word| !word.is_empty()).collect(),
-      window_seconds: count(&agent.row, "window_seconds"),
-      default_answerer: count(&agent.row, "default_answerer").is_some_and(|held| held != 0),
+      window_seconds: count(&agent.row, "windowSeconds"),
+      default_answerer: flag(&agent.row, "defaultAnswerer"),
       kind: text(&agent.row, "kind"),
     }
   }
@@ -65,6 +65,12 @@ fn trim(word: String) -> String {
 
 fn text(row: &Map<String, Value>, key: &str) -> Option<String> {
   row.get(key).and_then(|value| value.as_str()).map(|word| word.to_owned())
+}
+
+fn flag(row: &Map<String, Value>, key: &str) -> bool {
+  row.get(key).is_some_and(|value| {
+    value.as_bool().unwrap_or_else(|| value.as_i64().is_some_and(|held| held != 0))
+  })
 }
 
 fn count(row: &Map<String, Value>, key: &str) -> Option<i64> {
