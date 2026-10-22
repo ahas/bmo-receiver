@@ -222,7 +222,6 @@ impl Carry {
     let turn = turn_of(asking, &session, &room, &prompt);
     let kinds: Vec<&'static str> = vec!["turn.created", "turn.ended"];
     let mut stream = agency.events(&kinds).await.map_err(fault_of)?;
-    eprintln!("DBG ask stream {}", session.id);
 
     // The turn is sent apart, so the room's picture of it can be drawn from the run's log while it works.
     let port = agency.clone();
@@ -258,13 +257,11 @@ impl Carry {
         Some(Ok(Event { kind, data })) => {
           let body = &data;
           let mine = body.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
-          eprintln!("DBG event {kind} session {:?} mine {mine}", body.get("session"));
 
           if mine && kind == "turn.created" {
             run = body.get("run").and_then(Value::as_str).map(str::to_owned);
             turning = body.get("turnId").and_then(Value::as_i64);
           } else if mine && kind == "turn.ended" {
-            eprintln!("DBG ended {}", session.id);
             ended = Some(body.clone());
           }
         }
@@ -293,7 +290,6 @@ impl Carry {
     }
 
     drop(stream);
-    eprintln!("DBG asking loop over {}", session.id);
 
     let delivered =
       sending.await.map_err(|_| Failure::Failed("the turn's carrying went away".to_owned()))?;

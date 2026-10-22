@@ -84,7 +84,6 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
   }
 
   let started = now_ms();
-  eprintln!("DBG send_reply chat {chat_id} words {}", stripped.chars().take(40).collect::<String>());
   let default = receiver.deployment().agent.clone();
   let agent = reply.agent.clone().unwrap_or_else(|| default.to_owned());
   let cleaned = gate_on(receiver, &agent, "sanitizer").await;
@@ -97,14 +96,6 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
     }
   };
   let road = receiver.roads().answering(chat_id, reply.via.as_deref()).await;
-  eprintln!(
-    "DBG road for {chat_id}: {}",
-    match &road {
-      None => "none".to_owned(),
-      Some(Road::Record) => "record".to_owned(),
-      Some(Road::Service(key)) => format!("service {key}"),
-    }
-  );
 
   let sent = match road {
     None => {
@@ -115,7 +106,6 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
     Some(road) => carry(receiver, road, reply, &text, started).await,
   };
 
-  eprintln!("DBG sent for {chat_id}: {}", sent.is_some());
   if let Some(sent) = &sent {
     attach_judgements(
       receiver,
@@ -147,7 +137,16 @@ async fn carry(
   request.reply_to_message_id = reply.reply_to;
   let message_id = match road {
     Road::Record => receiver.speech().kept(chat_id, text).await.ok(),
-    Road::Service(key) => receiver.speech().act(&key, &request).await.ok().flatten(),
+    Road::Service(key) => match receiver.speech().act(&key, &request).await.ok().flatten() {
+      // A service's road sends through that service; the room's own store keeps a copy beside it, which
+      // the console and every other reader of the room's conversation read.
+      Some(id) => {
+        let _ = receiver.speech().kept(chat_id, text).await;
+
+        Some(id)
+      }
+      None => None,
+    },
   };
 
   let Some(message_id) = message_id else {
