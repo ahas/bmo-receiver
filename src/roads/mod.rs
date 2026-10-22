@@ -10,7 +10,7 @@ pub mod record;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use bmo_chat_client::{ChatDeclaration, RoomKind};
+use bmo_chat_client::{ChatDeclaration, ClientFailure, RoomKind};
 use receiver_policy::roads::ROADS;
 use receiver_ports::chat::{Chat, ChatServices};
 
@@ -148,17 +148,34 @@ impl Roads {
   }
 
   /// What the road a room is on says of it: whether it is the owner's private chat, who the agent is there, and
-  /// whose one-to-one with the agent it is; nothing where no road holds the room.
+  /// whose one-to-one with the agent it is; nothing where no road holds the room. Each road is asked once for
+  /// the room, and the road that holds it answers all three.
   pub async fn room_facts(&self, chat_id: i64) -> Room {
-    let Some(key) = self.room_road(chat_id).await else { return Room::default() };
-    let Some(service) = self.service(&key) else { return Room::default() };
+    for key in self.chats.names() {
+      let Some(service) = self.service(key) else { continue };
 
-    Room {
-      owner_room: heard(&key, "the room's kind", service.room_kind(chat_id).await) == Some(RoomKind::Owner),
-      identity: heard(&key, "who the agent is in the room", service.room_identity(chat_id).await).flatten(),
-      private_to: heard(&key, "whose one-to-one the room is", service.room_private_of(chat_id).await)
-        .flatten(),
+      let room = match service.room(chat_id).await {
+        Ok(room) => room,
+        Err(ClientFailure::Answered { status: 404, .. }) => continue,
+        Err(why) => {
+          eprintln!("bmo-receiver: the {key} road did not answer what it says of the room: {why}");
+
+          continue;
+        }
+      };
+
+      if !room.owns {
+        continue;
+      }
+
+      return Room {
+        owner_room: room.kind == RoomKind::Owner,
+        identity: room.identity,
+        private_to: room.private_to,
+      };
     }
+
+    Room::default()
   }
 
   /// Whether a room is the owner's private chat, as the road it is on says.

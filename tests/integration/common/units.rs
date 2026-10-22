@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use bmo_chat_client::{
   ChatCapability, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits, ChatHealth, ChatMediaRequest,
-  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatSendRequest, ChatSent, DialectChecked,
-  DialectReading, MessageFile, Page, RoomKind,
+  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatSendRequest, ChatSent, ClientFailure, DialectChecked,
+  DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{
@@ -205,6 +205,32 @@ impl Chat for StandInChat {
 
   fn dialect_check<'a>(&'a self, _markup: &'a str) -> BoxFuture<'a, ChatAnswer<DialectChecked>> {
     not_asked("to check its dialect")
+  }
+
+  fn room(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ProviderRoom>> {
+    let owns = self.owns.contains(&chat_id);
+    let identity = self.identities.get(&chat_id).copied();
+    let kind = if self.owner_rooms.contains(&chat_id) { RoomKind::Owner } else { RoomKind::Group };
+    let private_to = self.private.get(&chat_id).copied();
+
+    Box::pin(async move {
+      if !owns {
+        return Err(ClientFailure::Answered {
+          url: "the stand-in chat service".to_owned(),
+          status: 404,
+          answer: None,
+        });
+      }
+
+      Ok(ProviderRoom {
+        id: chat_id,
+        owns,
+        identity,
+        kind,
+        private_to,
+        title: None,
+      })
+    })
   }
 
   fn room_owns(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<bool>> {

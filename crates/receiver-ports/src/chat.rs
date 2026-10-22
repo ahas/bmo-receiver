@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use bmo_chat_client::{
   ChatDeclaration, ChatHealth, ChatMediaRequest, ChatProviderClient, ChatSendRequest, ChatSent,
-  ClientFailure, DialectChecked, DialectReading, MessageFile, Page, RoomKind,
+  ClientFailure, DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
 };
 use futures_util::future::BoxFuture;
 
@@ -35,6 +35,10 @@ pub trait Chat: Send + Sync {
   fn dialect_read<'a>(&'a self, text: &'a str) -> BoxFuture<'a, ChatAnswer<DialectReading>>;
 
   fn dialect_check<'a>(&'a self, markup: &'a str) -> BoxFuture<'a, ChatAnswer<DialectChecked>>;
+
+  /// What the service says of the room: whether it holds it, the agent's number there, its kind, the person
+  /// of a one-to-one and its title.
+  fn room(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ProviderRoom>>;
 
   /// Whether the room is the service's.
   fn room_owns(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<bool>>;
@@ -82,9 +86,13 @@ impl Chat for ChatProviderClient {
     Box::pin(async move { ChatProviderClient::dialect_check(self, markup).await })
   }
 
+  fn room(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ProviderRoom>> {
+    Box::pin(ChatProviderClient::room(self, chat_id))
+  }
+
   fn room_owns(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<bool>> {
     Box::pin(async move {
-      match self.room(chat_id).await {
+      match ChatProviderClient::room(self, chat_id).await {
         Ok(room) => Ok(room.owns),
         Err(ClientFailure::Answered { status: 404, .. }) => Ok(false),
         Err(why) => Err(why),
@@ -93,20 +101,20 @@ impl Chat for ChatProviderClient {
   }
 
   fn room_identity(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
-    Box::pin(async move { self.room(chat_id).await.map(|room| room.identity) })
+    Box::pin(async move { ChatProviderClient::room(self, chat_id).await.map(|room| room.identity) })
   }
 
   fn room_kind(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<RoomKind>> {
-    Box::pin(async move { self.room(chat_id).await.map(|room| room.kind) })
+    Box::pin(async move { ChatProviderClient::room(self, chat_id).await.map(|room| room.kind) })
   }
 
   fn room_private_of(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
-    Box::pin(async move { self.room(chat_id).await.map(|room| room.private_to) })
+    Box::pin(async move { ChatProviderClient::room(self, chat_id).await.map(|room| room.private_to) })
   }
 
   fn room_title(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<Option<String>>> {
     Box::pin(async move {
-      match self.room(chat_id).await {
+      match ChatProviderClient::room(self, chat_id).await {
         Ok(room) => Ok(room.title),
         Err(ClientFailure::Answered { status: 404, .. }) => Ok(None),
         Err(why) => Err(why),
