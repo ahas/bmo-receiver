@@ -149,7 +149,7 @@ async fn stopped() {
 
 #[derive(Deserialize)]
 struct Up {
-  ok: bool,
+  ready: bool,
 }
 
 /// The service standing: the migrations run, the receiver stood on its database, the start settled, the clocks
@@ -233,7 +233,7 @@ async fn ask_health(config: &Config) -> Result<(), String> {
   let health: Up =
     serde_json::from_slice(&bytes).map_err(|why| format!("{url} answered no health: {why}"))?;
 
-  health.ok.then_some(()).ok_or_else(|| format!("{} answers not up", url))
+  health.ready.then_some(()).ok_or_else(|| format!("{} answers not ready", url))
 }
 
 /// What a noun's words came to: the lines it said, printed, and how it ended.
