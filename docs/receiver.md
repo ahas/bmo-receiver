@@ -115,7 +115,9 @@ flowchart TD
   - each event as `id: <n>`, `event: bot` and its JSON, out of a ring of the last 500, replayed after the cursor;
   - `event: live` with the picture as it stands, after the replay and with no id;
   - `: ping` every fifteen seconds;
-  - `event: stopping` with no id when the receiver stops on purpose, after which the stream ends.
+  - `event: stopping` with no id when the receiver stops on purpose, after which the stream ends. The signal
+    tells every stream at once and the serve lets go only after them, so a stop never waits out a stream that
+    was not told.
 - **What goes into it** is the news the receiver makes itself: a message it kept or wrote again, a window opened
   or restarted, a room whose registration was removed as `room-removed` with its number, the picture whenever it
   changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile

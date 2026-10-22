@@ -188,12 +188,18 @@ async fn serve(config: &Config) -> Result<(), String> {
   let app = routes(standing.receiver.clone(), config.token.as_str())
     .merge(handover_routes(standing.receiver.clone(), config.token.as_str()).reset_fallback());
 
+  // The streams are told as the signal comes, not after the serve lets go: a stream stands open until it is
+  // told, and the serve waits on every one of them before it returns.
+  let news = standing.news.clone();
+  let told = async move {
+    stopped().await;
+    news.stopping().await;
+  };
   let served = axum::serve(listener, app)
-    .with_graceful_shutdown(stopped())
+    .with_graceful_shutdown(told)
     .await
     .map_err(|why| why.to_string());
 
-  standing.news.stopping().await;
   let _ = timeout(STOP_LINE_WAIT, say_stop(&standing.receiver)).await;
 
   served
