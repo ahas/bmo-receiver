@@ -295,7 +295,9 @@ impl Carry {
       sending.await.map_err(|_| Failure::Failed("the turn's carrying went away".to_owned()))?;
     let delivered = delivered.map_err(fault_of)?;
 
-    let standing = agency.state(&session.id).await.map_err(fault_of)?;
+    // A session's first turn opens it as the agency carries the turn; a state it has not answered for
+    // yet is read as the fresh session's, with nothing of a request behind it.
+    let standing = agency.state(&session.id).await.unwrap_or_default();
     let ended: Value = ended.clone().unwrap_or(Value::Null);
     let answer = ended.get("answer").and_then(Value::as_str).unwrap_or_default();
     let outcome = ended.get("outcome").and_then(Value::as_str).unwrap_or_default();
