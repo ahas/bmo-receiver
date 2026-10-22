@@ -105,7 +105,7 @@ room's matter.
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
 | start a session | `POST /sessions` | `agentName`, `scope`, `roomId` | the session's `id`, `agentName`, `scope`, `roomId` |
-| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context | `id`, `delivery` |
+| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the base persona, the answers and the privilege | `id`, `delivery` |
 | read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation` |
 | push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
