@@ -294,15 +294,30 @@ impl Hub {
   }
 
   // A turn of BMO's reading the room's queued message last has taken it; one reading another leaves it standing.
+  // The messages the turn read are what it took, so the queued message goes where the turn read it at all —
+  // a batch of several leaves the queue's last message read and taken, and a turn whose reading it names
+  // nowhere still counts the messages it carries.
   fn take_queued(&mut self, turn: &Value) {
     if turn.get("speaker").is_some() {
       return;
     }
 
-    if let Some(chat) = turn["chatId"].as_i64()
-      && turn["messageId"].as_i64().is_some()
-      && self.queued.get(&chat).is_some_and(|queued| queued["messageId"] == turn["messageId"])
-    {
+    let Some(chat) = turn["chatId"].as_i64() else {
+      return;
+    };
+
+    if !self.queued.contains_key(&chat) {
+      return;
+    }
+
+    let reading = turn["messageId"].as_i64();
+    let read: Vec<i64> =
+      turn["messageIds"].as_array().into_iter().flatten().filter_map(Value::as_i64).collect();
+    let taken = self.queued.get(&chat).is_some_and(|queued| {
+      queued["messageId"].as_i64().is_some_and(|id| Some(id) == reading || read.contains(&id))
+    });
+
+    if taken {
       self.queued.remove(&chat);
     }
   }

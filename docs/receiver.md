@@ -122,7 +122,14 @@ flowchart TD
   pictures a chat service took).
 - **The picture (`GET /live`) is drawn of what the receiver runs itself:** the chat turns of its conversations and
   companions, the rooms whose session it is folding and the message each room queued for a turn, the picture going
-  out again as each of them begins, moves or ends. With none of them standing, it is empty.
+  out again as each of them begins, moves or ends. A queued message is let go once a turn of its room has read it —
+  every message the turn read, not only the last — or when another is put in after it. With none of them standing,
+  it is empty.
+- **A turn's progress is read off the lines its run leaves in the agency's log as they come** (the agency's
+  `docs/run-records.md`, 「Agent log」): the stream lines of an agent's own road, and the `progress` and `answer`
+  lines a pane program's record writes. A record naming no phase, no tool or no usage leaves what the picture
+  already holds: the phase, the tool being called, the thinking and the tokens each request spent, the written
+  estimate, and how full the session stands.
 - **`GET /health` answers for the receiver itself:** `ok`, the owner, `bot` with this process's number and the
   moment it started, and its version. A deployment's wait matches `bot`'s number against the unit's main process.
 

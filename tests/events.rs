@@ -106,6 +106,16 @@ fn draws_its_folds_and_queued_messages_and_a_turn_reading_the_queued_one_takes_i
 }
 
 #[test]
+fn a_turn_whose_batch_carries_the_queued_message_takes_it() {
+  let events = Events::new();
+
+  events.queue_message(-5, 10);
+  events.begin_turn(json!({ "chatId": -5, "messageId": 12, "messageIds": [11, 10, 12] }));
+
+  assert_eq!(events.picture()["queued"].as_array().map(Vec::len), Some(0));
+}
+
+#[test]
 fn a_room_whose_registration_is_removed_leaves_its_fold_and_its_queued_message() {
   let events = Events::new();
 

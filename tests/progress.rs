@@ -29,6 +29,39 @@ fn tools(progress: &RunProgress) -> Vec<(Option<&str>, Option<&str>)> {
 }
 
 #[test]
+fn a_pane_program_s_record_draws_the_turn_and_the_usage_it_ended_on() {
+  let working = read_all(
+    RunProgress::starting(&[]),
+    &[
+      json!({ "kind": "progress", "id": "turn-1", "phase": "thinking", "tool": null }),
+      json!({ "kind": "progress", "id": "turn-1", "phase": "tool", "tool": "bash", "state": "running" }),
+      json!({ "kind": "progress", "id": "turn-1", "context": { "used": 1200, "size": 200000 } }),
+    ],
+  );
+
+  assert_eq!((working.phase, working.tool.as_deref()), ("tool", Some("bash")));
+  assert_eq!(working.context_tokens, Some(1200));
+
+  let answered = read_all(
+    working,
+    &[json!({
+      "kind": "answer", "id": "turn-1", "text": "done",
+      "usage": { "inputTokens": 1000, "outputTokens": 40, "cacheReadTokens": 800, "totalTokens": 1040 },
+    })],
+  );
+
+  assert_eq!(
+    answered.spent,
+    Some(RequestSpend {
+      input_tokens: 1000,
+      cache_read_tokens: 800,
+      cache_write_tokens: 0,
+    })
+  );
+  assert_eq!(answered.written_tokens, Some(40));
+}
+
+#[test]
 fn a_codex_rollout_draws_the_turn_as_it_goes_and_after_it_ends() {
   let handed = [("knowledge".to_owned(), "knowledge/sample.md".to_owned(), Some("held"))];
   let working = read_all(

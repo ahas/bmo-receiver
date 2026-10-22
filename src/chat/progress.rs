@@ -138,6 +138,18 @@ impl RunProgress {
 
     let event = Json::parse(trimmed)?;
 
+    // A pane program's own record: what the turn is doing as it goes, and the answer it ended on with its
+    // usage (the agency's `docs/run-records.md`, 「A pane program's record」).
+    if event.get("type").is_none()
+      && let Some(kind) = event.get("kind").and_then(Json::as_str)
+    {
+      match kind {
+        "progress" => return self.read_progress(&event),
+        "answer" => return self.read_answer(&event),
+        _ => {}
+      }
+    }
+
     if matches!(event.get("type").and_then(Json::as_str), Some("response_item") | Some("event_msg")) {
       return self.read_rollout(&event);
     }
@@ -271,6 +283,57 @@ impl RunProgress {
       }
       _ => None,
     }
+  }
+
+  // One progress record of a pane program's turn: the phase it stands in, the tool it calls where it calls
+  // one, and how full the session stands where the program reported it.
+  fn read_progress(&self, event: &Json) -> Option<Self> {
+    let phase = match event.get("phase").and_then(Json::as_str) {
+      Some("thinking") => "thinking",
+      Some("writing") => "writing",
+      Some("tool") => "tool",
+      _ => self.phase,
+    };
+    let tool = match event.get("tool") {
+      Some(Json::String(name)) => Some(name.clone()),
+      Some(_) => None,
+      None => self.tool.clone(),
+    };
+    let context = event
+      .get("context")
+      .and_then(|context| context.get("used"))
+      .and_then(number)
+      .or(self.context_tokens);
+
+    Some(Self {
+      phase,
+      tool,
+      context_tokens: context,
+      ..self.clone()
+    })
+  }
+
+  // The answer a pane program's turn ended on, with the usage it reported: the turn's whole spend and the
+  // context its last request carried, where the program gave them.
+  fn read_answer(&self, event: &Json) -> Option<Self> {
+    let Some(usage) = event.get("usage").filter(|usage| !matches!(usage, Json::Null)) else {
+      return Some(self.clone());
+    };
+    let used = |name: &str| usage.get(name).and_then(number).unwrap_or(0);
+    let input = used("inputTokens");
+    let output = used("outputTokens");
+    let cache = used("cacheReadTokens");
+    let held = self.spent.clone().unwrap_or_default();
+
+    Some(Self {
+      spent: Some(RequestSpend {
+        input_tokens: held.input_tokens + input,
+        cache_read_tokens: held.cache_read_tokens + cache,
+        cache_write_tokens: held.cache_write_tokens,
+      }),
+      written_tokens: added(self.written_tokens, output),
+      ..self.clone()
+    })
   }
 
   // What one request of a rollout reported.

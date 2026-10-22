@@ -1258,7 +1258,7 @@ impl Conversations {
     }
 
     let turn_lock = self.0.turn.lock().await;
-    let (messages, instructions, reading) = {
+    let (messages, instructions, read) = {
       let state = self.state();
       let Some(conv) = state.active.get(&chat_id) else {
         drop(state);
@@ -1266,20 +1266,20 @@ impl Conversations {
         return;
       };
 
-      (
-        conv.buffer.len(),
-        conv.instructions.len(),
-        conv
-          .held_words
-          .iter()
-          .chain(conv.buffer.iter())
-          .last()
-          .map(|message| message.message_id),
-      )
+      let read: Vec<i64> = conv
+        .held_words
+        .iter()
+        .chain(conv.buffer.iter())
+        .map(|message| message.message_id)
+        .collect();
+
+      (conv.buffer.len(), conv.instructions.len(), read)
     };
+    let reading = read.last().copied();
     let mut picture = json!({
       "chatId": chat_id,
       "messageId": reading,
+      "messageIds": read,
       "messages": messages,
       "instructions": instructions,
       "since": now_ms() / 1000,
