@@ -129,7 +129,8 @@ flowchart TD
   `docs/run-records.md`, 「Agent log」): the stream lines of an agent's own road, and the `progress` and `answer`
   lines a pane program's record writes. A record naming no phase, no tool or no usage leaves what the picture
   already holds: the phase, the tool being called, the thinking and the tokens each request spent, the written
-  estimate, and how full the session stands.
+  estimate, and how full the session stands. A pane program's `progress` line carries the turn's spend so far,
+  which is set where it stands rather than added to; its `answer` line carries the turn's whole spend the same way.
 - **`GET /health` answers for the receiver itself:** `ok`, the owner, `bot` with this process's number and the
   moment it started, and its version. A deployment's wait matches `bot`'s number against the unit's main process.
 

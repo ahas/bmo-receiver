@@ -286,7 +286,7 @@ impl RunProgress {
   }
 
   // One progress record of a pane program's turn: the phase it stands in, the tool it calls where it calls
-  // one, and how full the session stands where the program reported it.
+  // one, how full the session stands and what the turn has spent so far, each where the program reported it.
   fn read_progress(&self, event: &Json) -> Option<Self> {
     let phase = match event.get("phase").and_then(Json::as_str) {
       Some("thinking") => "thinking",
@@ -304,11 +304,21 @@ impl RunProgress {
       .and_then(|context| context.get("used"))
       .and_then(number)
       .or(self.context_tokens);
+    // The figure the turn stands at is its whole spend so far, so it is set where it stands, never added.
+    let usage = event.get("usage").filter(|usage| !matches!(usage, Json::Null));
+    let used = |name: &str| usage.and_then(|usage| usage.get(name)).and_then(number);
+    let spent = used("inputTokens").map(|input| RequestSpend {
+      input_tokens: input,
+      cache_read_tokens: used("cacheReadTokens").unwrap_or(0),
+      cache_write_tokens: used("cacheWriteTokens").unwrap_or(0),
+    });
 
     Some(Self {
       phase,
       tool,
       context_tokens: context,
+      spent: spent.or(self.spent.clone()),
+      written_tokens: used("outputTokens").or(self.written_tokens),
       ..self.clone()
     })
   }
@@ -320,18 +330,14 @@ impl RunProgress {
       return Some(self.clone());
     };
     let used = |name: &str| usage.get(name).and_then(number).unwrap_or(0);
-    let input = used("inputTokens");
-    let output = used("outputTokens");
-    let cache = used("cacheReadTokens");
-    let held = self.spent.clone().unwrap_or_default();
 
     Some(Self {
       spent: Some(RequestSpend {
-        input_tokens: held.input_tokens + input,
-        cache_read_tokens: held.cache_read_tokens + cache,
-        cache_write_tokens: held.cache_write_tokens,
+        input_tokens: used("inputTokens"),
+        cache_read_tokens: used("cacheReadTokens"),
+        cache_write_tokens: used("cacheWriteTokens"),
       }),
-      written_tokens: added(self.written_tokens, output),
+      written_tokens: Some(used("outputTokens")),
       ..self.clone()
     })
   }

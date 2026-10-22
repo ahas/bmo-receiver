@@ -36,11 +36,23 @@ fn a_pane_program_s_record_draws_the_turn_and_the_usage_it_ended_on() {
       json!({ "kind": "progress", "id": "turn-1", "phase": "thinking", "tool": null }),
       json!({ "kind": "progress", "id": "turn-1", "phase": "tool", "tool": "bash", "state": "running" }),
       json!({ "kind": "progress", "id": "turn-1", "context": { "used": 1200, "size": 200000 } }),
+      json!({ "kind": "progress", "id": "turn-1", "usage": {
+        "inputTokens": 300, "outputTokens": 12, "cacheReadTokens": 200,
+      } }),
     ],
   );
 
   assert_eq!((working.phase, working.tool.as_deref()), ("tool", Some("bash")));
   assert_eq!(working.context_tokens, Some(1200));
+  assert_eq!(
+    working.spent,
+    Some(RequestSpend {
+      input_tokens: 300,
+      cache_read_tokens: 200,
+      cache_write_tokens: 0,
+    })
+  );
+  assert_eq!(working.written_tokens, Some(12));
 
   let answered = read_all(
     working,
