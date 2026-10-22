@@ -203,7 +203,7 @@ pub enum Said {
 
 /// A session's state: the provider and model it stands on, its place, its generation and the context its last
 /// request carried, as the agency gives them.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SessionState {
   pub session: String,
   #[serde(default)]
