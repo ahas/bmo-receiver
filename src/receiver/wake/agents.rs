@@ -68,9 +68,9 @@ fn text(row: &Map<String, Value>, key: &str) -> Option<String> {
 }
 
 fn flag(row: &Map<String, Value>, key: &str) -> bool {
-  row.get(key).is_some_and(|value| {
-    value.as_bool().unwrap_or_else(|| value.as_i64().is_some_and(|held| held != 0))
-  })
+  row
+    .get(key)
+    .is_some_and(|value| value.as_bool().unwrap_or_else(|| value.as_i64().is_some_and(|held| held != 0)))
 }
 
 fn count(row: &Map<String, Value>, key: &str) -> Option<i64> {
