@@ -23,10 +23,15 @@ its rounds.
 - **Three grounds, decided before any gate or session.** In any other chat the receiver itself decides, and a
   message reaches the agent's session on exactly three grounds: it calls the agent by name, it replies to a
   message of the agent's own, or that room's window is open.
+- **A file is held to the same grounds as words,** read off its caption (`docs/room-files.md`, 「Who a file
+  wakes」): its caption calls the agent, it replies to a message of the agent's own, the room's window is open,
+  or it stands in a private chat that needs no name, the owner's file in the owner's own chat among them. A
+  picture with no caption in a group whose window is closed wakes nobody, whoever sent it.
 - **Everything else is cut at the receiver** (no queue, no gate, no turn) whoever sent it, the person an
-  active room rule names included. The one exception is a file from that person (`docs/room-files.md`,
-  「Message files」), and a quiet instruction is a wake of its own that opens nothing for the room
-  (`docs/bmo-window.md`, 「Quiet instruction」).
+  active room rule names included, files and words alike: a room rule is no ground by itself. What a room rule
+  asks done with that person's pictures is the gate's situation rule, applied within a turn the grounds above
+  opened. A quiet instruction is a wake of its own that opens nothing for the room (`docs/bmo-window.md`,
+  「Quiet instruction」).
 - **A conversation already running in the room is no ground:** it admits nothing the window would not.
 
 ## The names and the window

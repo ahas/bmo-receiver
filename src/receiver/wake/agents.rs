@@ -55,7 +55,7 @@ impl Designated {
     self.call_names.iter().any(|name| lowered.contains(&name.to_lowercase()))
   }
 
-  /// Whether it answers the rooms that name nobody, the one a room rule's file reaches uncalled.
+  /// Whether it answers the rooms that name nobody.
   pub fn answers_unnamed(&self) -> bool {
     self.default_answerer
   }

@@ -57,20 +57,20 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 - **Most files wake nobody:** a voice note is not something a session can hear, and waking one for every note in a
   busy room would be paid for and answer nothing, so the next turn reads the line out of the archived block like
   any other.
-- **Three kinds of sender are the exception** (the owner, the person an active room rule of that room names, and a
-  caption that calls the agent by name) and their message is routed once the file is kept.
-  - The owner's file and a calling caption are held to the same three grounds as text (`docs/wake.md`).
-  - The rule's subject's file reaches the session without them, since that is the automatic handling a room rule
-    exists for, and it opens no window by itself. The rule's subject's text is text like anyone's. The room's
-    rules are `rule` memories in the agent's brain.
-  - Either way the session is never woken ahead of the bytes.
-- **A file that woke nobody rides the request that follows it.** When somebody other than the owner and the rule's
-  subject posts a file and then, within two minutes of it (the wake policy's `file_lead_seconds`, looked for among
-  the room's latest `file_lead_messages`), says something of their own that wakes the agent (a call, a reply to
-  the agent, or words inside its open window), the receiver hands the agent that person's files from those two
-  minutes first, in their order, so the turn that reads the request reads the files beside it, each with its note.
-  A file still being fetched when the request arrives goes in without a note, and a file a turn already read is
-  not read again by the same conversation.
+- **A file is held to the same grounds as words** (`docs/wake.md`, 「Who reaches the session」), its caption
+  read as its words: a caption that calls the agent by name, a reply to a message of the agent's own, the room's
+  open window, or a private chat that needs no name, the owner's file in the owner's own chat among them. What
+  passes is routed once the file is kept, and the session is never woken ahead of the bytes.
+  - A person an active room rule names is no ground by itself: their file with no calling caption in a group
+    whose window is closed wakes nobody, like anyone's. Their text is text like anyone's too. The room's rules
+    are `rule` memories in the agent's brain, applied by the gate within a turn the grounds opened.
+- **A file that woke nobody rides the request that follows it.** When somebody other than the owner posts a file
+  and then, within two minutes of it (the wake policy's `file_lead_seconds`, looked for among the room's latest
+  `file_lead_messages`), says something of their own that wakes the agent (a call, a reply to the agent, or
+  words inside its open window), the receiver hands the agent that person's files from those two minutes first,
+  in their order, so the turn that reads the request reads the files beside it, each with its note. A file still
+  being fetched when the request arrives goes in without a note, and a file a turn already read is not read
+  again by the same conversation.
 - **The note beside the message.** Whenever a session is shown such a message it carries a note beside it
   (`[attached file job.wav saved at <path>]`, or `was not stored` when keeping it failed) read from the message's
   `collected_items` rows, the way a photo carries its stored path.

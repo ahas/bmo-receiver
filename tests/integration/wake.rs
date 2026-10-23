@@ -8,6 +8,7 @@ mod rest;
 
 use std::sync::Arc;
 
+use bmo_chat_client::MessageFile;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use bmo_receiver::roads::added::{self, RoomMode};
@@ -84,6 +85,43 @@ async fn opened(scratch: &Scratch, chat_id: i64, agent: &str, until: i64) {
       vec![chat_id.into(), agent.into(), until.into()],
     )
     .await;
+}
+
+// A file handed over with the message it came on, under the caption typed with it where there is one.
+async fn sent_file(
+  standing: &Standing,
+  message: Inbound,
+  room: Room,
+  caption: Option<&str>,
+  file: MessageFile,
+) {
+  let context = Context {
+    spoken_text: caption.map(str::to_owned),
+    carries_file: true,
+    ..Context::default()
+  };
+
+  standing.receiver.attachment(&message, &context, room, &[file]).await.unwrap();
+}
+
+fn picture() -> MessageFile {
+  MessageFile {
+    id: "1".into(),
+    name: "screen.jpg".into(),
+    mime: "image/jpeg".into(),
+    bytes: vec![0xff, 0xd8],
+    kind: None,
+  }
+}
+
+fn document() -> MessageFile {
+  MessageFile {
+    id: "1".into(),
+    name: "a.pdf".into(),
+    mime: "application/pdf".into(),
+    bytes: b"pdf".to_vec(),
+    kind: None,
+  }
 }
 
 fn asked(id: i64, talks: bool) -> OpenQuestion {
@@ -378,6 +416,66 @@ async fn a_persons_file_rides_the_request_that_follows_it_and_a_muted_person_wak
   assert_eq!(woken.len(), 1);
   assert_eq!(woken[0].message_id, 3);
   assert_eq!(woken[0].files, [1]);
+}
+
+#[tokio::test]
+async fn a_rule_subjects_file_wakes_only_on_the_grounds_words_do_and_rides_the_call_after_it() {
+  let (_scratch, _data, standing) = stood(&[-140]).await;
+
+  standing
+    .agency
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+  standing.web.granting(-140, 55, "rule".into());
+
+  // The rule names the sender, which is heard in owner-only mode but is no ground: with no caption and the
+  // window closed, neither the picture nor the document wakes anybody.
+  sent_file(&standing, inbound(-140, 1, 55, "[picture]"), room(), None, picture()).await;
+  sent_file(&standing, inbound(-140, 2, 55, "[file a.pdf]"), room(), None, document()).await;
+  assert!(standing.taken.handed().is_empty());
+
+  // The same picture under a caption that calls the agent wakes it, the document riding ahead of it.
+  sent_file(
+    &standing,
+    inbound(-140, 3, 55, "[picture] agent-a what is this"),
+    room(),
+    Some("agent-a what is this"),
+    picture(),
+  )
+  .await;
+
+  let woken = standing.taken.handed();
+
+  assert_eq!(woken.len(), 1);
+  assert_eq!(woken[0].message_id, 3);
+  assert_eq!(woken[0].files, [2]);
+  assert!(woken[0].opens_window);
+}
+
+#[tokio::test]
+async fn a_picture_wakes_the_agent_inside_the_rooms_open_window_and_in_the_owners_own_chat() {
+  let (scratch, _data, standing) = stood(&[-141, OWNER]).await;
+
+  standing
+    .agency
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+  everyone_heard(&scratch).await;
+
+  // A member's picture with no caption, the window closed, wakes nobody; inside the open window it does.
+  sent_file(&standing, inbound(-141, 1, 56, "[picture]"), room(), None, picture()).await;
+  assert!(standing.taken.handed().is_empty());
+  opened(&scratch, -141, AGENT, 4_102_444_800_000).await;
+  sent_file(&standing, inbound(-141, 2, 56, "[picture]"), room(), None, picture()).await;
+  // The owner's picture in the owner's own chat needs no caption.
+  sent_file(&standing, inbound(OWNER, 1, OWNER, "[picture]"), owners_room(), None, picture()).await;
+
+  let woken = standing
+    .taken
+    .handed()
+    .into_iter()
+    .map(|one| (one.chat_id, one.message_id, one.opens_window))
+    .collect::<Vec<(i64, i64, bool)>>();
+
+  assert_eq!(woken, [(-141, 2, false), (OWNER, 1, false)]);
 }
 
 #[tokio::test]

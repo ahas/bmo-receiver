@@ -19,23 +19,20 @@ use crate::roads::added::{self, RoomMode};
 use agents::{Designated, default_designated, own_number, room_designated, window_until};
 use rest::{resting, stand_in};
 
-/// How a message is woken on: the words its call is read from, whether it is a file a room rule's subject
-/// handed over, and whether an agent filed it.
+/// How a message is woken on: the words its call is read from, a file's caption where it carries one, and
+/// whether an agent filed it.
 pub struct Basis<'a> {
   text: &'a str,
-  rule_file: bool,
   by_agent: bool,
 }
 
-/// Why a message wakes one designated agent: it is called, answered, alone in the room, inside its window, or
-/// handed a file its room rule names the sender of.
+/// Why a message wakes one designated agent: it is called, answered, alone in the room, or inside its window.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Ground {
   Called,
   Answered,
   Alone,
   Window,
-  Rule,
 }
 
 impl Ground {
@@ -71,7 +68,6 @@ impl Wake for Waking {
         owner,
         &Basis {
           text: &inbound.text,
-          rule_file: false,
           by_agent: how == How::Filed,
         },
       )
@@ -149,7 +145,7 @@ pub async fn woken_on(
     let Some(ground) = ground(receiver, agent, inbound, room, alone, basis, now).await? else {
       continue;
     };
-    let files = if !owner && !basis.by_agent && !basis.rule_file {
+    let files = if !owner && !basis.by_agent {
       files_leading_up(receiver, inbound, &agents).await?
     } else {
       Vec::new()
@@ -162,10 +158,9 @@ pub async fn woken_on(
   Ok(())
 }
 
-/// A message carrying a file, once its file is gathered, woken on: most of these wake nobody, so a file is held
-/// to the senders it may be meant for — the owner, the person an active room rule names, and a caption that
-/// calls an agent of the room — and an open window lets no other in. What passes is judged by the same rule as
-/// words, read off its caption, and the rule's subject's file reaches the chat agent uncalled.
+/// A message carrying a file, once its file is gathered, woken on by the same rule as words, read off its
+/// caption: a room rule naming the sender is no ground by itself, so a picture with no caption in a group whose
+/// window is closed wakes nobody.
 pub async fn wake_file(
   receiver: &Receiver,
   inbound: &Inbound,
@@ -173,14 +168,6 @@ pub async fn wake_file(
   owner: bool,
   caption: &str,
 ) -> Result<(), NotReceived> {
-  let rule_file = standing::holds_rule(receiver, inbound.chat_id, inbound.sender_id).await?;
-  let (agents, _) = room_designated(receiver, inbound.chat_id, room).await?;
-  let calls = agents.iter().any(|agent| agent.called_by(caption));
-
-  if !owner && !rule_file && !calls {
-    return Ok(());
-  }
-
   woken_on(
     receiver,
     inbound,
@@ -188,7 +175,6 @@ pub async fn wake_file(
     owner,
     &Basis {
       text: caption,
-      rule_file,
       by_agent: false,
     },
   )
@@ -220,7 +206,6 @@ pub async fn wakes(
       alone,
       &Basis {
         text: &inbound.text,
-        rule_file: false,
         by_agent: false,
       },
       crate::now_ms(),
@@ -269,15 +254,11 @@ async fn ground(
     return Ok(Some(Ground::Alone));
   }
 
-  if window_until(archive, inbound.chat_id, &agent.name).await? > now {
-    return Ok(Some(Ground::Window));
-  }
-
-  Ok((basis.rule_file && agent.answers_unnamed()).then_some(Ground::Rule))
+  Ok((window_until(archive, inbound.chat_id, &agent.name).await? > now).then_some(Ground::Window))
 }
 
 /// The files a person posted just before words of theirs that woke the chat agent, which woke nobody
-/// themselves: a file is held to its sender and its caption, so a member's file and the request typed after it
+/// themselves: a file is held to the same grounds as words, so a member's file and the request typed after it
 /// reach the session only where the request brings the file along.
 async fn files_leading_up(
   receiver: &Receiver,
@@ -288,10 +269,6 @@ async fn files_leading_up(
   let Some(sender) = inbound.sender_id else {
     return Ok(Vec::new());
   };
-
-  if standing::holds_rule(receiver, inbound.chat_id, Some(sender)).await? {
-    return Ok(Vec::new());
-  }
 
   let earlier =
     rows::recent_messages(archive, inbound.chat_id, WAKE.file_lead_messages, &inbound.via).await?;

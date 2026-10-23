@@ -221,4 +221,5 @@
 - **Scope:** a rule applies only to its named user, work and project.
 - **Rights, not a wake:** a rule gives its user rights once the agent is awake; it does not wake the agent. That
   user's text reaches the session only when it calls the agent, replies to the agent or falls in the room's open
-  window. Their file is the one exception (`docs/room-files.md`, 「Message files」).
+  window, and their file only on those same grounds, read off its caption (`docs/room-files.md`, 「Who a file
+  wakes」).

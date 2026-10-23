@@ -31,7 +31,7 @@ pub async fn is_muted(receiver: &Receiver, chat_id: i64, sender: i64) -> Result<
 
 /// Whether a standing rule of the room names the sender: a grant of the room's rule to the user the sender is,
 /// still in force, as the account model says. Such a person is the owner's delegate there: heard in owner-only
-/// mode, and their file reaches the chat agent uncalled.
+/// mode, and woken on by the same grounds as anyone, their files included.
 pub async fn holds_rule(
   receiver: &Receiver,
   chat_id: i64,
