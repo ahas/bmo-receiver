@@ -86,7 +86,8 @@ is written.
 
 - **The session handover** is not a turn. The note a replaced session leaves rides at the head of whichever
   turn first goes out on the new session, and that turn came through the window like every other: it goes whole,
-  the room's messages archived since the agent last answered there with it.
+  the room's messages archived since the agent last answered there with it, up to the archived block's cap
+  (「What every turn carries」).
 - **Not turns at all:**
   - Another agent's wait come due or memory event never reaches the chat agent: it wakes its own agent
     in its own room.
@@ -204,6 +205,10 @@ that; which versions a session holds is the agency's record of the session's loa
 
 Beside the reference, a turn carries the room's messages since the agent last answered there:
 
+- **At most a set number of them:** the archived block carries the newest unread messages in their order, as
+  many as the chat round's policy sets (`archived_messages`, 100 by default). Where more were unread, the block
+  says in one line how many older ones it left out and that they stand in the room's archive, where the agent's
+  own tools read them; the turn's scope names only the messages the block carries.
 - **A job's report is not among them.** It is no message of any room: the agent is handed it with the job's
   ending and tells the owner in its own words, so what a later turn reads of it is the agent's own answer in its
   session (`docs/voiced-notices.md`, 「A job's end」).

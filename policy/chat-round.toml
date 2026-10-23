@@ -6,6 +6,9 @@
 # How many of the room's latest messages a round reads beside its own.
 recent_messages = 30
 
+# How many of the messages a turn has not read its archived block carries at most: the newest, in their order.
+archived_messages = 100
+
 # The turn's scope, one line of JSON after its opening.
 scope = "TURN SCOPE: "
 
@@ -39,6 +42,8 @@ emotions = ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소"
 [blocks]
 archived = "Archived messages since your last reply ({count}):"
 archived_end = "END OF ARCHIVED MESSAGES"
+# The line under the archived block's head where more were unread than it carries: {count} older ones left out.
+archived_left_out = "{count} older unread messages of this room are left out of this block; they stand in the room's archive, where your tools can read them."
 waited = "Messages you waited on with <<WAIT>>, still unanswered ({count}):"
 waited_end = "END OF WAITED MESSAGES"
 fresh = "New messages ({count}):"

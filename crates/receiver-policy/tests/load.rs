@@ -77,6 +77,11 @@ fn every_part_reads_and_every_file_is_a_part() {
 #[test]
 fn the_rounds_lines_carry_their_marks() {
   assert_eq!(CHAT_ROUND.recent_messages, 30);
+  assert_eq!(
+    CHAT_ROUND.archived_messages, 100,
+    "the archived block carries 100 unread messages by default"
+  );
+  assert!(CHAT_ROUND.blocks.archived_left_out.contains("{count}"));
   assert!(CHAT_ROUND.shape.quoted.contains("{quote}"));
   assert!(CHAT_ROUND.closing.woken.contains("{language}"));
   assert!(CHAT_ROUND.closing.language_named.contains("{language}"));

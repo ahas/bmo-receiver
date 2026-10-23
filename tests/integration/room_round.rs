@@ -13,6 +13,7 @@ use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::Said;
 
 use crate::common::Scratch;
@@ -357,5 +358,64 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   );
   assert!(prompt.contains("Archived messages since your last reply"), "{prompt}");
   assert!(prompt.contains(MISSED), "what the agent never read reaches the new session: {prompt}");
+  assert!(
+    !prompt.contains("left out of this block"),
+    "within the cap nothing is left out: {prompt}"
+  );
   assert!(prompt.find(NOTE) < prompt.find(MISSED), "the note stands ahead of the turn");
+}
+
+#[tokio::test]
+async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_rest() {
+  let scratch = Scratch::new().await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+
+  documents(data.path());
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, ANSWER));
+  let receiver = standing.receiver.clone();
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+  let cap = CHAT_ROUND.archived_messages as i64;
+  let unread = cap + 3;
+
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         SELECT $1, "n", $1, 'tester', 1700000000 + "n", 'unread words ' || lpad("n"::text, 3, '0'), 'road-a'
+         FROM generate_series(1, $2) AS "n""#,
+      vec![OWNER.into(), unread.into()],
+    )
+    .await;
+  bmo_receiver::receiver::rows::set_last_read(scratch.db(), OWNER, 0).await.unwrap();
+
+  receiver
+    .message(&said(unread + 1, FIRST), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until("the round's end", || {
+    !session.prompts().is_empty() && runner.idle() && !session.working()
+  })
+  .await;
+
+  let prompt = &session.prompts()[0];
+  let words = |n: i64| format!("unread words {n:03}");
+
+  assert!(
+    prompt.contains(&format!("Archived messages since your last reply ({cap}):")),
+    "{prompt}"
+  );
+  assert!(
+    prompt.contains("3 older unread messages"),
+    "the block counts what it left out: {prompt}"
+  );
+  assert!(!prompt.contains(&words(3)), "the oldest unread are left in the archive: {prompt}");
+  assert!(prompt.contains(&words(4)) && prompt.contains(&words(unread)), "{prompt}");
+  assert!(prompt.find(&words(4)) < prompt.find(&words(unread)), "the carried stand in their order");
 }

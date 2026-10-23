@@ -39,6 +39,7 @@ pub struct Voice {
 pub struct Blocks {
   pub archived: String,
   pub archived_end: String,
+  pub archived_left_out: String,
   pub waited: String,
   pub waited_end: String,
   pub fresh: String,
@@ -232,6 +233,7 @@ pub struct Typed {
 #[serde(deny_unknown_fields)]
 pub struct ChatRound {
   pub recent_messages: u64,
+  pub archived_messages: u64,
   pub scope: String,
   pub header: Header,
   pub kinds: Kinds,

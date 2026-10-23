@@ -165,14 +165,17 @@
   for the agent anywhere else.
 - **Behind the note, the first turn is whole:** it carries everything the turn would have carried on the old
   session, the room's messages archived since the agent last answered there among them. What arrived around the
-  handover that the agent never read reaches the new session in that turn.
+  handover that the agent never read reaches the new session in that turn, up to the archived block's cap: the
+  newest of them, with a line counting the older ones left in the room's archive (`docs/bmo-window.md`,
+  「What every turn carries」).
 - **A room switch alone does not replace the session.** The switch block is not a change to the common head.
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
   keeps one session across its rooms; a room's own session is the agency's to resume.
 - **Never a full re-read:** where no pending note is held, the whole old context is not read again; the new
   session is opened with a line saying memory could not be restored, ahead of the same whole first turn.
 - **Moving between rooms carries no summary of a room:** the room's block and its archived messages since the
-  agent last answered there are what a turn in another room reads, as every turn does.
+  agent last answered there, up to the archived block's cap, are what a turn in another room reads, as every
+  turn does.
 
 ## Default access and per-room delegation
 

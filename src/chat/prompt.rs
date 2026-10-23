@@ -170,6 +170,27 @@ async fn archived(receiver: &Receiver, round: &Round<'_>) -> Result<Vec<Inbound>
   Ok(context.into_iter().filter(|message| !batch.contains(&message.message_id)).collect())
 }
 
+/// The unread messages an archived block carries of those it is handed, oldest first: the newest `cap` of them in
+/// their order, with how many older ones it leaves out.
+pub fn carried_unread(mut unread: Vec<Inbound>, cap: usize) -> (Vec<Inbound>, usize) {
+  let left_out = unread.len().saturating_sub(cap);
+
+  (unread.split_off(left_out), left_out)
+}
+
+/// The archived block's opening: its head counting the messages it carries, and where it left older ones out,
+/// the line counting them.
+pub fn archived_head(carried: usize, left_out: usize) -> Vec<String> {
+  let blocks = &CHAT_ROUND.blocks;
+  let mut head = vec![fill_marks(&blocks.archived, &[("count", &carried.to_string())])];
+
+  if left_out > 0 {
+    head.push(fill_marks(&blocks.archived_left_out, &[("count", &left_out.to_string())]));
+  }
+
+  head
+}
+
 // The stretch of a room a turn went back and read, as one line.
 fn archive_range(chat_id: i64, messages: &[Inbound]) -> String {
   let reads = &CHAT_ROUND.reads;
@@ -211,11 +232,12 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   };
   let mut parts: Vec<String> = Vec::new();
   let mut context: Vec<(String, String)> = Vec::new();
-  let archived: Vec<Inbound> = archived(receiver, round)
+  let unread: Vec<Inbound> = archived(receiver, round)
     .await?
     .into_iter()
     .filter(|message| !round.pending.contains(&message.message_id))
     .collect();
+  let (archived, left_out) = carried_unread(unread, CHAT_ROUND.archived_messages as usize);
   let recent_rows: Vec<Inbound> = rows::recent_messages(db, chat_id, CHAT_ROUND.recent_messages, "")
     .await?
     .into_iter()
@@ -326,7 +348,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     let lines = reading(false).lines(&archived, Some(&clean)).await?;
 
     parts.push(String::new());
-    parts.push(fill_marks(&blocks.archived, &[("count", &lines.len().to_string())]));
+    parts.extend(archived_head(lines.len(), left_out));
     parts.extend(lines);
     parts.push(blocks.archived_end.clone());
   }
