@@ -280,21 +280,26 @@ async fn a_check_that_fails_twice_withholds_the_message() {
 #[tokio::test]
 async fn past_the_ceiling_what_stands_is_sent() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["the draft as it stands", "notes", "never asked", "never asked"])
-    .working_for(Duration::from_millis(700));
+    .answering(&["the draft as it stands", "notes", "more notes", "never asked"])
+    .working_for(Duration::from_millis(600));
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 1).await;
 
   round.hear(1, ASKED).await;
-  round.ended(2).await;
+  round.ended(3).await;
 
   let sent = round.sent();
 
-  assert_eq!(round.session.prompts().len(), 2, "no question starts past the ceiling");
+  assert_eq!(round.session.prompts().len(), 3, "no question starts past the ceiling");
   assert_eq!(sent.len(), 1);
   assert!(sent[0].contains("the draft as it stands"), "the turn's own draft goes out: {sent:?}");
   assert_eq!(
     round.log().await,
-    ["turn turn answered", "question intent answered", "end  ceiling-message"]
+    [
+      "turn turn answered",
+      "question intent answered",
+      "question information answered",
+      "end  ceiling-message"
+    ]
   );
 }
 

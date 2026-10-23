@@ -86,7 +86,8 @@ which, the items and checks the last text passes, and the record each turn of it
 ## Time
 
 - **The process runs inside the room's window,** so a row names a ceiling for the whole of it, counted from the
-  moment the round began. No question starts past it; a question under way is let finish.
+  moment the round's own turn answered its draft: the turn itself is the agent's, however long it takes, and the
+  ceiling bounds what the process adds to it. No question starts past it; a question under way is let finish.
 - **Past the ceiling, `send` sends what stands:** the last question's answer where the last question ran, and the
   turn's own draft otherwise, since a question's answer before the last is the agent's notes and no message.
   `skip` sends nothing.

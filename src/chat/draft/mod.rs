@@ -289,6 +289,7 @@ impl Drafter {
       grown: (vec![], vec![]),
     };
     let skipped_draft = is_skip(&draft.text);
+    let drafted_at = now_ms();
 
     run
       .log
@@ -318,7 +319,8 @@ impl Drafter {
       Some(process) => process.rounds.clone(),
       None => vec![],
     };
-    let ceiling_at = drafted.began
+    // The ceiling bounds what the process adds to the turn: it counts from the draft's coming back.
+    let ceiling_at = drafted_at
       + process
         .as_ref()
         .map_or(i64::MAX / 2, |process| i64::from(process.ceiling_seconds) * 1000);

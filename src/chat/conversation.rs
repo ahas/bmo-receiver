@@ -191,7 +191,7 @@ pub struct Drafted<'a> {
   pub pending: Vec<i64>,
   /// The round's own selection, which every turn of the process goes out with the same reference on.
   pub selection: &'a Selection,
-  /// When the round began, in epoch milliseconds, which the process's ceiling counts from, and its name.
+  /// When the round began, in epoch milliseconds, which the round log's times count from, and its name.
   pub began: i64,
   pub round: &'a str,
 }
