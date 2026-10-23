@@ -65,12 +65,19 @@ pub async fn kept_work_room<C: ConnectionTrait>(
   chat_id: i64,
   owner_id: i64,
 ) -> Result<KeptWorkRoom, Fault> {
-  let removed = chat_id != owner_id && !is_registered(db, chat_id).await?;
+  Ok(KeptWorkRoom::of(chat_id, owner_id, is_registered(db, chat_id).await?))
+}
 
-  Ok(KeptWorkRoom {
-    chat_id: if removed { owner_id } else { chat_id },
-    removed: removed.then_some(chat_id),
-  })
+impl KeptWorkRoom {
+  /// Where work filed from a room is told, for a room whose registration is known to stand or to be gone.
+  pub fn of(chat_id: i64, owner_id: i64, registered: bool) -> Self {
+    let removed = chat_id != owner_id && !registered;
+
+    Self {
+      chat_id: if removed { owner_id } else { chat_id },
+      removed: removed.then_some(chat_id),
+    }
+  }
 }
 
 pub async fn allow_chat(db: &DatabaseConnection, chat_id: i64) -> Result<(), Fault> {

@@ -1,0 +1,11 @@
+# How long the receiver keeps what it reads of another unit before it asks again (docs/receiver.md, 「What is kept
+# for a moment」), so a request that walks every room, a page of a room's line and a round each read it once.
+
+# What a chat service says of a room — whether it holds it, its kind, the agent's number there and whose one-to-one
+# it is — in seconds. These move only as a room is added, left or turned into a group, and asking costs the
+# service a lookup on its platform.
+room_seconds = 60
+
+# The agency's list of agents, awake or not, in seconds. A wake turns on whether an agent is awake, so a change
+# made at the agency is read within this span.
+agents_seconds = 10

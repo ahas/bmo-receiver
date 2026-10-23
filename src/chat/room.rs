@@ -403,7 +403,7 @@ pub async fn roster(receiver: &Receiver, owner_id: i64) -> Result<String, Fault>
     }
   }
 
-  let listed = receiver.units().agency.agents().await.ok();
+  let listed = receiver.agents().await.ok();
   let agents: Vec<Agent> = listed.as_ref().map(|listed| listed.agents.clone()).unwrap_or_default();
   let mut lines = vec![format!(
     "- {}",

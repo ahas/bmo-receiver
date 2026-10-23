@@ -30,7 +30,7 @@ fn time_left(seconds: i64) -> String {
 
 /// The name an agent answers to, its registration's label where it gives one.
 pub async fn label_of(receiver: &Receiver, name: &str) -> String {
-  let listed = receiver.units().agency.agents().await.ok();
+  let listed = receiver.agents().await.ok();
 
   listed
     .as_ref()
@@ -135,7 +135,7 @@ pub async fn consult_block(receiver: &Receiver, own: &str, now_ms: i64) -> Resul
     return Ok(None);
   }
 
-  let listed = receiver.units().agency.agents().await.ok();
+  let listed = receiver.agents().await.ok();
   let agents: Vec<Agent> = listed.as_ref().map(|listed| listed.agents.clone()).unwrap_or_default();
   let default = wake::agents::default_designated(receiver)
     .await

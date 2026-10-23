@@ -64,7 +64,7 @@ async fn answer_wait(receiver: &Receiver, chat_id: i64, message_id: i64, asked_a
 
 /// What an agent speaking under its own name is called in a room: its label, or its name where it has none.
 pub async fn speaker_label(receiver: &Receiver, agent: &str) -> String {
-  let listed = receiver.units().agency.agents().await.ok();
+  let listed = receiver.agents().await.ok();
 
   listed
     .as_ref()

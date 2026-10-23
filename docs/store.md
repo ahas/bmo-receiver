@@ -67,6 +67,10 @@ takes it outright: the table holds no default agent.
 | `news_briefs` | a room's morning news edition: the time it is sent, how long before it the writing starts, how long its link lives, whether it is on and the day it last started | its number |
 | `holidays` | a day off, so no morning news edition goes out on it | its day |
 
+A room's line is read newest first or from a message the reader holds, by when each message was sent and then by
+its row, so `messages` is indexed by room, time and row, and a page reads only the messages it answers. The roads a
+room's messages came in on are read off an index of the messages that name one, by room and road.
+
 The morning news briefing's schedule and the holiday calendar its days skip are this store's. The page goes to
 its room through the receiver's own sends.
 

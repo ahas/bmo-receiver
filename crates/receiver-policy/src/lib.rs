@@ -13,6 +13,7 @@ pub mod consult;
 pub mod files;
 pub mod handover;
 pub mod keepalive;
+pub mod kept;
 pub mod owner_facts;
 pub mod providers;
 pub mod queue;

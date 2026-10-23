@@ -98,7 +98,7 @@ room's matter.
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| the agents | `GET /agents` | | `items`, the agents each with its row's fields, its roads and whether it is awake, `roles` and `more` |
+| the agents | `GET /agents` | | `items`, the agents each with its row's fields, its roads and whether it is awake, `roles` and `more`; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
 | a stand-in | `GET /agents/{agent}` | | `standInAvailable`, whether a stand-in answers the agent while the rest closes its road |
 | the rest | `GET /rest` | | `resting`, `until`, `kind` |
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
@@ -181,7 +181,9 @@ Every provider route of bmo-chat's `docs/protocol.md`, through `bmo-chat-client`
 `POST /dialect/checks`, the room routes, `GET /rooms` for the rooms of a service's account, and `GET /owner`. The
 receiver holds no per-provider code: what differs between providers is read from what each declares. The
 declaration is asked once and kept, except where a room is added: there it is asked afresh, since a mode's
-standing moves while the service runs.
+standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road
+and room for a short span (`docs/receiver.md`, 「What is kept for a moment」); a room added reads its title there
+afresh.
 
 A message kept in a room goes to each other chat service on the room's list of providers as a `POST /sends` of
 its words or its files (`docs/receiver.md`, 「A room's chat providers」): `mode` `human-reader` where the owner said
@@ -202,6 +204,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
   did, and the tokens they spent. The console's room figures answer `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` null until the agency serves a tally by agent and room.
+- **bmo-chat's `GET /rooms/{roomId}`** answers a room's title beside its facts, and a provider may look the title
+  up on its platform on every ask. The receiver reads the facts alone outside a room's addition and keeps the
+  answer for a short span, until the protocol offers the facts without the title.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver

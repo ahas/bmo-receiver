@@ -384,7 +384,7 @@ async fn stopped_or(said: impl std::future::Future<Output = Result<(), String>>)
 // How long an agent's window runs, in seconds, as its registration gives it and the round's own length where
 // it gives none.
 async fn window_seconds(receiver: &Receiver, agent: &str) -> i64 {
-  let listed = receiver.units().agency.agents().await.ok();
+  let listed = receiver.agents().await.ok();
 
   listed
     .as_ref()

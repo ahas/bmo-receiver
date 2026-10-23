@@ -17,7 +17,7 @@ use super::{Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::data_root::room_path;
 use crate::receiver::reads::PictureWalk;
 use crate::receiver::wake::agents;
-use crate::receiver::{NotReceived, Receiver, metadata, pinned, reads};
+use crate::receiver::{NotReceived, Receiver, metadata, pinned, reads, rows};
 use crate::{Fault, now_ms};
 
 // A page of a room, and the largest one a caller asks for.
@@ -130,10 +130,11 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     .cloned()
     .collect();
   let modes = crate::roads::added::modes(db).await.map_err(store)?;
+  let awake = agents::awake(&receiver).await.map_err(failed)?;
   let mut items: Vec<Value> = vec![];
 
   for room in listed {
-    let answerers = agents::named_designated(&receiver, room.chat_id).await.map_err(failed)?;
+    let answerers = agents::named_among(db, room.chat_id, &awake).await.map_err(failed)?;
     let companions: Vec<String> = answerers
       .iter()
       .filter(|agent| agent.companion())
@@ -141,10 +142,8 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       .collect();
     let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
     let owner_room = receiver.roads().is_owner_room(room.chat_id).await;
-    let registered = crate::receiver::rows::is_registered(db, room.chat_id).await.map_err(store)?;
-    let work = crate::receiver::rows::kept_work_room(db, room.chat_id, receiver.owner_id())
-      .await
-      .map_err(store)?;
+    let registered = rows::is_registered(db, room.chat_id).await.map_err(store)?;
+    let work = rows::KeptWorkRoom::of(room.chat_id, receiver.owner_id(), registered);
     items.push(json!({
       "id": room.chat_id,
       "title": room.title,
@@ -262,8 +261,6 @@ fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
 // Every agent the agency registers, by name, for a page asked by an agent.
 async fn agent_names(receiver: &Receiver) -> Vec<String> {
   receiver
-    .units()
-    .agency
     .agents()
     .await
     .map(|agents| agents.agents.iter().map(|agent| agent.name.clone()).collect())

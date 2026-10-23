@@ -43,7 +43,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 10);
+  assert_eq!(migrate(db).await.unwrap(), 11);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -64,10 +64,11 @@ async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
       "instructions_pending",
       "instructions_round",
       "instructions_run",
+      "messages_line",
       "messages_round",
       "messages_sender",
       "messages_sender_latest",
-      "messages_unnamed",
+      "messages_via",
       "random_draws_chat",
       "room_deliveries_copy",
       "room_deliveries_message",
@@ -113,6 +114,54 @@ async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
   assert_eq!(row.try_get::<i64>("", "rowid").unwrap(), 1);
   assert_eq!(row.try_get::<String>("", "events").unwrap(), "");
   assert_eq!(row.try_get::<i64>("", "rides").unwrap(), 0);
+}
+
+// The indexes on `messages`, each as the database states it.
+const MESSAGE_INDEXES: &str = "SELECT indexname::text || ': ' || indexdef FROM pg_indexes
+  WHERE schemaname = current_schema() AND tablename = 'messages' AND indexname NOT LIKE '%_pkey'
+  AND indexname NOT LIKE '%_key'
+  ORDER BY indexname";
+
+#[tokio::test]
+async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name_one() {
+  let database = Scratch::new().await;
+  let db = database.db();
+  let stated = |indexes: Vec<String>| -> Vec<String> {
+    indexes
+      .iter()
+      .map(|index| {
+        let (name, definition) = index.split_once(": ").unwrap();
+        let columns = definition.split_once(" USING btree ").unwrap().1;
+
+        format!("{name} {columns}")
+      })
+      .collect()
+  };
+
+  assert_eq!(
+    stated(database.texts(MESSAGE_INDEXES).await),
+    [
+      "messages_line (chat_id, sent_at, rowid)",
+      "messages_round (chat_id, round)",
+      "messages_sender (sender_id, chat_id)",
+      "messages_sender_latest (chat_id, sender_id, sent_at)",
+      "messages_via (chat_id, via, rowid) WHERE (via IS NOT NULL)",
+    ]
+  );
+
+  Migrator::down(db, Some(1)).await.unwrap();
+
+  let before = stated(database.texts(MESSAGE_INDEXES).await);
+
+  assert!(before.contains(&"messages_unnamed (chat_id) WHERE (via IS NULL)".to_owned()));
+  assert!(
+    !before
+      .iter()
+      .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
+  );
+
+  assert_eq!(migrate(db).await.unwrap(), 1);
+  assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
 }
 
 #[tokio::test]

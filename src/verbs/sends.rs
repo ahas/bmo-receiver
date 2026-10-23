@@ -276,7 +276,7 @@ impl Sends {
 
   // The name an agent's words stand under: its registration label, or its name where it gives none.
   async fn label(&self, agent: &str) -> String {
-    let listed = self.receiver.units().agency.agents().await.ok();
+    let listed = self.receiver.agents().await.ok();
 
     listed
       .as_ref()
@@ -288,7 +288,7 @@ impl Sends {
 
   // The role an agent's registration names, empty where it names none.
   async fn role(&self, agent: &str) -> String {
-    let listed = self.receiver.units().agency.agents().await.ok();
+    let listed = self.receiver.agents().await.ok();
 
     listed
       .as_ref()

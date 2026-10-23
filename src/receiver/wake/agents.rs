@@ -83,7 +83,7 @@ fn count(row: &Map<String, Value>, key: &str) -> Option<i64> {
 }
 
 /// Every awake agent, as the agency registers it, by name.
-async fn awake(receiver: &Receiver) -> Result<Vec<Designated>, NotReceived> {
+pub async fn awake(receiver: &Receiver) -> Result<Vec<Designated>, NotReceived> {
   Ok(
     listed(receiver)
       .await?
@@ -108,7 +108,7 @@ pub async fn registered(receiver: &Receiver, name: &str) -> Result<Option<Design
 /// Every agent the agency registers, awake or not, each by name with its designated form and whether it is
 /// awake.
 async fn listed(receiver: &Receiver) -> Result<Vec<(String, Designated, bool)>, NotReceived> {
-  let listed: Agents = receiver.units.agency.agents().await.map_err(NotReceived::from)?;
+  let listed: Agents = receiver.agents().await.map_err(NotReceived::from)?;
   let mut agents = listed
     .agents
     .iter()
@@ -141,8 +141,20 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
 
 /// The awake agents a room records as its answerers; none where it names nobody.
 pub async fn named_designated(receiver: &Receiver, chat_id: i64) -> Result<Vec<Designated>, NotReceived> {
+  let awake = awake(receiver).await?;
+
+  named_among(receiver.db(), chat_id, &awake).await
+}
+
+/// Of the awake agents given, those a room records as its answerers; none where it names nobody. A read that
+/// walks many rooms reads the awake agents once and hands them to each room.
+pub async fn named_among(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  awake: &[Designated],
+) -> Result<Vec<Designated>, NotReceived> {
   let rows = all(
-    receiver.db(),
+    db,
     r#"SELECT "agent" FROM "room_answerers" WHERE "chat_id" = $1 ORDER BY "agent""#,
     vec![chat_id.into()],
   )
@@ -150,14 +162,7 @@ pub async fn named_designated(receiver: &Receiver, chat_id: i64) -> Result<Vec<D
   let named: Vec<String> =
     rows.iter().map(|row| row.try_get::<String>("", "agent")).collect::<Result<_, _>>()?;
 
-  Ok(
-    awake(receiver)
-      .await?
-      .iter()
-      .filter(|agent| named.contains(&agent.name))
-      .cloned()
-      .collect(),
-  )
+  Ok(awake.iter().filter(|agent| named.contains(&agent.name)).cloned().collect())
 }
 
 /// Who answers in a room, and whether one of them answers it alone: a room that records one answerer, or one

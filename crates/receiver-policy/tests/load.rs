@@ -12,6 +12,7 @@ use receiver_policy::files::FILES;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
 use receiver_policy::keepalive::KEEPALIVE;
+use receiver_policy::kept::KEPT;
 use receiver_policy::owner_facts::OWNER_FACTS;
 use receiver_policy::providers::{Handover, PROVIDERS, Turns};
 use receiver_policy::queue::QUEUE;
@@ -33,7 +34,7 @@ fn parts() -> Vec<&'static str> {
   let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS, &*COMPANION_RUNNER);
   let _ = (&*COMPANIONS, &*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
-  let _ = &*SECOND_ASKS;
+  let _ = (&*SECOND_ASKS, &*KEPT);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS);
 
   vec![
@@ -47,6 +48,7 @@ fn parts() -> Vec<&'static str> {
     "files.toml",
     "handover.toml",
     "keepalive.toml",
+    "kept.toml",
     "owner-facts.toml",
     "providers.toml",
     "queue.toml",

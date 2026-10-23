@@ -45,7 +45,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let db = receiver.db();
   let owner_room = receiver.roads().is_owner_room(room).await;
   let registered = rows::is_registered(db, room).await.map_err(store)?;
-  let work = rows::kept_work_room(db, room, receiver.owner_id()).await.map_err(store)?;
+  let work = rows::KeptWorkRoom::of(room, receiver.owner_id(), registered);
   let shown = reads::shown(db).await.map_err(store)?;
   let line = shown.iter().find(|line| line.chat_id == room);
   let pinned = crate::receiver::pinned::pinned(db).await.map_err(store)?;
@@ -292,6 +292,9 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   if !made {
     return Err(code(&RoomAdditionRefusal::RoomAdded { room }));
   }
+
+  // The service has just said what it holds; what was kept of the room before is read again.
+  receiver.roads().forget_room(room);
 
   Ok((StatusCode::CREATED, axum::Json(room_read(&receiver, room).await?)))
 }

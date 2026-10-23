@@ -2,7 +2,9 @@
 //! what it was asked: a chat service, the gate, the web unit, where the receiver's news is heard, and the wake.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use bmo_chat_client::{
   AccountRoomsQuery, ChatCapability, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits,
@@ -53,6 +55,8 @@ pub struct StandInChat {
   pub private: BTreeMap<i64, i64>,
   pub reaches_owner: Option<i64>,
   pub titles: BTreeMap<i64, String>,
+  /// How often it was asked what it says of a room.
+  pub rooms_asked: AtomicUsize,
   pub cans: Mutex<BTreeSet<ChatCapability>>,
   /// The read modes it declares, each by its voice and where it stands.
   pub modes: Mutex<Vec<(ChatVoice, ChatModeStanding)>>,
@@ -236,6 +240,8 @@ impl Chat for StandInChat {
   }
 
   fn room(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ProviderRoom>> {
+    self.rooms_asked.fetch_add(1, Ordering::SeqCst);
+
     let owns = self.owns.contains(&chat_id);
     let identity = self.identities.get(&chat_id).copied();
     let kind = if self.owner_rooms.contains(&chat_id) { RoomKind::Owner } else { RoomKind::Group };
@@ -646,6 +652,8 @@ pub struct StandInAgency {
   pub pushes: Mutex<Vec<(String, i64, String)>>,
   pub saying: Mutex<Option<Said>>,
   pub agents: Mutex<Vec<Agent>>,
+  /// How often it was asked for its agents.
+  pub agents_asked: AtomicUsize,
   pub stand_ins: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
   pub written: Mutex<Vec<Resting>>,
@@ -673,6 +681,7 @@ impl StandInAgency {
       pushes: Mutex::default(),
       saying: Mutex::default(),
       agents: Mutex::default(),
+      agents_asked: AtomicUsize::new(0),
       stand_ins: Mutex::default(),
       rest: Mutex::new(Rest {
         resting: false,
@@ -755,6 +764,8 @@ fn agency_down<T: Send + 'static>(path: &str) -> BoxFuture<'static, Answer<T>> {
 
 impl Agency for StandInAgency {
   fn agents(&self) -> BoxFuture<'_, Answer<Agents>> {
+    self.agents_asked.fetch_add(1, Ordering::SeqCst);
+
     if self.is_down() {
       return agency_down("agents");
     }
@@ -1273,7 +1284,10 @@ pub fn unrun(
     web: web.clone(),
     warmer: warmer.clone(),
   };
+  // The stand-in agency's registrations move as a test sets them, so the receiver asks it on every read; a test of
+  // the kept list keeps it itself.
   let receiver = Receiver::new(db.clone(), data_root, given, units)
+    .keeping_agents_for(Duration::ZERO)
     .with_news(heard.clone())
     .with_wake(waking.clone());
 

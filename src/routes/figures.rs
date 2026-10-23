@@ -82,7 +82,7 @@ pub async fn figures(State(served): State<Served>, Path(chat): Path<i64>, query:
   }
 
   let agency = &receiver.units().agency;
-  let listed: Vec<Agent> = agency.agents().await.map(|agents| agents.agents).unwrap_or_default();
+  let listed: Vec<Agent> = receiver.agents().await.map(|agents| agents.agents).unwrap_or_default();
   let sessions: Vec<Session> = agency.sessions().await.unwrap_or_default();
   let given = figures::sessions_given(db, chat).await.map_err(store)?;
   let answerers = figures::answerers(db, chat).await.map_err(store)?;

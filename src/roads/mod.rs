@@ -11,14 +11,18 @@ pub mod record;
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use bmo_chat_client::{ChatDeclaration, ClientFailure, RoomKind};
+use bmo_chat_client::{ChatDeclaration, ClientFailure, ProviderRoom, RoomKind};
+use receiver_policy::kept::KEPT;
 use receiver_policy::roads::ROADS;
 use receiver_ports::chat::{Chat, ChatServices};
 
 pub use declared::Facts;
 
-use crate::receiver::Room;
+use crate::kept::Kept;
+use crate::receiver::{Receiver, Room};
+use crate::room_record::forget::{Forgetting, RoomForget};
 use crate::room_record::{Facing, RoomHolding, Says};
 use receiver_codes::{RoomRemovalRefusal, RoomRemovalWarning};
 
@@ -52,6 +56,16 @@ crate::room_holding!(RoomHolding::Warns {
   warns: reachable,
 });
 
+// What each road said of a room let go as the room's registration is removed.
+fn forget_facts(receiver: &Receiver, room: i64) -> Forgetting<'_> {
+  Box::pin(async move { receiver.roads().forget_room(room) })
+}
+
+crate::room_forget!(RoomForget {
+  what: "what each road said of the room",
+  forget: forget_facts,
+});
+
 /// A road a line goes out on: the room's own record, or a chat service by its key.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Road {
@@ -69,11 +83,13 @@ impl Road {
   }
 }
 
-/// The chat services and what each has declared, read once and kept.
-#[derive(Clone, Default)]
+/// The chat services, what each has declared, read once and kept, and what each said of a room, kept for a
+/// short span by road and room: the room as the service answered it, or none where it does not hold the room.
+#[derive(Clone)]
 pub struct Roads {
   chats: ChatServices,
   declared: Arc<Mutex<BTreeMap<String, ChatDeclaration>>>,
+  rooms: Kept<(String, i64), Option<ProviderRoom>>,
 }
 
 // A chat service's answer that did not come is said once and read as no answer, so one service that does not
@@ -85,10 +101,17 @@ fn heard<T>(road: &str, asked: &str, answer: Result<T, impl std::fmt::Display>) 
 }
 
 impl Roads {
+  /// The chat services, what each says of a room kept for the span the policy sets.
   pub fn new(chats: ChatServices) -> Self {
+    Self::keeping_for(chats, Duration::from_secs(KEPT.room_seconds))
+  }
+
+  /// The chat services, what each says of a room kept for `span`.
+  pub fn keeping_for(chats: ChatServices, span: Duration) -> Self {
     Self {
       chats,
       declared: Arc::default(),
+      rooms: Kept::new(span),
     }
   }
 
@@ -151,12 +174,44 @@ impl Roads {
     }
   }
 
+  /// What a chat service says of a room, kept for the span: the room as it answers it, none where it does not
+  /// hold the room, and nothing where it is not listed or did not answer, which is kept not at all.
+  async fn room_of(&self, key: &str, chat_id: i64) -> Option<Option<ProviderRoom>> {
+    let held = (key.to_owned(), chat_id);
+
+    if let Some(kept) = self.rooms.get(&held) {
+      return Some(kept);
+    }
+
+    let said = match self.service(key)?.room(chat_id).await {
+      Ok(room) => Some(room).filter(|room| room.owns),
+      Err(ClientFailure::Answered { status: 404, .. }) => None,
+      Err(why) => {
+        eprintln!("bmo-receiver: the {key} road did not answer what it says of the room: {why}");
+
+        return None;
+      }
+    };
+
+    self.rooms.keep(held, said.clone());
+
+    Some(said)
+  }
+
+  /// Whether a chat service holds a room, as it says.
+  async fn holds(&self, key: &str, chat_id: i64) -> bool {
+    self.room_of(key, chat_id).await.flatten().is_some()
+  }
+
+  /// What each road said of a room let go, so the next read asks again.
+  pub fn forget_room(&self, chat_id: i64) {
+    self.rooms.forget(|(_, room)| *room == chat_id);
+  }
+
   /// The chat service a room is on: the first that says the room is its own.
   pub async fn room_road(&self, chat_id: i64) -> Option<String> {
     for key in self.chats.names() {
-      let Some(service) = self.service(key) else { continue };
-
-      if heard(key, "whether it holds the room", service.room_owns(chat_id).await) == Some(true) {
+      if self.holds(key, chat_id).await {
         return Some(key.to_owned());
       }
     }
@@ -165,25 +220,11 @@ impl Roads {
   }
 
   /// What the road a room is on says of it: whether it is the owner's private chat, who the agent is there, and
-  /// whose one-to-one with the agent it is; nothing where no road holds the room. Each road is asked once for
-  /// the room, and the road that holds it answers all three.
+  /// whose one-to-one with the agent it is; nothing where no road holds the room. Each road's answer is kept for
+  /// the span, and the road that holds the room answers all three.
   pub async fn room_facts(&self, chat_id: i64) -> Room {
     for key in self.chats.names() {
-      let Some(service) = self.service(key) else { continue };
-
-      let room = match service.room(chat_id).await {
-        Ok(room) => room,
-        Err(ClientFailure::Answered { status: 404, .. }) => continue,
-        Err(why) => {
-          eprintln!("bmo-receiver: the {key} road did not answer what it says of the room: {why}");
-
-          continue;
-        }
-      };
-
-      if !room.owns {
-        continue;
-      }
+      let Some(Some(room)) = self.room_of(key, chat_id).await else { continue };
 
       return Room {
         owner_room: room.kind == RoomKind::Owner,
@@ -209,7 +250,7 @@ impl Roads {
   async fn reaches(&self, key: &str, chat_id: i64) -> bool {
     let Some(service) = self.service(key) else { return false };
 
-    heard(key, "whether it holds the room", service.room_owns(chat_id).await) == Some(true)
+    self.holds(key, chat_id).await
       || heard(key, "the owner's room", service.owner_room().await).flatten() == Some(chat_id)
   }
 

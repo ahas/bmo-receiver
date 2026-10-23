@@ -762,7 +762,7 @@ impl Conversations {
       return window.as_millis() as i64;
     }
 
-    let listed = self.0.receiver.units().agency.agents().await.ok();
+    let listed = self.0.receiver.agents().await.ok();
     let row = listed
       .as_ref()
       .and_then(|listed| listed.agents.iter().find(|one| one.name == self.agent()));
@@ -2590,7 +2590,7 @@ async fn settle_instructions(db: &DatabaseConnection, now: i64, round: &str, ids
 
 /// Whether the agent's turns go on one session across its rooms, as its registration says.
 pub async fn unified_session(receiver: &Receiver, agent: &str) -> bool {
-  let listed = receiver.units().agency.agents().await.ok();
+  let listed = receiver.agents().await.ok();
 
   listed
     .as_ref()

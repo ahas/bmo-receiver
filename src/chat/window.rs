@@ -122,7 +122,7 @@ fn switched_off(agent: &Agent, gate: &str) -> bool {
 
 /// Whether a turn asks one of its agent's gates, by the agent's own switch.
 pub async fn gate_on(receiver: &Receiver, agent: &str, gate: &str) -> bool {
-  let listed = receiver.units().agency.agents().await.ok();
+  let listed = receiver.agents().await.ok();
 
   match listed.as_ref().and_then(|listed| listed.agents.iter().find(|one| one.name == agent)) {
     Some(agent) => !switched_off(agent, gate),

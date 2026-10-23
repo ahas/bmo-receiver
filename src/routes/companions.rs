@@ -91,7 +91,7 @@ fn worker_kind(agent: &Agent) -> bool {
 /// The companions as the console's screen shows them: the agents the agency registers with the companion's
 /// shape of turn, each with the room the receiver stood up for it where it did.
 async fn listed(receiver: &Receiver) -> Result<Vec<Value>, Refusal> {
-  let agents = receiver.units().agency.agents().await.map_err(unit)?;
+  let agents = receiver.agents().await.map_err(unit)?;
   let mut shown: Vec<Value> = vec![];
 
   for agent in agents.agents.iter().filter(|one| companion_shape(one)) {
@@ -161,7 +161,7 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
     return Err(code(&CompanionRefusal::Room));
   }
 
-  let agents = receiver.units().agency.agents().await.map_err(unit)?;
+  let agents = receiver.agents().await.map_err(unit)?;
 
   if agents.agents.iter().any(|one| one.name == asked.name) {
     return Err(code(&CompanionRefusal::NameTaken { name: asked.name }));
@@ -188,7 +188,11 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   };
 
   // The agency stands the companion's row and the gate its options; the receiver writes the room half.
-  if let Err(refusal) = receiver.units().agency.add_companion(&row).await.map_err(unit)? {
+  let added = receiver.units().agency.add_companion(&row).await.map_err(unit)?;
+
+  receiver.forget_agents();
+
+  if let Err(refusal) = added {
     return Err(refused_field(refusal, &asked.provider, &asked.worker, &asked.name));
   }
 
@@ -267,7 +271,7 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
     return Err(code(&CompanionRefusal::Action));
   }
 
-  let agents = receiver.units().agency.agents().await.map_err(unit)?;
+  let agents = receiver.agents().await.map_err(unit)?;
   let Some(agent) = agents.agents.iter().find(|one| one.name == asked.name) else {
     return Err(code(&CompanionRefusal::NotCompanion { agent: asked.name }));
   };
@@ -282,7 +286,11 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
     return Err(code(&CompanionRefusal::SeededCompanion { label }));
   }
 
-  if let Err(refusal) = receiver.units().agency.remove_companion(&asked.name).await.map_err(unit)? {
+  let removed = receiver.units().agency.remove_companion(&asked.name).await.map_err(unit)?;
+
+  receiver.forget_agents();
+
+  if let Err(refusal) = removed {
     return Err(refused_field(refusal, "", "", &asked.name));
   }
 
@@ -353,8 +361,7 @@ async fn answering(receiver: &Receiver, room: i64) -> Vec<String> {
   .iter()
   .map(|row| row.try_get::<String>("", "agent").unwrap_or_default())
   .collect();
-  let agents: Vec<Agent> =
-    receiver.units().agency.agents().await.map(|listed| listed.agents).unwrap_or_default();
+  let agents: Vec<Agent> = receiver.agents().await.map(|listed| listed.agents).unwrap_or_default();
 
   named
     .into_iter()

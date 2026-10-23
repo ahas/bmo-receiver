@@ -35,7 +35,7 @@ impl Companion {
   /// The agent an agent's row names, where its row takes the pieces shape of turn: the row the agency lists, read
   /// as the agent's own fields.
   pub async fn of(receiver: &Receiver, name: &str) -> Option<Companion> {
-    let listed = receiver.units().agency.agents().await.ok();
+    let listed = receiver.agents().await.ok();
 
     let found = listed
       .as_ref()

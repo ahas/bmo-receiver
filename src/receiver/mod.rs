@@ -20,13 +20,15 @@ pub mod wake;
 
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 use axum::{body::Body, response::Response};
 use futures_util::future::BoxFuture;
 use receiver_codes::{RoomRemovalRefusal, SettingFact};
-use receiver_ports::agency::Agency;
+use receiver_policy::kept::KEPT;
+use receiver_ports::agency::{Agency, Agents};
 use receiver_ports::gate::Gate;
-use receiver_ports::http::PortFailure;
+use receiver_ports::http::{Answer, PortFailure};
 use receiver_ports::job::Job;
 use receiver_ports::warmer::Warmer;
 use receiver_ports::web::Web;
@@ -38,6 +40,7 @@ use crate::Fault;
 use crate::chat::conversation::{Talking, Touching, Typing};
 use crate::chat::talk::{Standing, TalkState};
 use crate::data_root::DataRoot;
+use crate::kept::Kept;
 use crate::now_ms;
 use crate::roads::{Road, Roads};
 use crate::room_record::{Facing, RoomHolding, Says};
@@ -316,14 +319,16 @@ pub struct Units {
 }
 
 /// The receiver: the database it keeps messages in, the deployment it answers for, the data root it keeps files
-/// under, the units it reaches, where its news is heard, whom a message wakes, the instruction pass its
-/// acknowledgements are handed over by, and the conversations a woken turn goes into.
+/// under, the units it reaches and the agency's list of agents kept for a moment, where its news is heard, whom a
+/// message wakes, the instruction pass its acknowledgements are handed over by, and the conversations a woken
+/// turn goes into.
 #[derive(Clone)]
 pub struct Receiver {
   db: DatabaseConnection,
   data_root: DataRoot,
   deployment: Arc<Deployment>,
   units: Units,
+  agents: Kept<(), Agents>,
   speech: Speech,
   news: Arc<dyn News>,
   wake: Arc<dyn Wake>,
@@ -365,6 +370,7 @@ impl Receiver {
       data_root,
       deployment,
       units,
+      agents: Kept::new(Duration::from_secs(KEPT.agents_seconds)),
       news,
       wake: Arc::new(Nobody),
       pass: Arc::default(),
@@ -498,6 +504,32 @@ impl Receiver {
 
   pub fn units(&self) -> &Units {
     &self.units
+  }
+
+  /// The receiver keeping the agency's list of agents for `span` rather than the span the policy sets; a span of
+  /// zero asks the agency on every read.
+  pub fn keeping_agents_for(mut self, span: Duration) -> Self {
+    self.agents = Kept::new(span);
+    self
+  }
+
+  /// Every agent the agency registers, awake or not, as the agency last answered within the span, and asked of it
+  /// where it has not (docs/receiver.md, 「What is kept for a moment」).
+  pub async fn agents(&self) -> Answer<Agents> {
+    if let Some(kept) = self.agents.get(&()) {
+      return Ok(kept);
+    }
+
+    let listed = self.units.agency.agents().await?;
+
+    self.agents.keep((), listed.clone());
+
+    Ok(listed)
+  }
+
+  /// The kept list of agents let go, so the next read asks the agency: a registration the receiver changed itself.
+  pub fn forget_agents(&self) {
+    self.agents.forget(|_| true);
   }
 
   /// The lines the receiver says itself in a room.

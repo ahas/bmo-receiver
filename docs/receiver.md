@@ -245,13 +245,17 @@ flowchart TD
 
 ## Identity, and reaching the owner
 
-- **Who the agent is differs per room,** so it is asked per room (`POST /room/identity`). A chat service where the
-  agent holds an ordinary account has the agent's own words under an ordinary sender number, and a receiver that
+- **What a chat service says of a room is asked through its room route** (bmo-chat's `GET /rooms/{roomId}`): whether
+  the service holds the room, the room's kind, the agent's number there and whose one-to-one it is. These four are
+  the room's facts, and none of them needs the room's title, which the receiver reads off its own record; the
+  route's title is read only where a room is added (「Adding a room」 above).
+- **Who the agent is differs per room,** so it is asked per room, the room route's `identity`. A chat service where
+  the agent holds an ordinary account has the agent's own words under an ordinary sender number, and a receiver that
   derived the agent's identity from one service's token would count its own words as unread and fail to recognise a
   reply to itself.
-- **Whether a room is the owner's private chat is a chat service's question** (`POST /room/is-owner`), not a
-  comparison against the owner's number on one service.
-- **Whose one-to-one with the agent a room is, is a chat service's question too** (`POST /room/private-of`). The
+- **Whether a room is the owner's private chat is a chat service's question** (its `kind`), not a comparison
+  against the owner's number on one service.
+- **Whose one-to-one with the agent a room is, is a chat service's question too** (its `privateTo`). The
   receiver turns the answer into a user's private chat only where that person's sender is linked to a user
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
 - **In a room the console made, the agent and each companion have numbers of the console's own,** given as the
@@ -260,3 +264,20 @@ flowchart TD
 - **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
   asking each chat service for the owner's room (`GET /owner-room`): the first of the rooms whose record is shown,
   kept in that record, and otherwise the first chat service reaching the owner on its own, on that service.
+
+## What is kept for a moment
+
+- **A room's facts and the agency's list of agents are read once and kept for a short span,** rather than asked
+  again for every room a request walks, every page of a room's line and every step of a round. The spans are the
+  policy's (`kept.toml`): a minute for a room's facts, ten seconds for the agents, whose standing a wake turns on.
+- **A room's facts are kept by road and room:** the answer of each chat service asked, a room the service does not
+  hold kept as not held, and an answer that did not come kept not at all, so the next read asks again. Within the
+  span every reader of the facts reads the kept answer: the room list and one room, the message page's `by`, the
+  wake, the roads a line goes out on.
+- **The agents are kept as the agency's one list,** awake or not, and every reader of an agent's registration reads
+  it: the wake, the answerers of a room, the room list, a page asked by an agent, the labels a room is told. The
+  room list reads it once for all its rooms.
+- **What the receiver changes itself is let go at once:** a companion it registers or takes out lets the kept list
+  go, and a room added or removed lets go what is kept of that room. A change made elsewhere is read once the span
+  has passed.
+
