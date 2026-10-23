@@ -129,7 +129,9 @@ its rounds.
   (`docs/bmo-window.md`, `push`).
 - **A round folds its session only past the fold share:** once its answer has gone out, the session is folded as
   work of its own where the context the agency reports it carrying (`carried` against `window`) has reached the
-  resident turn policy's `fold_ratio`, and not otherwise.
+  session's fold ratio, and not otherwise. The ratio is the agency's, read with the session's state
+  (`foldRatio`, the value its fold-ratio table holds for the session's provider and tier); where the state
+  names none, the resident turn policy's `fold_ratio` stands in.
 
 ## A companion's round
 

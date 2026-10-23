@@ -103,7 +103,7 @@ impl Failure {
 
 /// A turn's answer as the round reads it: its words, the mode it answered in, the session it went out on, what
 /// the session now holds against the window it holds it in, and the run whose log holds its calls.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Reply {
   pub text: String,
   pub mode: Option<String>,
@@ -111,6 +111,8 @@ pub struct Reply {
   pub session: Option<String>,
   pub context_tokens: Option<i64>,
   pub context_window: Option<i64>,
+  /// The share of the window the session folds at, as the agency gives it for its provider and tier.
+  pub fold_ratio: Option<f64>,
   pub replaced: Vec<SessionReason>,
   pub run: Option<String>,
 }
@@ -1637,6 +1639,7 @@ impl Conversations {
       ..reply.clone()
     };
     let ratio = reply.context_ratio();
+    let fold_at = reply.fold_ratio;
 
     self.0.noting.note(&receiver, self.agent(), &held, &reply, now_ms() - started).await;
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
@@ -1780,7 +1783,7 @@ impl Conversations {
       conv.in_flight = false;
     }
 
-    self.maybe_fold(chat_id, room, held.session.as_deref(), ratio).await;
+    self.maybe_fold(chat_id, room, held.session.as_deref(), ratio, fold_at).await;
     self.pump_pending(chat_id);
 
     Ok(())
@@ -2107,8 +2110,15 @@ impl Conversations {
 
   // A session past its threshold folded, as work of its own after the round: the room marked folding while it
   // runs, so its next round waits and the touch of the quiet rooms skips it.
-  async fn maybe_fold(&self, chat_id: i64, room: Room, session: Option<&str>, ratio: Option<f64>) {
-    if self.state().folding.contains(&chat_id) || !super::fold::past_fold(session, ratio) {
+  async fn maybe_fold(
+    &self,
+    chat_id: i64,
+    room: Room,
+    session: Option<&str>,
+    ratio: Option<f64>,
+    fold_at: Option<f64>,
+  ) {
+    if self.state().folding.contains(&chat_id) || !super::fold::past_fold(session, ratio, fold_at) {
       return;
     }
 

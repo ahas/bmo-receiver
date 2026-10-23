@@ -69,8 +69,9 @@ pub fn fold_timeout() -> Duration {
 
 /// Whether a room's session is past its fold: a session stands, and the context it carries is past the share the
 /// resident turn folds at.
-pub fn past_fold(session: Option<&str>, context_ratio: Option<f64>) -> bool {
-  session.is_some() && context_ratio.is_some_and(|ratio| ratio >= RESIDENT_TURN.fold_ratio)
+pub fn past_fold(session: Option<&str>, context_ratio: Option<f64>, fold_ratio: Option<f64>) -> bool {
+  let share = fold_ratio.unwrap_or(RESIDENT_TURN.fold_ratio);
+  session.is_some() && context_ratio.is_some_and(|ratio| ratio >= share)
 }
 
 /// Whether a room hears of its own fold: never the board for the machines, the owner's own chat always, and any

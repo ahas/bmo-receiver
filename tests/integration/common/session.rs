@@ -103,6 +103,7 @@ impl StandInSession {
       place: json!(null),
       generation: json!(null),
       context: json!({ "carried": 1000, "window": 200000 }),
+      fold_ratio: None,
     };
 
     Box::pin(async move { Ok(state) })

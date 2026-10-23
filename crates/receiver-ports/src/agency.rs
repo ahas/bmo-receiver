@@ -126,6 +126,8 @@ struct SessionMember {
   place: Value,
   #[serde(default)]
   generation: Value,
+  #[serde(default)]
+  fold_ratio: Option<f64>,
 }
 
 impl SessionMember {
@@ -145,6 +147,7 @@ impl SessionMember {
       place: self.place,
       generation: self.generation,
       context: Value::Null,
+      fold_ratio: self.fold_ratio,
     }
   }
 }
@@ -217,6 +220,9 @@ pub struct SessionState {
   pub generation: Value,
   #[serde(default)]
   pub context: Value,
+  /// The share of its window at which the session folds, as the agency's fold-ratio table gives it.
+  #[serde(default, rename = "foldRatio")]
+  pub fold_ratio: Option<f64>,
 }
 
 /// A companion's row the console stands up: the name it is registered by, what it is called in the room, the

@@ -8,4 +8,5 @@ round_lead = "The text pasted after this line is this round, put in by the servi
 
 # How full a session's context may be, as a share of its model's window, before it is folded once the turn that
 # found it so is over: the turn's answer has gone out, and the next turn finds the room the fold made.
+# The share that stands in where the agency's session state names no foldRatio (docs/wake.md).
 fold_ratio = 0.85
