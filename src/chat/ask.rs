@@ -22,7 +22,7 @@ use receiver_ports::http::PortFailure;
 use super::cache::{
   Leaving, Route, carried_note, pending_note, remember, reset_reason, without_archive_replay,
 };
-use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
+use super::context::{RoomSend, State, forget_documents, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
   Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
 };
@@ -210,6 +210,11 @@ impl Carry {
       None => (started, sent, vec![]),
       Some(reason) => {
         agency.end(&started_id).await.map_err(fault_of)?;
+
+        // The ended session's loads go with it; the one started next holds nothing yet.
+        if let Err(why) = forget_documents(receiver, Some(started_id.as_str())).await {
+          eprintln!("{agent}: the ended session's loads were not forgotten: {}", why.detail);
+        }
 
         let note = pending_note(db, agent).await.ok().flatten();
         let again = agency.start(agent, scope).await.map_err(fault_of)?;

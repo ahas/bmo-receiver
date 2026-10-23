@@ -201,6 +201,11 @@ pub async fn compact(
     Ok(()) => {
       failures.settle(chat_id);
 
+      // The folded session keeps its name and loses its detail: what it was handed in full goes again.
+      if let Err(why) = super::context::forget_documents(receiver, session).await {
+        eprintln!("the folded session's loads were not forgotten for chat {chat_id}: {}", why.detail);
+      }
+
       if standing.is_none() && heard {
         let notice = Voiced {
           fact: CHAT_HEALTH.fold.fact.clone(),
