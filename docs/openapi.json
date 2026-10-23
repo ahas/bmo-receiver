@@ -1,9 +1,60 @@
 {
   "components": {
     "schemas": {
-      "AccountRoom": {
-        "description": "A room a provider's account is in, as the provider answers it, with the mode the receiver added it in.",
+      "AccountContact": {
+        "description": "A contact of a provider's account, as the provider answers it, with whether the receiver holds the one-to-one\nthe account has with it and the mode that room was added in.",
         "properties": {
+          "held": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "description": "`person` or `bot`.",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoomMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "roomId": {
+            "description": "The one-to-one the account already has with the contact.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "roomId",
+          "held",
+          "mode"
+        ],
+        "type": "object"
+      },
+      "AccountRoom": {
+        "description": "A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode\nthe receiver added it in.",
+        "properties": {
+          "held": {
+            "default": false,
+            "description": "Whether the receiver holds the room: its own, one it keeps a title or a message of, or one added.",
+            "type": "boolean"
+          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -43,6 +94,7 @@
           "title",
           "kind",
           "privateTo",
+          "held",
           "mode"
         ],
         "type": "object"
@@ -1394,7 +1446,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/RoundOpening"
+              "$ref": "#/components/schemas/Notice"
             },
             "type": "array"
           },
@@ -1413,7 +1465,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/RoundDrafts"
+              "$ref": "#/components/schemas/RoundOpening"
             },
             "type": "array"
           },
@@ -1432,7 +1484,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/DraftProcess"
+              "$ref": "#/components/schemas/RoundDrafts"
             },
             "type": "array"
           },
@@ -1447,6 +1499,25 @@
         "type": "object"
       },
       "Page13": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DraftProcess"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "Page14": {
         "description": "A page of a collection: its members, and whether anything stands past the last of them.",
         "properties": {
           "items": {
@@ -1565,7 +1636,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/Person"
+              "$ref": "#/components/schemas/AccountContact"
             },
             "type": "array"
           },
@@ -1584,7 +1655,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/RoomReadCount"
+              "$ref": "#/components/schemas/Person"
             },
             "type": "array"
           },
@@ -1603,7 +1674,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/Notice"
+              "$ref": "#/components/schemas/RoomReadCount"
             },
             "type": "array"
           },
@@ -1819,6 +1890,10 @@
           "label": {
             "type": "string"
           },
+          "listsContacts": {
+            "default": false,
+            "type": "boolean"
+          },
           "listsRooms": {
             "type": "boolean"
           },
@@ -1827,12 +1902,25 @@
               "$ref": "#/components/schemas/RoomMode"
             },
             "type": "array"
+          },
+          "startsChats": {
+            "default": false,
+            "description": "Whether it starts a one-to-one with a contact.",
+            "type": "boolean"
+          },
+          "startsGroups": {
+            "default": false,
+            "description": "Whether it starts a group of contacts under a title.",
+            "type": "boolean"
           }
         },
         "required": [
           "key",
           "label",
           "listsRooms",
+          "listsContacts",
+          "startsChats",
+          "startsGroups",
           "roomModes"
         ],
         "type": "object"
@@ -2008,6 +2096,17 @@
           "mode"
         ],
         "type": "object"
+      },
+      "RoomAddition": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AddRoom"
+          },
+          {
+            "$ref": "#/components/schemas/StartRoom"
+          }
+        ],
+        "description": "The body of `POST /rooms`: a room of a chat service's account, or a conversation the service starts."
       },
       "RoomAnswerers": {
         "description": "Every room with its agents answering it.",
@@ -2282,6 +2381,46 @@
         ],
         "type": "object"
       },
+      "StartRoom": {
+        "description": "`POST /rooms`: a conversation a chat service starts, a one-to-one with `contact_id` or a group of\n`contact_ids` under `title`, added in a mode as the room it comes to.",
+        "properties": {
+          "contactId": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "contactIds": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RoomMode"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "title": {
+            "description": "The room's title; a group's, which a group needs.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "mode"
+        ],
+        "type": "object"
+      },
       "Talk": {
         "description": "A talk's topic and what the owner says.",
         "properties": {
@@ -2380,7 +2519,7 @@
   "info": {
     "description": "The chat receiver: the rooms and their messages, the rules, rights and windows of each room, the envelope a turn goes out in, and the waking of the agents a room's words, a quiet instruction or a job's end calls for. Every route answers in the common wire format: camelCase keys, times as integers of epoch milliseconds, rooms, messages and people as signed 64-bit integers, lists as pages of items and more, and every failure as a non-2xx answer carrying code and error. The routes a chat provider hands messages over on stand under /chat, as bmo-chat's protocol states them.",
     "title": "bmo-receiver",
-    "version": "0.24.0"
+    "version": "0.25.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2631,7 +2770,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page12"
+                  "$ref": "#/components/schemas/Page13"
                 }
               }
             },
@@ -2791,7 +2930,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page13"
+                  "$ref": "#/components/schemas/Page14"
                 }
               }
             },
@@ -3467,7 +3606,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page7"
+                  "$ref": "#/components/schemas/Page8"
                 }
               }
             },
@@ -3713,6 +3852,71 @@
         ]
       }
     },
+    "/providers/{key}/contacts": {
+      "get": {
+        "operationId": "accountContacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page7"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed, failed"
+          }
+        },
+        "summary": "The contacts of a provider's account, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "conflict",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
     "/providers/{key}/rooms": {
       "get": {
         "operationId": "accountRooms",
@@ -3764,7 +3968,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed, failed"
           }
         },
-        "summary": "The rooms a provider's account is in, relayed from its own list, each with the mode it was added in.",
+        "summary": "The rooms a provider's account is in, relayed from its own list, each with whether the receiver holds it and the mode it was added in.",
         "tags": [
           "Rooms"
         ],
@@ -3796,7 +4000,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page8"
+                  "$ref": "#/components/schemas/Page9"
                 }
               }
             },
@@ -3914,7 +4118,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AddRoom"
+                "$ref": "#/components/schemas/RoomAddition"
               }
             }
           },
@@ -3942,7 +4146,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, conflict, upstream-failed, failed"
           }
         },
-        "summary": "A room added on a chat service in a mode, kept with its title and its providers set to that service and the record.",
+        "summary": "A room added on a chat service in a mode, one of its account's rooms or the room a conversation it starts comes to, kept with its title and its providers set to that service and the record.",
         "tags": [
           "Rooms"
         ],
@@ -4755,7 +4959,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page9"
+                  "$ref": "#/components/schemas/Page10"
                 }
               }
             },
@@ -4988,7 +5192,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page7"
+                  "$ref": "#/components/schemas/Page8"
                 }
               }
             },
@@ -5641,7 +5845,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page11"
+                  "$ref": "#/components/schemas/Page12"
                 }
               }
             },
@@ -5695,7 +5899,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page10"
+                  "$ref": "#/components/schemas/Page11"
                 }
               }
             },

@@ -1,16 +1,22 @@
 //! A room as the receiver holds it (`docs/api.md`, 「Rooms」): the deployment's owner, one room, the agents
 //! answering it, one message, the chat providers it is on, and a room added on a chat service in a mode. Any chat
 //! reads as a room; one never registered reads as one whose registration is gone, and the work filed from it
-//! reaches the owner's private chat instead. What a provider offers a room added on it is read off its declaration,
-//! never off its name.
+//! reaches the owner's private chat instead. What a provider offers a room added on it, the rooms and the contacts
+//! of its account and the conversations it starts, is read off its declaration, never off its name.
+
+use std::collections::BTreeMap;
 
 use axum::{
   body::Bytes,
   extract::{Path, RawQuery, State},
   http::StatusCode,
 };
-use bmo_chat_client::{AccountRoomsQuery, ChatDeclaration, ClientFailure, ErrorCode, RoomKind};
+use bmo_chat_client::{
+  AccountRoomsQuery, ChatCapability, ChatContactKind, ChatDeclaration, ChatStart, ClientFailure,
+  ContactsQuery, ErrorCode, ProviderRoom, RoomKind,
+};
 use receiver_codes::RoomAdditionRefusal;
+use receiver_ports::chat::Chat;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -150,6 +156,9 @@ pub async fn providers(State(served): State<Served>) -> Answered {
         "key": provider.key,
         "label": provider.label,
         "listsRooms": provider.lists_rooms,
+        "listsContacts": provider.lists_contacts,
+        "startsChats": provider.starts_chats,
+        "startsGroups": provider.starts_groups,
         "roomModes": modes,
       })
     })
@@ -176,9 +185,15 @@ async fn declared_now(receiver: &Receiver, key: &str) -> Result<ChatDeclaration,
     .ok_or_else(|| unanswered(key, "its declaration"))
 }
 
-/// The rooms a provider's account is in, relayed from its own list page by page, each with the mode the receiver
-/// added it in. Refused where no provider stands under the key, and where the provider does not declare that it
-/// lists them.
+// Whether the receiver holds a room: its own, one it keeps a title or a message of, or one added. The receiver's
+// own record answers it, never the provider.
+async fn holds(receiver: &Receiver, room: i64, modes: &BTreeMap<i64, RoomMode>) -> Result<bool, Refusal> {
+  Ok(modes.contains_key(&room) || known(receiver, room).await?)
+}
+
+/// The rooms a provider's account is in, relayed from its own list page by page, each with whether the receiver
+/// holds it and the mode the receiver added it in. Refused where no provider stands under the key, and where the
+/// provider does not declare that it lists them.
 pub async fn account_rooms(
   State(served): State<Served>,
   Path(key): Path<String>,
@@ -214,45 +229,179 @@ pub async fn account_rooms(
     Err(why) => return Err(unanswered(&key, why)),
   };
   let modes = added::modes(receiver.db()).await.map_err(store)?;
-  let items: Vec<Value> = page
-    .items
-    .iter()
-    .map(|room| {
-      json!({
-        "id": room.id,
-        "title": room.title,
-        "kind": match room.kind {
-          RoomKind::Owner => "owner",
-          RoomKind::Group => "group",
-        },
-        "privateTo": room.private_to,
-        "mode": modes.get(&room.id).map(|mode| mode.as_str()),
-      })
-    })
-    .collect();
+  let mut items: Vec<Value> = Vec::with_capacity(page.items.len());
+
+  for room in &page.items {
+    items.push(json!({
+      "id": room.id,
+      "title": room.title,
+      "kind": match room.kind {
+        RoomKind::Owner => "owner",
+        RoomKind::Group => "group",
+      },
+      "privateTo": room.private_to,
+      "held": holds(&receiver, room.id, &modes).await?,
+      "mode": modes.get(&room.id).map(|mode| mode.as_str()),
+    }));
+  }
 
   answered(json!({ "items": items, "more": page.more }))
 }
 
-/// A room to add: the chat service it is chosen on, the room as that service numbers it, its mode, and its title
-/// where the caller names one.
+/// The contacts of a provider's account, relayed from its own list page by page, each with the one-to-one the
+/// account has with it, whether the receiver holds that room and the mode it was added in. Refused where no
+/// provider stands under the key, and where the provider does not declare that it lists them.
+pub async fn contacts(State(served): State<Served>, Path(key): Path<String>, raw: RawQuery) -> Answered {
+  let asked = query::<ContactsQuery>(raw)?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  if !providers::stands(receiver.roads(), &key) {
+    return Err(refused(StatusCode::NOT_FOUND, "not-found", &format!("No provider stands under {key}.")));
+  }
+
+  let Some(service) = receiver.roads().chats().road(&key) else {
+    let label = receiver.roads().facts(&Road::Record).await.label;
+
+    return Err(code(&RoomAdditionRefusal::ContactsUnlisted { label }));
+  };
+  let declared = declared_now(&receiver, &key).await?;
+
+  if !added::can(&declared, ChatCapability::ContactList) {
+    return Err(code(&RoomAdditionRefusal::ContactsUnlisted {
+      label: declared.label,
+    }));
+  }
+
+  let page = match service.contacts(&asked).await {
+    Ok(page) => page,
+    Err(failure) if failure.code() == Some(ErrorCode::UnsupportedCapability) => {
+      return Err(code(&RoomAdditionRefusal::ContactsUnlisted {
+        label: declared.label,
+      }));
+    }
+    Err(why) => return Err(unanswered(&key, why)),
+  };
+  let modes = added::modes(receiver.db()).await.map_err(store)?;
+  let mut items: Vec<Value> = Vec::with_capacity(page.items.len());
+
+  for contact in &page.items {
+    let held = match contact.room_id {
+      Some(room) => holds(&receiver, room, &modes).await?,
+      None => false,
+    };
+
+    items.push(json!({
+      "id": contact.id,
+      "name": contact.name,
+      "kind": match contact.kind {
+        ChatContactKind::Person => "person",
+        ChatContactKind::Bot => "bot",
+      },
+      "roomId": contact.room_id,
+      "held": held,
+      "mode": contact.room_id.and_then(|room| modes.get(&room)).map(|mode| mode.as_str()),
+    }));
+  }
+
+  answered(json!({ "items": items, "more": page.more }))
+}
+
+/// A room to add: the chat service it is chosen on, its mode, and one of the room as that service numbers it, a
+/// contact to start a one-to-one with, or the contacts to start a group with; and its title where the caller names
+/// one, which a group needs.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Adding {
   provider: String,
-  room_id: i64,
   mode: RoomMode,
+  #[serde(default)]
+  room_id: Option<i64>,
+  #[serde(default)]
+  contact_id: Option<i64>,
+  #[serde(default)]
+  contact_ids: Option<Vec<i64>>,
   #[serde(default)]
   title: Option<String>,
 }
 
-/// A room added on a chat service in a mode, kept with its title and its list of providers set to that service and
-/// the record; answered with the room as it now stands. A room added before, one the service does not say is its
-/// own and a mode the service does not offer or the room does not take are refused, and nothing is written.
+/// What a room to add is chosen as: a room of the account, or a conversation to start.
+enum Chosen {
+  Room(i64),
+  Start(ChatStart),
+}
+
+impl Adding {
+  // The one choice the body makes; a body naming none, or more than one, is no addition.
+  fn chosen(&self) -> Result<Chosen, Refusal> {
+    let bad = |why: &str| refused(StatusCode::BAD_REQUEST, "bad-request", why);
+
+    match (self.room_id, self.contact_id, &self.contact_ids) {
+      (Some(room), None, None) => Ok(Chosen::Room(room)),
+      (None, Some(contact_id), None) => Ok(Chosen::Start(ChatStart::OneToOne { contact_id })),
+      (None, None, Some(contact_ids)) => match self.title.as_deref().map(str::trim) {
+        Some(title) if !title.is_empty() => Ok(Chosen::Start(ChatStart::Group {
+          title: title.to_owned(),
+          contact_ids: contact_ids.clone(),
+        })),
+        _ => Err(bad("A group to start needs a title.")),
+      },
+      _ => Err(bad("A room to add names one of roomId, contactId or contactIds.")),
+    }
+  }
+}
+
+// The room a conversation started on a service came to; refused where the service does not start one of that
+// shape, does not know a contact named, or will not start it.
+async fn started(
+  service: &dyn Chat,
+  declared: &ChatDeclaration,
+  key: &str,
+  start: &ChatStart,
+) -> Result<ProviderRoom, Refusal> {
+  let label = || declared.label.clone();
+  let capability = match start {
+    ChatStart::OneToOne { .. } => ChatCapability::StartChat,
+    ChatStart::Group { .. } => ChatCapability::StartGroup,
+  };
+
+  if !added::can(declared, capability) {
+    return Err(code(&RoomAdditionRefusal::ChatsUnstarted { label: label() }));
+  }
+
+  let failure = match service.start_chat(start).await {
+    Ok(room) => return Ok(room),
+    Err(failure) => failure,
+  };
+  let said = match &failure {
+    ClientFailure::Answered {
+      answer: Some(answer),
+      ..
+    } => answer.error.clone(),
+    other => other.to_string(),
+  };
+
+  Err(match failure.code() {
+    Some(ErrorCode::UnsupportedCapability) => code(&RoomAdditionRefusal::ChatsUnstarted { label: label() }),
+    Some(ErrorCode::NotFound) => code(&RoomAdditionRefusal::ContactUnknown { label: label() }),
+    Some(ErrorCode::BadRequest) => refused(StatusCode::BAD_REQUEST, "bad-request", &said),
+    Some(ErrorCode::Platform | ErrorCode::Gone) => code(&RoomAdditionRefusal::StartRefused {
+      label: label(),
+      detail: said,
+    }),
+    _ => unanswered(key, failure),
+  })
+}
+
+/// A room added on a chat service in a mode: one of its account's rooms, or the room a conversation the service
+/// starts comes to; kept with its title and its list of providers set to that service and the record, and
+/// answered with the room as it now stands. A mode the service does not offer is refused before anything is
+/// started; a room added before, one the service does not say is its own and a mode the room does not take are
+/// refused, and nothing is written.
 pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Adding>(&body)?;
+  let chosen = asked.chosen()?;
   let receiver: Receiver = (*served.receiver).clone();
-  let (key, room) = (asked.provider.as_str(), asked.room_id);
+  let key = asked.provider.as_str();
   let Some(service) = receiver.roads().chats().road(key) else {
     return Err(refused(
       StatusCode::BAD_REQUEST,
@@ -261,27 +410,47 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
     ));
   };
 
-  if added::mode_of(receiver.db(), room).await.map_err(store)?.is_some() {
+  if let Chosen::Room(room) = chosen
+    && added::mode_of(receiver.db(), room).await.map_err(store)?.is_some()
+  {
     return Err(code(&RoomAdditionRefusal::RoomAdded { room }));
   }
 
   let declared = declared_now(&receiver, key).await?;
-  let unknown = || {
-    code(&RoomAdditionRefusal::RoomUnknown {
+  let avatar_unsupported = || {
+    code(&RoomAdditionRefusal::AvatarUnsupported {
       label: declared.label.clone(),
-      room,
     })
   };
-  let held = match service.room(room).await {
-    Ok(held) if held.owns => held,
-    Ok(_) | Err(ClientFailure::Answered { status: 404, .. }) => return Err(unknown()),
-    Err(why) => return Err(unanswered(key, why)),
-  };
 
-  if !added::offered(&declared).contains(&asked.mode) || !added::takes(&held, asked.mode) {
-    return Err(code(&RoomAdditionRefusal::AvatarUnsupported {
-      label: declared.label,
+  if !added::offered(&declared).contains(&asked.mode) {
+    return Err(avatar_unsupported());
+  }
+
+  let held = match &chosen {
+    Chosen::Room(room) => match service.room(*room).await {
+      Ok(held) => held,
+      Err(ClientFailure::Answered { status: 404, .. }) => {
+        return Err(code(&RoomAdditionRefusal::RoomUnknown {
+          label: declared.label.clone(),
+          room: *room,
+        }));
+      }
+      Err(why) => return Err(unanswered(key, why)),
+    },
+    Chosen::Start(start) => started(service.as_ref(), &declared, key, start).await?,
+  };
+  let room = held.id;
+
+  if !held.owns {
+    return Err(code(&RoomAdditionRefusal::RoomUnknown {
+      label: declared.label.clone(),
+      room,
     }));
+  }
+
+  if !added::takes(&held, asked.mode) {
+    return Err(avatar_unsupported());
   }
 
   let title = asked.title.filter(|title| !title.trim().is_empty()).or(held.title);

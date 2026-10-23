@@ -67,7 +67,32 @@ pub struct AddRoom {
   pub title: Option<String>,
 }
 
-/// A room a provider's account is in, as the provider answers it, with the mode the receiver added it in.
+/// `POST /rooms`: a conversation a chat service starts, a one-to-one with `contact_id` or a group of
+/// `contact_ids` under `title`, added in a mode as the room it comes to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct StartRoom {
+  pub provider: String,
+  pub mode: RoomMode,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub contact_id: Option<i64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub contact_ids: Option<Vec<i64>>,
+  /// The room's title; a group's, which a group needs.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub title: Option<String>,
+}
+
+/// The body of `POST /rooms`: a room of a chat service's account, or a conversation the service starts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum RoomAddition {
+  Room(AddRoom),
+  Start(StartRoom),
+}
+
+/// A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode
+/// the receiver added it in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountRoom {
@@ -77,7 +102,25 @@ pub struct AccountRoom {
   pub kind: String,
   /// The one person of a one-to-one with the account.
   pub private_to: Option<i64>,
+  /// Whether the receiver holds the room: its own, one it keeps a title or a message of, or one added.
+  #[serde(default)]
+  pub held: bool,
   /// The mode the room was added in; null for a room not added.
+  pub mode: Option<RoomMode>,
+}
+
+/// A contact of a provider's account, as the provider answers it, with whether the receiver holds the one-to-one
+/// the account has with it and the mode that room was added in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountContact {
+  pub id: i64,
+  pub name: String,
+  /// `person` or `bot`.
+  pub kind: String,
+  /// The one-to-one the account already has with the contact.
+  pub room_id: Option<i64>,
+  pub held: bool,
   pub mode: Option<RoomMode>,
 }
 
@@ -263,6 +306,14 @@ pub struct Provider {
   pub key: String,
   pub label: String,
   pub lists_rooms: bool,
+  #[serde(default)]
+  pub lists_contacts: bool,
+  /// Whether it starts a one-to-one with a contact.
+  #[serde(default)]
+  pub starts_chats: bool,
+  /// Whether it starts a group of contacts under a title.
+  #[serde(default)]
+  pub starts_groups: bool,
   pub room_modes: Vec<RoomMode>,
 }
 

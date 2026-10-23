@@ -118,6 +118,11 @@ impl ReceiverClient {
     Self::answered(self.send(Method::POST, &["rooms"], room)).await
   }
 
+  /// `POST /rooms`, starting a conversation on the chat service and adding the room it comes to.
+  pub async fn start_room(&self, start: &StartRoom) -> Answer<Room> {
+    Self::answered(self.send(Method::POST, &["rooms"], start)).await
+  }
+
   /// `GET /rooms/{roomId}`.
   pub async fn room(&self, room_id: i64) -> Answer<Room> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string()])).await
@@ -261,6 +266,20 @@ impl ReceiverClient {
       query.iter().filter_map(|(name, value)| value.map(|value| (*name, value))).collect();
 
     Self::answered(self.get(&["providers", key, "rooms"], &given)).await
+  }
+
+  /// `GET /providers/{key}/contacts`.
+  pub async fn account_contacts(
+    &self,
+    key: &str,
+    after: Option<i64>,
+    limit: Option<i64>,
+  ) -> Answer<Page<AccountContact>> {
+    let query = [("after", after), ("limit", limit)];
+    let given: Vec<(&str, i64)> =
+      query.iter().filter_map(|(name, value)| value.map(|value| (*name, value))).collect();
+
+    Self::answered(self.get(&["providers", key, "contacts"], &given)).await
   }
 
   /// `GET /rooms/{roomId}/providers`.

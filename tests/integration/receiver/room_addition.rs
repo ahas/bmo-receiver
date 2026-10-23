@@ -18,7 +18,15 @@ async fn front(scratch: &Scratch) -> (Front, Arc<StandInChat>, Arc<StandInChat>)
     StandInChat::new("road-a")
       .holding(&[-300, -200, -100])
       .titling(-200, "Second Room")
-      .canning(&[ChatCapability::RoomList]),
+      .contacting(51, "Contact One", Some(-100))
+      .contacting(52, "Contact Two", None)
+      .contacting(53, "Contact Three", None)
+      .canning(&[
+        ChatCapability::RoomList,
+        ChatCapability::ContactList,
+        ChatCapability::StartChat,
+        ChatCapability::StartGroup,
+      ]),
   );
   let plain = Arc::new(StandInChat::new("road-b").holding(&[-400]));
 
@@ -45,9 +53,12 @@ async fn each_provider_offers_what_it_declares_and_the_record_offers_nothing() {
   assert_eq!(
     every["items"],
     json!([
-      { "key": "record", "label": every["items"][0]["label"], "listsRooms": false, "roomModes": [] },
-      { "key": "road-a", "label": "the road-a road", "listsRooms": true, "roomModes": ["avatar", "record-only"] },
-      { "key": "road-b", "label": "the road-b road", "listsRooms": false, "roomModes": ["record-only"] },
+      { "key": "record", "label": every["items"][0]["label"], "listsRooms": false, "listsContacts": false,
+        "startsChats": false, "startsGroups": false, "roomModes": [] },
+      { "key": "road-a", "label": "the road-a road", "listsRooms": true, "listsContacts": true,
+        "startsChats": true, "startsGroups": true, "roomModes": ["avatar", "record-only"] },
+      { "key": "road-b", "label": "the road-b road", "listsRooms": false, "listsContacts": false,
+        "startsChats": false, "startsGroups": false, "roomModes": ["record-only"] },
     ])
   );
 
@@ -68,7 +79,8 @@ async fn the_rooms_of_an_account_are_relayed_page_by_page_and_refused_where_the_
   assert_eq!(
     page,
     json!({
-      "items": [{ "id": -200, "title": "Second Room", "kind": "group", "privateTo": null, "mode": null }],
+      "items": [{ "id": -200, "title": "Second Room", "kind": "group", "privateTo": null, "held": false,
+        "mode": null }],
       "more": true,
     })
   );
@@ -204,4 +216,174 @@ async fn a_room_answered_as_the_user_sends_in_the_account_of_the_person_the_serv
       (-200, None),
     ]
   );
+}
+
+#[tokio::test]
+async fn a_room_the_receiver_holds_is_marked_held_whether_or_not_it_was_added() {
+  let scratch = Scratch::new().await;
+  let (front, _listing, _plain) = front(&scratch).await;
+
+  scratch
+    .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-300, 'Kept before')"#, vec![])
+    .await;
+  post(&front, "/rooms", adding("road-a", -100, "record-only")).await;
+
+  let (status, page) = get(&front, "/providers/road-a/rooms").await;
+  let marks: Vec<(i64, bool, Value)> = page["items"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .map(|room| (room["id"].as_i64().unwrap(), room["held"].as_bool().unwrap(), room["mode"].clone()))
+    .collect();
+
+  assert_eq!(status.as_u16(), 200, "{page}");
+  assert_eq!(
+    marks,
+    [
+      (-300, true, Value::Null),
+      (-200, false, Value::Null),
+      (-100, true, json!("record-only"))
+    ]
+  );
+}
+
+#[tokio::test]
+async fn the_contacts_of_an_account_are_relayed_with_their_room_held_or_not() {
+  let scratch = Scratch::new().await;
+  let (front, _listing, _plain) = front(&scratch).await;
+
+  post(&front, "/rooms", adding("road-a", -100, "record-only")).await;
+
+  let (status, page) = get(&front, "/providers/road-a/contacts?limit=2").await;
+
+  assert_eq!(status.as_u16(), 200, "{page}");
+  assert_eq!(
+    page,
+    json!({
+      "items": [
+        { "id": 51, "name": "Contact One", "kind": "person", "roomId": -100, "held": true, "mode": "record-only" },
+        { "id": 52, "name": "Contact Two", "kind": "person", "roomId": null, "held": false, "mode": null },
+      ],
+      "more": true,
+    })
+  );
+
+  for (path, status, code) in [
+    ("/providers/road-b/contacts", 409, "contacts-unlisted"),
+    ("/providers/record/contacts", 409, "contacts-unlisted"),
+    ("/providers/road-z/contacts", 404, "not-found"),
+    ("/providers/road-a/contacts?limit=many", 400, "bad-request"),
+  ] {
+    let (answered, body) = get(&front, path).await;
+
+    assert_eq!((answered.as_u16(), body["code"].as_str()), (status, Some(code)), "{path}: {body}");
+  }
+}
+
+#[tokio::test]
+async fn a_conversation_started_on_the_service_is_added_as_the_room_it_comes_to() {
+  let scratch = Scratch::new().await;
+  let (front, listing, _plain) = front(&scratch).await;
+
+  let (status, room) = post(
+    &front,
+    "/rooms",
+    json!({ "provider": "road-a", "contactId": 52, "mode": "record-only" }),
+  )
+  .await;
+
+  assert_eq!(status.as_u16(), 201, "{room}");
+  assert_eq!(
+    (room["id"].as_i64(), room["title"].as_str(), room["mode"].as_str()),
+    (Some(52), Some("Contact Two"), Some("record-only"))
+  );
+  assert_eq!(
+    get(&front, "/rooms/52/providers").await.1,
+    json!({ "providers": ["road-a", "record"], "chosen": true })
+  );
+
+  let group = json!({ "provider": "road-a", "contactIds": [51, 53], "title": "Plans", "mode": "avatar" });
+  let (status, room) = post(&front, "/rooms", group).await;
+
+  assert_eq!(status.as_u16(), 201, "{room}");
+  assert_eq!(
+    (room["id"].as_i64(), room["title"].as_str(), room["mode"].as_str()),
+    (Some(-700), Some("Plans"), Some("avatar"))
+  );
+  assert_eq!(listing.started().len(), 2);
+}
+
+#[tokio::test]
+async fn a_start_the_service_does_not_declare_know_or_make_is_refused_and_writes_nothing() {
+  let scratch = Scratch::new().await;
+  let (front, listing, _plain) = front(&scratch).await;
+  let start = |body: Value| {
+    let mut body = body;
+
+    body["provider"] = json!(body["provider"].as_str().unwrap_or("road-a"));
+    body
+  };
+
+  for (body, status, code) in [
+    (
+      start(json!({ "provider": "road-b", "contactId": 52, "mode": "record-only" })),
+      409,
+      "chats-unstarted",
+    ),
+    (start(json!({ "contactId": 99, "mode": "record-only" })), 409, "contact-unknown"),
+    (
+      start(json!({ "contactIds": [52], "title": "Refused", "mode": "record-only" })),
+      409,
+      "start-refused",
+    ),
+    (start(json!({ "contactId": 52, "mode": "avatar" })), 409, "avatar-unsupported"),
+    (start(json!({ "contactId": 51, "mode": "record-only" })), 201, ""),
+    (start(json!({ "contactId": 51, "mode": "record-only" })), 409, "room-added"),
+    (start(json!({ "contactIds": [52], "mode": "record-only" })), 400, "bad-request"),
+    (
+      start(json!({ "contactIds": [52], "title": " ", "mode": "record-only" })),
+      400,
+      "bad-request",
+    ),
+    (
+      start(json!({ "contactId": 52, "roomId": -200, "mode": "record-only" })),
+      400,
+      "bad-request",
+    ),
+  ] {
+    let (answered, refused) = post(&front, "/rooms", body.clone()).await;
+
+    assert_eq!(answered.as_u16(), status, "{body}: {refused}");
+
+    if status != 201 {
+      assert_eq!(refused["code"].as_str(), Some(code), "{body}: {refused}");
+    }
+  }
+
+  // A read-only one-to-one takes no avatar mode, and nothing was started for a mode the service does not offer.
+  listing.moding(ChatVoice::HumanAvatar, ChatModeStanding::Inactive);
+
+  let (answered, refused) =
+    post(&front, "/rooms", json!({ "provider": "road-a", "contactId": 53, "mode": "avatar" })).await;
+
+  assert_eq!((answered.as_u16(), refused["code"].as_str()), (409, Some("avatar-unsupported")));
+
+  let asked: Vec<String> = listing.started().iter().map(|start| format!("{start:?}")).collect();
+
+  assert_eq!(
+    asked,
+    [
+      "OneToOne { contact_id: 99 }",
+      "Group { title: \"Refused\", contact_ids: [52] }",
+      "OneToOne { contact_id: 52 }",
+      "OneToOne { contact_id: 51 }",
+      "OneToOne { contact_id: 51 }",
+    ]
+  );
+
+  let kept = scratch
+    .texts(r#"SELECT "chat_id"::text || ' ' || "mode" FROM "room_modes" ORDER BY "chat_id""#)
+    .await;
+
+  assert_eq!(kept, ["-100 record-only"]);
 }

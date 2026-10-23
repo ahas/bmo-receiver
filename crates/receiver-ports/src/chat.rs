@@ -7,8 +7,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use bmo_chat_client::{
-  AccountRoomsQuery, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatProviderClient, ChatSendRequest,
-  ChatSent, ClientFailure, DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
+  AccountRoomsQuery, ChatContact, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatProviderClient,
+  ChatSendRequest, ChatSent, ChatStart, ClientFailure, ContactsQuery, DialectChecked, DialectReading,
+  MessageFile, Page, ProviderRoom, RoomKind,
 };
 use futures_util::future::BoxFuture;
 
@@ -45,6 +46,14 @@ pub trait Chat: Send + Sync {
     &'a self,
     query: &'a AccountRoomsQuery,
   ) -> BoxFuture<'a, ChatAnswer<Page<ProviderRoom>>>;
+
+  /// A page of the contacts of the service's account; refused where the service does not declare
+  /// `contactList`.
+  fn contacts<'a>(&'a self, query: &'a ContactsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatContact>>>;
+
+  /// A conversation started on the service, answered with its room; refused where the service does not declare
+  /// the shape's capability.
+  fn start_chat<'a>(&'a self, start: &'a ChatStart) -> BoxFuture<'a, ChatAnswer<ProviderRoom>>;
 
   /// Whether the room is the service's.
   fn room_owns(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<bool>>;
@@ -101,6 +110,14 @@ impl Chat for ChatProviderClient {
     query: &'a AccountRoomsQuery,
   ) -> BoxFuture<'a, ChatAnswer<Page<ProviderRoom>>> {
     Box::pin(ChatProviderClient::account_rooms(self, query))
+  }
+
+  fn contacts<'a>(&'a self, query: &'a ContactsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatContact>>> {
+    Box::pin(ChatProviderClient::contacts(self, query))
+  }
+
+  fn start_chat<'a>(&'a self, start: &'a ChatStart) -> BoxFuture<'a, ChatAnswer<ProviderRoom>> {
+    Box::pin(ChatProviderClient::start_chat(self, start))
   }
 
   fn room_owns(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<bool>> {

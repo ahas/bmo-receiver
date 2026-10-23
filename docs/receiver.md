@@ -157,11 +157,19 @@ flowchart TD
 
 ## Adding a room
 
-- **A room is added by choosing a chat service, one of the rooms its account is in, and a mode,** and the
-  receiver owns the room and its mode from then on (`docs/api.md`, 「Rooms」). Each choice is offered by what the
-  service declares, asked afresh each time since a mode's standing moves while the service runs:
-  - the services offered are those that declare `roomList`, and the rooms offered are the service's own list,
-    relayed page by page as it answers it;
+- **A room is added by choosing a chat service, one of the rooms its account is in or a conversation started
+  with its contacts, and a mode,** and the receiver owns the room and its mode from then on (`docs/api.md`,
+  「Rooms」). Each choice is offered by what the service declares, asked afresh each time since a mode's standing
+  moves while the service runs:
+  - the rooms offered are the list of a service that declares `roomList`, relayed page by page as it answers it,
+    each marked `held` where the receiver already holds it: its own, one it keeps a title or a message of, or one
+    added. Whether a room is held is the receiver's own record, never the service's (bmo-chat's
+    `docs/contract.md`, 「The rooms of the account」);
+  - the contacts offered are the list of a service that declares `contactList`, relayed the same way, each with
+    the one-to-one the service's account already has with it, marked held as a room is. A one-to-one is started
+    with one contact where the service declares `startChat`, and a group with several under a title where it
+    declares `startGroup`; the service starts it, and the room it comes to is added as a room chosen from the
+    list is. What the started room is, read-only or answered, is the service's answer for it;
   - `record-only` is offered on every chat service, and `avatar` only where the service's `human-avatar` mode
     stands active. A platform whose terms forbid automating a person's account declares that mode `unsupported`,
     so it is never offered there. A room whose answer states `modes` without `human-avatar` takes no `avatar`
@@ -170,7 +178,8 @@ flowchart TD
   set to the service it was chosen on and the room's record (「A room's chat providers」 above), so whatever mode
   it is in, every message said in it stands in the archive. A room the service does not say is its own, a mode
   the service does not offer or the room does not take, and a room already added are refused, and nothing is
-  written.
+  written. A mode the service does not offer is refused before a conversation is started, so nothing is made on
+  the platform for an addition that cannot stand.
 - **The mode is what the room is to the agents:**
   - `record-only` is the user alone: the room's messages are kept and carried as any room's, and no agent is
     woken by them (`docs/wake.md`, 「Who reaches the session」);
@@ -213,7 +222,9 @@ flowchart TD
   `messageId` (null where it stands under no message yet), `stage`, `verdict` and `detail`, each row of a round's
   draft process as `draft` with its `round`, `agentName`, `number`, `question`, `kind`, `answerChars`, `changed`,
   `outcome` and `detail` (`docs/drafting.md`, 「The round log」), each question of it as it starts as `draft` of
-  kind `start` with its `round`, `agentName`, `number`, `count`, `question` and `at`, a room whose
+  kind `start` with its `round`, `agentName`, `number`, `count`, `question` and `at`, a turn of a conversation as
+  it begins, moves, sends and ends, each of these under the turn's `speaker` (`docs/api.md`, 「Events and the live
+  board」), a room whose
   registration was removed as `room-removed` with its
   number, the picture whenever it
   changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile

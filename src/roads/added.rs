@@ -39,7 +39,12 @@ impl RoomMode {
 
 /// Whether a service lists the rooms its account is in, as it declares.
 pub fn lists_rooms(declared: &ChatDeclaration) -> bool {
-  declared.can.contains(&ChatCapability::RoomList)
+  can(declared, ChatCapability::RoomList)
+}
+
+/// Whether a service declares a capability: listing its contacts, or starting a conversation of a shape.
+pub fn can(declared: &ChatDeclaration, capability: ChatCapability) -> bool {
+  declared.can.contains(&capability)
 }
 
 /// The modes a room added on a service may take: the user alone on every service, and answered as the user where

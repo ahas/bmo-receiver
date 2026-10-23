@@ -18,6 +18,18 @@ pub enum RoomAdditionRefusal {
   /// The room was already added.
   #[error("room {room} was added already")]
   RoomAdded { room: i64 },
+  /// The provider does not declare that it lists the contacts of its account.
+  #[error("{label} does not list the contacts of its account")]
+  ContactsUnlisted { label: String },
+  /// The provider does not declare that it starts a conversation of the shape asked.
+  #[error("{label} does not start a conversation of that kind")]
+  ChatsUnstarted { label: String },
+  /// The provider knows no contact the start names.
+  #[error("{label} does not know a contact the start names")]
+  ContactUnknown { label: String },
+  /// The provider refused to start the conversation, for its own reason.
+  #[error("{label} did not start the conversation: {detail}")]
+  StartRefused { label: String, detail: String },
 }
 
 impl RoomAdditionRefusal {
@@ -26,7 +38,11 @@ impl RoomAdditionRefusal {
       Self::RoomsUnlisted { .. }
       | Self::RoomUnknown { .. }
       | Self::AvatarUnsupported { .. }
-      | Self::RoomAdded { .. } => StatusCode::CONFLICT,
+      | Self::RoomAdded { .. }
+      | Self::ContactsUnlisted { .. }
+      | Self::ChatsUnstarted { .. }
+      | Self::ContactUnknown { .. }
+      | Self::StartRefused { .. } => StatusCode::CONFLICT,
     }
   }
 }

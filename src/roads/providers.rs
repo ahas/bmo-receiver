@@ -6,20 +6,25 @@
 
 use std::path::Path;
 
-use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, ChatVoice, ClientFailure, FileItem};
+use bmo_chat_client::{
+  AlbumItem, ChatCapability, ChatSend, ChatSendRequest, ChatVoice, ClientFailure, FileItem,
+};
 use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 
 use super::added::{self, RoomMode};
 use super::{Road, Roads};
 use crate::{Fault, all, now_ms, one, run};
 
-/// A provider a room may be on: its key, what it is called, whether it lists the rooms of its account, and the
-/// modes a room added on it may take (docs/receiver.md, 「Adding a room」).
+/// A provider a room may be on: its key, what it is called, whether it lists the rooms and the contacts of its
+/// account and starts a one-to-one or a group, and the modes a room added on it may take (docs/receiver.md, 「Adding a room」).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Provider {
   pub key: String,
   pub label: String,
   pub lists_rooms: bool,
+  pub lists_contacts: bool,
+  pub starts_chats: bool,
+  pub starts_groups: bool,
   pub room_modes: Vec<RoomMode>,
 }
 
@@ -30,6 +35,9 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
     key: Road::Record.key().to_owned(),
     label: roads.facts(&Road::Record).await.label,
     lists_rooms: false,
+    lists_contacts: false,
+    starts_chats: false,
+    starts_groups: false,
     room_modes: vec![],
   }];
 
@@ -40,6 +48,15 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
       key: key.to_owned(),
       label: declared.as_ref().map_or_else(|| key.to_owned(), |declared| declared.label.clone()),
       lists_rooms: declared.as_ref().is_some_and(added::lists_rooms),
+      lists_contacts: declared
+        .as_ref()
+        .is_some_and(|declared| added::can(declared, ChatCapability::ContactList)),
+      starts_chats: declared
+        .as_ref()
+        .is_some_and(|declared| added::can(declared, ChatCapability::StartChat)),
+      starts_groups: declared
+        .as_ref()
+        .is_some_and(|declared| added::can(declared, ChatCapability::StartGroup)),
       room_modes: declared.as_ref().map(added::offered).unwrap_or_default(),
     });
   }

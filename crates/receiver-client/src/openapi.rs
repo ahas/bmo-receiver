@@ -204,9 +204,9 @@ pub fn openapi() -> Value {
     "/rooms",
     "addRoom",
     "Rooms",
-    "A room added on a chat service in a mode, kept with its title and its providers set to that service and the record.",
+    "A room added on a chat service in a mode, one of its account's rooms or the room a conversation it starts comes to, kept with its title and its providers set to that service and the record.",
     vec![],
-    Some(generator.subschema_for::<AddRoom>()),
+    Some(generator.subschema_for::<RoomAddition>()),
     vec![(201, json_answer::<Room>(&mut generator))],
     vec!["unauthorized", "bad-request", "conflict", "upstream-failed", "failed"]
   );
@@ -412,7 +412,7 @@ pub fn openapi() -> Value {
     "/providers/{key}/rooms",
     "accountRooms",
     "Rooms",
-    "The rooms a provider's account is in, relayed from its own list, each with the mode it was added in.",
+    "The rooms a provider's account is in, relayed from its own list, each with whether the receiver holds it and the mode it was added in.",
     vec![
       name_parameter("key"),
       parameter("after", "integer", false),
@@ -420,6 +420,21 @@ pub fn openapi() -> Value {
     ],
     None,
     vec![(200, json_answer::<Page<AccountRoom>>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "conflict", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
+    "/providers/{key}/contacts",
+    "accountContacts",
+    "Rooms",
+    "The contacts of a provider's account, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in.",
+    vec![
+      name_parameter("key"),
+      parameter("after", "integer", false),
+      parameter("limit", "integer", false)
+    ],
+    None,
+    vec![(200, json_answer::<Page<AccountContact>>(&mut generator))],
     vec!["unauthorized", "bad-request", "not-found", "conflict", "upstream-failed", "failed"]
   );
   add!(
