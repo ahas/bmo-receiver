@@ -417,6 +417,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/providers/{key}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The contacts of a provider's account, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in. */
+        get: operations["accountContacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/providers/{key}/rooms": {
         parameters: {
             query?: never;
@@ -424,7 +441,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The rooms a provider's account is in, relayed from its own list, each with the mode it was added in. */
+        /** The rooms a provider's account is in, relayed from its own list, each with whether the receiver holds it and the mode it was added in. */
         get: operations["accountRooms"];
         put?: never;
         post?: never;
@@ -478,7 +495,7 @@ export interface paths {
         /** Every room the record shows, the pinned ones first. */
         get: operations["rooms"];
         put?: never;
-        /** A room added on a chat service in a mode, kept with its title and its providers set to that service and the record. */
+        /** A room added on a chat service in a mode, one of its account's rooms or the room a conversation it starts comes to, kept with its title and its providers set to that service and the record. */
         post: operations["addRoom"];
         delete?: never;
         options?: never;
@@ -971,8 +988,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description A room a provider's account is in, as the provider answers it, with the mode the receiver added it in. */
+        /**
+         * @description A contact of a provider's account, as the provider answers it, with whether the receiver holds the one-to-one
+         *     the account has with it and the mode that room was added in.
+         */
+        AccountContact: {
+            held: boolean;
+            /** Format: int64 */
+            id: number;
+            /** @description `person` or `bot`. */
+            kind: string;
+            mode: components["schemas"]["RoomMode"] | null;
+            name: string;
+            /**
+             * Format: int64
+             * @description The one-to-one the account already has with the contact.
+             */
+            roomId: number | null;
+        };
+        /**
+         * @description A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode
+         *     the receiver added it in.
+         */
         AccountRoom: {
+            /**
+             * @description Whether the receiver holds the room: its own, one it keeps a title or a message of, or one added.
+             * @default false
+             */
+            held: boolean;
             /** Format: int64 */
             id: number;
             /** @description `owner` or `group`. */
@@ -1433,21 +1476,26 @@ export interface components {
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page10: {
-            items: components["schemas"]["RoundOpening"][];
+            items: components["schemas"]["Notice"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page11: {
-            items: components["schemas"]["RoundDrafts"][];
+            items: components["schemas"]["RoundOpening"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page12: {
-            items: components["schemas"]["DraftProcess"][];
+            items: components["schemas"]["RoundDrafts"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page13: {
+            items: components["schemas"]["DraftProcess"][];
+            more: boolean;
+        };
+        /** @description A page of a collection: its members, and whether anything stands past the last of them. */
+        Page14: {
             items: components["schemas"]["DraftQuestion"][];
             more: boolean;
         };
@@ -1478,17 +1526,17 @@ export interface components {
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page7: {
-            items: components["schemas"]["Person"][];
+            items: components["schemas"]["AccountContact"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page8: {
-            items: components["schemas"]["RoomReadCount"][];
+            items: components["schemas"]["Person"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page9: {
-            items: components["schemas"]["Notice"][];
+            items: components["schemas"]["RoomReadCount"][];
             more: boolean;
         };
         /** @description One person. */
@@ -1559,8 +1607,20 @@ export interface components {
         Provider: {
             key: string;
             label: string;
+            /** @default false */
+            listsContacts: boolean;
             listsRooms: boolean;
             roomModes: components["schemas"]["RoomMode"][];
+            /**
+             * @description Whether it starts a one-to-one with a contact.
+             * @default false
+             */
+            startsChats: boolean;
+            /**
+             * @description Whether it starts a group of contacts under a title.
+             * @default false
+             */
+            startsGroups: boolean;
         };
         /** @description The event a process beside the receiver publishes. */
         PublishedEvent: {
@@ -1625,6 +1685,8 @@ export interface components {
              */
             workRoom: number;
         };
+        /** @description The body of `POST /rooms`: a room of a chat service's account, or a conversation the service starts. */
+        RoomAddition: components["schemas"]["AddRoom"] | components["schemas"]["StartRoom"];
         /** @description Every room with its agents answering it. */
         RoomAnswerers: {
             agents: string[];
@@ -1711,6 +1773,19 @@ export interface components {
         /** @description Whether a person spoke in a room in a span. */
         Spoke: {
             spoke: boolean;
+        };
+        /**
+         * @description `POST /rooms`: a conversation a chat service starts, a one-to-one with `contact_id` or a group of
+         *     `contact_ids` under `title`, added in a mode as the room it comes to.
+         */
+        StartRoom: {
+            /** Format: int64 */
+            contactId?: number | null;
+            contactIds?: number[] | null;
+            mode: components["schemas"]["RoomMode"];
+            provider: string;
+            /** @description The room's title; a group's, which a group needs. */
+            title?: string | null;
         };
         /** @description A talk's topic and what the owner says. */
         Talk: {
@@ -1932,7 +2007,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page12"];
+                    "application/json": components["schemas"]["Page13"];
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
@@ -2029,7 +2104,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page13"];
+                    "application/json": components["schemas"]["Page14"];
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
@@ -2505,7 +2580,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page7"];
+                    "application/json": components["schemas"]["Page8"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
@@ -2678,6 +2753,40 @@ export interface operations {
             };
         };
     };
+    accountContacts: {
+        parameters: {
+            query?: {
+                after?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page7"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     accountRooms: {
         parameters: {
             query?: {
@@ -2731,7 +2840,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page8"];
+                    "application/json": components["schemas"]["Page9"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
@@ -2816,7 +2925,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AddRoom"];
+                "application/json": components["schemas"]["RoomAddition"];
             };
         };
         responses: {
@@ -3270,7 +3379,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page9"];
+                    "application/json": components["schemas"]["Page10"];
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
@@ -3406,7 +3515,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page7"];
+                    "application/json": components["schemas"]["Page8"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
@@ -3800,7 +3909,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page11"];
+                    "application/json": components["schemas"]["Page12"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
@@ -3832,7 +3941,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page10"];
+                    "application/json": components["schemas"]["Page11"];
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
