@@ -7,30 +7,40 @@
 use std::path::Path;
 
 use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, ChatVoice, ClientFailure, FileItem};
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 
+use super::added::{self, RoomMode};
 use super::{Road, Roads};
 use crate::{Fault, all, now_ms, one, run};
 
-/// A provider a room may be on: its key and what it is called.
+/// A provider a room may be on: its key, what it is called, whether it lists the rooms of its account, and the
+/// modes a room added on it may take (docs/receiver.md, 「Adding a room」).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Provider {
   pub key: String,
   pub label: String,
+  pub lists_rooms: bool,
+  pub room_modes: Vec<RoomMode>,
 }
 
-/// Every provider a room may be on: the room's record, then each chat service the configuration lists.
+/// Every provider a room may be on: the room's record, which lists no rooms and takes no mode, then each chat
+/// service the configuration lists, as it declares itself now.
 pub async fn every(roads: &Roads) -> Vec<Provider> {
-  let mut providers = vec![];
+  let mut providers = vec![Provider {
+    key: Road::Record.key().to_owned(),
+    label: roads.facts(&Road::Record).await.label,
+    lists_rooms: false,
+    room_modes: vec![],
+  }];
 
-  for road in
-    std::iter::once(Road::Record).chain(roads.chats().names().map(|key| Road::Service(key.to_owned())))
-  {
-    let facts = roads.facts(&road).await;
+  for key in roads.chats().names() {
+    let declared = roads.declaration_now(key).await;
 
     providers.push(Provider {
-      key: road.key().to_owned(),
-      label: facts.label,
+      key: key.to_owned(),
+      label: declared.as_ref().map_or_else(|| key.to_owned(), |declared| declared.label.clone()),
+      lists_rooms: declared.as_ref().is_some_and(added::lists_rooms),
+      room_modes: declared.as_ref().map(added::offered).unwrap_or_default(),
     });
   }
 
@@ -98,23 +108,28 @@ pub async fn listed(db: &DatabaseConnection, roads: &Roads, chat_id: i64) -> Res
 pub async fn choose(db: &DatabaseConnection, chat_id: i64, providers: &[String]) -> Result<(), Fault> {
   let transaction = db.begin().await.map_err(Fault::from)?;
 
-  run(
-    &transaction,
-    r#"DELETE FROM "room_providers" WHERE "chat_id" = $1"#,
-    vec![chat_id.into()],
-  )
-  .await?;
+  write_list(&transaction, chat_id, providers).await?;
+  transaction.commit().await.map_err(Fault::from)
+}
+
+/// A room's list of providers written whole, in the order given, on a connection the caller holds.
+pub async fn write_list<C: ConnectionTrait>(
+  conn: &C,
+  chat_id: i64,
+  providers: &[String],
+) -> Result<(), Fault> {
+  run(conn, r#"DELETE FROM "room_providers" WHERE "chat_id" = $1"#, vec![chat_id.into()]).await?;
 
   for (place, provider) in providers.iter().enumerate() {
     run(
-      &transaction,
+      conn,
       r#"INSERT INTO "room_providers" ("chat_id", "provider", "place") VALUES ($1, $2, $3)"#,
       vec![chat_id.into(), provider.clone().into(), i64::try_from(place).unwrap_or(i64::MAX).into()],
     )
     .await?;
   }
 
-  transaction.commit().await.map_err(Fault::from)
+  Ok(())
 }
 
 /// What a kept message carries to another provider: one send as it stands, or the files it carried with the words
@@ -321,8 +336,8 @@ pub async fn echo(
 
 /// A kept message carried to each provider of its room it does not already stand on. The record holds it by being
 /// the archive; each chat service is handed it through its own sends, in the owner's own voice where the owner
-/// said it, each send tagged and the number its copy went out as kept. A provider that refuses or does not answer
-/// is said in the journal and leaves the message as it was kept.
+/// said it and in the voice the room answers in otherwise, each send tagged and the number its copy went out as
+/// kept. A provider that refuses or does not answer is said in the journal and leaves the message as it was kept.
 pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery) {
   let chat_id = delivery.chat_id;
   let listed = match listed(db, roads, chat_id).await {
@@ -332,6 +347,12 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
 
       return;
     }
+  };
+
+  let voice = if delivery.owner {
+    Some(ChatVoice::HumanReader)
+  } else {
+    added::voice_in(db, chat_id).await
   };
 
   for key in listed.providers {
@@ -367,7 +388,7 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
       };
       let mut request = ChatSendRequest::new(chat_id, send);
 
-      request.mode = delivery.owner.then_some(ChatVoice::HumanReader);
+      request.mode = voice;
       request.tag = Some(tag.to_string());
       request.reply_to_message_id = if at == 0 { reply } else { None };
 

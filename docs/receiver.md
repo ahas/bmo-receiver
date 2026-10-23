@@ -85,7 +85,10 @@ flowchart TD
   or a message id sign test standing in for one.
 - **Every difference is asked of the declaration instead** (`GET /declaration` and the room routes): the
   capabilities, the read modes, the dialect, the numbering, who the agent is in this room, whether this room is
-  the owner's private chat, and whose one-to-one with the agent it is.
+  the owner's private chat, whose one-to-one with the agent it is, whether the service lists its account's rooms
+  and whether it answers in the account of the person it reads.
+- **A screen follows the same rule:** what the receiver answers a screen about a provider is read off its
+  declaration, so a screen offers each provider what it declares and branches on no provider's name either.
 - The reason is the cost of the next chat service. A comparison to a literal is a branch somebody has to find and
   extend; a question asked of the declaration answers itself for a service that did not exist when the question
   was written.
@@ -120,6 +123,28 @@ flowchart TD
   Adding a chat service to its list starts carrying every message kept from then on to that service; taking it
   off stops it. A chat service still handing over a room's messages after it was taken off the list is still
   heard, and what it hands over is kept and carried to the room's providers like any message.
+
+## Adding a room
+
+- **A room is added by choosing a chat service, one of the rooms its account is in, and a mode,** and the
+  receiver owns the room and its mode from then on (`docs/api.md`, 「Rooms」). Each choice is offered by what the
+  service declares, asked afresh each time since a mode's standing moves while the service runs:
+  - the services offered are those that declare `roomList`, and the rooms offered are the service's own list,
+    relayed page by page as it answers it;
+  - `record-only` is offered on every chat service, and `avatar` only where the service's `human-avatar` mode
+    stands active. A platform whose terms forbid automating a person's account declares that mode `unsupported`,
+    so it is never offered there.
+- **Adding keeps the room on the service and the record:** the room's mode, its title and its list of providers
+  set to the service it was chosen on and the room's record (「A room's chat providers」 above), so whatever mode
+  it is in, every message said in it stands in the archive. A room the service does not say is its own, a mode
+  the service does not offer and a room already added are refused, and nothing is written.
+- **The mode is what the room is to the agents:**
+  - `record-only` is the user alone: the room's messages are kept and carried as any room's, and no agent is
+    woken by them (`docs/wake.md`, 「Who reaches the session」);
+  - `avatar` is a room answered as the user: the room's designated agents are woken by the one rule, and every
+    send the receiver makes there that names no voice of its own, an answer, a line or a typing indicator, goes
+    in the `human-avatar` voice, the account of the person the service reads.
+- **A room never added has no mode** and stands as the roads that handed it messages make it.
 
 ## The owner's words
 

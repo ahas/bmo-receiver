@@ -99,6 +99,15 @@ family. No code carries a sentence in a room's language.
 | `not-owners-message` | 403 | | a room's rules changed on a message its owner did not send there |
 | `no-account-model` | 409 | | a grant of one relation where the account model is not in force |
 
+### RoomAdditionRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `rooms-unlisted` | 409 | `label` | the provider does not declare that it lists the rooms of its account |
+| `room-unknown` | 409 | `label`, `room` | the provider does not say the room is its own |
+| `avatar-unsupported` | 409 | `label` | the room is to be answered as the user where the provider's `human-avatar` mode does not stand active |
+| `room-added` | 409 | `room` | the room was already added |
+
 ### CompanionRefusal
 
 | Code | Status | Fields | When |

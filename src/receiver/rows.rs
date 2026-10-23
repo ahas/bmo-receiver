@@ -30,15 +30,16 @@ pub fn is_chat_allowed(chat_id: i64) -> bool {
 }
 
 /// Whether a room's registration stands: the database holds a row the receiver writes as it first sees the room — a
-/// chat service's numbering of it, its title, or a message kept from it. Removing a registration takes all three
-/// (docs/receiver.md, 「Removing a room's registration」).
+/// chat service's numbering of it, its title, a message kept from it, or its mode where it was added. Removing a
+/// registration takes all four (docs/receiver.md, 「Removing a room's registration」).
 pub async fn is_registered<C: ConnectionTrait>(db: &C, chat_id: i64) -> Result<bool, Fault> {
   Ok(
     one(
       db,
       r#"SELECT 1 AS "one" WHERE EXISTS (SELECT 1 FROM "provider_rooms" WHERE "chat_id" = $1)
            OR EXISTS (SELECT 1 FROM "chat_titles" WHERE "chat_id" = $1)
-           OR EXISTS (SELECT 1 FROM "messages" WHERE "chat_id" = $1)"#,
+           OR EXISTS (SELECT 1 FROM "messages" WHERE "chat_id" = $1)
+           OR EXISTS (SELECT 1 FROM "room_modes" WHERE "chat_id" = $1)"#,
       vec![chat_id.into()],
     )
     .await?

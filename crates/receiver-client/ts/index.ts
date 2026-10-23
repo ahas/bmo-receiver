@@ -12,6 +12,9 @@ type Schemas = components["schemas"];
 export type Health = Schemas["Health"];
 export type Owner = Schemas["Owner"];
 export type Room = Schemas["Room"];
+export type RoomMode = Schemas["RoomMode"];
+export type AddRoom = Schemas["AddRoom"];
+export type AccountRoom = Schemas["AccountRoom"];
 export type Answerers = Schemas["Answerers"];
 export type Message = Schemas["Message"];
 export type Pictures = Schemas["Pictures"];
@@ -91,6 +94,11 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(await client.GET("/rooms"));
     },
 
+    /** `POST /rooms`. */
+    async addRoom(body: AddRoom): Promise<Room> {
+      return answered(await client.POST("/rooms", { body }));
+    },
+
     /** `GET /rooms/{roomId}`. */
     async room(roomId: number): Promise<Room> {
       return answered(await client.GET("/rooms/{roomId}", { params: { path: { roomId } } }));
@@ -147,6 +155,14 @@ export function receiverClient(options: ReceiverOptions) {
     /** `GET /providers`. */
     async providers(): Promise<Page<Provider>> {
       return answered(await client.GET("/providers"));
+    },
+
+    /** `GET /providers/{key}/rooms`. */
+    async accountRooms(
+      key: string,
+      query: NonNullable<paths["/providers/{key}/rooms"]["get"]["parameters"]["query"]> = {},
+    ): Promise<Page<AccountRoom>> {
+      return answered(await client.GET("/providers/{key}/rooms", { params: { path: { key }, query } }));
     },
 
     /** `GET /rooms/{roomId}/providers`. */

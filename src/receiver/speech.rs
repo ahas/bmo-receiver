@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 use super::{Deployment, News, Units};
 use crate::Fault;
 use crate::roads::providers::{self, Carried, Delivery};
-use crate::roads::{Road, record};
+use crate::roads::{Road, added, record};
 
 /// Why a line was not said.
 #[derive(Debug, thiserror::Error)]
@@ -206,13 +206,19 @@ impl Speech {
     self.carried(key, request).await.map(|sent| sent.message_id)
   }
 
-  /// One send carried on a road, its result as the road answers it: what went and its number, or the refusal.
+  /// One send carried on a road, its result as the road answers it: what went and its number, or the refusal. A
+  /// send that names no voice goes in the one its room answers in (docs/receiver.md, 「Adding a room」).
   pub async fn carried(&self, key: &str, request: &ChatSendRequest) -> Result<ChatSent, NotSaid> {
     let service = self.units.roads.chats().road(key).ok_or_else(|| NotSaid::Unlisted {
       road: key.to_owned(),
     })?;
+    let mut request = request.clone();
 
-    match service.send(request).await {
+    if request.mode.is_none() {
+      request.mode = added::voice_in(&self.db, request.room_id).await;
+    }
+
+    match service.send(&request).await {
       Ok(sent) => Ok(sent),
       Err(ClientFailure::Answered {
         answer: Some(answer),

@@ -112,7 +112,7 @@ room's matter.
 | end a session | `DELETE /sessions/{sessionId}` | | nothing |
 | list sessions | `GET /sessions` | | `items` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
-| register a hook | `PUT /hooks/{point}` | `url`, `token` | the registration |
+| register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
 | a companion registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the companion's fields; nothing | `ok`; nothing |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
 | an agent's reset point | `GET /agents/{agent}` | | `resetAt` |
@@ -178,8 +178,10 @@ target-ping hook; `PUT /consumers/{consumer}/targets/chat-touch` with the target
 
 Every provider route of bmo-chat's `docs/protocol.md`, through `bmo-chat-client`: `GET /declaration`,
 `GET /health`, `POST /sends`, `POST /rooms/{roomId}/messages/{messageId}/files`, `POST /dialect/readings`,
-`POST /dialect/checks`, the room routes and `GET /owner`. The receiver holds no per-provider code: what differs
-between providers is read from what each declares.
+`POST /dialect/checks`, the room routes, `GET /rooms` for the rooms of a service's account, and `GET /owner`. The
+receiver holds no per-provider code: what differs between providers is read from what each declares. The
+declaration is asked once and kept, except where a room is added: there it is asked afresh, since a mode's
+standing moves while the service runs.
 
 A message kept in a room goes to each other chat service on the room's list of providers as a `POST /sends` of
 its words or its files (`docs/receiver.md`, 「A room's chat providers」): `mode` `human-reader` where the owner said
@@ -209,5 +211,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
   voice, under no name of its own, until the protocol states one.
 - **A room the console made** is no room any chat service numbers, so a chat service put on its list refuses
   what is carried to it until that service holds the room; each refusal is said in the journal.
+- **The agency's `docs/api.md`** names `turn-submitting` as its one hook point, while the agency asks the
+  receiver at `room-title` (a room's title for its number, answered under `answer`, null for none), and the
+  receiver registers `room-title`, `typed-line` and `road-verbs` at its own `POST /hooks/{point}`. Until the
+  agency states those points, the receiver answers them as `docs/api.md`, 「Hooks」, states.
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver keeps
   what was recorded as its `restart_reason` setting.

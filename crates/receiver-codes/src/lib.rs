@@ -42,6 +42,7 @@ pub mod fixed_lines;
 pub mod health;
 pub mod kinds;
 pub mod owner_sends;
+pub mod room_addition;
 pub mod room_grants;
 pub mod room_removal;
 pub mod sends;
@@ -56,6 +57,7 @@ pub use fixed_lines::FixedLine;
 pub use health::HealthFact;
 pub use kinds::{EngineError, RunTitle, SessionReason, SkipReason, TurnOpening};
 pub use owner_sends::{FileUnsent, OwnerSendRefusal};
+pub use room_addition::RoomAdditionRefusal;
 pub use room_grants::RoomGrantRefusal;
 pub use room_removal::{RoomRemovalRefusal, RoomRemovalWarning};
 pub use sends::SendRefusal;
@@ -83,6 +85,8 @@ pub enum ReceiverError {
   #[error(transparent)]
   OwnerSend(#[from] OwnerSendRefusal),
   #[error(transparent)]
+  RoomAddition(#[from] RoomAdditionRefusal),
+  #[error(transparent)]
   RoomGrant(#[from] RoomGrantRefusal),
   #[error(transparent)]
   RoomRemoval(#[from] RoomRemovalRefusal),
@@ -100,6 +104,7 @@ impl ReceiverError {
       Self::Companion(refusal) => refusal,
       Self::Consult(refusal) => refusal,
       Self::OwnerSend(refusal) => refusal,
+      Self::RoomAddition(refusal) => refusal,
       Self::RoomGrant(refusal) => refusal,
       Self::RoomRemoval(refusal) => refusal,
       Self::Send(refusal) => refusal,

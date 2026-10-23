@@ -37,6 +37,7 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "ownerRoom": false,
         "registered": true,
         "workRoom": 7,
+        "mode": null,
       })
     ),
   );
@@ -55,6 +56,7 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "ownerRoom": false,
         "registered": false,
         "workRoom": OWNER,
+        "mode": null,
       })
     ),
   );

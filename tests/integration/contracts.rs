@@ -58,6 +58,7 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
       "id",
       "lastMessageAt",
       "messageCount",
+      "mode",
       "ownerRoom",
       "pinned",
       "registered",
@@ -204,6 +205,32 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
     pinged(&front, "/warmer/ping?token=wrong", json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "kind": "chat-touch", "dueAt": 0, "boundMs": 1 })).await.0,
     StatusCode::UNAUTHORIZED,
   );
+}
+
+#[tokio::test]
+async fn each_hook_the_agency_is_told_of_stands_at_a_route_the_receiver_answers() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  scratch
+    .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (7, 'The room')"#, vec![])
+    .await;
+
+  for point in bmo_receiver::service_start::HOOKS {
+    let url = bmo_receiver::service_start::hook_url("http://127.0.0.1:9", point);
+    let path = url.strip_prefix("http://127.0.0.1:9").unwrap();
+
+    assert!(
+      bmo_receiver::routes::served().contains(&"POST /hooks/{point}".to_owned()),
+      "the receiver serves its hooks"
+    );
+    assert_eq!(path, format!("/hooks/{point}"), "{point} is registered at the route that answers it");
+  }
+
+  let url = bmo_receiver::service_start::hook_url("", "room-title");
+  let (status, body) = post(&front, &url, json!({ "point": "room-title", "ask": 7 })).await;
+
+  assert_eq!((status, body["answer"].as_str()), (StatusCode::OK, Some("The room")), "{body}");
 }
 
 #[tokio::test]

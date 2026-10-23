@@ -5,9 +5,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 use bmo_chat_client::{
-  ChatCapability, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits, ChatHealth, ChatMediaRequest,
-  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatSendRequest, ChatSent, ClientFailure,
-  DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
+  AccountRoomsQuery, ChatCapability, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits,
+  ChatHealth, ChatMediaRequest, ChatModeStanding, ChatNumberRanges, ChatNumberSpace, ChatNumbering,
+  ChatReach, ChatReadMode, ChatSendRequest, ChatSent, ChatVoice, ClientFailure, DialectChecked,
+  DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{
@@ -51,7 +52,10 @@ pub struct StandInChat {
   pub identities: BTreeMap<i64, i64>,
   pub private: BTreeMap<i64, i64>,
   pub reaches_owner: Option<i64>,
+  pub titles: BTreeMap<i64, String>,
   pub cans: Mutex<BTreeSet<ChatCapability>>,
+  /// The read modes it declares, each by its voice and where it stands.
+  pub modes: Mutex<Vec<(ChatVoice, ChatModeStanding)>>,
   pub sends: Mutex<Vec<ChatSendRequest>>,
   /// What each send is answered with; sent as message 900 where none is set.
   pub answer: Mutex<Option<ChatSent>>,
@@ -99,6 +103,20 @@ impl StandInChat {
     self
   }
 
+  /// What the service calls one of its rooms.
+  pub fn titling(mut self, room: i64, title: &str) -> Self {
+    self.titles.insert(room, title.to_owned());
+    self
+  }
+
+  /// A read mode the service declares, by its voice and where it stands; it may be set again while it runs.
+  pub fn moding(&self, voice: ChatVoice, standing: ChatModeStanding) {
+    let mut modes = self.modes.lock().unwrap();
+
+    modes.retain(|(held, _)| *held != voice);
+    modes.push((voice, standing));
+  }
+
   /// A room of the service's own that is one person's private chat with the chat agent.
   pub fn privating(mut self, room: i64, person: i64) -> Self {
     self.owns.insert(room);
@@ -135,11 +153,24 @@ impl Chat for StandInChat {
 
     can.extend(self.cans.lock().unwrap().iter().copied());
 
+    let modes = self
+      .modes
+      .lock()
+      .unwrap()
+      .iter()
+      .map(|(voice, standing)| ChatReadMode {
+        voice: *voice,
+        reach: ChatReach::AllMessages,
+        standing: *standing,
+        reason: None,
+        can_reply_to: true,
+      })
+      .collect();
     let declared = ChatDeclaration {
       key: self.key.clone(),
       label: format!("the {} road", self.key),
       configured: None,
-      modes: vec![],
+      modes,
       can,
       dialect: ChatDialectDeclaration {
         name: "plain".to_owned(),
@@ -209,6 +240,7 @@ impl Chat for StandInChat {
     let identity = self.identities.get(&chat_id).copied();
     let kind = if self.owner_rooms.contains(&chat_id) { RoomKind::Owner } else { RoomKind::Group };
     let private_to = self.private.get(&chat_id).copied();
+    let title = self.titles.get(&chat_id).cloned();
 
     Box::pin(async move {
       if !owns {
@@ -225,7 +257,41 @@ impl Chat for StandInChat {
         identity,
         kind,
         private_to,
-        title: None,
+        title,
+      })
+    })
+  }
+
+  fn account_rooms<'a>(
+    &'a self,
+    query: &'a AccountRoomsQuery,
+  ) -> BoxFuture<'a, ChatAnswer<Page<ProviderRoom>>> {
+    Box::pin(async move {
+      if !self.cans.lock().unwrap().contains(&ChatCapability::RoomList) {
+        return Err(ClientFailure::Answered {
+          url: "the stand-in chat service".to_owned(),
+          status: 422,
+          answer: Some(bmo_chat_client::WireError::new(
+            bmo_chat_client::ErrorCode::UnsupportedCapability,
+            "The stand-in cannot list the rooms of its account.",
+          )),
+        });
+      }
+
+      let mut listed = vec![];
+
+      for room in self.owns.iter().filter(|room| query.after.is_none_or(|after| **room > after)) {
+        listed.push(self.room(*room).await?);
+      }
+
+      let limit = query.limit.map_or(usize::MAX, |limit| usize::try_from(limit).unwrap_or(usize::MAX));
+      let more = listed.len() > limit;
+
+      listed.truncate(limit);
+
+      Ok(Page {
+        items: listed,
+        more,
       })
     })
   }

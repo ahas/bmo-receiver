@@ -44,6 +44,17 @@ beforeAll(() => {
         });
       }
 
+      if (path === "/providers/road-a/rooms") {
+        return Response.json({
+          items: [{ id: -100, title: "A room", kind: "group", privateTo: null, mode: null }],
+          more: true,
+        });
+      }
+
+      if (path === "/rooms" && request.method === "POST") {
+        return Response.json({ code: "avatar-unsupported", error: "It cannot." }, { status: 409 });
+      }
+
       return Response.json({ code: "not-found", error: "Nothing stands under that." }, { status: 404 });
     },
   });
@@ -84,4 +95,23 @@ test("a refusal is thrown as a receiver error carrying its status and code", asy
 
   expect(refusal?.status).toBe(404);
   expect(refusal?.code).toBe("not-found");
+});
+
+test("the rooms of a provider's account are read as a page, and a refused addition carries its code", async () => {
+  const receiver = receiverClient({ baseUrl, token: "the-token" });
+  const page = await receiver.accountRooms("road-a", { after: -200, limit: 1 });
+
+  expect(page.more).toBe(true);
+  expect(page.items[0]?.id).toBe(-100);
+  expect(page.items[0]?.mode).toBeNull();
+  expect(asked.at(-1)?.url).toBe(`${baseUrl}/providers/road-a/rooms?after=-200&limit=1`);
+
+  const outcome = await receiver.addRoom({ provider: "road-a", roomId: -100, mode: "avatar" }).then(
+    (): null => null,
+    (failure: Error) => failure,
+  );
+  const refusal = outcome instanceof ReceiverError ? outcome : undefined;
+
+  expect(refusal?.status).toBe(409);
+  expect(refusal?.code).toBe("avatar-unsupported");
 });

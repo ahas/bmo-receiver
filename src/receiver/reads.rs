@@ -297,7 +297,8 @@ pub async fn shown(db: &DatabaseConnection) -> Result<Vec<RoomLine>, Fault> {
     r#"SELECT "chat_id", "title", "message_count", "last_message_at" FROM (
            SELECT c."chat_id" AS "chat_id", t."title" AS "title",
              COALESCE(s."message_count", 0) AS "message_count", s."last_message_at" AS "last_message_at"
-           FROM (SELECT "chat_id" FROM "chat_titles" "c" UNION SELECT "chat_id" FROM "messages" "m") "c"
+           FROM (SELECT "chat_id" FROM "chat_titles" "c" UNION SELECT "chat_id" FROM "messages" "m"
+                 UNION SELECT "chat_id" FROM "room_modes" "a") "c"
            LEFT JOIN "chat_titles" "t" ON "t"."chat_id" = "c"."chat_id"
            LEFT JOIN (SELECT "chat_id", COUNT(*) AS "message_count", MAX("sent_at") AS "last_message_at"
                       FROM "messages" GROUP BY "chat_id") "s" ON "s"."chat_id" = "c"."chat_id"

@@ -113,6 +113,11 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms"])).await
   }
 
+  /// `POST /rooms`.
+  pub async fn add_room(&self, room: &AddRoom) -> Answer<Room> {
+    Self::answered(self.send(Method::POST, &["rooms"], room)).await
+  }
+
   /// `GET /rooms/{roomId}`.
   pub async fn room(&self, room_id: i64) -> Answer<Room> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string()])).await
@@ -242,6 +247,20 @@ impl ReceiverClient {
   /// `GET /providers`.
   pub async fn providers(&self) -> Answer<Page<Provider>> {
     Self::answered(self.request(Method::GET, &["providers"])).await
+  }
+
+  /// `GET /providers/{key}/rooms`.
+  pub async fn account_rooms(
+    &self,
+    key: &str,
+    after: Option<i64>,
+    limit: Option<i64>,
+  ) -> Answer<Page<AccountRoom>> {
+    let query = [("after", after), ("limit", limit)];
+    let given: Vec<(&str, i64)> =
+      query.iter().filter_map(|(name, value)| value.map(|value| (*name, value))).collect();
+
+    Self::answered(self.get(&["providers", key, "rooms"], &given)).await
   }
 
   /// `GET /rooms/{roomId}/providers`.

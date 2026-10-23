@@ -17,6 +17,9 @@ its rounds.
   - The turn tells the agent which of the three a room is (the owner's chat, another user's own chat or a group)
     since in a group most words are not for it.
 - **A room a companion answers alone never reaches the chat agent at all.**
+- **A room added `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
+  kept and carried to its providers, and nothing past that is decided for them. The owner's answer to a job's
+  open question is still handed to bmo-job there, since that wakes no agent.
 - **Three grounds, decided before any gate or session.** In any other chat the receiver itself decides, and a
   message reaches the agent's session on exactly three grounds: it calls the agent by name, it replies to a
   message of the agent's own, or that room's window is open.

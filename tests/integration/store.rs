@@ -8,6 +8,7 @@ use bmo_receiver::store::migration::m20261017_000004_people_reads::TABLE as PEOP
 use bmo_receiver::store::migration::m20261019_000005_message_metadata::TABLE as MESSAGE_METADATA;
 use bmo_receiver::store::migration::m20261022_000008_news_briefs::TABLES as NEWS_BRIEFS_TABLES;
 use bmo_receiver::store::migration::m20261023_000009_room_providers::TABLES as ROOM_PROVIDERS_TABLES;
+use bmo_receiver::store::migration::m20261023_000010_room_modes::TABLE as ROOM_MODES;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -36,13 +37,13 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
   let made: Vec<String> = TABLES
     .iter()
     .copied()
-    .chain([RECORD_NUMBERS, ROOM_WINDOWS, PEOPLE_READS, MESSAGE_METADATA, RECORD_TABLE])
+    .chain([RECORD_NUMBERS, ROOM_WINDOWS, PEOPLE_READS, MESSAGE_METADATA, ROOM_MODES, RECORD_TABLE])
     .chain(NEWS_BRIEFS_TABLES)
     .chain(ROOM_PROVIDERS_TABLES)
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 9);
+  assert_eq!(migrate(db).await.unwrap(), 10);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 

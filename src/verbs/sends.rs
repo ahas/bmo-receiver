@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use crate::receiver::{Receiver, speech, wake};
 use crate::roads::providers::{self, Carried, Delivery};
-use crate::roads::{Road, record};
+use crate::roads::{Road, added, record};
 use crate::verbs::{Launch, NoLaunch, VerbError};
 
 /// The road a send goes out on, and who it goes out as there.
@@ -248,10 +248,14 @@ impl Sends {
   }
 
   async fn carried(&self, key: &str, going: &Going, asked: &ChatSendRequest) -> Result<Sent, NotSent> {
+    let mode = match asked.mode {
+      Some(mode) => Some(mode),
+      None => added::voice_in(self.receiver.db(), asked.room_id).await,
+    };
     let request = ChatSendRequest {
       room_id: asked.room_id,
       send: asked.send.clone(),
-      mode: asked.mode,
+      mode,
       speaker: going.speaker.as_ref().map(|speaker| speaker.agent.clone()),
       tag: asked.tag.clone(),
       prefix: asked.prefix.clone(),

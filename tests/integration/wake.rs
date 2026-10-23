@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
+use bmo_receiver::roads::added::{self, RoomMode};
 use receiver_policy::commands::COMMANDS;
 use receiver_ports::agency::{Rest, RestKind};
 use receiver_ports::job::{Chosen, Moved, OpenQuestion, Talked};
@@ -425,4 +426,49 @@ async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_cha
     .unwrap();
 
   assert_eq!(standing.taken.handed().len(), 2);
+}
+
+#[tokio::test]
+async fn a_room_added_for_the_user_alone_wakes_no_agent_even_where_one_is_called() {
+  let (scratch, _data, standing) = stood(&[-131, -132]).await;
+
+  standing
+    .agency
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+
+  for (chat_id, mode) in [(-131, RoomMode::RecordOnly), (-132, RoomMode::Avatar)] {
+    assert!(added::add(scratch.db(), chat_id, "road-a", mode, None).await.unwrap());
+  }
+
+  // The owner calls the agent by name in both rooms: the room for the user alone keeps the words and wakes
+  // nobody, and the room answered as the user wakes the agent by the one rule.
+  for chat_id in [-131, -132] {
+    standing
+      .receiver
+      .message(
+        &inbound(chat_id, 1, OWNER, &format!("{ADDRESS}, are you there?")),
+        &Context::default(),
+        room(),
+      )
+      .await
+      .unwrap();
+  }
+
+  let woken: Vec<i64> = standing.taken.handed().iter().map(|handed| handed.chat_id).collect();
+
+  assert_eq!(woken, [-132]);
+  assert_eq!(
+    scratch.count(r#"SELECT COUNT(*) FROM "messages" WHERE "chat_id" = -131"#, vec![]).await,
+    1
+  );
+  assert!(
+    !bmo_receiver::receiver::wake::wakes(
+      &standing.receiver,
+      AGENT,
+      &inbound(-131, 2, OWNER, ADDRESS),
+      room()
+    )
+    .await
+    .unwrap()
+  );
 }

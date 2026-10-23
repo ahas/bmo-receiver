@@ -37,7 +37,13 @@ use crate::verbs::reload::{Places, Reloads};
 use crate::workers::Workers;
 
 /// The agency's hook points the receiver answers.
-const HOOKS: [&str; 3] = ["room-title", "typed-line", "road-verbs"];
+pub const HOOKS: [&str; 3] = ["room-title", "typed-line", "road-verbs"];
+
+/// Where the agency asks the receiver at a hook point: its own `POST /hooks/{point}`, at the base address it
+/// listens on (docs/api.md, 「Hooks」).
+pub fn hook_url(base: &str, point: &str) -> String {
+  format!("{base}/hooks/{point}")
+}
 
 /// The words a room calls the chat agent by, read off its registration: its label and the words its row names,
 /// each once. Where the agency does not answer, the agent's own registration name is what a room calls it by.
@@ -115,7 +121,7 @@ pub async fn settle(receiver: &Receiver, consumer: &str, listen: &str, token: &s
   }
 
   for point in HOOKS {
-    let url = format!("{base}/agency/hooks/{point}");
+    let url = hook_url(&base, point);
 
     if let Err(refusal) = units.agency.register_hook(point, &url, token).await {
       eprintln!("bmo-receiver: the agency was not told of the {point} hook: {refusal}");

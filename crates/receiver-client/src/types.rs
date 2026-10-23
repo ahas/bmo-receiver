@@ -41,6 +41,44 @@ pub struct Room {
   pub registered: bool,
   /// The room where work filed from this one is told.
   pub work_room: i64,
+  /// The mode the room was added in; null for a room never added.
+  pub mode: Option<RoomMode>,
+}
+
+/// What a room added is to the agents: answered as the user, or the user alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum RoomMode {
+  /// The room's agents answer it, in the account of the person the provider reads.
+  Avatar,
+  /// The user alone: the room is kept and no agent is woken in it.
+  RecordOnly,
+}
+
+/// `POST /rooms`: a room to add, on a chat service by its key, as that service numbers it, in a mode, under a title
+/// where one is named.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AddRoom {
+  pub provider: String,
+  pub room_id: i64,
+  pub mode: RoomMode,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub title: Option<String>,
+}
+
+/// A room a provider's account is in, as the provider answers it, with the mode the receiver added it in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountRoom {
+  pub id: i64,
+  pub title: Option<String>,
+  /// `owner` or `group`.
+  pub kind: String,
+  /// The one person of a one-to-one with the account.
+  pub private_to: Option<i64>,
+  /// The mode the room was added in; null for a room not added.
+  pub mode: Option<RoomMode>,
 }
 
 /// A room's name alone.
@@ -217,12 +255,15 @@ pub struct Window {
   pub closes_at: Option<i64>,
 }
 
-/// A chat provider a room may be on: its key, and what it is called.
+/// A chat provider a room may be on: its key, what it is called, whether it lists the rooms of its account, and the
+/// modes a room added on it may take, as it declares.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Provider {
   pub key: String,
   pub label: String,
+  pub lists_rooms: bool,
+  pub room_modes: Vec<RoomMode>,
 }
 
 /// The chat providers a room is on, by key in order, and whether its list was set rather than read off what the

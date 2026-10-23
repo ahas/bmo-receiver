@@ -4,6 +4,7 @@
 //! it is are each that service's answer; what differs between services is read from what each declares. Nothing
 //! here compares a road's key to a literal.
 
+pub mod added;
 pub mod declared;
 pub mod providers;
 pub mod record;
@@ -105,6 +106,21 @@ impl Roads {
       return Some(declared.clone());
     }
 
+    let declared = heard(key, "its declaration", self.service(key)?.declaration().await)?;
+
+    self
+      .declared
+      .lock()
+      .unwrap_or_else(|poisoned| poisoned.into_inner())
+      .insert(key.to_owned(), declared.clone());
+
+    Some(declared)
+  }
+
+  /// What a chat service declares of itself now, asked afresh and kept in place of what was kept; none where it is
+  /// not listed or does not answer. A mode's standing moves while the service runs, so a choice that turns on it
+  /// asks here.
+  pub async fn declaration_now(&self, key: &str) -> Option<ChatDeclaration> {
     let declared = heard(key, "its declaration", self.service(key)?.declaration().await)?;
 
     self

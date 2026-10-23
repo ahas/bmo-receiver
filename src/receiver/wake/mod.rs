@@ -2,7 +2,8 @@
 //! decided for every one of them by one rule, and each woken agent's turn handed on to its conversations in the
 //! one runner, every agent the same way. Everything else stops here, before any queue, so no gate and no turn is
 //! spent on it. A conversation already running in the room is no ground: an instruction or a skipped round keeps
-//! one alive with no window, and a room is never listened to on that account.
+//! one alive with no window, and a room is never listened to on that account. A room added `record-only` wakes
+//! no agent at all.
 
 pub mod agents;
 pub mod question;
@@ -14,6 +15,7 @@ use futures_util::future::BoxFuture;
 use receiver_policy::wake::WAKE;
 
 use super::{How, Inbound, NotReceived, Receiver, Room, Wake, rows};
+use crate::roads::added::{self, RoomMode};
 use agents::{Designated, default_designated, own_number, room_designated, window_until};
 use rest::{resting, stand_in};
 
@@ -109,6 +111,10 @@ pub async fn woken_on(
     return Ok(());
   }
 
+  if record_only(receiver, chat_id).await? {
+    return Ok(());
+  }
+
   // Dropped here even where it calls an agent, so it is said: a road that filed a message too early in the
   // room's line is found in the journal, not taken for one never sent.
   if rows::is_read(archive, chat_id, inbound.message_id).await? {
@@ -196,6 +202,10 @@ pub async fn wakes(
   inbound: &Inbound,
   room: Room,
 ) -> Result<bool, NotReceived> {
+  if record_only(receiver, inbound.chat_id).await? {
+    return Ok(false);
+  }
+
   let (agents, alone) = room_designated(receiver, inbound.chat_id, room).await?;
   let Some(agent) = agents.iter().find(|one| one.name == agent) else {
     return Ok(false);
@@ -218,6 +228,11 @@ pub async fn wakes(
     .await?
     .is_some(),
   )
+}
+
+// Whether the room was added for the user alone, where no agent is woken.
+async fn record_only(receiver: &Receiver, chat_id: i64) -> Result<bool, NotReceived> {
+  Ok(added::mode_of(receiver.db(), chat_id).await? == Some(RoomMode::RecordOnly))
 }
 
 // Why a message wakes one agent of its room, or nothing where it does not. One rule for every agent, whoever

@@ -87,6 +87,7 @@ repository's, in `VERSION`; it is never taken from a registry.
 | Route | Body or query | Answers |
 |---|---|---|
 | `GET /rooms` | | a page of `Room`, the pinned ones first |
+| `POST /rooms` | `provider`, a chat service's key; `roomId`, the room as that service numbers it; `mode`, `avatar` or `record-only`; `title` (optional) | 201, the `Room` added |
 | `GET /rooms/{roomId}` | | one `Room` |
 | `GET /rooms/{roomId}/title` | | `title`, or null |
 | `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `companion`) |
@@ -97,7 +98,8 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `GET /rooms/{roomId}/people` | `ids`, comma-separated | a page of `Person`: those among `ids` who have stood as a sender in the room |
 | `GET /rooms/{roomId}/owner-spoke` | `person`, `before`, `windowMs` | `owner` and `spoke`: whether the person is the owner, and whether the owner spoke in the span |
 | `GET /rooms/{roomId}/window` | | `openForMs`, the chat agent's window left, and `closesAt` in epoch milliseconds, or null |
-| `GET /providers` | | a page of `Provider` (`key`, `label`): every chat provider a room may be on |
+| `GET /providers` | | a page of `Provider` (`key`, `label`, `listsRooms`, `roomModes`): every chat provider a room may be on |
+| `GET /providers/{key}/rooms` | `after` (a room number), `limit` | a page of `AccountRoom` (`id`, `title`, `kind`, `privateTo`, `mode`): the rooms the provider's account is in |
 | `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, and `chosen`, whether the list was set |
 | `PUT /rooms/{roomId}/providers` | `providers`, the whole list | `providers` and `chosen`, as the list now stands |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
@@ -108,8 +110,15 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `DELETE /rooms/{roomId}` | `by` (the administrator), `dryRun` | what the removal would do, or what it took |
 
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
-  people that have stood as a sender, `companions`, the companions answering there, `ownerRoom`, `registered`, and
-  `workRoom`, where the news, questions and answers of work filed from it are told.
+  people that have stood as a sender, `companions`, the companions answering there, `ownerRoom`, `registered`,
+  `workRoom`, where the news, questions and answers of work filed from it are told, and `mode`, the mode it was
+  added in:
+  - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
+    no agent is woken in it.
+  - `avatar`: the room's designated agents answer it as any room's do, and every line the receiver sends there
+    that names no voice of its own goes in the provider's `human-avatar` voice, the account of the person the
+    provider reads.
+  - null for a room never added: it stands as the roads that handed it messages make it.
 - **Any chat reads as a room.** One never registered reads as one whose registration is gone, and work filed from
   it reaches the owner's private room instead.
 - **The answerers** are the awake agents the room names, or the default answerer where it names none awake; `voice`
@@ -125,6 +134,24 @@ repository's, in `VERSION`; it is never taken from a registry.
   A list that is empty, names a key no provider stands under or names one twice is refused 400 `bad-request`, and
   a room the receiver does not hold 404 `not-found`. Every message kept in the room goes to each of its providers
   (`docs/receiver.md`, 「A room's chat providers」).
+- **Adding a room** is three choices made in turn, each offered by what the chat service declares and never by
+  its name (`docs/receiver.md`, 「Adding a room」): a provider whose `listsRooms` is true, a room among those
+  `GET /providers/{key}/rooms` relays from that service's own list, and a mode among its `roomModes`.
+  - A `Provider`'s `listsRooms` is whether it declares `roomList` (bmo-chat's `docs/contract.md`, 「The rooms of
+    the account」), and its `roomModes` holds `record-only` for every chat service and `avatar` beside it where
+    the service's `human-avatar` mode stands active. The record lists no rooms and takes no mode.
+  - An `AccountRoom` is the room as the service answers it, `id`, `title` (or null), `kind` (`owner` or
+    `group`) and `privateTo` (or null), with `mode`, the mode the receiver added it in, or null. The page and its
+    `more` are the service's; `after` and `limit` are handed to it as they came.
+  - `POST /rooms` keeps the room under the service's number: its mode, its title (the one given, else the one
+    the service gives, else none) and its list of providers set to that service and the record, so every
+    mode's messages stand in the archive. It answers 201 with the room as `GET /rooms/{roomId}` reads it.
+  - `GET /providers/{key}/rooms` for a key no provider stands under is refused 404 `not-found`, and for one that
+    does not declare `roomList` 409 `rooms-unlisted`. `POST /rooms` with a body not of its shape or a key no chat
+    service stands under is refused 400 `bad-request`; a room the service does not say is its own 409
+    `room-unknown`; `avatar` where the service's `human-avatar` mode does not stand active 409
+    `avatar-unsupported`; and a room already added 409 `room-added`. A service that does not answer is 502
+    `upstream-failed` on either route.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,

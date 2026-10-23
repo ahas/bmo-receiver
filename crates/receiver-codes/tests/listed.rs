@@ -9,9 +9,9 @@ use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
   Code, CompanionFact, CompanionRefusal, ConsultRefusal, EngineError, Fact, FileUnsent, FixedLine,
-  HealthFact, OwnerSendRefusal, ReceiverError, Refused, RoomGrantRefusal, RoomRemovalRefusal,
-  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason, TalkRefusal,
-  TurnOpening, VoiceFact, VoiceRefusal,
+  HealthFact, OwnerSendRefusal, ReceiverError, Refused, RoomAdditionRefusal, RoomGrantRefusal,
+  RoomRemovalRefusal, RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason,
+  TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -36,6 +36,7 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("RoomRemovalRefusal", Codes, RoomRemovalRefusal::VARIANTS),
     ("SendRefusal", Codes, SendRefusal::VARIANTS),
     ("RoomGrantRefusal", Codes, RoomGrantRefusal::VARIANTS),
+    ("RoomAdditionRefusal", Codes, RoomAdditionRefusal::VARIANTS),
     ("CompanionRefusal", Codes, CompanionRefusal::VARIANTS),
     ("HealthFact", Codes, HealthFact::VARIANTS),
     ("VoiceFact", Codes, VoiceFact::VARIANTS),
@@ -147,6 +148,17 @@ fn a_refusal_answers_its_code_its_status_and_an_english_sentence() {
   assert_eq!(refusal.status(), StatusCode::CONFLICT);
   assert_eq!(refusal.to_string(), "the road road-a does not perform `sticker`");
   assert_eq!(ReceiverError::from(TalkRefusal::Limit).status(), StatusCode::TOO_MANY_REQUESTS);
+  let unlisted = ReceiverError::from(RoomAdditionRefusal::RoomsUnlisted {
+    label: "the road-a road".to_owned(),
+  });
+  assert_eq!(
+    (unlisted.code(), unlisted.status(), unlisted.to_string()),
+    (
+      "rooms-unlisted",
+      StatusCode::CONFLICT,
+      "the road-a road does not list the rooms of its account".to_owned()
+    )
+  );
   assert_eq!(ReceiverError::from(TalkRefusal::Outage).code(), "outage");
   assert_eq!(
     OwnerSendRefusal::NoneSent {
