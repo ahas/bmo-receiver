@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use crate::js::bun_hash;
-use receiver_ports::brain::Load;
+use receiver_ports::agency::Load;
 use receiver_ports::http::PortFailure;
 use regex::Regex;
 use sea_orm::DatabaseConnection;
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use super::room::RoomContext;
 use crate::receiver::Receiver;
-use crate::{Fault, now_ms, one, run};
+use crate::{Fault, one, run};
 
 // The wrapping a document rides in until the session it goes to is settled (`window::once_block`).
 const BLOCK_OPEN: &str = "\u{e000}REFERENCE-ONCE ";
@@ -76,18 +76,18 @@ fn room_path(chat_id: i64) -> String {
   format!("room-context/{chat_id}")
 }
 
-// Why the brain's record of what a session holds could not be read or written.
+// Why the agency's record of what a session holds could not be read or written.
 fn unrecorded(why: PortFailure) -> Fault {
-  Fault::new(format!("the brain's record of what the session holds: {why}"))
+  Fault::new(format!("the agency's record of what the session holds: {why}"))
 }
 
-/// What a session holds of what was sent in full, as the brain keeps it: each path with the version it holds.
+/// What a session holds of what was sent in full, as the agency keeps it: each path with the version it holds.
 pub async fn loaded_in(
   receiver: &Receiver,
   session: Option<&str>,
 ) -> Result<HashMap<String, String>, Fault> {
   let Some(session) = session else { return Ok(HashMap::new()) };
-  let loads = receiver.units().brain.loads(session).await.map_err(unrecorded)?;
+  let loads = receiver.units().agency.loads(session).await.map_err(unrecorded)?;
 
   Ok(loads.into_iter().map(|load| (load.path, load.version)).collect())
 }
@@ -221,7 +221,7 @@ pub async fn forget_room(db: &DatabaseConnection, session: Option<&str>) -> Resu
 /// Everything sent once let go of a session that folds: it keeps its name and loses the detail.
 pub async fn forget_documents(receiver: &Receiver, session: Option<&str>) -> Result<(), Fault> {
   if let Some(session) = session {
-    receiver.units().brain.forget_loads(session).await.map_err(unrecorded)?;
+    receiver.units().agency.forget_loads(session).await.map_err(unrecorded)?;
   }
 
   Ok(())
@@ -277,13 +277,14 @@ pub async fn remember_held(
     return Ok(());
   }
 
-  // The brain lets go of the sessions untouched for a week at the same stroke.
-  let loads: Vec<Load> = loaded.into_iter().map(|(path, version)| Load { path, version }).collect();
+  // A keep replaces every load the session holds, so the turn's are laid over the ones it held, by path.
+  let mut holds = if resumed == Some(session) { held } else { loaded_in(receiver, Some(session)).await? };
 
-  receiver
-    .units()
-    .brain
-    .keep_loads(session, &loads, now_ms() / 1000)
-    .await
-    .map_err(unrecorded)
+  holds.extend(loaded);
+
+  let mut loads: Vec<Load> = holds.into_iter().map(|(path, version)| Load { path, version }).collect();
+
+  loads.sort_by(|one, other| one.path.cmp(&other.path));
+
+  receiver.units().agency.keep_loads(session, &loads).await.map_err(unrecorded)
 }

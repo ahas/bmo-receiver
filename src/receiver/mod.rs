@@ -25,7 +25,6 @@ use axum::{body::Body, response::Response};
 use futures_util::future::BoxFuture;
 use receiver_codes::{RoomRemovalRefusal, SettingFact};
 use receiver_ports::agency::Agency;
-use receiver_ports::brain::Brain;
 use receiver_ports::gate::Gate;
 use receiver_ports::http::PortFailure;
 use receiver_ports::job::Job;
@@ -40,7 +39,7 @@ use crate::chat::conversation::{Talking, Touching, Typing};
 use crate::chat::talk::{Standing, TalkState};
 use crate::data_root::DataRoot;
 use crate::now_ms;
-use crate::roads::Roads;
+use crate::roads::{Road, Roads};
 use crate::room_record::{Facing, RoomHolding, Says};
 use commands::{CommandKind, OwnerCommand, parse_mode_command, parse_owner_command};
 use speech::{NotSaid, Speech};
@@ -302,13 +301,12 @@ pub struct Deployment {
 }
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
-/// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, the brain that keeps what
-/// the agents remember, and the cache warmer the chat agent's one session prefix is kept warm through.
+/// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, and the cache warmer the
+/// chat agent's one session prefix is kept warm through.
 #[derive(Clone)]
 pub struct Units {
   pub roads: Roads,
   pub agency: Arc<dyn Agency>,
-  pub brain: Arc<dyn Brain>,
   pub gate: Arc<dyn Gate>,
   pub job: Arc<dyn Job>,
   pub web: Arc<dyn Web>,
@@ -474,6 +472,15 @@ impl Receiver {
 
   pub fn owner_id(&self) -> i64 {
     self.deployment.owner_id
+  }
+
+  /// The name the owner goes by in a room: the one the room's own service last showed him by there, never one
+  /// his console rows carry, and his number where the service showed none (docs/unified-bmo.md, 「The cases」).
+  pub async fn owner_name(&self, chat_id: i64) -> String {
+    let owner = self.owner_id();
+    let shown = rows::shown_name(&self.db, chat_id, owner, Road::Record.key()).await.ok().flatten();
+
+    shown.unwrap_or_else(|| owner.to_string())
   }
 
   pub fn roads(&self) -> &Roads {

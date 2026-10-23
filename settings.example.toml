@@ -29,10 +29,6 @@ consumer = "receiver"
 base = "http://127.0.0.1:3220"
 token = "agency-token"
 
-[brain]
-base = "http://127.0.0.1:3230"
-token = "brain-token"
-
 [gate]
 base = "http://127.0.0.1:3240"
 token = "gate-token"

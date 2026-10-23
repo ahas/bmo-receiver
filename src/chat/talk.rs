@@ -15,8 +15,7 @@ use super::window::{Material, clean, composed, select};
 
 use crate::companion::consult::label_of;
 use crate::now_ms;
-use crate::receiver::{Inbound, Receiver, rows};
-use crate::roads::Road;
+use crate::receiver::{Inbound, Receiver};
 
 /// One earlier turn as a turn restates it: whether the owner said it, and its words.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -364,7 +363,7 @@ pub async fn answer(
     }
   }
 
-  let names = (owner_name(&receiver, owner).await, agent_label(&receiver, conversations.agent()).await);
+  let names = (receiver.owner_name(owner).await, agent_label(&receiver, conversations.agent()).await);
   let written = prompt(&head, &turns, &said, &names.0, &names.1);
   let room = receiver.roads().room_facts(owner).await;
   let messages: Vec<Inbound> = vec![];
@@ -412,19 +411,6 @@ impl Talking for Conversations {
   fn talk<'a>(&'a self, request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>> {
     Box::pin(Conversations::talk(self, request))
   }
-}
-
-/// The name the owner goes by in his own chat: the name his last row there went under, where its record holds
-/// one, and his number where it does not.
-async fn owner_name(receiver: &Receiver, owner: i64) -> String {
-  let via = receiver
-    .roads()
-    .room_road(owner)
-    .await
-    .unwrap_or_else(|| Road::Record.key().to_string());
-  let shown = rows::last_from(receiver.db(), owner, owner, &via).await.ok().flatten();
-
-  shown.map(|last| last.sender_name.clone()).unwrap_or_else(|| owner.to_string())
 }
 
 /// The chat agent's registered label, which its own words are called by.

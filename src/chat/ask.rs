@@ -161,7 +161,6 @@ impl Carry {
   pub async fn carries(&self, asking: &Asking, held: &Held, follower: &Follower) -> Result<Reply, Failure> {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
-    let brain = receiver.units().brain.clone();
     let db = receiver.db();
     let agent = held.agent.as_str();
     let chat_id = asking.chat_id;
@@ -189,8 +188,8 @@ impl Carry {
     let standing = agency.state(&started_id).await.unwrap_or_default();
 
     // The one session an agent keeps across its rooms, where the road says it may not be resumed, is let go
-    // here and started again, the note it left — the handoff note the brain holds where it has one, the
-    // receiver's own otherwise — riding at the head. A room's own session is the agency's to resume.
+    // here and started again, the agent's pending note — the one note it left — riding at the head. A room's
+    // own session is the agency's to resume.
     let asked = Route {
       provider: standing.provider.as_deref().unwrap_or_default().to_owned(),
       model: standing.model.as_deref().unwrap_or_default().to_owned(),
@@ -212,9 +211,7 @@ impl Carry {
       Some(reason) => {
         agency.end(&started_id).await.map_err(fault_of)?;
 
-        let kept = brain.session_summary(agent).await.ok().flatten();
-        let own = pending_note(db, agent).await.ok().flatten();
-        let note = kept.or(own);
+        let note = pending_note(db, agent).await.ok().flatten();
         let again = agency.start(agent, scope).await.map_err(fault_of)?;
 
         (

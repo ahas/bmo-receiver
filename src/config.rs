@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use receiver_ports::agency::HttpAgency;
-use receiver_ports::brain::HttpBrain;
 use receiver_ports::chat::ChatServices;
 use receiver_ports::gate::HttpGate;
 use receiver_ports::http::Peer;
@@ -62,7 +61,6 @@ pub struct Config {
   #[serde(default)]
   pub document_tree: Option<PathBuf>,
   pub agency: Peer,
-  pub brain: Peer,
   pub gate: Peer,
   pub job: Peer,
   pub web: Peer,
@@ -127,7 +125,6 @@ impl Config {
     Units {
       roads: Roads::new(ChatServices::from_peers(&self.roads)),
       agency: Arc::new(HttpAgency::new(&self.agency)),
-      brain: Arc::new(HttpBrain::new(&self.brain)),
       gate: Arc::new(HttpGate::new(&self.gate)),
       job: Arc::new(HttpJob::new(&self.job)),
       web: Arc::new(HttpWeb::new(&self.web)),

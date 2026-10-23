@@ -1,6 +1,7 @@
 //! What the console sends in the owner's own name (docs/boundary-api.md, 「The owner's words」; docs/receiver.md,
-//! 「The owner's words」): a line typed into his private chat kept under a console number and handed to that
-//! chat's session, the same line typed into another room carried on that room's road, files put in with the words
+//! 「The owner's words」): a line typed into his private chat kept under a console number and the name his chat's
+//! own service shows him by, and handed to that chat's session, the same line typed into another room carried on
+//! that room's road, files put in with the words
 //! gathered into the albums the road takes with the caption on the first of them, and a send asked of the
 //! receiver carried as its asker.
 
@@ -104,6 +105,52 @@ async fn a_line_the_owner_typed_in_his_own_chat_is_kept_under_a_console_number_a
       .texts(r#"SELECT "text" FROM "messages" WHERE "chat_id" = 42 AND "via" = 'record'"#)
       .await,
     ["Later, please.".to_owned()],
+  );
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "sender_name" FROM "messages" WHERE "chat_id" = 42 AND "via" = 'record'"#)
+      .await,
+    [OWNER.to_string()],
+    "a chat whose service never showed the owner files him under his number, never the agent's name",
+  );
+}
+
+#[tokio::test]
+async fn the_owners_console_line_stands_under_the_name_his_chats_own_service_last_showed_him_by() {
+  let (scratch, port, _road) = stood(&[ROOM]).await;
+
+  for (message, name, via, at) in [
+    (1, "Owner Then", "road-a", 1_000),
+    (2, "Owner Now", "road-a", 2_000),
+    (-50, SENDER, "record", 3_000),
+  ] {
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+           VALUES ($1, $2, $1, $3, $4, 'words', $5)"#,
+        vec![OWNER.into(), i64::from(message).into(), name.into(), i64::from(at).into(), via.into()],
+      )
+      .await;
+  }
+
+  let (status, answer) = asked(
+    &port,
+    "/owner/messages",
+    TOKEN,
+    json_post(json!({ "chatId": OWNER, "text": "Now, then." })),
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "sender_name" FROM "messages" WHERE "chat_id" = 42 AND "message_id" = {}"#,
+        answer["id"]
+      ))
+      .await,
+    ["Owner Now".to_owned()],
+    "the console's own rows, the agent's name among them, are never read for it",
   );
 }
 
@@ -245,8 +292,7 @@ async fn files_the_owner_put_in_a_room_go_as_the_albums_the_road_takes_with_the_
 }
 
 #[tokio::test]
-async fn a_send_asked_of_the_receiver_is_carried_as_its_asker_and_one_no_agent_asks_for_a_reminder_is_refused()
- {
+async fn a_send_asked_of_the_receiver_is_carried_as_its_asker() {
   let (scratch, port, _road) = stood(&[ROOM]).await;
 
   scratch
@@ -267,35 +313,5 @@ async fn a_send_asked_of_the_receiver_is_carried_as_its_asker_and_one_no_agent_a
 
   assert_eq!(status, StatusCode::OK);
   assert_eq!(answer["lines"].as_array().unwrap().len(), 1, "{answer:?}");
-  assert_eq!(answer["refusal"], Value::Null, "{answer:?}");
-
-  let (status, answer) = asked(
-    &port,
-    "/sends",
-    TOKEN,
-    json_post(json!({
-      "asker": json!({ "room": ROOM }),
-      "tool": "remind",
-      "input": { "reason": "the check is due" },
-    })),
-  )
-  .await;
-
-  assert_eq!(status, StatusCode::OK);
-  assert!(answer["refusal"].as_str().unwrap().contains("outside any agent's turn"), "{answer:?}");
-
-  let (status, answer) = asked(
-    &port,
-    "/sends",
-    TOKEN,
-    json_post(json!({
-      "asker": json!({ "room": ROOM, "agentName": AGENT }),
-      "tool": "remind",
-      "input": { "reason": "the check is due", "every": "daily 07:00" },
-    })),
-  )
-  .await;
-
-  assert_eq!(status, StatusCode::OK);
   assert_eq!(answer["refusal"], Value::Null, "{answer:?}");
 }

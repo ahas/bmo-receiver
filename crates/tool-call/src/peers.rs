@@ -6,15 +6,6 @@ use std::path::Path;
 
 use receiver_ports::http::Peer;
 
-/// The variable naming the brain's base address.
-pub const BRAIN_ADDRESS_VARIABLE: &str = "BRAIN_ADDRESS";
-
-/// The variable naming the bearer token the brain takes.
-pub const BRAIN_TOKEN_VARIABLE: &str = "BRAIN_TOKEN";
-
-/// The env file under the data root the brain's `tool-env` verb writes those two into.
-pub const BRAIN_ENV_FILE: &str = "env/brain.env";
-
 /// The variable naming the port agency's server answers on.
 pub const AGENCY_PORT_VARIABLE: &str = "AGENCY_CONTROL_PORT";
 
@@ -49,19 +40,6 @@ fn at(base: &str, token: &str) -> Peer {
     base: base.trim_end_matches('/').to_owned(),
     token: token.to_owned(),
   }
-}
-
-/// The brain the record's call reaches, or why it names none: a tool that answers the brain needs both its
-/// address and its token, from its own environment or the data root's env file.
-pub fn brain(data_root: &Path) -> Result<Peer, String> {
-  let path = data_root.join(BRAIN_ENV_FILE);
-  let file = named(&path);
-
-  let base = variable(BRAIN_ADDRESS_VARIABLE, &file).ok_or_else(|| {
-    format!("no {BRAIN_ADDRESS_VARIABLE} in this tool's environment or in {}", path.display())
-  });
-
-  Ok(at(&base?, &variable(BRAIN_TOKEN_VARIABLE, &file).unwrap_or_default()))
 }
 
 /// Agency's server the record's call reaches, at the port it names or the one it answers on by default.

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use serde_json::json;
 
-use tool_call::{Answer, Asked, Session, agency, brain, differences, read_handed};
+use tool_call::{Answer, Asked, Session, agency, differences, read_handed};
 
 #[test]
 fn a_call_is_read_with_its_record_and_another_protocol_or_shape_is_refused() {
@@ -114,10 +114,9 @@ fn an_answer_is_written_as_the_protocol_writes_one() {
 }
 
 #[test]
-fn the_units_are_found_in_the_data_roots_env_files_and_their_absence_said() {
+fn the_agency_is_found_in_the_data_roots_env_file_or_at_its_own_port() {
   let data = tempfile::tempdir().unwrap();
 
-  assert!(brain(data.path()).unwrap_err().contains("no BRAIN_ADDRESS"));
   assert_eq!(
     (agency(data.path()).base.as_str(), agency(data.path()).token.as_str()),
     ("http://127.0.0.1:3220", "")
@@ -125,19 +124,11 @@ fn the_units_are_found_in_the_data_roots_env_files_and_their_absence_said() {
 
   std::fs::create_dir_all(data.path().join("env")).unwrap();
   std::fs::write(
-    data.path().join("env/brain.env"),
-    "# the brain\nBRAIN_ADDRESS=http://127.0.0.1:7/\nBRAIN_TOKEN=\"secret\"\n",
-  )
-  .unwrap();
-  std::fs::write(
     data.path().join("env/agency.env"),
     "AGENCY_CONTROL_PORT=3221\nAGENCY_CONTROL_TOKEN=quiet\n",
   )
   .unwrap();
 
-  let peer = brain(data.path()).unwrap();
-
-  assert_eq!((peer.base.as_str(), peer.token.as_str()), ("http://127.0.0.1:7", "secret"));
   assert_eq!(
     (agency(data.path()).base.as_str(), agency(data.path()).token.as_str()),
     ("http://127.0.0.1:3221", "quiet")

@@ -4,7 +4,6 @@
 //! own, or the client with a stand-in of the unit's routes.
 
 pub mod agency;
-pub mod brain;
 pub mod chat;
 pub mod gate;
 pub mod http;

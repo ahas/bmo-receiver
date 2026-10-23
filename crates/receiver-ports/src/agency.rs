@@ -1,6 +1,7 @@
 //! The agency port: the agents and their roads, the sessions a turn is carried in and the words pushed into a
-//! working one, a room forgotten, a companion's agent half, the hooks the receiver answers, a run's log and the
-//! event stream (`docs/boundary-api.md`, 「The agency」; the agency's `docs/api.md`). Bodies are camelCase.
+//! working one, the documents a session was handed in full, a room forgotten, a companion's agent half, the hooks
+//! the receiver answers, a run's log and the event stream (`docs/boundary-api.md`, 「The agency」; the agency's
+//! `docs/api.md`). Bodies are camelCase.
 
 use futures_util::StreamExt;
 use futures_util::future::BoxFuture;
@@ -318,6 +319,13 @@ pub struct Passed {
   pub kind: Option<RestKind>,
 }
 
+/// A document a session was handed in full, at the version it read.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Load {
+  pub path: String,
+  pub version: String,
+}
+
 /// A run as the agency keeps its row, of which the receiver reads the moment it began, in epoch milliseconds.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -377,6 +385,14 @@ pub trait Agency: Send + Sync {
 
   /// A run's row by its id; none where the agency holds none.
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>>;
+
+  /// The documents a session was handed in full, each at the version it read.
+  fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>>;
+
+  /// A session's loads kept, every one it now holds in place of those it held.
+  fn keep_loads<'a>(&'a self, session: &'a str, loads: &'a [Load]) -> BoxFuture<'a, Answer<()>>;
+
+  fn forget_loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>>;
 
   /// Words put into the turn the session is working, answered with what became of them.
   fn push<'a>(&'a self, session: &'a str, turn: i64, words: &'a str) -> BoxFuture<'a, Answer<Said>>;
@@ -463,6 +479,12 @@ struct Hook<'a> {
 #[derive(Deserialize)]
 struct Lines {
   items: Vec<RunLine>,
+}
+
+/// A session's loads as the agency keeps them, and the body that keeps them.
+#[derive(Serialize, Deserialize)]
+struct Documents<T> {
+  documents: T,
 }
 
 // The event's own data: the agency's stream wraps each event as its number, kind, moment and data, and a reader
@@ -663,6 +685,27 @@ impl Agency for HttpAgency {
 
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>> {
     Box::pin(async move { self.caller.found(&["runs", &id.to_string()], &[]).await })
+  }
+
+  fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>> {
+    Box::pin(async move {
+      let read: Documents<Vec<Load>> = self.caller.get(&["session-loads", session], &[]).await?;
+
+      Ok(read.documents)
+    })
+  }
+
+  fn keep_loads<'a>(&'a self, session: &'a str, loads: &'a [Load]) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      self
+        .caller
+        .done(Method::PUT, &["session-loads", session], &Documents { documents: loads })
+        .await
+    })
+  }
+
+  fn forget_loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move { self.caller.without(Method::DELETE, &["session-loads", session]).await })
   }
 
   fn push<'a>(&'a self, session: &'a str, turn: i64, words: &'a str) -> BoxFuture<'a, Answer<Said>> {

@@ -33,10 +33,6 @@ pub const JOB_VARIABLE: &str = "BMO_TASK_LOCKED";
 pub const NO_ROOM: &str =
   "this call was made outside any room's turn, so it has no room to act in: name one with chat";
 
-/// What a call that is one agent's and reads no agent is refused with.
-pub const NO_AGENT: &str =
-  "this call was made outside any agent's turn, so there is no agent whose memory it would be";
-
 /// Where an agent's reset point is kept among the archive's settings: the moment its last reset cut it off at,
 /// in unix milliseconds.
 pub fn reset_point_key(agent: &str) -> String {

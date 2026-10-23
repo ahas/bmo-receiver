@@ -1,8 +1,8 @@
 # The sends the agents make into rooms, each asking the running receiver for the send through its routes, as the
 # `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): a line said in a room or in
-# the consult room, a picture or an album, a file or an album of files, a voice note, a reminder, a reaction, a
-# pin, a sticker, a fair draw and a fixed line. The reminder is the brain's, so that entry asks the brain
-# directly. The crate's own test holds every entry here to the Rust tool answering it.
+# the consult room, a picture or an album, a file or an album of files, a voice note, a reaction, a pin, a
+# sticker, a fair draw and a fixed line. The crate's own test holds every entry here to the Rust tool answering
+# it.
 
 [tool]
 name = "send"
@@ -76,18 +76,6 @@ shown = ["path", "caption", "transcript"]
 
 [entry.facts]
 verb = "voice"
-
-[[entry]]
-namespace = "bmo"
-name = "remind"
-description = "Set a reminder that wakes you in the room at its moment, once or repeating, with its reason and memory; it keeps no words to say."
-input = "remind.json"
-hints = { open_world = true }
-capabilities = ["room.tools"]
-grant = "reminders"
-
-[entry.bundle."room.chat"]
-shown = ["at", "every", "reason", "memory"]
 
 [[entry]]
 namespace = "bmo"

@@ -15,7 +15,7 @@ use std::time::Duration;
 use bmo_receiver::chat::instructions::{Rooms, deliver_pending};
 use bmo_receiver::chat::restart::say_stop;
 use bmo_receiver::command::{
-  self, ConsultArgs, DrawWord, PhotoArgs, PinArgs, ReactArgs, RemindArgs, SayArgs, StickerArgs,
+  self, ConsultArgs, DrawWord, PhotoArgs, PinArgs, ReactArgs, SayArgs, StickerArgs,
 };
 use bmo_receiver::config::{self, Config};
 use bmo_receiver::receiver::handover::routes as handover_routes;
@@ -98,11 +98,6 @@ enum Command {
   Pin(PinArgs),
   /// One of the deployment's stickers, or the set listed, through the running receiver.
   Sticker(StickerArgs),
-  /// A reminder set for the agent in its room, through the running receiver.
-  Reminder {
-    #[command(subcommand)]
-    word: ReminderWord,
-  },
   /// The consult room read or set, the block an agent is shown, or a line said there.
   Consult(ConsultArgs),
   /// The fair draw made in a room or checked.
@@ -116,12 +111,6 @@ enum Command {
 enum RoomWord {
   /// A line said in a room, without waiting for it.
   Say(SayArgs),
-}
-
-#[derive(Subcommand)]
-enum ReminderWord {
-  /// A reminder set for the agent in its room.
-  Set(RemindArgs),
 }
 
 fn refused(why: impl std::fmt::Display) -> ExitCode {
@@ -371,9 +360,6 @@ async fn main() -> ExitCode {
     Command::React(args) => Ok(answered(command::react(&config, cli.via.clone(), args).await)),
     Command::Pin(args) => Ok(answered(command::pin(&config, cli.via.clone(), args).await)),
     Command::Sticker(args) => Ok(answered(command::sticker(&config, cli.via.clone(), args).await)),
-    Command::Reminder {
-      word: ReminderWord::Set(args),
-    } => Ok(answered(command::reminder_set(&config, cli.via.clone(), args).await)),
     Command::Consult(args) => Ok(answered(command::consult(&config, args).await)),
     Command::Draw { word } => Ok(answered(command::draw(&config, cli.via.clone(), word).await)),
     Command::Routes | Command::Nouns | Command::Import { .. } => {

@@ -202,6 +202,30 @@ pub async fn messages_after(
   Ok(rows.iter().map(|row| inbound_of(row, via)).collect::<Result<_, _>>()?)
 }
 
+/// The name a room's own service last showed a sender by there: their latest row that came in on any road but
+/// the record's own, whose rows are the console's; none where no such row names them.
+pub async fn shown_name(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  sender_id: i64,
+  record: &str,
+) -> Result<Option<String>, Fault> {
+  let row = one(
+    db,
+    r#"SELECT "sender_name" FROM "messages" WHERE "chat_id" = $1 AND "sender_id" = $2
+       AND ("via" IS NULL OR "via" <> $3) ORDER BY "sent_at" DESC, "rowid" DESC LIMIT 1"#,
+    vec![chat_id.into(), sender_id.into(), record.into()],
+  )
+  .await?;
+
+  Ok(
+    row
+      .map(|row| row.try_get::<String>("", "sender_name"))
+      .transpose()?
+      .filter(|name| !name.trim().is_empty()),
+  )
+}
+
 /// The last message one sender left in the room, or nothing where they never spoke there.
 pub async fn last_from(
   db: &DatabaseConnection,

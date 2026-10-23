@@ -62,7 +62,7 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   - The owner's file and a calling caption are held to the same three grounds as text (`docs/wake.md`).
   - The rule's subject's file reaches the session without them, since that is the automatic handling a room rule
     exists for, and it opens no window by itself. The rule's subject's text is text like anyone's. The room's
-    rules are the brain's (`POST /room-rules/read`).
+    rules are `rule` memories in the agent's brain.
   - Either way the session is never woken ahead of the bytes.
 - **A file that woke nobody rides the request that follows it.** When somebody other than the owner and the rule's
   subject posts a file and then, within two minutes of it (the wake policy's `file_lead_seconds`, looked for among

@@ -389,8 +389,7 @@ pub struct Holding {
 #[serde(rename_all = "camelCase")]
 pub struct SendRequest {
   pub asker: Asker,
-  /// The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `remind`, `react`, `pin`, `sticker` or
-  /// `random_draw`.
+  /// The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`.
   pub tool: String,
   pub input: Value,
 }

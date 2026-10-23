@@ -1,9 +1,9 @@
 //! The sends the receiver's tools and the `bmo` commands doing the same sends ask the running receiver for
 //! (docs/chat-mcp.md, 「How a call runs」): a line said in a room or in the consult room, a picture or an album,
-//! a reminder, a reaction, a pin, a sticker, a fair draw, a file or an album of files, a voice note and a fixed
-//! line, each the arguments its tool takes, asked with who asks it — the room, the road the turn names for it,
-//! the agent whose turn it is, the chat that set it off and whether a job asks — since only the running receiver
-//! carries a send on its own lines (docs/messages.md, 「What an agent can send back」).
+//! a reaction, a pin, a sticker, a fair draw, a file or an album of files, a voice note and a fixed line, each
+//! the arguments its tool takes, asked with who asks it — the room, the road the turn names for it, the agent
+//! whose turn it is, the chat that set it off and whether a job asks — since only the running receiver carries
+//! a send on its own lines (docs/messages.md, 「What an agent can send back」).
 
 use std::time::Duration;
 
@@ -11,7 +11,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
-use crate::acted_on::ActedOn;
 use crate::bot::Service;
 use crate::mode::Mode;
 use crate::turn::{Room, Turn};
@@ -150,31 +149,6 @@ pub struct FixedLineInput {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct RemindInput {
-  /// The room, by chat id, where it is not this turn's own.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub chat: Option<i64>,
-  /// For one moment: an ISO moment, or `YYYY-MM-DD HH:MM` on the deployment's clock.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub at: Option<String>,
-  /// To repeat until cancelled, on the deployment's clock: `daily HH:MM`, `weekly mon HH:MM` (mon to sun) or
-  /// `monthly 1 HH:MM`.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub every: Option<String>,
-  /// Why you are to be woken: what to do or ask then, and for whom.
-  pub reason: String,
-  /// The row of this room it serves, by id or slug.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub memory: Option<String>,
-  /// Who it is for, by user id.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub user: Option<i64>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub message: Option<ActedOn>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct ReactInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -291,7 +265,6 @@ pub enum Act {
   Photo(PhotoInput),
   File(FileInput),
   Voice(VoiceInput),
-  Remind(RemindInput),
   React(ReactInput),
   Pin(PinInput),
   Sticker(StickerInput),

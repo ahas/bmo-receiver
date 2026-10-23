@@ -13,8 +13,5 @@ mod session;
 pub use answer::{Answer, Content};
 pub use handed::{Asked, Handed, PROTOCOL, answer_standard_io, read_handed};
 pub use manifest::{Entry, MadeSchema, differences, input_schema};
-pub use peers::{
-  AGENCY_ENV_FILE, AGENCY_PORT, AGENCY_PORT_VARIABLE, AGENCY_TOKEN_VARIABLE, BRAIN_ADDRESS_VARIABLE,
-  BRAIN_ENV_FILE, BRAIN_TOKEN_VARIABLE, agency, brain,
-};
+pub use peers::{AGENCY_ENV_FILE, AGENCY_PORT, AGENCY_PORT_VARIABLE, AGENCY_TOKEN_VARIABLE, agency};
 pub use session::Session;

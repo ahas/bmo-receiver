@@ -1,25 +1,20 @@
 //! The sends the agents make into rooms, the entries of the `send` tool (docs/chat-mcp.md, 「Its entries」;
 //! 「How a call runs」): a line said in a room or in the consult room, a picture or an album, a file or an album
-//! of files, a voice note, a reminder, a reaction, a pin, a sticker, a fair draw and a fixed line. Every entry
-//! but the reminder asks the running receiver for the send, as the `bmo` commands doing the same sends ask it; a
-//! reminder is the brain's own, so that entry posts it to the brain. A call reads its turn afresh from the
-//! session's record and refuses one its agent's reset overtook before it asks anything, and reaches each unit
-//! where the record's data root names it (docs/chat-mcp.md, 「Where each unit is found」).
+//! of files, a voice note, a reaction, a pin, a sticker, a fair draw and a fixed line. Every entry asks the
+//! running receiver for the send, as the `bmo` commands doing the same sends ask it. A call reads its turn
+//! afresh from the session's record and refuses one its agent's reset overtook before it asks anything, and
+//! reaches each unit where the record's data root names it (docs/chat-mcp.md, 「Where each unit is found」).
 
 use serde_json::{Value, json};
 
-use receiver_ports::{
-  agency::HttpAgency,
-  brain::{Brain, HttpBrain, Reading, Refusal, Refused, Reminder},
-  http::PortFailure,
-};
+use receiver_ports::agency::HttpAgency;
 use room_calls::{
   bot::Service,
   sends::{
     Act, Asker, ConsultInput, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput,
-    RemindInput, SayInput, StickerInput, Unsent, VoiceInput, ask, ask_consult,
+    SayInput, StickerInput, Unsent, VoiceInput, ask, ask_consult,
   },
-  turn::{NO_AGENT, NO_ROOM, Turn},
+  turn::{NO_ROOM, Turn},
 };
 use tool_call::{Answer, Asked, Entry, Handed, MadeSchema, Session, input_schema, peers};
 
@@ -88,13 +83,6 @@ pub const ENTRIES: &[Entry] = &[
     None,
   ),
   entry(
-    "remind",
-    "Set a reminder that wakes you in the room at its moment, once or repeating, with its reason and memory; it keeps no words to say.",
-    "remind.json",
-    input_schema::<RemindInput>,
-    Some("reminders"),
-  ),
-  entry(
     "react",
     "Put an emoji reaction on a message, or clear the agent's own with an empty emoji.",
     "react.json",
@@ -134,15 +122,6 @@ fn said(answered: Result<Vec<String>, Unsent>) -> Answer {
   }
 }
 
-// What the brain answered of a reminder: its reading, its refusal, or why the brain did not answer.
-fn answered(answered: Result<Refused<Reading>, PortFailure>) -> Answer {
-  match answered {
-    Ok(Ok(Reading { lines })) => Answer::text(lines.join("\n")),
-    Ok(Err(Refusal { message, .. })) => Answer::refusal(message.to_owned()),
-    Err(why) => Answer::failure(why),
-  }
-}
-
 /// One send asked of the running receiver as the call's turn, in the room the call names or the turn's own, on
 /// the road the turn names for that room alone.
 async fn send(
@@ -174,28 +153,6 @@ async fn consulted(receiver: &Service, agency: &HttpAgency, turn: &Turn, input: 
   }
 
   said(ask_consult(receiver, turn.agent.as_deref(), &input).await)
-}
-
-/// A reminder set for the turn's agent in its room, carried to the brain and answered with the reading it gives.
-/// The message a call names is not carried: the brain's reminder holds no message of its own.
-async fn reminded(session: &Session, turn: &Turn, input: RemindInput) -> Answer {
-  let Some(agent) = turn.agent.clone() else { return Answer::refusal(NO_AGENT) };
-  let Some(room) = turn.room(input.chat) else { return Answer::refusal(NO_ROOM) };
-  let brain = match peers::brain(&session.data_root) {
-    Ok(peer) => HttpBrain::new(&peer),
-    Err(why) => return Answer::failure(why),
-  };
-  let reminder = Reminder {
-    agent,
-    chat_id: room.chat,
-    at: input.at.clone(),
-    every: input.every.clone(),
-    reason: input.reason.clone(),
-    memory: input.memory.clone(),
-    user: input.user,
-  };
-
-  answered(brain.set_reminder(&reminder).await)
 }
 
 fn read<T: serde::de::DeserializeOwned>(name: &str, arguments: Value) -> Result<T, Answer> {
@@ -236,11 +193,6 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
         let input: VoiceInput = read(name, arguments)?;
 
         send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Voice(input)).await
-      }
-      "remind" => {
-        let input: RemindInput = read(name, arguments)?;
-
-        reminded(session, &turn, input).await
       }
       "react" => {
         let input: ReactInput = read(name, arguments)?;

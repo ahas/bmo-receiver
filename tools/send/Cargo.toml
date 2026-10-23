@@ -1,6 +1,6 @@
 [package]
 name = "send-tool"
-description = "The sends the agents make into rooms: a line, a picture, a reminder, a reaction, a pin, a sticker and a fair draw."
+description = "The sends the agents make into rooms: a line, a picture, a reaction, a pin, a sticker and a fair draw."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,7 +16,7 @@ test = false
 room-calls.workspace = true
 # The call protocol, the answer and the manifest held to the executable.
 tool-call.workspace = true
-# The brain the reminder entry answers, and the agency whose reset point overtakes a turn.
+# The agency whose reset point overtakes a turn.
 receiver-ports.workspace = true
 schemars.workspace = true
 serde.workspace = true

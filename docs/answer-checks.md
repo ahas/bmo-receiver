@@ -55,9 +55,8 @@ Each sends an answer back to the same session at most a fixed number of times.
     writes. An answer is read as promising when a sentence of its own (code and anything it quotes set aside)
     carries a first-person volitional ending beside a word of time to come or a word of keeping in mind, as the
     policy lists them. A promise about this very turn's work carries neither and is not one.
-  - **Whether the turn recorded is read off what it wrote**: the notes, memories and watches the brain holds
-    under the turn's agent and room since the turn began (`GET /memories`, `POST /notes/list`,
-    `POST /watches/list`), and the items bmo-job holds filed or appended from the room since then.
+  - **Whether the turn recorded is read off what it wrote**: the records its run's writing verbs kept under the
+    run (`run_records`), and the items bmo-job holds filed or appended from the room since the turn began.
   - **A run that wrote nothing is read off its calls instead**, out of the agency's run log
     (`GET /log-lines`): a call of one of the recording tools, or of the `bmo` verbs under them, that did not
     fail. A tool call counts by the record its catalogue entry declares for what it named. A verb is recognised

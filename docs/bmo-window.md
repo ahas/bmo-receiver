@@ -9,7 +9,7 @@ words is handed. There is no second way in.
 ```mermaid
 flowchart TB
   R[Room words<br/>every chat service] --> Q1[Room queue]
-  P[Other units<br/>jobs, runners, deploys,<br/>watches, reminders, notices] --> Q2[Instruction table]
+  P[Other units<br/>jobs, runners, deploys,<br/>waits, notices] --> Q2[Instruction table]
   C[Console instruct] --> Q2
   Q1 --> M[Conversation<br/>per room]
   Q2 -->|instruction pass| M
@@ -31,8 +31,7 @@ flowchart TB
 ## The agent's queue
 
 - **A unit that wants the agent's attention queues an instruction.** bmo-job posts `POST /owner/instructionsions` and
-  `POST /rooms/{roomId}/notices`, bmo-artifact `POST /owner/instructionsions` for a run's ending, the brain
-  `POST /owner/instructionsions` and `POST /owner/notices`, and the receiver's own producers (its rest, fallback and
+  `POST /rooms/{roomId}/notices`, bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own producers (its rest, fallback and
   failure notices, its fold, the agency's events) write the row themselves. The instruction store is the one
   writer of the table.
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
@@ -73,8 +72,7 @@ is written.
 | The line after a fold | the conversation's fold | instruction table | `round` | opens | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
 | A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
-| A watch's memo, a reminder's moment | the brain | instruction table | `round` | opens | — |
-| A notice the brain tells the owner | the brain | instruction table | `round` | opens | — |
+| A wait's memo or moment come due, of kind `watch` or `reminder` | the unit that holds the wait | instruction table | `round` | opens | — |
 | A search's, a browse's and a remote browser's result | bmo-artifact's instructions | instruction table | `round` | opens | — |
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
 | Voice and digest notices | the units that run them | instruction table | `round` | opens | — |
@@ -89,7 +87,7 @@ is written.
 - **The session handover** is not a turn. The note a replaced session leaves rides at the head of whichever
   turn first goes out on the new session, and that turn came through the window like every other.
 - **Not turns at all:**
-  - Another agent's reminder, watch memo or memory event never reaches the chat agent: it wakes its own agent
+  - Another agent's wait come due or memory event never reaches the chat agent: it wakes its own agent
     in its own room.
   - Words in a room the chat agent does not answer, one a companion answers alone, never reach it: the
     receiver wakes the companion and no lane of this queue. A room the owner shares with a companion is a room's
@@ -200,7 +198,8 @@ envelope (`POST /reference/selected`) and the gate chooses what of the brain's m
   reference gates read it.
 
 All of it goes in the one reference block, loaded in full once per session per version and as a mark after
-that; which versions a session holds is the brain's record (`POST /sessions/loads`).
+that; which versions a session holds is the agency's record of the session's loads
+(`GET /session-loads/{sessionId}`).
 
 Beside the reference, a turn carries the room's messages since the agent last answered there:
 

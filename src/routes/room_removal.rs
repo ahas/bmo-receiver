@@ -185,7 +185,6 @@ async fn shown_removal(receiver: &Receiver, room: i64) -> Result<Value, Refusal>
   let (goes, stays) = split(&counted);
   let units = holders(receiver, room).await;
   let agency = receiver.units().agency.forget_room(room, true).await;
-  let brain = receiver.units().brain.room_removed(room, true).await;
 
   Ok(json!({
     "room": room,
@@ -201,7 +200,7 @@ async fn shown_removal(receiver: &Receiver, room: i64) -> Result<Value, Refusal>
       "trimmed": record.settings.trimmed,
     },
     "folders": folders.iter().map(|held| folder_view(receiver, held)).collect::<Vec<_>>(),
-    "units": json!({ "agency": unit_answer(agency), "brain": unit_answer(brain) }),
+    "units": json!({ "agency": unit_answer(agency) }),
   }))
 }
 
@@ -231,7 +230,6 @@ async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusa
 
   // The other units' parts go through them, and every holder of live per-room state forgets the room.
   let agency = receiver.units().agency.forget_room(room, false).await;
-  let brain = receiver.units().brain.room_removed(room, false).await;
   forget(receiver, room).await;
 
   let mut archive = open(receiver).await?;
@@ -286,7 +284,7 @@ async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusa
     "settings": record.settings.taken,
     "folders": removed_folders,
     "holders": units,
-    "units": json!({ "agency": unit_answer(agency), "brain": unit_answer(brain) }),
+    "units": json!({ "agency": unit_answer(agency) }),
     "couldNot": left,
   }))
 }

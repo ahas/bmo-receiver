@@ -12,7 +12,6 @@ flowchart TD
   Rx --> Conv[The one runner:<br/>each agent's conversations]
   Pass[The instruction pass] --> Conv
   Job[bmo-job] -->|POST /instructions, /rooms/{roomId}/notices, /talks| Pass
-  Brain[the brain] -->|POST /instructions, /owner/notices| Pass
   Conv -->|the envelope| Gate[the gate]
   Conv -->|POST /sessions/{sessionId}/turns| Agency[the agency]
   Agency -->|turn.ended and its other events| Conv
@@ -59,9 +58,9 @@ flowchart TD
   - the event stream and the live board (「The event stream」 below).
 - **What it does not carry:** a chat service's platform (its reading, its sending, its gathering of files and its
   numbering are the chat service's, behind bmo-chat), the agent sessions and their stand-ins (the agency's), the
-  gate stage (the gate's), the memories, reminders, watches and digests (the brain's), the job queue (bmo-job's),
-  the accounts and grants (the web unit's), the voice (the voice unit's), and the keepalive pass (the cache
-  warmer's).
+  gate stage (the gate's), the memories and digests (the brain's), reminders, waits and watches (the wait tool's,
+  outside the brain), the job queue (bmo-job's), the accounts and grants (the web unit's), the voice (the voice
+  unit's), and the keepalive pass (the cache warmer's).
 - **A woken agent's turn is its conversations' own:** the message goes into its room's queue with the files
   leading up to it ahead of it, opening the window where its ground does. A turn the rest's gate closed is taken
   only where the agent is pinned to a provider the rest does not close, or a stand-in answers on its road. A
@@ -149,10 +148,11 @@ flowchart TD
   runs wrote down, and its folders in the message-file store, the picture store
   and the outboxes, `docs/room-files.md`).
 - **Every other unit's part goes through that unit:** the agency forgets the room
-  (`DELETE /room-holdings/{roomId}`), the brain
-  removes its rows and folders (`POST /rooms/removed`), and every declared holder (`PUT /room-holders/{unit}`) is
-  asked what it holds (`GET <address>/rooms/{chat}/holdings`): what it keeps stays and keeps the room's chat, what
-  it warns of is shown in the confirmation.
+  (`DELETE /room-holdings/{roomId}`), and every declared holder (`PUT /room-holders/{unit}`) is asked what it holds
+  (`GET <address>/rooms/{chat}/holdings`): what it keeps stays and keeps the room's chat, what it warns of is shown
+  in the confirmation.
+- **The brain is not asked.** A room is one of its subjects, and what an agent remembers of the room stays as that
+  agent's own memory after the room's registration is gone.
 - **What stays is work filed from the room, and accounting:** its items, jobs, job questions and searches, each
   keeping the room's number as where it came from, the log lines of a job's turns, and the usage of every run
   there. Each table or row of the receiver's that outlives its room says so in a declaration beside the code that

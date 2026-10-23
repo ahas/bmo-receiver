@@ -9,8 +9,7 @@ use std::io::Read;
 use clap::{Args, Subcommand};
 use room_calls::bot::Service;
 use room_calls::sends::{
-  Act, ConsultInput, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, RemindInput, SayInput,
-  StickerInput,
+  Act, ConsultInput, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
 };
 use serde_json::{Map, Value};
 
@@ -21,13 +20,12 @@ use crate::verbs::{VerbError, asked_sends, consult, messages, turn};
 
 /// The nouns `bmo` dispatches to this command, each marked `home`: the receiver's rooms, its consult room and
 /// the draws its store keeps are the operations machine's.
-pub const NOUNS: [&str; 8] = [
+pub const NOUNS: [&str; 7] = [
   "room say\thome",
   "photo\thome",
   "react\thome",
   "pin\thome",
   "sticker\thome",
-  "reminder set\thome",
   "consult\thome",
   "draw\thome",
 ];
@@ -98,31 +96,6 @@ pub struct StickerArgs {
   pub emoji: Option<String>,
   #[arg(long, conflicts_with_all = ["chat", "emoji"])]
   pub list: bool,
-}
-
-/// The words of `reminder set`: one moment or a repeating rule, and why the agent is woken.
-#[derive(Args, Debug)]
-pub struct RemindArgs {
-  #[arg(long)]
-  pub chat: i64,
-  /// An ISO moment, or `YYYY-MM-DD HH:MM` on the deployment's clock.
-  #[arg(long, conflicts_with = "every", required_unless_present = "every")]
-  pub at: Option<String>,
-  /// `daily HH:MM`, `weekly mon HH:MM` or `monthly 1 HH:MM`.
-  #[arg(long)]
-  pub every: Option<String>,
-  /// Why it wakes the agent.
-  #[arg(long)]
-  pub reason: String,
-  /// The memory it serves, by id or slug.
-  #[arg(long)]
-  pub memory: Option<String>,
-  /// Who it is for, by user id.
-  #[arg(long)]
-  pub user: Option<i64>,
-  /// Whose reminder it is, where the run calling it names none.
-  #[arg(long)]
-  pub agent: Option<String>,
 }
 
 /// The words of `consult`: the room read or set, the block an agent is shown, or a line said.
@@ -301,35 +274,6 @@ pub async fn sticker(
   };
 
   asked_sends::ask(&config.data_root, asked_sends::shell_asker(chat, via, None), Act::Sticker(input)).await
-}
-
-/// `reminder set`: a reminder set for the agent in its room through `POST /sends`, carried to the brain.
-pub async fn reminder_set(
-  config: &Config,
-  via: Option<String>,
-  args: RemindArgs,
-) -> Result<Vec<String>, VerbError> {
-  let Some(agent) = args.agent.or_else(turn::agent) else {
-    return Err(VerbError::Refused(
-      "reminder set: no agent is named: run this inside an agent's turn, or name one with --agent <name>"
-        .to_owned(),
-    ));
-  };
-  let asker = room_calls::sends::Asker {
-    agent_name: Some(agent),
-    ..asked_sends::shell_asker(args.chat, via, None)
-  };
-  let input = RemindInput {
-    chat: None,
-    at: args.at,
-    every: args.every,
-    reason: args.reason,
-    memory: args.memory,
-    user: args.user,
-    message: None,
-  };
-
-  asked_sends::ask(&config.data_root, asker, Act::Remind(input)).await
 }
 
 /// `consult`: the consult room read or set and the block an agent is shown from the store, and a line said

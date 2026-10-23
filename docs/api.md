@@ -114,8 +114,8 @@ repository's, in `VERSION`; it is never taken from a registry.
 - **The figures' `agents`** hold each answering agent's `agentName`, messages, `lastAnswerAt`, the session it keeps
   for the room, the agency's row for it and the state of that session; `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` stand null until the agency answers a tally by agent and room.
-- **A room's removal** asks the record what it would take, each declared holder, the agency and the brain, and
-  refuses anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
+- **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
+  anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
   `cleared`, `holders` and `couldNot`.
 
@@ -203,7 +203,7 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, and up to ten `file` fields | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
 
-- **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `remind`, `react`, `pin`, `sticker` and
+- **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` and
   `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`). The act goes out as the asker's agent, on
   the road the turn names.
 - **A file send** is one document, or several files as one album: each file a `path` on this machine and an
@@ -215,8 +215,6 @@ repository's, in `VERSION`; it is never taken from a registry.
   rooms' language and said into the room without the output gate or any session, since the line is already read.
   Where the web unit cannot render it, its code and fields go as they stand, so the room is never left silent.
 - An owner's file send is the form above.
-- **`remind`** is carried to the brain's reminder route and answered with the reading the brain gives. Asked
-  outside any agent's turn, it is refused, since a reminder is one agent's.
 - **The owner's words** in the owner's private room are archived under a console number and handed to that chat's
   conversation; in another room they go as the owner, on the road the room declares for the owner's voice. A file
   past the road's ceiling is refused 413 `too-large`; a `replyTo` the archive does not hold is refused 409.
@@ -314,8 +312,7 @@ and in this repository's delivery report.
 
 | Unit | What the receiver reaches it for |
 |---|---|
-| the agency | agents, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, companions, a run's log and reset point, a room forgotten, the deployment's documents |
-| the brain | room rules, reminders, a session's loaded documents, a chat session's handoff note, a room's person book, what a turn wrote, a room forgotten or removed |
+| the agency | agents, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, companions, a run's log and reset point, a room forgotten, a session's loaded documents, the deployment's documents |
 | bmo-job | a room's holdings, the questions the owner answers in his chat, the items a turn filed, the queue moved |
 | the gate | a turn's reference, the sanitiser, a room's judgements, a companion's gate options |
 | the web unit | the account model: a sender's user, the checks, the grants, a fixed line rendered |

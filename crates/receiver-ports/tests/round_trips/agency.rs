@@ -2,8 +2,8 @@
 
 use futures_util::StreamExt;
 use receiver_ports::agency::{
-  Agency, CompanionRow, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, RestKind, Resting, Run, Said,
-  Scope, Turn, TurnRoom,
+  Agency, CompanionRow, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, RestKind, Resting, Run,
+  Said, Scope, Turn, TurnRoom,
 };
 use serde_json::json;
 
@@ -381,4 +381,36 @@ async fn a_run_reads_the_moment_it_began_and_one_the_agency_holds_none_of_reads_
   );
   assert_eq!(agency.run(8).await.unwrap(), None);
   assert_eq!(unit.took(), [call("GET /runs/7", "", None), call("GET /runs/8", "", None)]);
+}
+
+#[tokio::test]
+async fn a_sessions_loads_are_read_kept_whole_and_forgotten_by_its_id() {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+  let load = |path: &str, version: &str| Load {
+    path: path.to_owned(),
+    version: version.to_owned(),
+  };
+  let documents =
+    json!([{ "path": "docs/a.md", "version": "v1" }, { "path": "room-context/-7", "version": "f" }]);
+
+  unit.answer("GET /session-loads/s-1", 200, json!({ "sessionId": "s-1", "documents": documents }));
+  unit.answer("PUT /session-loads/s-1", 200, json!({ "sessionId": "s-1", "documents": documents }));
+  unit.answer_empty("DELETE /session-loads/s-1", 204);
+
+  let loads = agency.loads("s-1").await.unwrap();
+
+  assert_eq!(loads, [load("docs/a.md", "v1"), load("room-context/-7", "f")]);
+
+  agency.keep_loads("s-1", &loads).await.unwrap();
+  agency.forget_loads("s-1").await.unwrap();
+
+  assert_eq!(
+    unit.took(),
+    [
+      call("GET /session-loads/s-1", "", None),
+      call("PUT /session-loads/s-1", "", Some(json!({ "documents": documents }))),
+      call("DELETE /session-loads/s-1", "", None),
+    ]
+  );
 }

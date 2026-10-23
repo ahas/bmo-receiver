@@ -15,14 +15,13 @@ use axum::http::Uri;
 use serde_json::{Value, json};
 use tempfile::tempdir;
 
-use receiver_ports::brain::{Brain, HttpBrain, Refusal};
 use room_calls::sends::{
-  ConsultInput, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, RemindInput,
-  SayInput, StickerInput, VoiceInput,
+  ConsultInput, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput,
+  StickerInput, VoiceInput,
 };
-use room_calls::turn::{NO_AGENT, NO_ROOM};
+use room_calls::turn::NO_ROOM;
 use send_tool::{ENTRIES, call};
-use tool_call::{Session, differences, input_schema, peers};
+use tool_call::{Session, differences, input_schema};
 
 const ROOM: i64 = -4_200;
 const TOKEN: &str = "quiet";
@@ -76,7 +75,6 @@ fn write_env(root: &Path, base: String, port: u16) {
 
   for (file, body) in [
     ("env/receiver.env", format!("RECEIVER_ADDRESS={base}\nRECEIVER_TOKEN={TOKEN}\n")),
-    ("env/brain.env", format!("BRAIN_ADDRESS={base}\nBRAIN_TOKEN={TOKEN}\n")),
     ("env/agency.env", format!("AGENCY_CONTROL_PORT={port}\nAGENCY_CONTROL_TOKEN={TOKEN}\n")),
   ] {
     std::fs::write(root.join(file), body).unwrap();
@@ -321,45 +319,6 @@ async fn a_fixed_line_is_asked_by_its_code_and_fields() {
 }
 
 #[tokio::test]
-async fn remind_is_asked_of_the_brains_reminders_set_route_and_not_of_the_receiver() {
-  let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
-  let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
-  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
-
-  let answered = call(
-    &session,
-    "remind",
-    json!({
-      "at": "2027-01-01 09:00",
-      "reason": "stand up the brew",
-      "memory": "brew-row",
-      "user": 7,
-      "message": 7,
-    }),
-  )
-  .await;
-
-  assert_eq!(schema_of("remind.json"), input_schema::<RemindInput>());
-  assert!(!answered.is_error, "{}", answered.plain());
-  let (route, body) = asked_of(&book);
-
-  assert_eq!(route.as_str(), "/reminders/set");
-  assert_eq!(
-    body,
-    json!({
-      "agent": "agent-a",
-      "chatId": ROOM,
-      "at": "2027-01-01 09:00",
-      "reason": "stand up the brew",
-      "memory": "brew-row",
-      "user": 7,
-    }),
-  );
-}
-
-#[tokio::test]
 async fn react_is_asked_on_the_message_it_acts_on_with_the_emoji_it_clears_with() {
   let book = Book::default();
   let (base, port) = stood(book.clone()).await;
@@ -479,42 +438,6 @@ async fn a_draw_is_asked_with_its_shape_and_the_mode_its_result_comes_back_in() 
 }
 
 #[tokio::test]
-async fn the_brains_cancel_and_list_routes_are_asked_as_the_brain_states_them() {
-  let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
-  let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
-  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
-  let brain = HttpBrain::new(&peers::brain(&session.data_root).unwrap());
-
-  book.answers.lock().unwrap().insert(
-    "/reminders/cancel".to_string(),
-    json!({ "answered": false, "refusal": { "code": "no-reminder", "message": "There is no reminder 9." } }),
-  );
-
-  book.answers.lock().unwrap().insert(
-    "/reminders/list".to_string(),
-    json!({ "reminders": [{ "id": 3, "chatId": ROOM, "reason": "stand up the brew" }], "lines": ["#3 stand up the brew"] }),
-  );
-
-  let cancelled = brain.cancel_reminder(9).await;
-  let listed = brain.reminders(ROOM, None, true).await;
-  let (route, body) = asked_of(&book);
-
-  assert_eq!(route.as_str(), "/reminders/list");
-  assert_eq!(body, json!({ "chatId": ROOM, "agent": null, "all": true }));
-  assert_eq!(routes_of(&book), Vec::from(["/reminders/cancel", "/reminders/list"]));
-
-  match cancelled.unwrap() {
-    Err(Refusal { code, message, .. }) => {
-      assert_eq!((code.as_str(), message.as_str()), ("no-reminder", "There is no reminder 9."))
-    }
-    Ok(reading) => panic!("the reminder was cancelled: {reading:?}"),
-  }
-  assert!(listed.is_ok());
-}
-
-#[tokio::test]
 async fn a_turn_its_agent_reset_after_it_began_is_refused_before_anything_is_asked() {
   let book = Book::default();
   let (base, port) = stood(book.clone()).await;
@@ -547,9 +470,9 @@ async fn a_call_outside_any_room_or_any_agents_turn_is_refused_without_asking() 
 
   assert!(nowhere.is_error && nowhere.plain().contains(NO_ROOM));
 
-  let no_agent = call(&session, "remind", json!({ "reason": "stand up" })).await;
+  let no_agent = call(&session, "consult", json!({ "text": "hello" })).await;
 
-  assert!(no_agent.is_error && no_agent.plain().contains(NO_AGENT));
+  assert!(no_agent.is_error && no_agent.plain().contains("outside any agent's turn"));
   assert!(book.taken.lock().unwrap().is_empty());
 }
 
@@ -573,8 +496,6 @@ async fn the_executable_answers_one_request_on_its_standard_streams() {
   let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_send-tool"))
     .env_remove("RECEIVER_ADDRESS")
     .env_remove("RECEIVER_TOKEN")
-    .env_remove("BRAIN_ADDRESS")
-    .env_remove("BRAIN_TOKEN")
     .env_remove("AGENCY_CONTROL_PORT")
     .env_remove("AGENCY_CONTROL_TOKEN")
     .stdin(std::process::Stdio::piped())

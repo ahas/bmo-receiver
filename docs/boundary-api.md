@@ -60,7 +60,7 @@ stand; and each chat service's road name with its base address and token.
 ### The unit command
 
 `bmo-receiver` is the unit command bmo-cli finds (bmo-cli's `docs/api.md`, 「The unit command」). Asked `nouns`,
-it declares eight, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
+it declares seven, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
 the operations machine's:
 
 | Noun | Words | What it asks |
@@ -70,7 +70,6 @@ the operations machine's:
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
 | `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
-| `reminder set` | `--chat <id> (--at <moment> \| --every <rule>) --reason <words> [--memory <id>] [--user <id>] [--agent <name>]` | `POST /sends`, the act `remind`; the agent is the one the turn names where `--agent` names none |
 | `consult` | `room [<room>]`, `state`, or `say <words> [--reply <id>]`, each with `[--agent <name>]` | `room` and `state` read the store; `say` asks `POST /consult-lines` under the agent's own name |
 | `draw` | `draw --chat <id> --mode sync\|async --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
 
@@ -117,6 +116,9 @@ room's matter.
 | a companion registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the companion's fields; nothing | `ok`; nothing |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
 | an agent's reset point | `GET /agents/{agent}` | | `resetAt` |
+| a session's loads | `GET /session-loads/{sessionId}` | | `sessionId`, `documents`, each `path` and `version` |
+| a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
+| a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 
@@ -125,11 +127,15 @@ and is opened again when it drops: `turn.created`, `turn.ended`, `companion-rese
 `document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
 `overtime-request.created` and `overtime-request.changed`.
 
+A session's loads are the documents it was handed in full, each the `path` and the `version` it read. A keep
+replaces the whole list, so the receiver writes the session's loads it reads back with the turn's new ones laid
+over them by path.
+
 ### The brain
 
-Its `docs/boundary-api.md`, camelCase `POST`s. The receiver reads and writes a room's rules, the reminders the send
-tool sets, a session's loaded documents, a chat session's handoff note, a room's person book before a fold, the
-rows a turn wrote, and a room forgotten or removed.
+The receiver makes no call on the brain and holds no port to it. What the brain reads of the receiver it reads
+over this service's own routes (`docs/api.md`), and its documents stand under the brain root a document reload
+reads.
 
 ### bmo-job
 
@@ -178,9 +184,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
   `kind`, `wake_words`, `window_seconds` and `default_answerer` from an agent's row, and the agency's fixed `Agent`
   states only `name`, `label`, `role`, `gates`, `reasoning`, `voice`, `resetAt` and `standInAvailable`. Until the
   agency states the roster fields, the receiver's agent port keeps its own shape.
-- **The brain's fixed API** is generic memory, fragments and scope holdings; it serves no room rule, session load,
-  handoff note or person-book route as the receiver's calls state them. Those calls stand as the receiver makes
-  them until the brain states the shapes, or until the receiver's use of them is restated in the generic terms.
+- **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
+  and `version` and reads back only those, until the agency states the item.
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
   did, and the tokens they spent. The console's room figures answer `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` null until the agency serves a tally by agent and room.

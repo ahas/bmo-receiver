@@ -16,11 +16,8 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, CompanionRow, Delivery, Events, FieldRefusal, Forgotten, Passed, Rest, RestKind,
-  Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
-};
-use receiver_ports::brain::{
-  BeforeFold, Brain, Load, Reading, Refused, Reminder, Reminders, RoomRule, Row, RuleText, Took,
+  Agency, Agent, Agents, CompanionRow, Delivery, Events, FieldRefusal, Forgotten, Load, Passed, Rest,
+  RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
@@ -311,132 +308,6 @@ impl Gate for StandInGate {
   }
 }
 
-/// The brain: a session's loaded documents, kept and forgotten, and nothing else asked.
-pub struct StandInBrain {
-  pub loads: Mutex<BTreeMap<String, Vec<Load>>>,
-}
-
-impl StandInBrain {
-  pub fn new() -> StandInBrain {
-    StandInBrain {
-      loads: Mutex::default(),
-    }
-  }
-
-  pub fn loaded(&self) -> BTreeMap<String, Vec<Load>> {
-    self.loads.lock().unwrap().clone()
-  }
-}
-
-fn not_asked_brain<T>(what: &str) -> BoxFuture<'_, Answer<T>> {
-  panic!("a stand-in brain was asked {what}, which no test sets")
-}
-
-impl Brain for StandInBrain {
-  fn room_rules(&self, _chat_id: i64) -> BoxFuture<'_, Answer<Vec<RoomRule>>> {
-    Box::pin(async { Ok(vec![]) })
-  }
-
-  fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>> {
-    let kept = self.loads.lock().unwrap().get(session).cloned().unwrap_or_default();
-
-    Box::pin(async move { Ok(kept) })
-  }
-
-  fn keep_loads<'a>(&'a self, session: &'a str, loads: &'a [Load], _at: i64) -> BoxFuture<'a, Answer<()>> {
-    let mut kept = self.loads.lock().unwrap();
-    let held = kept.entry(session.to_owned()).or_default();
-
-    for load in loads {
-      held.retain(|one| one.path != load.path);
-      held.push(load.clone());
-    }
-
-    drop(kept);
-
-    Box::pin(async { Ok(()) })
-  }
-
-  fn forget_loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
-    self.loads.lock().unwrap().remove(&session.to_owned());
-
-    Box::pin(async { Ok(()) })
-  }
-
-  fn set_room_rule<'a>(
-    &'a self,
-    _chat: i64,
-    _message: i64,
-    _id: &'a str,
-    _rule: Option<&'a RuleText>,
-  ) -> BoxFuture<'a, Answer<Refused<Vec<RoomRule>>>> {
-    Box::pin(async { Ok(Ok(vec![])) })
-  }
-
-  fn set_reminder<'a>(&'a self, _reminder: &'a Reminder) -> BoxFuture<'a, Answer<Refused<Reading>>> {
-    Box::pin(async { Ok(Ok(Reading::default())) })
-  }
-
-  fn cancel_reminder(&self, _id: i64) -> BoxFuture<'_, Answer<Refused<Reading>>> {
-    Box::pin(async { Ok(Ok(Reading::default())) })
-  }
-
-  fn reminders<'a>(
-    &'a self,
-    _chat: i64,
-    _agent: Option<&'a str>,
-    _all: bool,
-  ) -> BoxFuture<'a, Answer<Reminders>> {
-    Box::pin(async {
-      Ok(Reminders {
-        reminders: vec![],
-        lines: vec![],
-      })
-    })
-  }
-
-  fn session_summary<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<String>>> {
-    Box::pin(async { Ok(None) })
-  }
-
-  fn clear_session_summary<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<()>> {
-    Box::pin(async { Ok(()) })
-  }
-
-  fn people_before_fold<'a>(&'a self, _chat: i64, _agent: &'a str) -> BoxFuture<'a, Answer<BeforeFold>> {
-    not_asked_brain("the people before a fold")
-  }
-
-  fn memories<'a>(
-    &'a self,
-    _agent: Option<&'a str>,
-    _chat: Option<i64>,
-  ) -> BoxFuture<'a, Answer<Vec<Row>>> {
-    Box::pin(async { Ok(vec![]) })
-  }
-
-  fn notes<'a>(&'a self, _agent: &'a str, _chat: Option<i64>) -> BoxFuture<'a, Answer<Vec<Row>>> {
-    Box::pin(async { Ok(vec![]) })
-  }
-
-  fn watches<'a>(
-    &'a self,
-    _by: Option<i64>,
-    _agent: Option<&'a str>,
-    _all: bool,
-  ) -> BoxFuture<'a, Answer<Vec<Row>>> {
-    Box::pin(async { Ok(vec![]) })
-  }
-
-  fn room_forgotten(&self, _chat: i64) -> BoxFuture<'_, Answer<()>> {
-    Box::pin(async { Ok(()) })
-  }
-
-  fn room_removed(&self, _chat: i64, _preview: bool) -> BoxFuture<'_, Answer<Took>> {
-    Box::pin(async { Ok(Took::default()) })
-  }
-}
-
 /// The web unit: the account model's links and grants a test gives it, whether that model stands in force at
 /// all, and a fixed line rendered as its code and the language asked; nothing else is asked.
 pub struct StandInWeb {
@@ -709,6 +580,8 @@ pub struct StandInAgency {
   pub listed: Mutex<Option<Vec<(Session, SessionState)>>>,
   // Whether it answers nothing of its agents and sessions, as an agency that is down.
   pub down: Mutex<bool>,
+  // Each session's loaded documents, as the last keep left them.
+  pub loads: Mutex<BTreeMap<String, Vec<Load>>>,
 }
 
 impl StandInAgency {
@@ -733,7 +606,13 @@ impl StandInAgency {
       runs: Mutex::default(),
       listed: Mutex::default(),
       down: Mutex::default(),
+      loads: Mutex::default(),
     }
+  }
+
+  /// Each session's loaded documents, as the last keep left them.
+  pub fn loaded(&self) -> BTreeMap<String, Vec<Load>> {
+    self.loads.lock().unwrap().clone()
   }
 
   /// The sessions it lists, each with the state it answers for it.
@@ -927,6 +806,24 @@ impl Agency for StandInAgency {
     });
 
     Box::pin(async move { Ok(run) })
+  }
+
+  fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>> {
+    let kept = self.loads.lock().unwrap().get(session).cloned().unwrap_or_default();
+
+    Box::pin(async move { Ok(kept) })
+  }
+
+  fn keep_loads<'a>(&'a self, session: &'a str, loads: &'a [Load]) -> BoxFuture<'a, Answer<()>> {
+    self.loads.lock().unwrap().insert(session.to_owned(), loads.to_vec());
+
+    Box::pin(async { Ok(()) })
+  }
+
+  fn forget_loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    self.loads.lock().unwrap().remove(session);
+
+    Box::pin(async { Ok(()) })
   }
 
   fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
@@ -1235,7 +1132,6 @@ pub struct Standing {
   pub waking: Arc<WakeStandIn>,
   pub gate: Arc<StandInGate>,
   pub agency: Arc<StandInAgency>,
-  pub brain: Arc<StandInBrain>,
   pub job: Arc<StandInJob>,
   pub taken: Arc<Taken>,
   pub web: Arc<StandInWeb>,
@@ -1282,13 +1178,11 @@ pub fn unrun(
   let agency = Arc::new(StandInAgency::new());
   let job = Arc::new(StandInJob::new());
   let taken = Arc::new(Taken::new(db.clone()));
-  let brain = Arc::new(StandInBrain::new());
   let warmer = Arc::new(StandInWarmer::new());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
     agency: agency.clone(),
-    brain: brain.clone(),
     gate: gate.clone(),
     job: job.clone(),
     web: web.clone(),
@@ -1304,7 +1198,6 @@ pub fn unrun(
     waking,
     gate,
     agency,
-    brain,
     job,
     taken,
     web,

@@ -1,8 +1,8 @@
 //! A send asked of the running receiver (docs/boundary-api.md, 「Sends」; docs/chat-mcp.md, 「How a call runs」):
-//! a line said, a picture or an album, a file or an album of files, a voice note, a reminder set, a reaction, a
-//! pin, a sticker, a fair draw or a fixed line, carried on the receiver's own lines as the agent the asker names,
-//! on the road the turn names — since a sending tool's process and a shell's hold none of them — and the verbs the
-//! road a room is answered on performs, which a procedure read there is held to.
+//! a line said, a picture or an album, a file or an album of files, a voice note, a reaction, a pin, a sticker,
+//! a fair draw or a fixed line, carried on the receiver's own lines as the agent the asker names, on the road the
+//! turn names — since a sending tool's process and a shell's hold none of them — and the verbs the road a room is
+//! answered on performs, which a procedure read there is held to.
 //!
 //! A line asked to be said is said in a run of its own, whose launcher the receiver's binary fills; asked of a
 //! service that stands without one, it is turned away before the words are put on the disk.
@@ -15,11 +15,8 @@ use axum::{
 use serde::Deserialize;
 use serde_json::json;
 
-use room_calls::sends::{Act, Asked, Asker, RemindInput};
-use room_calls::turn::{NO_AGENT, NO_ROOM};
-
-use receiver_ports::brain::Reminder;
-use receiver_ports::http::PortFailure;
+use room_calls::sends::{Act, Asked};
+use room_calls::turn::NO_ROOM;
 
 use super::{Answered, Served, answered, query, read, refused};
 use crate::receiver::Receiver;
@@ -78,7 +75,6 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
 
       messages::voice(&sends, receiver.data_root(), chat, note, asker.job).await
     }
-    Act::Remind(input) => remind(receiver, asker, chat, input).await,
     Act::React(input) => messages::react(&sends, chat, input.message, &input.emoji).await,
     Act::Pin(input) => messages::pin(&sends, chat, input.message, input.unpin).await,
     Act::Sticker(input) => messages::sticker(&sends, chat, &input.emoji).await,
@@ -87,35 +83,6 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
     }
     Act::FixedLine(input) => messages::fixed_line(&sends, chat, &input.code, &input.fields).await,
   }
-}
-
-// A reminder the asker's agent sets in its room, carried to the brain and answered with the reading it gives.
-async fn remind(
-  receiver: &Receiver,
-  asker: &Asker,
-  chat: i64,
-  input: &RemindInput,
-) -> Result<Vec<String>, VerbError> {
-  let Some(agent) = asker.agent_name.clone() else {
-    return Err(VerbError::Refused(NO_AGENT.to_owned()));
-  };
-  let reminder = Reminder {
-    agent,
-    chat_id: chat,
-    at: input.at.clone(),
-    every: input.every.clone(),
-    reason: input.reason.clone(),
-    memory: input.memory.clone(),
-    user: input.user,
-  };
-  let set = receiver.units().brain.set_reminder(&reminder).await.map_err(port)?;
-
-  set.map(|reading| reading.lines).map_err(|refusal| VerbError::Refused(refusal.message))
-}
-
-// A call on the brain that did not answer.
-fn port(why: PortFailure) -> VerbError {
-  VerbError::Refused(why.to_string())
 }
 
 pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {

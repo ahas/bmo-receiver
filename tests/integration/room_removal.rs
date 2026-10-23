@@ -215,7 +215,11 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
   assert_eq!(shown["settings"]["trimmed"], json!(["console_pinned_rooms"]));
   assert!(shown["warns"].as_array().unwrap().is_empty());
   assert_eq!(shown["units"]["agency"]["gone"]["sessions"], 1);
-  assert!(shown["units"]["brain"].is_object());
+  assert_eq!(
+    shown["units"].as_object().unwrap().keys().collect::<Vec<_>>(),
+    ["agency"],
+    "only the agency is asked"
+  );
 
   let (status, taken) = remove(&front, &format!("/rooms/{ROOM}?by={ADMIN}")).await;
 

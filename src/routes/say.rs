@@ -130,7 +130,7 @@ pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
       chat_id: asked.chat_id,
       message_id,
       sender_id: Some(receiver.owner_id()),
-      sender_name: receiver.deployment().sender_name.clone(),
+      sender_name: receiver.owner_name(asked.chat_id).await,
       sent_at: now_ms(),
       text: text.to_owned(),
       image_path: None,
@@ -249,6 +249,7 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
 
   if chat_id == receiver.owner_id() {
     let mut sent: Vec<Value> = vec![];
+    let owner_name = receiver.owner_name(chat_id).await;
 
     for (at, file) in kept.iter().enumerate() {
       let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
@@ -256,7 +257,7 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
         chat_id,
         message_id,
         sender_id: Some(receiver.owner_id()),
-        sender_name: receiver.deployment().sender_name.clone(),
+        sender_name: owner_name.clone(),
         sent_at: now_ms(),
         text: caption.clone(),
         image_path: None,

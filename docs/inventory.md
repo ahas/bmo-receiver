@@ -33,7 +33,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 | `control/as_owner.rs` | `src/routes/as_owner.rs` | build-11 |
 | `control/owner_words.rs` | `src/routes/owner_words.rs` | build-11 |
 | `verbs/sends.rs`, `messages.rs`, `asked_sends.rs`, `turn.rs`, `room_switches.rs`, `room_files.rs`, `room_rules.rs`, `draws.rs`, `photo_repair.rs` | `src/verbs/` of the same names; `room_rules` asks the web port instead of the old tables | build-11 |
-| `chat/room-acts`: `lib`, `accounts`, `acted_on`, `bot`, `messages`, `mode`, `procedures`, `promises`, `reading`, `sends`, `turn` | `crates/room-calls/` of the same names, with its own manifest | build-11 |
+| `chat/room-acts`: `lib`, `accounts`, `acted_on`, `bot`, `messages`, `mode`, `procedures`, `promises`, `reading`, `sends`, `turn` | `crates/room-calls/` of the same names but `acted_on`, which no entry takes, with its own manifest | build-11 |
 | `chat/room-acts/launches.rs` | not here: it starts runs, which the services whose runs they are own | S4 |
 | `verbs_messages.rs`, `verbs_draws.rs`, `receiver/owner_sends.rs`, `receiver/owner_words.rs` under the old `tests/integration/` | of the same names under `tests/integration/` | build-11 |
 | the colocated test modules of `verbs/turn`, `verbs/draws`, `verbs/room_files` | `tests/turn.rs`, `tests/draws.rs`, `tests/room_files.rs` | build-11 |
@@ -44,7 +44,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 | Old member | Stands here as | Carried by |
 |---|---|---|
 | `tools/send/tool.toml`, `Cargo.toml`, `src/lib.rs`, `src/main.rs` | of the same names under `tools/send/` | build-15 (Port the send tool) |
-| its eight schemas: `say`, `consult`, `photo`, `remind`, `react`, `pin`, `sticker`, `random_draw` | the eight JSON files under `tools/send/`; `remind` posts to the brain's reminder routes and keeps `at`, `every`, `reason` and `memory` | build-15 |
+| its eight schemas: `say`, `consult`, `photo`, `remind`, `react`, `pin`, `sticker`, `random_draw` | the JSON files under `tools/send/` of every one but `remind`, which stands nowhere: no reminder is set through the receiver | build-15 |
 | — | `crates/tool-call/`, the call protocol the tool speaks: the S3 enumeration counted only the tool's own files, and the old shared tool crate is a forbidden dependency, so the protocol stands as a crate of this repository | build-15 |
 | — | `tests/send.rs`, one schema and route test per entry, and the manifest held to the executable | build-15 |
 
@@ -195,9 +195,10 @@ build-1 and implemented by the task named here.
 
 ## S12 — the ports out
 
-Stated by build-1, carried as a trait and an HTTP client per unit by build-5 (Open the ports): the agency, the
-brain, bmo-job, the gate, the web unit, the cache warmer and the chat services through `bmo-chat-client`. The
-word chain needs no port: it reads the event stream and speaks through the sends.
+Stated by build-1, carried as a trait and an HTTP client per unit by build-5 (Open the ports): the agency,
+bmo-job, the gate, the web unit, the cache warmer and the chat services through `bmo-chat-client`. The brain has
+no port, since the receiver makes no call on it, and the word chain needs none: it reads the event stream and
+speaks through the sends.
 
 ## S13 — the personal data stripped as the code came in
 

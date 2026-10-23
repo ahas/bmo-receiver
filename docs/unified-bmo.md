@@ -63,9 +63,9 @@
     that answered under a new id is recorded as holding the block only where the block went in full.
 - **Reference documents:**
   - Every reference document the gate hands is loaded in full once per session per version, and recorded the
-    same way only after success, in the brain's record of the session's loads (`POST /sessions/loads/keep`).
+    same way only after success, in the agency's record of the session's loads (`PUT /session-loads/{sessionId}`).
   - That record is not emptied by a room switch; only a new session and a session fold empty it
-    (`POST /sessions/loads/forget`).
+    (`DELETE /session-loads/{sessionId}`).
 - **A road with no session** needs the context on every request; the agency carries it as that road's line
   declares.
 
@@ -96,8 +96,9 @@
 - **Words from the web console** do not go through any other chat service.
   - Console input goes straight into the archive as the owner's message and on to the agent.
   - The console has no name of its own for the owner, so the owner's row stands under the name the room's own
-    service last showed the owner by in that room. The owner's console rows are never read for it, and a name
-    another room calls the owner by never reaches this one.
+    service last showed the owner by in that room, and under the owner's number where it has shown none. The
+    owner's console rows are never read for it, and a name another room calls the owner by never reaches this
+    one. The chat agent's name never stands on the owner's row.
   - The answer is not sent to another service; it stays in the archive as markdown, as written, and shows in the
     console.
   - A long answer stands as the same run of messages it would have stood as on the other road: the room's line
@@ -146,15 +147,16 @@
 ## Replacing the session
 
 - **The session is replaced, not burned again,** when the common system prompt or the head of the actual run
-  changed, or the cache lifetime passed. The agency carries the replacement as the session's provider declares,
-  and the summariser it asks writes the handoff note, which the brain keeps.
-- **The new session's first turn carries the note:** the receiver reads it (`POST /session-summary/read`) and
-  puts it at the head of that turn, and clears it once a new answer succeeds (`POST /session-summary/clear`), so it
-  is still delivered after a failure or a restart.
+  changed, or the cache lifetime passed. The agency carries the replacement as the session's provider declares.
+  Where the provider hands a full session over by its own note, the session is asked once more for its handoff
+  note, and the receiver keeps what it writes as the agent's pending note.
+- **The new session's first turn carries the note:** the receiver takes the agent's pending note as it opens the
+  new session and puts it at the head of that turn. The pending note is the only note carried; no summary is kept
+  for the agent anywhere else.
 - **A room switch alone does not replace the session.** The switch block is not a change to the common head.
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
   keeps one session across its rooms; a room's own session is the agency's to resume.
-- **Never a full re-read:** even when summarising is impossible, the whole old context is not read again; the new
+- **Never a full re-read:** where no pending note is held, the whole old context is not read again; the new
   session is opened with a line saying memory could not be restored.
 
 ## Default access and per-room delegation
@@ -182,7 +184,7 @@
 
 ### Delegations
 
-- **Where they live:** the room's rules are the brain's owner room rules (`POST /room-rules/read`), and once the
+- **Where they live:** the room's rules are `rule` memories in the agent's brain, read for a turn by the gate, and once the
   account model is in force (`GET /accounts/model` on the web unit), the grants the web unit keeps, a room rule
   being a standing-rule grant to the subject's user with the owner's words beside it.
 - **Commands,** each on the basis of an owner message in that room (`--message <id>`):

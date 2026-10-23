@@ -1,7 +1,7 @@
 //! A send a `bmo` command asks the running receiver for (docs/chat-mcp.md, 「How a call runs」): a shell holds
-//! none of the receiver's lines, so a line said, a picture or an album, a reminder, a reaction, a pin, a sticker
-//! or a fair draw is carried by the receiver, as the agent whose turn the shell works in, through the asking part
-//! of `room-calls` the sending tools ask it by too.
+//! none of the receiver's lines, so a line said, a picture or an album, a reaction, a pin, a sticker or a fair
+//! draw is carried by the receiver, as the agent whose turn the shell works in, through the asking part of
+//! `room-calls` the sending tools ask it by too.
 
 use std::path::Path;
 
