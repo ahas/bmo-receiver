@@ -1,5 +1,5 @@
-//! The readings an answer is held to: its own sentences cut with quotations set aside, an answer in the room's
-//! language never turned back, and a question that is no order.
+//! The readings an answer is held to: its own sentences cut with quotations set aside, an answer in the turn's
+//! answer language never turned back and one in another turned back, and a question that is no order.
 
 use bmo_receiver::chat::promises::{
   answered_in_the_wrong_language, orders, own_sentences, waits_on_happening,
@@ -21,11 +21,16 @@ fn sentences_end_after_their_marks_and_quotations_are_set_aside() {
 }
 
 #[test]
-fn an_answer_in_the_room_s_language_or_in_a_room_that_speaks_none_is_never_turned_back() {
+fn an_answer_in_the_answer_language_passes_and_one_in_another_is_turned_back() {
   let english = "This answer is written in English words only";
+  let korean = fixture("answer-korean.txt");
 
-  assert!(!answered_in_the_wrong_language(english, ["hello there"]));
-  assert!(!answered_in_the_wrong_language("see `the code` and /a/b/c", ["hello"]));
+  assert!(!answered_in_the_wrong_language(english, "en"));
+  assert!(answered_in_the_wrong_language(english, "ko"));
+  assert!(!answered_in_the_wrong_language(&korean, "ko"));
+  assert!(answered_in_the_wrong_language(&korean, "en"));
+  assert!(!answered_in_the_wrong_language(&format!("{korean} `the code is here` /a/b/c"), "ko"));
+  assert!(!answered_in_the_wrong_language("see `the code` and /a/b/c", "ko"));
 }
 
 #[test]

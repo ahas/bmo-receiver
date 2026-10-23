@@ -21,7 +21,7 @@ use super::conversation::{
 };
 use super::mid_turn::{Push, paragraph};
 use super::promises::{promises_after, promises_later, sets_rule_later};
-use super::prompt::{Scope, scope_line};
+use super::prompt::{Scope, addressing, answer_language, scope_line};
 use super::records::run_records;
 use super::sentinels::{Mark, SKIP, is_skip, is_wait, round_marks, sent_now, without_round_marks};
 use super::turnover::note_session;
@@ -697,14 +697,15 @@ impl Drafter {
     }
 
     // The checks on the final text, each asked once.
-    let recent: Vec<String> = drafted.recent.iter().map(|message| message.text.clone()).collect();
+    let language =
+      answer_language(receiver, addressing(drafted.batch, drafted.recent, drafted.room.identity));
     let terms = glossary(receiver);
     let mut asked: BTreeSet<Check> = BTreeSet::new();
 
     loop {
       let lines = own_lines(&run.asked);
       let reading = Reading {
-        recent: &recent,
+        language: &language,
         glossary: &terms,
         own_lines: &lines,
         max_chars: DRAFTING.max_chars,

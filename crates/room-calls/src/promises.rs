@@ -1,14 +1,14 @@
 //! What an answer of the chat says, as the checks it passes read it (docs/answer-checks.md): a promise about what
 //! the agent will do from now on, a promise to act once something has happened, the owner's words setting a rule
-//! for later, and an answer that came out in the machine's language. The words each reads by stand in the
-//! receiver's policy; the sentences are cut and the quotations set aside here.
+//! for later, and an answer that came out in a language other than the turn's answer language. The words each
+//! reads by stand in the receiver's policy; the sentences are cut and the quotations set aside here.
 
 use std::sync::LazyLock;
 
 use regex::Regex;
 
 use crate::js::{SPACE, chars, is_space, trim};
-use receiver_policy::scripts::{SCRIPTS, Span};
+use receiver_policy::scripts::{SCRIPTS, Span, holds_any};
 use receiver_policy::second_asks::SECOND_ASKS;
 
 // A range as a regular expression character class's body.
@@ -265,24 +265,40 @@ pub fn holds_korean(text: &str) -> bool {
   text.chars().any(is_syllable)
 }
 
-/// Whether an answer came out in the machine's language rather than the room's: only in a room that speaks
-/// Korean, and only by its prose.
-pub fn answered_in_the_wrong_language<'a>(answer: &str, recent: impl IntoIterator<Item = &'a str>) -> bool {
-  if !recent.into_iter().any(holds_korean) {
-    return false;
-  }
+// Whether a character is kana.
+fn is_kana(character: char) -> bool {
+  holds_any(&SCRIPTS.kana_letters, character)
+}
 
+// The language a word of an answer's prose is in, where it can be told: Korean where it holds a Hangul syllable,
+// Japanese where it holds kana, English where it is made of Latin letters alone.
+fn word_language(word: &str) -> Option<&'static str> {
+  if holds_korean(word) {
+    Some("ko")
+  } else if word.chars().any(is_kana) {
+    Some("ja")
+  } else if ENGLISH_WORD.is_match(word) {
+    Some("en")
+  } else {
+    None
+  }
+}
+
+/// Whether an answer came out in a language other than the turn's answer language, by its prose: enough words
+/// of another language that can be told, and too few of the answer language beside them.
+pub fn answered_in_the_wrong_language(answer: &str, language: &str) -> bool {
   let prose = NOT_PROSE
     .iter()
     .fold(answer.to_owned(), |rest, pattern| pattern.replace_all(&rest, " ").into_owned());
-  let letter = |character: char| character.is_ascii_alphabetic() || is_syllable(character);
-  let words: Vec<&str> = prose
+  let letter =
+    |character: char| character.is_ascii_alphabetic() || is_syllable(character) || is_kana(character);
+  let told: Vec<&str> = prose
     .split(is_space)
-    .map(|word| word.trim_matches(|character: char| !letter(character)))
+    .filter_map(|word| word_language(word.trim_matches(|character: char| !letter(character))))
     .collect();
-  let korean = words.iter().filter(|word| holds_korean(word)).count();
-  let english = words.iter().filter(|word| ENGLISH_WORD.is_match(word)).count();
-  let language = &SECOND_ASKS.language;
+  let own = told.iter().filter(|word| **word == language).count();
+  let other = told.len() - own;
+  let thresholds = &SECOND_ASKS.language;
 
-  english >= language.judged_from && (korean as f64) < ((korean + english) as f64) * language.korean_share
+  other >= thresholds.judged_from && (own as f64) < (told.len() as f64) * thresholds.answer_share
 }

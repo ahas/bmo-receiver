@@ -16,8 +16,9 @@ wording_languages = ["ko"]
 [errands]
 # A turn that carried {count} of the owner's own messages and answered with silence.
 owed = "Your answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. This turn carried {count} message(s) from the owner, in the owner's own private chat, which is always answered. Write this turn's answer to the owner now. <<SKIP>> and <<WAIT>> are not available."
-# What came out in the machine's language: {what} names what is written again.
-language = "What you wrote for {what} came out in English. English is the language the system lines, the quiet instructions and their results are written in; it is not this room's language, and nothing went out. Write {what} again, in Korean, as this room is always answered. Say the same thing; only the language changes. <<SKIP>> and <<WAIT>> are not available."
+# What came out in a language other than the turn's answer language: {what} names what is written again,
+# {language} the answer language.
+language = "What you wrote for {what} did not come out in this turn's answer language, {language}: the language of the message addressed to you, or this room's where that message shows none of its own. Nothing went out. Write {what} again, in {language}, whatever language the system lines, the quiet instructions or their results came in. Say the same thing; only the language changes. <<SKIP>> and <<WAIT>> are not available."
 # What the language errand names where the caller names no other part.
 answer = "this turn's answer"
 # An answer using banned words: {terms} is each term beside what to write.
@@ -71,8 +72,9 @@ request = '([가-힣])\s?(줘|주라|주세요|줄래)'
 # The vowels, by their number in a syllable, an imperative closes on with no final consonant.
 imperative_vowels = [0, 1, 4, 5, 6, 9, 14]
 
-# When an answer reads as the machine's language in a room that speaks Korean: the fewest English words
-# its prose must run to before it is judged, and the share of Korean words below which it reads as English.
+# When an answer reads as written in a language other than the turn's answer language: the fewest words of
+# another language its prose must run to before it is judged, and the share of words in the answer language
+# below which it reads as written in the other.
 [language]
 judged_from = 4
-korean_share = 0.25
+answer_share = 0.25

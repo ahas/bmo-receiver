@@ -147,7 +147,7 @@ fn the_checks_read_length_wording_and_the_process_s_own_lines() {
   let asked = vec!["why was it said?".to_owned()];
   let lines = own_lines(&asked);
   let reading = Reading {
-    recent: &[],
+    language: "en",
     glossary: &[],
     own_lines: &lines,
     max_chars: 10,
@@ -177,16 +177,16 @@ fn the_wording_check_reads_an_answer_written_in_korean_and_skips_an_english_one(
     panic!("the fixture holds a term, what to write and an answer");
   };
   let glossary = vec![banned("ko", term, instead), banned("en", "synergy", "working together")];
-  let reading = Reading {
-    recent: &[],
+  let reading = |language| Reading {
+    language,
     glossary: &glossary,
     own_lines: &[],
     max_chars: 1_000,
   };
 
-  assert_eq!(failing(korean, &reading), vec![Check::Wording]);
-  assert!(errand(Check::Wording, korean, &reading).contains(instead));
-  assert_eq!(failing("The synergy here is what we were after.", &reading), vec![]);
+  assert_eq!(failing(korean, &reading("ko")), vec![Check::Wording]);
+  assert!(errand(Check::Wording, korean, &reading("ko")).contains(instead));
+  assert_eq!(failing("The synergy here is what we were after.", &reading("en")), vec![]);
 }
 
 #[test]

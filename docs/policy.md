@@ -66,5 +66,6 @@ carries the mark `{owner}`, filled with the owner's name as the configuration gi
 `{language}`, the language of the message addressed to the agent, or the room's where that message shows none
 (`docs/answer-checks.md`, 「The language an answer goes out in」). So the talks' lines (`talk.toml`,
 `code-review.toml`), the roster of the owner's private chat (`chat-line.toml`, `room.roster`), the lines a
-transcript is written in (`handover.toml`, `transcript`) and the language lines of a round (`chat-round.toml`,
-`closing.language_named` and `closing.language_room`) carry these marks.
+transcript is written in (`handover.toml`, `transcript`), the language lines of a round (`chat-round.toml`,
+`closing.language_named` and `closing.language_room`) and the language check's errand (`second-asks.toml`,
+`errands.language`) carry these marks.

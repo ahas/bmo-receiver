@@ -175,8 +175,8 @@ where it says something: neither empty nor a skip nor a wait.
 
 - **Once the items are done, the text is checked before it is sent,** with no model:
   - `length`: at most the policy's `max_chars` characters;
-  - `language`: in a room that speaks another language, the text is not in the machine's
-    (`docs/answer-checks.md`, 「The language an answer goes out in」);
+  - `language`: the text is in the turn's answer language, the language of the message that addresses the agent
+    or else the room's (`docs/answer-checks.md`, 「The language an answer goes out in」);
   - `wording`: in a text written in Korean, no term the deployment's wording document bans; a text in another
     language skips it (`docs/answer-checks.md`, 「The banned words」);
   - `format`: none of the process's own lines stands in the text: no question it was asked, and not the head of

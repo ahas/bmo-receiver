@@ -34,10 +34,10 @@ impl Check {
   }
 }
 
-/// What the checks read a text against: the room's recent words, the banned terms, the process's own lines and
-/// the longest text let go.
+/// What the checks read a text against: the turn's answer language, the banned terms, the process's own lines
+/// and the longest text let go.
 pub struct Reading<'a> {
-  pub recent: &'a [String],
+  pub language: &'a str,
   pub glossary: &'a [BannedTerm],
   pub own_lines: &'a [String],
   pub max_chars: usize,
@@ -106,7 +106,7 @@ pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
     failed.push(Check::Length);
   }
 
-  if answered_in_the_wrong_language(text, reading.recent.iter().map(String::as_str)) {
+  if answered_in_the_wrong_language(text, reading.language) {
     failed.push(Check::Language);
   }
 
@@ -130,7 +130,9 @@ pub fn errand(check: Check, text: &str, reading: &Reading) -> String {
       &errands.length,
       &[("count", &text.chars().count().to_string()), ("limit", &reading.max_chars.to_string())],
     ),
-    Check::Language => fill_marks(&errands.language, &[("what", &errands.answer)]),
+    Check::Language => {
+      fill_marks(&errands.language, &[("what", &errands.answer), ("language", reading.language)])
+    }
     Check::Wording => fill_marks(
       &errands.wording,
       &[("terms", &banned_terms_line(&banned_terms_in(text, reading.glossary)))],

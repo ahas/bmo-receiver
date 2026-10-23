@@ -121,15 +121,23 @@ pub fn addressing<'a>(
   })
 }
 
-/// The line naming the language a turn is answered in (docs/answer-checks.md, 「The language an answer goes out
-/// in」): the language of the message that addresses the agent, else the room's configured language.
+/// The language a turn is answered in (docs/answer-checks.md, 「The language an answer goes out in」): the
+/// language of the message that addresses the agent, else the room's configured language.
+pub fn answer_language(receiver: &Receiver, addressed: Option<&Inbound>) -> String {
+  addressed
+    .and_then(|message| text_language(&message.text))
+    .map_or_else(|| receiver.deployment().language.clone(), str::to_owned)
+}
+
+/// The line naming the language a turn is answered in, saying whether it is the speaker's or the room's.
 pub fn answer_language_note(receiver: &Receiver, addressed: Option<&Inbound>) -> String {
   let closing = &CHAT_ROUND.closing;
+  let line = match addressed.and_then(|message| text_language(&message.text)) {
+    Some(_) => &closing.language_named,
+    None => &closing.language_room,
+  };
 
-  match addressed.and_then(|message| text_language(&message.text)) {
-    Some(language) => fill_marks(&closing.language_named, &[("language", language)]),
-    None => fill_marks(&closing.language_room, &[("language", &receiver.deployment().language)]),
-  }
+  fill_marks(line, &[("language", &answer_language(receiver, addressed))])
 }
 
 // What kind of room the turn is in: the owner's chat, a user's own private chat, or a group.
