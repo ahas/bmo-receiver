@@ -133,9 +133,6 @@ pub enum ConsultWord {
 pub struct DrawArgs {
   #[arg(long)]
   pub chat: Option<String>,
-  /// `sync` hands the result back here; `async` wakes the next turn with it.
-  #[arg(long)]
-  pub mode: Option<String>,
   /// The request, as the tool's own fields in one JSON object.
   #[arg(long)]
   pub spec: Option<String>,
@@ -322,16 +319,11 @@ pub async fn draw(config: &Config, via: Option<String>, word: DrawWord) -> Resul
   }
 }
 
-/// `draw draw`: the request read, its mode named, and the send asked of `POST /sends`.
+/// `draw draw`: the request read and the send asked of `POST /sends`.
 async fn draw_made(config: &Config, via: Option<String>, args: DrawArgs) -> Result<Vec<String>, VerbError> {
   let chat =
     draws::whole(args.chat.as_deref()).ok_or_else(|| VerbError::Refused(draws::USAGE.to_owned()))?;
-  let Some(mode) = args.mode.filter(|mode| matches!(mode.as_str(), "sync" | "async")) else {
-    return Err(VerbError::Refused("mode must be one of sync, async".to_owned()));
-  };
-  let mut fields: Map<String, Value> = draws::spec_argument(args.spec.as_deref())?;
-
-  fields.insert("mode".to_owned(), Value::String(mode));
+  let fields: Map<String, Value> = draws::spec_argument(args.spec.as_deref())?;
   let input: RandomDrawInput = serde_json::from_value(Value::Object(fields))
     .map_err(|why| VerbError::Refused(format!("--spec does not name a draw: {why}")))?;
   let asker = asked_sends::shell_asker(chat, via, None);

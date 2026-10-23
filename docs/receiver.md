@@ -60,7 +60,7 @@ flowchart TD
 - **What it does not carry:** a chat service's platform (its reading, its sending, its gathering of files and its
   numbering are the chat service's, behind bmo-chat), the agent sessions and their stand-ins (the agency's), the
   gate stage (the gate's), the memories and digests (the brain's), reminders, waits and watches (the wait tool's,
-  outside the brain), the job queue (bmo-job's), the accounts and grants (the web unit's), the voice (the voice
+  run through bmo-cli's `bmo use`, `docs/reminders.md`), the job queue (bmo-job's), the accounts and grants (the web unit's), the voice (the voice
   unit's), and the keepalive pass (the cache warmer's).
 - **A woken agent's turn is its conversations' own:** the message goes into its room's queue with the files
   leading up to it ahead of it, opening the window where its ground does. A turn the rest's gate closed is taken

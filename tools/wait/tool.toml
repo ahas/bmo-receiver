@@ -1,0 +1,33 @@
+# The reminders and watches an agent sets, each a call `bmo use` runs on its own so that its end wakes the agent
+# (docs/reminders.md): a wait for a moment, and a shell check run until it holds. Neither reads the turn or calls
+# a unit. Both are unbounded, since the unit the call runs in ends it at its longest run. The crate's own test
+# holds every entry here to the Rust tool answering it.
+
+[tool]
+name = "wait"
+protocol = 1
+language = "rust"
+build = 'cargo build --release -p wait-tool && cp "$BMO_CARGO_TARGET/release/wait-tool" "$BMO_TOOL_OUT/"'
+check = 'cargo test -p wait-tool'
+run = ["wait-tool"]
+timeout = 60
+
+[[entry]]
+namespace = "bmo"
+name = "wait"
+description = "Wait some seconds, or until a moment, and answer with the note: a reminder, run as bmo use bmo/wait --async so its end wakes you in the room."
+manual = "wait.md"
+input = "wait.json"
+hints = { read_only = true }
+capabilities = ["room.tools"]
+unbounded = true
+
+[[entry]]
+namespace = "bmo"
+name = "watch"
+description = "Run a shell check every few seconds until it exits 0, and answer with the note and what it wrote: a watch, run as bmo use bmo/watch --async so its end wakes you in the room."
+manual = "watch.md"
+input = "watch.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+unbounded = true

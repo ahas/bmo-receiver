@@ -43,35 +43,32 @@ async fn stood() -> (Scratch, Arc<StandInChat>, Sends) {
 #[tokio::test]
 async fn a_draw_posts_its_line_answers_its_result_and_its_successor_answers_the_commitment_it_left() {
   let (scratch, road, sends) = stood().await;
-  let first = draw(
-    &sends,
-    ROOM,
-    Some("sync"),
-    &spec(r#"{"shape":"dice","sides":6,"label":"who goes first"}"#),
-    None,
-  )
-  .await
-  .unwrap();
+  let first = draw(&sends, ROOM, &spec(r#"{"shape":"dice","sides":6,"label":"who goes first"}"#), None)
+    .await
+    .unwrap();
 
   assert!(first[0].starts_with("draw 1: "), "{first:?}");
   assert!(first[2].contains("it is the room's first draw"), "{first:?}");
 
-  let second = draw(
-    &sends,
-    ROOM,
-    Some("async"),
-    &spec(r#"{"shape":"range","min":1,"max":10}"#),
-    Some("road-a"),
-  )
-  .await
-  .unwrap();
+  let second = draw(&sends, ROOM, &spec(r#"{"shape":"range","min":1,"max":10}"#), Some("road-a"))
+    .await
+    .unwrap();
 
-  assert!(second[0].starts_with("draw 2 is made"), "{second:?}");
+  assert!(second[0].starts_with("draw 2: "), "{second:?}");
+  assert!(second[2].contains("its seed answers commitment"), "{second:?}");
+  assert!(second[4].contains("bmo draw verify 2"), "{second:?}");
+  // The result is answered in the call alone: nothing is queued for a later turn.
   assert_eq!(
     scratch
-      .count(r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = $1 AND "sort" = 'random_draw' AND "via" = 'road-a'"#, [ROOM.into()].to_vec())
+      .count(r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = $1"#, [ROOM.into()].to_vec())
       .await,
-    1,
+    0,
+  );
+  assert_eq!(
+    scratch
+      .count(r#"SELECT COUNT(*) FROM "random_draws" WHERE "mode" = 'sync'"#, vec![])
+      .await,
+    2,
   );
 
   // The room line of each draw went out on the room's road, in the road's own voice.
@@ -86,11 +83,8 @@ async fn a_draw_posts_its_line_answers_its_result_and_its_successor_answers_the_
 async fn a_request_is_refused_before_any_seed_is_spent() {
   let (scratch, _road, sends) = stood().await;
 
-  for (mode, written, says) in [
-    (Some("later"), r#"{"shape":"dice","sides":6}"#, "mode must be one of sync, async"),
-    (Some("sync"), r#"{"shape":"dice"}"#, "a dice draw needs sides"),
-  ] {
-    let Err(VerbError::Refused(why)) = draw(&sends, ROOM, mode, &spec(written), None).await else {
+  for (written, says) in [(r#"{"shape":"dice"}"#, "a dice draw needs sides")] {
+    let Err(VerbError::Refused(why)) = draw(&sends, ROOM, &spec(written), None).await else {
       panic!("not refused: {written}");
     };
 

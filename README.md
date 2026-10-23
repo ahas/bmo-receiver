@@ -15,7 +15,7 @@ library `bmo-chat-client`; every other unit over HTTP, as `docs/api.md` and `doc
 | `.graph/` | the code dependency graph: one node per feature, with its files, its exported names, the owner's words for it and the features it needs, an area to a file (`api.json`, `calls.json`, `receiver.json`, `rooms.json`, `roads.json`, `chat.json`, `companion.json`, `events.json`, `store.json`, `routes.json`, `verbs.json`, `reading.json`, `service.json`, `ports.json`, `codes.json`, `policy.json`, `command.json`, `tooling.json`), written only by `bmo graph` |
 | `deploy/` | the service's user unit, which a deployment links from the deploy tree and restarts as the repository's one service |
 | `crates/` | `receiver-client`, the fixed API's bodies as Rust types, one call for each route, and the OpenAPI document generated from them, with the TypeScript package generated from the same document in `crates/receiver-client/ts/`; `receiver-codes`, every refusal, fact and fixed line the receiver gives, as codes with structured fields; `receiver-policy`, the loader of `policy/`; `receiver-ports`, a trait and an HTTP client for each unit the receiver calls; `room-calls`, what the receiver's send tool and the `bmo` commands doing the same sends ask of the running receiver — the acts and their arguments, who asks one, the turn a call reads, a procedure read in a room, a reading held under its ceiling, and where the receiver is found from a data root; `tool-call`, the receiver's side of the tool host's call protocol, which the tools bound to it share |
-| `tools/` | the tools bound to this service, each with its own `tool.toml`: `send`, the entries the agents speak rooms through |
+| `tools/` | the tools bound to this service, each with its own `tool.toml`: `send`, the entries the agents speak rooms through, and `wait`, the reminders and watches `bmo use` runs on their own |
 | `policy/` | the receiver's fixed numbers and words, the Korean words its commands are matched by among them |
 | `tests/` | the checks that span the repository, and the service's integration tests as one binary under `tests/integration/`; the words a test asks in another unit's language, kept as data under `tests/fixtures/` |
 | `docs/` | the canonical statements of what the service does |
@@ -44,7 +44,7 @@ holds any).
 | `docs/pictures.md` | Pictures sent, received and kept, profile pictures, and whether an agent looks |
 | `docs/consult.md` | Agents settling overlapping work in the consult room |
 | `docs/random-draw.md` | Fair draws and their method |
-| `docs/reminders.md` | Reminders as the receiver delivers them |
+| `docs/reminders.md` | Reminders and watches: the wait tool, and how `bmo use` runs it and wakes the agent |
 | `docs/chat-mcp.md` | The send tool: its entries, how a call runs, its turn context |
 | `docs/store.md` | The receiver's database, its tables and settings keys, and its folders under the data root |
 | `docs/codes.md` | Every refusal, fact, fixed line and kind the receiver gives, with its fields and status |

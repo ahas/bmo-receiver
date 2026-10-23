@@ -72,7 +72,7 @@ is written.
 | The line after a fold | the conversation's fold | instruction table | `round` | opens | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
 | A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
-| A wait's memo or moment come due, of kind `watch` or `reminder` | the unit that holds the wait | instruction table | `round` | opens | — |
+| A tool call `bmo use` ran on its own come to its end: a reminder's moment, a watch's check holding, a long draw (`docs/reminders.md`) | bmo-cli's `use` unit | instruction table | `round` | opens | — |
 | A search's, a browse's and a remote browser's result | bmo-artifact's instructions | instruction table | `round` | opens | — |
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
 | Voice and digest notices | the units that run them | instruction table | `round` | opens | — |

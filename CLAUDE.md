@@ -5,8 +5,8 @@ it over. It owns the rooms and their messages, the rules, rights and windows of 
 goes out in (the room's context, the turn's scope, the queue and the quiet instructions), and the waking of the
 agents a room's words, a quiet instruction or a job's end calls for. It reaches every chat service through the
 base library `bmo-chat-client`, hands turns to the agency's sessions, sends the envelope to the gate, and is
-read by the brain, bmo-job and the console over HTTP. The tool bound to it, `send`, is this repository's,
-under `tools/`, with its `tool.toml`.
+read by the brain, bmo-job and the console over HTTP. The tools bound to it, `send` and `wait`, are this
+repository's, under `tools/`, each with its `tool.toml`.
 
 ## Rules
 

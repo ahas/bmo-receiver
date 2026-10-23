@@ -42,7 +42,7 @@ command = "cargo fmt --all --check"
 
 # The service's binary and each tool's executable go into a release's bin/.
 [build]
-binaries = ["bmo-receiver"]
+binaries = ["bmo-receiver", "send-tool", "wait-tool"]
 
 # The receiver's own deploy tree, and the data root it shares with the services that read its files. The
 # configuration stands under the data root as env/receiver.toml, and each release links to it as settings.toml,
@@ -65,3 +65,33 @@ stay_up_seconds = 5
 id = "tool-env"
 phase = "before-flip"
 command = "bin/bmo-receiver --config settings.toml tool-env"
+
+# Each tool placed in its folder's .placed/, the folder the tool host reads: the executable the release's bin/
+# holds, its manifest, the schemas and the manuals beside it (docs/boundary-api.md, 「Its tools」).
+[[deploy.step]]
+id = "place-tools"
+phase = "before-flip"
+command = '''
+set -eu
+for tool in send wait; do
+  rm -rf "tools/$tool/.placed"
+  mkdir -p "tools/$tool/.placed"
+  cp "bin/$tool-tool" "tools/$tool/tool.toml" "tools/$tool/"*.json "tools/$tool/.placed/"
+  for manual in "tools/$tool/"*.md; do
+    if [ -e "$manual" ]; then cp "$manual" "tools/$tool/.placed/"; fi
+  done
+done
+'''
+
+# The placed tools registered with the tool host under this service's name, so every release carries its tools
+# without a hand on the registry and an entry a release no longer holds leaves the catalogue with it; the host's
+# command stands in its own deploy tree.
+[[deploy.step]]
+id = "register-tools"
+phase = "after-health"
+command = '''
+set -eu
+put="$HOME/.local/share/bmo-pocket/deploy/bin/bmo-pocket"
+"$put" put --service receiver --placed --allow room.tools --allow room.chat --allow room.send tools/send/.placed
+"$put" put --service receiver --placed --allow room.tools tools/wait/.placed
+'''

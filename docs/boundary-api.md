@@ -71,7 +71,7 @@ the operations machine's:
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
 | `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
 | `consult` | `room [<room>]`, `state`, or `say <words> [--reply <id>]`, each with `[--agent <name>]` | `room` and `state` read the store; `say` asks `POST /consult-lines` under the agent's own name |
-| `draw` | `draw --chat <id> --mode sync\|async --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
+| `draw` | `draw --chat <id> --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
 
 - **A send is asked as the shell's turn:** the room, the agent whose turn the process works in, the chat that set
   it off and whether a job asks are read from the environment, and the running receiver carries it on its own
@@ -82,6 +82,17 @@ the operations machine's:
 - **Every noun ends 0** where it did what it was asked, 1 where it refused, and 2 where its words or the
   configuration could not be read. The lines it said of what it did go to standard output; a refusal goes to
   standard error.
+
+### Its tools
+
+- **The receiver's tools are `send` (`docs/chat-mcp.md`) and `wait` (`docs/reminders.md`),** each a folder under
+  `tools/` with its `tool.toml`, its schemas and its executable, which a release's `bin/` holds.
+- **Every deployment places and registers both,** before the release goes live: each tool's executable, manifest,
+  schemas and manuals are copied into the release's own placed folder for it, and that folder is put with the
+  tool host's `bmo-pocket put --service receiver --placed`, allowing the capabilities its entries and their bundles
+  ask for. So the tool host serves the entries of the release that is live, and an entry a release no longer
+  holds is gone from the catalogue with it.
+- **The send tool finds the receiver** as `docs/chat-mcp.md`, 「How a call runs」, states; the wait tool calls no unit.
 
 ## Calls the receiver makes
 

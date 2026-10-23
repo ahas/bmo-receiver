@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 use crate::bot::Service;
-use crate::mode::Mode;
 use crate::turn::{Room, Turn};
 
 /// The route every send but a line in the consult room is asked of.
@@ -211,8 +210,6 @@ pub struct RandomDrawInput {
   /// The road to send on, where the room block names the room's own road for this.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
-  /// sync: the result comes back in this call. async: it wakes the next turn.
-  pub mode: Mode,
   /// dice: count dice of sides faces plus modifier. range: one integer in min..max. pick: take of items. shuffle: items in a fair order.
   pub shape: DrawShape,
   /// dice: how many dice; one where not given.
@@ -242,14 +239,14 @@ pub struct RandomDrawInput {
 }
 
 impl RandomDrawInput {
-  /// The draw's own fields as the draw reads them, the room, the road and the mode left out.
+  /// The draw's own fields as the draw reads them, the room and the road left out.
   pub fn request(&self) -> Map<String, Value> {
     let mut fields = match serde_json::to_value(self) {
       Ok(Value::Object(fields)) => fields,
       _ => Map::new(),
     };
 
-    for gone in ["chat", "via", "mode"] {
+    for gone in ["chat", "via"] {
       fields.remove(gone);
     }
 

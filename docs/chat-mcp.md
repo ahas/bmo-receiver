@@ -2,7 +2,8 @@
 
 The agents' tool for speaking into rooms: `send`, under `tools/send/`, with its `tool.toml`. The tool host places
 it and serves its entries to every session whose role holds them; this document is the tool's part of the
-catalogue and how its calls reach the receiver. The other tools of the catalogue are their units'.
+catalogue and how its calls reach the receiver. The receiver's other tool, `wait`, holds no send: its reminders
+and watches are `docs/reminders.md`'s. The other tools of the catalogue are their units'.
 
 ## Its entries
 
@@ -47,7 +48,7 @@ needs its road to perform, so the room's block names the sending entries a room'
 - **Where the receiver cannot be reached,** the call fails saying so; nothing is sent twice, since a call that
   reached a listener is never offered again.
 - **A call that has not answered within its manifest's limit** is ended and answered as failed. Every send returns
-  once it is on its way; the one wait inside a call is a sync draw's.
+  once it is on its way, a draw once it is drawn and its line is out.
 
 ## Turn context
 

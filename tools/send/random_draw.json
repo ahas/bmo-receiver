@@ -50,14 +50,6 @@
         "null"
       ]
     },
-    "mode": {
-      "description": "sync: the result comes back in this call. async: it wakes the next turn.",
-      "enum": [
-        "sync",
-        "async"
-      ],
-      "type": "string"
-    },
     "modifier": {
       "description": "dice: added to the total.",
       "format": "int64",
@@ -101,7 +93,6 @@
     }
   },
   "required": [
-    "mode",
     "shape"
   ],
   "type": "object"

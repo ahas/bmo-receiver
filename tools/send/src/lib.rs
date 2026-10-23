@@ -99,7 +99,7 @@ pub const ENTRIES: &[Entry] = &[
   ),
   entry(
     "random_draw",
-    "Draw fairly for anything decided by chance — dice, a number, winners, an order, a tie-break — and post the result with its seed in the room. sync hands the result back to state in this reply; async hands it to the next turn, for a turn that announces the draw and ends.",
+    "Draw fairly for anything decided by chance — dice, a number, winners, an order, a tie-break — post the result with its seed in the room, and answer with the result.",
     "random_draw.json",
     input_schema::<RandomDrawInput>,
     None,

@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "note": {
+      "description": "What the answer says once the wait is over: what you are to remember then.",
+      "type": "string"
+    },
+    "seconds": {
+      "description": "How many seconds to wait. Give this or until.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "until": {
+      "description": "The moment to wait until, a date and time with its offset from UTC as RFC 3339 writes it, such as 2026-10-24T09:00:00+09:00. Give this or seconds.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "note"
+  ],
+  "type": "object"
+}

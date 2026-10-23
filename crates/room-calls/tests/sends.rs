@@ -154,11 +154,10 @@ fn a_fixed_line_is_written_with_its_code_and_fields() {
 }
 
 #[test]
-fn a_draws_own_fields_leave_out_the_room_the_road_and_the_mode() {
+fn a_draws_own_fields_leave_out_the_room_and_the_road() {
   let input: RandomDrawInput = serde_json::from_value(json!({
     "chat": ROOM,
     "via": "road-a",
-    "mode": "sync",
     "shape": "range",
     "min": 1,
     "max": 6,
@@ -166,6 +165,14 @@ fn a_draws_own_fields_leave_out_the_room_the_road_and_the_mode() {
   .unwrap();
 
   assert_eq!(Value::Object(input.request()), json!({ "shape": "range", "min": 1, "max": 6 }));
+}
+
+#[test]
+fn a_draw_naming_a_mode_does_not_read() {
+  let read =
+    serde_json::from_value::<RandomDrawInput>(json!({ "mode": "async", "shape": "dice", "sides": 6 }));
+
+  assert!(read.unwrap_err().to_string().contains("mode"));
 }
 
 #[test]

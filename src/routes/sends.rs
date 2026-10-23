@@ -78,9 +78,7 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
     Act::React(input) => messages::react(&sends, chat, input.message, &input.emoji).await,
     Act::Pin(input) => messages::pin(&sends, chat, input.message, input.unpin).await,
     Act::Sticker(input) => messages::sticker(&sends, chat, &input.emoji).await,
-    Act::RandomDraw(input) => {
-      draws::draw(&sends, chat, Some(input.mode.word()), &input.request(), asker.via.as_deref()).await
-    }
+    Act::RandomDraw(input) => draws::draw(&sends, chat, &input.request(), asker.via.as_deref()).await,
     Act::FixedLine(input) => messages::fixed_line(&sends, chat, &input.code, &input.fields).await,
   }
 }

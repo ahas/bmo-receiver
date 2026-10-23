@@ -1,6 +1,6 @@
 //! The fair draw (docs/random-draw.md): a draw made in a room — the request read and refused, the room's
-//! committed seed consumed in one write, the line posted, the result handed back at once or to the next turn
-//! — and a draw checked, out of the archive by its number or out of what its room line published alone.
+//! committed seed consumed in one write, the line posted, the result handed back in the call's answer — and a
+//! draw checked, out of the archive by its number or out of what its room line published alone.
 //!
 //! The method is the one the receiver's own tool draws by, so a draw made by either is checked by the other:
 //! block c of a draw's stream is SHA-256 of `seed:draw:c`, read four bytes at a time as unsigned big-endian
@@ -13,8 +13,6 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
-use crate::chat::instructions::{Queued, queue};
-use crate::receiver::wake;
 use crate::verbs::VerbError;
 use crate::verbs::sends::{NotSent, Sends};
 use crate::{Fault, now_ms, one, run};
@@ -23,7 +21,6 @@ use crate::{Fault, now_ms, one, run};
 pub const DRAW_METHOD: &str = "bmo-draw-v1";
 
 const SHAPES: [&str; 4] = ["dice", "range", "pick", "shuffle"];
-const MODES: [&str; 2] = ["sync", "async"];
 const SIDES: (i64, i64) = (2, 1000);
 const COUNT: (i64, i64) = (1, 100);
 const MODIFIER: i64 = 10_000;
@@ -593,7 +590,6 @@ pub struct NewDraw<'a> {
   pub chat_id: i64,
   pub via: Option<&'a str>,
   pub message_id: Option<i64>,
-  pub mode: &'a str,
   pub request: &'a Request,
 }
 
@@ -619,12 +615,11 @@ pub async fn make_draw(db: &DatabaseConnection, draw: &NewDraw<'_>) -> Result<(R
     &tx,
     r#"INSERT INTO "random_draws" ("chat_id", "via", "message_id", "mode", "shape", "spec", "label", "commitment", "seed",
                                    "result", "next_commitment", "method", "created_at")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'null', $10, $11, $12) RETURNING "id""#,
+       VALUES ($1, $2, $3, 'sync', $4, $5, $6, $7, $8, 'null', $9, $10, $11) RETURNING "id""#,
     vec![
       draw.chat_id.into(),
       draw.via.map(str::to_owned).into(),
       draw.message_id.into(),
-      draw.mode.into(),
       draw.request.spec.shape().into(),
       spec.into(),
       draw.request.label.clone().into(),
@@ -664,38 +659,14 @@ pub async fn make_draw(db: &DatabaseConnection, draw: &NewDraw<'_>) -> Result<(R
   Ok((record, outcome))
 }
 
-/// What the next turn is told of an async draw, as a quiet instruction to the room that asked.
-pub fn draw_instruction(request: &Request, record: &Record, outcome: &Outcome) -> String {
-  [
-    format!(
-      "The draw you called in this room has been made: number {}{}.",
-      record.id,
-      request.label.as_ref().map_or_else(String::new, |label| format!(", for \"{label}\"")),
-    ),
-    format!("Asked: {}", spec_text(&request.spec)),
-    format!("Result: {}", result_text(outcome)),
-    format!("Seed: {} (method {DRAW_METHOD})", record.seed),
-    "The tool has already posted the line with this result, the seed and the commitments in the room. Carry on with the result in your own voice, with whatever the draw was deciding. Do not post the seed line again, and do not draw again for the same thing.".to_owned(),
-    format!(
-      "Whoever asks whether it was fair can be told it is drawn again and checked with bmo draw verify {}, or from the room line alone as docs/random-draw.md says.",
-      record.id,
-    ),
-  ]
-  .join("\n")
-}
-
-/// A draw made in the room, its line posted, answered as `mode` asks: `sync` with the result, `async` with the
-/// draw's number and commitment alone, the result queued for the next turn.
+/// A draw made in the room, its line posted, and the result answered: a caller that would not wait for it runs
+/// the call on its own (docs/random-draw.md, 「The answer」).
 pub async fn draw(
   sends: &Sends,
   chat_id: i64,
-  mode: Option<&str>,
   args: &Map<String, Value>,
   via: Option<&str>,
 ) -> Result<Vec<String>, VerbError> {
-  let Some(mode) = mode.filter(|mode| MODES.contains(mode)) else {
-    return Err(VerbError::Refused(format!("mode must be one of {}", MODES.join(", "))));
-  };
   let request = read_request(args).map_err(VerbError::Refused)?;
   // The road is asked before anything is drawn, so a room that cannot carry the line spends no seed.
   let road = sends.road(chat_id, "text").await?;
@@ -703,7 +674,6 @@ pub async fn draw(
     chat_id,
     via,
     message_id: None,
-    mode,
     request: &request,
   };
   let (record, outcome) = make_draw(&sends.db(), &new).await.map_err(store)?;
@@ -745,34 +715,12 @@ pub async fn draw(
     |commitment| format!("its seed answers commitment {commitment}"),
   );
 
-  if mode == "sync" {
-    return Ok(vec![
-      format!("draw {}: {}", record.id, result_text(&outcome)),
-      format!("asked: {}{}", spec_text(&request.spec), request.label.as_ref().map_or_else(String::new, |label| format!(" · {label}"))),
-      format!("seed {} · method {} · {answered}", record.seed, record.method),
-      "The line with the result and the seed is in the room already; state the result without repeating the seed.".to_owned(),
-    ]);
-  }
-
-  let agent = match sends.turn_agent() {
-    Some(agent) => agent.to_owned(),
-    None => wake::agents::voice_of(&sends.receiver(), chat_id)
-      .await
-      .unwrap_or(sends.receiver().deployment().agent.clone()),
-  };
-  let queued = Queued {
-    sort: Some("random_draw"),
-    via,
-    ..Queued::default()
-  };
-
-  queue(&sends.db(), &agent, chat_id, &draw_instruction(&request, &record, &outcome), &queued)
-    .await
-    .map_err(store)?;
-
   Ok(vec![
-    format!("draw {} is made and its line is in the room; {answered}.", record.id),
-    "The result is not handed back here: it reaches you as a quiet instruction that opens your next turn. End this turn without stating a result.".to_owned(),
+    format!("draw {}: {}", record.id, result_text(&outcome)),
+    format!("asked: {}{}", spec_text(&request.spec), request.label.as_ref().map_or_else(String::new, |label| format!(" · {label}"))),
+    format!("seed {} · method {} · {answered}", record.seed, record.method),
+    "The line with the result and the seed is in the room already; state the result without repeating the seed, and do not draw again for the same thing.".to_owned(),
+    format!("Whoever asks whether it was fair can be told it is drawn again and checked with bmo draw verify {}, or from the room line alone.", record.id),
   ])
 }
 
@@ -906,7 +854,7 @@ pub fn judged(verdict: Verdict) -> Result<Vec<String>, VerbError> {
 }
 
 pub const USAGE: &str = "usage:
-  bmo draw draw --chat <chatId> --mode sync|async --spec '<json>' [--via <road>]
+  bmo draw draw --chat <chatId> --spec '<json>' [--via <road>]
   bmo draw verify <drawId>
   bmo draw verify --seed <hex> --draw <drawId> --spec '<json>' [--commitment <hex>] [--result '<result text>']";
 

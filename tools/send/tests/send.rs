@@ -394,7 +394,7 @@ async fn sticker_is_asked_by_its_emoji_alone() {
 }
 
 #[tokio::test]
-async fn a_draw_is_asked_with_its_shape_and_the_mode_its_result_comes_back_in() {
+async fn a_draw_is_asked_with_its_shape_and_its_label() {
   let book = Book::default();
   let (base, port) = stood(book.clone()).await;
   let data = tempdir().unwrap();
@@ -405,7 +405,6 @@ async fn a_draw_is_asked_with_its_shape_and_the_mode_its_result_comes_back_in() 
     &session,
     "random_draw",
     json!({
-      "mode": "sync",
       "shape": "dice",
       "count": 2,
       "sides": 6,
@@ -426,7 +425,6 @@ async fn a_draw_is_asked_with_its_shape_and_the_mode_its_result_comes_back_in() 
       "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
       "tool": "random_draw",
       "input": {
-        "mode": "sync",
         "shape": "dice",
         "count": 2,
         "sides": 6,

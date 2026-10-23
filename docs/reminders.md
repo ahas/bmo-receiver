@@ -1,28 +1,48 @@
-# Reminders, as the receiver delivers them
+# Reminders and watches
 
-A reminder wakes an agent in its room at a moment of the room's own calendar. Neither the receiver nor the brain
-holds one: a reminder, like a wait on an event and a watch, is the wait tool's, a tool run outside the brain that
-holds the thing waited for and wakes the agent with the memory it was told to carry (the brain's
-`docs/design.md`, 「What the brain acts on by itself」).
+A reminder wakes an agent in its room at a moment; a watch wakes it once a condition holds. Neither the receiver
+nor the brain holds one. Each is a call of the wait tool, `wait`, under `tools/wait/`, that bmo-cli's `bmo use`
+runs on its own (bmo-cli's `docs/api.md`, 「The tool verb」): the call waits for its moment or its condition, and
+its end wakes the agent through the receiver with what the call answered and the memory the agent gave it to
+carry. The receiver keeps no reminder table, serves no reminder route, and its send tool holds no reminder entry.
 
-## Setting a reminder
+## The wait tool
 
-- **No reminder can be set** until the wait tool outside the brain exists. The send tool holds no entry for one,
-  `POST /sends` takes no act for one, and the receiver's command line has no verb for one.
+The tool host places it and serves its two entries to every session whose role holds `room.tools`, beside the
+send tool's (`docs/chat-mcp.md`). A session reaches them through the toolbook and `bmo use`, not by name.
 
-## Its moment wakes the agent in its room
+- **`bmo/wait`**: waits `seconds`, or until the moment `until` names (a date and time with its offset from UTC,
+  in RFC 3339), and answers with the `note` it was given: the note on its first line, the moment it waited until
+  after it. Exactly one of `seconds` and `until` is given; a moment already past is answered at once.
+- **`bmo/watch`**: runs the shell command `check` at once and then every `every` seconds (60 where none is
+  given), and answers once a run of it ends with 0: the `note` on its first line, then how many runs it took and
+  what the last run wrote, cut to its last 2,000 characters. Each run is ended where it outlasts `every`. Where
+  `within` names a number of seconds and the check has not held by then, the watch answers that it lapsed, with
+  the note and the last run's output, so the agent is woken either way.
+- **`bmo/wait` is reached by `call`, since it reads and changes nothing; `bmo/watch` by `act`,** since its check
+  is a command of the caller's. Both are declared unbounded: the host sets no limit on a call of either, and the
+  unit `bmo use --async` runs the call in ends it at its longest run. Each carries a manual, which
+  `bmo use <tool> --describe` answers whole.
+- **A check runs as a call of the tool does:** in the tool's placed folder, with the tool host's clean
+  environment, so it names what it reads by absolute paths.
+- **The tool reads nothing of the turn.** The room and the agent the end wakes are the ones `bmo use` was given or
+  read from the turn's variables, and the memory is the `--memory` it was given.
 
-- **What holds the reminder queues the wake** with `POST /instructions`, kind `reminder`, for the agent in the
-  reminder's room, carrying the reason, the memory as it stands at that moment and who it is for.
-- **The receiver queues it as a quiet instruction** of that room and wakes the agent's turn there through the
-  instruction pass (`docs/bmo-window.md`, 「Quiet instruction」). The agent looks at how things stand and writes
-  what the room hears then, in that room's manner, or says nothing where nothing needs saying.
+## Setting one
+
+- **A reminder** is `bmo use bmo/wait --async` with `seconds` or `until`, the `note`, and `--memory` saying what
+  the agent meant to do then. A moment further away than a day needs `--max-seconds` past it, since the unit is
+  stopped at its longest run, one day unless that option names another.
+- **A watch** is `bmo use bmo/watch --async` with the `check`, the `note`, and `every` and `within` as it needs.
+- **A repeating reminder** is one reminder at a time: the turn its end opens sets the next.
+- **Cancelling one** is stopping its unit, `bmo-use-<id>` as `bmo use --async` answered it; the stop is that
+  unit's end, and its last word wakes the agent with the failure, so the agent learns the wait is gone.
+
+## Its end wakes the agent in its room
+
+- **The end is an instruction,** `POST /instructions` with the sort `use-ended` and the call's answer as a fact,
+  for the agent in the room `bmo use` names. Queued with no kind, it opens the agent's turn there at the
+  instruction pass's next tick (`docs/bmo-window.md`, 「Quiet instruction」). The agent looks at how things stand
+  and writes what the room hears then, in that room's manner, or says nothing where nothing needs saying.
 - **The wake is kept until it is taken:** once the instruction stands in the receiver's instruction table it
-  survives a restart until the room's session takes it, so what queued it may count the moment done once the
-  route answers.
-
-## A reminder and a watch
-
-- A watch wakes the agent on a condition, or at a moment at most a week out, in the chat that set it; its memo
-  comes the same way, as a quiet instruction of kind `watch`. A reminder wakes the agent in its room at a moment
-  of the room's own calendar, however far ahead and however often.
+  survives a restart until the room's session takes it.

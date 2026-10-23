@@ -28,20 +28,14 @@
 - A shape given a field that belongs to another shape, or missing one of its own, is refused with a sentence
   naming the field, and nothing is drawn.
 
-## The two modes
+## The answer
 
-- **`mode` is required**, so every call chooses on purpose how the result comes back.
-- **`sync`**: the call answers with the result, the seed, the method and the draw's number, and the same turn
-  goes on with the result in hand. For a reply that states the result itself.
-- **`async`**: the call answers at once with only the draw's number and the commitment, and the result reaches the
-  agent as a quiet instruction that wakes it for the next turn, as a search's result does. For a turn that
-  announces the draw and ends.
-  - The instruction goes back on the road the call came in on. Queued while the calling turn is still going, it
-    is held until that turn ends and opens the next one.
-  - It carries the shape, the label, the result, the draw's number and the seed, and tells the agent to go on with
-    whatever the draw was deciding in its own voice, without repeating the room line.
-- **Both modes do the same draw.** The same seed, draw number and request give the same result in either; the
-  mode decides only the way back.
+- **The call answers with the result,** the seed, the method and the draw's number, and the same turn goes on with
+  the result in hand. Whether a turn waits for the answer is the caller's to choose, as for every tool.
+- **A turn that announces the draw and ends** runs it through `bmo use bmo/random_draw --async` (bmo-cli's
+  `docs/api.md`, 「The tool verb」): the call runs in a unit of its own, and its end wakes the agent in the room
+  with the same answer, and the agent goes on with whatever the draw was deciding in its own voice, without
+  repeating the room line.
 
 ```mermaid
 flowchart TD
@@ -49,14 +43,12 @@ flowchart TD
   B --> C[Take the room's committed seed<br/>and commit to the next]
   C --> D[Draw and record]
   D --> E[Post the room line]
-  E --> F{mode}
-  F -->|sync| G[Result in the call's answer]
-  F -->|async| H[Quiet instruction<br/>wakes the next turn]
+  E --> F[Result in the call's answer]
 ```
 
 ## The room line
 
-- **The tool posts it itself**, in both modes, at the moment of the call, on the turn's road. The agent does not
+- **The tool posts it itself**, at the moment of the call, on the turn's road. The agent does not
   post it again or read the seed out.
 - **It is a fixed line**, plain text with no markup and no game flavour, so it reads the same under every chat
   service's dialect: its code and fields are rendered in the room's language by the web unit's language packs
@@ -134,7 +126,7 @@ The engine's own tests hold it to these values, so this vector and the code cann
 ## The verb
 
 - **`bmo draw draw`**, a verb of the receiver's command line, draws as the tool does, by the same method and on the
-  same rows: `--chat` for the room, `--mode`, `--spec` holding the tool's other fields (the shape, what it reads
+  same rows: `--chat` for the room, `--spec` holding the tool's other fields (the shape, what it reads
   and the label) as one JSON object, and `--via` for the road. It is what an agent's shell reaches for when a call
   of the tool fails, and what a person or a job types.
 - **`verify`** is its other form, below.
@@ -149,14 +141,14 @@ The engine's own tests hold it to these values, so this vector and the code cann
   answers, and `--result` the result the line states; it prints `MATCH` when each one given agrees, and what
   differs otherwise.
 - Either form exits with a failure unless it prints `MATCH`, so a check can be scripted.
-- The quiet instruction an async draw wakes the agent with names the database form, so the agent can tell whoever
-  asks how the draw is checked.
+- The call's answer names the database form, so the agent can tell whoever asks how the draw is checked.
 - By hand: hash the seed and compare it with the previous line's commitment, then run the method above.
 
 ## The record
 
 - **Every draw is a row** in the receiver's `random_draws` table: the room, the road, the message it answered where
-  known, the mode, the shape, the request, the label, the commitment it answered (none on a room's first draw), the
+  known, the mode it was answered in (`sync` for every draw the tool makes; rows the import moved in may hold
+  `async`), the shape, the request, the label, the commitment it answered (none on a room's first draw), the
   seed, the result, the next commitment, the method's name and when it was drawn.
 - **Each room's pending seed** is a row in `random_draw_rooms`, with the commitment to it.
 - **The pending seed is never shown.** No read of the draws' store returns it, and no screen shows it. A seed is
