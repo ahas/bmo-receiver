@@ -192,7 +192,8 @@ receiver holds no per-provider code: what differs between providers is read from
 declaration is asked once and kept, except where a room is added: there it is asked afresh, since a mode's
 standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road
 and room for a short span (`docs/receiver.md`, 「What is kept for a moment」); a room added reads its title there
-afresh.
+afresh. Whether a service reads a room in the owner's account alone is read off its declared modes and that
+answer's `identity` (`docs/receiver.md`, 「A read-only room」).
 
 A message kept in a room goes to each other chat service on the room's list of providers as a `POST /sends` of
 its words or its files (`docs/receiver.md`, 「A room's chat providers」): `mode` `human-reader` where the owner said
@@ -216,6 +217,10 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **bmo-chat's `GET /rooms/{roomId}`** answers a room's title beside its facts, and a provider may look the title
   up on its platform on every ask. The receiver reads the facts alone outside a room's addition and keeps the
   answer for a short span, until the protocol offers the facts without the title.
+- **bmo-chat's room** carries no modes of its own, and its `identity` states only the number the account's own
+  words carry there. The receiver reads a room that a service reading through the owner's account (the
+  `human-reader` mode) holds under no identity as one that service reads in the owner's account alone, and so one
+  nothing but the owner's own words go into, until the protocol states the modes a room is read and spoken in.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver

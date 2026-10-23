@@ -79,6 +79,7 @@ family. No code carries a sentence in a room's language.
 |---|---|---|---|
 | `verb-refused` | 409 | `road`, `verb` | the road the room is answered on does not perform the verb |
 | `another-agents-room` | 403 | `agent` | another agent answers the room |
+| `read-only-room` | 403 | `room` | the room is read-only, read in the owner's account alone (`docs/receiver.md`, 「A read-only room」) |
 | `role-without-sends` | 403 | `agent` | the asker's role gives no sending |
 | `sticker` | 409 | `refusal` | the road refused a sticker |
 | `no-picture` | 409 | `road` | not one picture of a send went |

@@ -1,11 +1,12 @@
 //! The lines the receiver says itself in a room (docs/receiver.md, 「Where it stands」): a shut room's, and any line
 //! said straight to the owner. Each goes where a line nobody asked for goes in its room — the room's record where a
 //! road reaching the room shows it, the room's own road elsewhere — its words read by the sanitiser first unless
-//! they come already read, and handed to the room's chat service as they stand, for its dialect to carry.
+//! they come already read, and handed to the room's chat service as they stand, for its dialect to carry. Nothing
+//! is said in a read-only room (docs/receiver.md, 「A read-only room」).
 
 use std::sync::Arc;
 
-use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSent, ClientFailure};
+use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure};
 use receiver_codes::FixedLine;
 use receiver_ports::PortFailure;
 use receiver_ports::gate::Sanitise;
@@ -23,6 +24,8 @@ use crate::roads::{Road, added, record};
 pub enum NotSaid {
   #[error("no road holds the room {chat_id}, so nothing was said there")]
   NoRoad { chat_id: i64 },
+  #[error("the room {chat_id} is read-only, read in the owner's account alone, so nothing was said there")]
+  ReadOnly { chat_id: i64 },
   #[error("the {road} road is not among the configured chat services")]
   Unlisted { road: String },
   #[error("the sanitiser did not read the words: {0}")]
@@ -67,6 +70,10 @@ impl Speech {
   /// read — a fixed line's — and read by the sanitiser otherwise. The number of its first message, where its road
   /// gives one.
   pub async fn say(&self, chat_id: i64, text: &str, cleaned: bool) -> Result<Option<i64>, NotSaid> {
+    if providers::read_only(&self.db, &self.units.roads, chat_id).await? {
+      return Err(NotSaid::ReadOnly { chat_id });
+    }
+
     let road = self.units.roads.unasked(chat_id).await.ok_or(NotSaid::NoRoad { chat_id })?;
     let text = if cleaned { text.to_owned() } else { self.sanitised(chat_id, text).await? };
 
@@ -207,7 +214,8 @@ impl Speech {
   }
 
   /// One send carried on a road, its result as the road answers it: what went and its number, or the refusal. A
-  /// send that names no voice goes in the one its room answers in (docs/receiver.md, 「Adding a room」).
+  /// send that names no voice goes in the one its room answers in (docs/receiver.md, 「Adding a room」); a road
+  /// that reads the room in the owner's account alone is sent nothing but in the owner's own voice.
   pub async fn carried(&self, key: &str, request: &ChatSendRequest) -> Result<ChatSent, NotSaid> {
     let service = self.units.roads.chats().road(key).ok_or_else(|| NotSaid::Unlisted {
       road: key.to_owned(),
@@ -216,6 +224,14 @@ impl Speech {
 
     if request.mode.is_none() {
       request.mode = added::voice_in(&self.db, request.room_id).await;
+    }
+
+    if request.mode != Some(ChatVoice::HumanReader)
+      && self.units.roads.reads_only(key, request.room_id).await
+    {
+      return Err(NotSaid::ReadOnly {
+        chat_id: request.room_id,
+      });
     }
 
     match service.send(&request).await {

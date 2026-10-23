@@ -2,8 +2,8 @@
 //! decided for every one of them by one rule, and each woken agent's turn handed on to its conversations in the
 //! one runner, every agent the same way. Everything else stops here, before any queue, so no gate and no turn is
 //! spent on it. A conversation already running in the room is no ground: an instruction or a skipped round keeps
-//! one alive with no window, and a room is never listened to on that account. A room added `record-only` wakes
-//! no agent at all.
+//! one alive with no window, and a room is never listened to on that account. A room added `record-only` and a
+//! read-only room wake no agent at all.
 
 pub mod agents;
 pub mod question;
@@ -16,6 +16,7 @@ use receiver_policy::wake::WAKE;
 
 use super::{How, Inbound, NotReceived, Receiver, Room, Wake, rows};
 use crate::roads::added::{self, RoomMode};
+use crate::roads::providers;
 use agents::{Designated, default_designated, own_number, room_designated, window_until};
 use rest::{resting, stand_in};
 
@@ -107,7 +108,7 @@ pub async fn woken_on(
     return Ok(());
   }
 
-  if record_only(receiver, chat_id).await? {
+  if wakes_nobody(receiver, chat_id).await? {
     return Ok(());
   }
 
@@ -188,7 +189,7 @@ pub async fn wakes(
   inbound: &Inbound,
   room: Room,
 ) -> Result<bool, NotReceived> {
-  if record_only(receiver, inbound.chat_id).await? {
+  if wakes_nobody(receiver, inbound.chat_id).await? {
     return Ok(false);
   }
 
@@ -215,9 +216,14 @@ pub async fn wakes(
   )
 }
 
-// Whether the room was added for the user alone, where no agent is woken.
-async fn record_only(receiver: &Receiver, chat_id: i64) -> Result<bool, NotReceived> {
-  Ok(added::mode_of(receiver.db(), chat_id).await? == Some(RoomMode::RecordOnly))
+// Whether the room wakes no agent at all: one added for the user alone, or a read-only room, which only the
+// owner's account reads (docs/receiver.md, 「A read-only room」).
+async fn wakes_nobody(receiver: &Receiver, chat_id: i64) -> Result<bool, NotReceived> {
+  if added::mode_of(receiver.db(), chat_id).await? == Some(RoomMode::RecordOnly) {
+    return Ok(true);
+  }
+
+  Ok(providers::read_only(receiver.db(), receiver.roads(), chat_id).await?)
 }
 
 // Why a message wakes one agent of its room, or nothing where it does not. One rule for every agent, whoever

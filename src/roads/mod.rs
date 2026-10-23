@@ -13,7 +13,9 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use bmo_chat_client::{ChatDeclaration, ClientFailure, ProviderRoom, RoomKind};
+use bmo_chat_client::{
+  ChatDeclaration, ChatModeStanding, ChatVoice, ClientFailure, ProviderRoom, RoomKind,
+};
 use receiver_policy::kept::KEPT;
 use receiver_policy::roads::ROADS;
 use receiver_ports::chat::{Chat, ChatServices};
@@ -234,6 +236,31 @@ impl Roads {
     }
 
     Room::default()
+  }
+
+  /// Whether a chat service reads a room in the owner's account alone (docs/receiver.md, 「A read-only room」): it
+  /// declares the `human-reader` mode, and either that is the one voice it has active or it holds the room under
+  /// no identity of its own. A service that declares nothing, or does not answer for the room, speaks there as it
+  /// always has.
+  pub async fn reads_only(&self, key: &str, chat_id: i64) -> bool {
+    let Some(declared) = self.declaration(key).await else { return false };
+
+    if !declared.modes.iter().any(|mode| mode.voice == ChatVoice::HumanReader) {
+      return false;
+    }
+
+    let active: Vec<ChatVoice> = declared
+      .modes
+      .iter()
+      .filter(|mode| mode.standing == ChatModeStanding::Active)
+      .map(|mode| mode.voice)
+      .collect();
+
+    if !active.is_empty() && active.iter().all(|voice| *voice == ChatVoice::HumanReader) {
+      return true;
+    }
+
+    matches!(self.room_of(key, chat_id).await, Some(Some(room)) if room.identity.is_none())
   }
 
   /// Whether a room is the owner's private chat, as the road it is on says.

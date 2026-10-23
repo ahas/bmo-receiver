@@ -124,6 +124,30 @@ flowchart TD
   off stops it. A chat service still handing over a room's messages after it was taken off the list is still
   heard, and what it hands over is kept and carried to the room's providers like any message.
 
+## A read-only room
+
+- **A chat service reads a room in the owner's account alone** where it reads through that account (it declares
+  the `human-reader` mode) and either that is the one voice it has active, or its answer for the room holds the
+  room under no identity of its own: no words of its own account stand there, only the owner's. The service's
+  declaration and its answer for the room are read as they are kept (「What is kept for a moment」), so a room
+  whose service gains an identity there, a bot account joining it, stops being read so at the next read of its
+  facts.
+- **A room is read-only where its list of providers names at least one chat service and every chat service on it
+  reads the room in the owner's account alone.** The room's record on the list changes nothing either way: a room
+  on the record alone is answered in the console as any room is.
+- **A read-only room is listed, read and kept like any other,** and its messages stand in the archive, where the
+  agents read them as archived messages from their turns elsewhere.
+- **The agents never answer in it:** no message wakes an agent there, whether it calls one by name, replies to
+  one's words, falls in an open window or carries a picture (`docs/wake.md`, 「Who reaches the session」); a quiet
+  instruction queued for it is let go undelivered; a send an agent asks into it is refused `read-only-room`
+  before anything is sent or kept; and a line the receiver says itself is not said there.
+- **The owner's own words still go out:** words the owner typed into the room from the console are kept and
+  carried to its chat services in the owner's own voice, `human-reader` (「A room's chat providers」), as in any
+  room.
+- **A chat service that reads a room in the owner's account alone is handed the owner's words alone,** in any room
+  whose list carries it: every other message kept there is not carried to it, and nothing else is sent to it in
+  that room.
+
 ## Adding a room
 
 - **A room is added by choosing a chat service, one of the rooms its account is in, and a mode,** and the

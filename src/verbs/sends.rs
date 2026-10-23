@@ -2,11 +2,14 @@
 //! 「What an agent can send back」): the road the room is answered on, asked before anything is sent — the road
 //! its caller's turn is read on where that road answers in the room, the room's own otherwise — the agent whose
 //! turn asks it, who sends only into a room it answers and only where its role gives sending, and whether the
-//! road performs the verb at all, as its chat service declares. A refusal is the road's one sentence, and nothing
-//! is sent. Every send goes through bmo-chat-client to the chat service the room's road names, or is kept in the
-//! room's own record where the road is that one.
+//! road performs the verb at all, as its chat service declares. A read-only room takes no send at all
+//! (docs/receiver.md, 「A read-only room」). A refusal is the road's one sentence, and nothing is sent. Every send
+//! goes through bmo-chat-client to the chat service the room's road names, or is kept in the room's own record
+//! where the road is that one.
 
-use bmo_chat_client::{ChatCapability, ChatSend, ChatSendRequest, ChatSent, ClientFailure, MissedPicture};
+use bmo_chat_client::{
+  ChatCapability, ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure, MissedPicture,
+};
 
 use receiver_codes::SendRefusal;
 use receiver_policy::fill_marks;
@@ -134,6 +137,8 @@ impl Sends {
   /// The room's own road for a send of a verb in the road's own voice, whatever road the caller named: where a
   /// line the room's record could not take must still reach the room.
   pub async fn room_road(&self, chat_id: i64, verb: &str) -> Result<Going, VerbError> {
+    self.writable(chat_id).await?;
+
     let Some(road) = self.receiver.roads().answering(chat_id, None).await else {
       return Err(VerbError::Refused(no_road(chat_id)));
     };
@@ -166,8 +171,19 @@ impl Sends {
     }
   }
 
-  // The road a send of a verb goes out on, refused where none performs the verb.
+  // A read-only room refused before any road is chosen, so nothing is sent or kept there.
+  async fn writable(&self, chat_id: i64) -> Result<(), VerbError> {
+    if providers::read_only(self.receiver.db(), self.receiver.roads(), chat_id).await? {
+      return Err(VerbError::Refused(SendRefusal::ReadOnlyRoom { room: chat_id }.to_string()));
+    }
+
+    Ok(())
+  }
+
+  // The road a send of a verb goes out on, refused in a read-only room and where none performs the verb.
   async fn sending(&self, chat_id: i64, verb: &str) -> Result<Option<Road>, VerbError> {
+    self.writable(chat_id).await?;
+
     let road = self.receiver.roads().sending(chat_id, self.via.as_deref()).await;
 
     let Some(road) = road else { return Ok(None) };
@@ -252,6 +268,16 @@ impl Sends {
       Some(mode) => Some(mode),
       None => added::voice_in(self.receiver.db(), asked.room_id).await,
     };
+
+    if mode != Some(ChatVoice::HumanReader) && self.receiver.roads().reads_only(key, asked.room_id).await {
+      return Err(NotSent::Refused(
+        SendRefusal::ReadOnlyRoom {
+          room: asked.room_id,
+        }
+        .to_string(),
+      ));
+    }
+
     let request = ChatSendRequest {
       room_id: asked.room_id,
       send: asked.send.clone(),

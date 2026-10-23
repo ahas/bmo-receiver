@@ -104,6 +104,28 @@ pub async fn listed(db: &DatabaseConnection, roads: &Roads, chat_id: i64) -> Res
   })
 }
 
+/// Whether a room is read-only (docs/receiver.md, 「A read-only room」): its list of providers names at least one
+/// chat service, and every chat service on it reads the room in the owner's account alone. The record on the list
+/// changes nothing either way.
+pub async fn read_only(db: &DatabaseConnection, roads: &Roads, chat_id: i64) -> Result<bool, Fault> {
+  let listed = listed(db, roads, chat_id).await?;
+  let mut services = 0;
+
+  for key in &listed.providers {
+    if roads.chats().road(key).is_none() {
+      continue;
+    }
+
+    if !roads.reads_only(key, chat_id).await {
+      return Ok(false);
+    }
+
+    services += 1;
+  }
+
+  Ok(services > 0)
+}
+
 /// A room's list of providers set whole, in the order given.
 pub async fn choose(db: &DatabaseConnection, chat_id: i64, providers: &[String]) -> Result<(), Fault> {
   let transaction = db.begin().await.map_err(Fault::from)?;
@@ -337,7 +359,8 @@ pub async fn echo(
 /// A kept message carried to each provider of its room it does not already stand on. The record holds it by being
 /// the archive; each chat service is handed it through its own sends, in the owner's own voice where the owner
 /// said it and in the voice the room answers in otherwise, each send tagged and the number its copy went out as
-/// kept. A provider that refuses or does not answer is said in the journal and leaves the message as it was kept.
+/// kept. A service that reads the room in the owner's account alone is handed the owner's words alone. A provider
+/// that refuses or does not answer is said in the journal and leaves the message as it was kept.
 pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery) {
   let chat_id = delivery.chat_id;
   let listed = match listed(db, roads, chat_id).await {
@@ -361,6 +384,16 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
     }
 
     let Some(service) = roads.chats().road(&key) else { continue };
+
+    if !delivery.owner && roads.reads_only(&key, chat_id).await {
+      println!(
+        "chat {chat_id}: message {} is not carried to {key}, which reads the room in the owner's account alone",
+        delivery.message_id
+      );
+
+      continue;
+    }
+
     let reply = match delivery.reply_to {
       Some(target) => number_on(db, chat_id, target, &key).await,
       None => None,

@@ -16,6 +16,7 @@ use super::conversation::{BoxFuture, Conversations, unified_session};
 use super::runner::Runner;
 use crate::js;
 use crate::receiver::{Receiver, wake};
+use crate::roads::providers;
 use crate::{Fault, all, now_ms, one, run};
 use receiver_ports::agency::Scope;
 use receiver_ports::gate::TurnEvent;
@@ -179,7 +180,8 @@ async fn session_of(receiver: &Receiver, agent: &str, chat_id: i64) -> Scope {
 }
 
 // A row no turn could ever take is let go rather than left waiting: one past its expiry, whose news may no
-// longer be true, and one for a room its agent does not answer, or of an agent that holds no conversation.
+// longer be true, and one for a room its agent does not answer or a read-only room, or of an agent that holds no
+// conversation.
 async fn deliverable(
   receiver: &Receiver,
   rooms: &dyn Rooms,
@@ -195,6 +197,13 @@ async fn deliverable(
 
   if !rooms.standing(&row.agent) {
     println!("instruction {} of {} has no conversation to take it, discarding", row.id, row.agent);
+    discard(receiver.db(), row.id).await?;
+
+    return Ok(false);
+  }
+
+  if providers::read_only(receiver.db(), receiver.roads(), row.chat_id).await? {
+    println!("instruction {} for read-only chat {} is never taken, discarding", row.id, row.chat_id);
     discard(receiver.db(), row.id).await?;
 
     return Ok(false);

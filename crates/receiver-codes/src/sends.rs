@@ -13,6 +13,9 @@ pub enum SendRefusal {
   /// Another agent answers the room, and the asker does not.
   #[error("another agent answers this room, so {agent} cannot send into it")]
   AnotherAgentsRoom { agent: String },
+  /// The room is read-only: it is read in the owner's account alone, and no agent sends into it.
+  #[error("the room {room} is read-only, read in the owner's account alone, so nothing is sent into it")]
+  ReadOnlyRoom { room: i64 },
   /// The asker's role gives no sending.
   #[error("the role of {agent} gives no sending")]
   RoleWithoutSends { agent: String },
@@ -58,6 +61,7 @@ impl SendRefusal {
       Self::OutsideDataRoot { .. } => StatusCode::FORBIDDEN,
       Self::PictureUnfetched { .. } | Self::FileNotKept { .. } => StatusCode::BAD_GATEWAY,
       Self::AnotherAgentsRoom { .. }
+      | Self::ReadOnlyRoom { .. }
       | Self::RoleWithoutSends { .. }
       | Self::OtherRoomsFile { .. }
       | Self::JobSendsRoomFile => StatusCode::FORBIDDEN,
