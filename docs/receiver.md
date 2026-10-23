@@ -126,17 +126,23 @@ flowchart TD
 
 ## A read-only room
 
-- **A chat service reads a room in the owner's account alone** where it reads through that account (it declares
-  the `human-reader` mode) and either that is the one voice it has active, or its answer for the room holds the
-  room under no identity of its own: no words of its own account stand there, only the owner's. The service's
-  declaration and its answer for the room are read as they are kept (「What is kept for a moment」), so a room
-  whose service gains an identity there, a bot account joining it, stops being read so at the next read of its
-  facts.
+- **A chat service reads a room in the owner's account alone** where its answer for the room states the room's
+  `modes` and they hold `human-reader` alone. Where its answer states no modes, the room is read so where the
+  service reads through the owner's account (it declares the `human-reader` mode) and either that is the one
+  voice it has active, or its answer holds the room under no identity of its own: no words of its own account
+  stand there, only the owner's. The service's declaration and its answer for the room are read as they are kept
+  (「What is kept for a moment」), so a room whose service starts answering there, the account the road sends
+  through joining it, stops being read so at the next read of its facts.
 - **A room is read-only where its list of providers names at least one chat service and every chat service on it
   reads the room in the owner's account alone.** The room's record on the list changes nothing either way: a room
   on the record alone is answered in the console as any room is.
 - **A read-only room is listed, read and kept like any other,** and its messages stand in the archive, where the
   agents read them as archived messages from their turns elsewhere.
+- **The people's words in a read-only room are read only where the room was added.** A chat service reading a
+  room through the owner's account asks the receiver for the room (`docs/api.md`, 「The chat services」), and the
+  answer's `read` is true only for a room added on that service (「Adding a room」) that is still on its list of
+  providers and is read-only; for every other room it is false. So a room of the owner's account that was never
+  added hands over the owner's own words alone, and one added hands over everyone's.
 - **The agents never answer in it:** no message wakes an agent there, whether it calls one by name, replies to
   one's words, falls in an open window or carries a picture (`docs/wake.md`, 「Who reaches the session」); a quiet
   instruction queued for it is let go undelivered; a send an agent asks into it is refused `read-only-room`
@@ -157,11 +163,13 @@ flowchart TD
     relayed page by page as it answers it;
   - `record-only` is offered on every chat service, and `avatar` only where the service's `human-avatar` mode
     stands active. A platform whose terms forbid automating a person's account declares that mode `unsupported`,
-    so it is never offered there.
+    so it is never offered there. A room whose answer states `modes` without `human-avatar` takes no `avatar`
+    either: a read-only room is never answered in.
 - **Adding keeps the room on the service and the record:** the room's mode, its title and its list of providers
   set to the service it was chosen on and the room's record (「A room's chat providers」 above), so whatever mode
   it is in, every message said in it stands in the archive. A room the service does not say is its own, a mode
-  the service does not offer and a room already added are refused, and nothing is written.
+  the service does not offer or the room does not take, and a room already added are refused, and nothing is
+  written.
 - **The mode is what the room is to the agents:**
   - `record-only` is the user alone: the room's messages are kept and carried as any room's, and no agent is
     woken by them (`docs/wake.md`, 「Who reaches the session」);

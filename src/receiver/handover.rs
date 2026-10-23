@@ -242,19 +242,26 @@ impl ChatReceiver for Receiver {
     let held = reads::oldest(self.db(), room_id)
       .await
       .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;
+    let listened = Receiver::listened(room_id, room);
+    // The people's words of a read-only room added on the asking service are its to read (docs/receiver.md,
+    // 「A read-only room」).
+    let read = providers::read_asked(self.db(), self.roads(), room_id, &query.via)
+      .await
+      .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;
     let Some((message_id, sent_at)) = held else {
-      return Ok(Receiver::listened(room_id, room).then_some(ReceiverRoom {
+      return Ok((listened || read).then_some(ReceiverRoom {
         id: room_id,
-        listened: true,
+        listened,
+        read,
         oldest_message_id: None,
         oldest_sent_at: None,
       }));
     };
-    let _ = query.via;
 
     Ok(Some(ReceiverRoom {
       id: room_id,
-      listened: Receiver::listened(room_id, room),
+      listened,
+      read,
       oldest_message_id: Some(message_id),
       oldest_sent_at: Some(sent_at),
     }))

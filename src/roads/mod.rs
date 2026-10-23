@@ -238,11 +238,21 @@ impl Roads {
     Room::default()
   }
 
-  /// Whether a chat service reads a room in the owner's account alone (docs/receiver.md, 「A read-only room」): it
-  /// declares the `human-reader` mode, and either that is the one voice it has active or it holds the room under
-  /// no identity of its own. A service that declares nothing, or does not answer for the room, speaks there as it
-  /// always has.
+  /// Whether a chat service reads a room in the owner's account alone (docs/receiver.md, 「A read-only room」): its
+  /// answer for the room states the room's modes and they hold `human-reader` alone. Where the answer states none,
+  /// the service declares the `human-reader` mode, and either that is the one voice it has active or it holds the
+  /// room under no identity of its own. A service that declares nothing, or does not answer for the room, speaks
+  /// there as it always has.
   pub async fn reads_only(&self, key: &str, chat_id: i64) -> bool {
+    let room = self.room_of(key, chat_id).await;
+
+    if let Some(Some(ProviderRoom {
+      modes: Some(modes), ..
+    })) = &room
+    {
+      return !modes.is_empty() && modes.iter().all(|voice| *voice == ChatVoice::HumanReader);
+    }
+
     let Some(declared) = self.declaration(key).await else { return false };
 
     if !declared.modes.iter().any(|mode| mode.voice == ChatVoice::HumanReader) {
@@ -260,7 +270,7 @@ impl Roads {
       return true;
     }
 
-    matches!(self.room_of(key, chat_id).await, Some(Some(room)) if room.identity.is_none())
+    matches!(room, Some(Some(room)) if room.identity.is_none())
   }
 
   /// Whether a room is the owner's private chat, as the road it is on says.

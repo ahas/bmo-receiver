@@ -126,6 +126,26 @@ pub async fn read_only(db: &DatabaseConnection, roads: &Roads, chat_id: i64) -> 
   Ok(services > 0)
 }
 
+/// Whether the receiver asks the chat service under `key` to read the people's words of a room
+/// (docs/receiver.md, 「A read-only room」): the room was added, it is still on that service's list of providers,
+/// and it is read-only.
+pub async fn read_asked(
+  db: &DatabaseConnection,
+  roads: &Roads,
+  chat_id: i64,
+  key: &str,
+) -> Result<bool, Fault> {
+  if added::mode_of(db, chat_id).await?.is_none() {
+    return Ok(false);
+  }
+
+  if !listed(db, roads, chat_id).await?.providers.iter().any(|listed| listed == key) {
+    return Ok(false);
+  }
+
+  read_only(db, roads, chat_id).await
+}
+
 /// A room's list of providers set whole, in the order given.
 pub async fn choose(db: &DatabaseConnection, chat_id: i64, providers: &[String]) -> Result<(), Fault> {
   let transaction = db.begin().await.map_err(Fault::from)?;

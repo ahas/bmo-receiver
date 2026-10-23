@@ -106,7 +106,7 @@ family. No code carries a sentence in a room's language.
 |---|---|---|---|
 | `rooms-unlisted` | 409 | `label` | the provider does not declare that it lists the rooms of its account |
 | `room-unknown` | 409 | `label`, `room` | the provider does not say the room is its own |
-| `avatar-unsupported` | 409 | `label` | the room is to be answered as the user where the provider's `human-avatar` mode does not stand active |
+| `avatar-unsupported` | 409 | `label` | the room is to be answered as the user where the provider's `human-avatar` mode does not stand active, or the room's `modes` leave it out |
 | `room-added` | 409 | `room` | the room was already added |
 
 ### CompanionRefusal

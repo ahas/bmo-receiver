@@ -248,7 +248,7 @@ struct Adding {
 
 /// A room added on a chat service in a mode, kept with its title and its list of providers set to that service and
 /// the record; answered with the room as it now stands. A room added before, one the service does not say is its
-/// own and a mode the service does not offer are refused, and nothing is written.
+/// own and a mode the service does not offer or the room does not take are refused, and nothing is written.
 pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Adding>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
@@ -278,7 +278,7 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
     Err(why) => return Err(unanswered(key, why)),
   };
 
-  if !added::offered(&declared).contains(&asked.mode) {
+  if !added::offered(&declared).contains(&asked.mode) || !added::takes(&held, asked.mode) {
     return Err(code(&RoomAdditionRefusal::AvatarUnsupported {
       label: declared.label,
     }));

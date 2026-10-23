@@ -6,7 +6,7 @@ members = ["crates/receiver-client", "crates/receiver-codes", "crates/receiver-p
 resolver = "3"
 
 [workspace.package]
-version = "0.20.0"
+version = "0.21.0"
 edition = "2024"
 license = "MIT"
 
@@ -16,7 +16,7 @@ axum = { version = "0.8.4", default-features = false, features = ["http1", "json
 # A moment written as the room's transcript shows it, in UTC.
 chrono = "0.4.45"
 # The base library the receiver reaches every chat service through.
-bmo-chat-client = { path = "../../base/chat/client", version = "0.1.0-rev.6" }
+bmo-chat-client = { path = "../../base/chat/client", version = "0.1.0-rev.7" }
 # The binary's command line.
 clap = { version = "4.5.40", features = ["derive"] }
 futures-util = "0.3.34"

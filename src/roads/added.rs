@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use bmo_chat_client::{ChatCapability, ChatDeclaration, ChatModeStanding, ChatVoice};
+use bmo_chat_client::{ChatCapability, ChatDeclaration, ChatModeStanding, ChatVoice, ProviderRoom};
 use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +54,16 @@ pub fn offered(declared: &ChatDeclaration) -> Vec<RoomMode> {
     vec![RoomMode::Avatar, RoomMode::RecordOnly]
   } else {
     vec![RoomMode::RecordOnly]
+  }
+}
+
+/// Whether a room takes a mode, as the service's answer for it states its modes: the user alone in every room, and
+/// answered as the user only where the room's modes, when stated, hold `human-avatar`. A read-only room is never
+/// answered in.
+pub fn takes(room: &ProviderRoom, mode: RoomMode) -> bool {
+  match (mode, &room.modes) {
+    (RoomMode::Avatar, Some(modes)) => modes.contains(&ChatVoice::HumanAvatar),
+    _ => true,
   }
 }
 

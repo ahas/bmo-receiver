@@ -149,9 +149,9 @@ repository's, in `VERSION`; it is never taken from a registry.
   - `GET /providers/{key}/rooms` for a key no provider stands under is refused 404 `not-found`, and for one that
     does not declare `roomList` 409 `rooms-unlisted`. `POST /rooms` with a body not of its shape or a key no chat
     service stands under is refused 400 `bad-request`; a room the service does not say is its own 409
-    `room-unknown`; `avatar` where the service's `human-avatar` mode does not stand active 409
-    `avatar-unsupported`; and a room already added 409 `room-added`. A service that does not answer is 502
-    `upstream-failed` on either route.
+    `room-unknown`; `avatar` where the service's `human-avatar` mode does not stand active, or the room's
+    `modes` leave it out, 409 `avatar-unsupported`; and a room already added 409 `room-added`. A service that
+    does not answer is 502 `upstream-failed` on either route.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
@@ -338,7 +338,7 @@ states it; it is repeated here only so one document holds every route the receiv
 |---|---|
 | `PUT /chat/rooms/{roomId}/messages/{messageId}` | hands over a message, live, edited or read back |
 | `PATCH /chat/rooms/{roomId}/messages/{messageId}` | hands over the files a gathering message promised |
-| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it |
+| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true only for a read-only room added on the asking provider and still on its list (`docs/receiver.md`, 「A read-only room」) |
 | `GET /chat/rooms` | asks the rooms whose past it may read back |
 | `POST /chat/avatar-changes` | tells of kept profile pictures that changed |
 

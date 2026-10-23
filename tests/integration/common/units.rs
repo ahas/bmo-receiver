@@ -55,6 +55,8 @@ pub struct StandInChat {
   pub private: BTreeMap<i64, i64>,
   pub reaches_owner: Option<i64>,
   pub titles: BTreeMap<i64, String>,
+  /// The voices each room says it is read by and may be sent in; a room not here says none.
+  pub room_modes: BTreeMap<i64, Vec<ChatVoice>>,
   /// How often it was asked what it says of a room.
   pub rooms_asked: AtomicUsize,
   pub cans: Mutex<BTreeSet<ChatCapability>>,
@@ -98,6 +100,12 @@ impl StandInChat {
 
   pub fn agent_in(mut self, room: i64, identity: i64) -> Self {
     self.identities.insert(room, identity);
+    self
+  }
+
+  /// The voices one of its rooms says it is read by and may be sent in.
+  pub fn room_moding(mut self, room: i64, voices: &[ChatVoice]) -> Self {
+    self.room_modes.insert(room, voices.to_vec());
     self
   }
 
@@ -247,6 +255,7 @@ impl Chat for StandInChat {
     let kind = if self.owner_rooms.contains(&chat_id) { RoomKind::Owner } else { RoomKind::Group };
     let private_to = self.private.get(&chat_id).copied();
     let title = self.titles.get(&chat_id).cloned();
+    let modes = self.room_modes.get(&chat_id).cloned();
 
     Box::pin(async move {
       if !owns {
@@ -264,6 +273,7 @@ impl Chat for StandInChat {
         kind,
         private_to,
         title,
+        modes,
       })
     })
   }
