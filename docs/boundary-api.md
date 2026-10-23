@@ -251,7 +251,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
   draft process in its own round log and tells each row on its event stream as a `draft` event; the gate is to
   read it there (`GET /rounds/drafts`, `GET /events`) or be handed it, and write one judgement row per turn under
   the stage `draft` with the round, `number`, `question`, `answerChars` and `changed`, with no judgement of its
-  content. Until the gate states which, the receiver writes no `draft` judgement at the gate.
+  content. Until the gate states which, the receiver writes no `draft` judgement at the gate. A `draft` event of
+  kind `start` is no row: it tells a question as it starts, with its `number`, the process's `count` and the
+  question's name, for the console's running line, and the gate writes nothing of it.
 - **The agency's usage by turn** is read by round: every turn of the draft process goes out naming its round, as
   the round's own turn does, so the agency's ledger opens each under the round's name. No document of the agency
   states a per-turn usage record the console reads beside a round's draft rows yet.

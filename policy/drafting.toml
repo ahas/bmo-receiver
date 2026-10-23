@@ -1,14 +1,23 @@
-# The draft process (docs/drafting.md): the questions a round's turn is followed by, the table that says which,
-# the lines a question turn is written in and the longest final text. The console's rows and texts stand over
-# these (`GET`/`PUT /draft-processes`, `GET`/`PUT /draft-questions`).
+# The draft process (docs/drafting.md): the questions a round's session is asked, the first riding the round's
+# turn, the table that says which, the lines a question turn is written in and the longest final text. The
+# console's rows and texts stand over these (`GET`/`PUT /draft-processes`, `GET`/`PUT /draft-questions`).
 
 # The longest final text the `length` check lets go, in characters.
 max_chars = 4000
 
-# The lines a question turn is written in. `lead` opens every question but the last, `last_lead` the last;
-# `{number}` is the question's place, `{count}` how many the process asks and `{name}` the question's name.
-# `waiting` closes every question but the last, `{ids}` the messages waiting for the round.
-lead = "Before your answer goes out, the process asks question {number} of {count} ({name}). Answer it freely: your thinking, notes, what you read or did, a draft. Every tool you have is open. Only the last question's answer goes out, as the message; <<SKIP>> in any answer ends the process and nothing is sent."
+# The lines a question turn is written in. `opening` opens the first question, which rides the round's own turn,
+# where it is not also the last: the owner's own words, in the owner's language, as the questions are. `lead`
+# opens every later question but the last, `last_lead` the last; `{number}` is the question's place, `{count}`
+# how many the process asks and `{name}` the question's name. `waiting` closes every later question but the
+# last, `{ids}` the messages waiting for the round. An answer opening on <<SEND>> is the message, what follows
+# the marker; <<SKIP>> anywhere in an answer ends the process with nothing sent.
+opening = '''메시지는 맨 마지막에 쓴다. 이 과정은 먼저 답에 필요한 정보를 확정하고, 확정한 사실은 그때그때 도구로 브레인에 새긴다. 지금은 질문 {number}/{count}({name})이고, 첫 질문이라 가장 자유롭다.
+- 단순한 부름(인사, 짧은 말)이면 지금 답하고 끝내라.
+- 이미 찾아 둔 사실과 지금 알게 된 것으로 충분하면 지금 답하라.
+- 사실에 대한 확신은 그 날짜에서 온다. 브레인의 사실에는 validFrom과 lastConfirmedAt이 있다. 최근에 찾았거나 확인한 사실이면 확신을 갖고 답하라. 확신이 없거나 찾아 둔 사실이 낡았는지 알 수 없으면, 정하기 전에 조용히 먼저 검색하라(web/web_search, web/web_fetch, gate/translate, 브레인 도구). 그리고 답하라. "오래된 정보일 수 있다" 같은 단서는 방에 절대 말하지 않는다. 검색은 네 일이고, 방은 그 결과만 듣는다.
+- 그 밖에는 아래 질문에 메모로 답하고 다음으로 넘어가라: 무엇을 읽었는지, 어떤 사실을 확정했는지(브레인에 새겨라), 무엇을 아직 모르는지. 이때는 메시지를 쓰지 마라.
+지금 답할 때는 답을 <<SEND>>로 시작하라. 그 뒤의 글이 그대로 이 방에 보낼 메시지가 되고, 과정은 거기서 끝난다. 어떤 답에든 <<SKIP>>이 있으면 과정이 끝나고 아무것도 보내지 않는다.'''
+lead = "The process asks question {number} of {count} ({name}). The message is written last: answer this question with notes, namely what you read, the facts you established, engraved in the brain with your tools as you establish them, and what you still do not know. Every tool you have is open. Where you now hold everything the message needs, begin your answer with <<SEND>>: what follows it is the message, sent to the room as you write it, and the process ends there. Nothing in a message hedges that a fact may be out of date: a fact found or confirmed recently is said with confidence, and one you are not confident of is searched for quietly first. <<SKIP>> in any answer ends the process and nothing is sent."
 last_lead = "The last question of the process, {number} of {count} ({name}). Your answer to it is the message, sent to the room as you write it; <<SKIP>> sends nothing."
 waiting = "Messages waiting in the room: {ids}. They are shown with the last question; do not answer them now."
 
@@ -20,12 +29,13 @@ information = "답에 필요한 정보는 무엇이고, 무엇을 더 읽어야 
 facts = "그 정보들은 사실인가? 확인되지 않은 것이나 미정인 변수를 아는 척하거나 추측해서 말하지 않았나?"
 promises = "약속하듯 말할 것이 있다면 실제로 했나? 하지 않았다면 지금 도구로 하거나, 말을 바꿔라."
 fit = "방의 규칙, 페르소나, 상대가 쓰는 언어에 맞나?"
-final = "그사이 올라온 말까지 보고, 이제 이 방에 보낼 메시지를 써라. 초안을 고쳐도 되고, 보내지 않으려면 <<SKIP>>만 답하라."
+final = "그사이 올라온 말과 지금까지 확정한 메모를 보고, 이제 이 방에 보낼 메시지를 써라. 보내지 않으려면 <<SKIP>>만 답하라."
 
 # The process table's default rows, matched most specific first: an agent's row before a provider's, a
 # provider's before a tier's; "*" stands for any. `rounds` are an ordinary turn's questions, `light` a light
 # turn's (quiet instructions alone, or room words of at most `light_chars` characters and no file);
-# `ceiling_seconds` bounds the whole process, past which `past_ceiling` sends what stands or skips.
+# `ceiling_seconds` bounds the whole process from the round's turn, past which `past_ceiling` asks `final` at
+# once (`send`) or sends nothing (`skip`).
 
 # The small models' process.
 [[process]]

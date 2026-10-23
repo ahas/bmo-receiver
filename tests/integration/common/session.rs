@@ -207,14 +207,26 @@ impl StandInSession {
 }
 
 /// The draft process every turn reads, set as the console sets a row of any provider, tier and agent: the
-/// questions of an ordinary and a light turn, the light bound and the ceiling, past which what stands is sent.
+/// questions of an ordinary and a light turn, the light bound and the ceiling, past which `final` is asked at once.
 pub async fn drafting(
   db: &sea_orm::DatabaseConnection,
   rounds: &[&str],
   light: &[&str],
   ceiling_seconds: u32,
 ) {
-  use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
+  drafting_past(db, rounds, light, ceiling_seconds, bmo_receiver::chat::draft::table::PastCeiling::Send)
+    .await;
+}
+
+/// The draft process every turn reads, with what is done past its ceiling.
+pub async fn drafting_past(
+  db: &sea_orm::DatabaseConnection,
+  rounds: &[&str],
+  light: &[&str],
+  ceiling_seconds: u32,
+  past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
+) {
+  use bmo_receiver::chat::draft::table::{ANY, Process, set};
 
   let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
 
@@ -228,7 +240,7 @@ pub async fn drafting(
       light: named(light),
       light_chars: 12,
       ceiling_seconds,
-      past_ceiling: PastCeiling::Send,
+      past_ceiling,
       set: true,
     },
   )

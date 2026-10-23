@@ -151,6 +151,19 @@ impl Carry {
     Carry { receiver, look }
   }
 
+  /// The provider and the tier the agency's state names for the session a room's turn goes on, read before the
+  /// turn: a session's state answers them from its start. Neither where the agency does not say.
+  pub async fn standing(&self, agent: &str, chat_id: i64) -> (Option<String>, Option<String>) {
+    let agency = self.receiver.units().agency.clone();
+    let scope = scope_of(unified_session(&self.receiver, agent).await, chat_id);
+    let Ok(started) = agency.start(agent, scope).await else {
+      return (None, None);
+    };
+    let state = agency.state(&started.id).await.unwrap_or_default();
+
+    (state.provider, state.tier)
+  }
+
   pub async fn carries(&self, asking: &Asking, held: &Held, follower: &Follower) -> Result<Reply, Failure> {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();

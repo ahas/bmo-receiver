@@ -2,10 +2,11 @@
 //! answer, a light turn, the checks on the final text, the row a turn reads and what a set may hold.
 
 use bmo_receiver::chat::draft::checks::{Check, Reading, errand, failing, has_skip, light, own_lines};
+use bmo_receiver::chat::draft::log::Answered;
 use bmo_receiver::chat::draft::table::{
   ANY, PastCeiling, Process, Question, question_refusal, refusal, resolve,
 };
-use bmo_receiver::chat::draft::{question_words, record_errand, wake_errand, words};
+use bmo_receiver::chat::draft::{Plan, question_words, read_answer, record_errand, wake_errand, words};
 use bmo_receiver::chat::prompt::Scope;
 use bmo_receiver::receiver::Inbound;
 use receiver_policy::drafting::DRAFTING;
@@ -80,7 +81,47 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
   let last = question_words("final", "write it", 3, 3, &scope());
 
   assert!(first.contains("question 1 of 3 (intent)") && first.contains("\n\nwhy?\n"));
+  assert!(
+    first.contains("<<SEND>>") && first.contains("<<SKIP>>"),
+    "the lead names the two markers"
+  );
   assert!(last.contains("3 of 3 (final)") && last.contains("the message"));
+}
+
+#[test]
+fn the_first_question_opens_on_the_opening_unless_it_is_the_last() {
+  let plan = |names: &[&str]| Plan {
+    questions: names.iter().map(|name| ((*name).to_owned(), format!("ask {name}"))).collect(),
+    ..Plan::default()
+  };
+  let three = plan(&["intent", "information", "final"]);
+  let one = plan(&["final"]);
+  let head = DRAFTING.opening.split('{').next().unwrap_or_default();
+
+  assert!(three.questioned() && !one.questioned() && !Plan::default().questioned());
+  assert!(
+    three
+      .first_words()
+      .is_some_and(|words| words.contains(head) && words.ends_with("\n\nask intent"))
+  );
+  assert!(
+    one
+      .first_words()
+      .is_some_and(|words| words.contains("1 of 1 (final)") && !words.contains(head))
+  );
+  assert_eq!(Plan::default().first_words(), None);
+}
+
+#[test]
+fn an_answer_opening_on_the_send_marker_is_the_message_and_a_skip_wins() {
+  assert_eq!(read_answer("<<SEND>> hello there"), ("hello there".to_owned(), Answered::Send));
+  assert_eq!(read_answer("  <<SEND>>\nthe answer"), ("the answer".to_owned(), Answered::Send));
+  assert_eq!(read_answer("<<SEND>>").1, Answered::Skip);
+  assert_eq!(read_answer("<<SEND>> then <<SKIP>>").1, Answered::Skip);
+  assert_eq!(
+    read_answer("notes that name <<SEND>> later"),
+    ("notes that name <<SEND>> later".to_owned(), Answered::Answered)
+  );
 }
 
 #[test]

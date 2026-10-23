@@ -1,5 +1,5 @@
-//! The draft process (docs/drafting.md): the questions a round's turn is followed by, the default rows of the
-//! table that says which, the lines a question turn is written in and the longest final text.
+//! The draft process (docs/drafting.md): the questions a round's session is asked, the default rows of the table
+//! that says which, the lines a question turn is written in and the longest final text.
 
 use std::collections::BTreeMap;
 
@@ -24,6 +24,8 @@ pub struct Process {
 pub struct Drafting {
   /// The longest final text the length check lets go, in characters.
   pub max_chars: usize,
+  /// The opening of the first question, which rides the round's own turn where it is not also the last.
+  pub opening: String,
   pub lead: String,
   pub last_lead: String,
   pub waiting: String,

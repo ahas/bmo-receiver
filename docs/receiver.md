@@ -212,7 +212,8 @@ flowchart TD
   (`docs/wake.md`, 「The names and the window」), a verdict it wrote of a round as `judgement` with its
   `messageId` (null where it stands under no message yet), `stage`, `verdict` and `detail`, each row of a round's
   draft process as `draft` with its `round`, `agentName`, `number`, `question`, `kind`, `answerChars`, `changed`,
-  `outcome` and `detail` (`docs/drafting.md`, 「The round log」), a room whose
+  `outcome` and `detail` (`docs/drafting.md`, 「The round log」), each question of it as it starts as `draft` of
+  kind `start` with its `round`, `agentName`, `number`, `count`, `question` and `at`, a room whose
   registration was removed as `room-removed` with its
   number, the picture whenever it
   changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile

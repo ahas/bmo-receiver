@@ -319,10 +319,11 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `GET /rounds/drafts` | `room`, `rounds` (comma-separated) | a page of `{round, rows}`, each row a `DraftRound` |
 
 - **A `DraftRound`** is one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」):
-  `id`, `agentName`, `number` (0 the round's own turn), `question`, `kind` (`turn`, `question`, `item`, `check` or
-  `end`), `answerChars`, `changed`, `outcome` (`answered`, `skip` or `failed` for a turn; `message`, `skip`,
-  `withheld`, `ceiling-message` or `ceiling-skip` for the end), `detail` (or null), `answer` (or null), `ms` and
-  `at`. The rows of a round stand in the order they were written.
+  `id`, `agentName`, `number` (from 1, the round's own turn being the first question's row), `question`, `kind`
+  (`turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is empty), `answerChars`,
+  `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`,
+  `ceiling-message` or `ceiling-skip` for the end), `detail` (or null), `answer` (or null), `ms` and `at`. The rows
+  of a round stand in the order they were written.
 
 ## The draft process
 

@@ -1180,17 +1180,18 @@ export interface components {
             detail: string | null;
             /** Format: int64 */
             id: number;
-            /** @description `turn`, `question`, `item`, `check` or `end`. */
+            /** @description `turn` (only where the process asks no question), `question`, `item`, `check` or `end`. */
             kind: string;
             /** Format: int64 */
             ms: number;
             /**
              * Format: int64
-             * @description 0 for the round's own turn, then each question, item and check in the order asked.
+             * @description From 1, each question, item and check in the order asked, the round's own turn being the first question's
+             *     row.
              */
             number: number;
             /**
-             * @description `answered`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
+             * @description `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
              *     `ceiling-skip` for the end.
              */
             outcome: string;

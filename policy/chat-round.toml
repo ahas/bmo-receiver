@@ -104,6 +104,12 @@ woken = "Your memory of this conversation was just replaced ({reason}), so what 
 forced_owed = "The waiting window is over. Give your final answer now; <<WAIT>> is forbidden."
 forced = "The waiting window is over. Give your final answer now; <<WAIT>> is forbidden. <<SKIP>> is still allowed if the messages were not addressed to you."
 waiting = "If the author seems to still be typing more, reply exactly <<WAIT>>; otherwise answer now."
+# The same closing lines for a turn that carries the draft process's first question below them, where that
+# question is not its last (docs/drafting.md): the turn answers the question, which says when the message is
+# written.
+questioned_owed = "OWED ANSWER: {count} of the new message(s) above are the owner's own words in the owner's own chat — the message this round's draft process writes answers them; <<SKIP>> is not available to this round."
+questioned_forced = "The waiting window is over: <<WAIT>> is forbidden. Answer the draft process's question below, which says when the message is written."
+questioned_waiting = "If the author seems to still be typing more, reply exactly <<WAIT>>; otherwise answer the draft process's question below, which says when the message is written."
 
 # A person's own thread from the group rooms they are in, handed to a turn in their private room
 # (docs/unified-bmo.md, 「Checked on every request」): the setting that turns it off where it reads
@@ -123,7 +129,7 @@ cut = "…"
 
 # How the conversations keep time (docs/wake.md): how long the room queue gathers a room's words before a
 # round reads them, how long a <<WAIT>> holds the words it took, in milliseconds, and how long a room the chat
-# agent woke keeps it listening where the agent's row was never written, in seconds.
+# agent woke keeps it listening where the agent's row names no `windowSeconds`, in seconds.
 [conversation]
 queue_ms = 5000
 wait_ms = 10000

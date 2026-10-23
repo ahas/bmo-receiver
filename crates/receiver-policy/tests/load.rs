@@ -103,6 +103,8 @@ fn the_rounds_lines_carry_their_marks() {
 #[test]
 fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.lead.contains("{number}") && DRAFTING.lead.contains("{count}"));
+  assert!(DRAFTING.opening.contains("{number}") && DRAFTING.opening.contains("<<SEND>>"));
+  assert!(CHAT_ROUND.closing.questioned_owed.contains("{count}"));
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final") && DRAFTING.max_chars > 0);
 

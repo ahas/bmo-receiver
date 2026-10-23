@@ -666,14 +666,15 @@ pub struct RoundDrafts {
 pub struct DraftRound {
   pub id: i64,
   pub agent_name: String,
-  /// 0 for the round's own turn, then each question, item and check in the order asked.
+  /// From 1, each question, item and check in the order asked, the round's own turn being the first question's
+  /// row.
   pub number: i64,
   pub question: String,
-  /// `turn`, `question`, `item`, `check` or `end`.
+  /// `turn` (only where the process asks no question), `question`, `item`, `check` or `end`.
   pub kind: String,
   pub answer_chars: i64,
   pub changed: bool,
-  /// `answered`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
+  /// `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
   /// `ceiling-skip` for the end.
   pub outcome: String,
   pub detail: Option<String>,

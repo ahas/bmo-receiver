@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 
 use super::ask::Carry;
 use super::context::{remember_held, sent_prompt};
-use super::draft::Drafter;
+use super::draft::{Drafter, Plan};
 use super::health::{FailureOrders, RoomHealth};
 use super::mid_turn::{Paragraph, Push};
 use super::prompt::{self, Round, Scope as RoundScope};
@@ -172,10 +172,11 @@ pub trait Carrying: Send + Sync {
   ) -> BoxFuture<'a, Result<Reply, Failure>>;
 }
 
-/// What the draft process makes the message from (docs/drafting.md): the round's draft, its scope, the words the
-/// round read and the words around it, how many quiet instructions it carried, whether its turn may use tools and
-/// what it still owes the owner.
+/// What the draft process makes the message from (docs/drafting.md): the process the round opened, the answer its
+/// turn gave to the first question, its scope, the words the round read and the words around it, how many quiet
+/// instructions it carried, whether its turn may use tools and what it still owes the owner.
 pub struct Drafted<'a> {
+  pub plan: &'a Plan,
   pub reply: Reply,
   pub scope: &'a RoundScope,
   pub recent: &'a [Inbound],
@@ -191,8 +192,10 @@ pub struct Drafted<'a> {
   pub pending: Vec<i64>,
   /// The round's own selection, which every turn of the process goes out with the same reference on.
   pub selection: &'a Selection,
-  /// When the round began, in epoch milliseconds, which the round log's times count from, and its name.
+  /// When the round began, in epoch milliseconds, which the round log's times count from; when its turn went
+  /// out, which the ceiling counts from; and the round's name.
   pub began: i64,
+  pub opened: i64,
   pub round: &'a str,
 }
 
@@ -205,8 +208,18 @@ pub struct Made {
   pub settling: Vec<i64>,
 }
 
-/// What makes a round's message out of its draft (docs/drafting.md). Filled by the module that owns the process.
+/// What makes a round's message (docs/drafting.md): the process a round opens before its turn goes out, whose
+/// first question the turn carries, and the rest of it once the turn answered. Filled by the module that owns the
+/// process.
 pub trait Drafting: Send + Sync {
+  fn plan<'a>(
+    &'a self,
+    agent: &'a str,
+    chat_id: i64,
+    batch: &'a [Inbound],
+    instructions: usize,
+  ) -> BoxFuture<'a, Plan>;
+
   fn draft<'a>(
     &'a self,
     conversations: &'a Conversations,
@@ -780,10 +793,10 @@ impl Conversations {
     let row = listed
       .as_ref()
       .and_then(|listed| listed.agents.iter().find(|one| one.name == self.agent()));
-    let seconds = match row {
-      Some(row) => row.row.get("windowSeconds").and_then(Value::as_i64).unwrap_or(0),
-      None => CHAT_ROUND.conversation.window_seconds,
-    };
+    // The policy's span stands wherever the agent's row names none, the row being found or not.
+    let seconds = row
+      .and_then(|row| row.row.get("windowSeconds").and_then(Value::as_i64))
+      .unwrap_or(CHAT_ROUND.conversation.window_seconds);
 
     seconds * 1000
   }
@@ -1542,6 +1555,8 @@ impl Conversations {
     let pending: HashSet<i64> = self.pending(chat_id).into_iter().collect();
     let queue_line = self.queue_line(chat_id).await;
     let woken = self.state().woken.get(&chat_id).cloned();
+    // The process is read before the turn goes out, since the turn carries its first question.
+    let plan = self.0.drafting.plan(self.agent(), chat_id, &batch, instructions.len()).await;
     let composed = prompt::compose(
       &receiver,
       &Round {
@@ -1565,10 +1580,15 @@ impl Conversations {
         woken: woken.as_deref(),
         reader: Some(receiver.roads()),
         round: Some(round.to_owned()),
+        questioned: plan.questioned(),
       },
     )
     .await
     .map_err(|why| Failure::Failed(why.detail))?;
+    let prompt = match plan.first_words() {
+      Some(question) => format!("{}\n\n{question}", composed.prompt),
+      None => composed.prompt.clone(),
+    };
 
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.first_call = false;
@@ -1600,7 +1620,7 @@ impl Conversations {
     let asking = Asking {
       chat_id,
       session: held.session.clone().unwrap_or_default(),
-      prompt: window::composed(&composed.selection, &composed.prompt),
+      prompt: window::composed(&composed.selection, &prompt),
       via: match via.as_str() {
         "" => None,
         road => Some(road.to_owned()),
@@ -1610,6 +1630,20 @@ impl Conversations {
       began: started,
       context: composed.context.clone(),
     };
+
+    // The first question is told as it starts, as every later one is.
+    if let Some((question, _)) = plan.questions.first() {
+      super::draft::log::tell_start(
+        &receiver,
+        round,
+        chat_id,
+        self.agent(),
+        1,
+        plan.questions.len(),
+        question,
+      );
+    }
+
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
     let carried = follower.finish();
     let mut scope = composed.scope.clone();
@@ -1692,6 +1726,7 @@ impl Conversations {
         self.agent(),
         &held,
         &Drafted {
+          plan: &plan,
           reply: reply.clone(),
           scope: &scope,
           recent: &recent,
@@ -1705,6 +1740,7 @@ impl Conversations {
           pending: self.pending(chat_id),
           selection: &composed.selection,
           began,
+          opened: started,
           round,
         },
       )
@@ -2301,6 +2337,7 @@ impl Conversations {
         woken: None,
         reader: Some(receiver.roads()),
         round: None,
+        questioned: false,
       },
     )
     .await?;

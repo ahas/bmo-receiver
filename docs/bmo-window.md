@@ -82,7 +82,7 @@ is written.
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
 | The words before a fold | the conversation's fold | — | `nap` | opens | — |
 | A line a person types into the agent's program | the agency's `typed-line` hook | — | none: composed, never asked | the person's own turn of the program | — |
-| A turn of the draft process inside a round: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
+| A later turn of the draft process inside a round, after the round's own turn that carries its first question: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
 
 - **The session handover** is not a turn. The note a replaced session leaves rides at the head of whichever
   turn first goes out on the new session, and that turn came through the window like every other: it goes whole,
@@ -222,8 +222,8 @@ Beside the reference, a turn carries the room's messages since the agent last an
   round carries, and a push of the system's lines alone asks only the matcher. It puts in whatever the running
   turn does not already carry, and that joins what the round holds once the agency's session push answers it
   `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
-- **`question`**: a turn of the draft process inside the same round (`docs/drafting.md`): a question, an item or
-  a check. It carries the round's own selection again; the documents have just gone in, so they stand as marks.
+- **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
+  the first, which rides the round's own turn, an item or a check. It carries the round's own selection again; the documents have just gone in, so they stand as marks.
   No gate selects for it; the process's last question carries the words that came in meanwhile, selected for as
   a push's are.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
@@ -330,8 +330,9 @@ flowchart TD
   these.
 - **No content judgement stands between the agent and any room.** A round sends what the agent wrote at the end
   of its draft process, held only to the code's own items and checks below and the outgoing sanitiser.
-- **The draft process asks the agent its questions** (`docs/drafting.md`): the questions make it think, and what
-  it answers is its own; no model judges the answer.
+- **The draft process asks the agent its questions** (`docs/drafting.md`): the round's turn carries the first,
+  the agent establishes what the message needs before it writes it, and what it answers is its own; no model
+  judges the answer.
 - **The mechanical checks stay in code,** on every round, as the process's items and checks: an owed answer to
   the owner's words, a promise with nothing recorded, a promise to act once something happens with nothing set
   to wake the agent when it does, a rule the owner set and nothing filed, and the final text's length, language,

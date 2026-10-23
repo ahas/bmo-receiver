@@ -42,8 +42,9 @@ its rounds.
 
 - **The names matched** are the agent's registered label and wake words, as the agency's registrations give
   them, matched without regard to case where they are written in Latin letters.
-- **The window is the length the agent's row keeps,** three minutes by the policy, one length for every room,
-  and each room holds its own for each agent that keeps one, stored in the receiver's database.
+- **The window is the length the agent's row keeps,** and the policy's three minutes wherever the row names none,
+  one length for every room; each room holds its own for each agent that keeps one, stored in the receiver's
+  database.
 - **A call opens it the moment the receiver sees the call,** so what the caller adds before the answer needs no
   name either.
 - **While it runs, new messages keep streaming into the same session.** The agent decides each round whether to
@@ -137,9 +138,10 @@ its rounds.
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
   window is carried into the agent's session through the agency (`POST /sessions`, `GET /sessions/{sessionId}`,
   `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); a
-  companion's round is its own turn, sent on the road its room answers on; any other turn's answer is a draft,
-  made into the message by the draft process (`docs/drafting.md`): the questions asked of the same session, the
-  items and the checks on the final text (`docs/answer-checks.md`); the message is sent on the road the turn
+  companion's round is its own turn, sent on the road its room answers on; any other turn carries the first
+  question of the draft process, which makes the message (`docs/drafting.md`): the questions asked of the same
+  session, the notes they establish first and the message last, the items and the checks on the final text
+  (`docs/answer-checks.md`); the message is sent on the road the turn
   answers on, then handed back to the receiver as filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
   over on the conversations' own clock.
 - **Words that come while the turn works are pushed into it**

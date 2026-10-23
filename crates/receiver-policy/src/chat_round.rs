@@ -108,6 +108,11 @@ pub struct Closing {
   pub forced_owed: String,
   pub forced: String,
   pub waiting: String,
+  /// The owed, forced and waiting lines of a turn that carries the draft process's first question, where that
+  /// question is not its last.
+  pub questioned_owed: String,
+  pub questioned_forced: String,
+  pub questioned_waiting: String,
 }
 
 #[derive(Debug, Deserialize)]

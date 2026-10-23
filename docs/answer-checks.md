@@ -7,7 +7,7 @@ is asked once more, as one more turn of the process.
 
 ## Where the checks stand
 
-- **The process asks them after its last question, in this order:** an owed answer over a skip
+- **The process asks them once the message stands, in this order:** an owed answer over a skip
   (`docs/wake.md`), a promise recorded, a promise set to wake and a rule the owner set, as items; then the length,
   the language, the banned words and the format, as the checks on the final text (`docs/drafting.md`, 「The
   items after the last question」 and 「The checks on the final text」).

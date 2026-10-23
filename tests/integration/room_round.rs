@@ -104,6 +104,10 @@ struct Round {
 
 impl Round {
   async fn pushed_and(said: Said) -> Self {
+    Round::timed(said, timings()).await
+  }
+
+  async fn timed(said: Said, timings: Timings) -> Self {
     let scratch = Scratch::new().await;
     crate::common::session::no_drafting(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
@@ -114,7 +118,7 @@ impl Round {
     let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
     let session = Arc::new(StandInSession::new(SESSION, ANSWER).holding_the_first());
     let receiver = standing.receiver.clone();
-    let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+    let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings, AGENT);
 
     standing
       .agency
@@ -312,6 +316,41 @@ async fn a_rounds_judgements_are_attached_from_its_start_under_the_answer_as_the
       .iter()
       .any(|event| event["stage"] == "send" && event["verdict"] == "SENT" && event["messageId"] == kept[0]),
     "the send's own verdict is heard on the stream under the answer: {sent:?}"
+  );
+}
+
+#[tokio::test]
+async fn an_answer_opens_the_window_for_the_policy_span_where_the_agents_row_names_none() {
+  // No window is cut for the test: the span is the one the agent's row, which names none, leaves to the policy.
+  let round = Round::timed(
+    Said::Delivered,
+    Timings {
+      window: None,
+      ..timings()
+    },
+  )
+  .await;
+
+  tokio::time::sleep(Duration::from_millis(200)).await;
+
+  assert!(!round.sent().is_empty(), "the round answered");
+  assert!(
+    round.standing.heard.events("window-closed").is_empty(),
+    "no close follows the opening while the span runs"
+  );
+
+  let until: i64 = round
+    ._scratch
+    .texts(&format!(r#"SELECT "open_until"::text FROM "room_windows" WHERE "chat_id" = {OWNER}"#))
+    .await
+    .first()
+    .and_then(|until| until.parse().ok())
+    .unwrap_or(0);
+  let span = CHAT_ROUND.conversation.window_seconds * 1000;
+
+  assert!(
+    until > bmo_receiver::now_ms() + span - 30_000,
+    "the window stands open for the policy's span: {until}"
   );
 }
 

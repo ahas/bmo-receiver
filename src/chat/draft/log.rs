@@ -8,14 +8,38 @@ use crate::receiver::Receiver;
 use crate::store::Fault;
 use crate::{all, now_ms, run};
 
+/// A question of the process told as it starts, before its answer (docs/drafting.md, 「The round log」): its
+/// place, how many questions the process asks and its name. It is no row of the log.
+pub fn tell_start(
+  receiver: &Receiver,
+  round: &str,
+  chat_id: i64,
+  agent: &str,
+  number: usize,
+  count: usize,
+  question: &str,
+) {
+  let member = json!({
+    "round": round,
+    "agentName": agent,
+    "number": number,
+    "count": count,
+    "question": question,
+    "kind": "start",
+    "at": now_ms(),
+  });
+
+  receiver.news().publish(&crate::events::draft(chat_id, &member));
+}
+
 /// What a row of the log is a row of.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-  /// The round's own turn, whose answer is the draft.
+  /// The round's own turn where the process asks no question, its answer being the message.
   Turn,
-  /// A question of the process's list.
+  /// A question of the process's list, the first riding the round's own turn.
   Question,
-  /// An item asked after the last question.
+  /// An item asked once the message stands.
   Item,
   /// A check on the final text asked again.
   Check,
@@ -35,10 +59,12 @@ impl Kind {
   }
 }
 
-/// How a turn of the process ended.
+/// How a turn of the process ended: answered, answered with the message now by the send marker, skipped or
+/// failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Answered {
   Answered,
+  Send,
   Skip,
   Failed,
 }
@@ -47,6 +73,7 @@ impl Answered {
   pub fn word(self) -> &'static str {
     match self {
       Self::Answered => "answered",
+      Self::Send => "send",
       Self::Skip => "skip",
       Self::Failed => "failed",
     }
@@ -76,7 +103,7 @@ impl Ended {
 }
 
 /// The log of one round's process as it is written: the round, the room and the agent, the number the next row
-/// takes and the answer the last turn gave, which the next is compared with.
+/// takes, counted from 1, and the answer the last turn gave, which the next is compared with.
 pub struct Log {
   receiver: Receiver,
   round: String,
@@ -93,9 +120,14 @@ impl Log {
       round: round.to_owned(),
       chat_id,
       agent: agent.to_owned(),
-      number: 0,
+      number: 1,
       last: None,
     }
+  }
+
+  /// A question of the process told as it starts.
+  pub fn start(&self, number: usize, count: usize, question: &str) {
+    tell_start(&self.receiver, &self.round, self.chat_id, &self.agent, number, count, question);
   }
 
   /// A turn of the process written down: its kind, its question, its answer where it gave one, how it ended

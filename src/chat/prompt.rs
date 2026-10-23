@@ -52,6 +52,9 @@ pub struct Round<'a> {
   /// The owner's reader, where a reply's picture may be fetched on demand.
   pub reader: Option<&'a Roads>,
   pub round: Option<String>,
+  /// The turn carries the draft process's first question below its closing lines, and that question is not the
+  /// process's last: the closing lines ask for its answer rather than the message (docs/drafting.md).
+  pub questioned: bool,
 }
 
 /// The scope a round's turn is about.
@@ -412,7 +415,9 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
 
   if owed > 0 {
     parts.push(String::new());
-    parts.push(fill_marks(&closing.owed, &[("count", &owed.to_string())]));
+    let owed_line = if round.questioned { &closing.questioned_owed } else { &closing.owed };
+
+    parts.push(fill_marks(owed_line, &[("count", &owed.to_string())]));
   }
 
   if let Some(reason) = round.woken {
@@ -427,10 +432,12 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   }
 
   parts.push(String::new());
-  parts.push(match (round.force, owed > 0) {
-    (true, true) => closing.forced_owed.clone(),
-    (true, false) => closing.forced.clone(),
-    (false, _) => closing.waiting.clone(),
+  parts.push(match (round.questioned, round.force, owed > 0) {
+    (true, true, _) => closing.questioned_forced.clone(),
+    (true, false, _) => closing.questioned_waiting.clone(),
+    (false, true, true) => closing.forced_owed.clone(),
+    (false, true, false) => closing.forced.clone(),
+    (false, false, _) => closing.waiting.clone(),
   });
 
   // A reply whose target the prompt does not otherwise show pulls that message out of the archive on its own.
