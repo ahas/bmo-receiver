@@ -97,8 +97,10 @@ quoted_shown = "[replies to message {id}, sent by {name}, shown elsewhere in thi
 # The lines that close the prompt.
 [closing]
 owed = "OWED ANSWER: {count} of the new message(s) above are the owner's own words in the owner's own chat — answer them in this reply; <<SKIP>> is not available to this turn."
-language_named = "ANSWER LANGUAGE: {language} — this room is answered in {language}, as the messages above and your own earlier answers to it are, whatever language the instruction or its result came in."
-language_own = "ANSWER LANGUAGE: the room's own — the language of the messages above and of your own earlier answers to it, never the language of the scaffolding around them."
+# The answer language: the language of the message addressed to the agent, {language}, and the room's own
+# where that message shows none.
+language_named = "ANSWER LANGUAGE: {language} — the language of the message addressed to you; answer in it, whatever language the instruction or its result came in."
+language_room = "ANSWER LANGUAGE: {language} — this room's language, since the message addressed to you does not show one of its own; answer in it, whatever language the instruction or its result came in."
 woken = "Your memory of this conversation was just replaced ({reason}), so what you hold of it is a summary written for you rather than the conversation itself, and that summary is written in English as well. {language}"
 # The forced close of a turn owing the owner an answer, under the owed line that already takes <<SKIP>> away.
 forced_owed = "The waiting window is over. Give your final answer now; <<WAIT>> is forbidden."

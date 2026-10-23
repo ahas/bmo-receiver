@@ -9,7 +9,7 @@ use super::super::promises::answered_in_the_wrong_language;
 use super::super::sentinels::SKIP;
 use crate::form::without_control_markers;
 use crate::receiver::Inbound;
-use crate::wording::{BannedTerm, banned_terms_in, banned_terms_line};
+use crate::wording::{BannedTerm, banned_terms_in, banned_terms_line, text_language};
 
 // How long a fixed head of a line of the process must run before the format check reads it.
 const HEAD_CHARS: usize = 12;
@@ -91,6 +91,13 @@ pub fn own_lines(asked: &[String]) -> Vec<String> {
     .collect()
 }
 
+/// Whether a text is held to the wording document: it is written in a language the document's rules are for
+/// (docs/answer-checks.md, 「The banned words」).
+pub fn held_to_wording(text: &str) -> bool {
+  text_language(text)
+    .is_some_and(|language| SECOND_ASKS.wording_languages.iter().any(|one| one == language))
+}
+
 /// The checks a text fails, in their order.
 pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
   let mut failed = vec![];
@@ -103,7 +110,7 @@ pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
     failed.push(Check::Language);
   }
 
-  if !banned_terms_in(text, reading.glossary).is_empty() {
+  if held_to_wording(text) && !banned_terms_in(text, reading.glossary).is_empty() {
     failed.push(Check::Wording);
   }
 

@@ -52,6 +52,8 @@ pub struct Language {
 pub struct SecondAsks {
   pub next_turn: String,
   pub later: String,
+  /// The languages an answer is held to the wording document in, as a text's language is told.
+  pub wording_languages: Vec<String>,
   pub errands: Errands,
   pub reading: Reading,
   pub language: Language,

@@ -28,11 +28,19 @@ is asked once more, as one more turn of the process.
   and the result it carries, and the note a replaced session holds of its own past.
 - English is the language this machine talks to its agents in; it is not the language of the room, and a turn
   with nothing but the machine's language in front of it answers in it.
-  - **The prompt names the room's language** on every turn that has the machine's language in front of it: a
-    turn carrying a quiet instruction, a turn with no new message from the room, and the first turn after the
-    session's memory was replaced (folded up, swapped for a fresh one carrying the note, or opened again because
-    the account changed), which says it in the note about the replacement. The room's language is the language
-    of the messages on the page and of the agent's own earlier answers to it, and the line names it outright.
+  - **The prompt names the answer language** (its `ANSWER LANGUAGE` line) on every turn that has the machine's
+    language in front of it: a turn carrying a quiet instruction, a turn with no new message from the room, and
+    the first turn after the session's memory was replaced (folded up, swapped for a fresh one carrying the
+    note, or opened again because the account changed), which says it in the note about the replacement.
+  - **The answer language is the speaker's,** read afresh on every turn off the message that addresses the agent:
+    the newest message of the turn's own, else the newest message on the page that is not the agent's own. Its
+    language is told by its script (「The language a text is written in」), and the line names it outright.
+    The room's configured language stands in only where no such message stands or its language cannot be told,
+    and the line then says it is the room's.
+- **The language a text is written in** is told by the letters of its prose, quoted spans set aside: Hangul
+  letters count for Korean, kana for Japanese, each twice, since one stands for a syllable, and Latin letters
+  for English, once; the language whose letters weigh most is the text's, and a text with none of them, or two
+  that weigh the same, is in no language that can be told.
   - **Every answer is held to it** before it goes out. In a room that has been speaking a language other than
     English, an answer is in the machine's language when its prose (what is left once code blocks, inline code,
     addresses and paths are set aside) runs to at least four English words and fewer than a quarter of its words
@@ -90,7 +98,9 @@ is asked once more, as one more turn of the process.
 
 ## The banned words
 
-- An answer is held to the banned words of the deployment's wording document, which the configuration names, in
-  every room and the owner's own chat alike, as the `wording` check. An answer that uses one outside its quoted
+- An answer written in Korean is held to the banned words of the deployment's wording document, which the
+  configuration names, in every room and the owner's own chat alike, as the `wording` check. The document's
+  rules are rules of Korean wording, so an answer written in another language (「The language a text is written
+  in」), English among them, skips the check. An answer that uses one outside its quoted
   spans is asked for once more with each term named beside what to write; where the second writing uses one
   still, nothing goes out. Where the document cannot be read, no answer is held to it.

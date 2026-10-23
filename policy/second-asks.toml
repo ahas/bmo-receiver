@@ -8,6 +8,10 @@
 next_turn = "NEXT TURN MESSAGE IDS: "
 later = "Later messages will be delivered in the next turn; do not act on them now."
 
+# The languages an answer is held to the wording document's banned words in, as the language a text is written in
+# is told: the document's rules are rules of Korean wording, and an answer in any other language skips them.
+wording_languages = ["ko"]
+
 # The errands, one to a check.
 [errands]
 # A turn that carried {count} of the owner's own messages and answered with silence.

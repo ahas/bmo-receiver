@@ -101,9 +101,10 @@ pub struct Shape {
 #[serde(deny_unknown_fields)]
 pub struct Closing {
   pub owed: String,
-  /// The language line naming the room's language, `{language}`, where the room speaks one the receiver knows.
+  /// The language line naming the language of the message addressed to the agent, `{language}`.
   pub language_named: String,
-  pub language_own: String,
+  /// The language line naming the room's configured language, `{language}`, where that message shows none.
+  pub language_room: String,
   pub woken: String,
   pub forced_owed: String,
   pub forced: String,

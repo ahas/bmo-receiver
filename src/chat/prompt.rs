@@ -7,7 +7,6 @@ use std::collections::HashSet;
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
-use receiver_policy::scripts::SCRIPTS;
 use serde::Serialize;
 
 use super::conversation::unified_session;
@@ -16,6 +15,7 @@ use super::window::{self, Material, Selection};
 use crate::companion::consult::{consult_block, room_windows_block, tells_of_queue};
 use crate::receiver::{Inbound, Receiver, Room, rows};
 use crate::roads::Roads;
+use crate::wording::text_language;
 use crate::{Fault, now_ms, one};
 
 use receiver_ports::gate::TurnEvent;
@@ -106,24 +106,29 @@ pub async fn quiet_room(receiver: &Receiver, _owner: i64, chat_id: i64) -> Resul
   })
 }
 
-/// Whether a text is written in the script the machine's language names: a Korean deployment is read off the
-/// syllable block its script is written in, and a language of no script of its own matches nothing.
-fn in_machine_script(text: &str, language: &str) -> bool {
-  match language {
-    "ko" => text.chars().any(|character| SCRIPTS.syllables.holds(character)),
-    _ => false,
-  }
+/// The message that addresses the agent on a turn: the newest of the turn's own, else the newest on the page
+/// that is not the agent's own words in the room.
+pub fn addressing<'a>(
+  batch: &'a [Inbound],
+  recent: &'a [Inbound],
+  own: Option<i64>,
+) -> Option<&'a Inbound> {
+  batch.last().or_else(|| {
+    recent
+      .iter()
+      .rev()
+      .find(|message| message.sender_id.is_some() && message.sender_id != own)
+  })
 }
 
-/// The line naming the language a room is answered in, for a turn with the machine's language in front of it.
-pub fn room_language_note(receiver: &Receiver, recent: &[Inbound]) -> String {
+/// The line naming the language a turn is answered in (docs/answer-checks.md, 「The language an answer goes out
+/// in」): the language of the message that addresses the agent, else the room's configured language.
+pub fn answer_language_note(receiver: &Receiver, addressed: Option<&Inbound>) -> String {
   let closing = &CHAT_ROUND.closing;
-  let language = receiver.deployment().language.clone();
 
-  if recent.iter().any(|message| in_machine_script(&message.text, &language)) {
-    fill_marks(&closing.language_named, &[("language", &language)])
-  } else {
-    closing.language_own.clone()
+  match addressed.and_then(|message| text_language(&message.text)) {
+    Some(language) => fill_marks(&closing.language_named, &[("language", language)]),
+    None => fill_marks(&closing.language_room, &[("language", &receiver.deployment().language)]),
   }
 }
 
@@ -420,15 +425,14 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     parts.push(fill_marks(owed_line, &[("count", &owed.to_string())]));
   }
 
+  let language = answer_language_note(receiver, addressing(round.batch, &recent, round.room.identity));
+
   if let Some(reason) = round.woken {
     parts.push(String::new());
-    parts.push(fill_marks(
-      &closing.woken,
-      &[("reason", reason), ("language", &room_language_note(receiver, &recent))],
-    ));
+    parts.push(fill_marks(&closing.woken, &[("reason", reason), ("language", &language)]));
   } else if !round.instructions.is_empty() || round.batch.is_empty() {
     parts.push(String::new());
-    parts.push(room_language_note(receiver, &recent));
+    parts.push(language);
   }
 
   parts.push(String::new());
