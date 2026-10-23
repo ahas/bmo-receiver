@@ -17,6 +17,9 @@ export type Message = Schemas["Message"];
 export type Pictures = Schemas["Pictures"];
 export type Figures = Schemas["Figures"];
 export type Window = Schemas["Window"];
+export type Provider = Schemas["Provider"];
+export type RoomProviders = Schemas["RoomProviders"];
+export type ChooseProviders = Schemas["ChooseProviders"];
 export type Notice = Schemas["Notice"];
 export type Instruction = Schemas["Instruction"];
 export type InstructionRequest = Schemas["InstructionRequest"];
@@ -139,6 +142,21 @@ export function receiverClient(options: ReceiverOptions) {
     /** `GET /rooms/{roomId}/window`. */
     async window(roomId: number): Promise<Window> {
       return answered(await client.GET("/rooms/{roomId}/window", { params: { path: { roomId } } }));
+    },
+
+    /** `GET /providers`. */
+    async providers(): Promise<Page<Provider>> {
+      return answered(await client.GET("/providers"));
+    },
+
+    /** `GET /rooms/{roomId}/providers`. */
+    async roomProviders(roomId: number): Promise<RoomProviders> {
+      return answered(await client.GET("/rooms/{roomId}/providers", { params: { path: { roomId } } }));
+    },
+
+    /** `PUT /rooms/{roomId}/providers`. */
+    async chooseProviders(roomId: number, body: ChooseProviders): Promise<RoomProviders> {
+      return answered(await client.PUT("/rooms/{roomId}/providers", { params: { path: { roomId } }, body }));
     },
 
     /** `GET /rooms/{roomId}/notices`. */

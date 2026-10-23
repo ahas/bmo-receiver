@@ -35,6 +35,7 @@ carried = [
   "Nothing about this needs saying in the room: output exactly <<SKIP>>.",
   "",
   "WHAT YOU WERE IN THE MIDDLE OF:",
+  "{note}",
 ]
 lost = [
   "Quiet instruction from the system: your previous session was closed and this is a new one.",

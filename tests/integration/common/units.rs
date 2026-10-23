@@ -427,19 +427,33 @@ impl Web for StandInWeb {
   }
 }
 
-/// Where the receiver's news is heard: each message told, in order.
+/// Where the receiver's news is heard: each message told, in order, and every other event the stream would carry
+/// of a window closed or a verdict written.
 #[derive(Default)]
-pub struct Heard(pub Mutex<Vec<(i64, i64)>>);
+pub struct Heard(pub Mutex<Vec<(i64, i64)>>, pub Mutex<Vec<Value>>);
 
 impl Heard {
   pub fn told(&self) -> Vec<(i64, i64)> {
     self.0.lock().unwrap().clone()
+  }
+
+  /// The events of one type the stream was told, in order.
+  pub fn events(&self, kind: &str) -> Vec<Value> {
+    self.1.lock().unwrap().iter().filter(|event| event["type"] == kind).cloned().collect()
   }
 }
 
 impl News for Heard {
   fn message(&self, chat_id: i64, message_id: i64) {
     self.0.lock().unwrap().push((chat_id, message_id));
+  }
+
+  fn window_closed(&self, chat_id: i64, agent: &str, at: i64) {
+    self.1.lock().unwrap().push(bmo_receiver::events::window_closed(chat_id, agent, at));
+  }
+
+  fn publish(&self, event: &Value) {
+    self.1.lock().unwrap().push(event.clone());
   }
 }
 
@@ -752,8 +766,13 @@ impl Agency for StandInAgency {
     not_asked_agency("a fold")
   }
 
+  // A session is ended only where a test stands one, as a replaced session is.
   fn end<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
-    not_asked_agency("an end")
+    if self.standing_session().is_none() {
+      return not_asked_agency("an end");
+    }
+
+    Box::pin(async { Ok(()) })
   }
 
   fn sessions(&self) -> BoxFuture<'_, Answer<Vec<Session>>> {

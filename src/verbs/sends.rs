@@ -19,6 +19,7 @@ use crate::Fault;
 use std::sync::Arc;
 
 use crate::receiver::{Receiver, speech, wake};
+use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, record};
 use crate::verbs::{Launch, NoLaunch, VerbError};
 
@@ -229,6 +230,16 @@ impl Sends {
       name: &name,
     };
     let message_id = record::keep(self.receiver.db(), self.receiver.news(), line).await.map_err(kept)?;
+    let delivery = Delivery {
+      chat_id: request.room_id,
+      message_id,
+      reply_to: request.reply_to_message_id,
+      owner: false,
+      standing: vec![Road::Record.key().to_owned()],
+      carried: Carried::Send(request.send.clone()),
+    };
+
+    providers::deliver(self.receiver.db(), self.receiver.roads(), &delivery).await;
 
     Ok(Sent {
       message_id: Some(message_id),

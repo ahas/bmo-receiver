@@ -239,6 +239,21 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "window"])).await
   }
 
+  /// `GET /providers`.
+  pub async fn providers(&self) -> Answer<Page<Provider>> {
+    Self::answered(self.request(Method::GET, &["providers"])).await
+  }
+
+  /// `GET /rooms/{roomId}/providers`.
+  pub async fn room_providers(&self, room_id: i64) -> Answer<RoomProviders> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "providers"])).await
+  }
+
+  /// `PUT /rooms/{roomId}/providers`.
+  pub async fn choose_providers(&self, room_id: i64, chosen: &ChooseProviders) -> Answer<RoomProviders> {
+    Self::answered(self.send(Method::PUT, &["rooms", &room_id.to_string(), "providers"], chosen)).await
+  }
+
   /// `GET /rooms/{roomId}/roads`.
   pub async fn road(&self, room_id: i64) -> Answer<Road> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "roads"])).await

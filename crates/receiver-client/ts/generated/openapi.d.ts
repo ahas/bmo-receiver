@@ -331,6 +331,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every chat provider a room may be on. */
+        get: operations["providers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/read-mark-counts": {
         parameters: {
             query?: never;
@@ -656,6 +673,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The chat providers a room is on, and whether its list was set. */
+        get: operations["roomProviders"];
+        /** A room's chat providers set whole. */
+        put: operations["chooseProviders"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/read-marks": {
         parameters: {
             query?: never;
@@ -884,6 +919,10 @@ export interface components {
             room: number | null;
             /** @default null */
             via: string | null;
+        };
+        /** @description A room's chat providers set whole: at least one, each once. */
+        ChooseProviders: {
+            providers: string[];
         };
         /** @description A room whose session is folding. */
         Compacting: {
@@ -1206,21 +1245,26 @@ export interface components {
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page5: {
-            items: components["schemas"]["Person"][];
+            items: components["schemas"]["Provider"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page6: {
-            items: components["schemas"]["RoomReadCount"][];
+            items: components["schemas"]["Person"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page7: {
-            items: components["schemas"]["Notice"][];
+            items: components["schemas"]["RoomReadCount"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page8: {
+            items: components["schemas"]["Notice"][];
+            more: boolean;
+        };
+        /** @description A page of a collection: its members, and whether anything stands past the last of them. */
+        Page9: {
             items: components["schemas"]["RoundOpening"][];
             more: boolean;
         };
@@ -1284,6 +1328,11 @@ export interface components {
         /** @description Whether a text waits for something to happen first. */
         PromiseReading: {
             waits: boolean;
+        };
+        /** @description A chat provider a room may be on: its key, and what it is called. */
+        Provider: {
+            key: string;
+            label: string;
         };
         /** @description The event a process beside the receiver publishes. */
         PublishedEvent: {
@@ -1357,6 +1406,14 @@ export interface components {
             address: string;
             /** @default [] */
             holdings: components["schemas"]["Holding"][];
+        };
+        /**
+         * @description The chat providers a room is on, by key in order, and whether its list was set rather than read off what the
+         *     room holds.
+         */
+        RoomProviders: {
+            chosen: boolean;
+            providers: string[];
         };
         /** @description A room and how many of its messages an agent has not marked. */
         RoomReadCount: {
@@ -2050,7 +2107,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page5"];
+                    "application/json": components["schemas"]["Page6"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
@@ -2194,6 +2251,35 @@ export interface operations {
             };
         };
     };
+    providers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page5"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     readMarkCounts: {
         parameters: {
             query?: never;
@@ -2213,7 +2299,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page6"];
+                    "application/json": components["schemas"]["Page7"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
@@ -2719,7 +2805,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page7"];
+                    "application/json": components["schemas"]["Page8"];
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
@@ -2855,7 +2941,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page5"];
+                    "application/json": components["schemas"]["Page6"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
@@ -2895,6 +2981,72 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomProviders"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-found, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    chooseProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChooseProviders"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomProviders"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3183,7 +3335,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page8"];
+                    "application/json": components["schemas"]["Page9"];
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */

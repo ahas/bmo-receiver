@@ -1,7 +1,8 @@
 //! Which road the owner's private chat is answered on (docs/unified-bmo.md, 「The cases」): each road carries the
 //! answer to words that came in on it, and whatever nobody asked for there — a turn opened by the bot's lines alone,
 //! a line the service says itself, a send that names no road — is kept in the chat's own record, which a road whose
-//! screen shows it reaches. Every other room keeps its own road for all of it.
+//! screen shows it reaches, and goes on from there to the chat's other providers. Every other room keeps its own
+//! road for all of it.
 
 use std::sync::Arc;
 
@@ -67,7 +68,8 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
   speech.denied(ROOM).await.unwrap();
 
   // The owner's line stands in the record, under the agent's number in the owner's chat and its name, below every
-  // number a platform gave, and the screens are told; nothing went to a road.
+  // number a platform gave, and the screens are told; the service holding the chat is handed it from the record
+  // as one of the chat's providers, and a screen that only shows the chat is not.
   assert!(kept < 0);
   assert_eq!(standing.heard.told(), [(OWNER, kept)]);
   assert_eq!(
@@ -80,7 +82,8 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
   );
   assert!(screen.sent().is_empty());
 
-  // The room's lines went on its own road: the sanitiser read the first, and the fixed line went as rendered.
+  // The room's lines went on its own road: the sanitiser read the first, and the fixed line went as rendered,
+  // after the owner's line carried from his chat's record.
   let texts: Vec<String> = platform
     .sent()
     .into_iter()
@@ -91,6 +94,7 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
     .collect();
 
   assert_eq!(sent, Some(900));
-  assert_eq!(texts, ["the game begins (read)", "chat-denied in en"]);
+  assert_eq!(texts, ["the job is done (read)", "the game begins (read)", "chat-denied in en"]);
+  assert_eq!(platform.sent()[0].room_id, OWNER);
   assert_eq!(*standing.gate.read.lock().unwrap(), ["the job is done", "the game begins"]);
 }

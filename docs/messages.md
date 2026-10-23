@@ -24,6 +24,8 @@ agent has read) and what an agent can send back and when a room sees it typing.
   routed like any message.
 - **Anything forwarded is prefixed with who it came from,** as the chat service hands it over.
 - **An edit (`POST /edited`) changes the archived text in place and wakes nobody.**
+- **A message kept in a room goes to each of the room's other chat providers** (`docs/receiver.md`, 「A room's
+  chat providers」); a message read back from a room's past goes nowhere.
 
 ## What an agent can send back
 

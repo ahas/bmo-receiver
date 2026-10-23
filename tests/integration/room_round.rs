@@ -251,3 +251,111 @@ async fn a_turn_hands_the_agency_no_base_persona_even_where_the_deployment_keeps
     "the deployment's base persona file goes nowhere in the turn"
   );
 }
+
+#[tokio::test]
+async fn a_rounds_judgements_are_attached_from_its_start_under_the_answer_as_the_room_keeps_it() {
+  let before = bmo_receiver::now_ms();
+  let round = Round::pushed_and(Said::Delivered).await;
+  let attached = round.standing.gate.attached.lock().unwrap().clone();
+  let kept: Vec<i64> = round
+    ._scratch
+    .texts(r#"SELECT "message_id"::text FROM "messages" WHERE "chat_id" = 42 AND "via" = 'record'"#)
+    .await
+    .iter()
+    .map(|number| number.parse().unwrap())
+    .collect();
+
+  assert_eq!(kept.len(), 1, "the record keeps a copy of the answer the road carried");
+  assert_eq!(
+    attached.len(),
+    1,
+    "the round's judgements are attached once its answer went out: {attached:?}"
+  );
+
+  let (room, message, since) = attached[0];
+
+  assert_eq!((room, message), (OWNER, kept[0]), "they stand under the answer as the room keeps it");
+  assert!(
+    since >= before && since <= bmo_receiver::now_ms(),
+    "they are the ones written since the round began, in epoch milliseconds: {since}"
+  );
+
+  let sent = round.standing.heard.events("judgement");
+
+  assert!(
+    sent
+      .iter()
+      .any(|event| event["stage"] == "send" && event["verdict"] == "SENT" && event["messageId"] == kept[0]),
+    "the send's own verdict is heard on the stream under the answer: {sent:?}"
+  );
+}
+
+#[tokio::test]
+async fn a_conversation_closing_its_window_before_the_end_tells_the_window_closed() {
+  let round = Round::pushed_and(Said::Delivered).await;
+
+  assert!(round.standing.heard.events("window-closed").is_empty(), "the window still runs");
+
+  round.runner.of(AGENT).close(OWNER).await;
+
+  let closed = round.standing.heard.events("window-closed");
+
+  assert_eq!(closed.len(), 1, "{closed:?}");
+  assert_eq!(closed[0]["chatId"], OWNER);
+  assert_eq!(closed[0]["agent"], AGENT);
+  assert!(closed[0]["closedAt"].as_i64().is_some_and(|at| at <= bmo_receiver::now_ms()));
+}
+
+#[tokio::test]
+async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the_note() {
+  const NOTE: &str = "the note the replaced session left";
+  const MISSED: &str = "words said around the handover";
+
+  let scratch = Scratch::new().await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+
+  documents(data.path());
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, ANSWER));
+  let receiver = standing.receiver.clone();
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
+
+  agent.row.insert("sessionScope".to_owned(), serde_json::json!("agent"));
+  standing.agency.registering(vec![agent]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+  bmo_receiver::chat::cache::hand_over(scratch.db(), AGENT, NOTE).await.unwrap();
+  bmo_receiver::chat::cache::force_reset(
+    scratch.db(),
+    AGENT,
+    receiver_codes::SessionReason::DowngradeForced,
+  )
+  .await
+  .unwrap();
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         VALUES ($1, 5, $1, 'tester', 1760000000000, $2, 'road-a')"#,
+      vec![OWNER.into(), MISSED.into()],
+    )
+    .await;
+
+  receiver.message(&said(6, FIRST), &Context::default(), owners_room()).await.unwrap();
+  until("the round's end", || {
+    !session.prompts().is_empty() && runner.idle() && !session.working()
+  })
+  .await;
+
+  let prompt = &session.prompts()[0];
+
+  assert!(
+    prompt.contains(NOTE),
+    "the note rides at the head of the new session's first turn: {prompt}"
+  );
+  assert!(prompt.contains("Archived messages since your last reply"), "{prompt}");
+  assert!(prompt.contains(MISSED), "what the agent never read reaches the new session: {prompt}");
+  assert!(prompt.find(NOTE) < prompt.find(MISSED), "the note stands ahead of the turn");
+}

@@ -217,6 +217,30 @@ pub struct Window {
   pub closes_at: Option<i64>,
 }
 
+/// A chat provider a room may be on: its key, and what it is called.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Provider {
+  pub key: String,
+  pub label: String,
+}
+
+/// The chat providers a room is on, by key in order, and whether its list was set rather than read off what the
+/// room holds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomProviders {
+  pub providers: Vec<String>,
+  pub chosen: bool,
+}
+
+/// A room's chat providers set whole: at least one, each once.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChooseProviders {
+  pub providers: Vec<String>,
+}
+
 /// A room's road.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

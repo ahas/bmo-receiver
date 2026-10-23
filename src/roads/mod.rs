@@ -5,6 +5,7 @@
 //! here compares a road's key to a literal.
 
 pub mod declared;
+pub mod providers;
 pub mod record;
 
 use std::collections::BTreeMap;

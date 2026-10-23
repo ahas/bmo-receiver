@@ -12,8 +12,9 @@ use super::consult::{label_of, window_line, window_states};
 use crate::chat::window::gate_on;
 use crate::form::outgoing;
 use crate::now_ms;
-use crate::receiver::wake::agents::{open_window, room_designated};
+use crate::receiver::wake::agents::{open_window, room_designated, watch_window};
 use crate::receiver::{NotReceived, Receiver, Room, rows};
+use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, record};
 use crate::store::settings;
 
@@ -92,7 +93,19 @@ pub async fn say(
         name: name.as_ref(),
       };
 
-      Some(record::keep(db, receiver.news(), kept).await.map_err(NotReceived::Store)?)
+      let message_id = record::keep(db, receiver.news(), kept).await.map_err(NotReceived::Store)?;
+      let delivery = Delivery {
+        chat_id,
+        message_id,
+        reply_to,
+        owner: false,
+        standing: vec![via.clone()],
+        carried: Carried::words(&words),
+      };
+
+      providers::deliver(db, receiver.roads(), &delivery).await;
+
+      Some(message_id)
     }
     Some(Road::Service(key)) => {
       let send = ChatSend::Text {
@@ -109,8 +122,11 @@ pub async fn say(
   };
 
   if let Some(seconds) = designated.window_seconds {
-    open_window(db, chat_id, agent, now_ms() + seconds * 1_000).await?;
+    let until = now_ms() + seconds * 1_000;
+
+    open_window(db, chat_id, agent, until).await?;
     receiver.news().window(chat_id);
+    watch_window(&receiver, chat_id, agent, until);
   }
 
   if let Some(message_id) = message_id {

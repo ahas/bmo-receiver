@@ -90,23 +90,6 @@ static MOVING: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new(&parts.join("|")).expect("the blocks that move between turns")
 });
 
-static ARCHIVE_REPLAY: LazyLock<Regex> = LazyLock::new(|| {
-  let opening = CHAT_ROUND.blocks.archived.split(" (").next().unwrap_or_default();
-
-  Regex::new(&format!(
-    r"(?m)^{}(?: \(\d+\))?:[^\n]*\n(?s:.*?)^{}\s*\n?",
-    regex::escape(opening),
-    regex::escape(&CHAT_ROUND.blocks.archived_end),
-  ))
-  .expect("the archive replay block")
-});
-
-/// A prompt with the archive's replay of what the session missed taken out: a fresh session is handed the
-/// replaced one's note in its place.
-pub fn without_archive_replay(prompt: &str) -> String {
-  ARCHIVE_REPLAY.replace_all(prompt, "").into_owned()
-}
-
 /// The note a replaced session leaves for the fresh one, as the block its next turn opens with.
 pub fn carried_note(note: Option<&str>) -> String {
   let lines = &HANDOVER.chat;

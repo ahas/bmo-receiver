@@ -1,8 +1,7 @@
-//! What the console sends in the owner's own name (docs/boundary-api.md, 「The owner's words」; docs/receiver.md,
-//! 「The owner's words」): a line typed into his private chat kept under a console number and the name his chat's
-//! own service shows him by, and handed to that chat's session, the same line typed into another room carried on
-//! that room's road, files put in with the words
-//! gathered into the albums the road takes with the caption on the first of them, and a send asked of the
+//! What the console sends in the owner's own name (docs/receiver.md, 「The owner's words」): a line typed into any
+//! room kept under a console number and the name the room's own service shows him by, else his registered name,
+//! handed to the room's session and carried to the room's chat service in his own voice, files put in with the
+//! words carried as the albums the road takes with the caption on the first of them, and a send asked of the
 //! receiver carried as its asker.
 
 use std::sync::Arc;
@@ -13,7 +12,7 @@ use axum::{
   extract::Request,
   http::StatusCode,
 };
-use bmo_chat_client::{AlbumItem, ChatSend, FileItem};
+use bmo_chat_client::{AlbumItem, ChatSend, ChatVoice, FileItem};
 use serde_json::{Value, json};
 use tempfile::tempdir;
 use tower::ServiceExt;
@@ -99,7 +98,22 @@ async fn a_line_the_owner_typed_in_his_own_chat_is_kept_under_a_console_number_a
 
   assert_eq!(status, StatusCode::OK);
   assert!(answer["id"].is_i64(), "{answer:?}");
-  assert!(road.sent().is_empty(), "his own chat keeps the words, nothing goes to a road");
+  assert_eq!(
+    road
+      .sent()
+      .iter()
+      .map(|held| (held.send.clone(), held.mode))
+      .collect::<Vec<(ChatSend, Option<ChatVoice>)>>(),
+    [(
+      ChatSend::Text {
+        text: "Later, please.".to_owned(),
+        silent: false,
+        fold: true
+      },
+      Some(ChatVoice::HumanReader)
+    )],
+    "his chat keeps the words, and the service that holds it is handed them in his own voice",
+  );
   assert_eq!(
     scratch
       .texts(r#"SELECT "text" FROM "messages" WHERE "chat_id" = 42 AND "via" = 'record'"#)
@@ -112,6 +126,31 @@ async fn a_line_the_owner_typed_in_his_own_chat_is_kept_under_a_console_number_a
       .await,
     [OWNER.to_string()],
     "a chat whose service never showed the owner files him under his number, never the agent's name",
+  );
+}
+
+#[tokio::test]
+async fn the_owners_console_line_stands_under_his_registered_name_where_no_service_showed_him() {
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER));
+  let standing = standing(scratch.db(), DataRoot::new(data.path()), [road].to_vec());
+
+  standing.web.users.lock().unwrap().insert(OWNER, "owner-user".to_owned());
+
+  let port = routes(standing.receiver.clone(), TOKEN);
+  let (status, answer) =
+    asked(&port, "/owner/messages", TOKEN, json_post(json!({ "chatId": OWNER, "text": "Hello." }))).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "sender_name" FROM "messages" WHERE "chat_id" = 42 AND "message_id" = {}"#,
+        answer["id"]
+      ))
+      .await,
+    ["owner-user".to_owned()],
   );
 }
 
@@ -155,7 +194,8 @@ async fn the_owners_console_line_stands_under_the_name_his_chats_own_service_las
 }
 
 #[tokio::test]
-async fn a_line_the_owner_typed_in_another_room_goes_on_that_rooms_road_and_an_unknown_room_is_refused() {
+async fn a_line_the_owner_typed_in_another_room_is_kept_as_his_and_carried_to_its_road_and_an_unknown_room_is_refused()
+ {
   let (scratch, port, road) = stood(&[ROOM]).await;
 
   scratch
@@ -172,6 +212,17 @@ async fn a_line_the_owner_typed_in_another_room_goes_on_that_rooms_road_and_an_u
     .await
     .0,
     StatusCode::OK
+  );
+  assert!(
+    road.sent().iter().all(|held| held.mode == Some(ChatVoice::HumanReader)),
+    "the owner's words go in the owner's own voice"
+  );
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "sender_name" FROM "messages" WHERE "chat_id" = -100 AND "via" = 'record'"#)
+      .await,
+    [OWNER.to_string()],
+    "the room keeps the words as the owner's",
   );
   assert_eq!(
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
@@ -203,7 +254,13 @@ async fn a_reply_to_a_message_the_room_does_not_hold_is_refused_and_one_it_holds
   scratch
     .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
     .await;
-  scratch.message(ROOM, 7, 55).await;
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         VALUES (-100, 7, 55, 'someone', 1000, 'words', 'road-a')"#,
+      vec![],
+    )
+    .await;
 
   assert_eq!(
     asked(
@@ -236,7 +293,11 @@ async fn a_reply_to_a_message_the_room_does_not_hold_is_refused_and_one_it_holds
     }]
     .to_vec(),
   );
-  assert_eq!(road.sent()[0].reply_to_message_id, Some(7));
+  assert_eq!(
+    road.sent()[0].reply_to_message_id,
+    Some(7),
+    "the message answered stands on the road as itself"
+  );
 }
 
 #[tokio::test]
@@ -262,6 +323,7 @@ async fn files_the_owner_put_in_a_room_go_as_the_albums_the_road_takes_with_the_
 
   assert_eq!(status, StatusCode::OK, "{answer:?}");
   assert_eq!(answer["sent"].as_array().map(Vec::len), Some(3), "{answer:?}");
+  assert!(road.sent().iter().all(|held| held.mode == Some(ChatVoice::HumanReader)));
   assert!(answer["failed"].as_array().unwrap().is_empty(), "{answer:?}");
   assert_eq!(
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),

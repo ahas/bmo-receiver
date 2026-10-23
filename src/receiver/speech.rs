@@ -15,6 +15,7 @@ use serde_json::{Map, Value};
 
 use super::{Deployment, News, Units};
 use crate::Fault;
+use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, record};
 
 /// Why a line was not said.
@@ -70,7 +71,7 @@ impl Speech {
     let text = if cleaned { text.to_owned() } else { self.sanitised(chat_id, text).await? };
 
     match road {
-      Road::Record => self.kept(chat_id, &text).await.map(Some),
+      Road::Record => self.kept(chat_id, &text, None).await.map(Some),
       Road::Service(key) => self.sent(&key, chat_id, &text).await,
     }
   }
@@ -140,9 +141,16 @@ impl Speech {
     Ok(self.units.gate.sanitise(&asked).await.map_err(NotSaid::Sanitiser)?.text)
   }
 
-  // The line kept in the room's record as the chat agent's own: under the number the room's road gave the agent
-  // where it numbered it, and under who the agent is in the room otherwise.
-  pub async fn kept(&self, chat_id: i64, text: &str) -> Result<i64, NotSaid> {
+  /// The line kept in the room's record as the chat agent's own: under the number the room's road gave the agent
+  /// where it numbered it, and under who the agent is in the room otherwise. It goes on to the room's other
+  /// providers (docs/receiver.md, 「A room's chat providers」), but for the road it was already `sent` on, under
+  /// the number that road gave it.
+  pub async fn kept(
+    &self,
+    chat_id: i64,
+    text: &str,
+    sent: Option<(&str, Option<i64>)>,
+  ) -> Result<i64, NotSaid> {
     let roads = &self.units.roads;
     let numbered = match roads.room_road(chat_id).await {
       Some(road) => record::agent_number(&self.db, &road, &self.deployment.agent).await?,
@@ -161,7 +169,26 @@ impl Speech {
       name: &self.deployment.sender_name,
     };
 
-    Ok(record::keep(&self.db, self.news.as_ref(), kept).await?)
+    let message_id = record::keep(&self.db, self.news.as_ref(), kept).await?;
+    let mut standing = vec![Road::Record.key().to_owned()];
+
+    if let Some((road, copy)) = sent {
+      providers::stood(&self.db, chat_id, message_id, road, copy).await?;
+      standing.push(road.to_owned());
+    }
+
+    let delivery = Delivery {
+      chat_id,
+      message_id,
+      reply_to: None,
+      owner: false,
+      standing,
+      carried: Carried::words(text),
+    };
+
+    providers::deliver(&self.db, roads, &delivery).await;
+
+    Ok(message_id)
   }
 
   async fn sent(&self, key: &str, chat_id: i64, text: &str) -> Result<Option<i64>, NotSaid> {

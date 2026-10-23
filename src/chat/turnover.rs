@@ -63,8 +63,12 @@ pub async fn judge(
     round: rounds::current(),
   };
 
-  if let Err(why) = receiver.units().gate.judge(&asked).await {
-    eprintln!("chat {chat_id}: {stage} could not be written down: {why}");
+  match receiver.units().gate.judge(&asked).await {
+    // The room's screens hear the verdict as it lands, so its chip stands without a read of the room.
+    Ok(_) => receiver
+      .news()
+      .publish(&crate::events::judgement(chat_id, message, stage, verdict, detail)),
+    Err(why) => eprintln!("chat {chat_id}: {stage} could not be written down: {why}"),
   }
 }
 

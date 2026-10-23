@@ -50,7 +50,8 @@ flowchart TD
   - the one runner: each woken agent's turns in its conversations, the chat agent's and every companion's alike,
     every agent's rows of the instruction pass, and the words the room sessions left untaken taken up as the
     receiver starts, each answer handed back to the receiver like any word filed in the room;
-  - the console's road in: `POST /owner/messages` into the owner's private chat and the rooms the console made;
+  - the console's road in: `POST /owner/messages` and `POST /owner/message-files` into any room it holds;
+  - the delivery of every kept message to the room's chat providers (「A room's chat providers」 below);
   - the words' form of its own sends: the scaffolding guard, the sanitiser's pass unless the words come already
     read, under the label the send names where the text is no message, the dash net, and the words handed to the
     room's chat service in the form its dialect reads; refused where nothing but scaffolding is left;
@@ -89,19 +90,50 @@ flowchart TD
   extend; a question asked of the declaration answers itself for a service that did not exist when the question
   was written.
 
+## A room's chat providers
+
+- **A room is on one or more chat providers, and which is one setting of the room's registration.** A provider is
+  a road a room's messages come and go on: each chat service the configuration lists, and the room's record, the
+  road the receiver keeps itself, which is the web console's, since the console reads the archive. Each is named
+  by its key, as the record's stands in the policy and a chat service's in the configuration; nothing here names
+  one provider apart from the others.
+- **The list is read and set over `GET` and `PUT /rooms/{roomId}/providers`** (`docs/api.md`, 「Rooms」). A room
+  whose list was never set is on every provider that has handed it a message or kept one in it, in the order
+  each first did, and on the chat service that says the room is its own, so a room stands where it stood until
+  its list is set.
+- **Every message kept in a room goes to each of the room's providers,** whoever said it and whichever road it
+  came in on: a person's words a chat service handed over, the owner's words from the console, an agent's
+  answer, a line the receiver says itself. The rule is the same in every room and turns on nothing but the list.
+  - A provider the message already stands on is not handed it again: the road it came in on, and the road an
+    answer was sent on beside the copy the record keeps. The record holds every kept message by being the
+    archive, so it is never sent anything.
+  - Every other provider on the list is handed the message through its own `POST /sends`, as the words or the
+    files the message carried, the caption with the first file, answering the message it answers where that
+    message stands on that provider under a number of the provider's own.
+  - A message the owner said goes in the owner's own voice, `human-reader`, as the chat protocol names a send in
+    the owner's own words; any other goes in the voice the provider answers the room by.
+  - Each send carries a `tag`, and the number the provider gave it is kept beside the message. A message a
+    provider hands over that is the echo of such a send, by its tag or by that number, is the message already
+    kept: it is answered as held, kept no second time and wakes nobody.
+  - A provider that refuses or does not answer is said in the journal and leaves the message kept as it is.
+- **A room on the record alone** reaches no messenger: what is said there stands in the archive and the console.
+  Adding a chat service to its list starts carrying every message kept from then on to that service; taking it
+  off stops it. A chat service still handing over a room's messages after it was taken off the list is still
+  heard, and what it hands over is kept and carried to the room's providers like any message.
+
 ## The owner's words
 
 - **`POST /owner/messages` and `POST /owner/message-files` put the owner's words into a room from the console.**
-  - In the owner's private chat the words reach no other service: they are archived under a console number and
-    handed to that chat's conversation (`docs/unified-bmo.md`, 「Console conversation in the private chat」).
-  - In a room the console made the same holds.
-  - In any other room they go as the owner, on the road the room's chat service declares for the owner's voice,
-    so the room receives them as it receives anything the owner types there and the agent answers in the room.
+  - The words are archived in the room under a console number (`docs/unified-bmo.md`, 「The cases」), under the
+    owner's number and the owner's own name, and handed to the room's conversations as any of the owner's words
+    are; then they go to the room's other providers as every kept message does, in the owner's own voice.
   - A `replyTo` names the archived message the words answer; one the archive does not hold is refused 409 and
-    nothing is sent.
-  - Files go each as its own message where the road takes them that way, as albums where it takes those, the
-    caption on the first; a file past the road's ceiling is refused 413, and a call none of whose files went
-    answers as one refusal.
+    nothing is kept.
+  - Files are archived each as its own message with the words typed beside them; they go to each provider as
+    one album of the pictures and videos, one of the sounds and each document on its own, the words on the first
+    send that takes a caption that long and ahead of the files as words otherwise. A file
+    past the ceiling a road takes is refused 413 and turned away with its name, and a call none of whose files
+    stood answers as one refusal.
 - **`POST /owner/instructions` says the owner's words to a room's session**, framed as the owner speaking from the console,
   delivered as a quiet instruction, so the room sees nothing but the answer it leads to; a chat the archive has
   never seen is refused.
@@ -118,7 +150,11 @@ flowchart TD
     tells every stream at once and the serve lets go only after them, so a stop never waits out a stream that
     was not told.
 - **What goes into it** is the news the receiver makes itself: a message it kept or wrote again, a window opened
-  or restarted, a room whose registration was removed as `room-removed` with its number, the picture whenever it
+  or restarted, a window closed as `window-closed` with its room, its agent and `closedAt`, the moment it closed
+  (`docs/wake.md`, 「The names and the window」), a verdict it wrote of a round as `judgement` with its
+  `messageId` (null where it stands under no message yet), `stage`, `verdict` and `detail`, a room whose
+  registration was removed as `room-removed` with its
+  number, the picture whenever it
   changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile
   pictures a chat service took).
 - **The picture (`GET /live`) is drawn of what the receiver runs itself:** the chat turns of its conversations and

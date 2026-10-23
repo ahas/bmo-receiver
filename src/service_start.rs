@@ -195,9 +195,16 @@ pub fn hearing(standing: &Standing) -> Hearing {
   Hearing::new(hearers)
 }
 
-/// The clocks of a running service: the instruction pass over every agent's rows, the conversations' own
-/// clock and the restart; and the agency's events, heard for as long as the service runs.
+/// The clocks of a running service: the window ends still to come, the instruction pass over every agent's rows,
+/// the conversations' own clock and the restart; and the agency's events, heard for as long as the service runs.
 pub fn keep(standing: &Standing) {
+  let watching = standing.receiver.clone();
+
+  tokio::spawn(async move {
+    if let Err(why) = crate::receiver::wake::agents::watch_windows(&watching).await {
+      eprintln!("bmo-receiver: the windows still open were not watched: {why}");
+    }
+  });
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();
   keep_restart(standing.receiver.clone(), standing.conversations.clone());

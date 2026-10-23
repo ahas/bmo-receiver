@@ -3,6 +3,8 @@
 //! own words are filed under. The agents themselves are the agency's registrations, read through its port, so
 //! an agent added as a row is judged the same way with nothing here naming it.
 
+use std::time::Duration;
+
 use serde_json::{Map, Value};
 
 use receiver_ports::agency::{Agent, Agents};
@@ -10,7 +12,7 @@ use sea_orm::DatabaseConnection;
 
 use super::asked;
 use crate::receiver::{NotReceived, Receiver, Room};
-use crate::{all, one, run};
+use crate::{all, now_ms, one, run};
 
 /// One designated agent of a room: its registration name, the words a room calls it by, how long a room it
 /// answered keeps it listening where it keeps a window at all, and whether it answers the rooms that name
@@ -254,6 +256,43 @@ pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) ->
   .await?;
 
   Ok(row.map(|row| row.try_get("", "open_until")).transpose()?.unwrap_or(0))
+}
+
+/// An agent's window in a room watched to its end: once `until` passes, where it still stands as the window's end,
+/// the room's screens are told the window closed then (docs/wake.md, 「The names and the window」). An end moved
+/// meanwhile is another end, watched by whoever moved it.
+pub fn watch_window(receiver: &Receiver, chat_id: i64, agent: &str, until: i64) {
+  let receiver = receiver.clone();
+  let agent = agent.to_owned();
+
+  tokio::spawn(async move {
+    tokio::time::sleep(Duration::from_millis(u64::try_from(until - now_ms()).unwrap_or(0))).await;
+
+    if window_until(receiver.db(), chat_id, &agent).await.ok() == Some(until) {
+      receiver.news().window_closed(chat_id, &agent, until);
+    }
+  });
+}
+
+/// Every window end the database holds still to come, watched as the receiver starts.
+pub async fn watch_windows(receiver: &Receiver) -> Result<(), NotReceived> {
+  let rows = all(
+    receiver.db(),
+    r#"SELECT "chat_id", "agent", "open_until" FROM "room_windows" WHERE "open_until" > $1"#,
+    vec![now_ms().into()],
+  )
+  .await?;
+
+  for row in rows {
+    watch_window(
+      receiver,
+      row.try_get("", "chat_id")?,
+      &row.try_get::<String>("", "agent")?,
+      row.try_get("", "open_until")?,
+    );
+  }
+
+  Ok(())
 }
 
 /// An agent's window in a room opened until `until`, in epoch milliseconds; a window already open longer keeps

@@ -26,6 +26,8 @@ pub struct OutgoingReply {
   #[serde(rename = "replyToMessageId")]
   pub reply_to: Option<i64>,
   pub via: Option<String>,
+  /// When the round began, in epoch milliseconds, which the round's judgements are attached from; none attaches
+  /// only what the send itself is judged by.
   pub round_started_at: Option<i64>,
   pub round: Option<String>,
   pub asked_at: Option<i64>,
@@ -97,26 +99,14 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
   };
   let road = receiver.roads().answering(chat_id, reply.via.as_deref()).await;
 
-  let sent = match road {
+  match road {
     None => {
       eprintln!("chat {chat_id}: no road to answer on");
 
       None
     }
     Some(road) => carry(receiver, road, reply, &text, started).await,
-  };
-
-  if let Some(sent) = &sent {
-    attach_judgements(
-      receiver,
-      chat_id,
-      sent.message_id,
-      reply.round_started_at.map(|at| at * 1000).unwrap_or_else(now_ms),
-    )
-    .await;
   }
-
-  sent
 }
 
 // One answer carried on its road, under the agent that says it where that is not the road's own voice.
@@ -135,30 +125,32 @@ async fn carry(
   };
   let mut request = ChatSendRequest::new(chat_id, send);
   request.reply_to_message_id = reply.reply_to;
-  let message_id = match road {
-    Road::Record => receiver.speech().kept(chat_id, text).await.ok(),
+  // The number the answer went out as, and the number the room keeps it under.
+  let numbers = match road {
+    Road::Record => receiver.speech().kept(chat_id, text, None).await.ok().map(|kept| (kept, kept)),
     Road::Service(key) => match receiver.speech().act(&key, &request).await.ok().flatten() {
       // A service's road sends through that service; the room's own store keeps a copy beside it, which
-      // the console and every other reader of the room's conversation read.
+      // the console and every other reader of the room's conversation read, and which goes on to the room's
+      // providers but that road. The copy is the answer as the room holds it: the round's judgements, its
+      // mark and its wait are filed under it, where it was kept.
       Some(id) => {
-        let _ = receiver.speech().kept(chat_id, text).await;
-
-        Some(id)
+        Some((id, receiver.speech().kept(chat_id, text, Some((&key, Some(id)))).await.unwrap_or(id)))
       }
       None => None,
     },
   };
 
-  let Some(message_id) = message_id else {
+  let Some((message_id, kept)) = numbers else {
     judge(receiver, chat_id, None, "send", "FAILED", None, Some(now_ms() - started)).await;
 
     return None;
   };
 
-  mark_round(receiver, chat_id, message_id, reply.round.as_deref()).await;
-  answer_wait(receiver, chat_id, message_id, reply.asked_at).await;
+  mark_round(receiver, chat_id, kept, reply.round.as_deref()).await;
+  answer_wait(receiver, chat_id, kept, reply.asked_at).await;
 
-  judge(receiver, chat_id, None, "send", "SENT", None, Some(now_ms() - started)).await;
+  judge(receiver, chat_id, Some(kept), "send", "SENT", None, Some(now_ms() - started)).await;
+  attach_judgements(receiver, chat_id, kept, reply.round_started_at.unwrap_or(started)).await;
 
   Some(Sent {
     message_id,
@@ -196,7 +188,7 @@ impl crate::chat::conversation::Sending for Sender {
             "" => None,
             via => Some(via.to_owned()),
           },
-          round_started_at: None,
+          round_started_at: Some(road.began),
           round: Some(road.round.to_owned()),
           asked_at: road.asked_at,
         },

@@ -19,9 +19,7 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
 use receiver_ports::http::PortFailure;
 
-use super::cache::{
-  Leaving, Route, carried_note, pending_note, remember, reset_reason, without_archive_replay,
-};
+use super::cache::{Leaving, Route, carried_note, pending_note, remember, reset_reason};
 use super::context::{RoomSend, State, forget_documents, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
   Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
@@ -212,11 +210,7 @@ impl Carry {
         let note = pending_note(db, agent).await.ok().flatten();
         let again = agency.start(agent, scope).await.map_err(fault_of)?;
 
-        (
-          again,
-          format!("{}\n\n{}", carried_note(note.as_deref()), without_archive_replay(&sent)),
-          vec![reason],
-        )
+        (again, format!("{}\n\n{}", carried_note(note.as_deref()), sent), vec![reason])
       }
     };
 

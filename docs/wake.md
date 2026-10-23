@@ -51,6 +51,12 @@ its rounds.
   conversation does not close it either.
 - **Every write of it is told on the event stream** as a `window` event naming the room, so a screen standing
   on the room reads the new time the moment a call opens it or an answer restarts it.
+- **Its close is told on the stream too,** as a `window-closed` event naming the room, the agent and `closedAt`,
+  the moment it closed, so a screen stops its countdown and a unit reading the stream needs no asking again. A
+  window closes by its time, when the end last written for it passes, and early, when the conversation that
+  opened it closes it before then. A window an opening restarts before its end has not closed: the opening moves
+  its end, and only the end that stands closes it, once. The receiver watches every end it writes, and as it
+  starts every end its database holds still to come.
 
 ## Waiting
 

@@ -2,19 +2,23 @@
 //! read back, and the files a message's gathering promised, served by bmo-chat-client's receiving-side router and
 //! judged by the one receiver. What the service already knows of the room is taken as it says it; a hand-over that
 //! says nothing of the room is read off the room's road. What the platform handed over beside a message as its
-//! `metadata` is kept as it arrived once the message is judged.
+//! `metadata` is kept as it arrived once the message is judged. A message said live and kept goes on to the room's
+//! other providers, and a provider's copy of a message carried to it from the room is that message, held already
+//! (docs/receiver.md, 「A room's chat providers」).
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use bmo_chat_client::{
-  AvatarChange, ChatReceiver, ErrorCode, GatheredPatch, HandedMessage, HeldMessage, InboundChatContext,
-  MessageOrigin, ReceiverRoom, RoomFacts, RoomKind, RoomQuery, RoomsQuery, WireError, receiver_router,
+  AvatarChange, ChatReceiver, ErrorCode, FileItem, GatheredPatch, HandedMessage, HeldMessage,
+  InboundChatContext, MessageOrigin, ReceiverRoom, RoomFacts, RoomKind, RoomQuery, RoomsQuery, WireError,
+  receiver_router,
 };
 
 use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
 use crate::all;
 use crate::receiver::reads;
+use crate::roads::providers::{self, Carried, Delivery};
 
 /// The message as the receiver keeps it, its moment in epoch milliseconds as the record keeps it.
 pub fn inbound(room_id: i64, message_id: i64, message: &HandedMessage) -> Inbound {
@@ -45,6 +49,15 @@ pub fn context(context: &InboundChatContext) -> Context {
     spoken_text: context.spoken_text.clone(),
     carries_file: context.carries_file,
     gathering: false,
+  }
+}
+
+/// A file a message carried, as a send carries it on.
+pub fn file_item(file: &bmo_chat_client::MessageFile) -> FileItem {
+  FileItem {
+    name: file.name.clone(),
+    mime: file.mime.clone(),
+    bytes: file.bytes.clone(),
   }
 }
 
@@ -98,6 +111,19 @@ impl ChatReceiver for Receiver {
     message_id: i64,
     message: HandedMessage,
   ) -> Result<HeldMessage, WireError> {
+    // A provider's copy of a message the room already keeps, carried to it from the room, is that message.
+    let copy = !matches!(message.origin, MessageOrigin::Edit)
+      && providers::echo(self.db(), room_id, &message.via, message_id, message.context.tag.as_deref())
+        .await
+        .map_err(|why| failed(NotReceived::Store(why)))?;
+
+    if copy {
+      return Ok(HeldMessage {
+        created: false,
+        message,
+      });
+    }
+
     let held = rows_holds(self, room_id, message_id, &message.via).await.map_err(failed)?;
     let room = self.room_of(room_id, message.room).await;
     let said = inbound(room_id, message_id, &message);
@@ -125,6 +151,35 @@ impl ChatReceiver for Receiver {
         .map_err(|why| failed(NotReceived::Store(why)))?;
     }
 
+    // A message said live and kept now goes to the room's other providers; one read back from the past, or one
+    // the room already held, goes nowhere.
+    if matches!(message.origin, MessageOrigin::Live)
+      && !held
+      && rows_holds(self, room_id, message_id, &message.via).await.map_err(failed)?
+    {
+      let carried = if message.files.is_empty() {
+        (!message.gathering).then(|| Carried::words(seen.spoken_text.as_deref().unwrap_or(&said.text)))
+      } else {
+        Some(Carried::Files {
+          files: message.files.iter().map(file_item).collect(),
+          caption: seen.spoken_text.clone().unwrap_or_default(),
+        })
+      };
+
+      if let Some(carried) = carried {
+        let delivery = Delivery {
+          chat_id: room_id,
+          message_id,
+          reply_to: said.reply_to_message_id,
+          owner: said.sender_id == Some(self.owner_id()),
+          standing: vec![said.via.clone()],
+          carried,
+        };
+
+        providers::deliver(self.db(), self.roads(), &delivery).await;
+      }
+    }
+
     Ok(HeldMessage {
       created: matches!(message.origin, MessageOrigin::Live) && !held,
       message,
@@ -146,6 +201,23 @@ impl ChatReceiver for Receiver {
     Receiver::gathered(self, room_id, message_id, &inbound.via, &patch)
       .await
       .map_err(failed)?;
+
+    // The files a gathering promised go to the room's other providers once they stand.
+    if patch.gather_failure.is_none() && !patch.files.is_empty() {
+      let delivery = Delivery {
+        chat_id: room_id,
+        message_id,
+        reply_to: inbound.reply_to_message_id,
+        owner: inbound.sender_id == Some(self.owner_id()),
+        standing: vec![inbound.via.clone()],
+        carried: Carried::Files {
+          files: patch.files.iter().map(file_item).collect(),
+          caption: String::new(),
+        },
+      };
+
+      providers::deliver(self.db(), self.roads(), &delivery).await;
+    }
     let room = self.roads().room_facts(room_id).await;
 
     Ok(handed(

@@ -81,27 +81,33 @@
 
 ## Console conversation in the private chat
 
-- **Two places to speak.** The owner's private chat is one room two chat services both reach: the owner's
-  everyday chat service and the web console's own.
+- **Two places to speak.** The owner's private chat is one room two roads both reach: the owner's everyday chat
+  service and the web console's own, the chat's record.
 - **Each road is a window onto the owner's chat, and neither is its default.** What the agent says there on its
   own (a job's report, a deployment's or a restart's notice, a queue notice, a voice briefing, a question a job
   puts to the owner) is kept in the chat's own record, bound to no road, and the console's screen shows it, since
-  it reads the chat's whole line; the everyday chat service carries only the agent's answer to words the owner
-  sent from there.
+  it reads the chat's whole line.
+- **Which messengers see the chat is the room's list of providers** (`docs/receiver.md`, 「A room's chat
+  providers」), the same setting every room has: every message kept in the chat goes to each provider on it,
+  wherever it was said. A chat on the record alone is seen in the console alone; with the everyday chat service
+  on its list, everything said in it stands there too.
 - **Where an answer goes** is decided by where the words came from: the road carried on the messages of the batch
-  itself, not a name anything compares. This distinction exists only in the private chat.
+  itself, not a name anything compares. The answer is kept and then goes to the chat's other providers like any
+  message.
 
 ### The cases
 
 - **Words from another chat service** are answered on that service, in the words' form its dialect reads.
-- **Words from the web console** do not go through any other chat service.
-  - Console input goes straight into the archive as the owner's message and on to the agent.
+- **Words from the web console** are the console's own road.
+  - Console input goes straight into the archive as the owner's message and on to the agent, and from the archive
+    to the room's other providers, in the owner's own voice.
   - The console has no name of its own for the owner, so the owner's row stands under the name the room's own
-    service last showed the owner by in that room, and under the owner's number where it has shown none. The
+    service last showed the owner by in that room, else under the owner's registered name, the user the web
+    unit's account model links the owner's number to, and under the owner's number where neither stands. The
     owner's console rows are never read for it, and a name another room calls the owner by never reaches this
     one. The chat agent's name never stands on the owner's row.
-  - The answer is not sent to another service; it stays in the archive as markdown, as written, and shows in the
-    console.
+  - The answer stays in the archive as markdown, as written, and shows in the console; it goes to the room's other
+    providers as every kept message does.
   - A long answer stands as the same run of messages it would have stood as on the other road: the room's line
     holds the rows of both roads together, so one answer is one shape wherever it is read.
   - What the owner types there is read for what the machine keeps, whichever road it was typed on.
@@ -110,7 +116,8 @@
     (negative), unique within that room.
   - A number once given is never given again in that room, even after the message holding it is taken out of the
     record.
-  - A message with such a number does not exist on another service, and is never sent to one as a reply target.
+  - A message with such a number does not exist on another service under it, and is never sent to one as a reply
+    target; where the message went to that service, the number the service gave it there is the target.
   - Places that read a room's messages in order (the conversation window, the console screen, the brain's
     readers) order them by send time and arrival order, not message number, so words from both places stand in
     one line by their own time.
@@ -118,22 +125,22 @@
     whether it stands before the read-position message in the line, not by the size of its number.
   - A message a road hands over that already stands at or before the read position wakes nobody, even one that
     calls the agent, and the receiver says so in its journal, naming the room, the message and the read position.
-- **Files uploaded from the console** do not go through another service either.
+- **Files uploaded from the console** are the console's own road too.
   - Each file is kept on this machine and archived as the owner's message under a console number, one message a
     file: a JPEG or a PNG filed as a picture, the pictures of one send drawn as one album, and any other file kept
     in the message-file store under its message.
   - The words typed beside them stand on the first file's message, however long, with the reply the send names.
-  - They go on to the agent as the owner's console words do.
-- **A turn with words from both places** is answered on the other service, which cannot see the console's words,
-  while the console sees its answer.
+  - They go on to the agent as the owner's console words do, and to the room's other providers as one send of
+    files.
+- **A turn with words from both places** is answered on the other service, and the console sees its answer.
 - **A turn with only quiet instructions and no message** is answered on the road its instructions were asked on
   where they carry one and agree (`via` on bmo-job's instructions). An instruction that answers nobody's words (a
   job's report, a deployment's notice, a failure order) carries none and leaves the others to decide. Where none
   carries one, or those that do name different roads, the turn is opened by the system's lines alone and answers
   into the owner's chat's record, whichever road the owner last spoke on.
 - **A line nobody's turn answers is kept in the record too.** The receiver's own lines in the owner's chat and a
-  send into that chat that names no road are kept in its record, and go on no other service. In a room whose
-  whole line no road's screen shows, such a line goes on the room's own road.
+  send into that chat that names no road are kept in its record, and go to the chat's other providers from
+  there. In a room whose whole line no road's screen shows, such a line goes on the room's own road.
 - **An instruction pushed into a working turn counts with the round's own.** Its road joins the roads the round
   was opened with, and the answer's road is decided again over all of them, as it is for a message pushed in.
 - **The turn is taught its road, not the room's.** Its room context carries the dialect and the capabilities of
@@ -142,8 +149,10 @@
 
 ### Group rooms
 
-- **No such distinction:** even when the owner speaks from the console, the words go to the room under the owner's
-  account on the room's own service, and the answer goes to the room.
+- **The same rule:** the owner's words from the console are kept in the room's archive as the owner's and go to
+  every other provider of the room, in the owner's own voice. The turn they wake answers on the room's own road
+  where no road shows the room's whole line, and the copy its answer leaves in the archive goes to the room's
+  providers other than that road.
 
 ## Replacing the session
 
@@ -154,11 +163,16 @@
 - **The new session's first turn carries the note:** the receiver takes the agent's pending note as it opens the
   new session and puts it at the head of that turn. The pending note is the only note carried; no summary is kept
   for the agent anywhere else.
+- **Behind the note, the first turn is whole:** it carries everything the turn would have carried on the old
+  session, the room's messages archived since the agent last answered there among them. What arrived around the
+  handover that the agent never read reaches the new session in that turn.
 - **A room switch alone does not replace the session.** The switch block is not a change to the common head.
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
   keeps one session across its rooms; a room's own session is the agency's to resume.
 - **Never a full re-read:** where no pending note is held, the whole old context is not read again; the new
-  session is opened with a line saying memory could not be restored.
+  session is opened with a line saying memory could not be restored, ahead of the same whole first turn.
+- **Moving between rooms carries no summary of a room:** the room's block and its archived messages since the
+  agent last answered there are what a turn in another room reads, as every turn does.
 
 ## Default access and per-room delegation
 

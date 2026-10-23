@@ -97,6 +97,9 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `GET /rooms/{roomId}/people` | `ids`, comma-separated | a page of `Person`: those among `ids` who have stood as a sender in the room |
 | `GET /rooms/{roomId}/owner-spoke` | `person`, `before`, `windowMs` | `owner` and `spoke`: whether the person is the owner, and whether the owner spoke in the span |
 | `GET /rooms/{roomId}/window` | | `openForMs`, the chat agent's window left, and `closesAt` in epoch milliseconds, or null |
+| `GET /providers` | | a page of `Provider` (`key`, `label`): every chat provider a room may be on |
+| `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, and `chosen`, whether the list was set |
+| `PUT /rooms/{roomId}/providers` | `providers`, the whole list | `providers` and `chosen`, as the list now stands |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
 | `PUT /pinned-rooms` | `roomIds`, the whole order | `roomIds`, the order as it now stands |
 | `POST /pinned-rooms` | `room`, one room stood last | `roomIds` |
@@ -114,6 +117,14 @@ repository's, in `VERSION`; it is never taken from a registry.
 - **The figures' `agents`** hold each answering agent's `agentName`, messages, `lastAnswerAt`, the session it keeps
   for the room, the agency's row for it and the state of that session; `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` stand null until the agency answers a tally by agent and room.
+- **A room's chat providers** are one setting of its registration: the providers whose rooms it is on, the web
+  console's among them as any other's. A `Provider` is the room's record, the receiver's own road that every
+  screen reading the archive shows, and each chat service the configuration lists, each named by its key and
+  called by its label. A room whose list was never set is on every provider that has handed it a message or kept
+  one in it and on the chat service that holds it, and `chosen` is false; a list set is the room's from then on.
+  A list that is empty, names a key no provider stands under or names one twice is refused 400 `bad-request`, and
+  a room the receiver does not hold 404 `not-found`. Every message kept in the room goes to each of its providers
+  (`docs/receiver.md`, 「A room's chat providers」).
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
@@ -215,9 +226,10 @@ repository's, in `VERSION`; it is never taken from a registry.
   rooms' language and said into the room without the output gate or any session, since the line is already read.
   Where the web unit cannot render it, its code and fields go as they stand, so the room is never left silent.
 - An owner's file send is the form above.
-- **The owner's words** in the owner's private room are archived under a console number and handed to that chat's
-  conversation; in another room they go as the owner, on the road the room declares for the owner's voice. A file
-  past the road's ceiling is refused 413 `too-large`; a `replyTo` the archive does not hold is refused 409.
+- **The owner's words** from the console are archived in the room under a console number, the owner's number and
+  the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
+  room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413
+  `too-large`; a `replyTo` the archive does not hold is refused 409.
 
 ## Consult lines
 
@@ -251,7 +263,10 @@ repository's, in `VERSION`; it is never taken from a registry.
   each as an event named for its kind, a `: ping` comment every fifteen seconds, and `event: stopping` when the
   service stops on purpose.
 - **What goes into the stream:** a message the receiver kept or wrote again as `message.created`, a room's window
-  opened or restarted as `window.opened`, a room whose registration was removed as `room.deleted`, the picture
+  opened or restarted as `window.opened`, a room's window for an agent closed as `window.closed`, carrying the room,
+  the agent and the moment it closed, a verdict the receiver wrote of a round as `judgement.created`, carrying the
+  room, the message it stands under or null, the stage, the verdict and its detail, a room whose registration was
+  removed as `room.deleted`, the picture
   whenever it changes as `live.changed`, and what `POST /events` says: `message.created`, `briefing.created` or
   `avatars.changed`.
 

@@ -85,7 +85,8 @@ is written.
 | A second asking inside a round: an owed answer, the room's language, a promise to record, a promise to be woken for, a rule to file | the round itself | — | `again` | inside the round | the round's |
 
 - **The session handover** is not a turn. The note a replaced session leaves rides at the head of whichever
-  turn first goes out on the new session, and that turn came through the window like every other.
+  turn first goes out on the new session, and that turn came through the window like every other: it goes whole,
+  the room's messages archived since the agent last answered there with it.
 - **Not turns at all:**
   - Another agent's wait come due or memory event never reaches the chat agent: it wakes its own agent
     in its own room.

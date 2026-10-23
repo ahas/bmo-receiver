@@ -387,6 +387,39 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/providers",
+    "providers",
+    "Rooms",
+    "Every chat provider a room may be on.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Page<Provider>>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/providers",
+    "roomProviders",
+    "Rooms",
+    "The chat providers a room is on, and whether its list was set.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomProviders>(&mut generator))],
+    vec!["unauthorized", "not-found", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/providers",
+    "chooseProviders",
+    "Rooms",
+    "A room's chat providers set whole.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<ChooseProviders>()),
+    vec![(200, json_answer::<RoomProviders>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "failed"]
+  );
+  add!(
+    "GET",
     "/rooms/{roomId}/roads",
     "road",
     "Rooms",

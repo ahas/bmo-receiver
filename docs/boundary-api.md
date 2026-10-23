@@ -153,6 +153,11 @@ receiver hands it the turn's envelope and the words on their way in and out, eve
 | the sanitiser | `POST /sanitised` | `text`, `label`, `roomId?`, `messageId?` | `text`, `changed` |
 | a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |
 | a round's judgements attached | `POST /judgements/attached` | `roomId`, `messageId`, `since` in epoch milliseconds | 204 |
+
+A round's verdicts stand under the answer that ends it. Once the answer is sent the receiver asks the attach with
+`since` the moment the round began, before it took the room's words and asked for their reference, and with
+`messageId` the answer as the room keeps it: on the record its number there, and on a chat service the copy the
+record keeps beside that service's own send. The verdict of the send itself is written under the same message.
 | a companion's options copied | `POST /options/copied` | `agentName`, `fromAgentName` | 204 |
 
 ### The web unit
@@ -176,6 +181,12 @@ Every provider route of bmo-chat's `docs/protocol.md`, through `bmo-chat-client`
 `POST /dialect/checks`, the room routes and `GET /owner`. The receiver holds no per-provider code: what differs
 between providers is read from what each declares.
 
+A message kept in a room goes to each other chat service on the room's list of providers as a `POST /sends` of
+its words or its files (`docs/receiver.md`, 「A room's chat providers」): `mode` `human-reader` where the owner said
+it and none otherwise, a `tag` naming the delivery, and `replyToMessageId` only where the message it answers stands
+on that service under the service's own number. A hand-over whose `context.tag` names a delivery to that service,
+or whose number is the one that service gave a delivery, is answered as held and kept no second time.
+
 ## Contract gaps
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:
@@ -193,5 +204,10 @@ Statements the receiver makes that a sibling's document does not yet match, each
   animation in every case; the receiver keeps the kind where the provider gives one.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver
   learns a message was taken as a move: until one does, a move is woken on as any message is.
+- **bmo-chat's `POST /sends`** carries no word of who said a message the receiver carries to another provider
+  beyond the voice: a message of a person or of an agent other than the room's voice goes in the provider's own
+  voice, under no name of its own, until the protocol states one.
+- **A room the console made** is no room any chat service numbers, so a chat service put on its list refuses
+  what is carried to it until that service holds the room; each refusal is said in the journal.
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver keeps
   what was recorded as its `restart_reason` setting.

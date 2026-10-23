@@ -148,7 +148,7 @@ impl crate::chat::conversation::Pieces for Turn {
               ReplyTarget::Named(named) => Some(named),
             },
             via,
-            round_started_at: None,
+            round_started_at: Some(began),
             round: Some(round.to_owned()),
             asked_at: batch.iter().map(|message| message.sent_at).min(),
           },

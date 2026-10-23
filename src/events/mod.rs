@@ -226,6 +226,11 @@ impl Events {
     self.publish(window(chat_id));
   }
 
+  /// The room's screens told that its window for an agent closed, and when.
+  pub fn window_closed(&self, chat_id: i64, agent: &str, at: i64) {
+    self.publish(window_closed(chat_id, agent, at));
+  }
+
   /// A room whose registration was removed, so the sidebar drops it and an open room screen leaves it.
   pub fn room_removed(&self, chat_id: i64) {
     self.publish(room_removed(chat_id));
@@ -345,6 +350,31 @@ pub fn window(chat_id: i64) -> Value {
   json!({ "type": "window", "chatId": chat_id, "messageId": null })
 }
 
+/// The room's screens told that its window for an agent closed, by its time or early, at `at` in epoch
+/// milliseconds (docs/wake.md, 「The names and the window」).
+pub fn window_closed(chat_id: i64, agent: &str, at: i64) -> Value {
+  json!({ "type": "window-closed", "chatId": chat_id, "messageId": null, "agent": agent, "closedAt": at })
+}
+
+/// A verdict the receiver wrote of a round, as the gate keeps it: the room, the message it stands under where it
+/// names one, the stage, the verdict and what it said beside it.
+pub fn judgement(
+  chat_id: i64,
+  message_id: Option<i64>,
+  stage: &str,
+  verdict: &str,
+  detail: Option<&str>,
+) -> Value {
+  json!({
+    "type": "judgement",
+    "chatId": chat_id,
+    "messageId": message_id,
+    "stage": stage,
+    "verdict": verdict,
+    "detail": detail,
+  })
+}
+
 /// A room whose registration was removed, so the sidebar drops it and an open room screen leaves it
 /// (docs/receiver.md, 「Removing a room's registration」).
 pub fn room_removed(chat_id: i64) -> Value {
@@ -375,6 +405,10 @@ impl News for Events {
 
   fn window(&self, chat_id: i64) {
     self.window(chat_id)
+  }
+
+  fn window_closed(&self, chat_id: i64, agent: &str, at: i64) {
+    self.window_closed(chat_id, agent, at)
   }
 
   fn room_removed(&self, chat_id: i64) {

@@ -29,4 +29,5 @@ mod talks;
 mod verbs_draws;
 mod verbs_messages;
 mod wake;
+mod window_close;
 mod working_turn_push;

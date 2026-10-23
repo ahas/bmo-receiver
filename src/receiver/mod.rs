@@ -122,6 +122,8 @@ pub trait News: Send + Sync {
 
   fn window(&self, _chat_id: i64) {}
 
+  fn window_closed(&self, _chat_id: i64, _agent: &str, _at: i64) {}
+
   fn room_removed(&self, _chat_id: i64) {}
 
   fn publish(&self, _event: &Value) {}
@@ -475,12 +477,19 @@ impl Receiver {
   }
 
   /// The name the owner goes by in a room: the one the room's own service last showed him by there, never one
-  /// his console rows carry, and his number where the service showed none (docs/unified-bmo.md, 「The cases」).
+  /// his console rows carry; else his registered name, the user the account model links his number to; and his
+  /// number where neither stands (docs/unified-bmo.md, 「The cases」).
   pub async fn owner_name(&self, chat_id: i64) -> String {
     let owner = self.owner_id();
-    let shown = rows::shown_name(&self.db, chat_id, owner, Road::Record.key()).await.ok().flatten();
 
-    shown.unwrap_or_else(|| owner.to_string())
+    if let Some(shown) = rows::shown_name(&self.db, chat_id, owner, Road::Record.key()).await.ok().flatten()
+    {
+      return shown;
+    }
+
+    let registered = self.units.web.user_of_sender(owner).await.ok().flatten();
+
+    registered.filter(|name| !name.trim().is_empty()).unwrap_or_else(|| owner.to_string())
   }
 
   pub fn roads(&self) -> &Roads {

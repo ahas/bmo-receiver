@@ -329,6 +329,7 @@ pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbEr
     .await
     .map_err(unheard)?;
   sends.receiver().news().window(run_.chat_id);
+  wake::agents::watch_window(&sends.receiver(), run_.chat_id, &speaker, until);
 
   let relay = arm_relay(sends, &run_.unit, run_.chat_id, teller, run_.reply, &text).await?;
 

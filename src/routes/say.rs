@@ -1,22 +1,22 @@
-//! Words and files the owner typed into a room on the screen (docs/boundary-api.md, 「The owner's words」;
-//! docs/receiver.md, 「The owner's words」): his private chat answers where it was spoken to, so his words there
-//! are kept under a console number and handed to that chat's conversation, and the files he puts in there as much
-//! as his words; any other room takes them as the owner, on the road the room declares for a line nobody asked
-//! for. A room the receiver does not hold is refused before anything is written.
+//! Words and files the owner typed into a room on the screen (docs/receiver.md, 「The owner's words」): in every
+//! room they are kept under a console number, the owner's number and his own name, handed to the room's
+//! conversations as any of his words are, and carried to the room's other providers in his own voice. A room the
+//! receiver does not hold is refused before anything is written.
 
 use axum::{
   body::Bytes,
   extract::{Multipart, State},
   http::StatusCode,
 };
-use bmo_chat_client::MessageFile;
+use bmo_chat_client::{FileItem, MessageFile};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::receiver::{Context, Inbound, NotReceived, Receiver, rows};
+use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, record};
-use crate::routes::as_owner::{OwnerFile, caption_limit, refusal, say as owner_say, send_files};
+use crate::routes::as_owner::{OwnerFile, refusal};
 use crate::{now_ms, one};
 
 #[derive(Deserialize)]
@@ -123,39 +123,58 @@ pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
   }
 
   let reply = reply_target(&receiver, asked.chat_id, asked.reply_to.as_ref()).await?;
+  let message_id = record::next_number(receiver.db(), asked.chat_id).await.map_err(store)?;
+  let message = Inbound {
+    chat_id: asked.chat_id,
+    message_id,
+    sender_id: Some(receiver.owner_id()),
+    sender_name: receiver.owner_name(asked.chat_id).await,
+    sent_at: now_ms(),
+    text: text.to_owned(),
+    image_path: None,
+    reply_to_message_id: reply,
+    via: Road::Record.key().to_owned(),
+    mode: None,
+    via_reader: None,
+    album: None,
+  };
 
-  if asked.chat_id == receiver.owner_id() {
-    let message_id = record::next_number(receiver.db(), asked.chat_id).await.map_err(store)?;
-    let message = Inbound {
-      chat_id: asked.chat_id,
-      message_id,
-      sender_id: Some(receiver.owner_id()),
-      sender_name: receiver.owner_name(asked.chat_id).await,
-      sent_at: now_ms(),
-      text: text.to_owned(),
-      image_path: None,
-      reply_to_message_id: reply,
-      via: Road::Record.key().to_owned(),
-      mode: None,
-      via_reader: None,
-      album: None,
-    };
-
-    Receiver::message(
-      &receiver,
-      &message,
-      &Context::default(),
-      receiver.roads().room_facts(asked.chat_id).await,
-    )
-    .await
-    .map_err(failed)?;
-
-    return answered(json!({ "id": message_id }));
-  }
-
-  let message_id = owner_say(&receiver, asked.chat_id, text, reply).await?;
+  Receiver::message(
+    &receiver,
+    &message,
+    &Context::default(),
+    receiver.roads().room_facts(asked.chat_id).await,
+  )
+  .await
+  .map_err(failed)?;
+  carried(&receiver, &message, Carried::words(text)).await?;
 
   answered(json!({ "id": message_id }))
+}
+
+// The owner's words, once the room kept them, carried to the room's other providers in the owner's own voice
+// (docs/receiver.md, 「A room's chat providers」); words the room did not keep go nowhere.
+async fn carried(receiver: &Receiver, kept: &Inbound, carried: Carried) -> Result<(), Refusal> {
+  let held = rows::message(receiver.db(), kept.chat_id, kept.message_id, &kept.via)
+    .await
+    .map_err(store)?;
+
+  if held.is_none() {
+    return Ok(());
+  }
+
+  let delivery = Delivery {
+    chat_id: kept.chat_id,
+    message_id: kept.message_id,
+    reply_to: kept.reply_to_message_id,
+    owner: true,
+    standing: vec![kept.via.clone()],
+    carried,
+  };
+
+  providers::deliver(receiver.db(), receiver.roads(), &delivery).await;
+
+  Ok(())
 }
 
 pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered {
@@ -247,79 +266,67 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
     return Err(refused(StatusCode::PAYLOAD_TOO_LARGE, "too-large", &why));
   }
 
-  if chat_id == receiver.owner_id() {
-    let mut sent: Vec<Value> = vec![];
-    let owner_name = receiver.owner_name(chat_id).await;
+  let mut sent: Vec<Value> = vec![];
+  let mut first: Option<Inbound> = None;
+  let owner_name = receiver.owner_name(chat_id).await;
 
-    for (at, file) in kept.iter().enumerate() {
-      let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
-      let message = Inbound {
-        chat_id,
-        message_id,
-        sender_id: Some(receiver.owner_id()),
-        sender_name: owner_name.clone(),
-        sent_at: now_ms(),
-        text: caption.clone(),
-        image_path: None,
-        reply_to_message_id: if at == 0 { reply } else { None },
-        via: Road::Record.key().to_owned(),
-        mode: None,
-        via_reader: None,
-        album: None,
-      };
-      // The record hands the file over as its own message's one file, identified by that place.
-      let item = MessageFile {
-        id: "1".to_owned(),
+  for (at, file) in kept.iter().enumerate() {
+    let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
+    let message = Inbound {
+      chat_id,
+      message_id,
+      sender_id: Some(receiver.owner_id()),
+      sender_name: owner_name.clone(),
+      sent_at: now_ms(),
+      text: caption.clone(),
+      image_path: None,
+      reply_to_message_id: if at == 0 { reply } else { None },
+      via: Road::Record.key().to_owned(),
+      mode: None,
+      via_reader: None,
+      album: None,
+    };
+    // The record hands the file over as its own message's one file, identified by that place.
+    let item = MessageFile {
+      id: "1".to_owned(),
+      name: file.name.clone(),
+      mime: file.mime.clone(),
+      bytes: file.bytes.clone(),
+      kind: None,
+    };
+    let room = receiver.roads().room_facts(chat_id).await;
+
+    Receiver::attachment(
+      &receiver,
+      &message,
+      &Context {
+        carries_file: true,
+        ..Context::default()
+      },
+      room,
+      &[item],
+    )
+    .await
+    .map_err(failed)?;
+    sent.push(json!({ "name": file.name, "id": message_id }));
+    first.get_or_insert(message);
+  }
+
+  // The files go on to the room's other providers as one send of files, the way they were put in together.
+  if let Some(first) = first {
+    let files = kept
+      .iter()
+      .map(|file| FileItem {
         name: file.name.clone(),
         mime: file.mime.clone(),
         bytes: file.bytes.clone(),
-        kind: None,
-      };
-      let room = receiver.roads().room_facts(chat_id).await;
+      })
+      .collect();
 
-      Receiver::attachment(
-        &receiver,
-        &message,
-        &Context {
-          carries_file: true,
-          ..Context::default()
-        },
-        room,
-        &[item],
-      )
-      .await
-      .map_err(failed)?;
-      sent.push(json!({ "name": file.name, "id": message_id }));
-    }
-
-    return answered(
-      json!({ "id": sent.first().and_then(|held| held.get("id")), "sent": sent, "checking": [], "failed": turned_away }),
-    );
+    carried(&receiver, &first, Carried::Files { files, caption }).await?;
   }
 
-  let long = caption_limit(&receiver, chat_id)
-    .await?
-    .is_some_and(|limit| caption.encode_utf16().count() > usize::try_from(limit).unwrap_or(0));
-
-  if long {
-    owner_say(&receiver, chat_id, &caption, reply).await?;
-  }
-
-  let words = if long { String::new() } else { caption };
-  let mut outcome = send_files(&receiver, chat_id, &kept, &words, if long { None } else { reply }).await?;
-
-  if outcome.sent.is_empty() && outcome.checking.is_empty() {
-    let why = outcome.refusal.unwrap_or("the road took none of the files".to_owned());
-
-    return Err(refused(StatusCode::CONFLICT, "not-sent", &why));
-  }
-
-  turned_away.append(&mut outcome.failed);
-
-  answered(json!({
-    "id": outcome.sent.first().and_then(|held| held.get("id")),
-    "sent": outcome.sent,
-    "checking": outcome.checking,
-    "failed": turned_away,
-  }))
+  answered(
+    json!({ "id": sent.first().and_then(|held| held.get("id")), "sent": sent, "checking": [], "failed": turned_away }),
+  )
 }

@@ -211,6 +211,8 @@ pub struct ReplyRoad {
   pub via: String,
   pub round: String,
   pub asked_at: Option<i64>,
+  /// When the round began, in epoch milliseconds: its judgements are the ones written since.
+  pub began: i64,
 }
 
 /// What sends a round's answer into its room, on the road the turn answers on: the number of the message it went
@@ -786,6 +788,7 @@ impl Conversations {
       eprintln!("chat {chat_id}: the window could not be written: {why}");
     } else if until > 0 {
       self.0.receiver.news().window(chat_id);
+      wake::agents::watch_window(&self.0.receiver, chat_id, self.agent(), until);
     }
   }
 
@@ -1218,9 +1221,17 @@ impl Conversations {
       return_instructions(self.0.receiver.db(), conv.instruction_ids).await;
     }
 
-    // A turn closes the window it opened and never one it did not.
-    if self.window_until(chat_id).await <= conv.window_until {
+    // A turn closes the window it opened and never one it did not; one closed before its end is told closed now.
+    let standing = self.window_until(chat_id).await;
+
+    if standing <= conv.window_until {
       self.set_window(chat_id, 0).await;
+
+      let now = now_ms();
+
+      if standing > now {
+        self.0.receiver.news().window_closed(chat_id, self.agent(), now);
+      }
     }
   }
 
@@ -1433,6 +1444,9 @@ impl Conversations {
     while self.state().folding.contains(&chat_id) {
       tokio::time::sleep(Duration::from_millis(50)).await;
     }
+
+    // The round begins here: every judgement the gate writes of it, its reference's among them, comes after.
+    let began = now_ms();
 
     // The rows waiting to ride this room's next round go in now, before the round takes what it carries.
     self.0.hooks.riders(self.agent(), chat_id).await;
@@ -1756,6 +1770,7 @@ impl Conversations {
             via: via.to_owned(),
             round: round.to_owned(),
             asked_at,
+            began,
           },
           &reply,
         )
