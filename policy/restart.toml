@@ -31,3 +31,17 @@ job = "The deployment was run by {job}, which is still at work and will send its
 intent = "tell the owner you are back, in the light of why this went live."
 job_follow_up = "The job is not done yet. Do not summarise the work, do not say what changed, and do not call it finished: the job's own report is the one account of it."
 follow_up = "Do not describe the change beyond its reason."
+
+# The relaunch instruction (docs/wake.md, 「Quiet instructions」): the units whose deployment relaunches every
+# session the agents run on, by their deploy roots' names past `bmo-`; what its row is kept as and sorted under; and
+# its words: the fact naming each deployment ({deployed}, the clauses joined), one clause a unit ({unit},
+# {version}, {message}, or none where the record carries no message), and the line that follows.
+[relaunched]
+units = ["agency"]
+kind = "session-relaunched"
+sort = "relaunch"
+fact = "This session was relaunched because {deployed}."
+deployed = "{unit} {version} was deployed: {message}"
+no_message = "{unit} {version} was deployed"
+joiner = "; and because "
+follow_up = "Keep it as the reason this session started afresh. It needs no answer of its own: say nothing of it in the room."

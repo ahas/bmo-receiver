@@ -1,7 +1,8 @@
 //! One contract test per sibling document (`docs/boundary-api.md`): what each sibling's own document states of
 //! the routes the receiver serves, checked as that document words it — bmo-job's `docs/api.md` 「bmo-receiver」,
 //! bmo-chat's `docs/protocol.md` 「Receiver routes」, the cache warmer's `docs/api.md` 「The target-ping hook」,
-//! and the agency's `docs/api.md` 「Hooks」. The brain's 18 routes are `brain_contract.rs`.
+//! the agency's `docs/api.md` 「Hooks」, and the gate's `docs/boundary-api.md` 「bmo-receiver」. The brain's 18
+//! routes are `brain_contract.rs`.
 
 use axum::http::StatusCode;
 use serde_json::json;
@@ -100,6 +101,88 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
     .await,
     (StatusCode::NO_CONTENT, json!({})),
   );
+}
+
+// The keys of an answer's object, sorted as the map holds them.
+fn keys(value: &serde_json::Value) -> Vec<String> {
+  value.as_object().unwrap().keys().cloned().collect()
+}
+
+#[tokio::test]
+async fn the_gates_calls_answer_as_its_document_states_them() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  scratch.message(7, 1, OWNER).await;
+
+  // Every room's title and senders.
+  let rooms = get(&front, "/rooms").await.1;
+  let room = &rooms["items"][0];
+
+  assert_eq!((room["id"].as_i64(), room["senders"].clone()), (Some(7), json!([OWNER])));
+  assert!(room.as_object().unwrap().contains_key("title"));
+
+  // The names people went under: a page of `Person`, each its `id` and `name`.
+  assert_eq!(
+    get(&front, &format!("/people?ids={OWNER}")).await,
+    (StatusCode::OK, json!({ "items": [{ "id": OWNER, "name": "someone" }], "more": false })),
+  );
+
+  // One stored message, its sender, name and moment in the common format.
+  let (found, message) = get(&front, "/rooms/7/messages/1").await;
+
+  assert_eq!(found, StatusCode::OK);
+  assert_eq!(
+    (
+      message["senderId"].as_i64(),
+      message["senderName"].as_str(),
+      message["sentAt"].as_i64(),
+      message["text"].as_str()
+    ),
+    (Some(OWNER), Some("someone"), Some(1_000), Some("words")),
+  );
+  assert!(!keys(&message).contains(&"sent_at".to_owned()), "{:?}", keys(&message));
+  assert_eq!(get(&front, "/rooms/7/messages/2").await.1["code"], "not-found");
+
+  // The facts read by room, whether a text waits, and the owner notice.
+  assert_eq!(keys(&get(&front, "/rooms/7/roads").await.1), ["kind", "oneToOne"]);
+  assert_eq!(
+    keys(
+      &get(&front, &format!("/rooms/7/owner-spoke?person={OWNER}&before=5000&windowMs=10000"))
+        .await
+        .1
+    ),
+    ["owner", "spoke"],
+  );
+  assert_eq!(
+    keys(&get(&front, &format!("/rooms/7/spoke-between?person={OWNER}&from=0&to=5000")).await.1),
+    ["spoke"],
+  );
+  assert_eq!(
+    keys(&get(&front, &format!("/rooms/7/own-number?agentName={AGENT}")).await.1),
+    ["number"]
+  );
+  assert_eq!(keys(&post(&front, "/promise-readings", json!({ "text": "words" })).await.1), ["waits"]);
+
+  let (noticed, notice) = post(&front, "/owner/notices", json!({ "code": "attachment-alarm" })).await;
+
+  assert_eq!((noticed, keys(&notice)), (StatusCode::CREATED, vec!["id".to_owned()]));
+
+  // No second family of the same facts is served.
+  for path in [
+    "/rooms/titles",
+    "/rooms/roads",
+    "/rooms/spoke-between",
+    "/rooms/owner-spoke",
+    "/people/names",
+    "/promises/waits",
+    "/rooms/own-number",
+    "/owner/notice",
+  ] {
+    let (status, refused) = post(&front, path, json!({})).await;
+
+    assert_eq!((status, refused["code"].as_str()), (StatusCode::NOT_FOUND, Some("no-route")), "{path}");
+  }
 }
 
 #[tokio::test]

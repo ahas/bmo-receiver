@@ -29,7 +29,8 @@ and wake words (`GET /agents`) are the words a room calls it by; the delegate's 
 delegation notice names; the infrastructure room, where one is named; the language the rooms are spoken in, which
 a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; the brain
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code
-stand; and each chat service's road name with its base address and token.
+stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's
+`.local/share` where it names none; and each chat service's road name with its base address and token.
 
 ### The service and its commands
 
@@ -180,6 +181,16 @@ A round's verdicts stand under the answer that ends it. Once the answer is sent 
 record keeps beside that service's own send. The verdict of the send itself is written under the same message.
 | a companion's options copied | `POST /options/copied` | `agentName`, `fromAgentName` | 204 |
 
+### The deployments
+
+The receiver calls no unit to learn what was deployed: it reads each unit's deployment record, `deployed.json`
+under the unit's deploy root (the testbed's `docs/deploy.md`, 「Deployment record」), for the relaunch instruction
+(`docs/wake.md`, 「Quiet instructions」). A unit is named by its deploy root's folder past `bmo-`. Of a record it
+reads `at`, the moment it went live, as an RFC 3339 time or epoch milliseconds; the deploy message, `message`
+where the record carries one, else `summary`, else `subject`; and the version, `version` where the record carries
+one, else the `VERSION` file of the release the deploy root's `deploy` link stands on, else the first twelve
+characters of `commit`. A folder with no record, or a record with no time that reads, is no deployment.
+
 ### The web unit
 
 Its `docs/boundary.md` and `docs/openapi.json`, in the common format: the account model, a sender's user, a user
@@ -248,13 +259,31 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency's session state** names no `tier`. The receiver reads one where the state carries it and matches
   the draft process table by it (`docs/drafting.md`, 「The process table」); until the agency states it, every
   session reads as no tier and matches only rows of any tier.
-- **The gate's `draft` stage** is not stated in the gate's documents. The receiver keeps every turn of a round's
-  draft process in its own round log and tells each row on its event stream as a `draft` event; the gate is to
-  read it there (`GET /rounds/drafts`, `GET /events`) or be handed it, and write one judgement row per turn under
-  the stage `draft` with the round, `number`, `question`, `answerChars` and `changed`, with no judgement of its
-  content. Until the gate states which, the receiver writes no `draft` judgement at the gate. A `draft` event of
-  kind `start` is no row: it tells a question as it starts, with its `number`, the process's `count` and the
-  question's name, for the console's running line, and the gate writes nothing of it.
+- **The gate's `draft` stage** reads the receiver's event stream (`GET /events`) and takes every frame whose
+  data's `type` is `draft` as one row of a round's draft process, with the fields the receiver's
+  `docs/receiver.md`, 「The event stream」, names: `chatId`, `round`, `agentName`, `number` (from 1), `question`,
+  `kind`, `answerChars`, `changed`, `outcome`, `detail`, `ms` and `at`. A `draft` event of kind `start` is no row:
+  it tells a question as it starts, with its `number`, the process's `count` and the question's name, for the
+  console's running line, and carries no `answerChars`, `changed`, `outcome` or `ms`. The gate is to let a
+  `start` frame go by its `kind` before it reads a row's fields; its port reads every `draft` frame as a row and
+  refuses each `start` as missing `answerChars` until it does. The receiver writes no `draft` judgement at the
+  gate itself.
+- **The gate's room facts** (the gate's `docs/boundary-api.md`, 「bmo-receiver」) are read through the receiver's
+  fixed API in the common format, each at the route `docs/api.md` states: every room's title and senders off
+  `GET /rooms` (each `Room`'s `id`, `title` and `senders`); a room's kind off `GET /rooms/{roomId}/roads`;
+  `GET /rooms/{roomId}/spoke-between?person=&from=&to=`; `GET /rooms/{roomId}/owner-spoke?person=&before=&windowMs=`;
+  the names people went under off `GET /people?ids=`, a page of `Person`, `id` and `name`; whether a text waits on
+  a happening off `POST /promise-readings` with `text`; an agent's own number off
+  `GET /rooms/{roomId}/own-number?agentName=`; the owner notice at `POST /owner/notices`, 201 with the queued row's
+  `id`; and one stored message off `GET /rooms/{roomId}/messages/{messageId}`, a `Message` whose sender, name and
+  moment are `senderId`, `senderName` and `sentAt`, 404 `not-found` where the receiver keeps none. The receiver
+  serves no second family of these: `POST /rooms/titles`, `POST /rooms/roads`, `POST /rooms/spoke-between`,
+  `POST /rooms/owner-spoke`, `POST /people/names`, `POST /promises/waits`, `POST /rooms/own-number` and
+  `POST /owner/notice` answer 404 `no-route`, and the message read carries no snake_case `sent_at`. The gate's
+  port asks those routes and reads those fields until it moves onto the ones above.
+- **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
+  message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
+  the release's `VERSION` file where it does not (「The deployments」).
 - **The agency's usage by turn** is read by round: every turn of the draft process goes out naming its round, as
   the round's own turn does, so the agency's ledger opens each under the round's name. No document of the agency
   states a per-turn usage record the console reads beside a round's draft rows yet.

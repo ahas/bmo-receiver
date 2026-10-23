@@ -220,6 +220,31 @@ alone, a reset names its `ranges`. The receiver takes its own rows of the ranges
   files their messages carried, and the lowest number each room's record has handed out, so a number whose
   message went is never handed out again.
 
+## Quiet instructions
+
+A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet instruction」, states. One is
+written by the wake itself: the reason a session was relaunched.
+
+- **A session reopens** at the first round its agent's conversations take in this process for it, which follows
+  the receiver's own restart, and at a round of a session whose relaunching unit was deployed since the session
+  last reopened: the units the restart policy names (`restart.toml`, `relaunched.units`), the agency's among them,
+  whose deployment relaunches every session it carries. The session is the agent's one session across its rooms
+  where its registration says so, else the room's own.
+- **The reopening is kept** as the moment it happened, under the session's setting (`docs/store.md`), so the
+  next reopening knows the session's previous start. A session that never reopened before reads as started the
+  restart policy's fresh while ago (`fresh_minutes`).
+- **The cause is the deployments since that start:** every unit whose deployment record (`docs/boundary-api.md`,
+  「The deployments」) went live after it, oldest first. Where there are none, nothing is written.
+- **One instruction names them,** in the restart policy's words: "This session was relaunched because <unit>
+  <version> was deployed: <deploy message>", one clause a unit, followed by the line that it needs no answer and
+  nothing of it is said in the room. Its row is of the sort `relaunch` and the kind `session-relaunched`, which a
+  newer one replaces while it waits.
+- **It rides the round that found it** (`docs/bmo-window.md`, 「Rows that ride」): it is written before the round
+  asks for its riders, so the round's own turn carries it, a row of the agent's one session in a round of any
+  room that session answers. Unridden past the restart policy's ride while, it opens a turn of its own.
+- **Nothing is said to the room.** The instruction is the session's alone, and the room hears of it only what the
+  agent chooses, which the instruction asks to be nothing.
+
 ## What the agency's events wake
 
 Each event the receiver reads (`docs/boundary-api.md`, 「The agency」) is heard by the part its effect belongs

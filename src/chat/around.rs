@@ -1,9 +1,11 @@
 //! What stands around the conversations of one agent in the running process (docs/bmo-window.md, 「The room's
-//! window」): the rows that ride a room's next round, from the instruction pass, and the room shown typing while
-//! its answer is on its way, on the room's own road, renewed on the round policy's clock until the round lets it
-//! go.
+//! window」): the rows that ride a room's next round, from the instruction pass, the relaunch instruction of a
+//! session the round finds reopened written first (docs/wake.md, 「Quiet instructions」), and the room shown
+//! typing while its answer is on its way, on the room's own road, renewed on the round policy's clock until the
+//! round lets it go.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
@@ -12,6 +14,7 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use tokio::task::JoinHandle;
 
 use super::conversation::{BoxFuture, Hooks};
+use super::relaunch::Relaunches;
 use crate::receiver::Receiver;
 
 /// The conversations' surroundings in the running process.
@@ -19,6 +22,9 @@ pub struct Around {
   receiver: Receiver,
   // Each room shown typing now, by the task that renews it.
   typing: Mutex<HashMap<i64, JoinHandle<()>>>,
+  // The sessions reopened in this process, which write no relaunch instruction until deploy roots are
+  // named.
+  relaunches: Relaunches,
 }
 
 impl Around {
@@ -26,6 +32,16 @@ impl Around {
     Self {
       receiver,
       typing: Mutex::new(HashMap::default()),
+      relaunches: Relaunches::new(None),
+    }
+  }
+
+  /// The same surroundings reading the units' deployment records under `roots` for a reopened session's
+  /// instruction.
+  pub fn reading_deploys(self, roots: Option<PathBuf>) -> Self {
+    Self {
+      relaunches: Relaunches::new(roots),
+      ..self
     }
   }
 }
@@ -57,6 +73,8 @@ impl Hooks for Around {
     let agent = agent.to_owned();
 
     Box::pin(async move {
+      self.relaunches.note(&self.receiver, &agent, chat_id).await;
+
       if let Some(pass) = self.receiver.pass() {
         pass.riders(&agent, chat_id).await;
       }

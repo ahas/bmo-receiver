@@ -19,6 +19,7 @@ mod import;
 mod kept;
 mod private_thread;
 mod receiver;
+mod relaunch;
 mod room_record;
 mod room_removal;
 mod room_round;

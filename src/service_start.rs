@@ -156,7 +156,7 @@ impl Standing {
     let default = default_designated(&receiver).await.map_err(|why| format!("{why}"))?;
     let runner = Runner::new(
       receiver.clone(),
-      Arc::new(Around::new(receiver.clone())),
+      Arc::new(Around::new(receiver.clone()).reading_deploys(config.deploy_roots())),
       Timings::of_policy(),
       default.name.as_str(),
     );

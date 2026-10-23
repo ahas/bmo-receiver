@@ -248,6 +248,51 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
     "every question is told as it starts"
   );
   assert_eq!(events.len(), 7, "every row is told on the stream beside the starts");
+
+  // The gate's `draft` stage reads every row event by these fields, and lets a start go by its kind.
+  let fields = |event: &serde_json::Value| -> Vec<String> {
+    let mut held: Vec<String> = event.as_object().unwrap().keys().cloned().collect();
+
+    held.retain(|key| key != "speaker");
+    held.sort();
+    held
+  };
+
+  for event in &events {
+    let expected: &[&str] = if event["kind"] == "start" {
+      &[
+        "agentName",
+        "at",
+        "chatId",
+        "count",
+        "kind",
+        "messageId",
+        "number",
+        "question",
+        "round",
+        "type",
+      ]
+    } else {
+      &[
+        "agentName",
+        "answerChars",
+        "at",
+        "changed",
+        "chatId",
+        "detail",
+        "kind",
+        "messageId",
+        "ms",
+        "number",
+        "outcome",
+        "question",
+        "round",
+        "type",
+      ]
+    };
+
+    assert_eq!(fields(event), expected, "{event}");
+  }
 }
 
 #[tokio::test]

@@ -70,6 +70,7 @@ is written.
 | A deployment gone live, and every way one stops short | bmo-job | instruction table | `round` | opens | `deployed` |
 | The back-up line after a deployment | start-up | instruction table | `round` | rides, for the restart's while | — |
 | The back-up line after a restart no deployment announced | start-up | instruction table | `round` | opens | — |
+| The relaunch instruction: the deployments since a reopened session last started (`docs/wake.md`, 「Quiet instructions」) | the round's start | instruction table | `round` | rides, the round that found it | — |
 | The line after a fold | the conversation's fold | instruction table | `round` | opens | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
 | A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
@@ -164,6 +165,8 @@ round.
     outcome fact, which follows within seconds, opens the one turn and the line goes in with it. A deployment
     that tells no outcome leaves the line to open its own turn when the while is up.
   - The queue standing open at start-up rides for the same while, into the same turn.
+  - The relaunch instruction rides the round whose start found the session reopened, written just before that
+    round asks for its riders, for the restart's while; a session's one row rides a round of any room it answers.
 - **What never rides:** anything the owner must not hear late (a job's ending, a failure, a question or a stop,
   a deployment's outcome, a result somebody asked for) and anything that is the machine's only wake for work to
   move: a queue standing empty with work waiting, a job gone quiet. Those turns often do their work in tool

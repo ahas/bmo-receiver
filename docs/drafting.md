@@ -218,8 +218,9 @@ where it says something: neither empty nor a skip nor a wait.
   `count`, how many questions the process asks, `question`, its name, and `at`. It is no row of the log, and the
   question's own row follows it once the answer is in. A screen tells the round under way by it, and the message
   being written where `number` equals `count`; items and checks are told only as rows.
-- **The gate's `draft` stage and the console's draft chip read this log.** What the gate is to write of it is a
-  contract the gate has not stated yet (`docs/boundary-api.md`, 「Contract gaps」).
+- **The gate's `draft` stage and the console's draft chip read this log.** The gate takes every `draft` event of
+  a row off the event stream and writes it as a judgement of its `draft` stage; a `start` event is no row, and the
+  gate lets it go by its kind (`docs/boundary-api.md`, 「Contract gaps」).
 
 ## The routes
 

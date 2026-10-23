@@ -1,4 +1,5 @@
-//! The back notice a restart leaves the owner's session (docs/voiced-notices.md, 「Deploy and restart」).
+//! The back notice a restart leaves the owner's session (docs/voiced-notices.md, 「Deploy and restart」), and the
+//! instruction naming why a session was relaunched (docs/wake.md, 「Quiet instructions」).
 
 use serde::Deserialize;
 
@@ -28,6 +29,20 @@ pub struct Deployed {
   pub follow_up: String,
 }
 
+/// The relaunch instruction (docs/wake.md, 「Quiet instructions」).
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Relaunched {
+  pub units: Vec<String>,
+  pub kind: String,
+  pub sort: String,
+  pub fact: String,
+  pub deployed: String,
+  pub no_message: String,
+  pub joiner: String,
+  pub follow_up: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Restart {
@@ -37,6 +52,7 @@ pub struct Restart {
   pub ttl_minutes: i64,
   pub unannounced: Unannounced,
   pub deployed: Deployed,
+  pub relaunched: Relaunched,
 }
 
 crate::part!(pub RESTART: Restart = "restart.toml");

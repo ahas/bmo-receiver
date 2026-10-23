@@ -1,0 +1,190 @@
+//! The relaunch instruction (docs/wake.md, 「Quiet instructions」): at the round that finds an agent's session
+//! reopened, after the receiver's own restart or a deployment that relaunches every session, one quiet row naming
+//! the deployments since the session last started, written before the round asks for its riders so its own turn
+//! carries it. Nothing of it is said to the room.
+
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
+
+use receiver_policy::fill_marks;
+use receiver_policy::restart::RESTART;
+use serde_json::Value;
+
+use super::conversation::unified_session;
+use super::instructions::{Queued, queue};
+use crate::now_ms;
+use crate::receiver::Receiver;
+use crate::store::settings;
+
+// The folder a unit's deploy root is named by, before the unit's name.
+const ROOT_PREFIX: &str = "bmo-";
+
+// The deployment record under a deploy root, and the link to the release that went live beside it.
+const RECORD: &str = "deployed.json";
+const RELEASE: &str = "deploy";
+const VERSION: &str = "VERSION";
+
+// How much of a commit stands for a version where the record and the release name none.
+const COMMIT_CHARS: usize = 12;
+
+/// One unit's deployment as its record tells it (docs/boundary-api.md, 「The deployments」).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Deployed {
+  pub unit: String,
+  pub version: String,
+  pub message: Option<String>,
+  pub at: i64,
+}
+
+// A moment as a record writes it: an RFC 3339 time, or epoch milliseconds.
+fn moment(value: &Value) -> Option<i64> {
+  value.as_i64().or_else(|| {
+    chrono::DateTime::parse_from_rfc3339(value.as_str()?)
+      .ok()
+      .map(|at| at.timestamp_millis())
+  })
+}
+
+// The first of the fields a record carries words in, on one line.
+fn words(record: &Value, fields: &[&str]) -> Option<String> {
+  fields.iter().find_map(|field| {
+    let said = record[*field].as_str()?.split_whitespace().collect::<Vec<&str>>().join(" ");
+
+    (!said.is_empty()).then_some(said)
+  })
+}
+
+/// The deployment a unit's deploy root records, or none where it holds no record that reads.
+pub fn deployment(root: &Path, unit: &str) -> Option<Deployed> {
+  let text = std::fs::read_to_string(root.join(RECORD)).ok()?;
+  let record: Value = serde_json::from_str(&text).ok()?;
+  let at = moment(&record["at"])?;
+  let released = || {
+    let read = std::fs::read_to_string(root.join(RELEASE).join(VERSION)).ok()?;
+    let version = read.trim().to_owned();
+
+    (!version.is_empty()).then_some(version)
+  };
+  let committed = || {
+    let commit: String = record["commit"].as_str()?.chars().take(COMMIT_CHARS).collect();
+
+    (!commit.is_empty()).then_some(commit)
+  };
+  let version = words(&record, &["version"]).or_else(released).or_else(committed).unwrap_or_default();
+
+  Some(Deployed {
+    unit: unit.to_owned(),
+    version,
+    message: words(&record, &["message", "summary", "subject"]),
+    at,
+  })
+}
+
+/// Every unit's deployment the deploy roots' folder holds, oldest first; with `only`, those units' alone.
+pub fn deployments(roots: &Path, only: Option<&[String]>) -> Vec<Deployed> {
+  let Ok(folders) = std::fs::read_dir(roots) else {
+    return vec![];
+  };
+  let mut found: Vec<Deployed> = folders
+    .filter_map(Result::ok)
+    .filter_map(|folder| {
+      let name = folder.file_name().to_string_lossy().into_owned();
+      let unit = name.strip_prefix(ROOT_PREFIX)?.to_owned();
+
+      if only.is_some_and(|only| !only.contains(&unit)) {
+        return None;
+      }
+
+      deployment(&folder.path(), &unit)
+    })
+    .collect();
+
+  found.sort_by(|one, other| one.at.cmp(&other.at).then_with(|| one.unit.cmp(&other.unit)));
+  found
+}
+
+/// The instruction naming the deployments a session was relaunched by, in the restart policy's words.
+pub fn instruction(deployed: &[Deployed]) -> String {
+  let said = &RESTART.relaunched;
+  let clauses: Vec<String> = deployed
+    .iter()
+    .map(|one| {
+      let marks = [("unit", one.unit.as_str()), ("version", one.version.as_str())];
+
+      match &one.message {
+        Some(message) => fill_marks(&said.deployed, &[marks[0], marks[1], ("message", message.as_str())]),
+        None => fill_marks(&said.no_message, &marks),
+      }
+    })
+    .collect();
+  let fact = fill_marks(&said.fact, &[("deployed", &clauses.join(&said.joiner))]);
+
+  format!("{fact}\n{}", said.follow_up)
+}
+
+/// The sessions this process has reopened, and where the units' deploy roots stand, which leaves the
+/// instruction unwritten where it names none.
+pub struct Relaunches {
+  roots: Option<PathBuf>,
+  reopened: Mutex<HashSet<String>>,
+}
+
+impl Relaunches {
+  pub fn new(roots: Option<PathBuf>) -> Self {
+    Self {
+      roots,
+      reopened: Mutex::new(HashSet::new()),
+    }
+  }
+
+  /// At a round's start: where the agent's session reopens, its new start kept and the instruction written for
+  /// it, naming every deployment since its previous start.
+  pub async fn note(&self, receiver: &Receiver, agent: &str, chat_id: i64) {
+    let Some(roots) = &self.roots else {
+      return;
+    };
+    let said = &RESTART.relaunched;
+    let whole = unified_session(receiver, agent).await;
+    let key = match whole {
+      true => format!("{agent}_session_start"),
+      false => format!("{agent}_session_start:{chat_id}"),
+    };
+    let db = receiver.db();
+    let now = now_ms();
+    let first = self.reopened.lock().unwrap_or_else(PoisonError::into_inner).insert(key.clone());
+    let started = settings::get(db, &key).await.ok().flatten().and_then(|held| held.parse::<i64>().ok());
+    let since = started.unwrap_or(now - RESTART.fresh_minutes * 60_000);
+
+    if !first && deployments(roots, Some(&said.units)).iter().all(|one| one.at <= since) {
+      return;
+    }
+
+    if let Err(why) = settings::set(db, &key, &now.to_string()).await {
+      eprintln!("{agent}: the session's start could not be kept: {}", why.detail);
+    }
+
+    let deployed: Vec<Deployed> =
+      deployments(roots, None).into_iter().filter(|one| one.at > since).collect();
+
+    if deployed.is_empty() {
+      return;
+    }
+
+    let queued = Queued {
+      kind: Some(&said.kind),
+      sort: Some(&said.sort),
+      rides_until_ms: Some(now + RESTART.ride_minutes * 60_000),
+      rides_session: whole,
+      ..Queued::default()
+    };
+
+    match queue(db, agent, chat_id, &instruction(&deployed), &queued).await {
+      Ok(id) => println!(
+        "chat {chat_id}: {agent}'s session reopened after {} deployment(s), instruction {id}",
+        deployed.len()
+      ),
+      Err(why) => eprintln!("chat {chat_id}: the relaunch instruction was not written: {}", why.detail),
+    }
+  }
+}

@@ -60,6 +60,8 @@ pub struct Config {
   pub brain_root: Option<PathBuf>,
   #[serde(default)]
   pub document_tree: Option<PathBuf>,
+  #[serde(default)]
+  pub deploy_roots: Option<PathBuf>,
   pub agency: Peer,
   pub gate: Peer,
   pub job: Peer,
@@ -144,6 +146,16 @@ impl Config {
       tree: self.document_tree.clone(),
       brain: self.brain_root.clone().unwrap_or_else(|| self.data_root.join(BRAIN)),
     }
+  }
+
+  /// The folder every unit's deploy root stands in (docs/boundary-api.md, 「The deployments」): the one the
+  /// configuration names, else the account's `.local/share`; none where neither stands.
+  pub fn deploy_roots(&self) -> Option<PathBuf> {
+    self.deploy_roots.clone().or_else(|| {
+      let home = std::env::var_os("HOME").filter(|home| !home.is_empty())?;
+
+      Some(PathBuf::from(home).join(".local").join("share"))
+    })
   }
 
   /// A receiver on the database, for this configuration's deployment and units, with its database's place
