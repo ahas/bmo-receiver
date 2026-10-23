@@ -11,6 +11,7 @@ use super::conversation::{BoxFuture, Conversations, Held, Noting, Reply, unified
 use super::fold::{Failures, Folding, compact, fold_timeout};
 use super::prompt::recent_lines;
 use super::sentinels::{is_skip, is_wait};
+use crate::form::without_control_markers;
 use crate::receiver::{Receiver, Room};
 use crate::rounds;
 use crate::run as execute;
@@ -32,14 +33,17 @@ pub fn verdict_line(text: &str, limit: usize) -> String {
   String::from_utf16_lossy(&units)
 }
 
-/// The verdict a round's answer is written down under.
+/// The verdict a round's answer is written down under: an answer's words as the room would read them, with no
+/// control marker standing in them, and one that says nothing once they are out a skip.
 pub fn verdict_of(text: &str) -> String {
+  let said = without_control_markers(text);
+
   if is_wait(text) {
     "WAIT".to_owned()
-  } else if is_skip(text) {
+  } else if is_skip(text) || said.trim().is_empty() {
     "SKIP".to_owned()
   } else {
-    format!("REPLY: {}", verdict_line(text, VERDICT_CHARS))
+    format!("REPLY: {}", verdict_line(&said, VERDICT_CHARS))
   }
 }
 

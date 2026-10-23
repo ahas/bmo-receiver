@@ -1,7 +1,8 @@
 //! A room's round carried whole (docs/wake.md, 「The room's queue and the round」; docs/bmo-window.md, 「Every
 //! road into the agent」): the owner's words filed in his chat wake the chat agent's conversations, the round
 //! composes its turn and carries it into the agency's session, its answer goes back to the room, and words that
-//! come into the room while the turn works are pushed into it and settled on what the agency said of them.
+//! come into the room while the turn works are never pushed into it: they wait, and the round's closing check
+//! shows them before its message goes out.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -14,7 +15,7 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_ports::agency::Said;
+use receiver_policy::drafting::DRAFTING;
 
 use crate::common::Scratch;
 use crate::common::session::StandInSession;
@@ -91,8 +92,7 @@ async fn until(what: &str, holds: impl Fn() -> bool) {
 }
 
 /// A round of the owner's chat, standing on the receiver's own conversations and the stand-in units, whose
-/// session holds its first turn working until words said meanwhile were pushed into it and the agency said
-/// `said` of them.
+/// session holds its first turn working until words said meanwhile are waiting in the room.
 struct Round {
   _scratch: Scratch,
   _data: tempfile::TempDir,
@@ -103,11 +103,11 @@ struct Round {
 }
 
 impl Round {
-  async fn pushed_and(said: Said) -> Self {
-    Round::timed(said, timings()).await
+  async fn said_meanwhile() -> Self {
+    Round::timed(timings()).await
   }
 
-  async fn timed(said: Said, timings: Timings) -> Self {
+  async fn timed(timings: Timings) -> Self {
     let scratch = Scratch::new().await;
     crate::common::session::no_drafting(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
@@ -123,7 +123,6 @@ impl Round {
     standing
       .agency
       .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
-    *standing.agency.saying.lock().unwrap() = Some(said);
     standing.agency.carrying_on(session.clone());
     receiver.hold_runner(Arc::new(runner.clone()));
 
@@ -139,7 +138,9 @@ impl Round {
     round.hear(1, FIRST).await;
     until("the first turn", || round.session.working()).await;
     round.hear(2, LATER).await;
-    until("the push", || !round.standing.agency.pushes.lock().unwrap().is_empty()).await;
+    until("the words said meanwhile waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+    // A look at the working turn passes, and still nothing is pushed.
+    tokio::time::sleep(Duration::from_millis(50)).await;
     round.session.let_go();
     until("the rounds' end", || round.runner.idle() && !round.session.working()).await;
 
@@ -165,36 +166,42 @@ impl Round {
   }
 }
 
-// The first turn carried the first words alone, on the session the agency started for the agent, and the words
-// said meanwhile were pushed into it under that session.
-fn carried_and_pushed(round: &Round) {
+// The first turn carried the first words alone, on the session the agency started for the agent; the words said
+// meanwhile were never pushed into it, and the closing check showed them before the message went out.
+fn shown_in_the_closing_check(round: &Round) {
   let prompts = round.session.prompts();
-  let pushes = round.pushes();
 
   assert!(prompts[0].contains(FIRST), "the first turn carries the words that woke it");
   assert!(!prompts[0].contains(LATER), "words said after the turn went out are not in its prompt");
-  assert_eq!(pushes.len(), 1, "the words said meanwhile are pushed once");
-  assert_eq!(pushes[0].0, SESSION);
-  assert_eq!(pushes[0].1, 1, "the push names the turn the session is working");
-  assert!(pushes[0].2.contains(LATER), "the push carries the words said meanwhile");
+  assert!(
+    round.pushes().is_empty(),
+    "no room's words are pushed into a working turn: {:?}",
+    round.pushes()
+  );
+  assert_eq!(prompts.len(), 2, "the closing check is the round's one more turn");
+  assert!(prompts[1].contains(&DRAFTING.arrived), "{}", prompts[1]);
+  assert!(prompts[1].contains(LATER), "the closing check shows the words said meanwhile");
 }
 
 #[tokio::test]
-async fn words_the_working_turn_took_are_its_own_and_its_answer_goes_back_to_the_room() {
-  let round = Round::pushed_and(Said::Delivered).await;
+async fn words_said_while_the_turn_works_wait_and_the_closing_check_shows_them() {
+  let round = Round::said_meanwhile().await;
 
-  carried_and_pushed(&round);
-  assert_eq!(round.session.prompts().len(), 1, "words the turn took call no turn of their own");
+  shown_in_the_closing_check(&round);
 
   let sent = round.sent();
 
-  assert_eq!(sent.len(), 1, "the round answers the room once");
-  assert!(sent[0].contains(ANSWER), "the turn's answer is what goes back to the room");
+  assert_eq!(
+    sent.len(),
+    1,
+    "the round answers the room once, and the words it showed call no round of their own"
+  );
+  assert!(sent[0].contains(ANSWER), "the closing check's answer is what goes back to the room");
 }
 
 #[tokio::test]
 async fn a_turn_names_its_round_and_the_answer_is_attached_to_the_rounds_newest_run() {
-  let round = Round::pushed_and(Said::Delivered).await;
+  let round = Round::said_meanwhile().await;
   let turns = round.session.turns.lock().unwrap().clone();
   let named = turns[0].round.clone().expect("the turn names its round");
   let kept = round
@@ -211,34 +218,6 @@ async fn a_turn_names_its_round_and_the_answer_is_attached_to_the_rounds_newest_
     [(ROUND_RUN, kept[0].parse::<i64>().unwrap())],
     "the answer, as the room keeps it, is attached to the newest run the round opened",
   );
-}
-
-#[tokio::test]
-async fn words_a_turn_waiting_on_a_person_did_not_take_wait_for_the_next_round() {
-  let round = Round::pushed_and(Said::Waiting).await;
-
-  carried_and_pushed(&round);
-  next_round_took_them(&round);
-}
-
-#[tokio::test]
-async fn words_the_working_turn_refused_wait_for_the_next_round() {
-  let round = Round::pushed_and(Said::Refused).await;
-
-  carried_and_pushed(&round);
-  next_round_took_them(&round);
-}
-
-// Words the turn did not take went back to the room's queue: the round after carried them in a turn of its own,
-// and each round's answer went back to the room.
-fn next_round_took_them(round: &Round) {
-  let prompts = round.session.prompts();
-  let sent = round.sent();
-
-  assert_eq!(prompts.len(), 2, "the words the turn did not take call a round of their own");
-  assert!(prompts[1].contains(LATER), "the next turn carries the words the first did not take");
-  assert_eq!(sent.len(), 2, "each round answers the room");
-  assert!(sent.iter().all(|send| send.contains(ANSWER)));
 }
 
 #[tokio::test]
@@ -284,7 +263,7 @@ async fn a_turn_hands_the_agency_no_base_persona_even_where_the_deployment_keeps
 #[tokio::test]
 async fn a_rounds_judgements_are_attached_from_its_start_under_the_answer_as_the_room_keeps_it() {
   let before = bmo_receiver::now_ms();
-  let round = Round::pushed_and(Said::Delivered).await;
+  let round = Round::said_meanwhile().await;
   let attached = round.standing.gate.attached.lock().unwrap().clone();
   let kept: Vec<i64> = round
     ._scratch
@@ -322,13 +301,10 @@ async fn a_rounds_judgements_are_attached_from_its_start_under_the_answer_as_the
 #[tokio::test]
 async fn an_answer_opens_the_window_for_the_policy_span_where_the_agents_row_names_none() {
   // No window is cut for the test: the span is the one the agent's row, which names none, leaves to the policy.
-  let round = Round::timed(
-    Said::Delivered,
-    Timings {
-      window: None,
-      ..timings()
-    },
-  )
+  let round = Round::timed(Timings {
+    window: None,
+    ..timings()
+  })
   .await;
 
   tokio::time::sleep(Duration::from_millis(200)).await;
@@ -356,7 +332,7 @@ async fn an_answer_opens_the_window_for_the_policy_span_where_the_agents_row_nam
 
 #[tokio::test]
 async fn a_conversation_closing_its_window_before_the_end_tells_the_window_closed() {
-  let round = Round::pushed_and(Said::Delivered).await;
+  let round = Round::said_meanwhile().await;
 
   assert!(round.standing.heard.events("window-closed").is_empty(), "the window still runs");
 

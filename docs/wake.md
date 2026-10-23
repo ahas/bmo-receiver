@@ -144,11 +144,17 @@ its rounds.
   (`docs/answer-checks.md`); the message is sent on the road the turn
   answers on, then handed back to the receiver as filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
   over on the conversations' own clock.
-- **Words that come while the turn works are pushed into it**
-  (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at the working turn: what the
-  agency says was `delivered` joins the round, which answers it with the rest; what is `waiting` or `refused` goes
-  back to the front of the room's buffer for the round after, and a `waiting` turn is offered nothing more
-  (`docs/bmo-window.md`, `push`).
+- **A room's words never go into a working turn.** Words that come into the room while a round runs, from its
+  own turn to the process's end, wait in the room's buffer and reach the agent only at a question boundary of the
+  draft process: under the next question, or in the one closing check before the message is sent, where the
+  agent marks each as answered with the message, needing no answer or answered in a round of its own
+  (`docs/drafting.md`, 「What came in meanwhile」). A message shown inside a round opens no round afterwards
+  unless the agent marked it separate; only words that came after the round showed its last block open the next.
+- **What is no room message is pushed into the working turn**
+  (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at it: a quiet instruction, such
+  as one the owner types on the console. What the agency says was `delivered` joins the round, which answers it
+  with the rest; what is `waiting` or `refused` goes back to wait for the round after, and a `waiting` turn is
+  offered nothing more (`docs/bmo-window.md`, `push`).
 - **A round folds its session only past the fold share:** once its answer has gone out, the session is folded as
   work of its own where the context the agency reports it carrying after the round's last turn (`carried`
   against `window`) has reached the

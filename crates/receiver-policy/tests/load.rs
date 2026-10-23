@@ -108,6 +108,11 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final") && DRAFTING.max_chars > 0);
 
+  // The lead lines name the marks a message that arrived meanwhile takes, and so does the closing check.
+  for line in [&DRAFTING.lead, &DRAFTING.last_lead, &DRAFTING.arrived] {
+    assert!(line.contains("<<DONE #<number>>>") && line.contains("<<SEPARATE #<number>>>"), "{line}");
+  }
+
   for process in &DRAFTING.process {
     for list in [&process.rounds, &process.light] {
       assert!(list.iter().all(|name| DRAFTING.questions.contains_key(name)), "{process:?}");

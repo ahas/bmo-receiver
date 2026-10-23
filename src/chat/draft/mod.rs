@@ -9,7 +9,6 @@ pub mod log;
 pub mod table;
 
 use std::collections::{BTreeSet, HashSet};
-use std::time::Duration;
 
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
@@ -24,7 +23,7 @@ use super::mid_turn::{Push, paragraph};
 use super::promises::{promises_after, promises_later, sets_rule_later};
 use super::prompt::{Scope, scope_line};
 use super::records::run_records;
-use super::sentinels::{SKIP, is_skip, is_wait, sent_now};
+use super::sentinels::{Mark, SKIP, is_skip, is_wait, round_marks, sent_now, without_round_marks};
 use super::turnover::note_session;
 use super::window::composed;
 use crate::form::strip_prompt_scaffolding;
@@ -111,7 +110,7 @@ pub fn question_words(name: &str, text: &str, number: usize, count: usize, scope
   format!("{lead}\n\n{text}\n{}", scope_line(scope))
 }
 
-/// The line every question but the last closes on: the messages waiting, shown with the last question.
+/// The line every question but the last closes on: the messages still waiting, shown with the next question.
 pub fn waiting_line(pending: &[i64]) -> String {
   fill_marks(&DRAFTING.waiting, &[("ids", &stringify(&pending).unwrap_or_default())])
 }
@@ -175,22 +174,21 @@ fn glossary(receiver: &Receiver) -> Vec<BannedTerm> {
     .unwrap_or_default()
 }
 
-/// The process as the conversations hold it: the receiver it runs on and how often the last question's working
-/// turn is looked at for words that came for its room.
+/// The process as the conversations hold it: the receiver it runs on.
 #[derive(Clone)]
 pub struct Drafter {
   receiver: Receiver,
-  look: Duration,
 }
 
 impl Drafter {
-  pub fn new(receiver: Receiver, look: Duration) -> Self {
-    Drafter { receiver, look }
+  pub fn new(receiver: Receiver) -> Self {
+    Drafter { receiver }
   }
 }
 
 // One round's process as it runs: where it stands, the runs its turns opened, the texts of the questions it
-// asked, the reply the last turn carried and the log.
+// asked, the reply the last turn carried and the log; the messages that arrived meanwhile and were shown to it,
+// what the round holds by path, the marks its answers set and whether the last answer was nothing but marks.
 struct Run<'a> {
   drafter: &'a Drafter,
   conversations: &'a Conversations,
@@ -201,21 +199,20 @@ struct Run<'a> {
   asked: Vec<String>,
   latest: Reply,
   log: Log,
-  // What the last question grew by while it worked: the words pushed into it past those it began with, and the
-  // rows they settled.
-  grown: (Vec<Inbound>, Vec<i64>),
+  shown: Vec<Inbound>,
+  holds: HashSet<String>,
+  marks: Vec<(Mark, i64)>,
+  only_marks: bool,
 }
 
 impl Run<'_> {
-  // One more turn of the same session: its answer where it gave one, as the process reads it, none where its run
-  // failed, the stop raised. The last question names how many words it carries from the start, which pushes grow
-  // it past.
+  // One more turn of the same session: its answer where it gave one, as the process reads it with its marks taken
+  // out, none where its run failed, the stop raised. No room's words are pushed into it while it works.
   async fn ask(
     &mut self,
     kind: Kind,
     name: &str,
     words: &str,
-    last: Option<usize>,
   ) -> Result<Option<(Reply, Answered)>, Failure> {
     let drafted = self.drafted;
     let chat = self.held.chat_id;
@@ -244,21 +241,19 @@ impl Run<'_> {
       last_consumed_id: self.held.last_consumed_id,
     };
     let follower = Follower::new(self.conversations, chat);
-    let carrying = if last.is_some() {
-      Carry::looking_every(self.drafter.receiver.clone(), self.drafter.look)
-    } else {
-      Carry::new(self.drafter.receiver.clone())
-    };
-    let carried = carrying.carry(&asking, &held, &follower).await;
+    let carried = Carry::new(self.drafter.receiver.clone()).carry(&asking, &held, &follower).await;
 
-    if let Some(from) = last {
-      self.grown = Conversations::close_last(&follower, from);
-    }
+    self.only_marks = false;
 
     match carried {
       Ok(answered) => {
-        let text = strip_prompt_scaffolding(&answered.text);
-        let (text, ending) = read_answer(if text.is_empty() { SKIP } else { &text });
+        let text = self.marked(&strip_prompt_scaffolding(&answered.text));
+        // An answer of nothing but marks says nothing more: no skip, and no words.
+        let (text, ending) = match (self.only_marks, text.is_empty()) {
+          (true, _) => (text, Answered::Answered),
+          (false, true) => read_answer(SKIP),
+          (false, false) => read_answer(&text),
+        };
         let answer = Reply { text, ..answered };
 
         if let Err(why) = note_session(
@@ -291,6 +286,106 @@ impl Run<'_> {
 
         Ok(None)
       }
+    }
+  }
+}
+
+impl Run<'_> {
+  // An answer with the marks it sets on the messages shown to the round kept and taken out of it.
+  fn marked(&mut self, text: &str) -> String {
+    let marks = round_marks(text);
+    let bare = without_round_marks(text);
+
+    self.only_marks = !marks.is_empty() && bare.is_empty();
+    self.marks.extend(marks);
+
+    bare
+  }
+
+  // The room's words that waited since the last look, built into the block the turn about to go out carries
+  // (docs/drafting.md, 「What came in meanwhile」), with the words it shows; none where nothing waited, or where
+  // the block could not be built and the words went back to wait.
+  async fn arrived(&mut self) -> Option<(String, Vec<Inbound>)> {
+    let drafted = self.drafted;
+    let chat = self.held.chat_id;
+    let receiver = &self.drafter.receiver;
+    let took = self.conversations.meanwhile(chat, drafted.privileged);
+
+    if took.is_empty() {
+      return None;
+    }
+
+    let built = paragraph(&Push {
+      receiver,
+      agent: self.agent,
+      owner: receiver.owner_id(),
+      chat_id: chat,
+      room: drafted.room,
+      round: drafted.round,
+      messages: &took,
+      instructions: &[],
+      events: &[],
+      holds: &self.holds,
+      consumed: self.held.last_consumed_id,
+      tools_allowed: drafted.tools_allowed,
+      reader: Some(receiver.roads()),
+    })
+    .await;
+
+    match built {
+      Ok(built) => {
+        self.holds.extend(built.reference);
+
+        Some((built.text, took))
+      }
+      Err(why) => {
+        eprintln!("chat {chat}: the words that came meanwhile could not be put in: {}", why.detail);
+        self.conversations.give_back_words(chat, took);
+
+        None
+      }
+    }
+  }
+
+  // Every message the process showed back to wait, as a stop cuts it off.
+  fn give_back_shown(&mut self) {
+    self.conversations.give_back_words(self.held.chat_id, std::mem::take(&mut self.shown));
+  }
+
+  // The messages shown to the round, as its answers marked them: those its message answers, those that need no
+  // answer and those answered in a round of their own. A message marked both ways is separate.
+  fn sorted(&self) -> (Vec<Inbound>, Vec<Inbound>, Vec<Inbound>) {
+    let marked = |mark: Mark, id: i64| self.marks.contains(&(mark, id));
+    let mut sorted = (vec![], vec![], vec![]);
+
+    for message in &self.shown {
+      let id = message.message_id;
+
+      if marked(Mark::Separate, id) {
+        sorted.2.push(message.clone());
+      } else if marked(Mark::Done, id) {
+        sorted.1.push(message.clone());
+      } else {
+        sorted.0.push(message.clone());
+      }
+    }
+
+    sorted
+  }
+
+  // What the process hands back: the text with what the last turn carried of the session, and the messages it was
+  // shown as their marks sort them.
+  fn made(&self, text: &str) -> Made {
+    let (took, done, separate) = self.sorted();
+
+    Made {
+      reply: Reply {
+        text: text.to_owned(),
+        ..self.latest.clone()
+      },
+      took,
+      done,
+      separate,
     }
   }
 }
@@ -369,37 +464,41 @@ impl Drafter {
     let plan = drafted.plan;
     let row = &plan.row;
     let count = plan.questions.len();
-    let (text, first_read) = read_answer(&drafted.reply.text);
-    let first = Reply {
-      text,
-      ..drafted.reply.clone()
-    };
     let mut run = Run {
       drafter: self,
       conversations,
       agent,
       held,
       drafted,
-      spoken: first.run.clone().into_iter().collect(),
+      spoken: drafted.reply.run.clone().into_iter().collect(),
       asked: plan.questions.first().map(|(_, text)| text.clone()).into_iter().collect(),
-      latest: first.clone(),
-      log: Log::new(receiver, drafted.round, chat, agent),
-      grown: (vec![], vec![]),
+      latest: drafted.reply.clone(),
+      log: Log::new(conversations, drafted.round, chat, agent),
+      shown: vec![],
+      holds: drafted.selection.entries.iter().map(|entry| entry.path.clone()).collect(),
+      marks: vec![],
+      only_marks: false,
+    };
+    let first_text = run.marked(&drafted.reply.text);
+    let (text, first_read) = read_answer(if first_text.is_empty() { SKIP } else { &first_text });
+    let first = Reply {
+      text,
+      ..drafted.reply.clone()
     };
     let (kind, name) = match plan.questions.first() {
       Some((name, _)) => (Kind::Question, name.as_str()),
       None => (Kind::Turn, "turn"),
     };
 
+    run.latest = first.clone();
     run.log.turn(kind, name, Some(&first.text), first_read, now_ms() - drafted.began).await;
 
     // The ceiling counts from the round's turn, which carried the first question.
     let ceiling_at = drafted.opened + plan.ceiling_ms.unwrap_or(i64::MAX / 2);
+    let past = |ceiling_at: i64| now_ms() >= ceiling_at;
     let mut message: Option<Reply> = None;
     let mut skipped = first_read == Answered::Skip;
     let mut ceiling = false;
-    let mut took: Vec<Inbound> = vec![];
-    let mut settling: Vec<i64> = vec![];
 
     // The first answer is the message where it sent one, or where the first question was the last or the turn
     // asked none; any other is notes.
@@ -411,7 +510,7 @@ impl Drafter {
 
     while message.is_none() && !skipped && at < count {
       // Past the ceiling no message stands before `final`: it is asked at once, or nothing goes out.
-      if !ceiling && now_ms() >= ceiling_at {
+      if !ceiling && past(ceiling_at) {
         ceiling = true;
 
         if plan.past_ceiling == PastCeiling::Skip {
@@ -429,62 +528,26 @@ impl Drafter {
 
       run.asked.push(text.clone());
 
-      if last {
-        took = conversations.meanwhile(chat, drafted.privileged);
+      // The room's words that waited since the last answer stand under this question.
+      let block = run.arrived().await;
 
-        if !took.is_empty() {
-          let holds: HashSet<String> =
-            drafted.selection.entries.iter().map(|entry| entry.path.clone()).collect();
-          let built = paragraph(&Push {
-            receiver,
-            agent,
-            owner,
-            chat_id: chat,
-            room: drafted.room,
-            round: drafted.round,
-            messages: &took,
-            instructions: &[],
-            events: &[],
-            holds: &holds,
-            consumed: held.last_consumed_id,
-            tools_allowed: drafted.tools_allowed,
-            reader: Some(receiver.roads()),
-          })
-          .await;
+      if let Some((text, _)) = &block {
+        words = format!("{words}\n\n{text}");
+      }
 
-          match built {
-            Ok(built) => words = format!("{words}\n\n{}", built.text),
-            Err(why) => {
-              eprintln!("chat {chat}: the words that came meanwhile could not be put in: {}", why.detail);
-              conversations.give_back_words(chat, std::mem::take(&mut took));
-            }
-          }
-        }
-
-        conversations.open_last(
-          chat,
-          drafted.round,
-          drafted.privileged,
-          drafted.tools_allowed,
-          took.clone(),
-        );
-      } else {
+      if !last {
         words = format!("{words}\n{}", waiting_line(&conversations.pending(chat)));
       }
 
       run.log.start(number, count, name);
 
-      let asked = run.ask(Kind::Question, name, &words, last.then_some(took.len())).await;
-
-      if last {
-        let (grown, settled) = std::mem::take(&mut run.grown);
-
-        took.extend(grown);
-        settling.extend(settled);
-      }
+      let asked = run.ask(Kind::Question, name, &words).await;
+      let block = block.map(|(_, took)| took).unwrap_or_default();
 
       match asked {
         Ok(Some((answer, read))) => {
+          run.shown.extend(block);
+
           // A wait is no message: the last question answering one sends nothing.
           if read == Answered::Skip || (last && is_wait(&answer.text)) {
             skipped = true;
@@ -496,8 +559,9 @@ impl Drafter {
           }
         }
         Ok(None) => {
+          conversations.give_back_words(chat, block);
+
           if last {
-            conversations.give_back_words(chat, std::mem::take(&mut took));
             break;
           }
 
@@ -506,9 +570,8 @@ impl Drafter {
           continue;
         }
         Err(failure) => {
-          if last {
-            conversations.give_back_words(chat, std::mem::take(&mut took));
-          }
+          conversations.give_back_words(chat, block);
+          run.give_back_shown();
 
           return Err(failure);
         }
@@ -517,30 +580,63 @@ impl Drafter {
       at += 1;
     }
 
-    let past = |ceiling_at: i64| now_ms() >= ceiling_at;
-    let owed = drafted.owed
-      + if chat == owner {
-        took.iter().filter(|message| message.sender_id == Some(owner)).count()
-      } else {
-        0
-      };
-
     if skipped {
       message = None;
     }
+
+    // Once the message stands, the room's words that waited since the last answer are shown in one closing check.
+    if let Some(standing) = &message
+      && !past(ceiling_at)
+      && let Some((block, took)) = run.arrived().await
+    {
+      let words = format!("{}\n{}\n\n{block}", DRAFTING.arrived, scope_line(drafted.scope));
+
+      match run.ask(Kind::Item, "arrived", &words).await {
+        Ok(Some((answer, read))) => {
+          run.shown.extend(took);
+
+          if read == Answered::Skip {
+            message = None;
+            skipped = true;
+          } else if is_wait(&answer.text) {
+            message = Some(standing.clone());
+          } else {
+            message = Some(answer);
+          }
+        }
+        Ok(None) => conversations.give_back_words(chat, took),
+        Err(failure) => {
+          conversations.give_back_words(chat, took);
+          run.give_back_shown();
+
+          return Err(failure);
+        }
+      }
+    }
+
+    let (answered, _, _) = run.sorted();
+    let owed = drafted.owed
+      + if chat == owner && !skipped {
+        answered.iter().filter(|message| message.sender_id == Some(owner)).count()
+      } else {
+        0
+      };
 
     // The owner's own chat is always answered: a process that ended with no message over the owner's words is
     // asked once more, whatever the time.
     if message.is_none() && owed > 0 {
       let errand = fill_marks(&SECOND_ASKS.errands.owed, &[("count", &owed.to_string())]);
 
-      if let Some((answer, read)) = run
-        .ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending), None)
-        .await?
-        && usable(&answer.text)
-        && read != Answered::Skip
-      {
-        message = Some(answer);
+      match run.ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending)).await {
+        Ok(Some((answer, read))) if usable(&answer.text) && read != Answered::Skip => {
+          message = Some(answer)
+        }
+        Ok(_) => {}
+        Err(failure) => {
+          run.give_back_shown();
+
+          return Err(failure);
+        }
       }
     }
 
@@ -549,7 +645,7 @@ impl Drafter {
 
       run.log.end(ended, row, now_ms() - drafted.began).await;
 
-      return Ok(made(&run.latest, SKIP, took, settling));
+      return Ok(run.made(SKIP));
     };
 
     // The items the code's readings call for.
@@ -568,7 +664,7 @@ impl Drafter {
           let set_one = drafted
             .batch
             .iter()
-            .chain(took.iter())
+            .chain(answered.iter())
             .any(|said| said.sender_id == Some(owner) && sets_rule_later(&said.text));
 
           (drafted.tools_allowed && set_one && !recorded(receiver, agent, &run.spoken, Some("rule")).await)
@@ -577,18 +673,25 @@ impl Drafter {
       };
       let Some(errand) = errand else { continue };
 
-      if let Some((answer, read)) = run
-        .ask(Kind::Item, item.word(), &words(&errand, drafted.scope, &drafted.pending), None)
-        .await?
-      {
-        if read == Answered::Skip {
-          run.log.end(Ended::Skip, row, now_ms() - drafted.began).await;
+      let asked = run.ask(Kind::Item, item.word(), &words(&errand, drafted.scope, &drafted.pending)).await;
 
-          return Ok(made(&run.latest, SKIP, took, settling));
+      match asked {
+        Ok(Some((answer, read))) => {
+          if read == Answered::Skip {
+            run.log.end(Ended::Skip, row, now_ms() - drafted.began).await;
+
+            return Ok(run.made(SKIP));
+          }
+
+          if usable(&answer.text) {
+            message = answer;
+          }
         }
+        Ok(None) => {}
+        Err(failure) => {
+          run.give_back_shown();
 
-        if usable(&answer.text) {
-          message = answer;
+          return Err(failure);
         }
       }
     }
@@ -621,7 +724,7 @@ impl Drafter {
           .end(Ended::Withheld, &format!("{row}; {}", names.join(", ")), now_ms() - drafted.began)
           .await;
 
-        return Ok(made(&run.latest, SKIP, took, settling));
+        return Ok(run.made(SKIP));
       }
 
       for check in failed {
@@ -629,18 +732,27 @@ impl Drafter {
 
         asked.insert(check);
 
-        if let Some((answer, read)) = run
-          .ask(Kind::Check, check.word(), &words(&errand, drafted.scope, &drafted.pending), None)
-          .await?
-        {
-          if read == Answered::Skip {
-            run.log.end(Ended::Skip, row, now_ms() - drafted.began).await;
+        let answered = run
+          .ask(Kind::Check, check.word(), &words(&errand, drafted.scope, &drafted.pending))
+          .await;
 
-            return Ok(made(&run.latest, SKIP, took, settling));
+        match answered {
+          Ok(Some((answer, read))) => {
+            if read == Answered::Skip {
+              run.log.end(Ended::Skip, row, now_ms() - drafted.began).await;
+
+              return Ok(run.made(SKIP));
+            }
+
+            if !is_wait(&answer.text) {
+              message = answer;
+            }
           }
+          Ok(None) => {}
+          Err(failure) => {
+            run.give_back_shown();
 
-          if !is_wait(&answer.text) {
-            message = answer;
+            return Err(failure);
           }
         }
       }
@@ -650,20 +762,7 @@ impl Drafter {
 
     run.log.end(ended, row, now_ms() - drafted.began).await;
 
-    Ok(made(&run.latest, &message.text, took, settling))
-  }
-}
-
-// What the process hands back: the text with what the last turn carried of the session, the words the last
-// question took and the rows its pushes settled.
-fn made(latest: &Reply, text: &str, took: Vec<Inbound>, settling: Vec<i64>) -> Made {
-  Made {
-    reply: Reply {
-      text: text.to_owned(),
-      ..latest.clone()
-    },
-    took,
-    settling,
+    Ok(run.made(&message.text))
   }
 }
 

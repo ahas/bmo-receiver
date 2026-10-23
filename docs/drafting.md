@@ -31,11 +31,12 @@ leaves.
   tool the round's turn has is open in every question: reading and writing memories, searching, filing a job,
   `say`. A question to read more is answered by reading; a question whether a promise was kept is answered by
   keeping it.
-- **The receiver reads three things of an answer and nothing else:** `<<SKIP>>` standing in it outside a code
+- **The receiver reads four things of an answer and nothing else:** `<<SKIP>>` standing in it outside a code
   span or fence, which ends the process in any round with nothing sent; `<<SEND>>` opening it, which makes what
   follows the marker the message in any round and ends the questions there, so a greeting or a question already
-  answerable pays no further round; and the answer itself. A skip anywhere in an answer wins over a send that
-  opens it, and a send with nothing after it is a skip.
+  answerable pays no further round; the marks `<<DONE #<number>>>` and `<<SEPARATE #<number>>>` on a message shown
+  to the round (「What came in meanwhile」 below); and the answer itself. A skip anywhere in an answer wins over a
+  send that opens it, and a send with nothing after it is a skip.
 - **A round whose first answer is `<<WAIT>>` runs no further process:** the wait stands as `docs/wake.md`,
   「Waiting」, says, and the round that takes the waited words opens the process again.
 - **A companion's round runs no process:** it is its own turn (`docs/wake.md`, 「A companion's round」). A console
@@ -43,31 +44,33 @@ leaves.
 
 ## The questions
 
-- **The questions are a catalogue, by name,** each a text the session is asked. The policy holds six, in the words
-  the owner wrote them and in the owner's language, and the console changes any text or adds a question under a
-  new name (「The routes」 below):
+- **The questions are a catalogue, by name,** each a text the session is asked. The policy holds seven, in English
+  as every line an agent reads, each a rule with no sentence for the agent to copy, and the console changes any
+  text or adds a question under a new name (「The routes」 below):
 
 | Name | What it asks |
 |---|---|
 | `intent` | why the words were said and what the speaker wants; whether to answer is the pregate's reading, so this asks the reason |
 | `information` | what the message needs to know and what more must be read; where the selected reference falls short, read |
 | `facts` | whether what the message rests on is true; nothing undecided spoken of as known, no variable guessed |
+| `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved |
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
 | `fit` | whether the message fits the room's rules, the persona and the language the other person speaks |
 | `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, or send nothing; always the last |
 
 - **The first question rides the round's own turn:** the room's words and the round's closing lines as the window
   composes them, the closing lines saying that the question below is to be answered, then the question's opening
-  and the question. The opening is the owner's, in the owner's language: the place and count of the question, the
+  and the question. The opening is the policy's: the place and count of the question, the
   first question's freedom and the confidence rule above, the notes an answer is, and the two markers. Where the
   first question is the last, as a light turn's `final` is, it opens on the last question's line instead and
   its answer is the message, so the round is one turn.
 - **Every later question goes out as one more turn** opening on the process's lead line, naming the question's
   place and count, that the answer is notes, that the facts established go to the brain, that the message is
-  written last, the two markers and that nothing is hedged; then the question; then the turn's scope. Every
-  question but the last closes on the messages waiting and that they are shown with the last question; the last
-  opens on its own line, that its answer is the message, and carries the waiting messages instead (「What came
-  in meanwhile」 below). The lines are the policy's (`drafting.toml`).
+  written last, the two markers, that nothing is hedged, and the two marks a message that arrived meanwhile takes;
+  then the question; then the turn's scope; then the block of messages that arrived since the last answer, where
+  any did (「What came in meanwhile」 below). Every question but the last closes on the messages still waiting and
+  that they are shown with the next question; the last opens on its own line, that its answer is the message, and
+  names the marks the same way. The lines are the policy's (`drafting.toml`).
 - **No gate is asked for a later question:** the turn carries the round's own selection again, its documents
   marks by now, and no reference is selected and no judgement written for it.
 
@@ -81,7 +84,8 @@ leaves.
   - `ceilingSeconds`, the time the whole process may take (「Time」 below);
   - `pastCeiling`, `send` or `skip`: what becomes of the turn once the ceiling has passed.
 - **The policy's rows are the defaults** (`drafting.toml`): any provider, `intent`, `information`, `facts`,
-  `promises` and `final`, the small models' process; Claude's provider, `information`, `promises` and `final`;
+  `memory`, `promises` and `final`, the small models' process; Claude's provider, `information`, `memory`,
+  `promises` and `final`;
   every light turn `final` alone; 150 seconds, past which `final` is asked at once; 12 characters for a light
   turn.
 - **The console's rows stand over them** (「The routes」 below): a row set for a key the policy also holds takes its
@@ -104,17 +108,36 @@ leaves.
 
 ## What came in meanwhile
 
-- **Words that come into the room while the round's own turn works are pushed into it,** as into any working
-  turn (`docs/bmo-window.md`, `push`).
-- **Words that come while a later question works are not pushed into it:** they wait in the room's buffer as
-  words wait between rounds.
-- **The last question takes them,** as one block composed the way words pushed into a working turn are: the window
-  selects for what the round does not already hold, and the block says what arrived and that this same answer
-  takes them in. In a round that read only the owner's words, the block takes the waiting words only where they
-  are all the owner's, as a push does.
-- **What the last question took is the round's own** from then on: the read mark moves to it, the owner's words
-  among it are owed an answer, and the answer is pinned to the newest of it. Words that come while the last
-  question works are pushed into it, as into any working turn; words that come after it wait for the next round.
+- **No room message goes into a turn of the process while it works.** From the round's own turn to the process's
+  end, words that come into the room wait in the room's buffer. The push into a working turn
+  (`docs/bmo-window.md`, `push`) carries only what is no room message, a quiet instruction such as one the owner
+  types on the console; a room's words pushed in would reach the session after whatever tool call is running and
+  mix into the answer of the question under way.
+- **The words reach the agent at a question boundary alone.** Each time an answer of the process comes back, the
+  receiver takes what waited since its last look and puts it under the next question as one block, composed the
+  way a push's words are: the window selects for what the round does not already hold, and each message stands
+  with its number. In a round that read only the owner's words, the block takes the waiting words only where they
+  are all the owner's; the others wait for the next round.
+- **Once the message stands, one closing check.** Where words waited when the message came to stand — the answer
+  to `final`, or one a send marker opened — the session is asked once more before the items and the checks: the
+  policy's `arrived` line, then the block. Its answer, marks taken out, is the message; an answer that is nothing
+  but marks leaves the message as it stood, a wait leaves it too, and a skip sends nothing. The check is not asked
+  past the ceiling, nor where the process came to nothing to send: those words wait for the next round.
+- **The agent decides each message it was shown, by mark:**
+  - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, the
+    owner's words among it are owed an answer, and the answer is pinned to the newest of them;
+  - `<<DONE #<number>>>`: it needs no answer: the read mark moves past it, nothing is sent for it and nothing is
+    owed it;
+  - `<<SEPARATE #<number>>>`: it is answered in a round of its own: once the round's message is made it goes back
+    to the front of what waits, and the round after takes it with a pregate of its own.
+
+  A mark counts in any answer of the process, outside a code span or fence, and only for a message shown to the
+  round; a message marked both ways is separate. Marks are taken out of an answer before anything else reads it,
+  and never reach the room.
+- **Nothing else opens a round for a message shown inside a round.** Words that come after the closing check, or
+  while an item or a check works, were shown to nobody and open the next round.
+- **A turn whose run failed showed nothing:** the block it carried goes back to wait, and a process that is
+  stopped gives back every block it showed.
 
 ## Time
 
@@ -124,7 +147,7 @@ leaves.
 - **Before `final` has run, no message stands:** an answer before the last is notes.
 - **Past the ceiling, `send` asks `final` at once:** one last question, the notes already in the session, its
   answer the message. `skip` sends nothing. A process that already has its message, from `final` or from a send
-  marker, is not touched by the ceiling but for the items and checks below.
+  marker, is not touched by the ceiling but for the closing check, the items and the checks below.
 - **A later question whose run failed** is passed over to `final`, asked at once; a `final` whose run failed
   leaves no message, and the round ends as a skip.
 - **Past the ceiling, no item or check is asked again** (below): the checks still read the message, and one that
@@ -134,8 +157,9 @@ leaves.
 ## The items after the message
 
 The code's own readings of the message are items of the process, asked once the message stands (the last
-question's answer, or the answer a send marker opened), each asked once as one more turn of the same session,
-its answer the message where it says something: neither empty nor a skip nor a wait.
+question's answer, or the answer a send marker opened) and after the closing check where one was asked
+(「What came in meanwhile」 above), each asked once as one more turn of the same session, its answer the message
+where it says something: neither empty nor a skip nor a wait.
 
 - **`owed`:** where the process ended with no message and the round read the owner's own words in the owner's
   own chat, the session is asked once more with the silence withdrawn (`docs/wake.md`, 「The owner's own chat is
@@ -181,7 +205,7 @@ its answer the message where it says something: neither empty nor a skip nor a w
 - **The round's own turn is the first question's row:** number 1, of kind `question`, named for the row's first
   question, its time counted from the round's start. Its kind is `turn` only where the row's list is empty and
   the turn asked no question, its answer being the message.
-- **The kinds are `turn`, `question`, `item`, `check` and `end`.** A turn's row ends `answered`, `send` where its
+- **The kinds are `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
   answer opened on `<<SEND>>` and became the message, `skip` or `failed`.
 - **The process's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where
   nothing does, `withheld` where a check failed twice, `ceiling-message` where the ceiling had `final` asked at

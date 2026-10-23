@@ -35,6 +35,7 @@ use crate::Fault;
 use crate::companion::turn::Turn as CompanionTurn;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver, Room, rows, wake};
+use crate::roads::Road;
 use crate::rounds;
 use crate::{one, run};
 use receiver_codes::SessionReason;
@@ -200,12 +201,16 @@ pub struct Drafted<'a> {
 }
 
 /// What the draft process made: the message, a skip where nothing goes out, with what the last turn carried of
-/// the session; the words the last question took from the room, which are the round's own from then on; and the
-/// rows the words pushed into the last question settled.
+/// the session; and the room's words that arrived meanwhile and were shown to it, as the agent's marks sort them
+/// (docs/drafting.md, 「What came in meanwhile」).
 pub struct Made {
   pub reply: Reply,
+  /// The messages shown to the round that its message answers.
   pub took: Vec<Inbound>,
-  pub settling: Vec<i64>,
+  /// The messages shown to the round that the agent marked as needing no answer.
+  pub done: Vec<Inbound>,
+  /// The messages shown to the round that the agent marked to be answered in a round of their own.
+  pub separate: Vec<Inbound>,
 }
 
 /// What makes a round's message (docs/drafting.md): the process a round opens before its turn goes out, whose
@@ -388,12 +393,11 @@ struct Conv {
   carried: Option<Carried>,
 }
 
-// The round a conversation is running, as the words pushed into its working turn grow it: every message it
+// The round a conversation is running, as what is pushed into its working turn grows it: every message it
 // carries, the instructions it took with their roads and rows, the paragraphs pushed and the instructions among
 // them as the session read them, what it holds by path, and whether its turn still takes more.
 pub struct Carried {
   round: String,
-  privileged: bool,
   tools_allowed: bool,
   messages: Vec<Inbound>,
   roads: Vec<String>,
@@ -524,7 +528,7 @@ struct State {
   woken: HashMap<i64, String>,
   // Every fold running now, by room.
   folding: HashSet<i64>,
-  // The speaker each room's turns are shown as, where the agent is not the room's default answerer.
+  // The speaker each room's turns are shown as: the agent's name and the number its words are filed under there.
   speakers: HashMap<i64, Value>,
   // The agent's own runs going now, by name with the room each runs for, which a reset or a room's removal
   // stands its cancellation over.
@@ -602,7 +606,7 @@ impl Conversations {
     Self(Arc::new(Inner {
       agent: agent.to_owned(),
       carrying: Arc::new(Carry::looking_every(receiver.clone(), timings.look)),
-      drafting: Arc::new(Drafter::new(receiver.clone(), timings.look)),
+      drafting: Arc::new(Drafter::new(receiver.clone())),
       sending: Arc::new(Sender::new(receiver.clone())),
       noting: Arc::new(Noter::new(receiver.clone())),
       pieces: Arc::new(CompanionTurn),
@@ -634,8 +638,8 @@ impl Conversations {
     self.0.receiver.owner_id()
   }
 
-  // Every event of a room goes out as the agent's own: under the speaker its turns there are shown as.
-  fn publish(&self, event: Value) {
+  /// Every event of a room goes out as the agent's own: under the speaker its turns there are shown as.
+  pub(crate) fn publish(&self, event: Value) {
     let speaker = event
       .get("chatId")
       .and_then(Value::as_i64)
@@ -644,16 +648,11 @@ impl Conversations {
     self.0.receiver.news().publish(&told_as(event, speaker));
   }
 
-  async fn speaker_in(&self, chat_id: i64) -> Option<Value> {
-    let speaker = self.0.receiver.roads().identity_in(chat_id).await;
-    let mut state = self.state();
+  // The speaker the agent's turns in a room are shown as, read again as each turn begins.
+  async fn speaker_in(&self, chat_id: i64) {
+    let speaker = speaker(&self.0.receiver, self.agent(), chat_id).await;
 
-    match &speaker {
-      Some(speaker) => state.speakers.insert(chat_id, json!({ "id": speaker })),
-      None => state.speakers.remove(&chat_id),
-    };
-
-    speaker.map(|id| json!({ "id": id }))
+    self.state().speakers.insert(chat_id, speaker);
   }
 
   /// Waits until no round holds the session's turn: a round ends after it stops counting as in flight, with what it
@@ -1282,7 +1281,8 @@ impl Conversations {
       conv.in_flight = true;
     }
 
-    // A turn of any agent but the room's default answerer is shown as that agent's, from whatever it comes to.
+    // Every turn is shown as its agent's, from whatever it comes to: the default answerer as the room's own voice,
+    // any other agent under the number its words are filed under.
     self.speaker_in(chat_id).await;
 
     if self.silenced(chat_id).await {
@@ -1602,7 +1602,6 @@ impl Conversations {
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.carried = Some(Carried {
         round: round.to_owned(),
-        privileged: held.all_from_owner,
         tools_allowed,
         messages: batch.clone(),
         roads: roads.clone(),
@@ -1633,15 +1632,7 @@ impl Conversations {
 
     // The first question is told as it starts, as every later one is.
     if let Some((question, _)) = plan.questions.first() {
-      super::draft::log::tell_start(
-        &receiver,
-        round,
-        chat_id,
-        self.agent(),
-        1,
-        plan.questions.len(),
-        question,
-      );
+      super::draft::log::tell_start(self, round, chat_id, self.agent(), 1, plan.questions.len(), question);
     }
 
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
@@ -1747,13 +1738,18 @@ impl Conversations {
       .await?;
 
     reply = made.reply;
-    record.settling.extend(made.settling);
 
-    // The words the last question took are the round's own: the read mark moves to them and the answer is pinned
-    // to the newest.
-    if !made.took.is_empty() {
+    // A message marked to be answered on its own goes back to wait, and opens the round after this one.
+    self.give_back_words(chat_id, made.separate);
+
+    // The words shown to the process are the round's own: the read mark moves past those marked done and to those
+    // the message answers, and the answer is pinned to the newest of them.
+    if !made.took.is_empty() || !made.done.is_empty() {
+      let read: Vec<Inbound> =
+        made.done.into_iter().chain(batch.iter().cloned()).chain(made.took.clone()).collect();
+
       batch.extend(made.took);
-      self.consume(chat_id, &batch).await;
+      self.consume(chat_id, &read).await;
       held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
     }
 
@@ -1911,19 +1907,13 @@ impl Conversations {
     };
 
     if let Some(sent) = sent {
-      let mut event = json!({
+      self.publish(json!({
         "type": "sent",
         "chatId": chat_id,
         "messageId": sent.message_id,
         "detail": sent.text,
         "round": round,
-      });
-
-      if let Some(speaker) = self.state().speakers.get(&chat_id).cloned() {
-        event["speaker"] = speaker;
-      }
-
-      self.publish(event);
+      }));
       self.hand_filed(chat_id, sent.message_id, via, room).await;
     }
 
@@ -1942,8 +1932,8 @@ impl Conversations {
     self.pump_pending(chat_id);
   }
 
-  /// The words that came into a room while its round's draft process ran, taken for the process's last question:
-  /// into a round that read only the owner's words, only words that are all the owner's.
+  /// The words that came into a room while its round's draft process ran, taken for the process's next question or
+  /// its closing check: into a round that read only the owner's words, only words that are all the owner's.
   pub fn meanwhile(&self, chat_id: i64, privileged: bool) -> Vec<Inbound> {
     let owner = self.owner();
     let mut state = self.state();
@@ -1955,48 +1945,10 @@ impl Conversations {
     if keeps { std::mem::take(&mut conv.buffer) } else { vec![] }
   }
 
-  /// Words the last question took and did not answer for, back at the front of what waits.
+  /// Words the process showed and did not answer for, back at the front of what waits.
   pub fn give_back_words(&self, chat_id: i64, words: Vec<Inbound>) {
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.buffer.splice(0..0, words);
-    }
-  }
-
-  /// The last question of a round's draft process takes words pushed into it while it works, as the round's turn
-  /// does: the round it belongs to, whether it read only the owner's words, whether its tools are on, and the
-  /// words it carries already.
-  pub fn open_last(
-    &self,
-    chat_id: i64,
-    round: &str,
-    privileged: bool,
-    tools_allowed: bool,
-    messages: Vec<Inbound>,
-  ) {
-    if let Some(conv) = self.state().active.get_mut(&chat_id) {
-      conv.carried = Some(Carried {
-        round: round.to_owned(),
-        privileged,
-        tools_allowed,
-        messages,
-        roads: vec![],
-        settling: vec![],
-        pushed: vec![],
-        pushed_instructions: vec![],
-        holds: HashSet::new(),
-        open: true,
-        shut: false,
-        pushing: false,
-      });
-    }
-  }
-
-  /// The last question's turn is over, as its follower saw it: the words pushed into it past the `carried` it
-  /// began with, and the rows those pushes settled. Words offered and never answered for go back to wait.
-  pub fn close_last(follower: &Follower, carried: usize) -> (Vec<Inbound>, Vec<i64>) {
-    match follower.finish() {
-      Some(last) => (last.messages[carried.min(last.messages.len())..].to_vec(), last.settling),
-      None => (vec![], vec![]),
     }
   }
 
@@ -2408,8 +2360,9 @@ impl Follower {
     self.offered.lock().unwrap_or_else(PoisonError::into_inner)
   }
 
-  // What the room queue delivered while the turn works, taken where the round's turn still takes words: into a
-  // privileged round, only messages that are all the owner's. Instructions take the same road.
+  // The quiet instructions delivered while the turn works, taken where the round's turn still takes them. A room's
+  // words are never pushed: they wait in the room's buffer for the round's next question (docs/drafting.md, 「What
+  // came in meanwhile」).
   pub async fn offer(&self) -> Option<String> {
     let chat_id = self.chat_id;
     let conversations = &self.conversations;
@@ -2423,8 +2376,7 @@ impl Follower {
         return None;
       }
 
-      let keeps = !carried.privileged || conv.buffer.iter().all(|message| message.sender_id == Some(owner));
-      let messages = if keeps { std::mem::take(&mut conv.buffer) } else { vec![] };
+      let messages: Vec<Inbound> = vec![];
       let instructions = std::mem::take(&mut conv.instructions);
       let ids = std::mem::take(&mut conv.instruction_ids);
       let roads = std::mem::take(&mut conv.instruction_roads);
@@ -2642,16 +2594,59 @@ fn held_person(message: &Inbound) -> i64 {
   message.sender_id.unwrap_or(message.chat_id)
 }
 
-// Every event of a room goes out as the agent's own: under the speaker its turns there are shown as, unless the
-// event already names its own.
+/// Every event of a room goes out as the agent's own: under the speaker its turns there are shown as, unless the
+/// event already names its own.
 pub fn told_as(mut event: Value, speaker: Option<Value>) -> Value {
-  let named = event.get("type").and_then(Value::as_str) == Some("sent") || event.get("speaker").is_some();
-
-  if !named && let Some(speaker) = speaker {
-    event["speaker"] = speaker.clone();
+  if event.get("speaker").is_none()
+    && let Some(speaker) = speaker
+  {
+    event["speaker"] = speaker;
   }
 
   event
+}
+
+/// Who an agent's turns in a room are shown as (docs/api.md, 「Events and the live board」): `{id, name}`, its
+/// registration name and the number its words are filed under there — the room's own identity for the default
+/// answerer, the number the room's road or else the record gave any other agent — or a null number where the room
+/// gives it none.
+pub async fn speaker(receiver: &Receiver, agent: &str, chat_id: i64) -> Value {
+  let roads = receiver.roads();
+  let identity = roads.identity_in(chat_id).await;
+  let designated = designated(receiver, agent).await;
+  let tried = roads.room_road(chat_id).await.into_iter().chain([Road::Record.key().to_owned()]);
+  let mut id = None;
+
+  for road in tried {
+    id = wake::agents::own_number(receiver, &designated, &road, identity).await.ok().flatten();
+
+    if id.is_some() {
+      break;
+    }
+  }
+
+  json!({ "id": id, "name": agent })
+}
+
+// The agent as the wake judges it: the default answerer known as such whether or not a registration marks it, and
+// where the agency does not answer, the deployment's own agent taken for it.
+async fn designated(receiver: &Receiver, agent: &str) -> wake::agents::Designated {
+  if let Ok(default) = wake::agents::default_designated(receiver).await
+    && default.name == agent
+  {
+    return default;
+  }
+
+  match wake::agents::registered(receiver, agent).await {
+    Ok(Some(designated)) => designated,
+    _ => wake::agents::Designated {
+      name: agent.to_owned(),
+      call_names: Vec::new(),
+      window_seconds: None,
+      default_answerer: agent == receiver.deployment().agent,
+      kind: None,
+    },
+  }
 }
 
 // The room's screens told that its conversation is waiting on what it read, and nothing more has come.

@@ -29,6 +29,8 @@ pub struct Drafting {
   pub lead: String,
   pub last_lead: String,
   pub waiting: String,
+  /// The closing check's opening, asked once the message stands where messages arrived after the last question.
+  pub arrived: String,
   /// The questions, by name.
   pub questions: BTreeMap<String, String>,
   pub process: Vec<Process>,

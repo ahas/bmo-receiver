@@ -55,7 +55,8 @@ is written.
 | A room's words, any chat service | the chat service's hand-over | room queue | `round` | opens | — |
 | The owner's words from the web console | the console's chat service | room queue | `round` | opens | — |
 | Unread words at start-up | backlog | room queue | `round` | opens | — |
-| Words arriving while a turn works | room queue, instruction pass | either | `push` | joins the working one | the pushed rows' |
+| A quiet instruction arriving while a turn works | instruction pass | instruction table | `push` | joins the working one | the pushed rows' |
+| A room's words arriving while a round runs | room queue | room queue | `question` | under the round's next question or its closing check (`docs/drafting.md`, 「What came in meanwhile」) | — |
 | A job's ending, its report and state facts | bmo-job | instruction table | `round` | opens | `job-ended` |
 | A work order's held, resuming, stalled, stopped and paused stages | bmo-job | instruction table | `round` | opens | — |
 | A job quiet for five minutes | bmo-job | instruction table | `round` | opens | — |
@@ -180,24 +181,28 @@ round.
 
 ## What every turn carries
 
-Every opening is handed the same composition, whatever brought it. The receiver hands the gate the turn's
-envelope (`POST /reference/selected`) and the gate chooses what of the brain's material it is handed:
+Every opening is composed the same way, whatever brought it. The receiver hands the gate the turn's envelope
+(`POST /reference/selected`, `docs/boundary-api.md`, 「The gate」) and puts in the turn what the gate answers;
+which of the brain's material that is, is the gate's decision alone (the gate's `docs/reference-selection.md`).
 
-- **The room's memories**: every standing row of the room that is the agent's own, including an errand whose
-  event has come. Rows of another agent in the same room are never its.
-- **The situation matcher's rules**, of the agent's own condition rows alone; the matcher is asked on every
-  turn, over the room's recent messages and every line this turn brought: a quiet instruction's text is one of
-  those lines.
-- **The rows its events wake**: a row of the agent's own waiting on an event this turn carries attaches, with no
-  model asked.
-- **The reference gates' picks**, from the agent's own rows and those marked for every agent; the gates read this
-  turn's lines: the room's new words, the instructions' text, the words of a console talk. A turn with no line
-  at all asks no gate and still carries the memories and the matcher's rules. Words pushed into a working round
-  are selected for only what the round does not hold yet (`push` below).
-- **The standing sheets** of the people who spoke.
-- **Whether anybody spoke**: one test, kept beside the turn's shape: a message of anyone but the agent, or words
-  handed in from the console. A turn it answers no to brought the system's own lines alone: a notice turn. The
-  reference gates read it.
+- **What the receiver hands the gate:**
+  - the room, and the message the turn stands under;
+  - the turn's lines: the room's new words, each as its sender and text, each quiet instruction's text as a
+    line of the agent's own, and the words of a console talk. A turn with no line at all hands none;
+  - the numbers of the people who spoke this turn;
+  - the situation: the turn's agent, the room's kind, the events the turn carries and the moment it is asked;
+  - for what a round puts into its turns after its own — a push, or the words a later question carries — what
+    the round already holds, so nothing it carries is handed again (「The openings」 below), and the round the
+    turn belongs to;
+  - whether anybody spoke: one test, kept beside the turn's shape: a message of anyone but the agent, or words
+    handed in from the console. A turn it answers no to brought the system's own lines alone: a notice turn;
+  - what the turn answered already, where it is asked again, the gates switched off for the agent, and whether
+    the turn's road records its gates.
+- **What the gate decides:** the entries the turn carries, all of the turn's agent's own and of rows marked for
+  every agent, never another agent's. Nothing of a room attaches for standing there: the gate attaches the head
+  of the standing sheet of each person who spoke, the room's errands whose event has come, and the rows the turn's
+  events wake, and of everything else — the room's rules, its other memories and the brain's references — only
+  what it picks for the turn. A turn with no line at all still carries what attaches without a pick.
 
 All of it goes in the one reference block, loaded in full once per session per version and as a mark after
 that; which versions a session holds is the agency's record of the session's loads
@@ -217,19 +222,19 @@ Beside the reference, a turn carries the room's messages since the agent last an
 
 - **`round`**: a room's words, its quiet instructions, or both. The window selects over the batch and the
   instructions, with the instructions' events.
-- **`push`**: words put into a turn that is still working. The window selects over the pushed words and
-  instructions, with their events, for what the round does not already hold: no gate is offered a piece the
+- **`push`**: quiet instructions put into a turn that is still working; a room's words are never pushed, and
+  wait for the round's next question instead. The window selects over the pushed instructions, with their
+  events, for what the round does not already hold: no gate is offered a piece the
   round carries, and a push of the system's lines alone asks only the matcher. It puts in whatever the running
   turn does not already carry, and that joins what the round holds once the agency's session push answers it
   `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
   the first, which rides the round's own turn, an item or a check. It carries the round's own selection again; the documents have just gone in, so they stand as marks.
-  No gate selects for it; the process's last question carries the words that came in meanwhile, selected for as
-  a push's are.
+  No gate selects for it but over the room's words that came in meanwhile: a question, or the closing check
+  once the message stands, carries those as one block, selected for as a push's are.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
-- **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It carries the memories and
-  the matcher's rules like any turn, so a row that has come due while the room was quiet is in front of the
-  agent. Its answer goes to no room: what is due is done with tools, `say` for speaking.
+- **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It is composed like any turn,
+  so a row that has come due while the room was quiet is in front of the agent. Its answer goes to no room: what is due is done with tools, `say` for speaking.
 - **`nap`**: the one line before a fold, asked with the tools off.
 
 ## The touch

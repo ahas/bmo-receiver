@@ -1,17 +1,19 @@
 //! The round log of the draft process (docs/drafting.md, 「The round log」): a row for every turn of a round's
-//! process and one for its end, each told on the event stream as it is written, and read back by round.
+//! process and one for its end, each told on the event stream as it is written, under the turn's speaker, and
+//! read back by round.
 
 use sea_orm::{ConnectionTrait, QueryResult};
 use serde_json::{Value, json};
 
+use crate::chat::conversation::Conversations;
 use crate::receiver::Receiver;
 use crate::store::Fault;
 use crate::{all, now_ms, run};
 
 /// A question of the process told as it starts, before its answer (docs/drafting.md, 「The round log」): its
-/// place, how many questions the process asks and its name. It is no row of the log.
+/// place, how many questions the process asks and its name, told as the agent's own. It is no row of the log.
 pub fn tell_start(
-  receiver: &Receiver,
+  conversations: &Conversations,
   round: &str,
   chat_id: i64,
   agent: &str,
@@ -29,7 +31,7 @@ pub fn tell_start(
     "at": now_ms(),
   });
 
-  receiver.news().publish(&crate::events::draft(chat_id, &member));
+  conversations.publish(crate::events::draft(chat_id, &member));
 }
 
 /// What a row of the log is a row of.
@@ -102,9 +104,11 @@ impl Ended {
   }
 }
 
-/// The log of one round's process as it is written: the round, the room and the agent, the number the next row
-/// takes, counted from 1, and the answer the last turn gave, which the next is compared with.
+/// The log of one round's process as it is written: the round, the room and the agent, whose conversations tell
+/// each row, the number the next row takes, counted from 1, and the answer the last turn gave, which the next is
+/// compared with.
 pub struct Log {
+  conversations: Conversations,
   receiver: Receiver,
   round: String,
   chat_id: i64,
@@ -114,9 +118,10 @@ pub struct Log {
 }
 
 impl Log {
-  pub fn new(receiver: &Receiver, round: &str, chat_id: i64, agent: &str) -> Self {
+  pub fn new(conversations: &Conversations, round: &str, chat_id: i64, agent: &str) -> Self {
     Log {
-      receiver: receiver.clone(),
+      conversations: conversations.clone(),
+      receiver: conversations.receiver(),
       round: round.to_owned(),
       chat_id,
       agent: agent.to_owned(),
@@ -127,7 +132,7 @@ impl Log {
 
   /// A question of the process told as it starts.
   pub fn start(&self, number: usize, count: usize, question: &str) {
-    tell_start(&self.receiver, &self.round, self.chat_id, &self.agent, number, count, question);
+    tell_start(&self.conversations, &self.round, self.chat_id, &self.agent, number, count, question);
   }
 
   /// A turn of the process written down: its kind, its question, its answer where it gave one, how it ended
@@ -215,7 +220,7 @@ impl Log {
       "at": at,
     });
 
-    self.receiver.news().publish(&crate::events::draft(self.chat_id, &member));
+    self.conversations.publish(crate::events::draft(self.chat_id, &member));
   }
 }
 

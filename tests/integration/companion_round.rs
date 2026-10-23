@@ -365,3 +365,31 @@ async fn a_cut_off_lets_go_unread_what_waited_for_the_companions_turns() {
   assert_eq!(rounds.session.prompts().len(), 1, "what waited calls no turn");
   assert!(rounds.sent().is_empty(), "the overtaken turn answers nothing");
 }
+
+#[tokio::test]
+async fn every_event_of_a_companion_s_round_names_it_under_its_own_number() {
+  let rounds = Rounds::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  bmo_receiver::run(
+    rounds.standing.receiver.db(),
+    r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ('road-a', $1, 31)"#,
+    vec![COMPANION.into()],
+  )
+  .await
+  .unwrap();
+  rounds.hear(1, FIRST).await;
+  until("the turn", || !rounds.session.prompts().is_empty()).await;
+  rounds.settled().await;
+
+  let speaker = json!({ "id": 31, "name": COMPANION });
+
+  for kind in ["run-started", "sent"] {
+    let events = rounds.standing.heard.events(kind);
+
+    assert!(!events.is_empty(), "the round tells {kind}");
+
+    for event in events {
+      assert_eq!(event["speaker"], speaker, "{kind} names the companion by its name and its own number");
+    }
+  }
+}

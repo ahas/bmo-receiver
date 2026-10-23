@@ -33,3 +33,23 @@ fn a_marker_standing_as_text_goes_and_a_quoted_one_stays() {
     "```\n<<SKIP>>\n```\nafter",
   );
 }
+
+#[test]
+fn a_round_mark_counts_outside_code_and_never_reaches_the_room() {
+  use bmo_receiver::chat::sentinels::{Mark, round_marks, without_round_marks};
+
+  let answer = "<<DONE #12>> The message. <<SEPARATE #13>> Quoted: `<<DONE #14>>`";
+
+  assert_eq!(round_marks(answer), [(Mark::Done, 12), (Mark::Separate, 13)]);
+  assert_eq!(without_control_markers("Hello <<DONE #12>>"), "Hello");
+  assert_eq!(without_round_marks("<<SEPARATE #3>>"), "");
+}
+
+#[test]
+fn a_verdict_carries_the_words_without_their_markers() {
+  use bmo_receiver::chat::turnover::verdict_of;
+
+  assert_eq!(verdict_of("<<SEND>>Right, it is done."), "REPLY: Right, it is done.");
+  assert_eq!(verdict_of("<<SEND>>"), "SKIP");
+  assert_eq!(verdict_of("<<SKIP>>"), "SKIP");
+}
