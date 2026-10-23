@@ -176,8 +176,6 @@ pub struct Turn {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub base_persona: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub privileged: Option<bool>,
   /// The messages the turn answers.
   #[serde(default, skip_serializing_if = "Vec::is_empty")]

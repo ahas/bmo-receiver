@@ -72,7 +72,6 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
       mark: "m".to_owned(),
     }),
     via: None,
-    base_persona: None,
     privileged: Some(true),
     answers: vec![11],
     began: Some(1_000),

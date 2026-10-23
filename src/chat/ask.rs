@@ -27,7 +27,7 @@ use super::conversation::{
   Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
 };
 use super::progress::{RunProgress, picture_of};
-use super::room::{RoomContext, Trees, base_persona, room_context};
+use super::room::{RoomContext, room_context};
 use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::room_record::RoomForget;
@@ -116,13 +116,7 @@ pub fn scope_of(unified: bool, chat_id: i64) -> Scope {
 }
 
 /// The turn the agency carries: its prompt and the context the receiver composed around it.
-fn turn_of(
-  asking: &Asking,
-  session: &Session,
-  room: &RoomContext,
-  prompt: &str,
-  persona: Option<String>,
-) -> Turn {
+fn turn_of(asking: &Asking, session: &Session, room: &RoomContext, prompt: &str) -> Turn {
   Turn {
     session: session.id.to_owned(),
     prompt: prompt.to_owned(),
@@ -132,7 +126,6 @@ fn turn_of(
       mark: room.mark.to_owned(),
     }),
     via: asking.via.clone(),
-    base_persona: persona,
     privileged: Some(asking.privileged),
     answers: asking.answers.to_vec(),
     began: Some(asking.began),
@@ -227,8 +220,7 @@ impl Carry {
       }
     };
 
-    let base = base_persona(&Trees::of(receiver));
-    let turn = turn_of(asking, &session, &room, &prompt, base);
+    let turn = turn_of(asking, &session, &room, &prompt);
     let kinds: Vec<&'static str> = vec!["turn.created", "turn.ended"];
     let mut stream = agency.events(&kinds).await.map_err(fault_of)?;
 

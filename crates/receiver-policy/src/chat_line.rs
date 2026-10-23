@@ -7,7 +7,6 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Persona {
-  pub header: String,
   pub tone_header: String,
   pub room_header: String,
 }

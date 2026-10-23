@@ -185,7 +185,7 @@ pub fn is_agent_document(path: &str) -> bool {
 pub fn is_chat_turn_document(path: &str) -> bool {
   let joined = document_parts(path).join("/");
 
-  (joined.starts_with("persona/") && joined != "persona/base.md")
+  joined.starts_with("persona/")
     || joined == "agents/chat/owner.md"
     || joined == "agents/chat/rules.md"
     || joined == "agents/chat/capabilities.md"
@@ -200,9 +200,7 @@ pub fn is_chat_prompt_document(path: &str) -> bool {
   let parts = document_parts(path);
   let joined = parts.join("/");
 
-  parts.first() == Some(&"persona")
-    || CHAT_SYSTEM_DOCUMENTS.contains(&joined.as_str())
-    || CHAT_DOCUMENTS.contains(&joined.as_str())
+  CHAT_SYSTEM_DOCUMENTS.contains(&joined.as_str()) || CHAT_DOCUMENTS.contains(&joined.as_str())
 }
 
 /// Whether a document is a reference document, attached in full with the next turn that needs it once per

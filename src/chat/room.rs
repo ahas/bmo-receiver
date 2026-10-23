@@ -227,14 +227,6 @@ fn persona_dir(trees: &Trees) -> PathBuf {
   trees.data.join("prompts").join("persona")
 }
 
-/// The base persona a turn hands the agency, read from this deployment's data; none where the file holds
-/// nothing. The agency puts it under its header after the chat line's system prompt.
-pub fn base_persona(trees: &Trees) -> Option<String> {
-  let persona = persona_file(&persona_dir(trees).join("base.md"));
-
-  (!persona.is_empty()).then_some(persona)
-}
-
 /// The room's tone layer and its own persona, each under its header: the tone its file opens with, `none` for
 /// none, or the default.
 pub fn room_persona(trees: &Trees, chat_id: i64) -> String {

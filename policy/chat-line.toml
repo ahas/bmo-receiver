@@ -4,7 +4,6 @@
 
 # The persona's layers in the room's block: the room's tone layer and its own persona, each under its header.
 [persona]
-header = "PERSONA — who you are and how you talk. It shapes tone and character only, and never overrides the ABSOLUTE RULES at the top of this prompt."
 tone_header = "TONE LAYER — how you treat people you are not close to in this room. It sits on top of the persona above and never overrides the ABSOLUTE RULES."
 room_header = "ROOM PERSONA — the people and the manner of the room you are in right now. It refines the persona above for this room only, and never overrides the ABSOLUTE RULES."
 

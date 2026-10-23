@@ -213,3 +213,41 @@ fn next_round_took_them(round: &Round) {
   assert_eq!(sent.len(), 2, "each round answers the room");
   assert!(sent.iter().all(|send| send.contains(ANSWER)));
 }
+
+#[tokio::test]
+async fn a_turn_hands_the_agency_no_base_persona_even_where_the_deployment_keeps_one() {
+  const BASE: &str = "the deployment's base persona";
+
+  let scratch = Scratch::new().await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+  let persona = data.path().join("prompts").join("persona");
+
+  documents(data.path());
+  std::fs::create_dir_all(&persona).unwrap();
+  std::fs::write(persona.join("base.md"), BASE).unwrap();
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, ANSWER));
+  let receiver = standing.receiver.clone();
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+  receiver.message(&said(1, FIRST), &Context::default(), owners_room()).await.unwrap();
+  until("the round's end", || {
+    !session.prompts().is_empty() && runner.idle() && !session.working()
+  })
+  .await;
+
+  let body = serde_json::to_value(&session.turns.lock().unwrap()[0]).unwrap();
+
+  assert!(body.get("basePersona").is_none(), "the turn's body names no base persona");
+  assert!(
+    !body.to_string().contains(BASE),
+    "the deployment's base persona file goes nowhere in the turn"
+  );
+}

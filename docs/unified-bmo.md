@@ -30,9 +30,10 @@
 
 - **The fixed system prompt** is the chat line's, which the agency composes and keeps (the room-switch contract,
   the absolute rules, the common manual, the answer rules, the base persona). It is the same for every room.
-- **The base persona is this deployment's,** `prompts/persona/base.md` under the data root: the receiver reads it and
-  hands it with each turn as part of the context, and the agency puts it under its header after the line's documents.
-  The persona a room adds is the room's own tone and traits, which the turn's block carries.
+- **The base persona is the agent's own,** the base layer of its brain, which the agency reads itself when it
+  launches the chat agent and puts after the line's documents. The receiver hands no base persona with a turn.
+- **The persona a room adds is the receiver's:** the room's tone layer, `prompts/persona/<tone>.md` under the data
+  root, and the room's own persona, `prompts/persona/rooms/<chat id>.md`, each under its header in the turn's block.
 - **What a turn's scaffolding means is said there once**, not on every turn: that a quiet instruction comes from
   the system, is acted on as the owner's word and may be answered with `<<SKIP>>`; that a reference block outranks
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
