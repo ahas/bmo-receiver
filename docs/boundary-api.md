@@ -116,7 +116,7 @@ room's matter.
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
 | start a session | `POST /sessions` | `agentName`, `scope`, `roomId` | the session's `id`, `agentName`, `scope`, `roomId` |
 | send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to; no base persona, which the agency takes from the agent's brain | `id`, `delivery` |
-| read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation` |
+| read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation`, `foldRatio`, and `tier` where the agency names one, which the draft process table is matched by (`docs/drafting.md`) |
 | push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
 | fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
@@ -244,3 +244,14 @@ Statements the receiver makes that a sibling's document does not yet match, each
   agency states those points, the receiver answers them as `docs/api.md`, 「Hooks」, states.
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver keeps
   what was recorded as its `restart_reason` setting.
+- **The agency's session state** names no `tier`. The receiver reads one where the state carries it and matches
+  the draft process table by it (`docs/drafting.md`, 「The process table」); until the agency states it, every
+  session reads as no tier and matches only rows of any tier.
+- **The gate's `draft` stage** is not stated in the gate's documents. The receiver keeps every turn of a round's
+  draft process in its own round log and tells each row on its event stream as a `draft` event; the gate is to
+  read it there (`GET /rounds/drafts`, `GET /events`) or be handed it, and write one judgement row per turn under
+  the stage `draft` with the round, `number`, `question`, `answerChars` and `changed`, with no judgement of its
+  content. Until the gate states which, the receiver writes no `draft` judgement at the gate.
+- **The agency's usage by turn** is read by round: every turn of the draft process goes out naming its round, as
+  the round's own turn does, so the agency's ledger opens each under the round's name. No document of the agency
+  states a per-turn usage record the console reads beside a round's draft rows yet.

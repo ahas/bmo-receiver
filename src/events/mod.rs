@@ -375,6 +375,21 @@ pub fn judgement(
   })
 }
 
+/// One row of a round's draft process, as the round log keeps it (docs/drafting.md, 「The round log」).
+pub fn draft(chat_id: i64, row: &Value) -> Value {
+  let mut event = json!({ "type": "draft", "chatId": chat_id, "messageId": null });
+
+  if let (Some(event), Some(row)) = (event.as_object_mut(), row.as_object()) {
+    for (key, value) in row {
+      if key != "answer" {
+        event.insert(key.clone(), value.clone());
+      }
+    }
+  }
+
+  event
+}
+
 /// A room whose registration was removed, so the sidebar drops it and an open room screen leaves it
 /// (docs/receiver.md, 「Removing a room's registration」).
 pub fn room_removed(chat_id: i64) -> Value {

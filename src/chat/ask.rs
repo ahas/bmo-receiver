@@ -346,6 +346,7 @@ impl Carry {
         context_tokens: standing.context.get("carried").and_then(Value::as_i64),
         context_window: standing.context.get("window").and_then(Value::as_i64),
         fold_ratio: standing.fold_ratio,
+        tier: standing.tier,
         replaced: replaced.clone(),
         run: run.clone(),
       }),

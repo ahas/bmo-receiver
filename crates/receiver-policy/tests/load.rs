@@ -8,6 +8,7 @@ use receiver_policy::commands::COMMANDS;
 use receiver_policy::companion_runner::COMPANION_RUNNER;
 use receiver_policy::companions::COMPANIONS;
 use receiver_policy::consult::CONSULT;
+use receiver_policy::drafting::DRAFTING;
 use receiver_policy::files::FILES;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
@@ -34,7 +35,7 @@ fn parts() -> Vec<&'static str> {
   let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS, &*COMPANION_RUNNER);
   let _ = (&*COMPANIONS, &*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
-  let _ = (&*SECOND_ASKS, &*KEPT);
+  let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS);
 
   vec![
@@ -45,6 +46,7 @@ fn parts() -> Vec<&'static str> {
     "companion-runner.toml",
     "companions.toml",
     "consult.toml",
+    "drafting.toml",
     "files.toml",
     "handover.toml",
     "keepalive.toml",
@@ -94,6 +96,24 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(SECOND_ASKS.errands.wording.contains("{terms}"));
   assert_eq!(SECOND_ASKS.errands.language.matches("{what}").count(), 2);
   assert_eq!(SECOND_ASKS.reading.pledge_final, 8);
+  assert!(SECOND_ASKS.errands.length.contains("{count}") && SECOND_ASKS.errands.length.contains("{limit}"));
+  assert!(!SECOND_ASKS.errands.format.is_empty());
+}
+
+#[test]
+fn the_draft_process_ends_every_list_on_its_last_question() {
+  assert!(DRAFTING.lead.contains("{number}") && DRAFTING.lead.contains("{count}"));
+  assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
+  assert!(DRAFTING.questions.contains_key("final") && DRAFTING.max_chars > 0);
+
+  for process in &DRAFTING.process {
+    for list in [&process.rounds, &process.light] {
+      assert!(list.iter().all(|name| DRAFTING.questions.contains_key(name)), "{process:?}");
+      assert_eq!(list.last().map(String::as_str), Some("final"), "{process:?}");
+    }
+  }
+
+  assert!(DRAFTING.process.iter().any(|process| process.provider == "*" && process.agent == "*"));
 }
 
 #[test]

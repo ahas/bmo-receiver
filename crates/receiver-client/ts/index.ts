@@ -37,6 +37,12 @@ export type PinRooms = Schemas["PinRooms"];
 export type PinRoom = Schemas["PinRoom"];
 export type PublishedEvent = Schemas["PublishedEvent"];
 export type Live = Schemas["Live"];
+export type RoundDrafts = Schemas["RoundDrafts"];
+export type DraftRound = Schemas["DraftRound"];
+export type DraftProcess = Schemas["DraftProcess"];
+export type DraftProcessSet = Schemas["DraftProcessSet"];
+export type DraftQuestion = Schemas["DraftQuestion"];
+export type DraftQuestionSet = Schemas["DraftQuestionSet"];
 export type Page<T> = { items: T[]; more: boolean };
 
 /** A refusal or failure the receiver answered, in the common error shape. */
@@ -255,6 +261,52 @@ export function receiverClient(options: ReceiverOptions) {
           params: { path: { companionName }, query: by ? { by } : {} },
         }),
       );
+    },
+
+    /** `GET /rounds/drafts`: what each named round's draft process wrote. */
+    async roundDrafts(room: number, rounds: string[]): Promise<Page<RoundDrafts>> {
+      return answered(
+        await client.GET("/rounds/drafts", { params: { query: { room, rounds: rounds.join(",") } } }),
+      );
+    },
+
+    /** `GET /draft-processes`. */
+    async draftProcesses(): Promise<Page<DraftProcess>> {
+      return answered(await client.GET("/draft-processes"));
+    },
+
+    /** `PUT /draft-processes/{provider}/{tier}/{agentName}`, `*` standing for any. */
+    async setDraftProcess(
+      provider: string,
+      tier: string,
+      agentName: string,
+      body: DraftProcessSet,
+    ): Promise<DraftProcess> {
+      return answered(
+        await client.PUT("/draft-processes/{provider}/{tier}/{agentName}", {
+          params: { path: { provider, tier, agentName } },
+          body,
+        }),
+      );
+    },
+
+    /** `DELETE /draft-processes/{provider}/{tier}/{agentName}`. */
+    async removeDraftProcess(provider: string, tier: string, agentName: string): Promise<void> {
+      answered(
+        await client.DELETE("/draft-processes/{provider}/{tier}/{agentName}", {
+          params: { path: { provider, tier, agentName } },
+        }),
+      );
+    },
+
+    /** `GET /draft-questions`. */
+    async draftQuestions(): Promise<Page<DraftQuestion>> {
+      return answered(await client.GET("/draft-questions"));
+    },
+
+    /** `PUT /draft-questions/{name}`. */
+    async setDraftQuestion(name: string, body: DraftQuestionSet): Promise<DraftQuestion> {
+      return answered(await client.PUT("/draft-questions/{name}", { params: { path: { name } }, body }));
     },
 
     /** `PUT /pinned-rooms`. */

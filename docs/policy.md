@@ -7,7 +7,9 @@ each line carries; `fill_marks` fills them. Korean words the code matches on (th
 answer checks read promises and rules by, the marks a picture and a voice are kept under), and the script ranges
 the code tells a character's script and width by, are data and stand here, never in code. No sentence a person
 reads in a room stands here: those are codes the agent says, or the few fixed lines the web unit's language packs
-render (`docs/codes.md`).
+render (`docs/codes.md`). The draft process's questions are the one exception to the English of the lines an
+agent reads: they are the owner's own words, kept in the language the owner wrote them, and the console changes
+them (`docs/drafting.md`, 「The questions」).
 
 ## The receiver's own files
 
@@ -18,7 +20,8 @@ render (`docs/codes.md`).
 | `wake.toml` | `file_lead_seconds` and `file_lead_messages`: how far back a person's file is read as leading up to their words | the wake (`docs/room-files.md`, 「Who a file wakes」) |
 | `talk.toml` | the lines a console talk's turn is composed in, the item states its head names, and how many earlier turns it restates and how much of each | the talks |
 | `restart.toml` | the back notice a restart leaves the owner's session: its facts, how long a deployment's record speaks for a stop, how long the notice rides and lives | the restart |
-| `second-asks.toml` | the words each answer check reads by and every errand a second asking sends | the answer checks (`docs/answer-checks.md`) |
+| `second-asks.toml` | the words each answer check reads by and every errand an item or a check of the draft process sends | the answer checks (`docs/answer-checks.md`) |
+| `drafting.toml` | the draft process (`docs/drafting.md`): the catalogue of questions by name, the six the owner wrote in the owner's own words and language; the process table's default rows (provider, tier and agent, each a key or `*`; the questions of an ordinary and of a light turn; the light bound in characters; the ceiling in seconds; what is done past it); the lead lines a question turn opens on and the line it closes on; and the longest final text, in characters | the draft process, `GET /draft-processes`, `GET /draft-questions` |
 | `consult.toml` | the consult room's setting key, the lines of what an agent is shown of other agents' work, how many items it shows, the line a consult call answers its agent with, and the lines the consult verbs answer with | the consult block, `POST /consult-lines` and the consult verbs (`docs/consult.md`) |
 | `handover.toml` | how much of a closed session's transcript is kept, the lines a transcript is written in, the blocks of a round that are the conversation, and the notes a room's new session opens with | the session replacement |
 | `files.toml` | the largest file the console may attach, in bytes, and the name a file with none goes by | `POST /owner/message-files` |

@@ -10,6 +10,7 @@ pub mod commands;
 pub mod companion_runner;
 pub mod companions;
 pub mod consult;
+pub mod drafting;
 pub mod files;
 pub mod handover;
 pub mod keepalive;

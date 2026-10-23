@@ -75,6 +75,7 @@ fn session(
       generation: Value::Null,
       context: json!({ "carried": carried, "window": 200_000 }),
       fold_ratio: None,
+      tier: None,
     },
   )
 }

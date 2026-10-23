@@ -128,6 +128,8 @@ struct SessionMember {
   generation: Value,
   #[serde(default)]
   fold_ratio: Option<f64>,
+  #[serde(default)]
+  tier: Option<String>,
 }
 
 impl SessionMember {
@@ -148,6 +150,7 @@ impl SessionMember {
       generation: self.generation,
       context: Value::Null,
       fold_ratio: self.fold_ratio,
+      tier: self.tier.filter(|tier| !tier.is_empty()),
     }
   }
 }
@@ -224,6 +227,9 @@ pub struct SessionState {
   /// The share of its window at which the session folds, as the agency's fold-ratio table gives it.
   #[serde(default, rename = "foldRatio")]
   pub fold_ratio: Option<f64>,
+  /// The tier the agency names for the session, where it names one: the draft process table is matched by it.
+  #[serde(default)]
+  pub tier: Option<String>,
 }
 
 /// A companion's row the console stands up: the name it is registered by, what it is called in the room, the

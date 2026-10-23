@@ -835,6 +835,72 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "not-found", "failed"]
   );
   add!(
+    "GET",
+    "/rounds/drafts",
+    "roundDrafts",
+    "Rounds",
+    "For a room and the rounds named, every row each round's draft process wrote.",
+    vec![parameter("room", "integer", true), parameter("rounds", "string", false)],
+    None,
+    vec![(200, json_answer::<Page<RoundDrafts>>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "GET",
+    "/draft-processes",
+    "draftProcesses",
+    "Drafts",
+    "Every row of the draft process table, the policy's and the console's.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Page<DraftProcess>>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "PUT",
+    "/draft-processes/{provider}/{tier}/{agentName}",
+    "setDraftProcess",
+    "Drafts",
+    "A row of the draft process table set by the console.",
+    vec![name_parameter("provider"), name_parameter("tier"), name_parameter("agentName")],
+    Some(generator.subschema_for::<DraftProcessSet>()),
+    vec![(200, json_answer::<DraftProcess>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/draft-processes/{provider}/{tier}/{agentName}",
+    "removeDraftProcess",
+    "Drafts",
+    "The console's row of a key taken away.",
+    vec![name_parameter("provider"), name_parameter("tier"), name_parameter("agentName")],
+    None,
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "not-found", "failed"]
+  );
+  add!(
+    "GET",
+    "/draft-questions",
+    "draftQuestions",
+    "Drafts",
+    "The draft process's catalogue of questions.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Page<DraftQuestion>>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "PUT",
+    "/draft-questions/{name}",
+    "setDraftQuestion",
+    "Drafts",
+    "A question's text set by the console.",
+    vec![name_parameter("name")],
+    Some(generator.subschema_for::<DraftQuestionSet>()),
+    vec![(200, json_answer::<DraftQuestion>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
     "POST",
     "/companions",
     "addCompanion",

@@ -1,8 +1,9 @@
-# The checks a chat answer passes before it goes out, and the errands a second asking sends the same session
-# (docs/answer-checks.md): the words each check reads an answer or the owner's words by, which are words of the
-# room's language and so data, and every line it says. `{name}` marks what each line carries.
+# The checks a chat answer passes before it goes out, and the errands an item or a check of the draft process
+# sends the same session (docs/answer-checks.md, docs/drafting.md): the words each check reads an answer or the
+# owner's words by, which are words of the room's language and so data, and every line it says. `{name}` marks
+# what each line carries.
 
-# The lines every second asking closes on, after its errand and the turn's scope: the messages waiting for
+# The lines every item and check closes on, after its errand and the turn's scope: the messages waiting for
 # the next turn, and that they are not acted on now.
 next_turn = "NEXT TURN MESSAGE IDS: "
 later = "Later messages will be delivered in the next turn; do not act on them now."
@@ -17,6 +18,10 @@ language = "What you wrote for {what} came out in English. English is the langua
 answer = "this turn's answer"
 # An answer using banned words: {terms} is each term beside what to write.
 wording = "What you wrote for this turn's answer uses words the owner has banned as purified coinages (the wording document): {terms}. Nothing went out. Write this turn's answer again with each of them replaced, choosing among the words given by what the sentence means and fixing the particle after it. Say the same thing; only those words change. <<SKIP>> and <<WAIT>> are not available."
+# A final text past the longest a message may run: {count} is its length, {limit} the longest, in characters.
+length = "The message you wrote runs to {count} characters, past the {limit} a message here may hold, and nothing went out. Write it again, shorter, keeping what matters. <<WAIT>> is not available."
+# A final text carrying the process's own lines.
+format = "The message you wrote carries the process's own lines: a question you were asked, or the head of a block of messages. Nothing went out. Write the message again as the room is to read it, with none of them. <<WAIT>> is not available."
 # A promise with nothing recorded: the rule, then the form for a turn with its tools off or on.
 record = "Your answer promises something about what you will do from now on, and nothing went out: this turn wrote nothing down, and a promise kept only in this session is gone the moment the session is replaced. A promise to behave a certain way only for this session is not allowed either. "
 record_off = "Tools are off for this turn, so nothing can be recorded: write this turn's answer again without the promise. Say the same thing otherwise. <<SKIP>> and <<WAIT>> are not available."

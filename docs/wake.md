@@ -91,9 +91,10 @@ its rounds.
   round was carrying.
 - **The turn is told so in as many words**: the permission a quiet instruction brings covers the instruction
   alone, and the line a closed window puts in front of the turn withholds the silence too.
-- **A `<<SKIP>>` that comes back anyway is not taken.** The session is asked once more for that same turn with
-  the silence withdrawn, and what it writes then is the turn's answer; a session that stays silent through the
-  second asking ends the round the way it stood, with both askings in the record.
+- **A `<<SKIP>>` that comes back anyway is not taken.** Where the draft process ends in a skip, the session is
+  asked once more with the silence withdrawn, the process's `owed` item (`docs/drafting.md`), and what it writes
+  then is the message; a session that stays silent through that asking ends the round the way it stood, with
+  every turn of it in the round log.
 - **The round is where this is held, because the round is what consumed the messages:** they are spliced out of
   the room's buffer as it opens and are nowhere else to be found once it has them, so a silence taken there is a
   question of the owner's that nothing will ever come back to.
@@ -136,9 +137,10 @@ its rounds.
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
   window is carried into the agent's session through the agency (`POST /sessions`, `GET /sessions/{sessionId}`,
   `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); a
-  companion's round is its own turn, sent on the road its room answers on; any other answer is held to the answer
-  checks (`docs/answer-checks.md`) and sent on the road the turn answers on, then handed back to the receiver as
-  filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
+  companion's round is its own turn, sent on the road its room answers on; any other turn's answer is a draft,
+  made into the message by the draft process (`docs/drafting.md`): the questions asked of the same session, the
+  items and the checks on the final text (`docs/answer-checks.md`); the message is sent on the road the turn
+  answers on, then handed back to the receiver as filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
   over on the conversations' own clock.
 - **Words that come while the turn works are pushed into it**
   (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at the working turn: what the
@@ -146,7 +148,8 @@ its rounds.
   back to the front of the room's buffer for the round after, and a `waiting` turn is offered nothing more
   (`docs/bmo-window.md`, `push`).
 - **A round folds its session only past the fold share:** once its answer has gone out, the session is folded as
-  work of its own where the context the agency reports it carrying (`carried` against `window`) has reached the
+  work of its own where the context the agency reports it carrying after the round's last turn (`carried`
+  against `window`) has reached the
   session's fold ratio, and not otherwise. The ratio is the agency's, read with the session's state
   (`foldRatio`, the value its fold-ratio table holds for the session's provider and tier); where the state
   names none, the resident turn policy's `fold_ratio` stands in.

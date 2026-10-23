@@ -105,6 +105,7 @@ struct Round {
 impl Round {
   async fn pushed_and(said: Said) -> Self {
     let scratch = Scratch::new().await;
+    crate::common::session::no_drafting(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -241,6 +242,8 @@ async fn a_turn_hands_the_agency_no_base_persona_even_where_the_deployment_keeps
   const BASE: &str = "the deployment's base persona";
 
   let scratch = Scratch::new().await;
+
+  crate::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
   let persona = data.path().join("prompts").join("persona");
@@ -334,6 +337,8 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   const MISSED: &str = "words said around the handover";
 
   let scratch = Scratch::new().await;
+
+  crate::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -389,6 +394,7 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
 #[tokio::test]
 async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_rest() {
   let scratch = Scratch::new().await;
+  crate::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 

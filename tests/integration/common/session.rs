@@ -4,7 +4,9 @@
 //! until the test lets it go, so words can come into the room while it works; a turn ends answered, or as the
 //! test set it to end.
 
+use std::collections::VecDeque;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{Delivery, Event, Events, RunLine, Scope, Session, SessionState, Turn};
@@ -26,6 +28,12 @@ pub struct StandInSession {
   working: Mutex<bool>,
   // What every turn's turn-ended says beside its session, where a test sets it: its answer otherwise.
   ending: Mutex<Option<serde_json::Value>>,
+  // The answers the turns give in their order, ahead of `answer`, where a test scripts them.
+  script: Mutex<VecDeque<String>>,
+  // The turn, counted from 1, that stands working until let go, where a test names one.
+  holding_turn: Mutex<Option<usize>>,
+  // How long each turn works before it ends.
+  working_for: Mutex<Duration>,
 }
 
 impl StandInSession {
@@ -40,7 +48,28 @@ impl StandInSession {
       let_go: Notify::new(),
       working: Mutex::new(false),
       ending: Mutex::default(),
+      script: Mutex::default(),
+      holding_turn: Mutex::default(),
+      working_for: Mutex::new(Duration::ZERO),
     }
+  }
+
+  /// The turns answer these in their order, then `answer`.
+  pub fn answering(self, answers: &[&str]) -> Self {
+    *self.script.lock().unwrap() = answers.iter().map(|answer| (*answer).to_owned()).collect();
+    self
+  }
+
+  /// The turn numbered `turn`, counted from 1, stands working once it started, until `let_go`.
+  pub fn holding_turn(self, turn: usize) -> Self {
+    *self.holding_turn.lock().unwrap() = Some(turn);
+    self
+  }
+
+  /// Every turn works this long before it ends.
+  pub fn working_for(self, long: Duration) -> Self {
+    *self.working_for.lock().unwrap() = long;
+    self
   }
 
   /// The first turn stands working once it started, until `let_go`.
@@ -104,6 +133,7 @@ impl StandInSession {
       generation: json!(null),
       context: json!({ "carried": 1000, "window": 200000 }),
       fold_ratio: None,
+      tier: None,
     };
 
     Box::pin(async move { Ok(state) })
@@ -134,11 +164,13 @@ impl StandInSession {
       };
       let holds = {
         let mut holding = self.holding.lock().unwrap();
-        let holds = *holding > 0;
+        let holds = *holding > 0 || *self.holding_turn.lock().unwrap() == Some(number);
 
         *holding = holding.saturating_sub(1);
         holds
       };
+      let working_for = *self.working_for.lock().unwrap();
+      let answer = self.script.lock().unwrap().pop_front().unwrap_or_else(|| self.answer.clone());
 
       *self.working.lock().unwrap() = true;
       self.told(
@@ -150,12 +182,16 @@ impl StandInSession {
         self.let_go.notified().await;
       }
 
+      if !working_for.is_zero() {
+        tokio::time::sleep(working_for).await;
+      }
+
       let mut ended = self
         .ending
         .lock()
         .unwrap()
         .clone()
-        .unwrap_or_else(|| json!({ "outcome": "answered", "answer": self.answer }));
+        .unwrap_or_else(|| json!({ "outcome": "answered", "answer": answer }));
 
       ended["session"] = json!(self.id);
       *self.working.lock().unwrap() = false;
@@ -168,4 +204,39 @@ impl StandInSession {
   pub fn run_log(&self) -> BoxFuture<'_, Answer<Vec<RunLine>>> {
     Box::pin(async { Ok(vec![]) })
   }
+}
+
+/// The draft process every turn reads, set as the console sets a row of any provider, tier and agent: the
+/// questions of an ordinary and a light turn, the light bound and the ceiling, past which what stands is sent.
+pub async fn drafting(
+  db: &sea_orm::DatabaseConnection,
+  rounds: &[&str],
+  light: &[&str],
+  ceiling_seconds: u32,
+) {
+  use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
+
+  let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
+
+  set(
+    db,
+    &Process {
+      provider: ANY.to_owned(),
+      tier: ANY.to_owned(),
+      agent: ANY.to_owned(),
+      rounds: named(rounds),
+      light: named(light),
+      light_chars: 12,
+      ceiling_seconds,
+      past_ceiling: PastCeiling::Send,
+      set: true,
+    },
+  )
+  .await
+  .unwrap();
+}
+
+/// No question follows a turn: its own answer is the message, as a test of something else needs it.
+pub async fn no_drafting(db: &sea_orm::DatabaseConnection) {
+  drafting(db, &[], &[], 150).await;
 }

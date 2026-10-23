@@ -518,6 +518,45 @@ impl ReceiverClient {
     .await
   }
 
+  /// `GET /rounds/drafts`.
+  pub async fn drafts(&self, room_id: i64, rounds: &[String]) -> Answer<Page<RoundDrafts>> {
+    Self::answered(
+      self.get(&["rounds", "drafts"], &[("room", room_id.to_string()), ("rounds", rounds.join(","))]),
+    )
+    .await
+  }
+
+  /// `GET /draft-processes`.
+  pub async fn draft_processes(&self) -> Answer<Page<DraftProcess>> {
+    Self::answered(self.request(Method::GET, &["draft-processes"])).await
+  }
+
+  /// `PUT /draft-processes/{provider}/{tier}/{agentName}`.
+  pub async fn set_draft_process(
+    &self,
+    provider: &str,
+    tier: &str,
+    agent_name: &str,
+    process: &DraftProcessSet,
+  ) -> Answer<DraftProcess> {
+    Self::answered(self.send(Method::PUT, &["draft-processes", provider, tier, agent_name], process)).await
+  }
+
+  /// `DELETE /draft-processes/{provider}/{tier}/{agentName}`.
+  pub async fn remove_draft_process(&self, provider: &str, tier: &str, agent_name: &str) -> Answer<()> {
+    Self::nothing(self.request(Method::DELETE, &["draft-processes", provider, tier, agent_name])).await
+  }
+
+  /// `GET /draft-questions`.
+  pub async fn draft_questions(&self) -> Answer<Page<DraftQuestion>> {
+    Self::answered(self.request(Method::GET, &["draft-questions"])).await
+  }
+
+  /// `PUT /draft-questions/{name}`.
+  pub async fn set_draft_question(&self, name: &str, question: &DraftQuestionSet) -> Answer<DraftQuestion> {
+    Self::answered(self.send(Method::PUT, &["draft-questions", name], question)).await
+  }
+
   /// `POST /companions`.
   pub async fn add_companion(&self, companion: &CompanionRequest) -> Answer<Companions> {
     Self::answered(self.send(Method::POST, &["companions"], companion)).await

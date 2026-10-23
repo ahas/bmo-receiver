@@ -652,6 +652,86 @@ pub struct OpeningText {
   pub text: String,
 }
 
+/// What a round's draft process wrote, row by row (docs/drafting.md, 「The round log」).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoundDrafts {
+  pub round: String,
+  pub rows: Vec<DraftRound>,
+}
+
+/// One turn of a round's draft process, or its end.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftRound {
+  pub id: i64,
+  pub agent_name: String,
+  /// 0 for the round's own turn, then each question, item and check in the order asked.
+  pub number: i64,
+  pub question: String,
+  /// `turn`, `question`, `item`, `check` or `end`.
+  pub kind: String,
+  pub answer_chars: i64,
+  pub changed: bool,
+  /// `answered`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
+  /// `ceiling-skip` for the end.
+  pub outcome: String,
+  pub detail: Option<String>,
+  pub answer: Option<String>,
+  pub ms: i64,
+  /// Epoch milliseconds.
+  pub at: i64,
+}
+
+/// A row of the draft process table (docs/drafting.md, 「The process table」).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftProcess {
+  /// A provider's key, or `*` for any.
+  pub provider: String,
+  /// A tier, or `*` for any.
+  pub tier: String,
+  /// An agent, or `*` for any.
+  pub agent_name: String,
+  pub rounds: Vec<String>,
+  pub light: Vec<String>,
+  pub light_chars: u32,
+  pub ceiling_seconds: u32,
+  /// `send` or `skip`.
+  pub past_ceiling: String,
+  /// `set` or `default`.
+  pub source: String,
+}
+
+/// A row of the draft process table set by the console.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftProcessSet {
+  pub rounds: Vec<String>,
+  pub light: Vec<String>,
+  pub light_chars: u32,
+  pub ceiling_seconds: u32,
+  /// `send` or `skip`.
+  pub past_ceiling: String,
+}
+
+/// A question of the draft process's catalogue.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftQuestion {
+  pub name: String,
+  pub text: String,
+  /// `set` or `default`.
+  pub source: String,
+}
+
+/// A question's text set by the console.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftQuestionSet {
+  pub text: String,
+}
+
 /// The live board: the process's turns, folds and each room's queued message.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

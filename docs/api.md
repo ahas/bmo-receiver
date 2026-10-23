@@ -316,6 +316,35 @@ repository's, in `VERSION`; it is never taken from a registry.
 |---|---|---|
 | `GET /rounds/openings` | `room`, `rounds` (comma-separated) | a page of `{round, instructions}`, each instruction `id`, `sort`, `summary`, `createdAt` |
 | `GET /rounds/openings/{instructionId}` | `room` | `id`, `text`: one quiet instruction whole |
+| `GET /rounds/drafts` | `room`, `rounds` (comma-separated) | a page of `{round, rows}`, each row a `DraftRound` |
+
+- **A `DraftRound`** is one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」):
+  `id`, `agentName`, `number` (0 the round's own turn), `question`, `kind` (`turn`, `question`, `item`, `check` or
+  `end`), `answerChars`, `changed`, `outcome` (`answered`, `skip` or `failed` for a turn; `message`, `skip`,
+  `withheld`, `ceiling-message` or `ceiling-skip` for the end), `detail` (or null), `answer` (or null), `ms` and
+  `at`. The rows of a round stand in the order they were written.
+
+## The draft process
+
+| Route | Body | Answers |
+|---|---|---|
+| `GET /draft-processes` | | a page of `DraftProcess`, the policy's rows and the console's |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `light`, `lightChars`, `ceilingSeconds`, `pastCeiling` | the `DraftProcess` as it now stands |
+| `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
+| `GET /draft-questions` | | a page of `DraftQuestion` |
+| `PUT /draft-questions/{name}` | `text` | the `DraftQuestion` as it now stands |
+
+- **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
+  names of the questions an ordinary and a light turn are asked, in order; `lightChars`; `ceilingSeconds`;
+  `pastCeiling`, `send` or `skip`; and `source`, `set` where the console set the row and `default` where the
+  policy's stands (`docs/drafting.md`, 「The process table」). The page holds the policy's rows in their order,
+  each replaced by the console's of the same key, then the console's own keys.
+- **A `DraftQuestion`** is `name`, `text` and `source`.
+- **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
+  hold, where a list that holds questions does not end in `final` or holds it before its end, where the ceiling
+  is outside 1 to 3,600 seconds, the light bound outside 0 to 1,000 characters or `pastCeiling` neither `send`
+  nor `skip`, and where a question's name is not a lowercase word of letters, digits and dashes of at most 40
+  characters or its text is empty or past 4,000 characters.
 
 ## Companions
 

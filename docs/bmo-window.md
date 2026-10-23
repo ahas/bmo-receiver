@@ -82,7 +82,7 @@ is written.
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
 | The words before a fold | the conversation's fold | — | `nap` | opens | — |
 | A line a person types into the agent's program | the agency's `typed-line` hook | — | none: composed, never asked | the person's own turn of the program | — |
-| A second asking inside a round: an owed answer, the room's language, a promise to record, a promise to be woken for, a rule to file | the round itself | — | `again` | inside the round | the round's |
+| A turn of the draft process inside a round: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
 
 - **The session handover** is not a turn. The note a replaced session leaves rides at the head of whichever
   turn first goes out on the new session, and that turn came through the window like every other: it goes whole,
@@ -222,8 +222,10 @@ Beside the reference, a turn carries the room's messages since the agent last an
   round carries, and a push of the system's lines alone asks only the matcher. It puts in whatever the running
   turn does not already carry, and that joins what the round holds once the agency's session push answers it
   `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
-- **`again`**: a second asking inside the same round. It carries the round's own selection again; the documents
-  have just gone in, so they stand as marks.
+- **`question`**: a turn of the draft process inside the same round (`docs/drafting.md`): a question, an item or
+  a check. It carries the round's own selection again; the documents have just gone in, so they stand as marks.
+  No gate selects for it; the process's last question carries the words that came in meanwhile, selected for as
+  a push's are.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It carries the memories and
   the matcher's rules like any turn, so a row that has come due while the room was quiet is in front of the
@@ -284,7 +286,7 @@ flowchart TD
   saves to a file beside the session and hands over the path and the first 2 KB, so the model reads the rest
   with a tool call.
 - **What does not follow:** the answer stays on the program's screen. Nothing the receiver does with a round's
-  answer reaches it (the output gates, the wording check, the second askings, formatting, sending to a room) and
+  answer reaches it (the output gates, the wording check, the draft process, formatting, sending to a room) and
   the line is not archived.
 - **When the receiver cannot compose it** (down, failing, or slower than the hook's bound) the hook answers no
   context and the line goes on as typed.
@@ -326,11 +328,14 @@ flowchart TD
   the room's words not yet taken, the instructions pending, the rooms waiting their turn. The agent answers now;
   or sends a line first with `say` and goes on to the next; or answers `<<WAIT>>` to take the next words in with
   these.
-- **No content judgement stands between the agent and any room.** A round sends what the agent wrote, held only
-  to the code's own checks below and the outgoing sanitiser.
-- **The mechanical checks stay in code,** on every round: an owed answer to the owner's words, the room's
-  language, a promise with nothing recorded, a promise to act once something happens with nothing set to wake
-  the agent when it does, a rule the owner set and nothing filed (`docs/answer-checks.md`).
+- **No content judgement stands between the agent and any room.** A round sends what the agent wrote at the end
+  of its draft process, held only to the code's own items and checks below and the outgoing sanitiser.
+- **The draft process asks the agent its questions** (`docs/drafting.md`): the questions make it think, and what
+  it answers is its own; no model judges the answer.
+- **The mechanical checks stay in code,** on every round, as the process's items and checks: an owed answer to
+  the owner's words, a promise with nothing recorded, a promise to act once something happens with nothing set
+  to wake the agent when it does, a rule the owner set and nothing filed, and the final text's length, language,
+  banned words and format (`docs/answer-checks.md`).
 
 ## What keeps the window the only way in
 

@@ -73,6 +73,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/draft-processes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every row of the draft process table, the policy's and the console's. */
+        get: operations["draftProcesses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/draft-processes/{provider}/{tier}/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A row of the draft process table set by the console. */
+        put: operations["setDraftProcess"];
+        post?: never;
+        /** The console's row of a key taken away. */
+        delete: operations["removeDraftProcess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/draft-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The draft process's catalogue of questions. */
+        get: operations["draftQuestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/draft-questions/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A question's text set by the console. */
+        put: operations["setDraftQuestion"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -813,6 +882,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rounds/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** For a room and the rounds named, every row each round's draft process wrote. */
+        get: operations["roundDrafts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rounds/openings": {
         parameters: {
             query?: never;
@@ -1037,6 +1123,78 @@ export interface components {
         Created: {
             /** Format: int64 */
             id: number;
+        };
+        /** @description A row of the draft process table (docs/drafting.md, 「The process table」). */
+        DraftProcess: {
+            /** @description An agent, or `*` for any. */
+            agentName: string;
+            /** Format: uint32 */
+            ceilingSeconds: number;
+            light: string[];
+            /** Format: uint32 */
+            lightChars: number;
+            /** @description `send` or `skip`. */
+            pastCeiling: string;
+            /** @description A provider's key, or `*` for any. */
+            provider: string;
+            rounds: string[];
+            /** @description `set` or `default`. */
+            source: string;
+            /** @description A tier, or `*` for any. */
+            tier: string;
+        };
+        /** @description A row of the draft process table set by the console. */
+        DraftProcessSet: {
+            /** Format: uint32 */
+            ceilingSeconds: number;
+            light: string[];
+            /** Format: uint32 */
+            lightChars: number;
+            /** @description `send` or `skip`. */
+            pastCeiling: string;
+            rounds: string[];
+        };
+        /** @description A question of the draft process's catalogue. */
+        DraftQuestion: {
+            name: string;
+            /** @description `set` or `default`. */
+            source: string;
+            text: string;
+        };
+        /** @description A question's text set by the console. */
+        DraftQuestionSet: {
+            text: string;
+        };
+        /** @description One turn of a round's draft process, or its end. */
+        DraftRound: {
+            agentName: string;
+            answer: string | null;
+            /** Format: int64 */
+            answerChars: number;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            at: number;
+            changed: boolean;
+            detail: string | null;
+            /** Format: int64 */
+            id: number;
+            /** @description `turn`, `question`, `item`, `check` or `end`. */
+            kind: string;
+            /** Format: int64 */
+            ms: number;
+            /**
+             * Format: int64
+             * @description 0 for the round's own turn, then each question, item and check in the order asked.
+             */
+            number: number;
+            /**
+             * @description `answered`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
+             *     `ceiling-skip` for the end.
+             */
+            outcome: string;
+            question: string;
         };
         /** @description A room's figures. */
         Figures: {
@@ -1278,6 +1436,21 @@ export interface components {
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
+        Page11: {
+            items: components["schemas"]["RoundDrafts"][];
+            more: boolean;
+        };
+        /** @description A page of a collection: its members, and whether anything stands past the last of them. */
+        Page12: {
+            items: components["schemas"]["DraftProcess"][];
+            more: boolean;
+        };
+        /** @description A page of a collection: its members, and whether anything stands past the last of them. */
+        Page13: {
+            items: components["schemas"]["DraftQuestion"][];
+            more: boolean;
+        };
+        /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page2: {
             items: components["schemas"]["RoomAnswerers"][];
             more: boolean;
@@ -1493,6 +1666,11 @@ export interface components {
         /** @description A room's name alone. */
         RoomTitle: {
             title: string | null;
+        };
+        /** @description What a round's draft process wrote, row by row (docs/drafting.md, 「The round log」). */
+        RoundDrafts: {
+            round: string;
+            rows: components["schemas"]["DraftRound"][];
         };
         /** @description What a round settled, without the instructions' text. */
         RoundOpening: {
@@ -1728,6 +1906,167 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    draftProcesses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page12"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    setDraftProcess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+                tier: string;
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftProcessSet"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftProcess"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    removeDraftProcess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+                tier: string;
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, not-found, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    draftQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page13"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    setDraftQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftQuestionSet"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftQuestion"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3432,6 +3771,38 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roundDrafts: {
+        parameters: {
+            query: {
+                room: number;
+                rounds?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page11"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

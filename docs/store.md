@@ -66,6 +66,9 @@ takes it outright: the table holds no default agent.
 | `room_deliveries` | a kept message carried to one of the room's providers: the provider, the number it gave its copy once it answers, and when it went; its number is the send's tag | its number |
 | `news_briefs` | a room's morning news edition: the time it is sent, how long before it the writing starts, how long its link lives, whether it is on and the day it last started | its number |
 | `holidays` | a day off, so no morning news edition goes out on it | its day |
+| `draft_processes` | a row of the draft process table the console set, over the policy's (`docs/drafting.md`, 「The process table」): the questions of an ordinary and a light turn, the light bound, the ceiling and what is done past it, and when it was set | provider, tier and agent |
+| `draft_questions` | a question's text the console set, over the policy's catalogue, and when | its name |
+| `draft_rounds` | one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」): the round, the room, the agent, its number, the question, its kind, its answer's length, whether it changed, how it ended, a detail, the answer, how long it took and when | its number |
 
 A room's line is read newest first or from a message the reader holds, by when each message was sent and then by
 its row, so `messages` is indexed by room, time and row, and a page reads only the messages it answers. The roads a

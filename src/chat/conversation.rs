@@ -1,8 +1,8 @@
 //! The conversations of one conversational agent, every room's in one (docs/wake.md; docs/bmo-window.md): what a
 //! room says joins its queue and is handed over together once the queue's delay is up; the room's conversation
-//! wakes, or takes the words into the round it is running. A round reads what is waiting, asks the session once,
-//! holds the answer to its checks, and sends it — or waits for more, or passes the room by — and the room's window
-//! keeps it listening without being called while it stands.
+//! wakes, or takes the words into the round it is running. A round reads what is waiting, asks the session, makes
+//! the message from its draft through the draft process, and sends it — or waits for more, or passes the room by —
+//! and the room's window keeps it listening without being called while it stands.
 
 use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
@@ -16,9 +16,9 @@ use receiver_policy::fill_marks;
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
 
-use super::again::Checker;
 use super::ask::Carry;
 use super::context::{remember_held, sent_prompt};
+use super::draft::Drafter;
 use super::health::{FailureOrders, RoomHealth};
 use super::mid_turn::{Paragraph, Push};
 use super::prompt::{self, Round, Scope as RoundScope};
@@ -113,6 +113,8 @@ pub struct Reply {
   pub context_window: Option<i64>,
   /// The share of the window the session folds at, as the agency gives it for its provider and tier.
   pub fold_ratio: Option<f64>,
+  /// The tier the agency names for the session, where it names one.
+  pub tier: Option<String>,
   pub replaced: Vec<SessionReason>,
   pub run: Option<String>,
 }
@@ -170,37 +172,48 @@ pub trait Carrying: Send + Sync {
   ) -> BoxFuture<'a, Result<Reply, Failure>>;
 }
 
-/// What a round's answer is held to while the checks read it: the answer itself, the round's scope, the words
-/// the round read and the words around it, whether its turn may use tools and what it still owes the owner.
-pub struct Checked<'a> {
+/// What the draft process makes the message from (docs/drafting.md): the round's draft, its scope, the words the
+/// round read and the words around it, how many quiet instructions it carried, whether its turn may use tools and
+/// what it still owes the owner.
+pub struct Drafted<'a> {
   pub reply: Reply,
   pub scope: &'a RoundScope,
   pub recent: &'a [Inbound],
   pub batch: &'a [Inbound],
+  pub instructions: usize,
   pub tools_allowed: bool,
   pub owed: usize,
   /// The room the round answers, the road its answer goes back on, whether every word it took was the owner's,
-  /// and the messages waiting for the next turn: what a second asking goes out with beside its errand.
+  /// and the messages waiting for the next turn: what a turn of the process goes out with beside its question.
   pub room: Room,
   pub via: String,
   pub privileged: bool,
   pub pending: Vec<i64>,
-  /// The round's own selection, which a second asking goes out with the same reference on.
+  /// The round's own selection, which every turn of the process goes out with the same reference on.
   pub selection: &'a Selection,
+  /// When the round began, in epoch milliseconds, which the process's ceiling counts from, and its name.
+  pub began: i64,
+  pub round: &'a str,
 }
 
-/// What holds a round's answer to the checks the code keeps before it goes out (docs/answer-checks.md), and what
-/// the round wrote down beside it; it answers with the words that go out, which a check may replace. Filled by
-/// the module that owns the checks.
-pub trait Checks: Send + Sync {
-  fn checks<'a>(
+/// What the draft process made: the message, a skip where nothing goes out, with what the last turn carried of
+/// the session; the words the last question took from the room, which are the round's own from then on; and the
+/// rows the words pushed into the last question settled.
+pub struct Made {
+  pub reply: Reply,
+  pub took: Vec<Inbound>,
+  pub settling: Vec<i64>,
+}
+
+/// What makes a round's message out of its draft (docs/drafting.md). Filled by the module that owns the process.
+pub trait Drafting: Send + Sync {
+  fn draft<'a>(
     &'a self,
     conversations: &'a Conversations,
-    receiver: &'a Receiver,
     agent: &'a str,
     held: &'a Held,
-    checked: &'a Checked<'a>,
-  ) -> BoxFuture<'a, Result<Reply, Failure>>;
+    drafted: &'a Drafted<'a>,
+  ) -> BoxFuture<'a, Result<Made, Failure>>;
 }
 
 /// Where a round's answer goes out: the room it goes out in, the message it answers, the road it answers on, the
@@ -554,7 +567,7 @@ struct Inner {
   // Shared by the agent's turns while they keep what they came to, taken whole by its reset as it moves the point.
   keeping: Arc<tokio::sync::RwLock<()>>,
   carrying: Arc<dyn Carrying>,
-  checks: Arc<dyn Checks>,
+  drafting: Arc<dyn Drafting>,
   sending: Arc<dyn Sending>,
   noting: Arc<dyn Noting>,
   pieces: Arc<dyn Pieces>,
@@ -568,14 +581,15 @@ pub struct Conversations(Arc<Inner>);
 
 impl Conversations {
   /// An agent's conversations on the receiver's own parts of a round: its turns carried into the agency's
-  /// sessions, its answers held to the checks and sent on the road they answer on, its sessions noted and folded,
-  /// a companion's rounds its own, and the health and failure orders of its rooms. The talk and the touch are the
-  /// conversations' own, taken behind whatever round is running, and so is the typed line, composed at once.
+  /// sessions, its answers made into messages by the draft process and sent on the road they answer on, its
+  /// sessions noted and folded, a companion's rounds its own, and the health and failure orders of its rooms. The
+  /// talk and the touch are the conversations' own, taken behind whatever round is running, and so is the typed
+  /// line, composed at once.
   pub fn new(receiver: Receiver, hooks: Arc<dyn Hooks>, timings: Timings, agent: &str) -> Self {
     Self(Arc::new(Inner {
       agent: agent.to_owned(),
       carrying: Arc::new(Carry::looking_every(receiver.clone(), timings.look)),
-      checks: Arc::new(Checker::new(receiver.clone())),
+      drafting: Arc::new(Drafter::new(receiver.clone(), timings.look)),
       sending: Arc::new(Sender::new(receiver.clone())),
       noting: Arc::new(Noter::new(receiver.clone())),
       pieces: Arc::new(CompanionTurn),
@@ -1670,19 +1684,19 @@ impl Conversations {
       return self.waited_round(chat_id, &batch, &held_words, final_round, record).await;
     }
 
-    reply = self
+    let made = self
       .0
-      .checks
-      .checks(
+      .drafting
+      .draft(
         self,
-        &receiver,
         self.agent(),
         &held,
-        &Checked {
+        &Drafted {
           reply: reply.clone(),
           scope: &scope,
           recent: &recent,
           batch: &batch,
+          instructions: instructions.len(),
           tools_allowed,
           owed,
           room,
@@ -1690,9 +1704,28 @@ impl Conversations {
           privileged: held.all_from_owner,
           pending: self.pending(chat_id),
           selection: &composed.selection,
+          began,
+          round,
         },
       )
       .await?;
+
+    reply = made.reply;
+    record.settling.extend(made.settling);
+
+    // The words the last question took are the round's own: the read mark moves to them and the answer is pinned
+    // to the newest.
+    if !made.took.is_empty() {
+      batch.extend(made.took);
+      self.consume(chat_id, &batch).await;
+      held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
+    }
+
+    // The fold reads the context the process's last turn left.
+    let ratio = reply.context_ratio().or(ratio);
+    let fold_at = reply.fold_ratio.or(fold_at);
+
+    held.context_tokens = reply.context_tokens.or(held.context_tokens);
 
     if is_skip(&reply.text) {
       self.keep_session(chat_id, &held);
@@ -1871,6 +1904,64 @@ impl Conversations {
 
     drop(keeping);
     self.pump_pending(chat_id);
+  }
+
+  /// The words that came into a room while its round's draft process ran, taken for the process's last question:
+  /// into a round that read only the owner's words, only words that are all the owner's.
+  pub fn meanwhile(&self, chat_id: i64, privileged: bool) -> Vec<Inbound> {
+    let owner = self.owner();
+    let mut state = self.state();
+    let Some(conv) = state.active.get_mut(&chat_id) else {
+      return vec![];
+    };
+    let keeps = !privileged || conv.buffer.iter().all(|message| message.sender_id == Some(owner));
+
+    if keeps { std::mem::take(&mut conv.buffer) } else { vec![] }
+  }
+
+  /// Words the last question took and did not answer for, back at the front of what waits.
+  pub fn give_back_words(&self, chat_id: i64, words: Vec<Inbound>) {
+    if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      conv.buffer.splice(0..0, words);
+    }
+  }
+
+  /// The last question of a round's draft process takes words pushed into it while it works, as the round's turn
+  /// does: the round it belongs to, whether it read only the owner's words, whether its tools are on, and the
+  /// words it carries already.
+  pub fn open_last(
+    &self,
+    chat_id: i64,
+    round: &str,
+    privileged: bool,
+    tools_allowed: bool,
+    messages: Vec<Inbound>,
+  ) {
+    if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      conv.carried = Some(Carried {
+        round: round.to_owned(),
+        privileged,
+        tools_allowed,
+        messages,
+        roads: vec![],
+        settling: vec![],
+        pushed: vec![],
+        pushed_instructions: vec![],
+        holds: HashSet::new(),
+        open: true,
+        shut: false,
+        pushing: false,
+      });
+    }
+  }
+
+  /// The last question's turn is over, as its follower saw it: the words pushed into it past the `carried` it
+  /// began with, and the rows those pushes settled. Words offered and never answered for go back to wait.
+  pub fn close_last(follower: &Follower, carried: usize) -> (Vec<Inbound>, Vec<i64>) {
+    match follower.finish() {
+      Some(last) => (last.messages[carried.min(last.messages.len())..].to_vec(), last.settling),
+      None => (vec![], vec![]),
+    }
   }
 
   // A round that comes to no turn: the room free for the next round, and nothing of it kept.
@@ -2108,7 +2199,8 @@ impl Conversations {
   }
 
   // The words a room still has waiting for a round: its buffer and what the queue is gathering.
-  fn pending(&self, chat_id: i64) -> Vec<i64> {
+  /// The messages waiting for a room's next round: those its conversation holds and those its queue gathers.
+  pub fn pending(&self, chat_id: i64) -> Vec<i64> {
     let state = self.state();
     let buffered = state.active.get(&chat_id).map(|conv| conv.buffer.clone()).unwrap_or_default();
     let gathering = state.queue.get(&chat_id).cloned().unwrap_or_default();

@@ -7,6 +7,7 @@ mod brain;
 mod companions;
 mod console;
 mod consult;
+mod drafts;
 mod events;
 mod figures;
 mod hooks;
@@ -155,6 +156,16 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("DELETE", "/rooms/{roomId}", delete(room_removal::remove)),
     ("GET", "/rounds/openings", get(openings::openings)),
     ("GET", "/rounds/openings/{instructionId}", get(openings::instruction)),
+    ("GET", "/rounds/drafts", get(drafts::drafts)),
+    ("GET", "/draft-processes", get(drafts::processes)),
+    ("PUT", "/draft-processes/{provider}/{tier}/{agentName}", put(drafts::set_process)),
+    (
+      "DELETE",
+      "/draft-processes/{provider}/{tier}/{agentName}",
+      delete(drafts::remove_process),
+    ),
+    ("GET", "/draft-questions", get(drafts::questions)),
+    ("PUT", "/draft-questions/{name}", put(drafts::set_question)),
     ("POST", "/companions", post(companions::add)),
     ("DELETE", "/companions/{companion}", delete(companions::remove)),
     ("PUT", "/pinned-rooms", put(console::pin)),

@@ -1,5 +1,6 @@
-//! The checks a chat answer passes before it goes out, and the errands a second asking sends the same
-//! session (docs/answer-checks.md): the words each check reads by, and every line it says.
+//! The checks a chat answer passes before it goes out, and the errands an item or a check of the draft process
+//! sends the same session (docs/answer-checks.md, docs/drafting.md): the words each check reads by, and every
+//! line it says.
 
 use serde::Deserialize;
 
@@ -10,6 +11,8 @@ pub struct Errands {
   pub language: String,
   pub answer: String,
   pub wording: String,
+  pub length: String,
+  pub format: String,
   pub record: String,
   pub record_off: String,
   pub record_on: String,

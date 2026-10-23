@@ -155,7 +155,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `tests/integration/receiver/wake.rs`, the colocated `wake/question` and `wake/rest` modules | `tests/integration/wake.rs`, `tests/integration/wake/question.rs`, `tests/integration/wake/rest.rs` | build-7 |
 | the colocated modules of `chat/conversation`, `mid_turn`, `window`, `shape`, `room`, `context`, `records`, `form`, `text`, `dashes`, `js`, `web_address` | `tests/` of those names | build-8 |
 | `tests/integration/private_thread.rs` | of the same name | build-8 |
-| the colocated modules of `chat/ask`, `progress`, `again`, `companion/words`, and the promises reading | `tests/ask.rs`, `tests/progress.rs`, `tests/again.rs`, `tests/companion_words.rs`, `tests/promises.rs` | build-9 |
+| the colocated modules of `chat/ask`, `progress`, `again`, `companion/words`, and the promises reading | `tests/ask.rs`, `tests/progress.rs`, `tests/draft.rs`, `tests/companion_words.rs`, `tests/promises.rs` | build-9 |
 | `tests/integration/stop_notice.rs` | of the same name | build-9 |
 | `tests/integration/chat_tool.rs` (the consult block test), `receiver/talk.rs`, `talk_verbs.rs` (the consult tests), `chat/talk`'s colocated module | `tests/integration/consult_block.rs`, `tests/integration/talks.rs`, `tests/integration/consult_verbs.rs`, `tests/talk.rs` | build-10 |
 | `tests/integration/verbs_messages.rs`, `verbs_draws.rs`, `receiver/owner_sends.rs`, `receiver/owner_words.rs` | of the same names | build-11 |

@@ -9,6 +9,7 @@ use bmo_receiver::store::migration::m20261019_000005_message_metadata::TABLE as 
 use bmo_receiver::store::migration::m20261022_000008_news_briefs::TABLES as NEWS_BRIEFS_TABLES;
 use bmo_receiver::store::migration::m20261023_000009_room_providers::TABLES as ROOM_PROVIDERS_TABLES;
 use bmo_receiver::store::migration::m20261023_000010_room_modes::TABLE as ROOM_MODES;
+use bmo_receiver::store::migration::m20261023_000012_draft_process::TABLES as DRAFT_PROCESS_TABLES;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -40,10 +41,11 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .chain([RECORD_NUMBERS, ROOM_WINDOWS, PEOPLE_READS, MESSAGE_METADATA, ROOM_MODES, RECORD_TABLE])
     .chain(NEWS_BRIEFS_TABLES)
     .chain(ROOM_PROVIDERS_TABLES)
+    .chain(DRAFT_PROCESS_TABLES)
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 11);
+  assert_eq!(migrate(db).await.unwrap(), 12);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -61,6 +63,7 @@ async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
   assert_eq!(
     database.texts(INDEXES).await,
     [
+      "draft_rounds_round",
       "instructions_pending",
       "instructions_round",
       "instructions_run",
@@ -149,7 +152,8 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
     ]
   );
 
-  Migrator::down(db, Some(1)).await.unwrap();
+  // The line's index is the migration before the draft process's.
+  Migrator::down(db, Some(2)).await.unwrap();
 
   let before = stated(database.texts(MESSAGE_INDEXES).await);
 
@@ -160,7 +164,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
   );
 
-  assert_eq!(migrate(db).await.unwrap(), 1);
+  assert_eq!(migrate(db).await.unwrap(), 2);
   assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
 }
 

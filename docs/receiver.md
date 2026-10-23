@@ -34,7 +34,8 @@ flowchart TD
     - the window each agent keeps in the room, and the one a call opens for a companion;
     - the files a person posted just before the words of theirs that woke the chat agent;
   - the conversations (`docs/wake.md`, `docs/bmo-window.md`): each room's queue, rounds, window and waits, the
-    round's turn on the agent's session with the words pushed into it, the answer sent on the road the turn
+    round's turn on the agent's session with the words pushed into it, the draft process its answer is made in
+    (`docs/drafting.md`), the answer sent on the road the turn
     answers on with the room shown typing meanwhile, the fold, the failure orders and the cache warmer's touch;
     each answer sent is handed back to the receiver like any word filed in the room;
   - the instruction pass over every agent's rows (`docs/bmo-window.md`, 「The agent's queue」): each row handed to
@@ -209,7 +210,9 @@ flowchart TD
 - **What goes into it** is the news the receiver makes itself: a message it kept or wrote again, a window opened
   or restarted, a window closed as `window-closed` with its room, its agent and `closedAt`, the moment it closed
   (`docs/wake.md`, 「The names and the window」), a verdict it wrote of a round as `judgement` with its
-  `messageId` (null where it stands under no message yet), `stage`, `verdict` and `detail`, a room whose
+  `messageId` (null where it stands under no message yet), `stage`, `verdict` and `detail`, each row of a round's
+  draft process as `draft` with its `round`, `agentName`, `number`, `question`, `kind`, `answerChars`, `changed`,
+  `outcome` and `detail` (`docs/drafting.md`, 「The round log」), a room whose
   registration was removed as `room-removed` with its
   number, the picture whenever it
   changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile

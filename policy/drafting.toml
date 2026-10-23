@@ -1,0 +1,50 @@
+# The draft process (docs/drafting.md): the questions a round's turn is followed by, the table that says which,
+# the lines a question turn is written in and the longest final text. The console's rows and texts stand over
+# these (`GET`/`PUT /draft-processes`, `GET`/`PUT /draft-questions`).
+
+# The longest final text the `length` check lets go, in characters.
+max_chars = 4000
+
+# The lines a question turn is written in. `lead` opens every question but the last, `last_lead` the last;
+# `{number}` is the question's place, `{count}` how many the process asks and `{name}` the question's name.
+# `waiting` closes every question but the last, `{ids}` the messages waiting for the round.
+lead = "Before your answer goes out, the process asks question {number} of {count} ({name}). Answer it freely: your thinking, notes, what you read or did, a draft. Every tool you have is open. Only the last question's answer goes out, as the message; <<SKIP>> in any answer ends the process and nothing is sent."
+last_lead = "The last question of the process, {number} of {count} ({name}). Your answer to it is the message, sent to the room as you write it; <<SKIP>> sends nothing."
+waiting = "Messages waiting in the room: {ids}. They are shown with the last question; do not answer them now."
+
+# The questions, by name: the six the owner wrote, in the owner's own words and language. `final` is always
+# the last question of a process.
+[questions]
+intent = "이 말을 한 사람의 의도는 무엇인가? 답할지는 이미 정해졌다. 왜 이 말을 했는지, 무엇을 바라는지 생각해 보라."
+information = "답에 필요한 정보는 무엇이고, 무엇을 더 읽어야 하나? 골라 준 참조로 부족하면 지금 도구로 읽어라."
+facts = "그 정보들은 사실인가? 확인되지 않은 것이나 미정인 변수를 아는 척하거나 추측해서 말하지 않았나?"
+promises = "약속하듯 말할 것이 있다면 실제로 했나? 하지 않았다면 지금 도구로 하거나, 말을 바꿔라."
+fit = "방의 규칙, 페르소나, 상대가 쓰는 언어에 맞나?"
+final = "그사이 올라온 말까지 보고, 이제 이 방에 보낼 메시지를 써라. 초안을 고쳐도 되고, 보내지 않으려면 <<SKIP>>만 답하라."
+
+# The process table's default rows, matched most specific first: an agent's row before a provider's, a
+# provider's before a tier's; "*" stands for any. `rounds` are an ordinary turn's questions, `light` a light
+# turn's (quiet instructions alone, or room words of at most `light_chars` characters and no file);
+# `ceiling_seconds` bounds the whole process, past which `past_ceiling` sends what stands or skips.
+
+# The small models' process.
+[[process]]
+provider = "*"
+tier = "*"
+agent = "*"
+rounds = ["intent", "information", "facts", "promises", "final"]
+light = ["final"]
+light_chars = 12
+ceiling_seconds = 150
+past_ceiling = "send"
+
+# Claude's process.
+[[process]]
+provider = "claude-code"
+tier = "*"
+agent = "*"
+rounds = ["information", "promises", "final"]
+light = ["final"]
+light_chars = 12
+ceiling_seconds = 150
+past_ceiling = "send"
