@@ -183,6 +183,9 @@ pub struct Turn {
   /// When the turn took its words, in epoch milliseconds.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub began: Option<i64>,
+  /// The name of the round the turn belongs to, which the turn's run keeps.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub round: Option<String>,
 }
 
 /// Whether the program took a turn's words or refused them while it waits on a person.
@@ -390,6 +393,12 @@ pub trait Agency: Send + Sync {
   /// A run's row by its id; none where the agency holds none.
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>>;
 
+  /// The ids of the runs a round's turns opened, oldest first.
+  fn round_runs<'a>(&'a self, round: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>>;
+
+  /// The message a run's answer went out as, attached to the run; its closing stays as it stands.
+  fn attach_message(&self, run: i64, message: i64) -> BoxFuture<'_, Answer<()>>;
+
   /// The documents a session was handed in full, each at the version it read.
   fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>>;
 
@@ -483,6 +492,24 @@ struct Hook<'a> {
 #[derive(Deserialize)]
 struct Lines {
   items: Vec<RunLine>,
+}
+
+/// A page of runs, of which the receiver reads each run's id.
+#[derive(Deserialize)]
+struct RunPage {
+  items: Vec<RunId>,
+}
+
+#[derive(Deserialize)]
+struct RunId {
+  id: i64,
+}
+
+/// The body that attaches the message a run's answer went out as, naming nothing else.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Attached {
+  message_id: i64,
 }
 
 /// A session's loads as the agency keeps them, and the body that keeps them.
@@ -689,6 +716,31 @@ impl Agency for HttpAgency {
 
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>> {
     Box::pin(async move { self.caller.found(&["runs", &id.to_string()], &[]).await })
+  }
+
+  fn round_runs<'a>(&'a self, round: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>> {
+    Box::pin(async move {
+      let page: RunPage = self.caller.get(&["runs"], &[("round", round.to_owned())]).await?;
+
+      Ok(page.items.into_iter().map(|run| run.id).collect())
+    })
+  }
+
+  fn attach_message(&self, run: i64, message: i64) -> BoxFuture<'_, Answer<()>> {
+    Box::pin(async move {
+      let run = run.to_string();
+
+      self
+        .caller
+        .done(
+          Method::PATCH,
+          &["runs", &run],
+          &Attached {
+            message_id: message,
+          },
+        )
+        .await
+    })
   }
 
   fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>> {

@@ -104,7 +104,7 @@ room's matter.
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
 | start a session | `POST /sessions` | `agentName`, `scope`, `roomId` | the session's `id`, `agentName`, `scope`, `roomId` |
-| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers and the privilege; no base persona, which the agency takes from the agent's brain | `id`, `delivery` |
+| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to; no base persona, which the agency takes from the agent's brain | `id`, `delivery` |
 | read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation` |
 | push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
@@ -120,12 +120,21 @@ room's matter.
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
+| a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, oldest first |
+| an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
 and is opened again when it drops: `turn.created`, `turn.ended`, `companion-reset.created`,
 `document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
 `overtime-request.created` and `overtime-request.changed`.
+
+A turn of a round names the round in its body, and the agency opens the turn's run in its ledger under that name.
+Once the round's answer is filed in the room, the receiver asks for the round's runs and attaches the answer, as
+the room keeps it (on the record its number there, on a chat service the copy the record keeps beside that
+service's own send), to the newest of them, so the message reads back the run that wrote it. A round that opened
+no run is attached to nothing, and one whose runs cannot be read or whose attach is refused says so in the
+journal.
 
 A session's loads are the documents it was handed in full, each the `path` and the `version` it read. A keep
 replaces the whole list, so the receiver writes the session's loads it reads back with the turn's new ones laid

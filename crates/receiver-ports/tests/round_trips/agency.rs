@@ -51,6 +51,12 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     json!({ "name": "agent-a", "resetAt": 2_000, "standInAvailable": true }),
   );
   unit.answer("GET /runs/7", 200, json!({ "id": 7, "startedAt": 1_700_000 }));
+  unit.answer(
+    "GET /runs",
+    200,
+    json!({ "items": [{ "id": 8, "round": "round:-7:1:1" }, { "id": 9, "round": "round:-7:1:1" }], "more": false }),
+  );
+  unit.answer("PATCH /runs/9", 200, json!({ "id": 9, "messageId": 12 }));
 
   let agents = agency.agents().await.unwrap();
 
@@ -75,6 +81,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     privileged: Some(true),
     answers: vec![11],
     began: Some(1_000),
+    round: Some("round:-7:1:1".to_owned()),
   };
 
   assert_eq!(agency.turn(&turn).await.unwrap(), Delivery::Blocked);
@@ -104,6 +111,8 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
       started_at: 1_700_000
     })
   );
+  assert_eq!(agency.round_runs("round:-7:1:1").await.unwrap(), [8, 9]);
+  agency.attach_message(9, 12).await.unwrap();
 
   assert_eq!(
     unit.took(),
@@ -123,6 +132,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
           "privileged": true,
           "answers": [11],
           "began": 1000,
+          "round": "round:-7:1:1",
         }))
       ),
       call("GET /sessions/agent-a@-7", "", None),
@@ -138,6 +148,8 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
       call("GET /log-lines", "run=run-1&after=3", None),
       call("GET /agents/agent-a", "", None),
       call("GET /runs/7", "", None),
+      call("GET /runs", "round=round%3A-7%3A1%3A1", None),
+      call("PATCH /runs/9", "", Some(json!({ "messageId": 12 }))),
     ]
   );
 }

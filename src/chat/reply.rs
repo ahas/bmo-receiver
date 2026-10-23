@@ -1,8 +1,9 @@
 //! A round's answer sent into its room (docs/receiver.md, 「The answer goes out」): the session's scaffolding and
 //! the send's own markers taken off, the words cleaned under the agent's own switch, and sent on the road the turn
 //! answers on — the one its words came in on where that road reaches the room — in the one send that road folds
-//! into its parts, the first pinned to the message it answers. What went out names the round that wrote it, and
-//! the send's own verdict is written beside the round's.
+//! into its parts, the first pinned to the message it answers. What went out names the round that wrote it, is
+//! attached to the run the round's turn opened at the agency, and the send's own verdict is written beside the
+//! round's.
 
 use bmo_chat_client::{ChatSend, ChatSendRequest};
 
@@ -48,6 +49,31 @@ async fn mark_round(receiver: &Receiver, chat_id: i64, message_id: i64, round: O
 
   if let Err(why) = rows::mark_message_round(receiver.db(), chat_id, message_id, round).await {
     eprintln!("chat {chat_id}: message {message_id} could not be marked: {}", why.detail);
+  }
+}
+
+// The answer, as the room keeps it, attached to the newest run the round's turns opened in the agency's ledger
+// (docs/boundary-api.md, 「The agency」), so the message reads back the run that wrote it.
+async fn attach_run(receiver: &Receiver, chat_id: i64, message_id: i64, round: Option<&str>) {
+  let Some(round) = round else {
+    return;
+  };
+  let agency = &receiver.units().agency;
+  let run = match agency.round_runs(round).await {
+    Ok(runs) => runs.last().copied(),
+    Err(why) => {
+      eprintln!("chat {chat_id}: the runs of {round} could not be read: {why}");
+
+      return;
+    }
+  };
+  // A round whose turn never reached the agency opened no run.
+  let Some(run) = run else {
+    return;
+  };
+
+  if let Err(why) = agency.attach_message(run, message_id).await {
+    eprintln!("chat {chat_id}: message {message_id} could not be attached to run {run}: {why}");
   }
 }
 
@@ -147,6 +173,7 @@ async fn carry(
   };
 
   mark_round(receiver, chat_id, kept, reply.round.as_deref()).await;
+  attach_run(receiver, chat_id, kept, reply.round.as_deref()).await;
   answer_wait(receiver, chat_id, kept, reply.asked_at).await;
 
   judge(receiver, chat_id, Some(kept), "send", "SENT", None, Some(now_ms() - started)).await;

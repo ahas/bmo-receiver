@@ -29,6 +29,7 @@ use super::room::{RoomContext, room_context};
 use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::room_record::RoomForget;
+use crate::rounds;
 
 // The least a room's first launch since this process started is spaced from another room's: several sessions
 // starting from cold at once is the shape of abuse.
@@ -127,6 +128,7 @@ fn turn_of(asking: &Asking, session: &Session, room: &RoomContext, prompt: &str)
     privileged: Some(asking.privileged),
     answers: asking.answers.to_vec(),
     began: Some(asking.began),
+    round: rounds::current(),
   }
 }
 

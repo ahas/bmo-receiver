@@ -609,6 +609,9 @@ pub fn deployment() -> Deployment {
   }
 }
 
+/// The newest run the stand-in agency answers every round's turns opened, the one before it beside it.
+pub const ROUND_RUN: i64 = 77;
+
 /// The attachment size cap of the tests' deployment, in bytes.
 pub const CAP: u64 = 1024;
 
@@ -664,6 +667,9 @@ pub struct StandInAgency {
   pub point: Mutex<Option<i64>>,
   // The runs it holds, each its id and the moment it began, in epoch seconds.
   pub runs: Mutex<BTreeMap<i64, i64>>,
+  // Every round whose runs it was asked for, and every message attached to a run, as the run and the message.
+  pub rounds_asked: Mutex<Vec<String>>,
+  pub attached: Mutex<Vec<(i64, i64)>>,
   // The sessions it lists, each with its state, where a test sets them.
   pub listed: Mutex<Option<Vec<(Session, SessionState)>>>,
   // Whether it answers nothing of its agents and sessions, as an agency that is down.
@@ -693,6 +699,8 @@ impl StandInAgency {
       forgotten: Mutex::default(),
       point: Mutex::default(),
       runs: Mutex::default(),
+      rounds_asked: Mutex::default(),
+      attached: Mutex::default(),
       listed: Mutex::default(),
       down: Mutex::default(),
       loads: Mutex::default(),
@@ -902,6 +910,18 @@ impl Agency for StandInAgency {
     });
 
     Box::pin(async move { Ok(run) })
+  }
+
+  fn round_runs<'a>(&'a self, round: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>> {
+    self.rounds_asked.lock().unwrap().push(round.to_owned());
+
+    Box::pin(async move { Ok(vec![ROUND_RUN - 1, ROUND_RUN]) })
+  }
+
+  fn attach_message(&self, run: i64, message: i64) -> BoxFuture<'_, Answer<()>> {
+    self.attached.lock().unwrap().push((run, message));
+
+    Box::pin(async move { Ok(()) })
   }
 
   fn loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Vec<Load>>> {

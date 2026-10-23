@@ -19,7 +19,7 @@ use receiver_ports::agency::Said;
 use crate::common::Scratch;
 use crate::common::session::StandInSession;
 use crate::common::units::{
-  ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
+  ADDRESS, AGENT, OWNER, ROUND_RUN, StandInChat, Standing, deployment, registration, unrun, woken,
 };
 
 /// What the session's every turn ends with.
@@ -185,6 +185,27 @@ async fn words_the_working_turn_took_are_its_own_and_its_answer_goes_back_to_the
 
   assert_eq!(sent.len(), 1, "the round answers the room once");
   assert!(sent[0].contains(ANSWER), "the turn's answer is what goes back to the room");
+}
+
+#[tokio::test]
+async fn a_turn_names_its_round_and_the_answer_is_attached_to_the_rounds_newest_run() {
+  let round = Round::pushed_and(Said::Delivered).await;
+  let turns = round.session.turns.lock().unwrap().clone();
+  let named = turns[0].round.clone().expect("the turn names its round");
+  let kept = round
+    ._scratch
+    .texts(&format!(
+      r#"SELECT "message_id"::text FROM "messages" WHERE "chat_id" = {OWNER} AND "round" = '{named}'"#
+    ))
+    .await;
+
+  assert_eq!(kept.len(), 1, "the round's answer is kept under the round the turn named");
+  assert_eq!(*round.standing.agency.rounds_asked.lock().unwrap(), [named]);
+  assert_eq!(
+    *round.standing.agency.attached.lock().unwrap(),
+    [(ROUND_RUN, kept[0].parse::<i64>().unwrap())],
+    "the answer, as the room keeps it, is attached to the newest run the round opened",
+  );
 }
 
 #[tokio::test]
