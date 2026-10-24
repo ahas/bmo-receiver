@@ -91,6 +91,8 @@ pub async fn say(
         via: Road::Record.key(),
         sender_id: numbered,
         name: name.as_ref(),
+        agent: Some(agent),
+        voice: None,
       };
 
       let message_id = record::keep(db, receiver.news(), kept).await.map_err(NotReceived::Store)?;

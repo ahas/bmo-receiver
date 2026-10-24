@@ -112,7 +112,7 @@ async fn a_kept_message_goes_to_every_provider_of_its_room_but_the_ones_it_stand
   let receiver = front.receiver();
 
   // A line the record keeps goes on to the chat service, tagged and in the service's own voice.
-  receiver.speech().kept(ROOM, "kept in the record", None).await.unwrap();
+  receiver.speech().kept(ROOM, "kept in the record", None, None, None).await.unwrap();
 
   let sent = road.sent();
 
@@ -135,14 +135,14 @@ async fn a_kept_message_goes_to_every_provider_of_its_room_but_the_ones_it_stand
   // A copy the road already carried is not carried to it again.
   receiver
     .speech()
-    .kept(ROOM, "sent on the road", Some(("road-a", Some(77))))
+    .kept(ROOM, "sent on the road", Some(("road-a", Some(77))), None, None)
     .await
     .unwrap();
   assert_eq!(road.sent().len(), 1, "a line the road already carried goes to it no second time");
 
   // A room on the record alone reaches no chat service.
   put(&front, "/rooms/-100/providers", json!({ "providers": ["record"] })).await;
-  receiver.speech().kept(ROOM, "for the console alone", None).await.unwrap();
+  receiver.speech().kept(ROOM, "for the console alone", None, None, None).await.unwrap();
   assert_eq!(road.sent().len(), 1, "a room on the record alone reaches no chat service");
 }
 
@@ -189,5 +189,89 @@ async fn a_providers_echo_of_a_carried_message_is_the_message_already_kept() {
       .all(|woken| !format!("{woken:?}").contains("message_id: 900")
         && !format!("{woken:?}").contains("message_id: 901")),
     "an echo wakes nobody",
+  );
+}
+
+// The agent and voice carried on a message, as the row keeps them: the agent whose words these are and the
+// voice the send went out in, or `∅|∅` where the row names neither.
+async fn voiced(scratch: &Scratch, message: i64) -> String {
+  scratch
+    .texts(&format!(
+      r#"SELECT COALESCE("agent_name", '∅') || '|' || COALESCE("voice", '∅')
+         FROM "messages" WHERE "chat_id" = {ROOM} AND "message_id" = {message}"#
+    ))
+    .await
+    .pop()
+    .unwrap_or_default()
+}
+
+#[tokio::test]
+async fn a_send_the_receiver_archives_itself_in_the_human_avatar_voice_names_its_agent_and_voice() {
+  let scratch = Scratch::new().await;
+  let (front, _road) = front(&scratch).await;
+  let receiver = front.receiver();
+
+  let message = receiver
+    .speech()
+    .kept(ROOM, "answered as the owner", None, Some("agent-a"), Some(ChatVoice::HumanAvatar))
+    .await
+    .unwrap();
+
+  assert_eq!(
+    voiced(&scratch, message).await,
+    "agent-a|human-avatar",
+    "a send the receiver archives names the agent whose words these are and the voice it went out in",
+  );
+}
+
+#[tokio::test]
+async fn a_message_a_provider_hands_over_names_no_agent_or_voice() {
+  let scratch = Scratch::new().await;
+  let (front, _road) = front(&scratch).await;
+
+  assert_eq!(hand(&handovers(&front), 5, handed("said in the room", None)).await, StatusCode::CREATED);
+  assert_eq!(
+    voiced(&scratch, 5).await,
+    "∅|∅",
+    "a person's message that came in from a provider names neither agent nor voice",
+  );
+}
+
+#[tokio::test]
+async fn a_providers_echo_of_the_receivers_own_send_keeps_the_sends_agent_and_voice() {
+  let scratch = Scratch::new().await;
+  let (front, _road) = front(&scratch).await;
+  let receiver = front.receiver();
+
+  // The receiver archives its own human-avatar send and stands it on the road under the number it went out as.
+  let message = receiver
+    .speech()
+    .kept(
+      ROOM,
+      "answered as the owner",
+      Some(("road-a", Some(77))),
+      Some("agent-a"),
+      Some(ChatVoice::HumanAvatar),
+    )
+    .await
+    .unwrap();
+
+  // The road hands that send back: it is the message already kept, de-duplicated and kept no second time, so
+  // the fields the send was archived with still stand.
+  assert_eq!(
+    hand(&handovers(&front), 77, handed("answered as the owner", None)).await,
+    StatusCode::OK
+  );
+  assert_eq!(
+    voiced(&scratch, message).await,
+    "agent-a|human-avatar",
+    "the echo is de-duplicated and the send keeps the agent and voice it was archived with",
+  );
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "message_id"::text FROM "messages" WHERE "chat_id" = -100 ORDER BY "rowid""#)
+      .await,
+    [message.to_string()],
+    "the echo is kept no second time",
   );
 }

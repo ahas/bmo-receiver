@@ -237,6 +237,11 @@ impl Sends {
         .flatten(),
       None => self.receiver.roads().identity_in(request.room_id).await,
     };
+    let agent = going
+      .speaker
+      .as_ref()
+      .map(|speaker| speaker.agent.clone())
+      .unwrap_or_else(|| self.receiver.deployment().agent.clone());
     let line = record::Kept {
       chat_id: request.room_id,
       text: &text,
@@ -244,6 +249,8 @@ impl Sends {
       via: Road::Record.key(),
       sender_id,
       name: &name,
+      agent: Some(&agent),
+      voice: None,
     };
     let message_id = record::keep(self.receiver.db(), self.receiver.news(), line).await.map_err(kept)?;
     let delivery = Delivery {

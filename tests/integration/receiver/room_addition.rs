@@ -190,7 +190,7 @@ async fn a_room_answered_as_the_user_sends_in_the_account_of_the_person_the_serv
   post(&front, "/rooms", adding("road-a", -200, "record-only")).await;
 
   // A line the record keeps goes on to the service, and a send on the service's road goes out the same way.
-  receiver.speech().kept(-100, "kept in the record", None).await.unwrap();
+  receiver.speech().kept(-100, "kept in the record", None, None, None).await.unwrap();
   receiver
     .speech()
     .act("road-a", &ChatSendRequest::new(-100, ChatSend::Typing { on: true }))
@@ -202,7 +202,7 @@ async fn a_room_answered_as_the_user_sends_in_the_account_of_the_person_the_serv
 
   owners.mode = Some(ChatVoice::HumanReader);
   receiver.speech().act("road-a", &owners).await.unwrap();
-  receiver.speech().kept(-200, "for the user alone", None).await.unwrap();
+  receiver.speech().kept(-200, "for the user alone", None, None, None).await.unwrap();
 
   let voices: Vec<(i64, Option<ChatVoice>)> =
     listing.sent().iter().map(|request| (request.room_id, request.mode)).collect();

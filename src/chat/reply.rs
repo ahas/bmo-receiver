@@ -13,7 +13,7 @@ use super::window::gate_on;
 use crate::form::{message_label, outgoing, strip_prompt_scaffolding, without_control_markers};
 use crate::now_ms;
 use crate::receiver::{Receiver, rows};
-use crate::roads::Road;
+use crate::roads::{Road, added};
 
 /// An answer bound for a room: the agent whose answer it is, its words, the message it answers, the road its words
 /// came in on, when the round that wrote it began and its name, and when the room said the earliest thing it
@@ -151,16 +151,31 @@ async fn carry(
   };
   let mut request = ChatSendRequest::new(chat_id, send);
   request.reply_to_message_id = reply.reply_to;
+  let agent = reply.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone());
   // The number the answer went out as, and the number the room keeps it under.
   let numbers = match road {
-    Road::Record => receiver.speech().kept(chat_id, text, None).await.ok().map(|kept| (kept, kept)),
+    Road::Record => receiver
+      .speech()
+      .kept(chat_id, text, None, Some(&agent), None)
+      .await
+      .ok()
+      .map(|kept| (kept, kept)),
     Road::Service(key) => match receiver.speech().act(&key, &request).await.ok().flatten() {
       // A service's road sends through that service; the room's own store keeps a copy beside it, which
       // the console and every other reader of the room's conversation read, and which goes on to the room's
       // providers but that road. The copy is the answer as the room holds it: the round's judgements, its
-      // mark and its wait are filed under it, where it was kept.
+      // mark and its wait are filed under it, where it was kept. The copy names the agent that answered and
+      // the voice the send went out in, the room's avatar voice where it has one.
       Some(id) => {
-        Some((id, receiver.speech().kept(chat_id, text, Some((&key, Some(id)))).await.unwrap_or(id)))
+        let voice = added::voice_in(receiver.db(), chat_id).await;
+        Some((
+          id,
+          receiver
+            .speech()
+            .kept(chat_id, text, Some((&key, Some(id))), Some(&agent), voice)
+            .await
+            .unwrap_or(id),
+        ))
       }
       None => None,
     },

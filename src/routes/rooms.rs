@@ -138,6 +138,8 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
     "round": kept.round,
     "album": kept.album,
     "via": kept.via,
+    "agentName": kept.agent_name,
+    "voice": kept.voice,
     "files": files,
   }))
 }

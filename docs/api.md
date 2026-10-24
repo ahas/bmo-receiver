@@ -187,8 +187,13 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `GET /rooms/{roomId}/pictures` | `at`, `before`, `after`, `limit` | a page of `Picture`, `before` and `total` |
 
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
-  `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via` and `files`, each a `KeptFile` (`kind`,
-  `source`, `storedPath`, `summary`, `collectedAt`).
+  `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null)
+  and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+- **`agentName` and `voice`** stand on a send the receiver archived itself, naming the agent whose words these are
+  and the voice the send went out in (`bot-account`, `human-avatar`, `human-reader`); both are null on a message
+  that came in from a provider, which the provider's echo of the receiver's own send keeps, since that message is
+  the one already kept with its fields. So an answer sent in the owner's `human-avatar` account is read as the
+  agent's with its voice named, not guessed from the number it went out under.
 - **The message page** holds only what a person said unless `by=agent` or `by=any` says otherwise. It is walked by
   `before` or `after`, a message the reader holds, and ends on the side it walked from. With `agentName`,
   `unread=true` answers the messages past that agent's read marks, oldest first, from `since` where given; with

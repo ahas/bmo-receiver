@@ -108,15 +108,23 @@ pub async fn set_chat_title<C: ConnectionTrait>(db: &C, chat_id: i64, title: &st
 }
 
 /// A message written down, or written over where the room already holds its number: what was measured of an
-/// earlier answer under that number goes with it.
-pub async fn save_message(db: &DatabaseConnection, message: &Inbound) -> Result<(), Fault> {
+/// earlier answer under that number goes with it. The agent whose words these are and the voice they went out in
+/// are the receiver's own, set on a send the receiver archives itself and none on a message a provider handed
+/// over (docs/store.md, 「The tables」).
+pub async fn save_message(
+  db: &DatabaseConnection,
+  message: &Inbound,
+  agent_name: Option<&str>,
+  voice: Option<&str>,
+) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "reply_to_message_id", "via", "album")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "reply_to_message_id", "via", "album", "agent_name", "voice")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT ("chat_id", "message_id") DO UPDATE SET "sender_id" = excluded."sender_id", "sender_name" = excluded."sender_name",
          "sent_at" = excluded."sent_at", "text" = excluded."text", "image_path" = excluded."image_path",
-         "reply_to_message_id" = excluded."reply_to_message_id", "via" = excluded."via", "answer_seconds" = NULL, "round" = NULL, "album" = excluded."album""#,
+         "reply_to_message_id" = excluded."reply_to_message_id", "via" = excluded."via", "answer_seconds" = NULL, "round" = NULL, "album" = excluded."album",
+         "agent_name" = excluded."agent_name", "voice" = excluded."voice""#,
     vec![
       message.chat_id.into(),
       message.message_id.into(),
@@ -128,6 +136,8 @@ pub async fn save_message(db: &DatabaseConnection, message: &Inbound) -> Result<
       message.reply_to_message_id.into(),
       message.via.clone().into(),
       message.album.into(),
+      agent_name.into(),
+      voice.into(),
     ],
   )
   .await

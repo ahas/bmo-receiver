@@ -30,7 +30,7 @@ takes it outright: the table holds no default agent.
 
 | Table | One row is | Key |
 |---|---|---|
-| `messages` | a message said in a room, by a person or an agent: its sender and name, time, words, stored picture, the message it answers, how long its answer took, the round that answered it, its album and the chat service it came by | room and message |
+| `messages` | a message said in a room, by a person or an agent: its sender and name, time, words, stored picture, the message it answers, how long its answer took, the round that answered it, its album, the chat service it came by, and — on a send the receiver archived itself — the agent whose words it holds and the voice it was sent in, both null on a message a provider handed over | room and message |
 | `message_metadata` | what a chat service handed over beside a message as its context's `metadata`, kept as it arrived and never read into (`docs/boundary-api.md`, 「Reading a room」) | room and message |
 | `instructions` | a quiet instruction waiting for, handed to or delivered to an agent's session in a room (`docs/bmo-window.md`): its words, kind, sort and summary, events, expiry, ride, the round that settled it and the run it carries the result of | its number |
 | `settings` | one setting: a key and its text value (below) | the key |

@@ -1368,6 +1368,11 @@ export interface components {
         };
         /** @description One message, wherever it is answered. */
         Message: {
+            /**
+             * @description The registration name of the agent whose words these are, set on a send the receiver archived itself and
+             *     null on a message that came in from a provider.
+             */
+            agentName: string | null;
             /** Format: int64 */
             album: number | null;
             /** Format: int64 */
@@ -1391,6 +1396,11 @@ export interface components {
             sentAt: number;
             text: string;
             via: string | null;
+            /**
+             * @description The voice the send went out in (`bot-account`, `human-avatar`, `human-reader`), set beside `agentName` and
+             *     null on a message that came in from a provider.
+             */
+            voice: string | null;
         };
         /** @description What a chat service handed over beside a message, opaque to the receiver. */
         MessageMetadata: {
@@ -1763,6 +1773,10 @@ export interface components {
         SendVerbs: {
             items: string[];
             more: boolean;
+        };
+        /** @description Whether a message's sender is the owner in that room. */
+        SenderOwner: {
+            owner: boolean;
         };
         /** @description One speaker among the room's most talkative people. */
         Speaker: {
@@ -3341,7 +3355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Spoke"];
+                    "application/json": components["schemas"]["SenderOwner"];
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */

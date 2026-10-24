@@ -252,6 +252,8 @@ fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
         "round": Value::Null,
         "album": Value::Null,
         "via": Value::Null,
+        "agentName": message.agent_name,
+        "voice": message.voice,
         "files": [],
       })
     })
@@ -443,6 +445,8 @@ async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result
       "round": page.round,
       "album": page.album,
       "via": page.via,
+      "agentName": page.agent_name,
+      "voice": page.voice,
       "files": files,
     }));
   }

@@ -60,7 +60,8 @@ pub async fn agent_number(db: &DatabaseConnection, road: &str, agent: &str) -> R
 }
 
 /// What a word kept in the record is: its room, its words and what it answers, the road it is kept under, and who
-/// said it, by number and name.
+/// said it, by number and name. A send the receiver makes itself also names the agent whose words these are and
+/// the voice it went out in; a word that is nobody's send leaves both unset.
 pub struct Kept<'a> {
   pub chat_id: i64,
   pub text: &'a str,
@@ -68,6 +69,8 @@ pub struct Kept<'a> {
   pub via: &'a str,
   pub sender_id: Option<i64>,
   pub name: &'a str,
+  pub agent: Option<&'a str>,
+  pub voice: Option<&'a str>,
 }
 
 /// Words kept in a room's record under the next number, and the room's screen told: the number they were kept as.
@@ -87,7 +90,7 @@ pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> R
     album: None,
   };
 
-  rows::save_message(db, &message).await?;
+  rows::save_message(db, &message, kept.agent, kept.voice).await?;
   news.message(message.chat_id, message.message_id);
 
   Ok(message.message_id)

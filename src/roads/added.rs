@@ -102,6 +102,11 @@ pub async fn modes(db: &DatabaseConnection) -> Result<BTreeMap<i64, RoomMode>, F
   Ok(modes)
 }
 
+/// The key a voice is kept by, as the chat protocol names it (`human-avatar`, `bot-account`, and the rest).
+pub fn voice_key(voice: ChatVoice) -> Option<String> {
+  serde_json::to_value(voice).ok().and_then(|value| value.as_str().map(str::to_owned))
+}
+
 /// The voice a send the receiver makes in a room goes in where it names none of its own: the account of the
 /// person the service reads in a room added `avatar`, and the voice the service answers the room by everywhere
 /// else. A room whose mode cannot be read is said in the journal and answered as any room.

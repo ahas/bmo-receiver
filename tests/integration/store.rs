@@ -45,7 +45,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 12);
+  assert_eq!(migrate(db).await.unwrap(), 13);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -152,8 +152,8 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
     ]
   );
 
-  // The line's index is the migration before the draft process's.
-  Migrator::down(db, Some(2)).await.unwrap();
+  // The line's index is made two migrations before the message voice's, the draft process's between them.
+  Migrator::down(db, Some(3)).await.unwrap();
 
   let before = stated(database.texts(MESSAGE_INDEXES).await);
 
@@ -164,7 +164,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
   );
 
-  assert_eq!(migrate(db).await.unwrap(), 2);
+  assert_eq!(migrate(db).await.unwrap(), 3);
   assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
 }
 

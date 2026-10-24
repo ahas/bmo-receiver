@@ -43,6 +43,8 @@ pub struct Message {
   pub sent_at: i64,
   pub text: String,
   pub reply_to_message_id: Option<i64>,
+  pub agent_name: Option<String>,
+  pub voice: Option<String>,
 }
 
 impl Message {
@@ -55,6 +57,8 @@ impl Message {
       sent_at: row.try_get("", "sent_at")?,
       text: row.try_get("", "text")?,
       reply_to_message_id: row.try_get("", "reply_to_message_id")?,
+      agent_name: row.try_get("", "agent_name")?,
+      voice: row.try_get("", "voice")?,
     })
   }
 }
@@ -75,6 +79,8 @@ pub struct Page {
   pub round: Option<String>,
   pub album: Option<i64>,
   pub via: Option<String>,
+  pub agent_name: Option<String>,
+  pub voice: Option<String>,
   pub files: Vec<KeptFile>,
 }
 
@@ -104,6 +110,8 @@ impl Page {
       round: row.try_get("", "round")?,
       album: row.try_get("", "album")?,
       via: row.try_get::<Option<String>>("", "via")?,
+      agent_name: row.try_get("", "agent_name")?,
+      voice: row.try_get("", "voice")?,
       files: vec![],
     })
   }
@@ -118,6 +126,8 @@ impl Page {
       sent_at: self.sent_at,
       text: self.text.clone(),
       reply_to_message_id: self.reply_to_message_id,
+      agent_name: self.agent_name.clone(),
+      voice: self.voice.clone(),
     }
   }
 }

@@ -187,6 +187,12 @@ pub struct Message {
   pub round: Option<String>,
   pub album: Option<i64>,
   pub via: Option<String>,
+  /// The registration name of the agent whose words these are, set on a send the receiver archived itself and
+  /// null on a message that came in from a provider.
+  pub agent_name: Option<String>,
+  /// The voice the send went out in (`bot-account`, `human-avatar`, `human-reader`), set beside `agentName` and
+  /// null on a message that came in from a provider.
+  pub voice: Option<String>,
   pub files: Vec<KeptFile>,
 }
 
@@ -362,6 +368,13 @@ pub struct Spoke {
 pub struct OwnerSpoke {
   pub owner: bool,
   pub spoke: bool,
+}
+
+/// Whether a message's sender is the owner in that room.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SenderOwner {
+  pub owner: bool,
 }
 
 /// One person.

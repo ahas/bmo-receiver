@@ -78,7 +78,7 @@ impl Speech {
     let text = if cleaned { text.to_owned() } else { self.sanitised(chat_id, text).await? };
 
     match road {
-      Road::Record => self.kept(chat_id, &text, None).await.map(Some),
+      Road::Record => self.kept(chat_id, &text, None, None, None).await.map(Some),
       Road::Service(key) => self.sent(&key, chat_id, &text).await,
     }
   }
@@ -157,6 +157,8 @@ impl Speech {
     chat_id: i64,
     text: &str,
     sent: Option<(&str, Option<i64>)>,
+    agent: Option<&str>,
+    voice: Option<ChatVoice>,
   ) -> Result<i64, NotSaid> {
     let roads = &self.units.roads;
     let numbered = match roads.room_road(chat_id).await {
@@ -167,6 +169,7 @@ impl Speech {
       Some(number) => Some(number),
       None => roads.identity_in(chat_id).await,
     };
+    let voice = voice.and_then(added::voice_key);
     let kept = record::Kept {
       chat_id,
       text,
@@ -174,6 +177,8 @@ impl Speech {
       via: Road::Record.key(),
       sender_id,
       name: &self.deployment.sender_name,
+      agent,
+      voice: voice.as_deref(),
     };
 
     let message_id = record::keep(&self.db, self.news.as_ref(), kept).await?;

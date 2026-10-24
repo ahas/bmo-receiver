@@ -113,6 +113,8 @@ async fn a_message_said_in_a_room_is_read_back_whole() {
         "round": null,
         "album": null,
         "via": null,
+        "agentName": null,
+        "voice": null,
         "files": [],
       })
     ),

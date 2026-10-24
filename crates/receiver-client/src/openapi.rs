@@ -305,7 +305,7 @@ pub fn openapi() -> Value {
     "Whether the message's sender is the owner in that room.",
     vec![path_parameter("roomId"), path_parameter("messageId")],
     None,
-    vec![(200, json_answer::<Spoke>(&mut generator))],
+    vec![(200, json_answer::<SenderOwner>(&mut generator))],
     vec!["unauthorized", "failed"]
   );
   add!(
