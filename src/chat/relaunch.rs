@@ -1,7 +1,7 @@
 //! The relaunch instruction (docs/wake.md, 「Quiet instructions」): at the round that finds an agent's session
-//! reopened, after the receiver's own restart or a deployment that relaunches every session, one quiet row naming
-//! the deployments since the session last started, written before the round asks for its riders so its own turn
-//! carries it. Nothing of it is said to the room.
+//! reopened, after the receiver's own restart or a deployment that relaunches every session, one quiet row for the
+//! owner's private chat naming the deployments since the session last started and asking the agent to tell the
+//! owner what went live. It is written before that chat's round asks for its riders, so the round carries it.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -34,6 +34,7 @@ pub struct Deployed {
   pub unit: String,
   pub version: String,
   pub message: Option<String>,
+  pub commit: Option<String>,
   pub at: i64,
 }
 
@@ -44,6 +45,13 @@ fn moment(value: &Value) -> Option<i64> {
       .ok()
       .map(|at| at.timestamp_millis())
   })
+}
+
+// A moment as the instruction names it: RFC 3339 in UTC, to the second.
+fn moment_text(at: i64) -> String {
+  chrono::DateTime::from_timestamp_millis(at)
+    .map(|at| at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+    .unwrap_or_else(|| at.to_string())
 }
 
 // The first of the fields a record carries words in, on one line.
@@ -71,12 +79,17 @@ pub fn deployment(root: &Path, unit: &str) -> Option<Deployed> {
 
     (!commit.is_empty()).then_some(commit)
   };
-  let version = words(&record, &["version"]).or_else(released).or_else(committed).unwrap_or_default();
+  let commit = committed();
+  let version = words(&record, &["version"])
+    .or_else(released)
+    .or_else(|| commit.clone())
+    .unwrap_or_default();
 
   Some(Deployed {
     unit: unit.to_owned(),
     version,
     message: words(&record, &["message", "summary", "subject"]),
+    commit,
     at,
   })
 }
@@ -104,23 +117,35 @@ pub fn deployments(roots: &Path, only: Option<&[String]>) -> Vec<Deployed> {
   found
 }
 
-/// The instruction naming the deployments a session was relaunched by, in the restart policy's words.
+/// The instruction asking for the owner's briefing on the deployments a session was relaunched by, in the restart
+/// policy's words.
 pub fn instruction(deployed: &[Deployed]) -> String {
   let said = &RESTART.relaunched;
   let clauses: Vec<String> = deployed
     .iter()
     .map(|one| {
-      let marks = [("unit", one.unit.as_str()), ("version", one.version.as_str())];
+      let at = moment_text(one.at);
+      let marks = [("unit", one.unit.as_str()), ("version", one.version.as_str()), ("at", at.as_str())];
 
-      match &one.message {
-        Some(message) => fill_marks(&said.deployed, &[marks[0], marks[1], ("message", message.as_str())]),
-        None => fill_marks(&said.no_message, &marks),
+      match (&one.message, &one.commit) {
+        (Some(message), Some(commit)) => fill_marks(
+          &said.deployed,
+          &[marks[0], marks[1], marks[2], ("message", message.as_str()), ("commit", commit.as_str())],
+        ),
+        (None, Some(commit)) => {
+          fill_marks(&said.no_message, &[marks[0], marks[1], marks[2], ("commit", commit.as_str())])
+        }
+        (Some(message), None) => fill_marks(
+          &said.deployed_no_commit,
+          &[marks[0], marks[1], marks[2], ("message", message.as_str())],
+        ),
+        (None, None) => fill_marks(&said.no_message_no_commit, &marks),
       }
     })
     .collect();
   let fact = fill_marks(&said.fact, &[("deployed", &clauses.join(&said.joiner))]);
 
-  format!("{fact}\n{}", said.follow_up)
+  format!("{fact}\n\nWhat this is for: {}\n\nWhat follows: {}", said.intent, said.follow_up)
 }
 
 /// The sessions this process has reopened, and where the units' deploy roots stand, which leaves the
@@ -138,8 +163,8 @@ impl Relaunches {
     }
   }
 
-  /// At a round's start: where the agent's session reopens, its new start kept and the instruction written for
-  /// it, naming every deployment since its previous start.
+  /// At a round's start: where the agent's session reopens, its new start kept and the owner's briefing written
+  /// for it, naming every deployment since its previous start.
   pub async fn note(&self, receiver: &Receiver, agent: &str, chat_id: i64) {
     let Some(roots) = &self.roots else {
       return;
@@ -171,17 +196,17 @@ impl Relaunches {
       return;
     }
 
+    let owner = receiver.owner_id();
     let queued = Queued {
       kind: Some(&said.kind),
       sort: Some(&said.sort),
       rides_until_ms: Some(now + RESTART.ride_minutes * 60_000),
-      rides_session: whole,
       ..Queued::default()
     };
 
-    match queue(db, agent, chat_id, &instruction(&deployed), &queued).await {
+    match queue(db, agent, owner, &instruction(&deployed), &queued).await {
       Ok(id) => println!(
-        "chat {chat_id}: {agent}'s session reopened after {} deployment(s), instruction {id}",
+        "chat {chat_id}: {agent}'s session reopened after {} deployment(s), instruction {id} for chat {owner}",
         deployed.len()
       ),
       Err(why) => eprintln!("chat {chat_id}: the relaunch instruction was not written: {}", why.detail),

@@ -70,7 +70,7 @@ is written.
 | A deployment gone live, and every way one stops short | bmo-job | instruction table | `round` | opens | `deployed` |
 | The back-up line after a deployment | start-up | instruction table | `round` | rides, for the restart's while | — |
 | The back-up line after a restart no deployment announced | start-up | instruction table | `round` | opens | — |
-| The relaunch instruction: the deployments since a reopened session last started (`docs/wake.md`, 「Quiet instructions」) | the round's start | instruction table | `round` | rides, the round that found it | — |
+| The relaunch instruction: the deployments since a reopened session last started, asking the agent to brief the owner (`docs/wake.md`, 「Quiet instructions」) | the round's start | instruction table | `round` | rides, the owner's next round | — |
 | The line after a fold | the conversation's fold | instruction table | `round` | opens | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
 | A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
@@ -165,8 +165,9 @@ round.
     outcome fact, which follows within seconds, opens the one turn and the line goes in with it. A deployment
     that tells no outcome leaves the line to open its own turn when the while is up.
   - The queue standing open at start-up rides for the same while, into the same turn.
-  - The relaunch instruction rides the round whose start found the session reopened, written just before that
-    round asks for its riders, for the restart's while; a session's one row rides a round of any room it answers.
+  - The relaunch instruction rides the owner's next round, written just before that round asks for its riders, for
+    the restart's while. A round of another room that finds the session reopened writes the row for the owner's
+    chat and does not carry it.
 - **What never rides:** anything the owner must not hear late (a job's ending, a failure, a question or a stop,
   a deployment's outcome, a result somebody asked for) and anything that is the machine's only wake for work to
   move: a queue standing empty with work waiting, a job gone quiet. Those turns often do their work in tool
@@ -174,8 +175,9 @@ round.
 - **How a rider gets in.** The instruction pass hands a rider over at the start of a round that may carry it
   (the round asks the pass for its riders before it takes anything) and never on its own tick while the rider
   still rides. A rider past its while is handed like any other row.
-- **Owner-only lines keep to the owner's room.** The restart's back line and the queue at start-up ride only the
-  owner's own rounds, since a line for the owner said in a group room is said to the wrong people.
+- **Owner-only lines keep to the owner's room.** The restart's back line, the queue at start-up and the relaunch
+  instruction ride only the owner's own rounds, since a line for the owner said in a group room is said to the
+  wrong people.
 - **What stays the same for a rider:** it is still a row of the instruction table, it still expires and is still
   discarded for a room not served, it carries its events like any row, and it is settled with the round that
   took it.

@@ -187,9 +187,9 @@ The receiver calls no unit to learn what was deployed: it reads each unit's depl
 under the unit's deploy root (the testbed's `docs/deploy.md`, 「Deployment record」), for the relaunch instruction
 (`docs/wake.md`, 「Quiet instructions」). A unit is named by its deploy root's folder past `bmo-`. Of a record it
 reads `at`, the moment it went live, as an RFC 3339 time or epoch milliseconds; the deploy message, `message`
-where the record carries one, else `summary`, else `subject`; and the version, `version` where the record carries
-one, else the `VERSION` file of the release the deploy root's `deploy` link stands on, else the first twelve
-characters of `commit`. A folder with no record, or a record with no time that reads, is no deployment.
+where the record carries one, else `summary`, else `subject`; the commit, its first twelve characters; and the
+version, `version` where the record carries one, else the `VERSION` file of the release the deploy root's `deploy`
+link stands on, else that commit. A folder with no record, or a record with no time that reads, is no deployment.
 
 ### The web unit
 

@@ -223,7 +223,7 @@ alone, a reset names its `ranges`. The receiver takes its own rows of the ranges
 ## Quiet instructions
 
 A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet instruction」, states. One is
-written by the wake itself: the reason a session was relaunched.
+written by the wake itself: the reason a session was relaunched, and the briefing the owner is owed for it.
 
 - **A session reopens** at the first round its agent's conversations take in this process for it, which follows
   the receiver's own restart, and at a round of a session whose relaunching unit was deployed since the session
@@ -235,15 +235,20 @@ written by the wake itself: the reason a session was relaunched.
   restart policy's fresh while ago (`fresh_minutes`).
 - **The cause is the deployments since that start:** every unit whose deployment record (`docs/boundary-api.md`,
   「The deployments」) went live after it, oldest first. Where there are none, nothing is written.
-- **One instruction names them,** in the restart policy's words: "This session was relaunched because <unit>
-  <version> was deployed: <deploy message>", one clause a unit, followed by the line that it needs no answer and
-  nothing of it is said in the room. Its row is of the sort `relaunch` and the kind `session-relaunched`, which a
+- **One instruction names them,** in the restart policy's words: what went live since the session last started,
+  one clause a unit naming its unit, version, deploy message or subject, commit and the moment it went live, as
+  the deployment record holds them. Its row is of the sort `relaunch` and the kind `session-relaunched`, which a
   newer one replaces while it waits.
-- **It rides the round that found it** (`docs/bmo-window.md`, 「Rows that ride」): it is written before the round
-  asks for its riders, so the round's own turn carries it, a row of the agent's one session in a round of any
-  room that session answers. Unridden past the restart policy's ride while, it opens a turn of its own.
-- **Nothing is said to the room.** The instruction is the session's alone, and the room hears of it only what the
-  agent chooses, which the instruction asks to be nothing.
+- **It asks for the owner's briefing.** Its intent and follow-up tell the session to tell the owner, in his
+  private chat, what went live: one short paragraph in his language and in the agent's own words, with no talk of
+  tools and nothing claimed of a release beyond its message, subject and commit. The instruction withholds the
+  silence: a turn that carries only it writes the brief. A turn the owner's own words opened answers him first
+  and gives the brief after it.
+- **It is the owner's own** (`docs/bmo-window.md`, 「Rows that ride」): the row is queued for his private chat, and
+  only a round of that chat carries it. It is written before that round asks for its riders, so the round's own
+  turn carries it. Unridden past the restart policy's ride while, it opens a turn of the owner's chat.
+- **No other room hears of it.** The briefing is said in the owner's private chat alone; the room that found the
+  session reopened is told nothing of the relaunch.
 
 ## What the agency's events wake
 

@@ -75,6 +75,15 @@ agent that answers the room says the line.
      says it in the room's own language.
   5. A restart no deployment announced has no purpose to tell: its going-down notice is the restart one, and its
      back notice opens its turn at once and says only that the agent is back from an unannounced restart.
+  6. **What went live is briefed to the owner, not the room.** When a deployment reopens the chat agent's
+     session, its relaunch instruction (`docs/wake.md`, 「Quiet instructions」) goes to the owner's private chat,
+     naming one clause a unit: the unit, its version, its deploy message or subject, its commit and when it went
+     live, as the deployment record holds them. It asks for one short paragraph in the owner's language, in the
+     agent's own words, with no talk of tools and nothing claimed of a release beyond those facts. It is the one
+     voiced briefing that is a paragraph, because it names each deployment. A turn that carries only the
+     instruction writes the brief; a turn the owner's own words opened answers him first. A release that failed
+     its checks or never went live has no deployment record and is named in no brief; the deployment outcome
+     notice tells that release's outcome as it happened.
 - **Rest and fallback.** Going to rest is a fixed line (see below), said in the owner's chat as the agency's
   `rest.changed` comes: `rest-begins` with its end for a limit, `provider-down` for an outage. Coming back
   (the rest lifted, the outage over, the compaction done, the provider answering again, a stand-in taking over
@@ -135,9 +144,10 @@ agent that answers the room says the line.
 - **The restart notice is the owner's private chat's.** The going-down line is a system notice the stopping
   receiver sends, a deployment's or an unannounced stop's (「System notices」). On the next start-up the owner's
   session is told it is back, with the deployment's purpose, and says so in the same turn as the deployment's
-  outcome (「What each path says」).
-- **No feature announcements.** A deployment tells no group room what the agent gained; the owner's own chat
-  hears the going down and the coming back.
+  outcome; where a deployment reopened it, the same turn or the one the relaunch instruction opens also briefs
+  him on what went live (「What each path says」).
+- **No feature announcements.** A deployment tells no group room what the agent gained, and no room hears the
+  relaunch briefing; the owner's own chat hears the going down, the coming back and what went live.
 - **Two kinds of notice can be switched off per chat:**
   - the *rest notices*: in a room, the compaction's going to sleep and waking, since a rest itself and its
     lifting are told to the owner alone;

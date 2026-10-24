@@ -39,7 +39,10 @@ pub struct Relaunched {
   pub fact: String,
   pub deployed: String,
   pub no_message: String,
+  pub deployed_no_commit: String,
+  pub no_message_no_commit: String,
   pub joiner: String,
+  pub intent: String,
   pub follow_up: String,
 }
 

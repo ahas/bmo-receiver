@@ -35,13 +35,16 @@ follow_up = "Do not describe the change beyond its reason."
 # The relaunch instruction (docs/wake.md, 「Quiet instructions」): the units whose deployment relaunches every
 # session the agents run on, by their deploy roots' names past `bmo-`; what its row is kept as and sorted under; and
 # its words: the fact naming each deployment ({deployed}, the clauses joined), one clause a unit ({unit},
-# {version}, {message}, or none where the record carries no message), and the line that follows.
+# {version}, {at}, {message}, {commit}), its intent, and what follows it.
 [relaunched]
 units = ["agency"]
 kind = "session-relaunched"
 sort = "relaunch"
-fact = "This session was relaunched because {deployed}."
-deployed = "{unit} {version} was deployed: {message}"
-no_message = "{unit} {version} was deployed"
-joiner = "; and because "
-follow_up = "Keep it as the reason this session started afresh. It needs no answer of its own: say nothing of it in the room."
+fact = "This session was relaunched after these deployments went live: {deployed}."
+deployed = "{unit} {version} went live at {at}: {message} (commit {commit})"
+no_message = "{unit} {version} went live at {at} (commit {commit})"
+deployed_no_commit = "{unit} {version} went live at {at}: {message}"
+no_message_no_commit = "{unit} {version} went live at {at}"
+joiner = "; "
+intent = "tell the owner, in his private chat, what went live: each deployment's unit, version, message or subject, commit and the moment it went live."
+follow_up = "Write the brief now, in the owner's language and in your own words: one short paragraph naming each deployment with the unit, version, message or subject, commit and moment above, and nothing of what a release carries beyond them. Do not mention tools or other internals. Do not answer <<SKIP>>: the owner is to hear it. Where this turn also carries the owner's own words, answer him first and give the brief after."
