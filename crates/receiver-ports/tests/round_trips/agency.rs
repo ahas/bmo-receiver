@@ -56,7 +56,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   unit.answer(
     "GET /runs",
     200,
-    json!({ "items": [{ "id": 8, "round": "round:-7:1:1" }, { "id": 9, "round": "round:-7:1:1" }], "more": false }),
+    json!({ "items": [{ "id": 9, "round": "round:-7:1:1" }, { "id": 8, "round": "round:-7:1:1" }], "more": false }),
   );
   unit.answer("PATCH /runs/9", 200, json!({ "id": 9, "messageId": 12 }));
 
@@ -120,7 +120,11 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
       started_at: 1_700_000
     })
   );
-  assert_eq!(agency.round_runs("round:-7:1:1").await.unwrap(), [8, 9]);
+  assert_eq!(
+    agency.round_runs("round:-7:1:1").await.unwrap(),
+    [9, 8],
+    "newest first, as the agency answers"
+  );
   agency.attach_message(9, 12).await.unwrap();
 
   assert_eq!(

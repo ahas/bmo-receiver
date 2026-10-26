@@ -59,7 +59,8 @@ async fn attach_run(receiver: &Receiver, chat_id: i64, message_id: i64, round: O
   };
   let agency = &receiver.units().agency;
   let run = match agency.round_runs(round).await {
-    Ok(runs) => runs.last().copied(),
+    // The round's last run is its newest, the highest id, whatever order the agency answers in.
+    Ok(runs) => runs.iter().max().copied(),
     Err(why) => {
       eprintln!("chat {chat_id}: the runs of {round} could not be read: {why}");
 

@@ -135,7 +135,7 @@ room's matter.
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
-| a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, oldest first |
+| a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, newest first; the round's last run is the one with the highest id, whatever the order |
 | an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |
 

@@ -408,7 +408,7 @@ pub trait Agency: Send + Sync {
   /// A run's row by its id; none where the agency holds none.
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>>;
 
-  /// The ids of the runs a round's turns opened, oldest first.
+  /// The ids of the runs a round's turns opened, in the order the agency answers them, newest first.
   fn round_runs<'a>(&'a self, round: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>>;
 
   /// The message a run's answer went out as, attached to the run; its closing stays as it stands.

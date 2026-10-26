@@ -1067,7 +1067,8 @@ impl Agency for StandInAgency {
   fn round_runs<'a>(&'a self, round: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>> {
     self.rounds_asked.lock().unwrap().push(round.to_owned());
 
-    Box::pin(async move { Ok(vec![ROUND_RUN - 1, ROUND_RUN]) })
+    // Newest first, as the agency answers.
+    Box::pin(async move { Ok(vec![ROUND_RUN, ROUND_RUN - 1]) })
   }
 
   fn attach_message(&self, run: i64, message: i64) -> BoxFuture<'_, Answer<()>> {
