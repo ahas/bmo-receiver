@@ -473,3 +473,47 @@ async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_
   assert!(prompt.contains(&words(4)) && prompt.contains(&words(unread)), "{prompt}");
   assert!(prompt.find(&words(4)) < prompt.find(&words(unread)), "the carried stand in their order");
 }
+
+// A round on a session past every fold share, its program carrying its own fold or not: the folds asked of it.
+async fn folds_after_a_round(folds_itself: bool) -> Vec<String> {
+  let scratch = Scratch::new().await;
+
+  crate::common::session::no_drafting(scratch.db()).await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+
+  documents(data.path());
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, ANSWER).full(folds_itself));
+  let receiver = standing.receiver.clone();
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+  receiver.message(&said(1, FIRST), &Context::default(), owners_room()).await.unwrap();
+  until("the round's end", || {
+    !session.prompts().is_empty() && runner.idle() && !session.working()
+  })
+  .await;
+
+  if !folds_itself {
+    until("the fold asked", || !standing.agency.folds.lock().unwrap().is_empty()).await;
+  } else {
+    tokio::time::sleep(Duration::from_millis(300)).await;
+  }
+
+  standing.agency.folds.lock().unwrap().clone()
+}
+
+#[tokio::test]
+async fn a_session_whose_program_carries_its_own_fold_is_never_folded_by_the_receiver() {
+  assert_eq!(folds_after_a_round(false).await, vec![SESSION.to_owned()], "a full session is folded");
+  assert!(
+    folds_after_a_round(true).await.is_empty(),
+    "the program's own fold stands: none is asked"
+  );
+}

@@ -43,6 +43,9 @@ pub struct StandInSession {
   generation: Mutex<serde_json::Value>,
   // The provider its state names.
   provider: Mutex<String>,
+  // The tokens its state says it carries, of a window of 200,000, and whether its program carries its own fold.
+  carried: Mutex<i64>,
+  folds_itself: Mutex<bool>,
   // What a turn does beside answering, where a test sets it: a handoff written, as a session with a file tool
   // writes it.
   acting: Mutex<Option<Act>>,
@@ -66,6 +69,8 @@ impl StandInSession {
       prefix_change: Mutex::default(),
       generation: Mutex::new(json!(null)),
       provider: Mutex::new("provider-a".to_owned()),
+      carried: Mutex::new(1000),
+      folds_itself: Mutex::new(false),
       acting: Mutex::default(),
     }
   }
@@ -73,6 +78,13 @@ impl StandInSession {
   /// Its state names this reason for a changed prefix from now on.
   pub fn prefix_changed(&self, why: &str) {
     *self.prefix_change.lock().unwrap() = Some(why.to_owned());
+  }
+
+  /// Its state says it is past every fold share from now on, and whether its program carries its own fold.
+  pub fn full(self, folds_itself: bool) -> Self {
+    *self.carried.lock().unwrap() = 190_000;
+    *self.folds_itself.lock().unwrap() = folds_itself;
+    self
   }
 
   /// Its state names this provider from now on.
@@ -175,8 +187,9 @@ impl StandInSession {
       model: Some("model-a".to_owned()),
       place: json!(null),
       generation: self.generation.lock().unwrap().clone(),
-      context: json!({ "carried": 1000, "window": 200000 }),
+      context: json!({ "carried": *self.carried.lock().unwrap(), "window": 200000 }),
       fold_ratio: None,
+      folds_itself: *self.folds_itself.lock().unwrap(),
       tier: None,
       prefix_change_reason: self.prefix_change.lock().unwrap().clone(),
     };

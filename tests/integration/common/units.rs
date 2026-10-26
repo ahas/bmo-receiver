@@ -813,6 +813,8 @@ pub struct StandInAgency {
   pub runs: Mutex<BTreeMap<i64, i64>>,
   // Every round whose runs it was asked for, and every message attached to a run, as the run and the message.
   pub rounds_asked: Mutex<Vec<String>>,
+  /// The sessions a fold was asked of.
+  pub folds: Mutex<Vec<String>>,
   pub attached: Mutex<Vec<(i64, i64)>>,
   // The sessions it lists, each with its state, where a test sets them.
   pub listed: Mutex<Option<Vec<(Session, SessionState)>>>,
@@ -846,6 +848,7 @@ impl StandInAgency {
       point: Mutex::default(),
       runs: Mutex::default(),
       rounds_asked: Mutex::default(),
+      folds: Mutex::default(),
       attached: Mutex::default(),
       listed: Mutex::default(),
       down: Mutex::default(),
@@ -999,8 +1002,9 @@ impl Agency for StandInAgency {
     not_asked_agency("an interrupt")
   }
 
-  fn fold<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
-    not_asked_agency("a fold")
+  fn fold<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    self.folds.lock().unwrap().push(session.to_owned());
+    Box::pin(async { Ok(()) })
   }
 
   // A session is ended only where a test stands one, as a replaced session is.

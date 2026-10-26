@@ -131,6 +131,8 @@ struct SessionMember {
   #[serde(default)]
   fold_ratio: Option<f64>,
   #[serde(default)]
+  folds_itself: bool,
+  #[serde(default)]
   tier: Option<String>,
   #[serde(default)]
   prefix_change_reason: Option<String>,
@@ -154,6 +156,7 @@ impl SessionMember {
       generation: self.generation,
       context: self.context,
       fold_ratio: self.fold_ratio,
+      folds_itself: self.folds_itself,
       tier: self.tier.filter(|tier| !tier.is_empty()),
       prefix_change_reason: self.prefix_change_reason.filter(|why| !why.trim().is_empty()),
     }
@@ -232,6 +235,9 @@ pub struct SessionState {
   /// The share of its window at which the session folds, as the agency's fold-ratio table gives it.
   #[serde(default, rename = "foldRatio")]
   pub fold_ratio: Option<f64>,
+  /// Whether the session's program carries its own fold, so the receiver folds it never.
+  #[serde(default, rename = "foldsItself")]
+  pub folds_itself: bool,
   /// The tier the agency names for the session, where it names one: the draft process table is matched by it.
   #[serde(default)]
   pub tier: Option<String>,

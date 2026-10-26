@@ -114,6 +114,8 @@ pub struct Reply {
   pub context_window: Option<i64>,
   /// The share of the window the session folds at, as the agency gives it for its provider and tier.
   pub fold_ratio: Option<f64>,
+  /// Whether the session's program carries its own fold, as the agency says.
+  pub folds_itself: bool,
   /// The tier the agency names for the session, where it names one.
   pub tier: Option<String>,
   pub replaced: Vec<SessionReason>,
@@ -515,6 +517,8 @@ struct State {
   woken: HashMap<i64, String>,
   // Every fold running now, by room.
   folding: HashSet<i64>,
+  // The sessions the journal was told carry their own fold, so it is told once for each.
+  folds_itself: HashSet<String>,
   // The speaker each room's turns are shown as: the agent's name and the number its words are filed under there.
   speakers: HashMap<i64, Value>,
   // The agent's own runs going now, by name with the room each runs for, which a reset or a room's removal
@@ -1660,6 +1664,7 @@ impl Conversations {
     };
     let ratio = reply.context_ratio();
     let fold_at = reply.fold_ratio;
+    let folds_itself = reply.folds_itself;
 
     self.0.noting.note(&receiver, self.agent(), &held, &reply, now_ms() - started).await;
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
@@ -1726,6 +1731,7 @@ impl Conversations {
     // The fold reads the context the process's last turn left.
     let ratio = reply.context_ratio().or(ratio);
     let fold_at = reply.fold_ratio.or(fold_at);
+    let folds_itself = reply.folds_itself || folds_itself;
 
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
 
@@ -1806,7 +1812,9 @@ impl Conversations {
       conv.in_flight = false;
     }
 
-    self.maybe_fold(chat_id, room, held.session.as_deref(), ratio, fold_at).await;
+    self
+      .maybe_fold(chat_id, room, held.session.as_deref(), ratio, fold_at, folds_itself)
+      .await;
     self.pump_pending(chat_id);
 
     Ok(())
@@ -2335,12 +2343,22 @@ impl Conversations {
     session: Option<&str>,
     ratio: Option<f64>,
     fold_at: Option<f64>,
+    folds_itself: bool,
   ) {
     // A fold that is not made says why, unless the context is simply under the share (docs/wake.md).
     let Some(held) = session else {
       eprintln!("chat {chat_id}: no fold: the round holds no session");
       return;
     };
+
+    // A session whose program carries its own fold is never folded here, and the journal says so once for it.
+    if folds_itself {
+      if self.state().folds_itself.insert(held.to_owned()) {
+        eprintln!("chat {chat_id}: no fold of session {held}: the program carries its fold");
+      }
+
+      return;
+    }
     let Some(carried) = ratio else {
       eprintln!("chat {chat_id}: no fold judged: the state of session {held} names no context");
       return;
