@@ -32,7 +32,6 @@ use super::turnover::Noter;
 use super::window::Selection;
 
 use crate::Fault;
-use crate::companion::turn::Turn as CompanionTurn;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver, Room, rows, wake};
 use crate::roads::Road;
@@ -280,42 +279,6 @@ pub trait Noting: Send + Sync {
   ) -> BoxFuture<'a, ()>;
 }
 
-/// The words a round of a pieces-shaped agent carries: the room it runs in, the messages and instructions it
-/// took, the roads they came in on and the events among them.
-pub struct PiecesRound {
-  pub chat_id: i64,
-  pub batch: Vec<Inbound>,
-  pub instructions: Vec<String>,
-  pub ids: Vec<i64>,
-  pub events: Vec<TurnEvent>,
-  pub via: String,
-}
-
-/// What a round of a pieces-shaped agent came to: no turn, where nothing was left to answer or its companion's
-/// reset overtook it; a turn that answered, with the message its answer went out as where one went out and the
-/// hold its reset's cut-off waits on until the room's window has moved; or a turn that failed, with why and the
-/// last message it read.
-pub enum PiecesEnded {
-  NoTurn,
-  Answered { sent: Option<Sent>, keeping: Keeping },
-  Failed { reason: String, message: Option<i64> },
-}
-
-/// Whether an agent's turns are a companion's own, and what such a round does. Filled by the companion's part.
-pub trait Pieces: Send + Sync {
-  fn of<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
-
-  fn round<'a>(
-    &'a self,
-    conversations: &'a Conversations,
-    agent: &'a str,
-    pieces: &'a PiecesRound,
-    turn: u64,
-    round: &'a str,
-    record: &'a Record,
-  ) -> BoxFuture<'a, Result<PiecesEnded, Failure>>;
-}
-
 /// The health of the rooms' sessions as the conversations read it: whether a room has fallen silent, what a
 /// failed round is told of, a round that ended with nothing said at all, and the minute the failure orders are
 /// looked over on. Filled by the module that owns the health.
@@ -549,16 +512,6 @@ impl Drop for Going {
   }
 }
 
-/// A turn keeping what it came to, holding off its agent's reset until this is dropped.
-pub struct Keeping {
-  _held: tokio::sync::OwnedRwLockReadGuard<()>,
-}
-
-/// A reset moving its agent's point, holding off every turn's keeping until this is dropped.
-pub struct Cutting {
-  _held: tokio::sync::OwnedRwLockWriteGuard<()>,
-}
-
 /// What a reset cut off of an agent's conversations: the rows of the quiet instructions let go unread, and the
 /// runs of its own going then.
 #[derive(Debug, Default)]
@@ -583,13 +536,10 @@ struct Inner {
   timings: Timings,
   state: Mutex<State>,
   turn: tokio::sync::Mutex<()>,
-  // Shared by the agent's turns while they keep what they came to, taken whole by its reset as it moves the point.
-  keeping: Arc<tokio::sync::RwLock<()>>,
   carrying: Arc<dyn Carrying>,
   drafting: Arc<dyn Drafting>,
   sending: Arc<dyn Sending>,
   noting: Arc<dyn Noting>,
-  pieces: Arc<dyn Pieces>,
   health: Arc<dyn Health>,
   orders: Arc<dyn Orders>,
 }
@@ -601,7 +551,7 @@ pub struct Conversations(Arc<Inner>);
 impl Conversations {
   /// An agent's conversations on the receiver's own parts of a round: its turns carried into the agency's
   /// sessions, its answers made into messages by the draft process and sent on the road they answer on, its
-  /// sessions noted and folded, a companion's rounds its own, and the health and failure orders of its rooms. The
+  /// sessions noted and folded, and the health and failure orders of its rooms. The
   /// talk and the touch are the conversations' own, taken behind whatever round is running, and so is the typed
   /// line, composed at once.
   pub fn new(receiver: Receiver, hooks: Arc<dyn Hooks>, timings: Timings, agent: &str) -> Self {
@@ -611,7 +561,6 @@ impl Conversations {
       drafting: Arc::new(Drafter::new(receiver.clone())),
       sending: Arc::new(Sender::new(receiver.clone())),
       noting: Arc::new(Noter::new(receiver.clone())),
-      pieces: Arc::new(CompanionTurn),
       health: Arc::new(RoomHealth::new(receiver.clone())),
       orders: Arc::new(FailureOrders::new(receiver.clone())),
       receiver,
@@ -619,7 +568,6 @@ impl Conversations {
       timings,
       state: Mutex::new(State::default()),
       turn: tokio::sync::Mutex::new(()),
-      keeping: Arc::new(tokio::sync::RwLock::new(())),
     }))
   }
 
@@ -668,8 +616,8 @@ impl Conversations {
     self.state().queue.get(&chat_id).cloned().unwrap_or_default()
   }
 
-  /// A run of the agent's own in a room named as going until what this answers is dropped (the agency's
-  /// `docs/companions.md`, 「What the reset cuts off」).
+  /// A run of the agent's own in a room named as going until what this answers is dropped
+  /// (docs/wake.md, 「An agent's reset」).
   pub fn going(&self, run: &str, chat_id: i64) -> Going {
     self.state().going.insert(run.to_owned(), chat_id);
 
@@ -679,26 +627,9 @@ impl Conversations {
     }
   }
 
-  /// Held by a turn of the agent's from its last reading of the reset point until what it came to is kept and sent,
-  /// so its reset never moves the point between that reading and the keeping (the agency's `docs/companions.md`, 「What the reset
-  /// cuts off」).
-  pub async fn keeping(&self) -> Keeping {
-    Keeping {
-      _held: self.0.keeping.clone().read_owned().await,
-    }
-  }
-
-  /// Held by the agent's reset while it moves the point: had once no turn holds `keeping`, and holding off every
-  /// turn that would take it after.
-  pub async fn cutting(&self) -> Cutting {
-    Cutting {
-      _held: self.0.keeping.clone().write_owned().await,
-    }
-  }
-
   /// Everything waiting for the agent's turns in every room let go unread, as its reset cuts it off: the words the
   /// queue gathers and those a conversation holds or waits on, and its quiet instructions, whose rows it answers
-  /// with the runs of its own going now (the agency's `docs/companions.md`, 「What the reset cuts off」).
+  /// with the runs of its own going now (docs/wake.md, 「An agent's reset」).
   pub fn cut_off(&self) -> CutOff {
     let mut state = self.state();
     let mut rooms: Vec<i64> = state.queue.drain().map(|(chat_id, _)| chat_id).collect();
@@ -1353,7 +1284,7 @@ impl Conversations {
     let mut record = Record::default();
     // A round's future holds the whole of its asking: it stands on the heap, not on a worker's stack.
     let ended =
-      rounds::within(round.clone(), Box::pin(self.round(chat_id, force, turn, &round, &mut record))).await;
+      rounds::within(round.clone(), Box::pin(self.round(chat_id, force, &round, &mut record))).await;
 
     if let Err(failure) = ended {
       self.fail_round(chat_id, failure).await;
@@ -1468,7 +1399,6 @@ impl Conversations {
     &self,
     chat_id: i64,
     force: bool,
-    turn: u64,
     round: &str,
     record: &mut Record,
   ) -> Result<(), Failure> {
@@ -1521,33 +1451,6 @@ impl Conversations {
     };
     let (held_words, mut batch, roads, mut instructions, ids, events, room, first_call, mut held) = taken;
     let mut via = self.road_of(chat_id, &batch, &roads).await;
-
-    // A round of a pieces-shaped agent is its companion's own.
-    if self.0.pieces.of(&receiver, self.agent()).await {
-      let ended = self
-        .0
-        .pieces
-        .round(
-          self,
-          self.agent(),
-          &PiecesRound {
-            chat_id,
-            batch,
-            instructions,
-            ids,
-            events,
-            via: via.clone(),
-          },
-          turn,
-          round,
-          record,
-        )
-        .await?;
-
-      self.pieces_ended(chat_id, ended, &via, room, round).await;
-
-      return Ok(());
-    }
 
     // A round the open window alone let in is the agent's to judge first, before any reference, sanitiser or gate;
     // a skip ends it there with nothing sent.
@@ -2056,55 +1959,6 @@ impl Conversations {
     if let Err(why) = self.0.receiver.filed(chat_id, message_id, via, declared).await {
       eprintln!("chat {chat_id}: the answer could not be handed to the receiver: {why}");
     }
-  }
-
-  // A companion's round ends free for the next round. A turn that came to none leaves the room as it was; one that
-  // failed is told to the room's screens with why, under the companion's name; and where its turn answered, the
-  // answer that went out is told to them and handed to the receiver as filed. Either way the room is answered and
-  // its window moved, and only then is the hold its reset's cut-off waits on let go.
-  async fn pieces_ended(&self, chat_id: i64, ended: PiecesEnded, via: &str, room: Room, round: &str) {
-    let (sent, keeping) = match ended {
-      PiecesEnded::NoTurn => {
-        self.no_turn(chat_id);
-        return;
-      }
-      PiecesEnded::Failed { reason, message } => {
-        self.publish(json!({
-          "type": "run-failed",
-          "chatId": chat_id,
-          "messageId": message,
-          "detail": reason,
-        }));
-
-        (None, None)
-      }
-      PiecesEnded::Answered { sent, keeping } => (sent, Some(keeping)),
-    };
-
-    if let Some(sent) = sent {
-      self.publish(json!({
-        "type": "sent",
-        "chatId": chat_id,
-        "messageId": sent.message_id,
-        "detail": sent.text,
-        "round": round,
-      }));
-      self.hand_filed(chat_id, sent.message_id, via, room).await;
-    }
-
-    if let Some(conv) = self.state().active.get_mut(&chat_id) {
-      conv.answered = true;
-    }
-
-    // The room stays in flight until its window is written, so a room read as idle has its window moved.
-    self.restart_window(chat_id).await;
-
-    if let Some(conv) = self.state().active.get_mut(&chat_id) {
-      conv.in_flight = false;
-    }
-
-    drop(keeping);
-    self.pump_pending(chat_id);
   }
 
   /// The words that came into a room while its round's draft process ran, taken for the process's next question or

@@ -300,8 +300,8 @@ impl Hub {
 
   // A turn that read the room's queued message has taken it; one reading another leaves it standing. What
   // says it was taken is the message standing among the turn's own, whether or not the room's road gives the
-  // turn a speaker to be shown as — a companion's turn reading the message answered it as surely as the
-  // chat agent's.
+  // turn a speaker to be shown as — any agent's turn reading the message answered it as surely as the chat
+  // agent's.
   fn take_queued(&mut self, turn: &Value) {
     let Some(chat) = turn["chatId"].as_i64() else {
       return;

@@ -90,7 +90,7 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title | 201, the `Room` added |
 | `GET /rooms/{roomId}` | | one `Room` |
 | `GET /rooms/{roomId}/title` | | `title`, or null |
-| `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `companion`) |
+| `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `companion`, whether it answers beside the chat agent) |
 | `GET /answerers` | `room` (optional) | a page of `{room, agents}`: every room's agents answering it, or one room's |
 | `GET /rooms/{roomId}/roads` | | `kind` (`owner` or `group`) and `oneToOne` |
 | `GET /rooms/{roomId}/own-number` | `agentName` | `number` (or null), the sender an agent's own words stand under |
@@ -111,8 +111,8 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `DELETE /rooms/{roomId}` | `by` (the administrator), `dryRun` | what the removal would do, or what it took |
 
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
-  people that have stood as a sender, `companions`, the companions answering there, `ownerRoom`, `registered`,
-  `workRoom`, where the news, questions and answers of work filed from it are told, and `mode`, the mode it was
+  people that have stood as a sender, `companions`, the agents other than the chat agent answering there,
+  `ownerRoom`, `registered`, `workRoom`, where the news, questions and answers of work filed from it are told, and `mode`, the mode it was
   added in:
   - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
     no agent is woken in it.
@@ -271,7 +271,9 @@ repository's, in `VERSION`; it is never taken from a registry.
   sent as the chat protocol's `voice` kind.
 - **A fixed line** is a `code` and its `fields`, rendered by the web unit's `POST /words/render` in the
   rooms' language and said into the room without the output gate or any session, since the line is already read.
-  Where the web unit cannot render it, its code and fields go as they stand, so the room is never left silent.
+  Where the web unit cannot render it, the line is the policy's plain sentence for the code in the rooms'
+  language; a code with no sentence anywhere is refused and nothing is said (`docs/voiced-notices.md`, 「Lines that
+  stay fixed」).
 - An owner's file send is the form above.
 - **The owner's words** from the console are archived in the room under a console number, the owner's number and
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
@@ -319,7 +321,7 @@ repository's, in `VERSION`; it is never taken from a registry.
 - **A turn's events name whose turn it is.** Every event a conversation tells of its room's turn — `run-started`,
   `run-progress`, `sent`, `draft`, `run-failed` and `waited` among them — and the turn as the picture holds it
   carry `speaker`, `{id, name}`: `name` is the registration name of the agent whose turn it is, the default
-  answerer's as much as a companion's, and `id` is the number that agent's words are filed under in the room —
+  answerer's as much as any other agent's, and `id` is the number that agent's words are filed under in the room —
   the room's own identity for the default answerer, the number the room's road or the record gave any other
   agent — or null where the room gives it none. The speaker is read as each turn begins, so an event told of a
   room no turn has begun in yet carries none.
@@ -409,16 +411,21 @@ repository's, in `VERSION`; it is never taken from a registry.
   question's name is not a lowercase word of letters, digits and dashes of at most 40 characters or its text is
   empty or past 4,000 characters.
 
-## Companions
+## Agents added on the console
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /companions` | `name`, `label`, `provider`, `model`, `worker`, `room` | a page of companions, and `room` (`id`, `takenBack`, `said`) |
-| `DELETE /companions/{companionName}` | `by` | a page of companions |
+| `POST /companions` | `name`, `label`, `provider`, `model`, `worker`, `room` | a page of the agents added on the console, and `room` (`id`, `takenBack`, `said`) |
+| `DELETE /companions/{companionName}` | `by` | a page of the agents added on the console |
 
-- The receiver writes the companion's console room, its number there and the room's answerers; the agent's half is
-  the agency's, and its gate options the gate's. A field the agency refuses comes back as the refusal of that
-  field (`name`, `label`, `provider`, `model`, `worker`; `agent` as `not-companion`; any other as `upstream-failed`).
+- **An agent added on the console is a chat agent like any other,** with a room of the console's own: its rounds
+  are the same rounds, its judgement of window words first and its draft process among them (`docs/wake.md`). The
+  paths, the fields `companion` and `companions` above, and the codes `not-companion` and `seeded-companion` keep
+  the names the agency's resource and the console's language pack carry.
+- The receiver writes the agent's console room, its number there and the room's answerers; the agent's half is
+  the agency's, and its gate options the gate's. What a name may be is the agency's to say. A field the agency
+  refuses comes back as the refusal of that field (`name`, `label`, `provider`, `model`, `worker`; `agent` as
+  `not-companion`; any other as `upstream-failed`).
 
 ## The chat services
 
@@ -446,9 +453,9 @@ and in this repository's delivery report.
 
 | Unit | What the receiver reaches it for |
 |---|---|
-| the agency | agents, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, companions, a run's log and reset point, a room forgotten, a session's loaded documents, the deployment's documents |
+| the agency | agents, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, the agents added on the console, a run's log and reset point, a room forgotten, a session's loaded documents, the deployment's documents |
 | bmo-job | a room's holdings, the questions the owner answers in his chat, the items a turn filed, the queue moved |
-| the gate | a turn's reference, the sanitiser, a room's judgements, a companion's gate options |
+| the gate | a turn's reference, the sanitiser, a room's judgements, an added agent's gate options |
 | the web unit | the account model: a sender's user, the checks, the grants, a fixed line rendered |
 | the cache warmer | the consumer and its one target, the chat touch |
 | each chat service | every provider route of the protocol, through `bmo-chat-client` |

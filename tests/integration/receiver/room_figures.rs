@@ -14,10 +14,10 @@ use crate::common::units::{AGENT, OWNER, SENDER};
 
 const ROOM: i64 = -911;
 const OTHER_ROOM: i64 = -912;
-// A second person of the room, and the number a road gave the companion answering in it.
+// A second person of the room, and the number a road gave the other agent answering in it.
 const PERSON: i64 = 900;
-const COMPANION: &str = "agent-b";
-const COMPANION_NUMBER: i64 = 77;
+const OTHER: &str = "agent-b";
+const OTHER_NUMBER: i64 = 77;
 // Midnight of a day, UTC, in Unix seconds, and a minute.
 const MIDNIGHT: i64 = 1_792_368_000;
 const MINUTE: i64 = 60;
@@ -82,7 +82,7 @@ fn session(
 }
 
 // Two people and two agents in a room: the chat agent filing under its name, keeping its session across rooms
-// that has been given the room, and a companion answering there under the number its road gave it, keeping a
+// that has been given the room, and another agent answering there under the number its road gave it, keeping a
 // session of the room's own.
 async fn bench() -> (Scratch, Front) {
   let scratch = Scratch::new().await;
@@ -93,17 +93,17 @@ async fn bench() -> (Scratch, Front) {
   said(&scratch, 3, Some(PERSON), "an old name", at(1, 20)).await;
   said(&scratch, 4, Some(PERSON), "a person", at(13, 0)).await;
   said(&scratch, 5, None, SENDER, at(13, 5)).await;
-  said(&scratch, 6, Some(COMPANION_NUMBER), "Agent B", at(23, 30)).await;
+  said(&scratch, 6, Some(OTHER_NUMBER), "Agent B", at(23, 30)).await;
   said(&scratch, 7, Some(OWNER), "someone", at(23, 40)).await;
 
   for (sql, values) in [
     (
       r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ('road-a', $1, $2)"#,
-      vec![COMPANION.into(), COMPANION_NUMBER.into()],
+      vec![OTHER.into(), OTHER_NUMBER.into()],
     ),
     (
       r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
-      vec![ROOM.into(), COMPANION.into()],
+      vec![ROOM.into(), OTHER.into()],
     ),
     (
       r#"INSERT INTO "bmo_session_rooms" ("session_id", "chat_id") VALUES ('shared-a', $1)"#,
@@ -121,12 +121,12 @@ async fn bench() -> (Scratch, Front) {
       "Agent A",
       json!({ "lastMode": "provider-a", "lastModel": "model-a", "lastEffort": "high" }),
     ),
-    agent(COMPANION, "Agent B", json!({})),
+    agent(OTHER, "Agent B", json!({})),
   ]);
   agency.listing(vec![
     session("shared-a", AGENT, Scope::Agent, "provider-a", "model-a", 1_200),
-    session("room-b", COMPANION, Scope::Room { room: ROOM }, "provider-b", "model-b", 300),
-    session("shared-b", COMPANION, Scope::Agent, "provider-b", "model-b", 50),
+    session("room-b", OTHER, Scope::Room { room: ROOM }, "provider-b", "model-b", 300),
+    session("shared-b", OTHER, Scope::Agent, "provider-b", "model-b", 50),
     session("room-c", "agent-c", Scope::Room { room: OTHER_ROOM }, "provider-c", "model-c", 10),
   ]);
 
@@ -193,7 +193,7 @@ async fn each_agent_stands_with_its_share_its_row_and_the_session_it_keeps_for_t
     figures["agents"],
     json!([
       {
-        "agentName": COMPANION,
+        "agentName": OTHER,
         "messages": 1,
         "lastAnswerAt": at(23, 30) * 1_000,
         "session": "room-b",
@@ -239,13 +239,13 @@ async fn an_agency_that_answers_nothing_leaves_its_fields_null_and_the_figures_s
 
   let figures = figures(&front, "").await;
 
-  assert_eq!(figures["fromPeople"], 5, "the companion's number is the receiver's own record");
+  assert_eq!(figures["fromPeople"], 5, "the other agent's number is the receiver's own record");
   assert_eq!(
     figures["agents"].as_array().unwrap().len(),
     1,
     "the answerer stands; no session is listed"
   );
-  assert_eq!(figures["agents"][0]["agentName"], COMPANION);
+  assert_eq!(figures["agents"][0]["agentName"], OTHER);
   assert_eq!(figures["agents"][0]["messages"], 1);
 
   for field in ["session", "label", "lastMode", "sessionMode", "model", "contextTokens"] {

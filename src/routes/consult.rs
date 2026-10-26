@@ -10,8 +10,8 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::{Answered, Refusal, Served, answered, code, query, read, refused, store, unit};
-use crate::companion::consult::consult_block;
-use crate::companion::consult_say::say;
+use crate::chat::consult::consult_block;
+use crate::chat::consult_say::say;
 use crate::now_ms;
 use crate::receiver::{NotReceived, Receiver};
 

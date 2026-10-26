@@ -1,5 +1,5 @@
 //! The gate port: a turn's envelope handed over for its reference, words through the sanitiser on their way in
-//! and out, a room's judgements written and a new companion's gate options copied (`docs/boundary-api.md`, 「The
+//! and out, a room's judgements written and an added agent's gate options copied (`docs/boundary-api.md`, 「The
 //! gate」). The bodies are the gate's published shapes (`docs/api.md`): camelCase keys, epoch milliseconds, and the
 //! gate's own names — `roomId`, `messageId`, `speakerIds`, `peopleSpoke`, `offGates`, `gateName`, `agentName` and
 //! `fromAgentName`, with the situation road carrying `agentName`, `roomKind`, its events and `nowAt`.

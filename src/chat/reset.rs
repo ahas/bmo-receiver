@@ -1,9 +1,8 @@
-//! The receiver's rows of a companion's reset (docs/wake.md, 「A companion's reset」; the agency's
-//! `docs/companions.md`, 「Starting it afresh」): the agency takes its own part and publishes the kind
-//! `companion-reset.created`, and the receiver takes its own rows of the ranges the event names, in one write. The
-//! conversation range takes the whole record of each room the companion answers alone, the run records those rooms'
-//! runs wrote down and those of the companion's own runs, and its own instructions and windows in every room; the
-//! person range takes the marks its book of each room has read.
+//! The receiver's rows of an agent's reset (docs/wake.md, 「An agent's reset」): the agency takes its own part and
+//! publishes the kind `companion-reset.created`, its own name for it, and the receiver takes its own rows of the
+//! ranges the event names, in one write. The conversation range takes the whole record of each room the agent
+//! answers alone, the run records those rooms' runs wrote down and those of the agent's own runs, and its own
+//! instructions and windows in every room; the person range takes the marks its book of each room has read.
 
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::Event;
@@ -17,16 +16,16 @@ use crate::{Fault, all, run};
 /// The kind a reset that has taken the agency's part is published under.
 pub const RESET: &str = "companion-reset.created";
 
-/// The range of what the companion said: its conversations.
+/// The range of what the agent said: its conversations.
 pub const CONVERSATION: &str = "conversation";
 
-/// The range of what the companion remembers: its person book among it.
+/// The range of what the agent remembers: its person book among it.
 pub const PERSON: &str = "person";
 
 /// The most run names one statement names, so a long list stays under what the database takes.
 const RUNS_PER_WRITE: usize = 500;
 
-/// A reset as the agency publishes it: the companion, the ranges taken, the rooms it answers alone, and the runs
+/// A reset as the agency publishes it: the agent, the ranges taken, the rooms it answers alone, and the runs
 /// its own log named before its lines went.
 #[derive(Debug, Deserialize)]
 pub struct Reset {
@@ -35,7 +34,7 @@ pub struct Reset {
   pub ranges: Vec<String>,
   #[serde(default)]
   pub alone: Vec<i64>,
-  /// The runs the companion's own log lines went under: what a run wrote down is kept under the run's name, which
+  /// The runs the agent's own log lines went under: what a run wrote down is kept under the run's name, which
   /// says its room but not the agent that ran it.
   #[serde(default)]
   pub runs: Vec<String>,
@@ -70,7 +69,7 @@ impl Hearer for Resets {
       let reset = match serde_json::from_value::<Reset>(event.data.clone()) {
         Ok(reset) => reset,
         Err(why) => {
-          eprintln!("bmo-receiver: a companion reset that does not read: {why}");
+          eprintln!("bmo-receiver: an agent's reset that does not read: {why}");
           return;
         }
       };
@@ -79,15 +78,15 @@ impl Hearer for Resets {
         Ok(taken) => {
           let counts: Vec<String> = taken.iter().map(|(table, rows)| format!("{table} {rows}")).collect();
 
-          println!("companion {}: its reset took {}", reset.agent, counts.join(", "));
+          println!("agent {}: its reset took {}", reset.agent, counts.join(", "));
         }
-        Err(why) => eprintln!("companion {}: its reset's rows were not taken: {}", reset.agent, why.detail),
+        Err(why) => eprintln!("agent {}: its reset's rows were not taken: {}", reset.agent, why.detail),
       }
     })
   }
 }
 
-/// The rooms of those named whose record holds the companion as its one answerer.
+/// The rooms of those named whose record holds the agent as its one answerer.
 async fn answered_alone<C: ConnectionTrait>(db: &C, agent: &str, named: &[i64]) -> Result<Vec<i64>, Fault> {
   if named.is_empty() {
     return Ok(vec![]);
@@ -156,7 +155,7 @@ pub async fn take(receiver: &Receiver, reset: &Reset, dry_run: bool) -> Result<T
       }
     }
 
-    // A chat run's name opens with its room, so a room's whole record goes by the name; the companion's own
+    // A chat run's name opens with its room, so a room's whole record goes by the name; the agent's own
     // runs in the rooms it shares are named by the agency's log, the only record that says which agent a run
     // ran for, and go by those names too.
     let mut runs = 0;

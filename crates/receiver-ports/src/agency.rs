@@ -1,5 +1,5 @@
 //! The agency port: the agents and their roads, the sessions a turn is carried in and the words pushed into a
-//! working one, the documents a session was handed in full, a room forgotten, a companion's agent half, the hooks
+//! working one, the documents a session was handed in full, a room forgotten, the agent half of an agent added on the console, the hooks
 //! the receiver answers, a run's log and the event stream (`docs/boundary-api.md`, 「The agency」; the agency's
 //! `docs/api.md`). Bodies are camelCase.
 
@@ -239,10 +239,10 @@ pub struct SessionState {
   pub prefix_change_reason: Option<String>,
 }
 
-/// A companion's row the console stands up: the name it is registered by, what it is called in the room, the
+/// The row of an agent the console stands up: the name it is registered by, what it is called in the room, the
 /// provider and model it is pinned to, and the worker its items go to. The room it answers is the receiver's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CompanionRow {
+pub struct ConsoleAgentRow {
   pub name: String,
   pub label: String,
   pub provider: String,
@@ -423,14 +423,14 @@ pub trait Agency: Send + Sync {
   /// Words put into the turn the session is working, answered with what became of them.
   fn push<'a>(&'a self, session: &'a str, turn: i64, words: &'a str) -> BoxFuture<'a, Answer<Said>>;
 
-  /// A companion's row stood up, or the field the agency refused.
-  fn add_companion<'a>(
+  /// An added agent's row stood up, or the field the agency refused.
+  fn add_console_agent<'a>(
     &'a self,
-    companion: &'a CompanionRow,
+    agent: &'a ConsoleAgentRow,
   ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
 
-  /// A companion's half taken out with everything of its own, or the field the agency refused.
-  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
+  /// An added agent's half taken out with everything of its own, or the field the agency refused.
+  fn remove_console_agent<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
 
   /// The stream of the events of the kinds named, from the moment it is opened.
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>>;
@@ -789,18 +789,19 @@ impl Agency for HttpAgency {
     })
   }
 
-  fn add_companion<'a>(
+  fn add_console_agent<'a>(
     &'a self,
-    companion: &'a CompanionRow,
+    agent: &'a ConsoleAgentRow,
   ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
     Box::pin(async move {
-      let done: Result<Done, FieldRefusal> = self.caller.checked(&["companions"], companion).await?;
+      // The agency's resource keeps its own name for the agents the console adds.
+      let done: Result<Done, FieldRefusal> = self.caller.checked(&["companions"], agent).await?;
 
       Ok(done.map(|_| ()))
     })
   }
 
-  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+  fn remove_console_agent<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
     Box::pin(async move { self.caller.checked_delete(&["companions", agent]).await })
   }
 

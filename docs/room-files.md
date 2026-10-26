@@ -14,7 +14,7 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   room like any other, and its files do not go into a group room either.
 - **The folders live as long as the room's registration.** Each store declares its folder as the room's, and the
   three go only with the administrator's removal of the room's registration, together with the room's rows of
-  kept files (`docs/receiver.md`, 「Removing a room's registration」). No chat service's event, companion's removal
+  kept files (`docs/receiver.md`, 「Removing a room's registration」). No chat service's event, agent's removal
   or clean-up takes them.
 
 ## Message files

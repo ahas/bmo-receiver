@@ -8,10 +8,10 @@ use http::StatusCode;
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
-  Code, CompanionFact, CompanionRefusal, ConsultRefusal, EngineError, Fact, FileUnsent, FixedLine,
-  HealthFact, OwnerSendRefusal, ReceiverError, Refused, RoomAdditionRefusal, RoomGrantRefusal,
-  RoomRemovalRefusal, RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason,
-  TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
+  AddedAgentFact, AddedAgentRefusal, Code, ConsultRefusal, Fact, FileUnsent, FixedLine, HealthFact,
+  OwnerSendRefusal, ReceiverError, Refused, RoomAdditionRefusal, RoomGrantRefusal, RoomRemovalRefusal,
+  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason, TalkRefusal,
+  TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -37,11 +37,11 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("SendRefusal", Codes, SendRefusal::VARIANTS),
     ("RoomGrantRefusal", Codes, RoomGrantRefusal::VARIANTS),
     ("RoomAdditionRefusal", Codes, RoomAdditionRefusal::VARIANTS),
-    ("CompanionRefusal", Codes, CompanionRefusal::VARIANTS),
+    ("AddedAgentRefusal", Codes, AddedAgentRefusal::VARIANTS),
     ("HealthFact", Codes, HealthFact::VARIANTS),
     ("VoiceFact", Codes, VoiceFact::VARIANTS),
     ("SettingFact", Codes, SettingFact::VARIANTS),
-    ("CompanionFact", Codes, CompanionFact::VARIANTS),
+    ("AddedAgentFact", Codes, AddedAgentFact::VARIANTS),
     ("RoomRemovalWarning", Codes, RoomRemovalWarning::VARIANTS),
     ("FixedLine", Codes, FixedLine::VARIANTS),
     ("FileUnsent", Kinds, FileUnsent::VARIANTS),
@@ -49,7 +49,6 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("SessionReason", Kinds, SessionReason::VARIANTS),
     ("TurnOpening", Kinds, TurnOpening::VARIANTS),
     ("SkipReason", Kinds, SkipReason::VARIANTS),
-    ("EngineError", Kinds, EngineError::VARIANTS),
   ]
 }
 
@@ -197,7 +196,7 @@ fn a_fact_is_its_code_and_fields_on_the_wire_and_english_for_its_agent() {
       names: vec!["agent-a".to_owned(), "agent-b".to_owned()]
     }
     .to_string(),
-    "companions answer this room: agent-a, agent-b; they stay, and no longer answer in it"
+    "other agents answer this room: agent-a, agent-b; they stay, and no longer answer in it"
   );
 }
 
@@ -222,18 +221,14 @@ fn a_fixed_line_is_its_code_and_fields_and_says_whether_it_is_a_system_notice() 
   assert_eq!(stop.code(), "going-down-for-update");
   assert!(stop.is_system_notice());
   assert!(!FixedLine::ProviderDown.is_system_notice());
-  assert_eq!(stop.unrendered(), r#"{"code":"going-down-for-update","items":[12,14]}"#);
+  assert_eq!(
+    serde_json::to_value(&stop).unwrap(),
+    json!({ "code": "going-down-for-update", "items": [12, 14] })
+  );
   assert_eq!(draw.code(), "draw");
   assert_eq!(
     serde_json::to_value(&draw).unwrap()["asked"],
     json!({ "shape": "pick", "items": 5, "take": 2 })
-  );
-  assert_eq!(
-    serde_json::to_value(FixedLine::CompanionEngineError {
-      kind: EngineError::TooLong
-    })
-    .unwrap(),
-    json!({ "code": "companion-engine-error", "kind": "too-long" })
   );
 }
 
@@ -251,7 +246,7 @@ fn a_kind_is_its_kebab_case_word() {
   assert_eq!(TurnOpening::FoldDeferred.to_string(), "fold-deferred");
   assert_eq!(SkipReason::ProviderOff.to_string(), "provider-off");
   assert_eq!(
-    serde_json::to_value(CompanionFact::RoomTakenBack {
+    serde_json::to_value(AddedAgentFact::RoomTakenBack {
       label: "agent-a".to_owned(),
       title: "room-a".to_owned()
     })
@@ -269,7 +264,7 @@ fn a_kind_is_its_kebab_case_word() {
   assert_eq!(RoomGrantRefusal::NotOwnersMessage.code(), "not-owners-message");
   assert_eq!(RoomRemovalRefusal::OwnersChat.code(), "owners-chat");
   assert_eq!(
-    CompanionRefusal::SeededCompanion {
+    AddedAgentRefusal::Seeded {
       label: "agent-a".to_owned()
     }
     .code(),

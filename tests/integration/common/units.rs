@@ -19,7 +19,7 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, CompanionRow, Delivery, Events, FieldRefusal, Forgotten, Load, Passed, Rest,
+  Agency, Agent, Agents, ConsoleAgentRow, Delivery, Events, FieldRefusal, Forgotten, Load, Passed, Rest,
   RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
@@ -771,7 +771,7 @@ pub fn registration(
 }
 
 /// The agency: the agents it registers, whether a stand-in answers an agent while the rest closes its road,
-/// the deployment's rest, every companion removal it was asked, the field it refuses a companion's call on
+/// the deployment's rest, every other agent removal it was asked, the field it refuses another agent's call on
 /// where a test sets one, every push it was asked with what it says of it (a push failing where it says
 /// nothing), and the session its turns go on where a test stands one.
 pub struct StandInAgency {
@@ -1099,9 +1099,9 @@ impl Agency for StandInAgency {
     })
   }
 
-  fn add_companion<'a>(
+  fn add_console_agent<'a>(
     &'a self,
-    companion: &'a CompanionRow,
+    added: &'a ConsoleAgentRow,
   ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
     if let Some(refusal) = self.refusing.lock().unwrap().clone() {
       return Box::pin(async move { Ok(Err(refusal)) });
@@ -1115,8 +1115,8 @@ impl Agency for StandInAgency {
     row.insert("windowSeconds".to_owned(), serde_json::json!(180));
 
     self.agents.lock().unwrap().push(Agent {
-      name: companion.name.clone(),
-      label: Some(companion.label.clone()),
+      name: added.name.clone(),
+      label: Some(added.label.clone()),
       awake: true,
       brain_folder: None,
       row,
@@ -1125,7 +1125,7 @@ impl Agency for StandInAgency {
     Box::pin(async { Ok(Ok(())) })
   }
 
-  fn remove_companion<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+  fn remove_console_agent<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
     if let Some(refusal) = self.refusing.lock().unwrap().clone() {
       return Box::pin(async move { Ok(Err(refusal)) });
     }

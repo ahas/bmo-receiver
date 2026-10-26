@@ -6,7 +6,7 @@ members = ["crates/receiver-client", "crates/receiver-codes", "crates/receiver-p
 resolver = "3"
 
 [workspace.package]
-version = "0.38.0"
+version = "0.39.0"
 edition = "2024"
 license = "MIT"
 
@@ -133,6 +133,8 @@ sha2.workspace = true
 [dev-dependencies]
 # The repository checks read `cargo metadata` and the testbed's declaration.
 serde_json.workspace = true
+# The fixed lines' codes listed by their enum.
+strum.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 toml.workspace = true

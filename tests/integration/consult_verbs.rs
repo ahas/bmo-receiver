@@ -4,7 +4,7 @@
 
 use crate::common::Scratch;
 use crate::common::units::{Standing, standing};
-use bmo_receiver::companion::consult::window_states;
+use bmo_receiver::chat::consult::window_states;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::verbs::consult::{room, state};
 use receiver_policy::consult::CONSULT;
@@ -22,7 +22,7 @@ fn window(seconds: i64) -> serde_json::Map<String, serde_json::Value> {
   held
 }
 
-// Two companions answering together in one titled room, and one alone in another.
+// Two agents answering together in one titled room, and one alone in another.
 async fn rooms() -> (Scratch, tempfile::TempDir, Standing) {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();

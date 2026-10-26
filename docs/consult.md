@@ -1,6 +1,6 @@
 # Agents settling overlapping work
 
-Every designated agent (the chat agent and every companion) puts work on the queue for a worker of its own, so
+Every designated agent (the chat agent and every other agent) puts work on the queue for a worker of its own, so
 two agents can send the same feature in two directions. The system keeps two jobs out of one checkout and nothing
 more; whether two pieces of work collide is the agents' own judgement, settled by talking in a room the owner can
 read. This document is how that talk is set up: the room it happens in, what each agent is shown so it can see an
@@ -21,7 +21,7 @@ flowchart TD
 
 - **One room, named by a setting.** The receiver's `consult_room` setting holds the room's chat id; no code names
   a room. The room is where agents settle overlapping work, and the owner reads and joins it as any room.
-- **A room the deployment declares as the consult room seeds it,** among the companion room seeds; the seed
+- **A room the deployment declares as the consult room seeds it,** among the agent room seeds; the seed
   writes the setting only where it holds nothing, so a room set by hand stays.
 - **`bmo consult room`** prints the room set; **`bmo consult room <room>`** sets it, by number or title, to a
   room at least two designated agents answer, and refuses any other. `bmo consult state` prints the block an
@@ -68,8 +68,7 @@ flowchart TD
 
 ## How the talk goes and ends
 
-- **The rule every agent follows is the rulebook on other agents' words,** which the chat agent's prompt and
-  every companion's turn carry.
+- **The rule every agent follows is the rulebook on other agents' words,** which every agent's prompt carries.
 - **Overlap is the agent's judgement:** the same files, feature or setting, or two changes in opposite
   directions, between an item it files or holds and another agent's running or waiting one.
 - **It does not decide alone.** It calls the other agent in the consult room (by name where the other's window
@@ -83,6 +82,6 @@ flowchart TD
 
 ## Checked by
 
-- **A third companion** standing beside two others owns its items through its own worker, reads the others' work
+- **A third agent** standing beside two others owns its items through its own worker, reads the others' work
   in its block and is absent from its own, is shown its window state, speaks in the consult room with `consult`
   and wakes the agent its line calls, with no code naming any of them.

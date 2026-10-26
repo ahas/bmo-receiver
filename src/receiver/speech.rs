@@ -8,6 +8,8 @@ use std::sync::Arc;
 
 use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure};
 use receiver_codes::FixedLine;
+use receiver_policy::fill_marks;
+use receiver_policy::fixed_lines::FIXED_LINES;
 use receiver_ports::PortFailure;
 use receiver_ports::gate::Sanitise;
 use receiver_ports::web::Render;
@@ -88,18 +90,23 @@ impl Speech {
     self.say(self.deployment.owner_id, text, false).await
   }
 
-  /// A room just shut told so, in the one fixed line.
+  /// A room just shut told so, in the one fixed line; nothing where no sentence can be made of it.
   pub async fn denied(&self, chat_id: i64) -> Result<Option<i64>, NotSaid> {
-    let line = self.rendered(&FixedLine::ChatDenied).await;
+    let Some(line) = self.rendered(&FixedLine::ChatDenied).await else {
+      return Ok(None);
+    };
 
     self.say(chat_id, &line, true).await
   }
 
-  /// A fixed line's words in the rooms' language, as the web unit's language packs render it; its code and fields
-  /// where the web unit cannot be reached, so the room is never left silent.
-  pub async fn rendered(&self, line: &FixedLine) -> String {
+  /// A fixed line's words in the rooms' language, as the web unit's language packs render it, or the policy's plain
+  /// sentence for it where they cannot; none where neither can, and the journal says so. A person never reads a
+  /// line's code or its fields.
+  pub async fn rendered(&self, line: &FixedLine) -> Option<String> {
     let Ok(Value::Object(mut fields)) = serde_json::to_value(line) else {
-      return line.unrendered();
+      eprintln!("bmo-receiver: a fixed line did not read as its fields, so nothing was said");
+
+      return None;
     };
     let code = fields
       .remove("code")
@@ -109,9 +116,9 @@ impl Speech {
     self.rendered_code(&code, fields).await
   }
 
-  /// A line's words where its code and fields are the caller's, rendered in the rooms' language; its code and
-  /// fields where the web unit cannot render it, so the room is never left silent.
-  pub async fn rendered_code(&self, code: &str, fields: Map<String, Value>) -> String {
+  /// A line's words where its code and fields are the caller's, rendered in the rooms' language, or the policy's
+  /// plain sentence for the code where the web unit cannot render it; none where neither can.
+  pub async fn rendered_code(&self, code: &str, fields: Map<String, Value>) -> Option<String> {
     let asked = Render {
       code: code.to_owned(),
       fields: fields.clone(),
@@ -119,20 +126,12 @@ impl Speech {
     };
 
     match self.units.web.render(&asked).await {
-      Ok(text) => text,
+      Ok(text) if !text.trim().is_empty() => Some(text),
+      Ok(_) => plain(&self.deployment.language, code, &fields),
       Err(why) => {
-        eprintln!("bmo-receiver: the {} line went unrendered: {why}", asked.code);
-        let mut held = Map::new();
+        eprintln!("bmo-receiver: the {code} line went unrendered by the web unit: {why}");
 
-        held.insert("code".to_owned(), Value::String(code.to_owned()));
-
-        for (name, value) in fields {
-          if name != "code" {
-            held.insert(name, value);
-          }
-        }
-
-        Value::Object(held).to_string()
+        plain(&self.deployment.language, code, &fields)
       }
     }
   }
@@ -253,5 +252,63 @@ impl Speech {
         why,
       }),
     }
+  }
+}
+
+/// A fixed line as the policy's plain sentence for its code in the rooms' language, its fields filled in as words;
+/// none, with the journal told, where the policy holds no sentence for it (docs/voiced-notices.md, 「Lines that
+/// stay fixed」).
+pub fn plain(language: &str, code: &str, fields: &Map<String, Value>) -> Option<String> {
+  let Some(sentence) = FIXED_LINES.sentence(language, code) else {
+    eprintln!("bmo-receiver: the {code} line has no sentence in {language}, so nothing was said");
+
+    return None;
+  };
+  // Every mark the sentence names is filled, one whose field the line does not carry with nothing, so no mark
+  // stands in the room.
+  let mut words: Vec<(String, String)> =
+    fields.iter().map(|(name, value)| (name.clone(), worded(value))).collect();
+
+  for named in sentence
+    .split('{')
+    .skip(1)
+    .filter_map(|after| after.split_once('}').map(|(name, _)| name))
+  {
+    if !named.is_empty()
+      && named.chars().all(|character| character.is_ascii_alphanumeric() || character == '_')
+      && !words.iter().any(|(name, _)| name == named)
+    {
+      words.push((named.to_owned(), String::new()));
+    }
+  }
+
+  let marks: Vec<(&str, &str)> = words.iter().map(|(name, said)| (name.as_str(), said.as_str())).collect();
+  let said = fill_marks(sentence, &marks);
+  let said = said.split_whitespace().collect::<Vec<_>>().join(" ");
+
+  (!said.is_empty()).then_some(said)
+}
+
+// A field as words: text as it stands, a number as its digits, a list as its members, an object as its values
+// apart from the shape it names, and nothing for null.
+fn worded(value: &Value) -> String {
+  match value {
+    Value::Null => String::new(),
+    Value::String(text) => text.clone(),
+    Value::Bool(flag) => flag.to_string(),
+    Value::Number(number) => number.to_string(),
+    Value::Array(members) => members
+      .iter()
+      .map(worded)
+      .filter(|said| !said.is_empty())
+      .collect::<Vec<_>>()
+      .join(", "),
+    Value::Object(fields) => fields
+      .iter()
+      .filter(|(name, _)| name.as_str() != "shape")
+      .map(|(_, value)| worded(value))
+      .filter(|said| !said.is_empty())
+      .collect::<Vec<_>>()
+      .join(" · "),
   }
 }

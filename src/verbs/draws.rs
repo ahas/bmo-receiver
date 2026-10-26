@@ -688,6 +688,12 @@ pub async fn draw(
       &record.next_commitment,
     ))
     .await;
+  let Some(line) = line else {
+    return Err(VerbError::Refused(format!(
+      "draw {} is recorded, but no sentence in the rooms' language could be made of its line, so it did not go out. It stands as drawn and is not to be drawn again",
+      record.id,
+    )));
+  };
 
   let sent = sends
     .send(

@@ -1,12 +1,11 @@
 //! The few lines a room hears that no session says (docs/voiced-notices.md, 「Lines that stay fixed」): each a code
-//! with its fields, rendered in the room's language by the web unit's language packs. Where the web unit cannot
-//! be reached, the line goes as its code and fields, so a room is never silent about a rest or a stop.
+//! with its fields, rendered in the room's language by the web unit's language packs, or by the receiver's policy
+//! sentence where they cannot. A person never reads the code or its fields.
 
 use serde::{Deserialize, Serialize};
 use strum::{IntoStaticStr, VariantNames};
 
 use crate::draws::DrawLine;
-use crate::kinds::EngineError;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, IntoStaticStr, VariantNames)]
 #[serde(tag = "code", rename_all = "kebab-case")]
@@ -33,12 +32,6 @@ pub enum FixedLine {
   GoingDownForUpdate { items: Vec<i64> },
   /// The service restarts with no deployment behind it: a system notice.
   GoingDown,
-  /// A companion's engine ended its turn with an error: the one line the turn leaves in the room, under the
-  /// companion's own name.
-  CompanionEngineError { kind: EngineError },
-  /// A companion's turn its guard cut short: the one line the room hears under the companion's own number, with
-  /// the guard's reason in English.
-  CompanionCut { agent: String, reason: String },
   /// A fair draw's room line.
   Draw(DrawLine),
   /// A turn of a round's draft process ran past its bound and goes on: said once in the round.
@@ -52,10 +45,5 @@ impl FixedLine {
   /// files as the service's own line with the system mark.
   pub fn is_system_notice(&self) -> bool {
     matches!(self, Self::GoingDownForUpdate { .. } | Self::GoingDown)
-  }
-
-  /// The line as it goes where nothing renders it: its code and fields as one JSON object.
-  pub fn unrendered(&self) -> String {
-    serde_json::to_string(self).unwrap_or_else(|_| <&'static str>::from(self).to_owned())
   }
 }

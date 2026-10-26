@@ -11,10 +11,10 @@
   `agent` scope), as the resident program standing in the agent's one pane. Every round, fold and touch of every
   room is a turn put into it (`POST /sessions/{sessionId}/turns`), and a person watching the pane sees it working
   and can type into it.
-- **Every room but one a companion answers alone.** A room made for a companion names who answers in it. Where
+- **Every room but one other agents answer alone.** A room made for an agent names who answers in it. Where
   the chat agent is not among them, its words never reach this session, the room is never recorded among the
   agent's rooms, and nothing of it is in the transcript; where it is, the room is one more group room of this
-  session's, with the companion's words in its line.
+  session's, with the other agents' words in its line.
 - **One queue:** chat runs for every room are handled one at a time from a common queue.
 - **One window:** every turn put into the session, whatever brought it, is composed by one module and handed the
   same memories and reference (`docs/bmo-window.md`).

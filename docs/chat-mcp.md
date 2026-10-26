@@ -15,8 +15,9 @@ and watches are `docs/reminders.md`'s. The other tools of the catalogue are thei
   `caption`. A file a room's folder holds goes only into that room, and a job sends none of them
   (`docs/room-files.md`).
 - **`voice`**: an OGG/Opus voice note at `path`, with its `caption`, what it `said` and the `transcript` read out.
-- **`fixed_line`**: a fixed line's `code` and its `fields`, which the web unit's language packs render
-  (`docs/voiced-notices.md`); the receiver says it without the output gate or any session.
+- **`fixed_line`**: a fixed line's `code` and its `fields`, which the web unit's language packs render, the
+  receiver's policy sentence standing in where they cannot (`docs/voiced-notices.md`, 「Lines that stay fixed」);
+  the receiver says it without the output gate or any session, and refuses a code no sentence can be made of.
 - **`react`**: an emoji reaction on a message, or none to clear it.
 - **`pin`**: a message pinned, or unpinned.
 - **`sticker`**: one of the deployment's stickers, picked by its emoji.

@@ -132,7 +132,9 @@ pub fn rest_line(kind: RestKind, until: Option<i64>) -> FixedLine {
 
 /// The line the owner hears as the silence begins, rendered in the rooms' language where the web unit stands.
 pub async fn tell_rest(receiver: &Receiver, line: &FixedLine) -> Result<(), NotSaid> {
-  let line = receiver.speech().rendered(line).await;
+  let Some(line) = receiver.speech().rendered(line).await else {
+    return Ok(());
+  };
 
   receiver.speech().say(receiver.deployment().owner_id, &line, true).await.map(drop)
 }

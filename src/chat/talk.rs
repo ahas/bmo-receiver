@@ -13,7 +13,7 @@ use super::ask::Carry;
 use super::conversation::{Asking, BoxFuture, Conversations, Failure, Follower, Talking};
 use super::window::{Material, clean, composed, select};
 
-use crate::companion::consult::label_of;
+use crate::chat::consult::label_of;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver};
 

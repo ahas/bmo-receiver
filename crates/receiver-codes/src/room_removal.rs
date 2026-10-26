@@ -8,7 +8,7 @@ use strum::{IntoStaticStr, VariantNames};
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum RoomRemovalRefusal {
-  #[error("the room is declared by the companion seeds, so the next start would make it again")]
+  #[error("the room is declared by the agent room seeds, so the next start would make it again")]
   SeededRoom,
   #[error("the room is the infrastructure room the configuration names")]
   Infrastructure,
@@ -41,7 +41,7 @@ refused!(RoomRemovalRefusal);
 #[serde(tag = "code", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum RoomRemovalWarning {
-  /// Companions answer the room: they stay, and no longer answer in it.
+  /// Other agents answer the room: they stay, and no longer answer in it.
   Answerers { names: Vec<String> },
   /// A road can still reach the room, where a later message would register it anew.
   Road { road: String },
@@ -56,7 +56,7 @@ impl std::fmt::Display for RoomRemovalWarning {
     match self {
       Self::Answerers { names } => write!(
         f,
-        "companions answer this room: {}; they stay, and no longer answer in it",
+        "other agents answer this room: {}; they stay, and no longer answer in it",
         crate::listed(names)
       ),
       Self::Road { road } => {

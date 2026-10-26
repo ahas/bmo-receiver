@@ -93,9 +93,9 @@ is written.
 - **Not turns at all:**
   - Another agent's wait come due or memory event never reaches the chat agent: it wakes its own agent
     in its own room.
-  - Words in a room the chat agent does not answer, one a companion answers alone, never reach it: the
-    receiver wakes the companion and no lane of this queue. A room the owner shares with a companion is a room's
-    words like any other, in the first row.
+  - Words in a room the chat agent does not answer, one other agents answer alone, never reach it: the
+    receiver wakes those agents and no lane of this queue. A room the owner shares with another agent is a
+    room's words like any other, in the first row.
   - A job's question is posted in the owner's chat as the agent's message and waits for the owner's answer; the
     agent's session is not asked.
   - The fold itself is a command to the agent's program, not words to the agent.

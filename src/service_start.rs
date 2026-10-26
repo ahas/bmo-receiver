@@ -16,14 +16,14 @@ use sea_orm::DatabaseConnection;
 
 use crate::chat::around::Around;
 use crate::chat::conversation::{Conversations, Timings};
+use crate::chat::cut_off::CutOffs;
 use crate::chat::fallback::Fallbacks;
 use crate::chat::instructions::{Pass, Rooms};
 use crate::chat::logins::Logins;
 use crate::chat::overtime::Overtime;
+use crate::chat::reset::Resets;
 use crate::chat::restart::keep as keep_restart;
 use crate::chat::runner::Runner;
-use crate::companion::cut::CutOffs;
-use crate::companion::reset::Resets;
 use crate::config::Config;
 use crate::data_root::DataRoot;
 use crate::events::Events;

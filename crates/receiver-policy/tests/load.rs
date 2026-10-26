@@ -5,8 +5,6 @@ use receiver_policy::chat_health::CHAT_HEALTH;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::commands::COMMANDS;
-use receiver_policy::companion_runner::COMPANION_RUNNER;
-use receiver_policy::companions::COMPANIONS;
 use receiver_policy::consult::CONSULT;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::files::FILES;
@@ -33,8 +31,8 @@ const POLICY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy");
 
 /// Every part, by its file, read here so a file that does not read as its type fails this test.
 fn parts() -> Vec<&'static str> {
-  let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS, &*COMPANION_RUNNER);
-  let _ = (&*COMPANIONS, &*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
+  let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS);
+  let _ = (&*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
   let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST);
@@ -44,11 +42,10 @@ fn parts() -> Vec<&'static str> {
     "chat-line.toml",
     "chat-round.toml",
     "commands.toml",
-    "companion-runner.toml",
-    "companions.toml",
     "consult.toml",
     "drafting.toml",
     "files.toml",
+    "fixed-lines.toml",
     "handover.toml",
     "keepalive.toml",
     "kept.toml",
@@ -165,8 +162,7 @@ fn the_other_lines_carry_their_marks_and_numbers() {
   assert!(CHAT_HEALTH.failed.run_log.as_deref().is_some_and(|line| line.contains("{run}")));
   assert!(REST.threshold > 0.0 && REST.lift_check_seconds > 0);
   assert!(RESIDENT_TURN.fold_ratio > 0.0 && RESIDENT_TURN.fold_ratio < 1.0);
-  assert!(COMPANION_RUNNER.limits.ms() > 0 && COMPANION_RUNNER.cut.instruction[0].contains("{reason}"));
-  assert!(!KEEPALIVE.prompt.is_empty() && !COMPANIONS.name_pattern.is_empty());
+  assert!(!KEEPALIVE.prompt.is_empty());
 }
 
 #[test]

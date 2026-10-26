@@ -99,12 +99,11 @@ pub async fn bounded<T>(
     _ = tokio::time::sleep(Duration::from_millis(bound)) => {}
   }
 
-  if !plan.told.swap(true, Ordering::SeqCst) {
-    let line = receiver.speech().rendered(&FixedLine::StillWorking).await;
-
-    if let Err(why) = receiver.speech().say(chat_id, &line, true).await {
-      eprintln!("chat {chat_id}: the line that the turn is still at work was not said: {why}");
-    }
+  if !plan.told.swap(true, Ordering::SeqCst)
+    && let Some(line) = receiver.speech().rendered(&FixedLine::StillWorking).await
+    && let Err(why) = receiver.speech().say(chat_id, &line, true).await
+  {
+    eprintln!("chat {chat_id}: the line that the turn is still at work was not said: {why}");
   }
 
   turn.await

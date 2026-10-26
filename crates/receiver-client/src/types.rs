@@ -35,7 +35,7 @@ pub struct Room {
   pub pinned: bool,
   /// The people that have stood as a sender in the room.
   pub senders: Vec<i64>,
-  /// The companions answering in the room.
+  /// The agents other than the chat agent answering in the room.
   pub companions: Vec<String>,
   pub owner_room: bool,
   pub registered: bool,
@@ -136,7 +136,7 @@ pub struct RoomTitle {
 #[serde(rename_all = "camelCase")]
 pub struct Answerer {
   pub agent_name: String,
-  /// Whether it answers beside the room's voice rather than as it.
+  /// Whether it answers beside the chat agent rather than as it: any agent but the default answerer.
   pub companion: bool,
 }
 
@@ -672,7 +672,7 @@ pub struct TalkAnswer {
   pub answer: Option<String>,
 }
 
-/// A companion added on the console.
+/// A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionRequest {
@@ -684,7 +684,7 @@ pub struct CompanionRequest {
   pub room: String,
 }
 
-/// One companion.
+/// One agent added on the console.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Companion {
@@ -694,7 +694,7 @@ pub struct Companion {
   pub id: Option<i64>,
 }
 
-/// A companion and the room it answers.
+/// An agent added on the console and the room it answers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionRoom {
@@ -703,7 +703,7 @@ pub struct CompanionRoom {
   pub said: Option<Value>,
 }
 
-/// Every companion as it now stands.
+/// Every agent added on the console as it now stands.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Companions {

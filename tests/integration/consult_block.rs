@@ -1,10 +1,10 @@
-//! What the receiver makes of a companion's own work: the block of the others' work it shows her where she
+//! What the receiver makes of another agent's own work: the block of the others' work it shows her where she
 //! answers in the consult room (docs/consult.md, 「What an agent is shown」). The tools she files and keeps
 //! things with are tested in their own areas.
 
 use crate::common::Scratch;
 use crate::common::units::standing;
-use bmo_receiver::companion::consult::{consult_block, window_states};
+use bmo_receiver::chat::consult::{consult_block, window_states};
 use bmo_receiver::data_root::DataRoot;
 use receiver_ports::agency::Agent;
 use receiver_ports::job::ItemRow;
@@ -12,10 +12,10 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 const ROOM: i64 = -121;
-const COMPANION: &str = "companion-a";
-const WORKER: &str = "companion-a-worker";
+const OTHER: &str = "agent-d";
+const WORKER: &str = "agent-d-worker";
 
-// A companion that declares a worker of its own, beside the chat agent that declares none.
+// Another agent that declares a worker of its own, beside the chat agent that declares none.
 fn registered() -> Vec<Agent> {
   let row = |worker: &str| {
     let mut held = serde_json::Map::<String, Value>::new();
@@ -39,8 +39,8 @@ fn registered() -> Vec<Agent> {
       row: row(""),
     },
     Agent {
-      name: COMPANION.into(),
-      label: Some("Companion A".into()),
+      name: OTHER.into(),
+      label: Some("Agent D".into()),
       awake: true,
       brain_folder: None,
       row: row(WORKER),
@@ -50,7 +50,7 @@ fn registered() -> Vec<Agent> {
 }
 
 #[tokio::test]
-async fn a_companions_consult_block_shows_the_others_work_and_not_her_own() {
+async fn an_agents_consult_block_shows_the_others_work_and_not_her_own() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![]);
@@ -65,7 +65,7 @@ async fn a_companions_consult_block_shows_the_others_work_and_not_her_own() {
   scratch
     .run(
       r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2), ($1, $3)"#,
-      vec![ROOM.into(), COMPANION.into(), "chat-a".into()],
+      vec![ROOM.into(), OTHER.into(), "chat-a".into()],
     )
     .await;
   standing.job.filing(
@@ -88,7 +88,7 @@ async fn a_companions_consult_block_shows_the_others_work_and_not_her_own() {
     .to_vec(),
   );
 
-  let block = consult_block(&standing.receiver, COMPANION, 1_790_000_100_000).await.unwrap().unwrap();
+  let block = consult_block(&standing.receiver, OTHER, 1_790_000_100_000).await.unwrap().unwrap();
 
   assert!(block.contains("#900"), "{block}");
   assert!(!block.contains("- #901 "), "{block}");
@@ -104,7 +104,7 @@ async fn the_windows_of_a_room_more_than_one_agent_answers_stand_in_the_block() 
   scratch
     .run(
       r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2), ($1, $3)"#,
-      vec![ROOM.into(), COMPANION.into(), "chat-a".into()],
+      vec![ROOM.into(), OTHER.into(), "chat-a".into()],
     )
     .await;
   scratch
@@ -117,11 +117,7 @@ async fn the_windows_of_a_room_more_than_one_agent_answers_stand_in_the_block() 
   let states = window_states(&standing.receiver, ROOM).await;
 
   assert_eq!(states.len(), 2);
-  assert!(
-    states
-      .iter()
-      .any(|state| state.agent == COMPANION && state.open_until.unwrap_or(0) == 0)
-  );
+  assert!(states.iter().any(|state| state.agent == OTHER && state.open_until.unwrap_or(0) == 0));
   assert!(
     states
       .iter()

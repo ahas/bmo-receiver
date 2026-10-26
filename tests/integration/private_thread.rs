@@ -1,5 +1,5 @@
 //! A person's own thread: what of their rooms is carried into the prompt of their private one, and what is
-//! kept out of it — the words of a companion they share a room with, and a member who is not them. The account
+//! kept out of it — the words of another agent they share a room with, and a member who is not them. The account
 //! model stands in force, so the thread is followed (`docs/store.md`, the `private_thread` setting).
 
 use bmo_receiver::chat::thread::thread_entry;
@@ -11,15 +11,15 @@ use crate::common::Scratch;
 use crate::common::units::{ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing};
 
 const MEMBER: i64 = 4344;
-const COMPANION_SENDER: i64 = 4345;
-// The person's own private chat; a room naming nobody, so the chat agent's; one only the companion answers;
+const OTHER_SENDER: i64 = 4345;
+// The person's own private chat; a room naming nobody, so the chat agent's; one only the other agent answers;
 // one both answer.
 const PRIVATE: i64 = -4300;
 const SHARED: i64 = -4301;
-const COMPANIONS: i64 = -4302;
+const OTHERS: i64 = -4302;
 const MIXED: i64 = -4303;
-// The companion these rooms share the person with.
-const COMPANION: &str = "agent-b";
+// The other agent these rooms share the person with.
+const OTHER: &str = "agent-b";
 
 async fn stood(rooms: &[i64]) -> (Scratch, tempfile::TempDir, Standing) {
   let scratch = Scratch::new().await;
@@ -33,12 +33,12 @@ async fn stood(rooms: &[i64]) -> (Scratch, tempfile::TempDir, Standing) {
 
 #[tokio::test]
 async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_rooms_the_agent_answers() {
-  let (scratch, _data, stood) = stood(&[SHARED, COMPANIONS, MIXED]).await;
+  let (scratch, _data, stood) = stood(&[SHARED, OTHERS, MIXED]).await;
 
   stood.agency.registering(
     [
       registration(AGENT, "Agent A", vec![ADDRESS], None, true),
-      registration(COMPANION, "Agent B", vec![], None, false),
+      registration(OTHER, "Agent B", vec![], None, false),
     ]
     .to_vec(),
   );
@@ -47,33 +47,33 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
   scratch
     .run(
       r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, 'agent-b'), ($2, 'agent-b'), ($2, $3)"#,
-      vec![COMPANIONS.into(), MIXED.into(), AGENT.into()],
+      vec![OTHERS.into(), MIXED.into(), AGENT.into()],
     )
     .await;
   scratch
     .run(
       r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ('road-a', $1, $2)"#,
-      vec![COMPANION.into(), COMPANION_SENDER.into()],
+      vec![OTHER.into(), OTHER_SENDER.into()],
     )
     .await;
 
   let at = bmo_receiver::now_ms() - 600_000;
 
-  // In the room both answer, what the person says to the companion, by its name, by a reply to its line or as
-  // the words the companion answers first, stays out with its answers.
+  // In the room both answer, what the person says to the other agent, by its name, by a reply to its line or as
+  // the words the other agent answers first, stays out with its answers.
   for (room, id, sender, name, reply, text) in [
     (SHARED, 1, OWNER, "tester", 0, "shared question"),
     (SHARED, 2, 0, SENDER, 0, "shared answer"),
     (SHARED, 3, MEMBER, "member", 0, "another member speaks"),
-    (COMPANIONS, 1, OWNER, "tester", 0, "words for the companion"),
-    (COMPANIONS, 2, COMPANION_SENDER, "Agent B", 0, "the companion answers"),
+    (OTHERS, 1, OWNER, "tester", 0, "words for the other agent"),
+    (OTHERS, 2, OTHER_SENDER, "Agent B", 0, "the other agent answers"),
     (MIXED, 1, OWNER, "tester", 0, "mixed question"),
     (MIXED, 2, 0, SENDER, 0, "mixed answer"),
-    (MIXED, 3, OWNER, "tester", 0, "Agent B, a call to the companion"),
-    (MIXED, 4, COMPANION_SENDER, "Agent B", 0, "the companion answers the call"),
-    (MIXED, 5, OWNER, "tester", 0, "talk going on with the companion"),
-    (MIXED, 6, COMPANION_SENDER, "Agent B", 0, "the companion answers again"),
-    (MIXED, 7, OWNER, "tester", 6, "a reply to the companion"),
+    (MIXED, 3, OWNER, "tester", 0, "Agent B, a call to the other agent"),
+    (MIXED, 4, OTHER_SENDER, "Agent B", 0, "the other agent answers the call"),
+    (MIXED, 5, OWNER, "tester", 0, "talk going on with the other agent"),
+    (MIXED, 6, OTHER_SENDER, "Agent B", 0, "the other agent answers again"),
+    (MIXED, 7, OWNER, "tester", 6, "a reply to the other agent"),
     (MIXED, 8, 0, SENDER, 7, "a word from the side"),
     (MIXED, 9, OWNER, "tester", 0, "Agent A, a call to the chat agent"),
     (MIXED, 10, 0, SENDER, 0, "the chat agent answers the call"),
@@ -115,11 +115,11 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
 
   for left in [
     "another member speaks",
-    "words for the companion",
-    "the companion answers",
-    "a call to the companion",
-    "talk going on with the companion",
-    "a reply to the companion",
+    "words for the other agent",
+    "the other agent answers",
+    "a call to the other agent",
+    "talk going on with the other agent",
+    "a reply to the other agent",
     "a word from the side",
   ] {
     assert!(!carried.contains(left), "{left} carried into {carried}");

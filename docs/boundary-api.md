@@ -128,7 +128,7 @@ room's matter.
 | list sessions | `GET /sessions` | | `items` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
-| a companion registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the companion's fields; nothing | `ok`; nothing |
+| an agent added on the console registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the agent's fields; nothing | `ok`; nothing |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
 | an agent's reset point | `GET /agents/{agent}` | | `resetAt` |
 | a session's loads | `GET /session-loads/{sessionId}` | | `sessionId`, `documents`, each `path` and `version` |
@@ -182,7 +182,7 @@ A round's verdicts stand under the answer that ends it. Once the answer is sent 
 `since` the moment the round began, before it took the room's words and asked for their reference, and with
 `messageId` the answer as the room keeps it: on the record its number there, and on a chat service the copy the
 record keeps beside that service's own send. The verdict of the send itself is written under the same message.
-| a companion's options copied | `POST /options/copied` | `agentName`, `fromAgentName` | 204 |
+| an added agent's options copied | `POST /options/copied` | `agentName`, `fromAgentName` | 204 |
 
 ### The deployments
 
@@ -273,8 +273,15 @@ Statements the receiver makes that a sibling's document does not yet match, each
   selection answers go into no turn, and the gate's pickers may be switched off on its side.
 
 - **The web unit's language pack** holds no sentence for the fixed line `still-working` (`docs/codes.md`,
-  「Fixed lines」): until it does, the render is refused `unknown-code` and the room hears the line as its code.
+  「Fixed lines」): until it does, the render is refused `unknown-code` and the room hears the policy's plain sentence
+  for it.
 
+- **The word `companion`** stands in names other units match on, while every chat agent here is an equal
+  supervisor whose rounds run the same way: the agency's resource for the agents the console adds
+  (`POST /companions`, `DELETE /companions/{companionName}`) and its reset's kind `companion-reset.created`, and
+  what the console reads of the receiver, the same two paths, their schemas, the fields `companion` of an
+  `Answerer` and `companions` of a `Room`, and the codes `not-companion` and `seeded-companion`. Each keeps its
+  name until the agency and the web unit rename theirs, and the receiver renames its own in the same change.
 - **The agency's `Agent`** carries no registration field for the receiver's roster: the receiver reads `awake`,
   `kind`, `wake_words`, `window_seconds` and `default_answerer` from an agent's row, and the agency's fixed `Agent`
   states only `name`, `label`, `role`, `gates`, `reasoning`, `voice`, `resetAt` and `standInAvailable`. Until the

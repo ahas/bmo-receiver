@@ -5,13 +5,13 @@
 
 mod common;
 
+mod added_agents;
 mod agency_events;
+mod agent_rounds;
 mod alone_runs;
 mod answer_language;
 mod brain_contract;
 mod briefing;
-mod companion_round;
-mod companions;
 mod consult_block;
 mod consult_verbs;
 mod contracts;

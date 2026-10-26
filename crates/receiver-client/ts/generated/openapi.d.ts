@@ -30,7 +30,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** A companion added with a room of the console's own. */
+        /** A chat agent added with a room of the console's own. */
         post: operations["addCompanion"];
         delete?: never;
         options?: never;
@@ -48,7 +48,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** A companion taken out, its room half given up. */
+        /** An agent added on the console taken out, its room half given up. */
         delete: operations["removeCompanion"];
         options?: never;
         head?: never;
@@ -1119,7 +1119,7 @@ export interface components {
         /** @description One agent answering a room. */
         Answerer: {
             agentName: string;
-            /** @description Whether it answers beside the room's voice rather than as it. */
+            /** @description Whether it answers beside the chat agent rather than as it: any agent but the default answerer. */
             companion: boolean;
         };
         /** @description `GET /rooms/{roomId}/answerers`: the room's default answerer, its voice, and every agent answering it. */
@@ -1159,7 +1159,7 @@ export interface components {
              */
             since: number;
         };
-        /** @description One companion. */
+        /** @description One agent added on the console. */
         Companion: {
             /**
              * Format: int64
@@ -1169,7 +1169,7 @@ export interface components {
             label: string;
             name: string;
         };
-        /** @description A companion added on the console. */
+        /** @description A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by. */
         CompanionRequest: {
             label: string;
             model: string;
@@ -1178,14 +1178,14 @@ export interface components {
             room: string;
             worker: string;
         };
-        /** @description A companion and the room it answers. */
+        /** @description An agent added on the console and the room it answers. */
         CompanionRoom: {
             /** Format: int64 */
             id: number;
             said: unknown;
             takenBack: boolean;
         };
-        /** @description Every companion as it now stands. */
+        /** @description Every agent added on the console as it now stands. */
         Companions: {
             items: components["schemas"]["Companion"][];
             more: boolean;
@@ -1767,7 +1767,7 @@ export interface components {
         };
         /** @description One room, as the room list and one room's read answer it. */
         Room: {
-            /** @description The companions answering in the room. */
+            /** @description The agents other than the chat agent answering in the room. */
             companions: string[];
             /** Format: int64 */
             id: number;

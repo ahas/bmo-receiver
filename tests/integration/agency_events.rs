@@ -1,6 +1,6 @@
 //! The agency's events as the receiver hears them (docs/boundary-api.md, 「The agency」; docs/wake.md, 「A
-//! companion's reset」 and 「What the agency's events wake」): each kind published on the stand-in session's stream
-//! and handed to the part of the receiver that owns its effect, which takes a companion's rows, queues the owner's
+//! other agent's reset」 and 「What the agency's events wake」): each kind published on the stand-in session's stream
+//! and handed to the part of the receiver that owns its effect, which takes another agent's rows, queues the owner's
 //! facts, notices and orders, or says its line in the owner's chat.
 
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use bmo_receiver::chat::fallback::{self, Fallbacks};
 use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::logins::{LOGIN_NOTICE, Logins};
 use bmo_receiver::chat::overtime::{self, Overtime};
-use bmo_receiver::companion::reset::{RESET, Reset, Resets, take};
+use bmo_receiver::chat::reset::{RESET, Reset, Resets, take};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::hearing::{Hearer, Hearing};
 use bmo_receiver::receiver::wake::rest::{RESTING, Rests};
@@ -26,16 +26,16 @@ use crate::common::Scratch;
 use crate::common::session::StandInSession;
 use crate::common::units::{AGENT, OWNER, StandInChat, Standing, registration, standing};
 
-/// The companion a reset is of.
-const COMPANION: &str = "agent-c";
+/// The other agent a reset is of.
+const OTHER: &str = "agent-c";
 
-/// A room the companion answers alone.
+/// A room the other agent answers alone.
 const ALONE: i64 = -100;
 
-/// A room the companion shares with the chat agent.
+/// A room the other agent shares with the chat agent.
 const SHARED: i64 = -200;
 
-/// A room the event calls the companion's alone that the record says another agent answers too.
+/// A room the event calls the other agent's alone that the record says another agent answers too.
 const CLAIMED: i64 = -300;
 
 /// One instruction row as a test reads it back.
@@ -73,7 +73,7 @@ impl Heard {
     agent.row.insert("sessionScope".to_owned(), json!("agent"));
     standing
       .agency
-      .registering(vec![agent, registration(COMPANION, "Agent C", vec!["agent-c"], None, false)]);
+      .registering(vec![agent, registration(OTHER, "Agent C", vec!["agent-c"], None, false)]);
     standing.agency.carrying_on(session.clone());
 
     let receiver = &standing.receiver;
@@ -194,10 +194,10 @@ where
 }
 
 #[tokio::test]
-async fn a_companion_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_its_rooms_alone() {
+async fn an_agents_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_its_rooms_alone() {
   let heard = Heard::on().await;
 
-  heard.sql(&format!(r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{COMPANION}'), ({SHARED}, '{COMPANION}'), ({SHARED}, '{AGENT}'), ({CLAIMED}, '{COMPANION}'), ({CLAIMED}, '{AGENT}')"#)).await;
+  heard.sql(&format!(r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{OTHER}'), ({SHARED}, '{OTHER}'), ({SHARED}, '{AGENT}'), ({CLAIMED}, '{OTHER}'), ({CLAIMED}, '{AGENT}')"#)).await;
 
   for room in [ALONE, SHARED, CLAIMED] {
     heard
@@ -210,7 +210,7 @@ async fn a_companion_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_
       .await;
   }
 
-  for agent in [COMPANION, AGENT] {
+  for agent in [OTHER, AGENT] {
     queue(heard.db(), agent, SHARED, "an instruction", &Queued::default()).await.unwrap();
     heard
       .sql(&format!(
@@ -220,13 +220,13 @@ async fn a_companion_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_
     heard.sql(&format!(r#"INSERT INTO "people_reads" ("agent", "chat_id", "message_id", "read_at") VALUES ('{agent}', {SHARED}, 1, 1)"#)).await;
   }
 
-  // A run of the room answered alone, one of the companion's own in the shared room, one of the chat agent's
+  // A run of the room answered alone, one of the other agent's own in the shared room, one of the chat agent's
   // there, one of the room the event calls alone that the record says another agent answers, and a job's.
-  let companion_run = format!("chat:{SHARED}:2:1");
+  let other_run = format!("chat:{SHARED}:2:1");
 
   for run in [
     format!("chat:{ALONE}:1:1"),
-    companion_run.clone(),
+    other_run.clone(),
     format!("chat:{SHARED}:3:1"),
     format!("chat:{CLAIMED}:4:1"),
     "bmo-task-1".to_owned(),
@@ -241,20 +241,17 @@ async fn a_companion_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_
   heard.session.told(
     RESET,
     json!({
-      "agent": COMPANION,
+      "agent": OTHER,
       "ranges": ["conversation", "person"],
       "alone": [ALONE, CLAIMED],
       "shared": [SHARED],
-      "runs": [companion_run],
+      "runs": [other_run],
       "by": "tester",
       "at": 1,
     }),
   );
   until("the reset's rows taken", || async {
-    heard
-      .count(&format!(r#"SELECT 1 FROM "people_reads" WHERE "agent" = '{COMPANION}'"#))
-      .await
-      == 0
+    heard.count(&format!(r#"SELECT 1 FROM "people_reads" WHERE "agent" = '{OTHER}'"#)).await == 0
   })
   .await;
 
@@ -267,7 +264,7 @@ async fn a_companion_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_
   assert_eq!(
     heard.runs().await,
     ["bmo-task-1".to_owned(), format!("chat:{SHARED}:3:1"), format!("chat:{CLAIMED}:4:1"),],
-    "the alone room's run records go by name, the companion's own run record by the name its log gave, and \
+    "the alone room's run records go by name, the other agent's own run record by the name its log gave, and \
      the other agents' and the job's stay"
   );
 
@@ -279,7 +276,7 @@ async fn a_companion_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_
       .map(|row| row.try_get::<String>("", "agent").unwrap())
       .collect();
 
-    assert_eq!(agents, [AGENT], "the companion's own {table} go and the chat agent's stay");
+    assert_eq!(agents, [AGENT], "the other agent's own {table} go and the chat agent's stay");
   }
 }
 
@@ -287,7 +284,7 @@ async fn a_companion_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_
 async fn a_dry_run_counts_the_run_records_a_reset_would_take_and_writes_nothing() {
   let heard = Heard::on().await;
 
-  heard.sql(&format!(r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{COMPANION}'), ({CLAIMED}, '{COMPANION}'), ({CLAIMED}, '{AGENT}')"#)).await;
+  heard.sql(&format!(r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{OTHER}'), ({CLAIMED}, '{OTHER}'), ({CLAIMED}, '{AGENT}')"#)).await;
   heard
     .sql(&format!(r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_name", "sent_at", "text") VALUES ({ALONE}, 1, 'tester', 1, 'words')"#))
     .await;
@@ -296,15 +293,13 @@ async fn a_dry_run_counts_the_run_records_a_reset_would_take_and_writes_nothing(
       r#"INSERT INTO "chat_reads" ("chat_id", "last_read_message_id") VALUES ({ALONE}, 1)"#
     ))
     .await;
-  queue(heard.db(), COMPANION, SHARED, "an instruction", &Queued::default())
-    .await
-    .unwrap();
+  queue(heard.db(), OTHER, SHARED, "an instruction", &Queued::default()).await.unwrap();
   heard
     .sql(&format!(
-      r#"INSERT INTO "room_windows" ("chat_id", "agent", "open_until") VALUES ({SHARED}, '{COMPANION}', 1)"#
+      r#"INSERT INTO "room_windows" ("chat_id", "agent", "open_until") VALUES ({SHARED}, '{OTHER}', 1)"#
     ))
     .await;
-  heard.sql(&format!(r#"INSERT INTO "people_reads" ("agent", "chat_id", "message_id", "read_at") VALUES ('{COMPANION}', {SHARED}, 1, 1)"#)).await;
+  heard.sql(&format!(r#"INSERT INTO "people_reads" ("agent", "chat_id", "message_id", "read_at") VALUES ('{OTHER}', {SHARED}, 1, 1)"#)).await;
 
   for run in [format!("chat:{ALONE}:1:1"), format!("chat:{SHARED}:2:1"), format!("chat:{SHARED}:3:1")] {
     heard
@@ -315,7 +310,7 @@ async fn a_dry_run_counts_the_run_records_a_reset_would_take_and_writes_nothing(
   }
 
   let reset = Reset {
-    agent: COMPANION.to_owned(),
+    agent: OTHER.to_owned(),
     ranges: vec!["conversation".to_owned(), "person".to_owned()],
     alone: vec![ALONE, CLAIMED],
     runs: vec![format!("chat:{SHARED}:2:1")],
@@ -325,8 +320,8 @@ async fn a_dry_run_counts_the_run_records_a_reset_would_take_and_writes_nothing(
 
   assert_eq!(counted("messages"), Some(1), "the alone room's message would go");
   assert_eq!(counted("chat_reads"), Some(1), "and its read mark");
-  assert_eq!(counted("run_records"), Some(2), "the alone room's run record and the companion's own");
-  assert_eq!(counted("instructions"), Some(1), "the companion's own quiet instruction");
+  assert_eq!(counted("run_records"), Some(2), "the alone room's run record and the other agent's own");
+  assert_eq!(counted("instructions"), Some(1), "the other agent's own quiet instruction");
   assert_eq!(counted("room_windows"), Some(1), "and its window");
   assert_eq!(counted("people_reads"), Some(1), "and the mark its book read");
   assert_eq!(
@@ -338,31 +333,30 @@ async fn a_dry_run_counts_the_run_records_a_reset_would_take_and_writes_nothing(
 }
 
 #[tokio::test]
-async fn a_reset_of_the_person_range_alone_keeps_the_companions_conversation() {
+async fn a_reset_of_the_person_range_alone_keeps_the_agents_conversation() {
   let heard = Heard::on().await;
 
   heard
     .sql(&format!(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{COMPANION}')"#
+      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{OTHER}')"#
     ))
     .await;
   heard
     .sql(&format!(r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_name", "sent_at", "text") VALUES ({ALONE}, 1, 'tester', 1, 'words')"#))
     .await;
-  heard.sql(&format!(r#"INSERT INTO "people_reads" ("agent", "chat_id", "message_id", "read_at") VALUES ('{COMPANION}', {ALONE}, 1, 1)"#)).await;
-  queue(heard.db(), COMPANION, ALONE, "an instruction", &Queued::default()).await.unwrap();
+  heard.sql(&format!(r#"INSERT INTO "people_reads" ("agent", "chat_id", "message_id", "read_at") VALUES ('{OTHER}', {ALONE}, 1, 1)"#)).await;
+  queue(heard.db(), OTHER, ALONE, "an instruction", &Queued::default()).await.unwrap();
 
-  heard.session.told(
-    RESET,
-    json!({ "agent": COMPANION, "ranges": ["person"], "alone": [ALONE], "shared": [] }),
-  );
+  heard
+    .session
+    .told(RESET, json!({ "agent": OTHER, "ranges": ["person"], "alone": [ALONE], "shared": [] }));
   until("the marks taken", || async {
     heard.count(r#"SELECT 1 FROM "people_reads""#).await == 0
   })
   .await;
 
   assert_eq!(heard.count(r#"SELECT 1 FROM "messages""#).await, 1, "the room's record stays");
-  assert_eq!(heard.rows().await.len(), 1, "the companion's instruction stays");
+  assert_eq!(heard.rows().await.len(), 1, "the other agent's instruction stays");
 }
 
 #[tokio::test]

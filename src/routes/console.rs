@@ -107,7 +107,7 @@ fn window(limit: Option<i64>) -> i64 {
 }
 
 /// Every room the record shows, the pinned ones first in the owner's order, each with its name, how many
-/// messages it holds, when the last was sent, and the people and companions it holds.
+/// messages it holds, when the last was sent, and the people and the agents beside the chat agent it holds.
 pub async fn rooms(State(served): State<Served>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
   let db = receiver.db();
@@ -135,9 +135,9 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
 
   for room in listed {
     let answerers = agents::named_among(db, room.chat_id, &awake).await.map_err(failed)?;
-    let companions: Vec<String> = answerers
+    let beside: Vec<String> = answerers
       .iter()
-      .filter(|agent| agent.companion())
+      .filter(|agent| agent.beside())
       .map(|agent| agent.name.clone())
       .collect();
     let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
@@ -151,7 +151,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "lastMessageAt": room.last_message_at,
       "pinned": pinned.contains(&room.chat_id),
       "senders": senders,
-      "companions": companions,
+      "companions": beside,
       "ownerRoom": owner_room,
       "registered": registered,
       "workRoom": work.chat_id,

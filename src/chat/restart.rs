@@ -147,7 +147,7 @@ pub async fn stop_line(receiver: &Receiver, at: i64) -> Option<String> {
   let reason = raw
     .and_then(|held| serde_json::from_str::<Value>(held.as_str()).ok())
     .filter(|reason| reason["at"].as_i64().is_some_and(|held| at - held <= RESTART.fresh_minutes * 60_000));
-  let line = match reason {
+  match reason {
     None => receiver.speech().rendered(&FixedLine::GoingDown).await,
     Some(reason) => {
       let items: Vec<i64> = reason["items"]
@@ -157,9 +157,7 @@ pub async fn stop_line(receiver: &Receiver, at: i64) -> Option<String> {
 
       receiver.speech().rendered(&FixedLine::GoingDownForUpdate { items }).await
     }
-  };
-
-  Some(line)
+  }
 }
 
 /// The stopping service's line to the owner, the service's own notice since a turn woken only to say it is going

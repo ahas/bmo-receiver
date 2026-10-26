@@ -2,10 +2,10 @@
 //! tool and the `bmo` command line reach the receiver on. Every one answers only a request carrying the
 //! receiver's token, and a refusal with its code and the English sentence naming it.
 
+mod added_agents;
 mod as_owner;
 mod brain;
 mod briefing;
-mod companions;
 mod console;
 mod consult;
 mod drafts;
@@ -173,8 +173,8 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ),
     ("GET", "/draft-questions", get(drafts::questions)),
     ("PUT", "/draft-questions/{name}", put(drafts::set_question)),
-    ("POST", "/companions", post(companions::add)),
-    ("DELETE", "/companions/{companion}", delete(companions::remove)),
+    ("POST", "/companions", post(added_agents::add)),
+    ("DELETE", "/companions/{companion}", delete(added_agents::remove)),
     ("PUT", "/pinned-rooms", put(console::pin)),
     ("POST", "/pinned-rooms", post(console::pin_one)),
     ("DELETE", "/pinned-rooms/{room}", delete(console::unpin)),

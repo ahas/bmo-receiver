@@ -2,8 +2,8 @@
 
 use futures_util::StreamExt;
 use receiver_ports::agency::{
-  Agency, CompanionRow, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, RestKind, Resting, Run,
-  Said, Scope, Turn, TurnRoom,
+  Agency, ConsoleAgentRow, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, RestKind, Resting,
+  Run, Said, Scope, Turn, TurnRoom,
 };
 use serde_json::json;
 
@@ -208,22 +208,22 @@ async fn the_event_stream_reads_each_event_by_its_kind_and_ends_with_the_stream(
 }
 
 #[tokio::test]
-async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_refused_field_comes_back() {
+async fn an_agent_is_added_and_removed_on_the_routes_the_agency_serves_and_a_refused_field_comes_back() {
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
-  let row = CompanionRow {
-    name: "companion-a".to_owned(),
-    label: "Companion A".to_owned(),
+  let row = ConsoleAgentRow {
+    name: "agent-d".to_owned(),
+    label: "Agent D".to_owned(),
     provider: "provider-a".to_owned(),
     model: "model-a".to_owned(),
     worker: "worker-a".to_owned(),
   };
   unit.answer("POST /companions", 201, json!({ "ok": true }));
-  unit.answer_empty("DELETE /companions/companion-a", 204);
+  unit.answer_empty("DELETE /companions/agent-d", 204);
 
-  assert_eq!(agency.add_companion(&row).await.unwrap(), Ok(()));
-  assert_eq!(agency.remove_companion("companion-a").await.unwrap(), Ok(()));
-  assert_eq!(agency.remove_companion("companion-a").await.unwrap(), Ok(()));
+  assert_eq!(agency.add_console_agent(&row).await.unwrap(), Ok(()));
+  assert_eq!(agency.remove_console_agent("agent-d").await.unwrap(), Ok(()));
+  assert_eq!(agency.remove_console_agent("agent-d").await.unwrap(), Ok(()));
 
   unit.answer(
     "POST /companions",
@@ -231,9 +231,9 @@ async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_
     json!({ "field": "model", "error": "The model has no address." }),
   );
   unit.answer(
-    "DELETE /companions/companion-a",
+    "DELETE /companions/agent-d",
     400,
-    json!({ "field": "agent", "error": "companion-a is not a companion." }),
+    json!({ "field": "agent", "error": "agent-d is not an agent added on the console." }),
   );
 
   let refused = FieldRefusal {
@@ -241,12 +241,12 @@ async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_
     error: "The model has no address.".to_owned(),
   };
 
-  assert_eq!(agency.add_companion(&row).await.unwrap(), Err(refused));
-  assert_eq!(agency.remove_companion("companion-a").await.unwrap().unwrap_err().field, "agent");
+  assert_eq!(agency.add_console_agent(&row).await.unwrap(), Err(refused));
+  assert_eq!(agency.remove_console_agent("agent-d").await.unwrap().unwrap_err().field, "agent");
 
   unit.answer("POST /companions", 400, json!({ "code": "bad-request", "error": "Not JSON." }));
 
-  let failure = agency.add_companion(&row).await.unwrap_err();
+  let failure = agency.add_console_agent(&row).await.unwrap_err();
 
   assert_eq!(
     (failure.status(), failure.code()),
@@ -255,8 +255,8 @@ async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_
   );
 
   let added = json!({
-    "name": "companion-a",
-    "label": "Companion A",
+    "name": "agent-d",
+    "label": "Agent D",
     "provider": "provider-a",
     "model": "model-a",
     "worker": "worker-a",
@@ -266,10 +266,10 @@ async fn a_companion_is_added_and_removed_on_the_routes_the_agency_serves_and_a_
     unit.took(),
     [
       call("POST /companions", "", Some(added.clone())),
-      call("DELETE /companions/companion-a", "", None),
-      call("DELETE /companions/companion-a", "", None),
+      call("DELETE /companions/agent-d", "", None),
+      call("DELETE /companions/agent-d", "", None),
       call("POST /companions", "", Some(added.clone())),
-      call("DELETE /companions/companion-a", "", None),
+      call("DELETE /companions/agent-d", "", None),
       call("POST /companions", "", Some(added)),
     ]
   );

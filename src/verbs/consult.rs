@@ -5,7 +5,7 @@
 use receiver_policy::consult::CONSULT;
 use receiver_policy::fill_marks;
 
-use crate::companion::consult::{consult_block, window_states};
+use crate::chat::consult::{consult_block, window_states};
 use crate::receiver::{Receiver, rows};
 use crate::store::settings;
 use crate::{all, now_ms};

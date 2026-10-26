@@ -82,7 +82,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
 
   gate.judge(&judgement).await.unwrap();
   gate.attach(-7, 12, 1_700_000_000_000).await.unwrap();
-  gate.copy_options("companion-a", "agent-a").await.unwrap();
+  gate.copy_options("agent-d", "agent-a").await.unwrap();
 
   assert_eq!(
     unit.took(),
@@ -125,7 +125,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
       call(
         "POST /options/copied",
         "",
-        Some(json!({ "agentName": "companion-a", "fromAgentName": "agent-a" }))
+        Some(json!({ "agentName": "agent-d", "fromAgentName": "agent-a" }))
       ),
     ]
   );

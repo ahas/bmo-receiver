@@ -204,7 +204,7 @@ async fn talk_the_question_itself_refuses_is_taken_as_an_ordinary_message() {
 }
 
 #[tokio::test]
-async fn a_companion_called_is_taken_by_its_own_conversations_and_opens_its_window_and_its_own_words_wake_only_others()
+async fn another_agent_called_is_taken_by_its_own_conversations_and_opens_its_window_and_its_own_words_wake_only_others()
  {
   let (scratch, _data, standing) = stood(&[-121]).await;
 

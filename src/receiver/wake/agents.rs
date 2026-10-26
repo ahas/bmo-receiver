@@ -23,7 +23,7 @@ pub struct Designated {
   pub call_names: Vec<String>,
   pub window_seconds: Option<i64>,
   pub default_answerer: bool,
-  /// How the room's roster groups and names it, as its registration says: `worker`, `companion` or another kind.
+  /// How the room's roster groups and names it, as its registration says: `chat`, `worker` or another kind.
   pub kind: Option<String>,
 }
 
@@ -43,9 +43,9 @@ impl Designated {
     }
   }
 
-  /// Whether it answers beside the room's voice rather than as it: a companion of its own kind.
-  pub fn companion(&self) -> bool {
-    self.kind.as_deref() == Some("companion")
+  /// Whether it answers beside the chat agent rather than as it: any agent that is not the default answerer.
+  pub fn beside(&self) -> bool {
+    !self.default_answerer
   }
 
   /// Whether the words call it: its label or one of its words stands in them, in either case.

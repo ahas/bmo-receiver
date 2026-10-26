@@ -11,7 +11,7 @@ agent that answers the room says the line.
   short line, in that room's voice and manner.
 - **The room's voice is the agent that answers it:** the chat agent in a room it answers (every room that names
   nobody awake, and every room naming it among its answerers) and, in a room that names only other agents, the
-  first of them by name, a companion answering its room alone among them. The row is that agent's, which only
+  first of them by name. The row is that agent's, which only
   its turns take, so a notice for a room the chat agent does not answer reaches the room rather than being let
   go as its.
 - **The caller owns its facts.** The code that knows what happened writes what the session is told: what
@@ -113,10 +113,10 @@ agent that answers the room says the line.
     handed over, and the ask's closing withdraws only an order no round has taken.
 - **A job's end.** The job's report is the worker's English, written to the agent, and carries the system:
   commits, test and suite counts, file counts, worker and model names, paths, commands. The receiver sends it to
-  nobody: the agent that filed the item tells it. A companion's item is told to that companion in the room it was
-  filed in, where the companion still answers it, as the one fact below, report and all, and the room hears no
-  line of it besides; every other item, the chat agent's own and one whose companion no longer answers its room,
-  is told by the chat agent as follows.
+  nobody: the agent that filed the item tells it. An item another agent filed is told to that agent in the room it
+  was filed in, where the agent still answers it, as the one fact below, report and all, and the room hears no
+  line of it besides; every other item, the chat agent's own and one whose agent no longer answers its room, is
+  told by the chat agent as follows.
   1. **The agent writes the owner the report.** The ending fact is told in the owner's own room the report
      belongs to (the room that asked where that is one of the owner's own, the owner's private chat otherwise)
      and carries the worker's report whole. The agent writes the owner the report in its own words there: the
@@ -270,12 +270,17 @@ spoken, and the session writes what is said.
 
 Each is sent as a code with its fields, because no session is to say it in its own words: no session can say it
 at that moment, or the line must reach the room as itself. Its words in the room's language are rendered by the
-web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The web unit」); the receiver keeps none.
+web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The web unit」).
 
+- **A person never reads a code.** Where the web unit cannot render a line, or its pack holds no sentence for the
+  code, the line falls back to the plain sentence the receiver's policy keeps for that code in the rooms' language
+  (`policy/fixed-lines.toml`), its fields filled in as words: a list as its members, a draw's result as its values.
+  Where the policy holds no sentence for the code in that language, the line is dropped, nothing reaches the room,
+  and the journal says which line and why. A code and its fields, or any JSON, never stand in a room.
 - **A session may ask for one through a send.** The send tool's `fixed_line` kind carries a code and its fields,
   and the receiver renders and says it without the output gate or any session, for a line that must reach
-  the room as itself (`docs/chat-mcp.md`, 「Its entries」). A code the pack does not hold goes as its code and
-  fields, as every fixed line does where the web unit cannot render it.
+  the room as itself (`docs/chat-mcp.md`, 「Its entries」). A code that neither the pack nor the policy can make a
+  sentence of is refused, and nothing is said.
 
 | Line | Why it stays fixed |
 | --- | --- |
@@ -286,8 +291,6 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `run-broken`, the last resort when a run broke and the agent cannot answer the order about it | No session is able to say it; it is composed out of what the broken run left. |
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
-| `companion-engine-error` (a companion's engine ended its turn with an error) | The companion's session is the one that failed; the line stands under the companion's own name. |
-| `companion-cut` (a companion's turn its guard cut short) | The companion's session is the one that was cut; the next turn opens a new one. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
 | `still-working` (a turn of the draft process ran past its bound) | The session that would say it is the one still at work on the turn (`docs/drafting.md`, 「Time」). |
 | A job's question to the owner, and the job's answers when the owner talks it over | A numbered form the owner answers by number; its options, and what the job says about them, reach the owner exactly as the job wrote them. bmo-job sends them. |

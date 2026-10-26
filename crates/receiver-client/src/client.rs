@@ -577,12 +577,12 @@ impl ReceiverClient {
   }
 
   /// `POST /companions`.
-  pub async fn add_companion(&self, companion: &CompanionRequest) -> Answer<Companions> {
-    Self::answered(self.send(Method::POST, &["companions"], companion)).await
+  pub async fn add_console_agent(&self, agent: &CompanionRequest) -> Answer<Companions> {
+    Self::answered(self.send(Method::POST, &["companions"], agent)).await
   }
 
   /// `DELETE /companions/{companionName}`.
-  pub async fn remove_companion(&self, name: &str, by: Option<&str>) -> Answer<Companions> {
+  pub async fn remove_console_agent(&self, name: &str, by: Option<&str>) -> Answer<Companions> {
     let mut request = self.request(Method::DELETE, &["companions", name]);
     if let Some(by) = by {
       request = request.query(&[("by", by)]);

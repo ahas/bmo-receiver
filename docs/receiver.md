@@ -31,7 +31,7 @@ flowchart TD
     - the owner's answer to a job's open question in the owner's private chat, handed to bmo-job;
     - the rest's gate, read off the agency's rest (`GET /rest`, and `GET /stand-in` for a road the rest closes);
     - the read mark, the reply mode, a mute, and whether a room rule names the sender;
-    - the window each agent keeps in the room, and the one a call opens for a companion;
+    - the window each agent keeps in the room, and the one a call opens for it;
     - the files a person posted just before the words of theirs that woke the chat agent;
   - the conversations (`docs/wake.md`, `docs/bmo-window.md`): each room's queue, rounds, window and waits, the
     round's turn on the agent's session with the quiet instructions pushed into it, the draft process its answer
@@ -49,7 +49,7 @@ flowchart TD
     the rooms where they wake an agent;
   - the console's talks about an item and a document (`POST /talks`), each turn a round of the owner's chat on the
     chat agent's session;
-  - the one runner: each woken agent's turns in its conversations, the chat agent's and every companion's alike,
+  - the one runner: each woken agent's turns in its conversations, the chat agent's and every other agent's alike,
     every agent's rows of the instruction pass, and the words the room sessions left untaken taken up as the
     receiver starts, each answer handed back to the receiver like any word filed in the room;
   - the console's road in: `POST /owner/messages` and `POST /owner/message-files` into any room it holds;
@@ -231,8 +231,8 @@ flowchart TD
   number, the picture whenever it
   changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile
   pictures a chat service took).
-- **The picture (`GET /live`) is drawn of what the receiver runs itself:** the chat turns of its conversations and
-  companions, the rooms whose session it is folding and the message each room queued for a turn, the picture going
+- **The picture (`GET /live`) is drawn of what the receiver runs itself:** the chat turns of every agent's conversations,
+  the rooms whose session it is folding and the message each room queued for a turn, the picture going
   out again as each of them begins, moves or ends. A queued message is let go once a turn of its room has read it —
   every message the turn read, not only the last — or when another is put in after it. With none of them standing,
   it is empty.
@@ -272,11 +272,11 @@ flowchart TD
   room's number, and the removal takes every key a declaration matches. Any other setting whose key holds the
   room's number as one of its parts is listed in the confirmation as undeclared and kept: a private chat's number
   may be its person's number too.
-- **Some rooms are refused,** with the reason and nothing written: a room the companion seeds declare, which the
+- **Some rooms are refused,** with the reason and nothing written: a room the agent room seeds declare, which the
   next start would make again; the infrastructure room the configuration names; and the administrator's own
   private chat on any road. Each refusal is declared by the code that depends on the room, not kept in one list.
 - **The confirmation lists what goes and what stays before anything is taken,** with a count for each table, the
-  folders with their files and every holder's answer, and it warns: of each companion answering the room, which
+  folders with their files and every holder's answer, and it warns: of each other agent answering the room, which
   stays with this room no longer to answer in; of open items and job questions filed from the room; of another
   user's private chat, naming the user; of a road that can still reach the room, where a later message would make
   it anew.
@@ -307,9 +307,9 @@ flowchart TD
 - **Whose one-to-one with the agent a room is, is a chat service's question too** (its `privateTo`). The
   receiver turns the answer into a user's private chat only where that person's sender is linked to a user
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
-- **In a room the console made, the agent and each companion have numbers of the console's own,** given as the
-  rooms are stood up (`POST /companions`), and a companion's words are filed under the number it was given and
-  under its name, so one room holds both speakers apart.
+- **In a room the console made, the chat agent and each agent added there have numbers of the console's own,**
+  given as the rooms are stood up (`POST /companions`), and an agent's words are filed under the number it was
+  given and under its name, so one room holds every speaker apart.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
   asking each chat service for the owner's room (`GET /owner-room`): the first of the rooms whose record is shown,
   kept in that record, and otherwise the first chat service reaching the owner on its own, on that service.
@@ -326,7 +326,7 @@ flowchart TD
 - **The agents are kept as the agency's one list,** awake or not, and every reader of an agent's registration reads
   it: the wake, the answerers of a room, the room list, a page asked by an agent, the labels a room is told. The
   room list reads it once for all its rooms.
-- **What the receiver changes itself is let go at once:** a companion it registers or takes out lets the kept list
+- **What the receiver changes itself is let go at once:** an agent it registers or takes out lets the kept list
   go, and a room added or removed lets go what is kept of that room. A change made elsewhere is read once the span
   has passed.
 

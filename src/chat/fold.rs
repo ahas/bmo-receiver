@@ -106,7 +106,7 @@ pub async fn words(
   chat_id: i64,
   room: Room,
   recent: &[String],
-) -> String {
+) -> Option<String> {
   let fallback = receiver.speech().rendered(&FixedLine::Compacting).await;
   let said: Vec<String> = vec![CHAT_HEALTH.fold.prompt.clone()];
   let none: Vec<Inbound> = vec![];
@@ -161,7 +161,7 @@ pub async fn words(
     Ok(answered) => {
       let text = form::strip_prompt_scaffolding(&answered.text);
 
-      if text.is_empty() || is_skip(&text) || is_wait(&text) { fallback } else { text }
+      if text.is_empty() || is_skip(&text) || is_wait(&text) { fallback } else { Some(text) }
     }
     Err(why) => {
       eprintln!("compaction words failed for chat {chat_id}: {why:?}");
@@ -184,9 +184,10 @@ pub async fn compact(
   let standing = failures.standing(chat_id);
   let heard = hears(receiver, chat_id).await;
 
-  if standing.is_none() && heard {
-    let said = words(receiver, conversations, agent, chat_id, folding.room, &folding.recent).await;
-
+  if standing.is_none()
+    && heard
+    && let Some(said) = words(receiver, conversations, agent, chat_id, folding.room, &folding.recent).await
+  {
     let _ = receiver.speech().say(chat_id, &said, true).await;
   }
 
@@ -228,9 +229,7 @@ pub async fn compact(
       failures.note(chat_id, reason.clone());
 
       if standing.as_deref() != Some(reason.as_str()) {
-        if heard {
-          let line = receiver.speech().rendered(&FixedLine::CompactFailed).await;
-
+        if heard && let Some(line) = receiver.speech().rendered(&FixedLine::CompactFailed).await {
           let _ = receiver.speech().say(chat_id, &line, true).await;
         }
 

@@ -1,6 +1,6 @@
-//! A companion added on the console and removed there (docs/boundary-api.md, 「Companions with a room of their
-//! own」): the agency writes the agent's half and the gate copies the chat agent's options before the receiver
-//! writes the room half; the companion's name goes to the agency's removal; and a field the agency refuses comes
+//! An agent added on the console and removed there (docs/api.md, 「Agents added on the console」): the agency
+//! writes the agent's half and the gate copies the chat agent's options before the receiver writes the room half;
+//! the agent's name goes to the agency's removal; and a field the agency refuses comes
 //! back as the receiver's code with nothing written.
 
 use axum::http::StatusCode;
@@ -12,10 +12,10 @@ use crate::common::Scratch;
 use crate::common::queue::{Front, post, remove, stood};
 use crate::common::units::{AGENT, OWNER};
 
-const COMPANION: &str = "companion-a";
+const ADDED: &str = "agent-d";
 const WORKER: &str = "worker-a";
 
-// The front, with the agency registering one worker a companion's items may go to.
+// The front, with the agency registering one worker an added agent's items may go to.
 async fn bench(scratch: &Scratch) -> Front {
   let front = stood(scratch, OWNER).await;
   let mut row = serde_json::Map::<String, Value>::new();
@@ -34,8 +34,8 @@ async fn bench(scratch: &Scratch) -> Front {
 
 fn added() -> Value {
   json!({
-    "name": COMPANION,
-    "label": "Companion A",
+    "name": ADDED,
+    "label": "Agent D",
     "provider": "provider-a",
     "model": "model-a",
     "worker": WORKER,
@@ -45,12 +45,12 @@ fn added() -> Value {
 
 async fn answerers(scratch: &Scratch) -> i64 {
   scratch
-    .count(r#"SELECT COUNT(*) FROM "room_answerers" WHERE "agent" = $1"#, vec![COMPANION.into()])
+    .count(r#"SELECT COUNT(*) FROM "room_answerers" WHERE "agent" = $1"#, vec![ADDED.into()])
     .await
 }
 
 #[tokio::test]
-async fn a_companion_stands_with_its_gate_options_copied_and_its_name_goes_to_the_agencys_removal() {
+async fn an_added_agent_stands_with_its_gate_options_copied_and_its_name_goes_to_the_agencys_removal() {
   let scratch = Scratch::new().await;
   let front = bench(&scratch).await;
   let (status, answer) = post(&front, "/companions", added()).await;
@@ -59,18 +59,18 @@ async fn a_companion_stands_with_its_gate_options_copied_and_its_name_goes_to_th
 
   assert_eq!(
     *front.standing.gate.copied.lock().unwrap(),
-    [(COMPANION.to_owned(), AGENT.to_owned())],
-    "the gate copies the chat agent's options for the companion"
+    [(ADDED.to_owned(), AGENT.to_owned())],
+    "the gate copies the chat agent's options for the added agent"
   );
   assert_eq!(answerers(&scratch).await, 1);
 
-  let (status, answer) = remove(&front, &format!("/companions/{COMPANION}?by=tester")).await;
+  let (status, answer) = remove(&front, &format!("/companions/{ADDED}?by=tester")).await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
   assert_eq!(
     *front.standing.agency.removals.lock().unwrap(),
-    [COMPANION.to_owned()],
-    "the companion is removed by the name the agency registers it under"
+    [ADDED.to_owned()],
+    "the agent is removed by the name the agency registers it under"
   );
   assert_eq!(answerers(&scratch).await, 0);
 }
@@ -82,17 +82,17 @@ async fn a_field_the_agency_refuses_comes_back_as_the_receivers_code_and_nothing
 
   *front.standing.agency.refusing.lock().unwrap() = Some(FieldRefusal {
     field: "provider".to_owned(),
-    error: "The provider carries no companion.".to_owned(),
+    error: "The provider carries no chat agent.".to_owned(),
   });
 
   let (status, answer) = post(&front, "/companions", added()).await;
 
   assert_eq!((status, answer["code"].clone()), (StatusCode::BAD_REQUEST, json!("provider")));
-  assert_eq!(answer["error"], "the provider provider-a cannot carry a companion");
+  assert_eq!(answer["error"], "the provider provider-a cannot carry a chat agent");
   assert_eq!(answerers(&scratch).await, 0);
   assert_eq!(
     scratch
-      .count(r#"SELECT COUNT(*) FROM "provider_rooms" WHERE "room_id" = $1"#, vec![COMPANION.into()])
+      .count(r#"SELECT COUNT(*) FROM "provider_rooms" WHERE "room_id" = $1"#, vec![ADDED.into()])
       .await,
     0
   );

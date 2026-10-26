@@ -25,6 +25,7 @@ policy's (`docs/drafting.md`, 「The questions」).
 | `drafting.toml` | the draft process (`docs/drafting.md`): the catalogue of questions by name, the seven the owner set; the process table's default rows (provider, tier and agent, each a key or `*`; the questions of an ordinary and of a light turn; the question a send is read from; the light bound in characters; the ceiling in seconds; what is done past it); the opening the first question rides the round's turn on, the lead lines a later question turn opens on, the lines saying whether a send is read at a question, the line it closes on and the opening of the closing check on the messages that arrived; and the longest final text, in characters | the draft process, `GET /draft-processes`, `GET /draft-questions` |
 | `consult.toml` | the consult room's setting key, the lines of what an agent is shown of other agents' work, how many items it shows, the line a consult call answers its agent with, and the lines the consult verbs answer with | the consult block, `POST /consult-lines` and the consult verbs (`docs/consult.md`) |
 | `handover.toml` | the instruction a session about to be replaced is asked to write its handoff file by and how long that turn is given (`ask`, `ask_seconds`), the folder and the newest file's name the handoffs are kept under, how much of a session's transcript is kept, the lines a transcript is written in, the blocks of a round that are the conversation, and the notes a new session opens with: its predecessor's handoff, the transcript, or the word that nothing was recovered | the session replacement, the fold of a session its provider hands over by a note |
+| `fixed-lines.toml` | `sentences`, each language's plain sentence by a fixed line's code | what a fixed line says where the web unit's language packs cannot render it (`docs/voiced-notices.md`, 「Lines that stay fixed」) |
 | `files.toml` | the largest file the console may attach, in bytes, and the name a file with none goes by | `POST /owner/message-files` |
 | `code-review.toml` | the lines a code review's talk is composed in, the places a review is pinned to, how much of the reviewed lines a turn carries | the talks |
 | `kept.toml` | how long a chat service's facts of a room and the agency's list of agents are kept before they are asked again, in seconds (`docs/receiver.md`, 「What is kept for a moment」) | the roads' room facts, every read of the agents |
@@ -45,18 +46,16 @@ it acts on itself, each named here.
 | `chat-line.toml` | `persona` (`tone_header`, `room_header`), `room` (the block's lines, the draft process's fixed rules, `process`, the rule of answering each person in their own language among them, its `mark`, the `roster` of the owner's private chat and its `kinds`), `capabilities`, `downgrade`, `fallback`, `rules` | the room's block, its capability lines, the downgrade and fallback facts, the rules and grants in force |
 | `rest.toml` | `threshold`, `weekly_threshold`, `fallback_seconds`, `outage_seconds`, `lift_check_seconds` | when the rest's gate closes the rooms, how long an outage's rest lasts and when its lifting is checked |
 | `resident-turn.toml` | `round_lead`, `fold_ratio` | the lead a round's turn opens with, and the fold share that stands in where a session's state names no `foldRatio` |
-| `companion-runner.toml` | `skip`, `echoed_line_chars`, `engine_wait_ms`, `answer_stage`, `turn_stage`, `no_note`, `limits`, `words`, `blocks`, `runs.turn`, `log` (`start`, `skipped`, `answered`, `cleared`, `system_changed`, `carried`, `waits`, `waits_item`), `answer`, `refused`, `cut` (`instruction`, `kind`, `sort`) | a companion's turn as the receiver composes it and the checks its answer passes; the line its room hears when a turn is cut is the fixed line `companion-cut` |
 | `run-lines.toml` | each line's `keeps_session`, and the chat line's `composes_typed_lines` | whether a line's turns go on one session, whose typed lines are composed |
 | `roles.toml` | `send`, and each role's `name` and `bundles` | whether the asker's role gives sending |
 | `keepalive.toml` | `prompt` | the touch's prompt |
-| `companions.toml` | `name_pattern`, `added_icon` | what a companion added on the console may be named, the mark beside it |
 | `providers.toml` | each provider's `turns` and `handover`, Claude Code's `keepalive_idle_minutes` and `cache_minutes`, and the `own_words` of the providers whose programs write words of their own into a turn | how a turn goes in and is read back, how a full session is handed over, when the touch is due, when a session's cache has expired, which words of an answer are the program's |
 
 ## What is configuration rather than policy
 
 A value that names a room, an agent or a file of the deployment is the deployment's, read from the receiver's
-configuration (`docs/boundary-api.md`, 「Configuration」), never written here: the rooms the deployment seeds for
-companions (which a removal refuses), the tone layer a room takes where its own persona names none, the sticker
+configuration (`docs/boundary-api.md`, 「Configuration」), never written here: the rooms the deployment seeds for its
+agents (which a removal refuses), the tone layer a room takes where its own persona names none, the sticker
 set the agents send from, the infrastructure room and the consult room's seed.
 
 ## Names and languages in the lines

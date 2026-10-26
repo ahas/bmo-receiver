@@ -15,7 +15,7 @@ pub struct Persona {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RosterKinds {
-  pub companion: String,
+  pub chat: String,
   pub gate: String,
   pub runner: String,
   pub recollector: String,

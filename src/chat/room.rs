@@ -411,7 +411,7 @@ pub async fn roster(receiver: &Receiver, owner_id: i64) -> Result<String, Fault>
   )];
 
   let kinds: [(&str, String); 5] = [
-    ("companion", words.kinds.companion.clone()),
+    ("chat", words.kinds.chat.clone()),
     ("gate", words.kinds.gate.clone()),
     ("runner", words.kinds.runner.clone()),
     ("recollector", words.kinds.recollector.clone()),
@@ -423,6 +423,7 @@ pub async fn roster(receiver: &Receiver, owner_id: i64) -> Result<String, Fault>
       .iter()
       .filter(|one| {
         one.row.get("kind").and_then(Value::as_str).map(str::to_owned).unwrap_or_default() == *kind
+          && one.name != receiver.deployment().agent
       })
       .map(|one| {
         let aliases = one.row.get("aliases").and_then(Value::as_str).unwrap_or_default();

@@ -176,7 +176,9 @@ impl crate::chat::conversation::Orders for FailureOrders {
           })
           .await;
 
-        let _ = receiver.speech().say(owner, &line, true).await;
+        if let Some(line) = line {
+          let _ = receiver.speech().say(owner, &line, true).await;
+        }
 
         let _ = run(
           receiver.db(),

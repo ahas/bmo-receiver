@@ -13,7 +13,7 @@ use super::conversation::unified_session;
 use super::languages;
 use super::shape::Reading;
 use super::window::{self, Material, Selection};
-use crate::companion::consult::{consult_block, room_windows_block, tells_of_queue};
+use crate::chat::consult::{consult_block, room_windows_block, tells_of_queue};
 use crate::receiver::{Inbound, Receiver, Room, rows};
 use crate::roads::Roads;
 use crate::{Fault, now_ms, one};

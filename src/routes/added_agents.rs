@@ -1,6 +1,6 @@
-//! A companion added on the console and removed there (docs/boundary-api.md, 「Companions with a room of their
-//! own」): its room of the console's own, its number there and the room's answerers, written in one go once every
-//! field has passed; and a companion taken out again, its room half given up. The agent's row, its settings and
+//! An agent added on the console and removed there (docs/api.md, 「Agents added on the console」): its room of
+//! the console's own, its number there and the room's answerers, written in one go once every field has passed;
+//! and an agent taken out again, its room half given up. The agent's row, its settings and
 //! its place are the agency's, and go through it; its gate options are the gate's, copied from the chat agent's
 //! as it stands.
 
@@ -12,13 +12,9 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use receiver_codes::{CompanionFact, CompanionRefusal, RoomRemovalWarning};
-use receiver_policy::companions::COMPANIONS;
+use receiver_codes::{AddedAgentFact, AddedAgentRefusal, RoomRemovalWarning};
 use receiver_policy::roads::ROADS;
-use receiver_ports::agency::{Agent, CompanionRow, FieldRefusal};
-
-use regex::Regex;
-use std::sync::LazyLock;
+use receiver_ports::agency::{Agent, ConsoleAgentRow, FieldRefusal};
 
 use sea_orm::DatabaseConnection;
 
@@ -27,9 +23,6 @@ use crate::room_record::{Facing, RoomHolding, Says};
 use crate::routes::{Answered, Refusal, Served, answered, code, read, refused, store, unit};
 use crate::store::Fault;
 use crate::{all, one, run};
-
-static NAME: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(&COMPANIONS.name_pattern).expect("the companion name pattern reads"));
 
 #[derive(Deserialize)]
 pub struct Added {
@@ -53,16 +46,16 @@ pub struct Removed {
 /// sentence. A field the receiver has no refusal for is the agency's failure to answer the call.
 fn refused_field(refusal: FieldRefusal, provider: &str, worker: &str, agent: &str) -> Refusal {
   match refusal.field.as_str() {
-    "name" => code(&CompanionRefusal::Name),
-    "label" => code(&CompanionRefusal::Label),
-    "provider" => code(&CompanionRefusal::Provider {
+    "name" => code(&AddedAgentRefusal::Name),
+    "label" => code(&AddedAgentRefusal::Label),
+    "provider" => code(&AddedAgentRefusal::Provider {
       provider: provider.to_owned(),
     }),
-    "model" => code(&CompanionRefusal::Model),
-    "worker" => code(&CompanionRefusal::Worker {
+    "model" => code(&AddedAgentRefusal::Model),
+    "worker" => code(&AddedAgentRefusal::Worker {
       worker: worker.to_owned(),
     }),
-    "agent" => code(&CompanionRefusal::NotCompanion {
+    "agent" => code(&AddedAgentRefusal::NotAdded {
       agent: agent.to_owned(),
     }),
     field => refused(
@@ -78,23 +71,23 @@ fn console_road() -> String {
   ROADS.record.key.clone()
 }
 
-/// Whether an agent's row is the companion's shape of turn, which is what makes it a companion.
-fn companion_shape(agent: &Agent) -> bool {
+/// Whether an agent's row is the shape of turn the agency gives an agent added on the console.
+fn added_shape(agent: &Agent) -> bool {
   agent.row.get("turnShape").is_some_and(|shape| shape.as_str() == Some("pieces"))
 }
 
-/// Whether an agent is a worker, which is what a companion is asked to run its turns on.
+/// Whether an agent is a worker, which is what an added agent is asked to run its items on.
 fn worker_kind(agent: &Agent) -> bool {
   agent.row.get("kind").is_some_and(|kind| kind.as_str() == Some("worker"))
 }
 
-/// The companions as the console's screen shows them: the agents the agency registers with the companion's
+/// The added agents as the console's screen shows them: the agents the agency registers with the added agent's
 /// shape of turn, each with the room the receiver stood up for it where it did.
 async fn listed(receiver: &Receiver) -> Result<Vec<Value>, Refusal> {
   let agents = receiver.agents().await.map_err(unit)?;
   let mut shown: Vec<Value> = vec![];
 
-  for agent in agents.agents.iter().filter(|one| companion_shape(one)) {
+  for agent in agents.agents.iter().filter(|one| added_shape(one)) {
     shown.push(json!({
       "name": agent.name,
       "label": agent.label,
@@ -105,7 +98,7 @@ async fn listed(receiver: &Receiver) -> Result<Vec<Value>, Refusal> {
   Ok(shown)
 }
 
-/// The console room already numbered for a companion's name, where one stands.
+/// The console room already numbered for an added agent's name, where one stands.
 async fn room_of(db: &DatabaseConnection, name: &str) -> Result<Option<i64>, Fault> {
   Ok(
     one(
@@ -129,7 +122,7 @@ async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
   Ok(least.min(0) - 1)
 }
 
-// The sender number a companion's words are filed under in its room: below every number the road has given.
+// The sender number an added agent's words are filed under in its room: below every number the road has given.
 async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fault> {
   let least = one(
     db,
@@ -143,32 +136,34 @@ async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fault> 
   Ok(least.min(0) - 1)
 }
 
-/// A companion added with a room of the console's own, answered with every companion as it then stands and
+/// An agent added with a room of the console's own, answered with every added agent as it then stands and
 /// the room it answers.
 pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<Added>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
 
-  if !NAME.is_match(&asked.name) {
-    return Err(code(&CompanionRefusal::Name));
+  // What a name may be is the agency's to say: a name it does not take is refused as the field `name`, before
+  // anything of the room is written.
+  if asked.name.trim().is_empty() {
+    return Err(code(&AddedAgentRefusal::Name));
   }
 
   if asked.label.trim().is_empty() {
-    return Err(code(&CompanionRefusal::Label));
+    return Err(code(&AddedAgentRefusal::Label));
   }
 
   if asked.room.trim().is_empty() {
-    return Err(code(&CompanionRefusal::Room));
+    return Err(code(&AddedAgentRefusal::Room));
   }
 
   let agents = receiver.agents().await.map_err(unit)?;
 
   if agents.agents.iter().any(|one| one.name == asked.name) {
-    return Err(code(&CompanionRefusal::NameTaken { name: asked.name }));
+    return Err(code(&AddedAgentRefusal::NameTaken { name: asked.name }));
   }
 
   if !agents.agents.iter().any(|one| one.name == asked.worker && worker_kind(one)) {
-    return Err(code(&CompanionRefusal::Worker {
+    return Err(code(&AddedAgentRefusal::Worker {
       worker: asked.worker,
     }));
   }
@@ -179,7 +174,7 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
     Some(room) => (room, true),
     None => (next_room(receiver.db()).await.map_err(store)?, false),
   };
-  let row = CompanionRow {
+  let row = ConsoleAgentRow {
     name: asked.name.clone(),
     label: asked.label.clone(),
     provider: asked.provider.clone(),
@@ -187,8 +182,8 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
     worker: asked.worker.clone(),
   };
 
-  // The agency stands the companion's row and the gate its options; the receiver writes the room half.
-  let added = receiver.units().agency.add_companion(&row).await.map_err(unit)?;
+  // The agency stands the agent's row and the gate its options; the receiver writes the room half.
+  let added = receiver.units().agency.add_console_agent(&row).await.map_err(unit)?;
 
   receiver.forget_agents();
 
@@ -200,7 +195,7 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
 
   if let Err(why) = receiver.units().gate.copy_options(&asked.name, chat_agent).await {
     eprintln!(
-      "companions: {} stands on the gate's own options, since they were not copied: {why}",
+      "added agents: {} stands on the gate's own options, since they were not copied: {why}",
       asked.name
     );
   }
@@ -248,7 +243,7 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   .map_err(store)?;
 
   let said = taken_back.then(|| {
-    json!(CompanionFact::RoomTakenBack {
+    json!(AddedAgentFact::RoomTakenBack {
       label: asked.label,
       title: asked.room
     })
@@ -261,32 +256,32 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   }))
 }
 
-/// A companion the console added taken out, answered with every companion as it then stands.
+/// An agent the console added taken out, answered with every added agent as it then stands.
 pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw: RawQuery) -> Answered {
   let mut asked = super::query::<Removed>(raw)?;
   asked.name = name;
   let receiver: Receiver = (*served.receiver).clone();
 
   if asked.name.trim().is_empty() {
-    return Err(code(&CompanionRefusal::Action));
+    return Err(code(&AddedAgentRefusal::Action));
   }
 
   let agents = receiver.agents().await.map_err(unit)?;
   let Some(agent) = agents.agents.iter().find(|one| one.name == asked.name) else {
-    return Err(code(&CompanionRefusal::NotCompanion { agent: asked.name }));
+    return Err(code(&AddedAgentRefusal::NotAdded { agent: asked.name }));
   };
 
-  if !companion_shape(agent) {
-    return Err(code(&CompanionRefusal::NotCompanion { agent: asked.name }));
+  if !added_shape(agent) {
+    return Err(code(&AddedAgentRefusal::NotAdded { agent: asked.name }));
   }
 
   if agent.row.get("builtin").is_some_and(|held| held.as_i64().unwrap_or(0) == 1) {
     let label = agent.label.clone().unwrap_or_else(|| agent.name.clone());
 
-    return Err(code(&CompanionRefusal::SeededCompanion { label }));
+    return Err(code(&AddedAgentRefusal::Seeded { label }));
   }
 
-  let removed = receiver.units().agency.remove_companion(&asked.name).await.map_err(unit)?;
+  let removed = receiver.units().agency.remove_console_agent(&asked.name).await.map_err(unit)?;
 
   receiver.forget_agents();
 
@@ -295,7 +290,7 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
   }
 
   if let Some(by) = asked.by.as_deref().filter(|by| !by.trim().is_empty()) {
-    println!("companion {}: removed, as {by} asked", asked.name);
+    println!("added agent {}: removed, as {by} asked", asked.name);
   }
 
   // A number a kept message is still filed under stays, so it is never handed to anybody else.
@@ -349,7 +344,7 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
   }))
 }
 
-// The companions answering in the room: they stay with the removal, and no longer answer in a room that is gone.
+// The other agents answering in the room: they stay with the removal, and no longer answer in a room that is gone.
 async fn answering(receiver: &Receiver, room: i64) -> Vec<String> {
   let named: Vec<String> = all(
     receiver.db(),
@@ -365,11 +360,7 @@ async fn answering(receiver: &Receiver, room: i64) -> Vec<String> {
 
   named
     .into_iter()
-    .filter(|name| {
-      agents
-        .iter()
-        .any(|agent| agent.name.as_str() == name.as_str() && companion_shape(agent))
-    })
+    .filter(|name| agents.iter().any(|agent| agent.name.as_str() == name.as_str() && added_shape(agent)))
     .collect()
 }
 
@@ -385,6 +376,6 @@ fn answering_warning<'a>(facing: &'a Facing<'a>) -> Says<'a, RoomRemovalWarning>
 }
 
 crate::room_holding!(RoomHolding::Warns {
-  what: "the companions answering the room",
+  what: "the other agents answering the room",
   warns: answering_warning,
 });

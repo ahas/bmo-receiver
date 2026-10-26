@@ -1,6 +1,6 @@
 //! The kinds a field takes where it names a sort of thing a screen or a record shows: the title a run stands
 //! under, why a session was replaced, what opened a turn that no person's words opened, why a road was passed
-//! over, and how a companion's engine failed. Each is a word the console's language pack renders.
+//! over. Each is a word the console's language pack renders.
 
 use serde::{Deserialize, Serialize};
 use strum::{IntoStaticStr, VariantNames};
@@ -82,21 +82,4 @@ pub enum SkipReason {
   /// The session's last turn is older than its provider's cache lifetime, so a touch would pay its whole prefix
   /// again.
   Expired,
-}
-
-/// How a companion's engine ended its turn with an error.
-#[derive(
-  Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display, IntoStaticStr, VariantNames,
-)]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
-pub enum EngineError {
-  /// The engine was busy.
-  Busy,
-  /// The engine refused the request.
-  Refused,
-  /// The answer was longer than the engine allows.
-  TooLong,
-  /// Any other failure of the engine.
-  Failed,
 }

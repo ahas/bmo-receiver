@@ -47,8 +47,9 @@ leaves.
   send that opens it, and a send with nothing after it is a skip.
 - **A round whose first answer is `<<WAIT>>` runs no further process:** the wait stands as `docs/wake.md`,
   「Waiting」, says, and the round that takes the waited words opens the process again.
-- **A companion's round runs no process:** it is its own turn (`docs/wake.md`, 「A companion's round」). A console
-  talk, a typed line, the touch and the line before a fold are no rounds of a room and run none either.
+- **Every agent's round runs the process,** the chat agent's and any other agent's alike: no agent's turns are
+  exempt from it. A console talk, a typed line, the touch and the line before a fold are no rounds of a room and
+  run none.
 
 ## The questions
 

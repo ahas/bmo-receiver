@@ -924,7 +924,11 @@ pub async fn fixed_line(
   }
 
   let road = sends.road(chat_id, "text").await?;
-  let text = sends.speech().rendered_code(code, fields.clone()).await;
+  let Some(text) = sends.speech().rendered_code(code, fields.clone()).await else {
+    return Err(VerbError::Refused(format!(
+      "no sentence in the rooms' language can be made of the fixed line {code}, so nothing was said"
+    )));
+  };
 
   sends
     .send(

@@ -35,7 +35,7 @@ macro_rules! refused {
   };
 }
 
-pub mod companions;
+pub mod added_agents;
 pub mod consult;
 pub mod draws;
 pub mod fixed_lines;
@@ -50,12 +50,12 @@ pub mod settings;
 pub mod talk;
 pub mod voice;
 
-pub use companions::{CompanionFact, CompanionRefusal};
+pub use added_agents::{AddedAgentFact, AddedAgentRefusal};
 pub use consult::ConsultRefusal;
 pub use draws::{DrawAsked, DrawLine, DrawResult};
 pub use fixed_lines::FixedLine;
 pub use health::HealthFact;
-pub use kinds::{EngineError, RunTitle, SessionReason, SkipReason, TurnOpening};
+pub use kinds::{RunTitle, SessionReason, SkipReason, TurnOpening};
 pub use owner_sends::{FileUnsent, OwnerSendRefusal};
 pub use room_addition::RoomAdditionRefusal;
 pub use room_grants::RoomGrantRefusal;
@@ -79,7 +79,7 @@ pub trait Refused: Code + Display {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ReceiverError {
   #[error(transparent)]
-  Companion(#[from] CompanionRefusal),
+  AddedAgent(#[from] AddedAgentRefusal),
   #[error(transparent)]
   Consult(#[from] ConsultRefusal),
   #[error(transparent)]
@@ -101,7 +101,7 @@ pub enum ReceiverError {
 impl ReceiverError {
   fn inner(&self) -> &dyn Refused {
     match self {
-      Self::Companion(refusal) => refusal,
+      Self::AddedAgent(refusal) => refusal,
       Self::Consult(refusal) => refusal,
       Self::OwnerSend(refusal) => refusal,
       Self::RoomAddition(refusal) => refusal,
@@ -131,7 +131,7 @@ impl Refused for ReceiverError {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Fact {
-  Companion(CompanionFact),
+  AddedAgent(AddedAgentFact),
   Health(HealthFact),
   Voice(VoiceFact),
   Setting(SettingFact),
@@ -140,7 +140,7 @@ pub enum Fact {
 impl Fact {
   fn inner(&self) -> &dyn Code {
     match self {
-      Self::Companion(fact) => fact,
+      Self::AddedAgent(fact) => fact,
       Self::Health(fact) => fact,
       Self::Voice(fact) => fact,
       Self::Setting(fact) => fact,
@@ -157,7 +157,7 @@ impl Code for Fact {
 impl Display for Fact {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Companion(fact) => fact.fmt(f),
+      Self::AddedAgent(fact) => fact.fmt(f),
       Self::Health(fact) => fact.fmt(f),
       Self::Voice(fact) => fact.fmt(f),
       Self::Setting(fact) => fact.fmt(f),

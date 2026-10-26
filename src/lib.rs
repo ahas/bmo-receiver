@@ -5,7 +5,6 @@
 
 pub mod chat;
 pub mod command;
-pub mod companion;
 pub mod config;
 pub mod dashes;
 pub mod data_root;

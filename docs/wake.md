@@ -6,7 +6,7 @@ its rounds.
 ## Who reaches the session
 
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
-  rule, the chat agent and every companion alike, over every word filed in the room, a person's or an agent's,
+  rule, the chat agent and every other agent alike, over every word filed in the room, a person's or an agent's,
   and never wakes an agent with its own words.
 - **A user's own private chat needs no name and no open window,** the owner's and every other user's alike.
   - Which room is the owner's is each chat service's own answer (`POST /room/is-owner`), not a number the
@@ -16,7 +16,7 @@ its rounds.
     links them.
   - The turn tells the agent which of the three a room is (the owner's chat, another user's own chat or a group)
     since in a group most words are not for it.
-- **A room a companion answers alone never reaches the chat agent at all.**
+- **A room that names only other agents never reaches the chat agent at all.**
 - **A room added `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
   kept and carried to its providers, and nothing past that is decided for them. The owner's answer to a job's
   open question is still handed to bmo-job there, since that wakes no agent.
@@ -148,9 +148,9 @@ its rounds.
   `supervisor` (`docs/drafting.md`, 「The round log」).
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
   window is carried into the agent's session through the agency (`POST /sessions`, `GET /sessions/{sessionId}`,
-  `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); a
-  companion's round is its own turn, sent on the road its room answers on; any other turn carries the first
-  question of the draft process, which makes the message (`docs/drafting.md`): the questions asked of the same
+  `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); every
+  agent's turn, the chat agent's and any other's alike, opens the same way and carries the first question of the
+  draft process, which makes the message (`docs/drafting.md`): the questions asked of the same
   session, the notes they establish first and the message last, the items and the checks on the final text
   (`docs/answer-checks.md`); the message is sent on the road the turn
   answers on, then handed back to the receiver as filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
@@ -173,60 +173,33 @@ its rounds.
   (`foldRatio`, the value its fold-ratio table holds for the session's provider and tier); where the state
   names none, the resident turn policy's `fold_ratio` stands in.
 
-## A companion's round
+## An agent's reset
 
-A companion's round is its own turn (the agency's `docs/companions.md`): the room's words and its quiet
-instructions composed into one prompt, carried into the room's session, and the answer sent on the road the room
-answers on under the companion's name. Its reset is the agency's; what the reset cuts off in the rooms is the
-receiver's (the agency's `docs/companions.md`, 「What the reset cuts off」).
+An agent's reset is the agency's (the agency's `docs/companions.md`, 「Starting it afresh」): it moves the
+agent's reset point, publishes the cut-off, and then tells each unit holding the agent's rows to take its own.
+Both go under the kind `companion-reset.created`, which is the agency's name for it, and are told apart by their
+fields: a cut-off names the `point` alone, a reset names its `ranges`.
 
-- **A turn begins as its round takes its words,** and a reset whose point stands at or after that moment
-  overtakes it. The point is the agency's (`GET /agents/{agent}`), read as the round takes its words and
-  again whenever the turn is to keep anything.
-- **What the reset cut off reaches no turn:** words said at or before the point are dropped, a message's moment
-  being counted to the millisecond, so one said in the point's own millisecond goes with those before it; and a quiet instruction
-  handing back a run is dropped where that run began at or before the point. A run is read by its id from the
-  agency; one that cannot be read keeps its instruction. A round left with nothing to answer runs no turn.
-- **A turn the reset overtook keeps nothing:** where the agency answers that it stopped the turn, or where the
-  point read after the turn ended stands at or after its beginning, no answer goes into the room, no judgement is
-  written and no window is moved; the room is free for the next round.
-- **An answer is kept under a hold the reset's cut-off waits on:** the point is read again under it, and the
-  hold stands until the answer is sent, the room answered and its window moved. A cut-off begun meanwhile takes
-  what waits only after; a turn that reads the point after it moved finds itself overtaken.
-- **The answer is read as the companion wrote it:** an answer that is the skip sentinel alone sends nothing and
-  the turn ends answered, its window moved; the reply sentinel is taken off and pins the answer to the message it
-  names, the last one the turn read where it names none, or to none where the answer carries no sentinel.
-- **A turn that failed ends its round, not the conversation:** its reason is told to the room's screens on the
-  turn's line under the companion's name, the room counts as answered and its window moves, and words that came
-  meanwhile follow as the next round. No health line and no failure order is raised for it.
-- **A turn its engine ended with an error tells the room in one line** under the companion's own name: the fixed
-  line `companion-engine-error`, its kind read from the error kind the failed turn's `turn.ended` carries
-  (`docs/codes.md`, `EngineError`), sent on the road the room answers on. Any other failure says nothing in the
-  room.
-- **The cut-off itself** is published with the reset point alone, under the kind `companion-reset.created`,
-  and is heard for as long as the service runs. Under the hold every answer is kept under, everything waiting
-  for the companion's turns in every room is let go unread: the words its rooms' queues are gathering, the words
-  its conversations hold or wait on, and its quiet instructions, whose rows are settled as delivered so no turn
-  takes them again. A companion whose conversations do not stand in this process has nothing waiting.
+- **The cut-off** is heard for as long as the service runs. Everything waiting for the agent's turns in every
+  room is let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on,
+  and its quiet instructions, whose rows are settled as delivered so no turn takes them again. An agent whose
+  conversations do not stand in this process has nothing waiting. A turn under way is the agency's to stop, and
+  a stopped round ends as any stopped round does.
 
-## A companion's reset
+- **The reset** names the ranges it took, the rooms it took them in and the runs its own log named, once the
+  cut-off has let go what waited for the agent's turns. The receiver takes its own rows of the ranges the event
+  names, in one write:
 
-The reset is the agency's; it tells each unit holding the companion's rows to take its own, under the same
-`companion-reset.created` kind, naming the ranges it took, the rooms it took them in and the runs its own log
-named (the agency's `docs/companions.md`, 「Starting it afresh」), once the cut-off has let go what waited for
-the companion's turns. The two parts of the kind are told apart by their fields: a cut-off names the `point`
-alone, a reset names its `ranges`. The receiver takes its own rows of the ranges the event names, in one write:
-
-- **The conversation range** takes the whole record of each room the companion answers alone (its messages and
-  the receiver's read mark of it) and, in every room, the companion's own quiet instructions and the windows its
-  rooms hold for it.
-- **The run records go with them:** every record of a room the companion answers alone, read by the run name
-  the room's chat runs open with, and every record written under one of the companion's own runs, whose names
-  the event carries from the agency's log. A chat run's name says its room but not the agent that ran it, so a
-  shared room keeps the records of the runs its other agents ran and loses only the companion's.
-- **The person range** takes the marks the companion's book of each room has read.
-- **A room counts as answered alone** where the event names it so and the receiver's own record holds the
-  companion as its one answerer, so a room another agent also answers keeps its record whatever the event says.
+  - **The conversation range** takes the whole record of each room the agent answers alone (its messages and
+    the receiver's read mark of it) and, in every room, the agent's own quiet instructions and the windows its
+    rooms hold for it.
+  - **The run records go with them:** every record of a room the agent answers alone, read by the run name
+    the room's chat runs open with, and every record written under one of the agent's own runs, whose names
+    the event carries from the agency's log. A chat run's name says its room but not the agent that ran it, so a
+    shared room keeps the records of the runs its other agents ran and loses only this agent's.
+  - **The person range** takes the marks the agent's book of each room has read.
+  - **A room counts as answered alone** where the event names it so and the receiver's own record holds the
+    agent as its one answerer, so a room another agent also answers keeps its record whatever the event says.
 - **What stays, whichever range:** the rooms themselves and who answers them, their titles, their settings, the
   files their messages carried, and the lowest number each room's record has handed out, so a number whose
   message went is never handed out again.

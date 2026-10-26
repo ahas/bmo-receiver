@@ -11,7 +11,8 @@ family. No code carries a sentence in a room's language.
   - **Facts** are what the receiver hands a room's agent as a quiet instruction, to say in its own words: the code
     and its fields, with the English the agent reads. `Fact` gathers every area's facts.
   - **Fixed lines** are the few lines a room hears that no session says (`docs/voiced-notices.md`, 「Lines that
-    stay fixed」): the code and its fields, which the web unit's language packs render in the room's language.
+    stay fixed」): the code and its fields, which the web unit's language packs render in the room's language and
+    the receiver's policy sentence stands in for where they cannot; a person never reads the code or its fields.
   - **Kinds** are the values a field takes where it names a sort of thing a screen or a record shows: a
     kebab-case word, or, in a list where any kind carries fields of its own, an object holding the word under
     `kind` beside the fields.
@@ -68,7 +69,7 @@ family. No code carries a sentence in a room's language.
 
 | Code | Status | Fields | When |
 |---|---|---|---|
-| `seeded-room` | 409 | | a room the companion seeds declare |
+| `seeded-room` | 409 | | a room the agent room seeds declare |
 | `infrastructure` | 409 | | the infrastructure room the configuration names |
 | `owners-chat` | 409 | | the administrator's own private chat |
 | `not-administrator` | 403 | | anyone but the administrator asked |
@@ -114,19 +115,23 @@ family. No code carries a sentence in a room's language.
 | `contact-unknown` | 409 | `label` | the provider does not know a contact the start names |
 | `start-refused` | 409 | `label`, `detail` | the provider refused to start the conversation, for its own reason |
 
-### CompanionRefusal
+### AddedAgentRefusal
+
+The refusals of an agent added on the console with a room of its own (`docs/api.md`, 「Agents added on the
+console」). Two of its codes, `not-companion` and `seeded-companion`, keep the names the console's language pack
+matches them by.
 
 | Code | Status | Fields | When |
 |---|---|---|---|
-| `not-companion` | 404 | `agent` | the agent named is not a companion |
+| `not-companion` | 404 | `agent` | the agent named is not one added on the console |
 | `name` | 400 | | a name that is no name |
 | `name-taken` | 409 | `name` | the name is another agent's |
 | `label` | 400 | | no label |
-| `provider` | 400 | `provider` | a provider that cannot carry a companion |
+| `provider` | 400 | `provider` | a provider that cannot carry a chat agent |
 | `model` | 400 | | a model that is no registered model with an address |
 | `worker` | 400 | `worker` | a worker that is no worker |
 | `room` | 400 | | no room title |
-| `seeded-companion` | 409 | `label` | a seeded companion asked to be removed |
+| `seeded-companion` | 409 | `label` | a seeded agent asked to be removed |
 | `action` | 400 | | an action the route does not take |
 
 ## Facts
@@ -163,17 +168,17 @@ session once the setting has changed, one waiting per setting.
 | `mute-target-missing` | | a mute or an unmute named nobody who can be: neither an answered person nor a number, or the owner or the agent |
 | `mode-set` | `everyone` | the owner set whose words wake the agents: everyone's, or the owner's alone |
 
-### CompanionFact
+### AddedAgentFact
 
 | Code | Fields | When |
 |---|---|---|
-| `room-taken-back` | `label`, `title` | a companion took back a room already standing under its name |
+| `room-taken-back` | `label`, `title` | an agent added on the console took back a room already standing under its name |
 
 ### RoomRemovalWarning
 
 | Code | Fields | When |
 |---|---|---|
-| `answerers` | `names` | companions answer the room |
+| `answerers` | `names` | other agents answer the room |
 | `road` | `road` | a road can still reach the room |
 | `private` | `user` | the room is another user's private chat |
 
@@ -191,8 +196,6 @@ session once the setting has changed, one waiting per setting.
 | `chat-denied` | | the owner shut the room |
 | `going-down-for-update` | `items` | the service stops for a deployment: a system notice |
 | `going-down` | | the service restarts with no deployment behind it: a system notice |
-| `companion-engine-error` | `kind` (an `EngineError`) | a companion's engine ended its turn with an error |
-| `companion-cut` | `agent`, `reason` | a companion's turn its guard cut short; the next turn opens a new session |
 | `draw` | `label`, `asked`, `result`, `number`, `seed`, `method`, `answered`, `next` | a fair draw's room line (`docs/random-draw.md`) |
 | `still-working` | | a turn of a round's draft process ran past its bound; said once in the round while the turn goes on (`docs/drafting.md`, 「Time」) |
 
@@ -247,12 +250,3 @@ session once the setting has changed, one waiting per setting.
 | `expired` | the session's last turn is older than its provider's cache lifetime, so a touch would pay its whole prefix again |
 | `no-conversation` | no conversations stand to be touched |
 | `not-chat-touch` | the ping names a target other than the chat touch |
-
-### EngineError
-
-| Kind | Meaning |
-|---|---|
-| `busy` | the engine was busy |
-| `refused` | the engine refused the request |
-| `too-long` | the answer was longer than the engine allows |
-| `failed` | any other failure |

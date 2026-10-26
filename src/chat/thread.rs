@@ -1,6 +1,6 @@
 //! A person's own thread, followed into their private room: in a user's private room, the turn is handed what that
 //! user and the chat agent said to each other in the group rooms the user is in and the agent answers over the last
-//! days, and nothing anyone else said nor what the user said to a companion there. It is a reference document like any other, so it passes the same sanitiser and goes to a
+//! days, and nothing anyone else said nor what the user said to another agent there. It is a reference document like any other, so it passes the same sanitiser and goes to a
 //! session in full once per version.
 
 use crate::js;
@@ -55,7 +55,7 @@ fn said_line(message: &Inbound, who: &str) -> String {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Said {
   ToBmo,
-  ToCompanion,
+  ToOther,
   /// Neither its words nor what it replies to tell; the agent answering it first does.
   Open,
 }
@@ -87,7 +87,7 @@ fn exchanges(
           });
           answering = true;
         }
-        Said::ToCompanion => {
+        Said::ToOther => {
           open.clear();
           answering = false;
         }
@@ -127,30 +127,30 @@ fn exchanges(
   lines
 }
 
-// The answerers of a room BMO shares with companions, and the numbers the companions' lines are filed under.
+// The answerers of a room BMO shares with other agents, and the numbers their lines are filed under.
 struct Hearers {
   bmo: Designated,
-  companions: Vec<Designated>,
+  others: Vec<Designated>,
   numbers: Vec<i64>,
   sender_name: String,
 }
 
 // Whom the user's messages in one room were said to. In a room BMO answers alone, everything is said to BMO; in
-// one it shares with companions, a call by name tells first, then whose line the message replies to.
+// one it shares with other agents, a call by name tells first, then whose line the message replies to.
 async fn hearers(receiver: &Receiver, room: i64, bmo: &str) -> Result<Option<Hearers>, Fault> {
   let db = receiver.db();
   let named = wake::agents::named_designated(receiver, room).await.unwrap_or_default();
-  let (bmo, companions): (Vec<Designated>, Vec<Designated>) =
+  let (bmo, others): (Vec<Designated>, Vec<Designated>) =
     named.into_iter().partition(|agent| agent.name == bmo);
   let Some(bmo) = bmo.into_iter().next() else {
     return Ok(None);
   };
 
-  if companions.is_empty() {
+  if others.is_empty() {
     return Ok(None);
   }
 
-  let names: Vec<sea_orm::Value> = companions.iter().map(|agent| agent.name.clone().into()).collect();
+  let names: Vec<sea_orm::Value> = others.iter().map(|agent| agent.name.clone().into()).collect();
   let marks: Vec<String> = (1..=names.len()).map(|at| format!("${at}")).collect();
   let numbers = all(
     db,
@@ -164,7 +164,7 @@ async fn hearers(receiver: &Receiver, room: i64, bmo: &str) -> Result<Option<Hea
 
   Ok(Some(Hearers {
     bmo,
-    companions,
+    others,
     numbers,
     sender_name: receiver.deployment().sender_name.clone(),
   }))
@@ -176,17 +176,15 @@ impl Hearers {
       return Said::ToBmo;
     }
 
-    if self.companions.iter().any(|agent| agent.called_by(&message.text)) {
-      return Said::ToCompanion;
+    if self.others.iter().any(|agent| agent.called_by(&message.text)) {
+      return Said::ToOther;
     }
 
     let replied = message.reply_to_message_id.and_then(|id| room.iter().find(|one| one.message_id == id));
 
     match replied {
       Some(line) if line.sender_name == self.sender_name => Said::ToBmo,
-      Some(line) if line.sender_id.is_some_and(|sender| self.numbers.contains(&sender)) => {
-        Said::ToCompanion
-      }
+      Some(line) if line.sender_id.is_some_and(|sender| self.numbers.contains(&sender)) => Said::ToOther,
       _ => Said::Open,
     }
   }
@@ -245,8 +243,8 @@ pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<En
         continue;
       }
 
-      // A room the agent does not answer is a companion's: what the user says there is said to it, not to the
-      // agent. In a room it shares with one, what the user says to the companion stays out too.
+      // A room the agent does not answer is another agent's: what the user says there is said to it, not to the
+      // agent. In a room it shares with one, what the user says to that agent stays out too.
       let (answerers, _) =
         wake::agents::room_designated(receiver, other, receiver.roads().room_facts(other).await)
           .await
