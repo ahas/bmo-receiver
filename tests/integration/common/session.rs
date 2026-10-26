@@ -14,6 +14,9 @@ use receiver_ports::http::Answer;
 use serde_json::json;
 use tokio::sync::{Notify, broadcast};
 
+/// What a turn does beside answering.
+type Act = Box<dyn Fn(&Turn) + Send + Sync>;
+
 /// The session every turn goes on: every start and turn it was asked, the answer each turn ends with, and the
 /// turns it holds working.
 pub struct StandInSession {
@@ -34,6 +37,13 @@ pub struct StandInSession {
   holding_turn: Mutex<Option<usize>>,
   // How long each turn works before it ends.
   working_for: Mutex<Duration>,
+  // Why the session's prefix changed, as its state names it, where a test sets it.
+  prefix_change: Mutex<Option<String>>,
+  // The generation its state names: none until a test sets one.
+  generation: Mutex<serde_json::Value>,
+  // What a turn does beside answering, where a test sets it: a handoff written, as a session with a file tool
+  // writes it.
+  acting: Mutex<Option<Act>>,
 }
 
 impl StandInSession {
@@ -51,7 +61,27 @@ impl StandInSession {
       script: Mutex::default(),
       holding_turn: Mutex::default(),
       working_for: Mutex::new(Duration::ZERO),
+      prefix_change: Mutex::default(),
+      generation: Mutex::new(json!(null)),
+      acting: Mutex::default(),
     }
+  }
+
+  /// Its state names this reason for a changed prefix from now on.
+  pub fn prefix_changed(&self, why: &str) {
+    *self.prefix_change.lock().unwrap() = Some(why.to_owned());
+  }
+
+  /// Its state names this generation from now on.
+  pub fn at_generation(self, generation: i64) -> Self {
+    *self.generation.lock().unwrap() = json!(generation);
+    self
+  }
+
+  /// Every turn does this as it works, before it ends.
+  pub fn acting(self, act: impl Fn(&Turn) + Send + Sync + 'static) -> Self {
+    *self.acting.lock().unwrap() = Some(Box::new(act));
+    self
   }
 
   /// The turns answer these in their order, then `answer`.
@@ -130,10 +160,11 @@ impl StandInSession {
       provider: Some("provider-a".to_owned()),
       model: Some("model-a".to_owned()),
       place: json!(null),
-      generation: json!(null),
+      generation: self.generation.lock().unwrap().clone(),
       context: json!({ "carried": 1000, "window": 200000 }),
       fold_ratio: None,
       tier: None,
+      prefix_change_reason: self.prefix_change.lock().unwrap().clone(),
     };
 
     Box::pin(async move { Ok(state) })
@@ -184,6 +215,10 @@ impl StandInSession {
 
       if !working_for.is_zero() {
         tokio::time::sleep(working_for).await;
+      }
+
+      if let Some(act) = self.acting.lock().unwrap().as_ref() {
+        act(turn);
       }
 
       let mut ended = self

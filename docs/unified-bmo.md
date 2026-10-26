@@ -156,10 +156,25 @@
 
 ## Replacing the session
 
-- **The session is replaced, not burned again,** when the common system prompt or the head of the actual run
-  changed, or the cache lifetime passed. The agency carries the replacement as the session's provider declares.
+- **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
+  effort, or another login), the cache lifetime its provider declares passed, or the owner asked for a fresh
+  start. The agency carries the replacement as the session's provider declares.
   Where the provider hands a full session over by its own note, the session is asked once more for its handoff
   note, and the receiver keeps what it writes as the agent's pending note.
+- **The head is what the session's cache stands on:** the common system prompt, which the agency composes and
+  keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of
+  it, so no part of a turn is the head: not the room-switch block or its mark, the reference blocks, the turn's
+  scope line, the queue line, the room's facts, the words and instructions it carries or its closing lines, and
+  not a question, an item or a check of the draft process. A turn of any room on an unmoved head resumes the
+  session.
+- **The agency says whether the head moved.** The session's state names why its prefix changed where the
+  agency names it (`prefixChangeReason`, the agency's `docs/api.md`, 「Sessions」); each turn the receiver
+  carries keeps the reason the state named, and a later turn whose state names another replaces the session.
+  Where the agency names none, the receiver's own measure stands in: the fingerprint of the fixed lines every
+  round's turn is written in (the round policy's header, block, closing, queue and push lines), which a
+  deployment that rewrites them moves and nothing a room or a turn fills in does.
+- **A session with no record of its head** is resumed where the agency's state says it was never opened (its
+  generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
 - **The new session's first turn carries the note:** the receiver takes the agent's pending note as it opens the
   new session and puts it at the head of that turn. The pending note is the only note carried; no summary is kept
   for the agent anywhere else.
@@ -168,7 +183,6 @@
   handover that the agent never read reaches the new session in that turn, up to the archived block's cap: the
   newest of them, with a line counting the older ones left in the room's archive (`docs/bmo-window.md`,
   「What every turn carries」).
-- **A room switch alone does not replace the session.** The switch block is not a change to the common head.
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
   keeps one session across its rooms; a room's own session is the agency's to resume.
 - **Never a full re-read:** where no pending note is held, the whole old context is not read again; the new

@@ -1,20 +1,21 @@
 //! The road the room's turns stand on and what each session was opened against (docs/unified-bmo.md, 「Replacing
 //! the session」): kept in the receiver's own settings because the road outlives the session standing on it. A
-//! turn whose road moved, whose login is another, whose prefix moved or outlived its cache, or that the owner
+//! turn whose road moved, whose login is another, whose head moved or outlived its cache, or that the owner
 //! asked to start afresh goes out on a fresh session with the old one's note ahead of its words; what a turn
-//! leaves is the road its session now stands on and the prefix it went out against.
+//! leaves is the road its session now stands on and the head it stood on.
 
 use std::sync::LazyLock;
 
-use regex::Regex;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use receiver_codes::SessionReason;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
 use receiver_policy::providers::PROVIDERS;
+use receiver_ports::agency::SessionState;
 
 use crate::store::{Fault, settings};
 use crate::{now_ms, run};
@@ -53,41 +54,40 @@ pub struct Route {
   pub transcript: Option<String>,
 }
 
-/// What the receiver knows of one session's cache between turns: the head of the composition it was opened
-/// against, the moment it was last seen, and whether a turn resumed it and read nothing from the cache.
-#[derive(Debug, Serialize, Deserialize)]
+/// What the receiver knows of one session's cache between turns: the fingerprint of the head its last turn stood
+/// on, the reason the agency gave then for a changed prefix, the moment it was last seen, and whether a turn
+/// resumed it and read nothing from the cache. A record kept before the head was fingerprinted holds none, and the
+/// next turn's head is taken as the one it stands on.
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CacheState {
-  pub prefix: String,
+  #[serde(default)]
+  pub head: String,
+  #[serde(default)]
+  pub moved: Option<String>,
   pub at: i64,
   pub missed: bool,
 }
 
-/// The head of a composition that stands before the words this turn brings: what moves between two turns of the
-/// same room is the new messages, the quiet instructions and what a turn waited on.
-pub fn prefix_of(sent: &str) -> String {
-  MOVING.replace_all(sent, "").into_owned()
+/// The receiver's own measure of a session's head, where the agency names no reason for a changed prefix: the
+/// fingerprint of the fixed lines every round's turn is written in. A deployment that rewrites them moves it;
+/// nothing a room or a turn fills in does, so no turn's own composition is read for it.
+pub fn composed_head() -> &'static str {
+  &HEAD
 }
 
-static MOVING: LazyLock<Regex> = LazyLock::new(|| {
-  let blocks = [
-    (&CHAT_ROUND.blocks.fresh, &CHAT_ROUND.blocks.fresh_end),
-    (&CHAT_ROUND.blocks.quiet, &CHAT_ROUND.blocks.quiet_end),
-    (&CHAT_ROUND.blocks.waited, &CHAT_ROUND.blocks.waited_end),
-  ];
-  let parts: Vec<String> = blocks
-    .iter()
-    .map(|(open, close)| {
-      let opening = open.split(" (").next().unwrap_or_default();
+static HEAD: LazyLock<String> = LazyLock::new(|| {
+  let lines = format!(
+    "{}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
+    CHAT_ROUND.scope,
+    CHAT_ROUND.header,
+    CHAT_ROUND.kinds,
+    CHAT_ROUND.blocks,
+    CHAT_ROUND.closing,
+    CHAT_ROUND.queue_line,
+    CHAT_ROUND.push,
+  );
 
-      format!(
-        r"(?m)^{}(?: \(\d+\))?:[^\n]*\n(?s:.*?)^{}\s*\n?",
-        regex::escape(opening),
-        regex::escape(close),
-      )
-    })
-    .collect();
-
-  Regex::new(&parts.join("|")).expect("the blocks that move between turns")
+  format!("{:x}", Sha256::digest(lines.as_bytes()))
 });
 
 /// The note a replaced session leaves for the fresh one, as the block its next turn opens with.
@@ -141,14 +141,15 @@ pub fn route_reason(
   }
 }
 
-/// Why the session this turn would resume may not be resumed: the owner's word, a road moved, a session with no
-/// prefix to compare, a prefix moved, or a prefix its cache has let go of. `sent` is the composition the turn
-/// goes out with, which is what a resumed session must have been opened against.
+/// Why the session this turn would resume may not be resumed: the owner's word, a road moved, a session opened
+/// before with no record of its head, a head moved, or a head its cache has let go of. `standing` is the agency's
+/// state of the session, read before the turn: whether it was ever opened, and why its prefix changed where the
+/// agency names it. Nothing of the turn's own composition is read (docs/unified-bmo.md, 「Replacing the session」).
 pub async fn reset_reason(
   db: &DatabaseConnection,
   agent: &str,
   asked: &Route,
-  sent: &str,
+  standing: &SessionState,
 ) -> Result<Option<SessionReason>, Fault> {
   if settings::get(db, &force_key(agent)).await?.is_some_and(|forced| !forced.is_empty()) {
     return Ok(Some(SessionReason::DowngradeForced));
@@ -168,10 +169,12 @@ pub async fn reset_reason(
     .await?
     .and_then(|held| serde_json::from_str::<CacheState>(&held).ok())
   else {
-    return Ok(Some(SessionReason::NoPrefix));
+    let opened = standing.generation.as_i64().is_some_and(|generation| generation > 0);
+
+    return Ok(opened.then_some(SessionReason::NoPrefix));
   };
 
-  if state.prefix != prefix_of(sent) {
+  if head_moved(&state, standing.prefix_change_reason.as_deref()) {
     return Ok(Some(SessionReason::Prefix));
   }
 
@@ -182,6 +185,16 @@ pub async fn reset_reason(
       .filter(|lifetime| now_ms() - state.at >= *lifetime as i64 * 60_000)
       .map(|_| SessionReason::Expired),
   )
+}
+
+/// Whether the head a session's last turn stood on has moved: the agency naming a reason for a changed prefix
+/// other than the one that turn kept, or, where it names none, the receiver's own head no longer the one kept. A
+/// record that kept no head has nothing to compare.
+pub fn head_moved(state: &CacheState, moved: Option<&str>) -> bool {
+  match moved {
+    Some(why) => state.moved.as_deref() != Some(why),
+    None => !state.head.is_empty() && state.head != composed_head(),
+  }
 }
 
 /// The owner's word to start an agent's one session afresh, with the reason it was asked for.
@@ -214,19 +227,20 @@ fn transcript_of(agent: &str, previous: Option<&Route>, text: &str) -> String {
   String::from_utf16_lossy(&units[units.len().saturating_sub(HANDOVER.transcript_tail_chars)..])
 }
 
-/// What a turn leaves of its session: the road it went out on, the composition it was sent with, the session it
-/// resumed where it resumed one, what the run reported of the cache, and the words it answered with.
+/// What a turn leaves of its session: the road it went out on, the agency's reason for a changed prefix the
+/// session's state named after it, the session it resumed where it resumed one, what the run reported of the
+/// cache, and the words it answered with.
 #[derive(Debug, Clone)]
 pub struct Leaving {
   pub route: Route,
-  pub sent: String,
+  pub moved: Option<String>,
   pub resumed: Option<String>,
   pub cache_reads: Option<i64>,
   pub input: Option<i64>,
   pub text: String,
 }
 
-/// What a turn leaves for the next: the prefix its session now stands on, whether it read the cache it should
+/// What a turn leaves for the next: the head its session now stands on, whether it read the cache it should
 /// have, and the road the room is on.
 pub async fn remember(db: &DatabaseConnection, agent: &str, leaving: &Leaving) -> Result<(), Fault> {
   if let Some(session) = &leaving.route.session {
@@ -236,7 +250,8 @@ pub async fn remember(db: &DatabaseConnection, agent: &str, leaving: &Leaving) -
       .and_then(|held| serde_json::from_str::<CacheState>(&held).ok())
       .is_some_and(|state| state.missed);
     let state = CacheState {
-      prefix: prefix_of(&leaving.sent),
+      head: composed_head().to_owned(),
+      moved: leaving.moved.clone(),
       at: now_ms(),
       missed: missed
         || (leaving.resumed.is_some()

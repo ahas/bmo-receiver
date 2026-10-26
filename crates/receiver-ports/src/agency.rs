@@ -130,6 +130,8 @@ struct SessionMember {
   fold_ratio: Option<f64>,
   #[serde(default)]
   tier: Option<String>,
+  #[serde(default)]
+  prefix_change_reason: Option<String>,
 }
 
 impl SessionMember {
@@ -151,6 +153,7 @@ impl SessionMember {
       context: Value::Null,
       fold_ratio: self.fold_ratio,
       tier: self.tier.filter(|tier| !tier.is_empty()),
+      prefix_change_reason: self.prefix_change_reason.filter(|why| !why.trim().is_empty()),
     }
   }
 }
@@ -230,6 +233,10 @@ pub struct SessionState {
   /// The tier the agency names for the session, where it names one: the draft process table is matched by it.
   #[serde(default)]
   pub tier: Option<String>,
+  /// Why the session's prefix changed, where the agency names it: a reason another than the one the session's last
+  /// turn stood on says its head moved.
+  #[serde(default, rename = "prefixChangeReason")]
+  pub prefix_change_reason: Option<String>,
 }
 
 /// A companion's row the console stands up: the name it is registered by, what it is called in the room, the

@@ -76,6 +76,7 @@ fn session(
       context: json!({ "carried": carried, "window": 200_000 }),
       fold_ratio: None,
       tier: None,
+      prefix_change_reason: None,
     },
   )
 }

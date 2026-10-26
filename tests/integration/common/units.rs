@@ -794,6 +794,8 @@ pub struct StandInAgency {
   pub down: Mutex<bool>,
   // Each session's loaded documents, as the last keep left them.
   pub loads: Mutex<BTreeMap<String, Vec<Load>>>,
+  // Every session it was asked to end, in order.
+  pub ends: Mutex<Vec<String>>,
 }
 
 impl StandInAgency {
@@ -822,7 +824,13 @@ impl StandInAgency {
       listed: Mutex::default(),
       down: Mutex::default(),
       loads: Mutex::default(),
+      ends: Mutex::default(),
     }
+  }
+
+  /// Every session it was asked to end, in order.
+  pub fn ended(&self) -> Vec<String> {
+    self.ends.lock().unwrap().clone()
   }
 
   /// Each session's loaded documents, as the last keep left them.
@@ -970,10 +978,12 @@ impl Agency for StandInAgency {
   }
 
   // A session is ended only where a test stands one, as a replaced session is.
-  fn end<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<()>> {
+  fn end<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
     if self.standing_session().is_none() {
       return not_asked_agency("an end");
     }
+
+    self.ends.lock().unwrap().push(session.to_owned());
 
     Box::pin(async { Ok(()) })
   }

@@ -101,7 +101,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `<agent>_active_route` | the road an agent's one chat session stands on, as JSON | the chat session |
 | `<agent>_pending_summary` | the note a replaced session left for the next fresh one | the chat session |
 | `<agent>_force_reset` | the owner's word to start an agent's session afresh, with its reason | the chat session |
-| `<agent>_cache:<session>` | what the receiver knows of a session's cache between turns, as JSON | the chat session |
+| `<agent>_cache:<session>` | what the receiver knows of a session's cache between turns, as JSON: the fingerprint of the head and the agency's reason for a changed prefix its last turn stood on, when that turn was, and whether a resumed turn read nothing from the cache (`docs/unified-bmo.md`, 「Replacing the session」) | the chat session |
 | `<agent>_session_start`, `<agent>_session_start:<room>` | when the agent's one session, or its session of the room, last reopened, in epoch milliseconds (`docs/wake.md`, 「Quiet instructions」) | the relaunch instruction |
 | `<agent>_last_chat_launch` | the launch the agent's one chat session last stood on, as JSON: the room it stood in, whether every word of it was the owner's, whether the room's tools were on, and when it went out, in epoch milliseconds | the chat session |
 

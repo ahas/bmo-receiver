@@ -27,6 +27,7 @@ mod room_round;
 mod routes;
 mod scratch_runs;
 mod session_loads;
+mod session_replacement;
 mod stop_notice;
 mod store;
 mod talks;
