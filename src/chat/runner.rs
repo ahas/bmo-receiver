@@ -109,6 +109,12 @@ impl crate::receiver::Runner for Runner {
       }
     })
   }
+
+  fn spoken<'a>(&'a self, agent: &'a str, chat_id: i64, line: &'a str) -> BoxFuture<'a, Option<String>> {
+    let conversations = self.of(agent);
+
+    Box::pin(async move { conversations.spoken(chat_id, line).await })
+  }
 }
 
 // Every agent's conversations forget a room whose registration is removed.

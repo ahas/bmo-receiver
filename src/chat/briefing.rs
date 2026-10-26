@@ -2,6 +2,9 @@
 //! in, a notice turn's summary handed to the voice engine, and a line's full reading launched or answered as it
 //! stands there. The engine speaks and keeps every briefing; this decides when one is spoken.
 
+use std::collections::HashSet;
+use std::sync::{LazyLock, Mutex, PoisonError};
+
 use receiver_codes::{VoiceFact, VoiceRefusal};
 use receiver_ports::voice::NewBriefing;
 
@@ -193,7 +196,8 @@ pub async fn speaks(receiver: &Receiver, agent: &str) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reading {
   pub ready: bool,
-  pub briefing: i64,
+  /// The engine's briefing; none while the session writes the script.
+  pub briefing: Option<i64>,
 }
 
 /// Why a line's full reading was not launched: a voice refusal, or no agent's line at that place.
@@ -258,26 +262,49 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
   if let Some(standing) = standing.first().filter(|standing| standing.state != "failed") {
     return Ok(Reading {
       ready: standing.state == "done",
-      briefing: standing.id,
+      briefing: Some(standing.id),
     });
   }
 
-  let taken = engine
-    .brief(&NewBriefing {
+  // The script is the session's to write, which takes a turn: the reading answers `making` at once, and a second
+  // ask while it is written answers the same without asking again.
+  if !WRITING.lock().unwrap_or_else(PoisonError::into_inner).insert((chat_id, message_id)) {
+    return Ok(Reading {
+      ready: false,
+      briefing: None,
+    });
+  }
+
+  let receiver = receiver.clone();
+
+  tokio::spawn(async move {
+    let script = match receiver.runner() {
+      Some(runner) => runner.spoken(&agent, chat_id, &text).await,
+      None => None,
+    };
+    let briefing = NewBriefing {
       voice_name: voice,
-      text,
+      text: script.unwrap_or(text),
       chat_id,
       message_id: Some(message_id),
       kind: "full".to_owned(),
       title: None,
       emotion: None,
       plays: false,
-    })
-    .await
-    .map_err(|why| unreachable(why.to_string()))?;
+    };
+
+    if let Err(why) = engine.brief(&briefing).await {
+      eprintln!("chat {chat_id}: the full reading of {message_id} was not taken: {why}");
+    }
+
+    WRITING.lock().unwrap_or_else(PoisonError::into_inner).remove(&(chat_id, message_id));
+  });
 
   Ok(Reading {
     ready: false,
-    briefing: taken.id,
+    briefing: None,
   })
 }
+
+// The lines whose full reading's script is being written now.
+static WRITING: LazyLock<Mutex<HashSet<(i64, i64)>>> = LazyLock::new(|| Mutex::new(HashSet::new()));

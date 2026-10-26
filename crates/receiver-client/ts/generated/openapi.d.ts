@@ -1444,12 +1444,15 @@ export interface components {
             summary: string | null;
         };
         /**
-         * @description A line's full reading: `making` while the voice engine speaks it, `ready` once it can be heard, and the
-         *     engine's briefing, whose sound the engine serves.
+         * @description A line's full reading: `making` while its script is written and the voice engine speaks it, `ready` once it
+         *     can be heard, and the engine's briefing, whose sound the engine serves.
          */
         LineReading: {
-            /** Format: int64 */
-            briefingId: number;
+            /**
+             * Format: int64
+             * @description Null while the line's agent is still writing its script.
+             */
+            briefingId: number | null;
             state: string;
         };
         /** @description The live board: the process's turns, folds and each room's queued message. */

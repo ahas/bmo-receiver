@@ -110,7 +110,9 @@ async fn a_lines_full_reading_is_launched_once_then_answered_as_it_stands_and_re
   let (status, body) = post(&front, &reading(11), json!({})).await;
 
   assert_eq!(status, StatusCode::OK, "{body}");
-  assert_eq!(body, json!({ "state": "making", "briefingId": 1 }));
+  assert_eq!(body, json!({ "state": "making", "briefingId": null }), "the script is written first");
+
+  until("the reading taken", || !front.standing.voice.briefed().is_empty()).await;
 
   let briefed = front.standing.voice.briefed();
 
@@ -124,11 +126,14 @@ async fn a_lines_full_reading_is_launched_once_then_answered_as_it_stands_and_re
     ),
     ("full", VOICE, Some(11), false)
   );
-  assert_eq!(briefed[0].text, "The backup finished. Nothing else changed.");
+  assert_eq!(
+    briefed[0].text, "The backup finished. Nothing else changed.",
+    "no script written: the line as it stands"
+  );
 
   let (_, again) = post(&front, &reading(11), json!({})).await;
 
-  assert_eq!(again["state"], "making");
+  assert_eq!(again, json!({ "state": "making", "briefingId": 1 }));
   *front.standing.voice.state.lock().unwrap() = "done".to_owned();
 
   let (_, ready) = post(&front, &reading(11), json!({})).await;
@@ -151,6 +156,17 @@ async fn a_lines_full_reading_is_launched_once_then_answered_as_it_stands_and_re
   let (status, body) = post(&front, &reading(11), json!({})).await;
 
   assert_eq!((status, body["code"].as_str()), (StatusCode::CONFLICT, Some("switched-off")));
+}
+
+async fn until(what: &str, holds: impl Fn() -> bool) {
+  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+    while !holds() {
+      tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+  })
+  .await;
+
+  assert!(waited.is_ok(), "{what} never came");
 }
 
 #[test]
@@ -320,4 +336,39 @@ async fn a_round_the_owner_spoke_in_and_an_agent_with_no_voice_are_never_summari
 
   assert_eq!(voiceless.session.prompts().len(), 1, "an agent with no voice is never spoken");
   assert!(voiceless.standing.voice.briefed().is_empty());
+}
+
+#[tokio::test]
+async fn a_lines_full_reading_is_the_script_its_agents_session_writes_sent_as_written() {
+  const SCRIPT: &str = "The backup finished overnight, and nothing else changed.";
+
+  let owner = Owner::new(StandInSession::new("agent-a@agent", SCRIPT), Some(VOICE)).await;
+
+  owner
+    .scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via", "agent_name")
+         VALUES ($1, 21, 7, 'Agent A', 1760000000000, 'Backup: done (2/2 disks, 0 errors).', 'road-a', $2)"#,
+      vec![OWNER.into(), AGENT.into()],
+    )
+    .await;
+
+  let first = bmo_receiver::chat::briefing::reading(&owner.standing.receiver, OWNER, 21).await;
+
+  assert!(matches!(first, Ok(ref reading) if reading.briefing.is_none()), "{first:?}");
+
+  until("the reading taken", || !owner.standing.voice.briefed().is_empty()).await;
+
+  let prompts = owner.session.prompts();
+
+  assert!(
+    prompts[0].contains("read out in full") && prompts[0].contains("Backup: done (2/2 disks, 0 errors)."),
+    "{}",
+    prompts[0]
+  );
+  assert_eq!(
+    owner.standing.voice.briefed()[0].text,
+    SCRIPT,
+    "the script goes to the engine exactly as written"
+  );
 }

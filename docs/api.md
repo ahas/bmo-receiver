@@ -345,7 +345,7 @@ repository's, in `VERSION`; it is never taken from a registry.
 |---|---|---|
 | `GET /voice-briefing` | | `on` and `autoplay`, the two switches as they stand |
 | `PUT /voice-briefing` | `on` or `autoplay`, exactly one, a boolean | `on` and `autoplay`, as they now stand |
-| `POST /rooms/{roomId}/messages/{messageId}/reading` | | `state` (`making` or `ready`) and `briefingId`, the engine's briefing of the line's full reading |
+| `POST /rooms/{roomId}/messages/{messageId}/reading` | | `state` (`making` or `ready`) and `briefingId`, the engine's briefing of the line's full reading, null while the line's agent is still writing its script |
 
 - **The switches** are the whole briefing's and whether a summary plays by itself (`docs/voiced-notices.md`, 「The
   voice briefing」); each is on unless it was set off. A body naming neither switch, or both, or a value that is not

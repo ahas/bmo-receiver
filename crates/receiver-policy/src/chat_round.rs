@@ -34,6 +34,8 @@ pub struct Voice {
   pub emotions: Vec<String>,
   /// The quiet instruction a notice turn's summary is asked in, `{line}` the line the turn sent.
   pub summary: String,
+  /// The quiet instruction a line's full reading is asked in, `{line}` the line.
+  pub reading: String,
 }
 
 #[derive(Debug, Deserialize)]

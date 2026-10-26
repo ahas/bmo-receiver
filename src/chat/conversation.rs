@@ -1947,6 +1947,47 @@ impl Conversations {
     .await;
   }
 
+  /// A line written as a spoken script by the agent's own session in the line's room (docs/voiced-notices.md,
+  /// 「The full reading on a line's chip」): one light turn of the reading's quiet instruction, held behind any
+  /// round of the agent's; none where the session wrote nothing or the turn failed.
+  pub async fn spoken(&self, chat_id: i64, line: &str) -> Option<String> {
+    let _turn = self.0.turn.lock().await;
+    let mut held = self.held_session(chat_id).await;
+    let asking = Asking {
+      chat_id,
+      session: String::new(),
+      prompt: fill_marks(&CHAT_ROUND.voice.reading, &[("line", line)]),
+      via: None,
+      privileged: false,
+      answers: vec![],
+      began: now_ms(),
+      context: vec![],
+    };
+    let follower = Follower::new(self, chat_id);
+    let carried = self.0.carrying.carry(&asking, &held, &follower).await;
+
+    follower.finish();
+
+    match carried {
+      Ok(reply) => {
+        held.session = reply.session.clone();
+        held.replaced = reply.replaced.clone();
+        self.keep_session(chat_id, &held);
+
+        let text = crate::form::strip_prompt_scaffolding(&reply.text);
+
+        (!text.trim().is_empty() && !is_skip(&text)).then_some(text)
+      }
+      Err(why) => {
+        eprintln!(
+          "chat {chat_id}: a line's spoken script was not written ({why:?}); it is spoken as it stands"
+        );
+
+        None
+      }
+    }
+  }
+
   // An answer once filed reaches the receiver as every word filed in a room does, so another agent of the room
   // may be woken by it (docs/wake.md, 「Who is woken」).
   async fn hand_filed(&self, chat_id: i64, message_id: i64, via: &str, room: Room) {

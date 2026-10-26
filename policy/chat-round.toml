@@ -39,12 +39,20 @@ group = "a group chat with other members"
 emotions = ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"]
 # The quiet instruction a notice turn of the owner's private chat is asked its summary in, once its line has gone
 # out (docs/voiced-notices.md, 「The summary of a notice turn」); {line} is the line the turn sent. The answer goes
-# to no room: it is what the owner hears.
+# to no room: what it says after its title is spoken exactly as written.
 summary = """Quiet instruction from the system: the line you just sent to the owner's private chat is spoken to the owner as a voice briefing. This is the line, as the facts:
 {line}
 END OF FACTS
 
-Write the briefing to be heard, in the line's language. On the first line, a title of a few words saying what the briefing is about, written for this briefing in your own words, never a fixed pattern repeated from one briefing to the next. Then one or two spoken sentences of the line's gist, written for the ear, never the line read out. Where the line carried several notices, cover them all, and say a later notice that overtook an earlier one in its newest state only. Write nothing else: no marks, no list, no quotation. This answer goes to no room. Answer <<SKIP>> to have the line's opening spoken instead."""
+Write the briefing as a spoken script, in the line's language. On the first line, a title of a few words saying what the briefing is about, written for this briefing in your own words, never a fixed pattern repeated from one briefing to the next. Then one or two sentences of the line's gist, the way a person would say them aloud, never the line read out. Where the line carried several notices, cover them all, and say a later notice that overtook an earlier one in its newest state only. Write numbers, dates, times and units out as they are read aloud, and foreign words, names and acronyms as they sound in the line's language. No markup, no symbols, no list, no quotation. What you write after the title is spoken exactly as you write it: nothing polishes or rewrites it after you. Write nothing else. This answer goes to no room. Answer <<SKIP>> to have the line's opening spoken instead."""
+# The quiet instruction a line's full reading is asked in, from its chip (docs/voiced-notices.md, 「The full
+# reading on a line's chip」); {line} is the line as the room received it. The answer goes to no room: it is
+# spoken exactly as written.
+reading = """Quiet instruction from the system: the owner asked to hear this line of yours read out in full, in your voice. This is the line, as the facts:
+{line}
+END OF FACTS
+
+Write the whole line as a spoken script, in the line's language: everything it says, in sentences a person would say aloud, a list read out as sentences, every figure, name and conclusion kept. Write numbers, dates, times and units out as they are read aloud, and foreign words, names and acronyms as they sound in the line's language. No markup, no symbols, no list, no quotation. What you write is spoken exactly as you write it: nothing polishes or rewrites it after you. Write nothing else. This answer goes to no room."""
 
 # The blocks the room's words stand in.
 [blocks]

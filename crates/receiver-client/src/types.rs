@@ -644,13 +644,14 @@ pub struct VoiceBriefingSwitch {
   pub autoplay: Option<bool>,
 }
 
-/// A line's full reading: `making` while the voice engine speaks it, `ready` once it can be heard, and the
-/// engine's briefing, whose sound the engine serves.
+/// A line's full reading: `making` while its script is written and the voice engine speaks it, `ready` once it
+/// can be heard, and the engine's briefing, whose sound the engine serves.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LineReading {
   pub state: String,
-  pub briefing_id: i64,
+  /// Null while the line's agent is still writing its script.
+  pub briefing_id: Option<i64>,
 }
 
 /// A talk's topic and what the owner says.

@@ -254,6 +254,12 @@ pub trait Runner: Send + Sync {
   ) -> BoxFuture<'a, bool>;
 
   fn forget(&self, chat_id: i64) -> BoxFuture<'_, ()>;
+
+  /// A line of the agent's in a room written as a spoken script by the agent's own session, in one light turn
+  /// held behind any round of its; none where no conversations stand or the session wrote none.
+  fn spoken<'a>(&'a self, _agent: &'a str, _chat_id: i64, _line: &'a str) -> BoxFuture<'a, Option<String>> {
+    Box::pin(async { None })
+  }
 }
 
 /// The conversations where none stand: no turn is taken.

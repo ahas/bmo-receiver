@@ -151,6 +151,13 @@ summary, and any agent's line can be read out whole from its chip. The voice eng
 briefing with its room and its line (its `docs/boundary-api.md`, 「Briefings」); the receiver decides when one is
 spoken, and the session writes what is said.
 
+- **The session writes the script the voice speaks.** Both the summary and the full reading are asked of the
+  agent's own session as a spoken script already polished for the voice: sentences a person would say aloud,
+  numbers, dates, times and units written out as they are read, foreign words, names and acronyms written as
+  they sound in the line's language, and no markup, symbol, list or quotation. No gate stands between the
+  session and the engine: the receiver hands the engine exactly the text the session wrote, and the engine
+  applies only its own script rules.
+
 ### The switches
 
 - **One switch for the whole briefing,** the receiver's setting `voice_briefing`, `on` or `off`; a missing row
@@ -184,9 +191,9 @@ spoken, and the session writes what is said.
 - **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one light
   turn once the line has gone out and before the round lets go of the room. The instruction carries the line as
   the facts, and asks for what is to be heard: a one-line title saying what the briefing is about, in the agent's
-  own words for this briefing, then one or two spoken sentences of the line's gist, never the line read out, every
-  notice of the turn covered in its newest state (`policy/chat-round.toml`, `[voice]`). Its answer goes to no road
-  and stands in no room.
+  own words for this briefing, then one or two sentences of the line's gist as a spoken script, never the line
+  read out, every notice of the turn covered in its newest state (`policy/chat-round.toml`, `[voice]`,
+  `summary`). Its answer goes to no road and stands in no room.
 - **A session that gives no summary has its line's opening spoken:** the first sentence, or the first two where
   the first is short, with no title. An answer of `<<SKIP>>`, an empty answer and a failed turn are each this case.
 - **The receiver carries the facts to the engine:** `POST /briefings` of kind `summary`, in the agent's voice,
@@ -205,9 +212,13 @@ spoken, and the session writes what is said.
   `POST /rooms/{roomId}/messages/{messageId}/reading`. The line is a message the receiver archived as an agent's
   send, with words of its own; any other message is `not-found`.
 - **Nothing is made before it is asked for.** The receiver asks the engine for the line's full reading
-  (`GET /briefings` by room, line and kind): one waiting or speaking answers `making`, one done answers `ready`,
-  and where there is none, or the last one failed, it launches one with `POST /briefings` of kind `full` and
-  answers `making`. The answer names the briefing, whose sound the engine serves.
+  (`GET /briefings` by room, line and kind): one waiting or speaking answers `making`, one done answers `ready`.
+  Where there is none, or the last one failed, it answers `making` at once and asks the line's agent, in one light
+  turn of its session in the line's room, for the whole line as a spoken script (`policy/chat-round.toml`,
+  `[voice]`, `reading`), every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
+  `full`; a session that gives no script has the line spoken as it stands. While the script is being written an
+  ask answers `making` with no briefing yet; once launched, the answer names the briefing, whose sound the engine
+  serves.
 - **It is kept on the line** by the engine, so a later ask answers `ready` at once. It goes to no road and no
   listener plays it by itself.
 - **It asks the switch and the voice** like every briefing: switched off, it is refused `switched-off`; an agent
