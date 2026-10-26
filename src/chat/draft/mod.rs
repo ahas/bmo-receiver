@@ -124,7 +124,7 @@ impl Plan {
   /// question on it is.
   pub fn send_line(&self, at: usize) -> String {
     if self.send_open(at) {
-      return DRAFTING.send_open.clone();
+      return fill_marks(&DRAFTING.send_open, &[("voice", &DRAFTING.voice)]);
     }
 
     let name = self.questions.get(self.send_from_at).map(|(name, _)| name.as_str()).unwrap_or_default();
@@ -139,8 +139,16 @@ impl Plan {
     let count = self.questions.len();
     let lead = if count == 1 { &DRAFTING.last_lead } else { &DRAFTING.opening };
     let send = self.send_line(0);
-    let lead =
-      fill_marks(lead, &[("number", "1"), ("count", &count.to_string()), ("name", name), ("send", &send)]);
+    let lead = fill_marks(
+      lead,
+      &[
+        ("number", "1"),
+        ("count", &count.to_string()),
+        ("name", name),
+        ("send", &send),
+        ("voice", &DRAFTING.voice),
+      ],
+    );
 
     Some(format!("{lead}\n\n{text}"))
   }
@@ -178,6 +186,7 @@ pub fn question_words(
       ("count", &count.to_string()),
       ("name", name),
       ("send", send),
+      ("voice", &DRAFTING.voice),
     ],
   );
 
@@ -749,7 +758,11 @@ impl Drafter {
       && !past(ceiling_at)
       && let Some((block, took)) = run.arrived().await
     {
-      let words = format!("{}\n{}\n\n{block}", DRAFTING.arrived, scope_line(drafted.scope));
+      let words = format!(
+        "{}\n{}\n\n{block}",
+        fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]),
+        scope_line(drafted.scope)
+      );
 
       match run.ask(Kind::Item, "arrived", &words, true).await {
         Ok(Some((answer, read))) => {

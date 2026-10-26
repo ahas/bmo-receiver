@@ -104,6 +104,33 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
 }
 
 #[test]
+fn every_question_whose_answer_may_be_the_message_asks_for_the_rooms_voice_and_notes_stay_notes() {
+  let plan = Plan {
+    questions: [("information", "what?"), ("facts", "true?"), ("final", "write it")]
+      .map(|(name, text)| (name.to_owned(), text.to_owned()))
+      .to_vec(),
+    send_from_at: 1,
+    ..Plan::default()
+  };
+  let notes = question_words("information", "what?", 1, 3, &plan.send_line(0), &scope());
+  let facts = question_words("facts", &DRAFTING.questions["facts"], 2, 3, &plan.send_line(1), &scope());
+  let last = question_words("final", &DRAFTING.questions["final"], 3, 3, &plan.send_line(2), &scope());
+
+  assert!(DRAFTING.voice.contains("voice") && DRAFTING.voice.contains("never as notes"));
+  assert!(
+    facts.contains(&DRAFTING.voice),
+    "the send-from question asks for the room's voice: {facts}"
+  );
+  assert!(last.contains(&DRAFTING.voice), "the last question asks for it: {last}");
+  assert!(DRAFTING.questions["final"].contains("this room's voice"), "final's own text says so");
+  assert!(!notes.contains(&DRAFTING.voice), "a notes question says nothing of the voice: {notes}");
+  assert!(
+    !plan.first_words().unwrap_or_default().contains(&DRAFTING.voice),
+    "the first question, before the send-from one, stays notes"
+  );
+}
+
+#[test]
 fn the_first_question_opens_on_the_opening_unless_it_is_the_last() {
   let plan = |names: &[&str]| Plan {
     questions: names.iter().map(|name| ((*name).to_owned(), format!("ask {name}"))).collect(),
@@ -115,7 +142,7 @@ fn the_first_question_opens_on_the_opening_unless_it_is_the_last() {
 
   assert!(three.questioned() && !one.questioned() && !Plan::default().questioned());
   assert!(three.first_words().is_some_and(|words| {
-    words.contains(head) && words.contains(&DRAFTING.send_open) && words.ends_with("\n\nask intent")
+    words.contains(head) && words.contains(&DRAFTING.voice) && words.ends_with("\n\nask intent")
   }));
   assert!(
     one
@@ -241,9 +268,10 @@ fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_blo
   let three = plan(&["intent", "information", "final"]).first_words().unwrap();
   let process = &receiver_policy::chat_line::CHAT_LINE.room.process;
 
-  // The template a question adds to a turn is its place and its send line, a few hundred characters at most.
-  assert!(one.trim().chars().count() <= 200, "{} characters: {one}", one.chars().count());
-  assert!(three.trim().chars().count() <= 500, "{} characters: {three}", three.chars().count());
+  // The template a question adds to a turn is its place, its send line and, where its answer may be the message,
+  // the room's voice: a few hundred characters at most.
+  assert!(one.trim().chars().count() <= 350, "{} characters: {one}", one.chars().count());
+  assert!(three.trim().chars().count() <= 650, "{} characters: {three}", three.chars().count());
 
   for rule in ["<<DONE #<number>>>", "<<SEPARATE #<number>>>", "validFrom", "live state"] {
     assert!(!one.contains(rule) && !three.contains(rule), "{rule} stands in a question's turn");

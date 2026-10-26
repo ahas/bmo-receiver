@@ -332,11 +332,16 @@ async fn a_send_before_the_question_a_send_is_read_from_is_notes_and_the_next_qu
 
   assert_eq!(prompts.len(), 2, "facts is asked after the early send: {prompts:#?}");
   assert!(
-    prompts[0].contains("before question 2 (facts)") && !prompts[0].contains(&DRAFTING.send_open),
-    "the first question says no message is written before facts: {}",
+    prompts[0].contains("before question 2 (facts)") && !prompts[0].contains(&DRAFTING.voice),
+    "the first question says no message is written before facts, and asks for notes: {}",
     prompts[0]
   );
-  assert!(prompts[1].contains(&DRAFTING.send_open), "facts reads a send: {}", prompts[1]);
+  let open = receiver_policy::fill_marks(&DRAFTING.send_open, &[("voice", &DRAFTING.voice)]);
+  assert!(
+    prompts[1].contains(&open) && prompts[1].contains(&DRAFTING.voice),
+    "facts reads a send, written in the room's voice: {}",
+    prompts[1]
+  );
   assert!(
     sent.len() == 1 && sent[0].contains("once the facts are read") && !sent[0].contains("too soon"),
     "{sent:?}"
@@ -693,7 +698,13 @@ async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
 
   assert!(prompts[1].contains(SHORT), "the last question shows them: {}", prompts[1]);
   assert_eq!(prompts.len(), 3, "the words marked separate open one round of their own, a light one");
-  assert!(prompts[2].contains(SHORT) && !prompts[2].contains(&DRAFTING.arrived), "{}", prompts[2]);
+  assert!(
+    prompts[2].contains(SHORT)
+      && !prompts[2]
+        .contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
+    "{}",
+    prompts[2]
+  );
   assert_eq!(sent.len(), 2, "{sent:?}");
   assert!(
     sent[0].contains("the message for the first words") && !sent[0].contains("SEPARATE"),
@@ -720,7 +731,12 @@ async fn words_said_during_the_last_question_stand_in_the_closing_check_before_t
   let sent = round.sent();
 
   assert_eq!(prompts.len(), 3, "the closing check is one more turn, and the words open no round");
-  assert!(prompts[2].contains(&DRAFTING.arrived) && prompts[2].contains(SHORT), "{}", prompts[2]);
+  assert!(
+    prompts[2].contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]))
+      && prompts[2].contains(SHORT),
+    "{}",
+    prompts[2]
+  );
   assert!(
     sent.len() == 1 && sent[0].contains("the first message"),
     "an answer of marks alone keeps the message: {sent:?}"

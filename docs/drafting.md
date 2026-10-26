@@ -68,7 +68,7 @@ leaves.
 | `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved |
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
 | `fit` | whether the message fits the room's rules, the persona and the language the other person speaks |
-| `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, or send nothing; always the last |
+| `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, as this room's agent says it to this person, or send nothing; always the last |
 
 - **The process's fixed rules stand in the room's block, not in a turn:** that the message is written last, that
   an answer before the last is notes of what was read, the facts established and engraved in the brain, each with
@@ -106,6 +106,11 @@ leaves.
   and the process goes on, so the questions that establish the facts are asked before anything is written; each
   question's own line says whether a send is read at it. A light turn's list reads a send from its first question
   whatever the row names.
+- **A question whose answer may be the message asks for it in the room's voice.** At the `sendFrom` question and
+  every one after it, `final` among them, and at the closing check, the question's line says that an answer that
+  becomes the message is written as the message itself, as this room's agent says it to this person: in the voice
+  and register it uses with them in this room and in their language, never as notes or a report (`drafting.toml`,
+  `voice`). The questions before `sendFrom` stay notes and say nothing of the voice.
 - **The policy's rows are the defaults** (`drafting.toml`): any provider, `information`, `facts` and `final`, the
   small models' process; Claude's provider, `information`, `facts`, `memory`, `promises` and `final`; both read a
   send from `facts` on; every light turn `final` alone; 150 seconds, past which `final` is asked at once; 120

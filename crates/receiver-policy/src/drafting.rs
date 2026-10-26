@@ -42,6 +42,8 @@ pub struct Drafting {
   pub waiting: String,
   /// The closing check's opening, asked once the message stands where messages arrived after the last question.
   pub arrived: String,
+  /// What a question whose answer may be the message says of its voice: the room's, never notes.
+  pub voice: String,
   /// The questions, by name.
   pub questions: BTreeMap<String, String>,
   pub process: Vec<Process>,
