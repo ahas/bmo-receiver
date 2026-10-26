@@ -65,6 +65,11 @@ impl DataRoot {
     moved(std::env::var_os("BMO_IMAGE_DIR")).unwrap_or_else(|| self.root.join("images"))
   }
 
+  /// The profile pictures kept, under `avatars/room` and `avatars/person` (`docs/pictures.md`, 「Profile pictures」).
+  pub fn avatars(&self) -> PathBuf {
+    self.root.join("avatars")
+  }
+
   /// The outboxes, one folder a room.
   pub fn outboxes(&self) -> PathBuf {
     self.root.join("outbox")

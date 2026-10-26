@@ -234,6 +234,21 @@ impl ReceiverClient {
     Self::answered(self.get(&["rooms", &room_id.to_string(), "pictures"], query)).await
   }
 
+  /// `GET /avatars`.
+  pub async fn avatars(&self, query: &AvatarQuery) -> Answer<Avatars> {
+    Self::answered(self.get(&["avatars"], query)).await
+  }
+
+  /// `GET /rooms/{roomId}/avatar`.
+  pub async fn room_avatar(&self, room_id: i64) -> Answer<Vec<u8>> {
+    Self::bytes(self.request(Method::GET, &["rooms", &room_id.to_string(), "avatar"])).await
+  }
+
+  /// `GET /people/{personId}/avatar`.
+  pub async fn person_avatar(&self, person_id: i64) -> Answer<Vec<u8>> {
+    Self::bytes(self.request(Method::GET, &["people", &person_id.to_string(), "avatar"])).await
+  }
+
   /// `GET /rooms/{roomId}/figures`.
   pub async fn figures(&self, room_id: i64, zone: Option<&str>) -> Answer<Figures> {
     let request = match zone {

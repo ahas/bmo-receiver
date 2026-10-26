@@ -19,7 +19,7 @@ const OTHER: i64 = -612;
 const MESSAGE: i64 = 3;
 
 // A file written under the data root, its folders made first; answers its path.
-fn written(root: &Path, at: &str, bytes: &[u8]) -> String {
+pub(super) fn written(root: &Path, at: &str, bytes: &[u8]) -> String {
   let path = root.join(at);
 
   std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -78,11 +78,11 @@ async fn bench() -> (Scratch, Front) {
   (scratch, front)
 }
 
-async fn bytes_of(answer: Response) -> Vec<u8> {
+pub(super) async fn bytes_of(answer: Response) -> Vec<u8> {
   to_bytes(answer.into_body(), usize::MAX).await.unwrap().to_vec()
 }
 
-fn header_of(answer: &Response, name: header::HeaderName) -> Option<String> {
+pub(super) fn header_of(answer: &Response, name: header::HeaderName) -> Option<String> {
   answer.headers().get(name).map(|value| value.to_str().unwrap().to_owned())
 }
 

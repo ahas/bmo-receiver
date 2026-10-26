@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/avatars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The profile pictures kept, oldest taken first. */
+        get: operations["avatars"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/companions": {
         parameters: {
             query?: never;
@@ -365,6 +382,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/people/{personId}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bytes of a person's kept profile picture. */
+        get: operations["personAvatar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pinned-rooms": {
         parameters: {
             query?: never;
@@ -547,6 +581,23 @@ export interface paths {
         };
         /** The default answerer, the voice and every agent answering a room. */
         get: operations["roomAnswerers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bytes of a room's kept profile picture. */
+        get: operations["roomAvatar"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1144,6 +1195,23 @@ export interface components {
             room: number | null;
             /** @default null */
             via: string | null;
+        };
+        /** @description One profile picture the archive keeps. */
+        Avatar: {
+            /** Format: int64 */
+            id: number;
+            /** @description `room` or `person`. */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            takenAt: number;
+        };
+        /** @description The profile pictures kept, oldest taken first. */
+        Avatars: {
+            items: components["schemas"]["Avatar"][];
+            more: boolean;
         };
         /** @description A room's chat providers set whole: at least one, each once. */
         ChooseProviders: {
@@ -1986,6 +2054,38 @@ export interface operations {
             };
         };
     };
+    avatars: {
+        parameters: {
+            query?: {
+                after?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Avatars"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     addCompanion: {
         parameters: {
             query?: never;
@@ -2760,6 +2860,37 @@ export interface operations {
             };
         };
     };
+    personAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                personId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-found */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     pinRooms: {
         parameters: {
             query?: never;
@@ -3201,6 +3332,37 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-found */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -18,6 +18,8 @@ export type AccountRoom = Schemas["AccountRoom"];
 export type Answerers = Schemas["Answerers"];
 export type Message = Schemas["Message"];
 export type Pictures = Schemas["Pictures"];
+export type Avatar = Schemas["Avatar"];
+export type Avatars = Schemas["Avatars"];
 export type Figures = Schemas["Figures"];
 export type Window = Schemas["Window"];
 export type Provider = Schemas["Provider"];
@@ -147,6 +149,13 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(
         await client.GET("/rooms/{roomId}/pictures", { params: { path: { roomId }, query } }),
       );
+    },
+
+    /** `GET /avatars`. */
+    async avatars(
+      query: NonNullable<paths["/avatars"]["get"]["parameters"]["query"]> = {},
+    ): Promise<Avatars> {
+      return answered(await client.GET("/avatars", { params: { query } }));
     },
 
     /** `GET /rooms/{roomId}/figures`. */

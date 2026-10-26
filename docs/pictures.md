@@ -69,9 +69,15 @@ receiver keeps the pictures and decides what a session is shown.
   it.** The chat service that can see them hands them over, and tells the receiver with `POST /events`
   `avatars-updated`; the receiver keeps them under the data root as `avatars/room/<chatId>.jpg` or
   `avatars/person/<userId>.jpg`.
-- **The `avatars` table** keeps each subject's photo id, its stored path and when it was last taken; the console
-  reads it and carries the time in the address, so a browser reuses the picture it holds until the picture itself
-  changes. Wherever there is no picture, a name's first letter stands in for one.
+- **The `avatars` table** keeps each subject's photo id, its stored path and when it was last taken, for every
+  room and person the archive numbers, the agents added on the console and their rooms among them.
+- **The receiver serves the kept pictures** on the shape every chat service's protocol gives them: `GET /avatars`
+  is a page of the pictures kept, each `kind`, `id` and `takenAt`, oldest taken first; `GET /rooms/{roomId}/avatar`
+  and `GET /people/{personId}/avatar` are the picture's bytes, typed by `Content-Type`, 404 `not-found` where none
+  is kept or its file is gone. Only a file inside the data root's `avatars/` folder goes out. The console reads
+  the receiver for every number it shows and a chat service's own route for what the receiver does not keep, and
+  carries `takenAt` in the address, so a browser reuses the picture it holds until the picture itself changes.
+  Wherever there is no picture, a name's first letter stands in for one.
 
 ## Whether an agent looks
 

@@ -555,6 +555,63 @@ pub async fn message_of(
   )
 }
 
+/// One profile picture the archive keeps: whose it is, where its file stands and when it was last taken.
+#[derive(Debug, Clone, Serialize)]
+pub struct Avatar {
+  pub kind: String,
+  pub subject_id: i64,
+  pub path: Option<String>,
+  pub taken_at: i64,
+}
+
+impl Avatar {
+  fn of(row: &QueryResult) -> Result<Self, DbErr> {
+    Ok(Self {
+      kind: row.try_get("", "kind")?,
+      subject_id: row.try_get("", "subject_id")?,
+      path: row.try_get("", "path")?,
+      taken_at: row.try_get("", "updated_at")?,
+    })
+  }
+}
+
+/// The pictures kept with a file, oldest taken first, from after a moment, at most `limit` of them.
+pub async fn avatars(
+  db: &DatabaseConnection,
+  after: Option<i64>,
+  limit: i64,
+) -> Result<Vec<Avatar>, Fault> {
+  all(
+    db,
+    r#"SELECT "kind", "subject_id", "path", "updated_at" FROM "avatars"
+       WHERE "path" IS NOT NULL AND "path" <> '' AND "updated_at" > $1
+       ORDER BY "updated_at", "kind", "subject_id" LIMIT $2"#,
+    vec![after.unwrap_or(0).into(), limit.into()],
+  )
+  .await?
+  .iter()
+  .map(|row| Avatar::of(row).map_err(Fault::from))
+  .collect()
+}
+
+/// The picture kept for one room or person, or nothing.
+pub async fn avatar_of(
+  db: &DatabaseConnection,
+  kind: &str,
+  subject_id: i64,
+) -> Result<Option<Avatar>, Fault> {
+  Ok(
+    one(
+      db,
+      r#"SELECT "kind", "subject_id", "path", "updated_at" FROM "avatars" WHERE "kind" = $1 AND "subject_id" = $2"#,
+      vec![kind.into(), subject_id.into()],
+    )
+    .await?
+    .map(|row| Avatar::of(&row))
+    .transpose()?,
+  )
+}
+
 /// The files a message carried, as the room's store kept them.
 pub async fn files(db: &DatabaseConnection, chat_id: i64, message_id: i64) -> Result<Vec<KeptFile>, Fault> {
   all(

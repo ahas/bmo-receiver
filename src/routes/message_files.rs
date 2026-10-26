@@ -136,6 +136,73 @@ pub async fn picture(
   Ok(served_file(&real, request).await)
 }
 
+#[derive(Deserialize, Default)]
+pub struct AvatarCursor {
+  #[serde(default)]
+  after: Option<i64>,
+
+  #[serde(default)]
+  limit: Option<i64>,
+}
+
+// A page of kept pictures, and the largest one a caller asks for.
+const AVATAR_PAGE: i64 = 100;
+const AVATAR_MAX_PAGE: i64 = 1_000;
+
+/// The profile pictures the archive keeps, oldest taken first (`docs/pictures.md`, 「Profile pictures」).
+pub async fn avatars(State(served): State<Served>, Query(asked): Query<AvatarCursor>) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+  let bound = i64::min(asked.limit.unwrap_or(AVATAR_PAGE).max(1), AVATAR_MAX_PAGE) + 1;
+  let mut kept = reads::avatars(receiver.db(), asked.after, bound).await.map_err(store)?;
+  let more = i64::try_from(kept.len()).unwrap_or(0) == bound;
+
+  if more {
+    kept.pop();
+  }
+
+  let items: Vec<serde_json::Value> = kept
+    .iter()
+    .map(|avatar| json!({ "kind": avatar.kind, "id": avatar.subject_id, "takenAt": avatar.taken_at }))
+    .collect();
+
+  answered(json!({ "items": items, "more": more }))
+}
+
+/// The bytes of a room's kept profile picture.
+pub async fn room_avatar(
+  State(served): State<Served>,
+  Path(room): Path<i64>,
+  request: Request,
+) -> Result<Response, Refusal> {
+  avatar_bytes(&served, "room", room, request).await
+}
+
+/// The bytes of a person's kept profile picture.
+pub async fn person_avatar(
+  State(served): State<Served>,
+  Path(person): Path<i64>,
+  request: Request,
+) -> Result<Response, Refusal> {
+  avatar_bytes(&served, "person", person, request).await
+}
+
+// A kept picture served from the data root's avatars folder alone.
+async fn avatar_bytes(
+  served: &Served,
+  kind: &str,
+  subject: i64,
+  request: Request,
+) -> Result<Response, Refusal> {
+  let receiver: Receiver = (*served.receiver).clone();
+  let kept = reads::avatar_of(receiver.db(), kind, subject).await.map_err(store)?;
+  let folder = receiver.data_root().avatars();
+  let Some(real) = kept.and_then(|avatar| avatar.path).and_then(|stored| inside(&folder, &stored)) else {
+    return Err(nothing_held(&format!("The receiver keeps no picture of {kind} {subject}.")));
+  };
+
+  Ok(served_file(&real, request).await)
+}
+
 // A file served as HTTP serves one: its type, its length, and the range a request asks for.
 async fn served_file(path: &FilePath, request: Request) -> Response {
   match ServeFile::new(path).oneshot(request).await {

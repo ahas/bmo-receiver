@@ -359,6 +359,39 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/avatars",
+    "avatars",
+    "Rooms",
+    "The profile pictures kept, oldest taken first.",
+    vec![parameter("after", "integer", false), parameter("limit", "integer", false)],
+    None,
+    vec![(200, json_answer::<Avatars>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/rooms/{roomId}/avatar",
+    "roomAvatar",
+    "Rooms",
+    "The bytes of a room's kept profile picture.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, bytes_answer())],
+    vec!["unauthorized", "not-found"]
+  );
+  add!(
+    "GET",
+    "/people/{personId}/avatar",
+    "personAvatar",
+    "Rooms",
+    "The bytes of a person's kept profile picture.",
+    vec![path_parameter("personId")],
+    None,
+    vec![(200, bytes_answer())],
+    vec!["unauthorized", "not-found"]
+  );
+  add!(
+    "GET",
     "/rooms/{roomId}/pictures",
     "pictures",
     "Rooms",

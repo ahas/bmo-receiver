@@ -185,10 +185,16 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `GET /rooms/{roomId}/messages/{messageId}/picture` | | the picture's bytes |
 | `GET /rooms/{roomId}/day-start` | `from` (epoch milliseconds) | `messageId`, the first message a person said at or after it, or null |
 | `GET /rooms/{roomId}/pictures` | `at`, `before`, `after`, `limit` | a page of `Picture`, `before` and `total` |
+| `GET /avatars` | `after`, `limit` | a page of `Avatar`: the profile pictures kept, oldest taken first |
+| `GET /rooms/{roomId}/avatar` | | the room's kept profile picture, as its bytes |
+| `GET /people/{personId}/avatar` | | the person's kept profile picture, as its bytes |
 
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null)
   and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+- **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
+  `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
+  or its file is gone (`docs/pictures.md`, 「Profile pictures」).
 - **`agentName` and `voice`** stand on a send the receiver archived itself, naming the agent whose words these are
   and the voice the send went out in (`bot-account`, `human-avatar`, `human-reader`); both are null on a message
   that came in from a provider, which the provider's echo of the receiver's own send keeps, since that message is

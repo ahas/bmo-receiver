@@ -3,6 +3,7 @@
 //! setting commands acknowledged in the room's own voice, a file kept beside its message, an edit written in
 //! place, and the chat services' hand-overs taken behind the receiver's token.
 
+mod avatars;
 mod commands;
 mod console_rooms;
 mod files;

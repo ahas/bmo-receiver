@@ -250,6 +250,35 @@ pub struct Pictures {
   pub total: i64,
 }
 
+/// One profile picture the archive keeps.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Avatar {
+  /// `room` or `person`.
+  pub kind: String,
+  pub id: i64,
+  /// Epoch milliseconds.
+  pub taken_at: i64,
+}
+
+/// The profile pictures kept, oldest taken first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Avatars {
+  pub items: Vec<Avatar>,
+  pub more: bool,
+}
+
+/// The page of pictures asked for.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AvatarQuery {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub after: Option<i64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub limit: Option<i64>,
+}
+
 /// One agent's figures in a room.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
