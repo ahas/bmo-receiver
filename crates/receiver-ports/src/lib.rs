@@ -8,6 +8,7 @@ pub mod chat;
 pub mod gate;
 pub mod http;
 pub mod job;
+pub mod tool_host;
 pub mod warmer;
 pub mod web;
 

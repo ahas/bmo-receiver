@@ -250,6 +250,36 @@ written by the wake itself: the deployment briefing, what went live since the ow
 - **No other room hears of it.** The briefing is said in the owner's private chat alone; the room whose round
   found the deployments is told nothing of them.
 
+### The tool host's changes
+
+- **A tool placed on the tool host or taken from it is told to each chat agent it concerns,** as the host
+  publishes it (`docs/boundary-api.md`, 「The tool host」): one instruction a chat agent whose standing tool session
+  holds one of the event's namespaces, nothing to an agent whose session holds none of them.
+- **The instruction is a fact** in the tool host policy's words (`policy/tool-host.toml`): which tool was placed,
+  updated (a placing that replaced another version of it) or removed, each entry by its full name, how it is
+  reached (`call` or `act`) and the first sentence of its description; that a tool is read with
+  `bmo use <tool> --describe` before it is called; and that nothing needs saying in any room.
+- **It rides and wakes nobody** (`docs/bmo-window.md`, 「Rows that ride」): it is queued in the owner's private chat
+  under the kind `tools-changed:<agent>:<tool>`, so a later change of the same tool replaces the agent's one not
+  yet handed over, and rides for good in a round of any room the agent's session answers.
+
+### A road's change
+
+- **The agency's `road.changed` is told to the owner once,** through the chat agent's session in his private
+  chat, as the deployment briefing is (the agency's `docs/api.md`, 「Events」): one instruction an event, in the
+  owner facts' words (`policy/owner-facts.toml`, `[road]`), under the kind `road-changed:<key>`, so a newer fact of the same
+  work key replaces one still waiting and none is said twice.
+- **What it carries:** for `road-moved`, the work key, the road it moved from and the road it moved to, each its
+  provider, model and account, and every provider's reason it passed; for `road-returned`, the road it is back on
+  and the one it left; for `road-closed`, every provider's reason, the command the agency names for reopening a
+  road, set on a line of its own exactly as the agency wrote it, and the moment the first road reopens by itself.
+- **It asks for one sentence to the owner,** in his language and in the agent's own words: what moved from what to
+  what and why, or what is closed, what the owner does and when it reopens. A command is passed on character for
+  character in a code span, never reworded or translated, since a command reworded does not run. The instruction
+  withholds the silence.
+- **It is the owner's own and opens his turn:** a road that moved or closed is a failure the owner is not to hear
+  late, so it never rides. No other room hears of it.
+
 ## What the agency's events wake
 
 Each event the receiver reads (`docs/boundary-api.md`, 「The agency」) is heard by the part its effect belongs
@@ -262,6 +292,7 @@ opens a round there like any instruction:
   past its clock」).
 - **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency
   words it; neither wakes anyone.
+- **A road's change:** `road.changed`, told to the owner as 「Quiet instructions」 above states.
 
 ## A job's end
 

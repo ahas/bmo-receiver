@@ -29,8 +29,9 @@ policy's (`docs/drafting.md`, 「The questions」).
 | `code-review.toml` | the lines a code review's talk is composed in, the places a review is pinned to, how much of the reviewed lines a turn carries | the talks |
 | `kept.toml` | how long a chat service's facts of a room and the agency's list of agents are kept before they are asked again, in seconds (`docs/receiver.md`, 「What is kept for a moment」) | the roads' room facts, every read of the agents |
 | `queue.toml` | how long the owner may hold a job's question clock stopped from the console | the owner's answer to a job's question |
-| `owner-facts.toml` | what the owner's session is told of the agency's events that no other part words: the facts and follow-ups of a worker fallen to a lesser model, and the lines of the overtime order | the workers' facts, the overtime order |
+| `owner-facts.toml` | what the owner's session is told of the agency's events that no other part words: a road the agency moved, returned or found closed, the facts and follow-ups of a worker fallen to a lesser model, and the lines of the overtime order | the workers' facts, the overtime order |
 | `commands.toml` | the owner's in-room command phrases (each command's plain form first), the polite endings a command may carry, and the suffix an answer to a job's question may put after an option's number | the receiver's commands, a question's answer |
+| `tool-host.toml` | how long the tool host's stream waits before it is opened again and how long it may stay silent, and the words a chat agent is told a tool placed, updated or removed in: each entry's line, what closes the instruction, its kind, sort and summary | the tool host's changes (`docs/wake.md`, 「Quiet instructions」) |
 | `scripts.toml` | the Hangul and kana blocks, the modern Hangul syllables, and the ranges a label's width counts as a whole em | the wording check, a round's language note, the web addresses a text names, the answer checks, a labelled picture |
 
 ## Keys the receiver takes from files the agency also holds

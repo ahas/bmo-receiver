@@ -31,6 +31,7 @@ mod session_replacement;
 mod stop_notice;
 mod store;
 mod talks;
+mod tools_heard;
 mod verbs_draws;
 mod verbs_messages;
 mod wake;

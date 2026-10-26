@@ -30,7 +30,8 @@ delegation notice names; the infrastructure room, where one is named; the langua
 a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; the brain
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code
 stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's
-`.local/share` where it names none; and each chat service's road name with its base address and token.
+`.local/share` where it names none; the tool host's control socket, `tool_host_socket`, where it stands apart
+from the one 「The tool host」 below finds; and each chat service's road name with its base address and token.
 
 ### The service and its commands
 
@@ -139,7 +140,7 @@ room's matter.
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
 and is opened again when it drops: `turn.created`, `turn.ended`, `companion-reset.created`,
 `document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
-`overtime-request.created` and `overtime-request.changed`.
+`overtime-request.created`, `overtime-request.changed` and `road.changed`.
 
 A turn of a round names the round in its body, and the agency opens the turn's run in its ledger under that name.
 Once the round's answer is filed in the room, the receiver asks for the round's runs and attaches the answer, as
@@ -190,6 +191,28 @@ reads `at`, the moment it went live, as an RFC 3339 time or epoch milliseconds; 
 where the record carries one, else `summary`, else `subject`; the commit, its first twelve characters; and the
 version, `version` where the record carries one, else the `VERSION` file of the release the deploy root's `deploy`
 link stands on, else that commit. A folder with no record, or a record with no time that reads, is no deployment.
+
+### The tool host
+
+bmo-pocket's `docs/api.md`, 「The control socket」. The receiver reaches it over HTTP on its control socket — the
+path the configuration's `tool_host_socket` names, else `BMO_MCP_HOST_SOCKET`, else `bmo/mcp-host.sock` under the
+user's runtime directory — with the issuer token the host keeps in `tool-host/issuer-token` under the data root,
+read again at every connection. Where no socket can be named, nothing is heard of it.
+
+| What | Route | Read |
+|---|---|---|
+| the catalogue's changes | `GET /events?kinds=tool.placed,tool.removed`, resumed with `after` | each event's `id`, `kind` and `data`: `tool`, `namespaces`, `entries` (`tool`, `reachedBy`, `summary`) and `replaced` |
+| the tool sessions standing | `GET /tool-sessions`, paged by `after` | each session's `holderName` and `namespaces` |
+
+- **The stream is heard for as long as the service runs.** It is resumed after the last event read; one answered
+  `410 gone` is opened again with no cursor, since the host keeps no event of an earlier run; one that drops, or
+  hears neither a frame nor the host's ping for a minute, is opened again after the policy's wait
+  (`policy/tool-host.toml`). What the host published while nothing listened is heard by nobody, as the host's own
+  document says.
+- **Whose tools an event changes** is read off the tool sessions standing when it is heard: a chat agent of the
+  agency's registration (`GET /agents`, its `kind` `chat`) is told of an event whose namespaces meet those of a
+  session the host holds for it (`docs/wake.md`, 「Quiet instructions」). An agent with no session standing is told
+  nothing; its next session's record shows it the host's tools as they are.
 
 ### The web unit
 

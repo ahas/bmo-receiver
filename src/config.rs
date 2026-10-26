@@ -60,6 +60,10 @@ pub struct Config {
   pub document_tree: Option<PathBuf>,
   #[serde(default)]
   pub deploy_roots: Option<PathBuf>,
+  /// The tool host's control socket, where it stands apart from the one the environment or the runtime directory
+  /// names.
+  #[serde(default)]
+  pub tool_host_socket: Option<PathBuf>,
   pub agency: Peer,
   pub gate: Peer,
   pub job: Peer,
@@ -153,6 +157,21 @@ impl Config {
 
       Some(PathBuf::from(home).join(".local").join("share"))
     })
+  }
+
+  /// The tool host's control socket and the file its issuer token stands in (docs/boundary-api.md, 「The tool
+  /// host」): the socket the configuration names, else `BMO_MCP_HOST_SOCKET`, else `bmo/mcp-host.sock` under the
+  /// user's runtime directory; none where none of them is named.
+  pub fn tool_host(&self) -> Option<(PathBuf, PathBuf)> {
+    let named =
+      |variable: &str| std::env::var_os(variable).filter(|value| !value.is_empty()).map(PathBuf::from);
+    let socket = self
+      .tool_host_socket
+      .clone()
+      .or_else(|| named("BMO_MCP_HOST_SOCKET"))
+      .or_else(|| named("XDG_RUNTIME_DIR").map(|runtime| runtime.join("bmo").join("mcp-host.sock")))?;
+
+    Some((socket, self.data_root.join("tool-host").join("issuer-token")))
   }
 
   /// A receiver on the database, for this configuration's deployment and units, with its database's place

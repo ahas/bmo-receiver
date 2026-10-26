@@ -196,6 +196,7 @@ pub fn hearing(standing: &Standing) -> Hearing {
     Arc::new(Logins::new(receiver.clone())),
     Arc::new(Workers::new(receiver.clone())),
     Arc::new(Overtime::new(receiver.clone())),
+    Arc::new(crate::road_facts::RoadChanges::new(receiver.clone())),
   ];
 
   Hearing::new(hearers)

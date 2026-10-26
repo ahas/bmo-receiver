@@ -9,5 +9,6 @@ mod chat;
 mod gate;
 mod http;
 mod job;
+mod tool_host;
 mod warmer;
 mod web;

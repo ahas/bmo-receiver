@@ -20,4 +20,6 @@ tokio = { workspace = true, features = ["time"] }
 [dev-dependencies]
 # The stand-in each port's client is tried against.
 axum.workspace = true
+# The tool host's stand-in stands on a socket in a folder of the test's own.
+tempfile.workspace = true
 tokio = { workspace = true, features = ["net"] }

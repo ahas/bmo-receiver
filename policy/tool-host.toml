@@ -1,0 +1,25 @@
+# What the receiver hears of the tool host's catalogue and tells the chat agents of it (docs/boundary-api.md,
+# 「The tool host」; docs/wake.md, 「Quiet instructions」, 「The tool host's changes」). `{name}` marks what each line
+# carries.
+
+# How long the stream waits before it is opened again once it dropped or could not be opened, and how long it
+# may hear nothing, not even the host's ping, before it is read as dropped, in seconds.
+reopen_seconds = 5
+silent_seconds = 60
+
+# The instruction a chat agent is told by: one line stands at a time for each agent and tool, the kind this, the
+# agent's name and the tool's, under the sort named.
+kind = "tools-changed"
+sort = "tools-changed"
+summary = "The tool host's {tool} changed"
+# What became of the {tool}, and its {entries}, each written as `entry` with its full {name}, how it is
+# {reached} and the first sentence of its description ({summary}), joined by `joint`.
+placed = "The tool host now serves {tool}: {entries}."
+updated = "The tool host serves an updated {tool}, replacing the version it served before: {entries}."
+removed = "The tool host no longer serves {tool}; these entries are gone: {entries}."
+entry = "{name} ({reached}) — {summary}"
+joint = "; "
+no_entries = "no entry shown to a session"
+# What every such instruction closes on.
+read_first = "Read a tool with `bmo use <tool> --describe` before you call it, and never call one this list says is gone."
+nothing_said = "Nothing needs saying in any room: this only tells you what your tools are now."

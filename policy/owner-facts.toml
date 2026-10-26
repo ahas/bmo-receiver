@@ -40,3 +40,27 @@ steps = [
 # The order of one run stands at a time: the kind is this and the run's name.
 kind = "overtime"
 sort = "overtime"
+
+# A work key's road the agency moved, returned or found closed (docs/wake.md, 「Quiet instructions」, 「A road's
+# change」): the {key}, a road as its {provider}, {model} and {account}, each provider's {reason}, the {command}
+# a person reopens a road with, set apart exactly as the agency wrote it, and the moment ({at}) the first road
+# reopens. One line stands at a time for each key: the kind is this and the key.
+[road]
+kind = "road-changed"
+sort = "road"
+road = "{provider} · {model}"
+road_account = "{provider} · {model} (account {account})"
+road_none = "the head of its order"
+reason = "{provider}: {reason}"
+reasons_joint = "; "
+reasons_none = "the agency named no reason"
+moved = "The work of {key} moved from {from} to {to}. The roads passed, and why: {reasons}."
+returned = "The work of {key} is back on {to}, from {from}."
+closed = "No road of {key} can answer now. Why each road could not: {reasons}."
+command = "The owner reopens it with this command, written here exactly as the agency gave it, on a line of its own:\n{command}"
+no_command = "Nothing waits on the owner: each road reopens by itself."
+reopens = "The first road reopens by itself at {at}."
+intent = "tell the owner, in his private chat, what became of the road the work goes out on."
+follow_up = "Tell the owner now in one sentence, in his language and in your own words: what moved from what to what and why, or what is closed and why. Where the facts carry a command, give it after that sentence exactly as written, character for character, in a code span: never reword, shorten or translate it, since a command reworded does not run. Name the moment it reopens where the facts name one. Do not answer <<SKIP>>: the owner is to hear it."
+# How the instruction is laid out: the {fact}, then what it is for ({intent}) and what follows ({follow_up}).
+frame = "{fact}\n\nWhat this is for: {intent}\n\nWhat follows: {follow_up}"

@@ -177,6 +177,23 @@ impl Caller {
     }
   }
 
+  /// A caller of a unit that answers on a Unix socket rather than at an address: the peer's base names the path's
+  /// scheme and host the requests carry, and every connection is the socket's.
+  pub fn over_socket(socket: &std::path::Path, peer: &Peer) -> Self {
+    let client = Client::builder()
+      .no_proxy()
+      .unix_socket(socket)
+      .build()
+      .expect("a client on a socket with no TLS and no proxy always builds");
+
+    Self {
+      base: peer.base.clone(),
+      token: peer.token.clone(),
+      patience: Patience::default(),
+      client,
+    }
+  }
+
   pub fn with_patience(mut self, patience: Patience) -> Self {
     self.patience = patience;
     self

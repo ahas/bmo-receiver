@@ -14,6 +14,7 @@ use bmo_receiver::companion::reset::{RESET, Reset, Resets, take};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::hearing::{Hearer, Hearing};
 use bmo_receiver::receiver::wake::rest::{RESTING, Rests};
+use bmo_receiver::road_facts::{ROAD_CHANGED, RoadChanges};
 use bmo_receiver::store::settings;
 use bmo_receiver::verbs::reload::{DOCUMENTS_MOVED, Places, Reloads};
 use bmo_receiver::workers::{DOWNGRADED, Workers};
@@ -88,6 +89,7 @@ impl Heard {
       Arc::new(Logins::new(receiver.clone())),
       Arc::new(Workers::new(receiver.clone())),
       Arc::new(Overtime::new(receiver.clone())),
+      Arc::new(RoadChanges::new(receiver.clone())),
     ];
 
     Hearing::new(hearers).keep(standing.agency.clone());
@@ -379,6 +381,81 @@ async fn a_worker_fallen_to_a_lesser_model_is_voiced_to_the_owner() {
   assert!(rows[0].text.contains("It happened on job #9."));
   assert!(rows[0].text.contains("That session has been dropped"));
   assert!(rows[0].expires_at.is_some(), "the notice lapses");
+}
+
+#[tokio::test]
+async fn a_closed_road_is_told_to_the_owner_once_its_command_set_apart_exactly_as_the_agency_wrote_it() {
+  let heard = Heard::on().await;
+  let command = r#"CLAUDE_CONFIG_DIR="/srv/accounts/account a" claude auth login --console 'x'"#;
+
+  heard.session.told(
+    ROAD_CHANGED,
+    json!({
+      "fact": "road-closed", "key": "bmo",
+      "reasons": [{ "provider": "claude-code", "reason": "the login is gone" }, { "provider": "deepseek", "reason": "the balance is spent" }],
+      "command": command, "reopensAt": 1_900_000_000,
+    }),
+  );
+
+  let rows = heard.kept("road-changed:bmo", 1).await;
+
+  assert_eq!(
+    (rows[0].agent.as_str(), rows[0].chat_id, rows[0].rides),
+    (AGENT, OWNER, 0),
+    "it opens the owner's turn"
+  );
+  assert!(
+    rows[0].text.lines().any(|line| line == command),
+    "the command stands whole on a line: {}",
+    rows[0].text
+  );
+  assert!(rows[0].text.contains("claude-code: the login is gone; deepseek: the balance is spent"));
+  assert!(rows[0].text.contains("2030-03-17T17:46:40Z"), "{}", rows[0].text);
+  assert!(rows[0].text.contains("character for character"));
+
+  // A newer fact of the same key takes the place of one not yet told, so none is said twice.
+  heard.session.told(
+    ROAD_CHANGED,
+    json!({
+      "fact": "road-moved", "key": "bmo",
+      "from": { "provider": "claude-code", "model": "model-a", "account": "account-a" },
+      "to": { "provider": "deepseek", "model": "model-b", "account": null },
+      "reasons": [{ "provider": "claude-code", "reason": "the login is gone" }],
+    }),
+  );
+
+  until("the moved fact", || async {
+    heard
+      .of_kind("road-changed:bmo")
+      .await
+      .iter()
+      .any(|row| row.text.contains("The work of bmo moved from"))
+  })
+  .await;
+
+  let rows = heard.of_kind("road-changed:bmo").await;
+  let moved: Vec<&Row> =
+    rows.iter().filter(|row| row.text.contains("The work of bmo moved from")).collect();
+
+  assert_eq!(moved.len(), 1);
+  assert!(
+    rows.iter().filter(|row| row.text.contains("No road of bmo")).count() <= 1,
+    "none is said twice"
+  );
+  assert!(
+    moved[0]
+      .text
+      .contains("moved from claude-code · model-a (account account-a) to deepseek · model-b"),
+    "{}",
+    moved[0].text
+  );
+  assert_eq!(
+    heard
+      .count(&format!(r#"SELECT 1 FROM "instructions" WHERE "chat_id" <> {OWNER}"#))
+      .await,
+    0,
+    "no other room hears of it"
+  );
 }
 
 #[tokio::test]

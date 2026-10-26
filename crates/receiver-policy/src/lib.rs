@@ -27,6 +27,7 @@ pub mod run_lines;
 pub mod scripts;
 pub mod second_asks;
 pub mod talk;
+pub mod tool_host;
 pub mod wake;
 
 /// A line of the policy with each `{name}` it holds filled in, every one at once so a value that itself holds a

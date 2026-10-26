@@ -165,11 +165,13 @@ round.
     outcome fact, which follows within seconds, opens the one turn and the line goes in with it. A deployment
     that tells no outcome leaves the line to open its own turn when the while is up.
   - The queue standing open at start-up rides for the same while, into the same turn.
+  - A change of the tool host's tools rides for good, in a round of any room the chat agent's session answers
+    (`docs/wake.md`, 「Quiet instructions」).
   - The deployment briefing rides the owner's next round, written just before that round asks for its riders, for
     the restart's while. A round of another room that finds deployments since the last briefing writes the row for
     the owner's chat and does not carry it.
-- **What never rides:** anything the owner must not hear late (a job's ending, a failure, a question or a stop,
-  a deployment's outcome, a result somebody asked for) and anything that is the machine's only wake for work to
+- **What never rides:** anything the owner must not hear late (a job's ending, a failure, a road that moved or
+  closed, a question or a stop, a deployment's outcome, a result somebody asked for) and anything that is the machine's only wake for work to
   move: a queue standing empty with work waiting, a job gone quiet. Those turns often do their work in tool
   calls and say nothing, so a `<<SKIP>>` there is not an idle turn.
 - **How a rider gets in.** The instruction pass hands a rider over at the start of a round that may carry it

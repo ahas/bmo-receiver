@@ -25,6 +25,8 @@ use bmo_receiver::store::migration::migrate;
 use bmo_receiver::tool_env::{Written, base_address, write_env};
 use bmo_receiver::verbs::VerbError;
 use clap::{Parser, Subcommand};
+use receiver_policy::tool_host::TOOL_HOST;
+use receiver_ports::tool_host::HttpToolHost;
 use reqwest::Client;
 use serde::Deserialize;
 use tokio::net::TcpListener;
@@ -166,6 +168,14 @@ async fn serve(config: &Config) -> Result<(), String> {
   };
 
   keep(&standing);
+
+  // The tool host's catalogue is heard where a control socket can be named (docs/boundary-api.md, 「The tool
+  // host」).
+  if let Some((socket, token_file)) = config.tool_host() {
+    let host = HttpToolHost::new(socket, token_file, Duration::from_secs(TOOL_HOST.silent_seconds));
+
+    bmo_receiver::tools_heard::keep(standing.receiver.clone(), Arc::new(host));
+  }
 
   let listener = TcpListener::bind(&config.listen).await;
   let listener = listener.map_err(|why| format!("{}: {why}", config.listen))?;

@@ -1,5 +1,5 @@
 //! What the owner's session is told of the agency's events that no other part words (docs/policy.md): a worker
-//! fallen to a lesser model, and the overtime order.
+//! fallen to a lesser model, the overtime order, and a road the agency moved, returned or found closed.
 
 use serde::Deserialize;
 
@@ -36,11 +36,35 @@ pub struct Overtime {
   pub sort: String,
 }
 
+/// A work key's road the agency moved, returned or found closed, as the owner is told it.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Road {
+  pub kind: String,
+  pub sort: String,
+  pub road: String,
+  pub road_account: String,
+  pub road_none: String,
+  pub reason: String,
+  pub reasons_joint: String,
+  pub reasons_none: String,
+  pub moved: String,
+  pub returned: String,
+  pub closed: String,
+  pub command: String,
+  pub no_command: String,
+  pub reopens: String,
+  pub intent: String,
+  pub follow_up: String,
+  pub frame: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OwnerFacts {
   pub worker_downgraded: WorkerDowngraded,
   pub overtime: Overtime,
+  pub road: Road,
 }
 
 crate::part!(pub OWNER_FACTS: OwnerFacts = "owner-facts.toml");
