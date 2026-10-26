@@ -389,8 +389,10 @@ repository's, in `VERSION`; it is never taken from a registry.
   its open window alone let in, `turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is
   empty), `answerChars`,
   `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`,
-  `ceiling-message` or `ceiling-skip` for the end), `detail` (or null), `answer` (or null), `ms` and `at`. The rows
-  of a round stand in the order they were written.
+  `ceiling-message` or `ceiling-skip` for the end), `detail` (or null), `answer` (or null), `ms`, `at` and `reads`:
+  on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
+  `read`; `docs/drafting.md`, 「The round log」), and empty on every other row. The rows of a round stand in the
+  order they were written.
 
 ## The draft process
 
@@ -409,7 +411,9 @@ repository's, in `VERSION`; it is never taken from a registry.
   `pastCeiling`, `send` or `skip`; and `source`, `set` where the console set the row and `default` where the
   policy's stands (`docs/drafting.md`, 「The process table」). The page holds the policy's rows in their order,
   each replaced by the console's of the same key, then the console's own keys.
-- **A `DraftQuestion`** is `name`, `text` and `source`.
+- **A `DraftQuestion`** is `name`, `text` and `source`. The page opens on `supervisor`, the text the agent's own
+  judgement of whether to answer opens on (`docs/drafting.md`, 「The routes」), set like any question; a list that
+  names it is refused `bad-request`.
 - **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
   hold, where a list that holds questions does not end in `final` or holds it before its end, where `sendFrom` is
   not empty and names no question of `rounds`, where the ceiling or a turn's bound is outside 1 to 3,600

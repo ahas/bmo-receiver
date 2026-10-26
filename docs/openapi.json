@@ -735,6 +735,31 @@
         ],
         "type": "object"
       },
+      "DraftRead": {
+        "description": "One thing a round read from the brain (docs/drafting.md, 「The round log」).",
+        "properties": {
+          "holds": {
+            "description": "The index's words for it, where the gate's index lists it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "how": {
+            "description": "`attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session\nholding that version) or `read` (a piece the agent read itself through the index during the round).",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "holds",
+          "how"
+        ],
+        "type": "object"
+      },
       "DraftRound": {
         "description": "One turn of a round's draft process, or its end.",
         "properties": {
@@ -788,6 +813,14 @@
           },
           "question": {
             "type": "string"
+          },
+          "reads": {
+            "default": [],
+            "description": "On the end, what the round read from the brain; empty on every other row.",
+            "items": {
+              "$ref": "#/components/schemas/DraftRead"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -802,7 +835,8 @@
           "detail",
           "answer",
           "ms",
-          "at"
+          "at",
+          "reads"
         ],
         "type": "object"
       },

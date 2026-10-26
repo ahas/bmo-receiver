@@ -138,10 +138,11 @@ its rounds.
 - **Words the agent was not named in are judged first, by the agent itself.** In a room that is not the owner's
   private chat, a round whose every message reached the session on its open window alone — none of them names
   the agent (「The names and the window」), replies to its words or stands in a private chat — opens with the
-  agent's own judgement of whether to answer: one light turn of the same session carrying the room's recent words
-  in the room shape and the words being judged, and the round policy's question (`chat-round.toml`,
-  `[supervisor]`) whether they are said to it or want its answer. It carries no reference and no index, and
-  nothing of it passes any gate. `<<SKIP>>` ends the round there: nothing is sent, the words are
+  agent's own judgement of whether to answer, the round's very first step, before every pregate: one light turn
+  of the same session opening on the draft catalogue's `supervisor` text (the round policy's head and question,
+  `chat-round.toml`, `[supervisor]`, where the console set none; `docs/drafting.md`, 「The routes」), then the
+  room's recent words in the room shape and the words being judged — whether they are said to it or want its
+  answer. It carries no reference and no index, and nothing of it passes any gate. `<<SKIP>>` ends the round there: nothing is sent, the words are
   read and the window keeps the time it had, as a skipped round leaves it. Any other answer opens the ordinary
   round, its reference and its draft process. A round with a named call, a reply, words of a
   private chat or the owner's chat skips this step. The judgement is a row of the round log of its own kind,

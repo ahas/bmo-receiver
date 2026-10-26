@@ -822,6 +822,21 @@ pub struct DraftRound {
   pub ms: i64,
   /// Epoch milliseconds.
   pub at: i64,
+  /// On the end, what the round read from the brain; empty on every other row.
+  #[serde(default)]
+  pub reads: Vec<DraftRead>,
+}
+
+/// One thing a round read from the brain (docs/drafting.md, 「The round log」).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftRead {
+  pub path: String,
+  /// The index's words for it, where the gate's index lists it.
+  pub holds: Option<String>,
+  /// `attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session
+  /// holding that version) or `read` (a piece the agent read itself through the index during the round).
+  pub how: String,
 }
 
 /// A row of the draft process table (docs/drafting.md, 「The process table」).

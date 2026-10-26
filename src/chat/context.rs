@@ -72,8 +72,15 @@ pub fn fingerprint(room: &RoomContext) -> String {
 }
 
 // Where a room's block stands in the session's record of what it was sent in full.
+const ROOM_PATHS: &str = "room-context/";
+
 fn room_path(chat_id: i64) -> String {
-  format!("room-context/{chat_id}")
+  format!("{ROOM_PATHS}{chat_id}")
+}
+
+/// Whether a path the session holds is a room's block rather than a document.
+pub fn room_block(path: &str) -> bool {
+  path.starts_with(ROOM_PATHS)
 }
 
 // Why the agency's record of what a session holds could not be read or written.

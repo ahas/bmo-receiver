@@ -1346,6 +1346,17 @@ export interface components {
         DraftQuestionSet: {
             text: string;
         };
+        /** @description One thing a round read from the brain (docs/drafting.md, 「The round log」). */
+        DraftRead: {
+            /** @description The index's words for it, where the gate's index lists it. */
+            holds: string | null;
+            /**
+             * @description `attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session
+             *     holding that version) or `read` (a piece the agent read itself through the index during the round).
+             */
+            how: string;
+            path: string;
+        };
         /** @description One turn of a round's draft process, or its end. */
         DraftRound: {
             agentName: string;
@@ -1380,6 +1391,11 @@ export interface components {
              */
             outcome: string;
             question: string;
+            /**
+             * @description On the end, what the round read from the brain; empty on every other row.
+             * @default []
+             */
+            reads: components["schemas"]["DraftRead"][];
         };
         /** @description A room's figures. */
         Figures: {

@@ -102,7 +102,8 @@ impl Failure {
 }
 
 /// A turn's answer as the round reads it: its words, the mode it answered in, the session it went out on, what
-/// the session now holds against the window it holds it in, and the run whose log holds its calls.
+/// the session now holds against the window it holds it in, the run whose log holds its calls and what the session
+/// held as the turn went out.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Reply {
   pub text: String,
@@ -117,6 +118,8 @@ pub struct Reply {
   pub tier: Option<String>,
   pub replaced: Vec<SessionReason>,
   pub run: Option<String>,
+  /// What the session held as the turn went out, which what a round read is counted from.
+  pub before: super::draft::Before,
 }
 
 impl Reply {
@@ -1854,14 +1857,15 @@ impl Conversations {
     };
     let recent_lines = reading.lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
     let judged_lines = reading.lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
-    let mut parts = vec![said.head.clone(), String::new(), said.recent.clone()];
+    let opening = super::draft::table::supervisor_text(receiver.db())
+      .await
+      .map_err(|why| Failure::Failed(why.detail))?;
+    let mut parts = vec![opening, String::new(), said.recent.clone()];
 
     parts.extend(recent_lines);
     parts.push(String::new());
     parts.push(said.judged.clone());
     parts.extend(judged_lines);
-    parts.push(String::new());
-    parts.push(said.question.clone());
 
     let started = now_ms();
     let asking = Asking {
@@ -1951,6 +1955,11 @@ impl Conversations {
   /// 「The full reading on a line's chip」): one light turn of the reading's quiet instruction, held behind any
   /// round of the agent's; none where the session wrote nothing or the turn failed.
   pub async fn spoken(&self, chat_id: i64, line: &str) -> Option<String> {
+    // A session past its cache lifetime is never woken (docs/unified-bmo.md, 「Replacing the session」).
+    if super::cache::expired(self.receiver().db(), self.agent()).await {
+      return None;
+    }
+
     let _turn = self.0.turn.lock().await;
     let mut held = self.held_session(chat_id).await;
     let asking = Asking {

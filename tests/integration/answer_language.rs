@@ -34,13 +34,13 @@ fn said(message_id: i64, sender: i64, name: &str, text: &str) -> Inbound {
   }
 }
 
-fn korean(name: &str) -> String {
+fn fixture(name: &str) -> String {
   std::fs::read_to_string(format!("tests/fixtures/{name}")).unwrap().trim().to_owned()
 }
 
 #[test]
 fn only_prose_names_its_writers_language() {
-  assert_eq!(prose_language(&korean("addressing-korean.txt")), Some("ko"));
+  assert_eq!(prose_language(&fixture("addressing-korean.txt")), Some("ko"));
   assert_eq!(prose_language("What time is the meeting tomorrow?"), Some("en"));
 
   for no_prose in [
@@ -56,7 +56,7 @@ fn only_prose_names_its_writers_language() {
 
   // A placeholder's own Latin letters weigh nothing beside a caption written in another language.
   assert_eq!(
-    prose_language(&format!("[File taskNode.7z] {}", korean("addressing-korean.txt"))),
+    prose_language(&format!("[File taskNode.7z] {}", fixture("addressing-korean.txt"))),
     Some("ko")
   );
   assert_eq!(
@@ -71,7 +71,7 @@ async fn a_file_message_does_not_change_a_persons_language() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
-  let written = said(1, 2, "person-a", &korean("addressing-korean.txt"));
+  let written = said(1, 2, "person-a", &fixture("addressing-korean.txt"));
   let file = said(2, 2, "person-a", "[File taskNode.7z]");
 
   // The person's Korean prose on the page names their language, and the file they send after it does not move it.
@@ -118,7 +118,7 @@ async fn two_people_of_two_languages_get_two_clauses_and_an_answer_to_each_in_th
   let data = tempdir().unwrap();
   let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
   let batch = [
-    said(1, 2, "person-a", &korean("addressing-korean.txt")),
+    said(1, 2, "person-a", &fixture("addressing-korean.txt")),
     said(2, 3, "person-b", "What time is the meeting tomorrow?"),
     said(3, OWN, "the agent", "An earlier answer of the agent's own."),
   ];
@@ -148,9 +148,9 @@ async fn two_people_of_two_languages_get_two_clauses_and_an_answer_to_each_in_th
     own_lines: &[],
     max_chars: 4_000,
   };
-  let korean_answer = korean("answer-korean.txt");
+  let korean_answer = fixture("answer-korean.txt");
   let english_answer = "The meeting starts at three in the afternoon, in the main hall.";
-  let japanese_answer = "\u{304A}\u{306F}\u{3088}\u{3046} \u{3054}\u{3056}\u{3044}\u{307E}\u{3059} \u{3042}\u{308A}\u{304C}\u{3068}\u{3046} \u{3055}\u{3088}\u{3046}\u{306A}\u{3089}";
+  let japanese_answer = &fixture("answer-japanese.txt");
 
   assert_eq!(failing(&format!("{korean_answer}\n\n{english_answer}"), &reading), vec![]);
   assert_eq!(
@@ -167,7 +167,7 @@ async fn one_person_is_one_clause_and_a_korean_answer_to_a_korean_speaker_passes
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
-  let batch = [said(1, 2, "person-a", &korean("addressing-korean.txt"))];
+  let batch = [said(1, 2, "person-a", &fixture("addressing-korean.txt"))];
   let found = addressees(&receiver, ROOM, OWNER, &batch, &[], Some(OWN)).await.unwrap();
   let languages = held_to(&receiver, &found);
   let people = clauses(&found);
@@ -180,7 +180,7 @@ async fn one_person_is_one_clause_and_a_korean_answer_to_a_korean_speaker_passes
   };
 
   assert_eq!(people, "person-a: ko");
-  assert_eq!(failing(&korean("answer-korean.txt"), &reading), vec![]);
+  assert_eq!(failing(&fixture("answer-korean.txt"), &reading), vec![]);
   assert_eq!(
     failing("The meeting starts at three in the afternoon, in the main hall.", &reading),
     vec![Check::Language]

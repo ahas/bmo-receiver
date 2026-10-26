@@ -286,6 +286,7 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
         "number",
         "outcome",
         "question",
+        "reads",
         "round",
         "type",
       ]
@@ -811,4 +812,85 @@ async fn a_turn_past_its_bound_tells_the_room_once_that_the_agent_is_still_at_wo
     "the turn went on: {sent:?}"
   );
   assert_eq!(sent.len(), 2, "{sent:?}");
+}
+
+#[tokio::test]
+async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_read_itself() {
+  use bmo_receiver::js::bun_hash;
+  use receiver_ports::agency::Load;
+  use receiver_ports::gate::{Entry, IndexEntry, IndexGroup, Source};
+
+  let session = StandInSession::new(SESSION, "the message itself").holding_the_first();
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let entry = |path: &str, text: &str, source: Source| Entry {
+    path: path.to_owned(),
+    text: text.to_owned(),
+    source,
+    fragment: None,
+  };
+  let load = |path: &str, version: &str| Load {
+    path: path.to_owned(),
+    version: version.to_owned(),
+  };
+
+  *round.standing.gate.entries.lock().unwrap() = vec![
+    entry("rooms/42/people/42/sheet.md", "BODY OF A PERSON", Source::Person),
+    entry("memories/42", "BODY OF THE DUE MEMORIES", Source::Memory),
+  ];
+  round.standing.gate.index.lock().unwrap().insert(
+    OWNER,
+    vec![IndexGroup {
+      group: "knowledge".to_owned(),
+      unread: 1,
+      hint: None,
+      entries: vec![IndexEntry {
+        slug: "plans".to_owned(),
+        holds: "the plan for the week".to_owned(),
+        path: "knowledge/plans".to_owned(),
+      }],
+    }],
+  );
+  // The session already holds the person's sheet head at this version, and an earlier piece it read.
+  round.standing.agency.loads.lock().unwrap().insert(
+    SESSION.to_owned(),
+    vec![
+      load("rooms/42/people/42/sheet.md", &bun_hash("BODY OF A PERSON").to_string()),
+      load("knowledge/older", "v1"),
+    ],
+  );
+
+  round.hear(1, ASKED).await;
+  until("the round's turn", || round.session.working()).await;
+  // The agent reads a piece through the index while its turn works.
+  round
+    .standing
+    .agency
+    .loads
+    .lock()
+    .unwrap()
+    .get_mut(SESSION)
+    .unwrap()
+    .push(load("knowledge/plans", "v1"));
+  round.session.let_go();
+  round.ended(1).await;
+
+  let reads = round.scratch.texts(r#"SELECT "reads" FROM "draft_rounds" WHERE "kind" = 'end'"#).await;
+  let reads: serde_json::Value = serde_json::from_str(&reads[0]).unwrap();
+
+  assert_eq!(
+    reads,
+    serde_json::json!([
+      {"path": "memories/42", "holds": null, "how": "attached"},
+      {"path": "rooms/42/people/42/sheet.md", "holds": null, "how": "held"},
+      {"path": "knowledge/plans", "holds": "the plan for the week", "how": "read"},
+    ]),
+    "the core first, then what the agent read itself, named by the index; what it held before is no read"
+  );
+
+  let others = round
+    .scratch
+    .texts(r#"SELECT coalesce("reads", 'none') FROM "draft_rounds" WHERE "kind" <> 'end'"#)
+    .await;
+
+  assert!(others.iter().all(|row| row == "none"), "{others:?}");
 }

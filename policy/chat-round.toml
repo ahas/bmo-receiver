@@ -246,8 +246,9 @@ lead = "The owner typed this turn's line straight into this program rather than 
 answered_chars = 300
 
 # The agent's own judgement that opens a round whose every message reached it on its open window alone
-# (docs/wake.md, 「The room's queue and the round」): the head, the room's recent words and the words judged under
-# their own lines, the question, and the name its row of the round log goes under.
+# (docs/wake.md, 「The room's queue and the round」): the head and the question, which together are the draft
+# catalogue's `supervisor` text where the console set none (docs/drafting.md, 「The routes」), the lines the room's
+# recent words and the words judged stand under, and the name its row of the round log goes under.
 [supervisor]
 head = "BEFORE THIS ROUND: the words below did not name you, did not reply to your words and do not stand in a private chat. Decide first whether to answer them."
 recent = "The room's recent words:"

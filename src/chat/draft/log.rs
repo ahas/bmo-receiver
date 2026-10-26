@@ -107,6 +107,15 @@ impl Ended {
   }
 }
 
+/// One thing a round read from the brain (docs/drafting.md, 「The round log」): its path, the index's words for it
+/// where the index lists it, and how it was read — `attached`, `held` or `read`.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Read {
+  pub path: String,
+  pub holds: Option<String>,
+  pub how: String,
+}
+
 /// The log of one round's process as it is written: the round, the room and the agent, whose conversations tell
 /// each row, the number the next row takes, counted from 1, and the answer the last turn gave, which the next is
 /// compared with.
@@ -159,6 +168,7 @@ impl Log {
       outcome: ended.word(),
       detail: None,
       ms,
+      reads: &[],
     };
 
     self.write(&row).await;
@@ -168,8 +178,9 @@ impl Log {
     }
   }
 
-  /// The process's end written down, with the row of the table it read and why it ended so.
-  pub async fn end(&mut self, ended: Ended, detail: &str, ms: i64) {
+  /// The process's end written down, with the row of the table it read, why it ended so and what the round read
+  /// from the brain.
+  pub async fn end(&mut self, ended: Ended, detail: &str, ms: i64, reads: &[Read]) {
     let row = Row {
       kind: Kind::End,
       question: "",
@@ -178,6 +189,7 @@ impl Log {
       outcome: ended.word(),
       detail: Some(detail),
       ms,
+      reads,
     };
 
     self.write(&row).await;
@@ -189,8 +201,8 @@ impl Log {
     let written = run(
       self.receiver.db(),
       r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
-           "changed", "outcome", "detail", "answer", "ms", "at")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)"#,
+           "changed", "outcome", "detail", "answer", "ms", "at", "reads")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)"#,
       vec![
         self.round.clone().into(),
         self.chat_id.into(),
@@ -205,6 +217,7 @@ impl Log {
         row.answer.map(str::to_owned).into(),
         row.ms.into(),
         at.into(),
+        (!row.reads.is_empty()).then(|| serde_json::to_string(row.reads).unwrap_or_default()).into(),
       ],
     )
     .await;
@@ -227,6 +240,7 @@ impl Log {
       "detail": row.detail,
       "ms": row.ms,
       "at": at,
+      "reads": row.reads,
     });
 
     self.conversations.publish(crate::events::draft(self.chat_id, &member));
@@ -241,6 +255,7 @@ struct Row<'a> {
   outcome: &'a str,
   detail: Option<&'a str>,
   ms: i64,
+  reads: &'a [Read],
 }
 
 impl Row<'_> {
@@ -264,6 +279,10 @@ pub fn member(row: &QueryResult) -> Result<Value, Fault> {
     "answer": row.try_get::<Option<String>>("", "answer")?,
     "ms": row.try_get::<i64>("", "ms")?,
     "at": row.try_get::<i64>("", "at")?,
+    "reads": row
+      .try_get::<Option<String>>("", "reads")?
+      .and_then(|reads| serde_json::from_str::<Vec<Read>>(&reads).ok())
+      .unwrap_or_default(),
   }))
 }
 
@@ -279,7 +298,7 @@ pub async fn read<C: ConnectionTrait>(
     let rows = all(
       db,
       r#"SELECT "id", "agent", "number", "question", "kind", "answer_chars", "changed", "outcome", "detail",
-                "answer", "ms", "at"
+                "answer", "ms", "at", "reads"
            FROM "draft_rounds" WHERE "chat_id" = $1 AND "round" = $2 ORDER BY "id""#,
       vec![chat_id.into(), round.clone().into()],
     )

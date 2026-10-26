@@ -8,7 +8,7 @@ pub mod checks;
 pub mod log;
 pub mod table;
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -250,6 +250,15 @@ async fn wakes(receiver: &Receiver, agent: &str, runs: &[String]) -> bool {
   }
 }
 
+/// What the session held as a round's turn went out: the session it continued, each path it held with the
+/// version, and how each document of the turn's core went in by that.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Before {
+  pub session: Option<String>,
+  pub loads: HashMap<String, String>,
+  pub core: HashMap<String, super::context::State>,
+}
+
 /// The process as the conversations hold it: the receiver it runs on.
 #[derive(Clone)]
 pub struct Drafter {
@@ -282,6 +291,62 @@ struct Run<'a> {
 }
 
 impl Run<'_> {
+  // What the round read from the brain (docs/drafting.md, 「The round log」): the core its turn carried, in full or
+  // as a mark, then every piece the session read itself through the index since, by the loads it gained, each
+  // named by the index's words for it where the index lists it.
+  async fn reads(&self) -> Vec<log::Read> {
+    let receiver = &self.drafter.receiver;
+    let before = &self.drafted.reply.before;
+    let session = self.latest.session.as_deref();
+    let after = super::context::loaded_in(receiver, session).await.unwrap_or_default();
+    let earlier = if before.session.as_deref() == session {
+      before.loads.clone()
+    } else {
+      Default::default()
+    };
+    let named: HashMap<String, String> = receiver
+      .units()
+      .gate
+      .index(self.held.chat_id, session, Some(self.agent))
+      .await
+      .ok()
+      .flatten()
+      .unwrap_or_default()
+      .into_iter()
+      .flat_map(|group| group.entries)
+      .filter(|entry| !entry.path.is_empty())
+      .map(|entry| (entry.path, entry.holds))
+      .collect();
+    let read = |path: &str, how: &str| log::Read {
+      path: path.to_owned(),
+      holds: named.get(path).cloned(),
+      how: how.to_owned(),
+    };
+    let mut core: Vec<(&String, &super::context::State)> = before.core.iter().collect();
+
+    core.sort_by(|one, other| one.0.cmp(other.0));
+
+    let mut reads: Vec<log::Read> = core
+      .into_iter()
+      .map(|(path, state)| {
+        read(path, if *state == super::context::State::Held { "held" } else { "attached" })
+      })
+      .collect();
+    let mut pulled: Vec<&String> = after
+      .iter()
+      .filter(|(path, version)| {
+        !before.core.contains_key(*path)
+          && !super::context::room_block(path)
+          && earlier.get(*path) != Some(*version)
+      })
+      .map(|(path, _)| path)
+      .collect();
+
+    pulled.sort();
+    reads.extend(pulled.into_iter().map(|path| read(path, "read")));
+    reads
+  }
+
   // One more turn of the same session: its answer where it gave one, as the process reads it with its marks taken
   // out, none where its run failed, the stop raised. No room's words are pushed into it while it works.
   async fn ask(
@@ -743,7 +808,7 @@ impl Drafter {
     let Some(mut message) = message else {
       let ended = if ceiling { Ended::CeilingSkip } else { Ended::Skip };
 
-      run.log.end(ended, row, now_ms() - drafted.began).await;
+      run.log.end(ended, row, now_ms() - drafted.began, &run.reads().await).await;
 
       return Ok(run.made(SKIP));
     };
@@ -780,7 +845,7 @@ impl Drafter {
       match asked {
         Ok(Some((answer, read))) => {
           if read == Answered::Skip {
-            run.log.end(Ended::Skip, row, now_ms() - drafted.began).await;
+            run.log.end(Ended::Skip, row, now_ms() - drafted.began, &run.reads().await).await;
 
             return Ok(run.made(SKIP));
           }
@@ -864,9 +929,17 @@ impl Drafter {
         let names: Vec<&str> = blocking.iter().map(|check| check.word()).collect();
 
         eprintln!("chat {chat}: the message was withheld: {} failed", names.join(", "));
+
+        let reads = run.reads().await;
+
         run
           .log
-          .end(Ended::Withheld, &format!("{row}; {}", names.join(", ")), now_ms() - drafted.began)
+          .end(
+            Ended::Withheld,
+            &format!("{row}; {}", names.join(", ")),
+            now_ms() - drafted.began,
+            &reads,
+          )
           .await;
 
         return Ok(run.made(SKIP));
@@ -888,7 +961,7 @@ impl Drafter {
         match answered {
           Ok(Some((answer, read))) => {
             if read == Answered::Skip {
-              run.log.end(Ended::Skip, row, now_ms() - drafted.began).await;
+              run.log.end(Ended::Skip, row, now_ms() - drafted.began, &run.reads().await).await;
 
               return Ok(run.made(SKIP));
             }
@@ -909,7 +982,7 @@ impl Drafter {
 
     let ended = if ceiling { Ended::CeilingMessage } else { Ended::Message };
 
-    run.log.end(ended, row, now_ms() - drafted.began).await;
+    run.log.end(ended, row, now_ms() - drafted.began, &run.reads().await).await;
 
     Ok(run.made(&message.text))
   }

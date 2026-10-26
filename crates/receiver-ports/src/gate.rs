@@ -136,13 +136,25 @@ pub trait Gate: Send + Sync {
 }
 
 /// One group of the brain's index as the gate answers it: its name, how many of its entries the session has not
-/// read, and what changed lately, where anything did.
+/// read, what changed lately, where anything did, and its entries.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct IndexGroup {
   pub group: String,
   pub unread: u64,
   #[serde(default)]
   pub hint: Option<String>,
+  #[serde(default)]
+  pub entries: Vec<IndexEntry>,
+}
+
+/// One entry of the brain's index: its slug, what it holds, and the path a piece read of it is recorded under among
+/// the session's loads.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct IndexEntry {
+  pub slug: String,
+  pub holds: String,
+  #[serde(default)]
+  pub path: String,
 }
 
 #[derive(Deserialize)]

@@ -1,6 +1,6 @@
-//! A session past its cache lifetime is not touched (docs/bmo-window.md, 「The touch」; docs/wake.md, 「Quiet
-//! instructions」): the touch answers it expired, no quiet instruction opens a turn on it, and the next round a room's
-//! own words open replaces it through the handoff.
+//! A session past its cache lifetime is never woken (docs/unified-bmo.md, 「Replacing the session」): the touch
+//! answers it expired, no quiet instruction and no spoken script opens a turn on it, and the next round a room's own
+//! words open replaces it through the handoff.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -126,6 +126,12 @@ async fn an_expired_session_is_not_touched_and_no_instruction_wakes_it() {
 
   assert_eq!((touched.outcome, touched.code), (TouchOutcome::Skipped, Some(SkipReason::Expired)));
   assert!(session.prompts().is_empty(), "nothing went into the session");
+  assert_eq!(
+    runner.of(AGENT).spoken(OWNER, "the job is done").await,
+    None,
+    "no spoken script wakes it"
+  );
+  assert!(session.prompts().is_empty(), "nothing went into the session for a script either");
 
   let id = queue(scratch.db(), AGENT, OWNER, "a fact that opens a turn", &Queued::default())
     .await

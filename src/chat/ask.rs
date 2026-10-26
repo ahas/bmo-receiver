@@ -327,6 +327,11 @@ impl Carry {
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
     let marked = states(&asking.prompt, &loaded);
+    let before = super::draft::Before {
+      session: Some(session.id.clone()),
+      core: marked.clone(),
+      loads: loaded,
+    };
     // A new session's first turn goes in one order: the handoff, then the room and its words, then the brain, walked
     // once for every room the session answers.
     let prompt = match note {
@@ -473,6 +478,7 @@ impl Carry {
         tier: standing.tier,
         replaced: replaced.clone(),
         run: run.clone(),
+        before,
       }),
     }
   }

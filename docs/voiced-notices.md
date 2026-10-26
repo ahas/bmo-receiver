@@ -216,7 +216,8 @@ spoken, and the session writes what is said.
   Where there is none, or the last one failed, it answers `making` at once and asks the line's agent, in one light
   turn of its session in the line's room, for the whole line as a spoken script (`policy/chat-round.toml`,
   `[voice]`, `reading`), every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
-  `full`; a session that gives no script has the line spoken as it stands. While the script is being written an
+  `full`; a session that gives no script, or one past its cache lifetime, which is never woken for it
+  (`docs/unified-bmo.md`, 「Replacing the session」), has the line spoken as it stands. While the script is being written an
   ask answers `making` with no briefing yet; once launched, the answer names the briefing, whose sound the engine
   serves.
 - **It is kept on the line** by the engine, so a later ask answers `ready` at once. It goes to no road and no

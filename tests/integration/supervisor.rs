@@ -132,6 +132,65 @@ impl Group {
 }
 
 #[tokio::test]
+async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may_name() {
+  use bmo_receiver::chat::draft::table::{self, SUPERVISOR};
+
+  let round =
+    Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "never asked"])).await;
+  let catalogue = table::questions(round.scratch.db()).await.unwrap();
+
+  assert_eq!(catalogue[0].name, SUPERVISOR);
+  assert_eq!(
+    catalogue[0].text,
+    table::supervisor_default(),
+    "the policy's head and question where none is set"
+  );
+  assert!(!catalogue[0].set);
+
+  table::set_question(round.scratch.db(), SUPERVISOR, "Decide first, briefly.")
+    .await
+    .unwrap();
+  round.hand(1, "did anyone see the match last night", false).await;
+  round.rounds_over(1).await;
+
+  let prompts = round.session.prompts();
+
+  let opening = prompts[0].find("Decide first, briefly.\n");
+
+  assert!(
+    opening.is_some() && opening < prompts[0].find(&CHAT_ROUND.supervisor.recent),
+    "the judging turn opens on the set text: {}",
+    prompts[0]
+  );
+  assert!(!prompts[0].contains(&CHAT_ROUND.supervisor.question));
+
+  let catalogue = table::questions(round.scratch.db()).await.unwrap();
+
+  assert_eq!(
+    (catalogue[0].name.as_str(), catalogue[0].set),
+    (SUPERVISOR, true),
+    "the console's text stands at its place"
+  );
+  assert_eq!(catalogue.iter().filter(|question| question.name == SUPERVISOR).count(), 1);
+
+  let process = table::Process {
+    provider: "*".into(),
+    tier: "*".into(),
+    agent: "*".into(),
+    rounds: vec![SUPERVISOR.into(), "final".into()],
+    send_from: String::new(),
+    light: vec![],
+    light_chars: 0,
+    ceiling_seconds: 60,
+    past_ceiling: table::PastCeiling::Send,
+    turn_seconds: 120,
+    set: true,
+  };
+
+  assert!(table::refusal(&process, &catalogue).is_some_and(|why| why.contains(SUPERVISOR)));
+}
+
+#[tokio::test]
 async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing_and_asks_no_gate() {
   let round =
     Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "never asked"])).await;
@@ -248,6 +307,7 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
     group: group.to_owned(),
     unread,
     hint: hint.map(str::to_owned),
+    entries: vec![],
   };
 
   round.standing.gate.index.lock().unwrap().insert(

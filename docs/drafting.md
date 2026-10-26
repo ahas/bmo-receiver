@@ -6,10 +6,13 @@ leaves.
 
 ## What it is
 
+- **The agent decides first whether to answer.** Where the open window alone let the words in, the round's very
+  first step is the agent's own judgement of whether to answer them (`docs/wake.md`, 「The room's queue and the
+  round」), before every pregate: no reference is asked, no index read and no gate run until it answers that the
+  round goes on. A skip ends the round there.
 - **The process establishes what the message needs first and writes the message last.** A round's turn goes to
-  the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after the agent's own
-  judgement of whether to answer where the open window alone let the words in, and after the window's pregate:
-  the core the gate attaches and the brain's index. The turn carries,
+  the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where
+  one is asked, and after the window's pregate: the core the gate attaches and the brain's index. The turn carries,
   with the room's words and the index, the process's first question, and asks no answer:
   the agent reads, finds the facts the message rests on and engraves what it establishes in the brain with its
   tools as it goes. The receiver then asks the same session the process's further questions, one turn each, in
@@ -234,6 +237,12 @@ where it says something: neither empty nor a skip nor a wait.
 - **A round the agent judges first** (`docs/wake.md`, 「The room's queue and the round」) writes that judgement
   as a row before the process's own: number 0, of kind `supervisor`, named `supervisor`, ending `skip` where the
   round ends there and `answered` where it goes on. A round that ended there writes no other row.
+- **The end row names what the round read from the brain,** its `reads`, each a path, the index's words for it
+  where the gate's index lists it (`holds`), and how it was read: `attached`, a piece of the turn's core that went
+  in full; `held`, one that went as a mark because the session already held that version; `read`, a piece the
+  agent read itself through the index during the round, a load the session gained between the round's turn and
+  its end (the agency's `GET /session-loads/{sessionId}`). The console's 브레인 chip and the round's line in the
+  draft log read them.
 - **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
   answer opened on `<<SEND>>` and became the message, `skip` or `failed`.
 - **The process's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where
@@ -266,4 +275,8 @@ where it says something: neither empty nor a skip nor a wait.
 - **`GET /draft-questions`** answers the catalogue, each question with its `source`; **`PUT
   /draft-questions/{name}`** sets a question's text, a name being a lowercase word of letters, digits and
   dashes, and a text at most 4,000 characters and not empty.
+- **The catalogue holds the agent's first judgement too,** first of all, named `supervisor`: its text is what the
+  judging turn opens on, the round policy's head and question as one text where the console set none
+  (`chat-round.toml`, `[supervisor]`), and the room's recent words and the words judged stand after it. It is set
+  like any question, and no list of the table may name it, since it is asked before any process.
 - A change reaches the next round that reads the table; no round under way changes.

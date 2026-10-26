@@ -17,6 +17,17 @@ pub const ANY: &str = "*";
 /// The question every list that holds questions ends on.
 pub const LAST: &str = "final";
 
+/// The catalogue's name for the agent's own judgement of whether to answer, which opens the catalogue and which no
+/// list may name (docs/drafting.md, 「The routes」).
+pub const SUPERVISOR: &str = "supervisor";
+
+/// The supervisor's text where the console set none: the round policy's head and question as one text.
+pub fn supervisor_default() -> String {
+  let said = &receiver_policy::chat_round::CHAT_ROUND.supervisor;
+
+  format!("{}\n{}", said.head, said.question)
+}
+
 /// The longest a question's name may run.
 pub const NAME_CHARS: usize = 40;
 
@@ -207,7 +218,20 @@ pub fn resolve(
     .cloned()
 }
 
-/// The catalogue: the policy's questions, each text replaced by the console's, then the console's own names.
+/// The text the agent's own judgement of whether to answer opens on: the console's where it set one, else the
+/// policy's.
+pub async fn supervisor_text<C: ConnectionTrait>(db: &C) -> Result<String, Fault> {
+  let read =
+    all(db, r#"SELECT "text" FROM "draft_questions" WHERE "name" = $1"#, vec![SUPERVISOR.into()]).await?;
+
+  match read.first() {
+    Some(row) => Ok(row.try_get::<String>("", "text")?),
+    None => Ok(supervisor_default()),
+  }
+}
+
+/// The catalogue: the supervisor's text, then the policy's questions, each text replaced by the console's, then the
+/// console's own names.
 pub async fn questions<C: ConnectionTrait>(db: &C) -> Result<Vec<Question>, Fault> {
   let read = all(db, r#"SELECT "name", "text" FROM "draft_questions" ORDER BY "name""#, vec![]).await?;
   let mut set: BTreeMap<String, String> = BTreeMap::new();
@@ -216,22 +240,23 @@ pub async fn questions<C: ConnectionTrait>(db: &C) -> Result<Vec<Question>, Faul
     set.insert(row.try_get::<String>("", "name")?, row.try_get::<String>("", "text")?);
   }
 
-  let mut questions: Vec<Question> = DRAFTING
-    .questions
-    .iter()
-    .map(|(name, text)| match set.remove(name) {
-      Some(text) => Question {
-        name: name.clone(),
-        text,
-        set: true,
-      },
-      None => Question {
-        name: name.clone(),
-        text: text.clone(),
-        set: false,
-      },
-    })
-    .collect();
+  let stands = |name: &str, text: &str, set: &mut BTreeMap<String, String>| match set.remove(name) {
+    Some(text) => Question {
+      name: name.to_owned(),
+      text,
+      set: true,
+    },
+    None => Question {
+      name: name.to_owned(),
+      text: text.to_owned(),
+      set: false,
+    },
+  };
+  let mut questions = vec![stands(SUPERVISOR, &supervisor_default(), &mut set)];
+
+  for (name, text) in &DRAFTING.questions {
+    questions.push(stands(name, text, &mut set));
+  }
 
   questions.extend(set.into_iter().map(|(name, text)| Question {
     name,
@@ -245,6 +270,10 @@ pub async fn questions<C: ConnectionTrait>(db: &C) -> Result<Vec<Question>, Faul
 /// Why a row may not be set, where it may not; the catalogue's names are the questions a list may name.
 pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
   for (what, list) in [("rounds", &process.rounds), ("light", &process.light)] {
+    if list.iter().any(|name| name == SUPERVISOR) {
+      return Some(format!("{what} names {SUPERVISOR}, which is asked before any process and in no list."));
+    }
+
     if let Some(unknown) =
       list.iter().find(|name| !catalogue.iter().any(|question| &question.name == *name))
     {
