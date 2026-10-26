@@ -184,7 +184,7 @@ record keeps beside that service's own send. The verdict of the send itself is w
 ### The deployments
 
 The receiver calls no unit to learn what was deployed: it reads each unit's deployment record, `deployed.json`
-under the unit's deploy root (the testbed's `docs/deploy.md`, 「Deployment record」), for the relaunch instruction
+under the unit's deploy root (the testbed's `docs/deploy.md`, 「Deployment record」), for the deployment briefing
 (`docs/wake.md`, 「Quiet instructions」). A unit is named by its deploy root's folder past `bmo-`. Of a record it
 reads `at`, the moment it went live, as an RFC 3339 time or epoch milliseconds; the deploy message, `message`
 where the record carries one, else `summary`, else `subject`; the commit, its first twelve characters; and the

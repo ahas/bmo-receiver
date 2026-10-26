@@ -223,22 +223,22 @@ alone, a reset names its `ranges`. The receiver takes its own rows of the ranges
 ## Quiet instructions
 
 A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet instruction」, states. One is
-written by the wake itself: the reason a session was relaunched, and the briefing the owner is owed for it.
+written by the wake itself: the deployment briefing, what went live since the owner was last briefed.
 
-- **A session reopens** at the first round its agent's conversations take in this process for it, which follows
-  the receiver's own restart, and at a round of a session whose relaunching unit was deployed since the session
-  last reopened: the units the restart policy names (`restart.toml`, `relaunched.units`), the agency's among them,
-  whose deployment relaunches every session it carries. The session is the agent's one session across its rooms
-  where its registration says so, else the room's own.
-- **The reopening is kept** as the moment it happened, under the session's setting (`docs/store.md`), so the
-  next reopening knows the session's previous start. A session that never reopened before reads as started the
-  restart policy's fresh while ago (`fresh_minutes`).
-- **The cause is the deployments since that start:** every unit whose deployment record (`docs/boundary-api.md`,
-  「The deployments」) went live after it, oldest first. Where there are none, nothing is written.
-- **One instruction names them,** in the restart policy's words: what went live since the session last started,
-  one clause a unit naming its unit, version, deploy message or subject, commit and the moment it went live, as
-  the deployment record holds them. Its row is of the sort `relaunch` and the kind `session-relaunched`, which a
-  newer one replaces while it waits.
+- **A deployment is no session event.** The agency relays a turn into the session that stands, opening one only
+  where none does, so a deployment of any unit, the agency's included, neither reopens nor relaunches the
+  agent's session, and no instruction says it did. The session is replaced only as `docs/unified-bmo.md`,
+  「Replacing the session」, states.
+- **Each round's start looks for deployments since the last briefing:** every unit whose deployment record
+  (`docs/boundary-api.md`, 「The deployments」) went live after the moment the agent's session was last briefed,
+  oldest first. The moment is kept under the session's setting (`docs/store.md`): the agent's one session across
+  its rooms where its registration says so, else the room's own. A session never briefed reads as briefed the
+  restart policy's fresh while ago (`fresh_minutes`). Where none went live since, nothing is written.
+- **One instruction names them,** in the restart policy's words (`restart.toml`, `briefing`): what went live
+  since the last briefing, one clause a unit naming its unit, version, deploy message or subject, commit and the
+  moment it went live, as the deployment record holds them. Its row is of the sort `briefing` and the kind
+  `deployments-briefed`, which a newer one replaces while it waits, and writing it moves the session's moment to
+  now.
 - **It asks for the owner's briefing.** Its intent and follow-up tell the session to tell the owner, in his
   private chat, what went live: one short paragraph in his language and in the agent's own words, with no talk of
   tools and nothing claimed of a release beyond its message, subject and commit. The instruction withholds the
@@ -247,8 +247,8 @@ written by the wake itself: the reason a session was relaunched, and the briefin
 - **It is the owner's own** (`docs/bmo-window.md`, 「Rows that ride」): the row is queued for his private chat, and
   only a round of that chat carries it. It is written before that round asks for its riders, so the round's own
   turn carries it. Unridden past the restart policy's ride while, it opens a turn of the owner's chat.
-- **No other room hears of it.** The briefing is said in the owner's private chat alone; the room that found the
-  session reopened is told nothing of the relaunch.
+- **No other room hears of it.** The briefing is said in the owner's private chat alone; the room whose round
+  found the deployments is told nothing of them.
 
 ## What the agency's events wake
 

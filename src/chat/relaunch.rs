@@ -1,11 +1,9 @@
-//! The relaunch instruction (docs/wake.md, 「Quiet instructions」): at the round that finds an agent's session
-//! reopened, after the receiver's own restart or a deployment that relaunches every session, one quiet row for the
-//! owner's private chat naming the deployments since the session last started and asking the agent to tell the
-//! owner what went live. It is written before that chat's round asks for its riders, so the round carries it.
+//! The deployment briefing (docs/wake.md, 「Quiet instructions」): at the round that finds deployments gone live
+//! since the agent's session last briefed the owner, one quiet row for the owner's private chat naming them and
+//! asking the agent to tell the owner what went live. A deployment is no session event: nothing here says the
+//! session reopened. It is written before that chat's round asks for its riders, so the round carries it.
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
 
 use receiver_policy::fill_marks;
 use receiver_policy::restart::RESTART;
@@ -117,10 +115,10 @@ pub fn deployments(roots: &Path, only: Option<&[String]>) -> Vec<Deployed> {
   found
 }
 
-/// The instruction asking for the owner's briefing on the deployments a session was relaunched by, in the restart
-/// policy's words.
+/// The instruction asking for the owner's briefing on the deployments since the last, in the restart policy's
+/// words.
 pub fn instruction(deployed: &[Deployed]) -> String {
-  let said = &RESTART.relaunched;
+  let said = &RESTART.briefing;
   let clauses: Vec<String> = deployed
     .iter()
     .map(|one| {
@@ -148,49 +146,42 @@ pub fn instruction(deployed: &[Deployed]) -> String {
   format!("{fact}\n\nWhat this is for: {}\n\nWhat follows: {}", said.intent, said.follow_up)
 }
 
-/// The sessions this process has reopened, and where the units' deploy roots stand, which leaves the
-/// instruction unwritten where it names none.
-pub struct Relaunches {
+/// Where the units' deploy roots stand, which leaves the briefing unwritten where it names none.
+pub struct Briefings {
   roots: Option<PathBuf>,
-  reopened: Mutex<HashSet<String>>,
 }
 
-impl Relaunches {
+impl Briefings {
   pub fn new(roots: Option<PathBuf>) -> Self {
-    Self {
-      roots,
-      reopened: Mutex::new(HashSet::new()),
-    }
+    Self { roots }
   }
 
-  /// At a round's start: where the agent's session reopens, its new start kept and the owner's briefing written
-  /// for it, naming every deployment since its previous start.
+  /// At a round's start: where deployments went live since the agent's session last briefed the owner, the
+  /// owner's briefing written naming them and the moment moved to now. A session never briefed reads as briefed
+  /// the restart policy's fresh while ago, and starts its moment from now.
   pub async fn note(&self, receiver: &Receiver, agent: &str, chat_id: i64) {
     let Some(roots) = &self.roots else {
       return;
     };
-    let said = &RESTART.relaunched;
-    let whole = unified_session(receiver, agent).await;
-    let key = match whole {
-      true => format!("{agent}_session_start"),
-      false => format!("{agent}_session_start:{chat_id}"),
+    let said = &RESTART.briefing;
+    let key = match unified_session(receiver, agent).await {
+      true => format!("{agent}_briefed_at"),
+      false => format!("{agent}_briefed_at:{chat_id}"),
     };
     let db = receiver.db();
     let now = now_ms();
-    let first = self.reopened.lock().unwrap_or_else(PoisonError::into_inner).insert(key.clone());
-    let started = settings::get(db, &key).await.ok().flatten().and_then(|held| held.parse::<i64>().ok());
-    let since = started.unwrap_or(now - RESTART.fresh_minutes * 60_000);
+    let briefed = settings::get(db, &key).await.ok().flatten().and_then(|held| held.parse::<i64>().ok());
+    let since = briefed.unwrap_or(now - RESTART.fresh_minutes * 60_000);
+    let deployed: Vec<Deployed> =
+      deployments(roots, None).into_iter().filter(|one| one.at > since).collect();
 
-    if !first && deployments(roots, Some(&said.units)).iter().all(|one| one.at <= since) {
+    if deployed.is_empty() && briefed.is_some() {
       return;
     }
 
     if let Err(why) = settings::set(db, &key, &now.to_string()).await {
-      eprintln!("{agent}: the session's start could not be kept: {}", why.detail);
+      eprintln!("{agent}: the moment of the last briefing could not be kept: {}", why.detail);
     }
-
-    let deployed: Vec<Deployed> =
-      deployments(roots, None).into_iter().filter(|one| one.at > since).collect();
 
     if deployed.is_empty() {
       return;
@@ -206,10 +197,10 @@ impl Relaunches {
 
     match queue(db, agent, owner, &instruction(&deployed), &queued).await {
       Ok(id) => println!(
-        "chat {chat_id}: {agent}'s session reopened after {} deployment(s), instruction {id} for chat {owner}",
+        "chat {chat_id}: {agent}'s briefing on {} deployment(s), instruction {id} for chat {owner}",
         deployed.len()
       ),
-      Err(why) => eprintln!("chat {chat_id}: the relaunch instruction was not written: {}", why.detail),
+      Err(why) => eprintln!("chat {chat_id}: the deployment briefing was not written: {}", why.detail),
     }
   }
 }

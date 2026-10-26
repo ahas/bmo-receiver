@@ -1,6 +1,7 @@
-//! The relaunch instruction (`docs/wake.md`, 「Quiet instructions」): a round that finds its session reopened writes
-//! one quiet row for the owner's private chat, naming the deployments since the session last started and asking the
-//! agent to brief him on them, read from stand-in deployment records.
+//! The deployment briefing (`docs/wake.md`, 「Quiet instructions」): a round that finds deployments gone live since
+//! the session last briefed the owner writes one quiet row for the owner's private chat, naming them and asking the
+//! agent to brief him on them, read from stand-in deployment records. A deployment of any unit, the agency's
+//! among them, is briefed and never told as the session's relaunch.
 
 use std::path::Path;
 use std::time::Duration;
@@ -10,7 +11,7 @@ use tempfile::tempdir;
 
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Hooks;
-use bmo_receiver::chat::relaunch::{Relaunches, deployments, instruction};
+use bmo_receiver::chat::relaunch::{Briefings, deployments, instruction};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
 
@@ -55,17 +56,17 @@ fn brief(fact: &str) -> String {
   )
 }
 
-// The relaunch rows a chat holds: each its text and how it rides.
+// The briefing rows a chat holds: each its text and how it rides.
 async fn rows(scratch: &Scratch, chat_id: i64) -> Vec<String> {
   scratch
     .texts(&format!(
-      r#"SELECT "text" || ' | ' || "rides"::text || ' ' || "kind" FROM "instructions" WHERE "chat_id" = {chat_id} AND "sort" = 'relaunch' ORDER BY "id""#
+      r#"SELECT "text" || ' | ' || "rides"::text || ' ' || "kind" FROM "instructions" WHERE "chat_id" = {chat_id} AND "sort" = 'briefing' ORDER BY "id""#
     ))
     .await
 }
 
 #[tokio::test]
-async fn a_reopened_session_is_told_of_the_deployments_since_it_last_started() {
+async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let roots = tempdir().unwrap();
@@ -94,8 +95,8 @@ async fn a_reopened_session_is_told_of_the_deployments_since_it_last_started() {
   deployed(roots.path(), "unit-d", json!({ "subject": "no deploy root", "at": now }), None);
   std::fs::create_dir_all(roots.path().join("bmo-unit-e")).unwrap();
 
-  // The first round of the process finds the session reopened: the deployments within the fresh while are named,
-  // oldest first, the record's own version and message before the release's and the subject.
+  // The first round of a session never briefed names the deployments within the fresh while, oldest first, the
+  // record's own version and message before the release's and the subject.
   let around = Around::new(receiver.clone()).reading_deploys(Some(roots.path().to_path_buf()));
 
   around.riders(AGENT, ROOM).await;
@@ -103,24 +104,25 @@ async fn a_reopened_session_is_told_of_the_deployments_since_it_last_started() {
   assert_eq!(
     rows(&scratch, OWNER).await,
     [format!(
-      "{} | 1 session-relaunched",
+      "{} | 1 deployments-briefed",
       brief(&format!(
-        "This session was relaunched after these deployments went live: unit-a 1.2.0 went live at {}: message a \
+        "These deployments went live since you last briefed the owner on what went live: unit-a 1.2.0 went live at {}: message a \
          (commit aaaaaaaaaaaa); unit-b 0.3.0 went live at {}: subject b (commit 0123456789ab).",
         named(now - 60_000),
         named(now - 30_000),
       ))
     )],
   );
-  // The briefing is the owner's alone: the room that found the session reopened hears nothing of it.
+  // The briefing is the owner's alone: the room whose round found the deployments hears nothing of it.
   assert!(rows(&scratch, ROOM).await.is_empty());
 
-  // A later round of the same session, with nothing relaunching it, writes nothing.
+  // A later round of the same session, with nothing deployed since, writes nothing.
   around.riders(AGENT, ROOM).await;
   assert_eq!(rows(&scratch, OWNER).await.len(), 1);
 
-  // The agency deployed since the session's start relaunches it: only that deployment is named, with its commit
-  // standing in for a version the record and the release name none, and the row still waiting is replaced.
+  // The agency deployed since the briefing is briefed like any unit, and never as a relaunch: only that deployment
+  // is named, with its commit standing in for a version the record and the release name none, and the row still
+  // waiting is replaced.
   tokio::time::sleep(Duration::from_millis(20)).await;
   let agency_at = now_ms() - 5;
   deployed(
@@ -134,26 +136,46 @@ async fn a_reopened_session_is_told_of_the_deployments_since_it_last_started() {
   assert_eq!(
     rows(&scratch, OWNER).await,
     [format!(
-      "{} | 1 session-relaunched",
+      "{} | 1 deployments-briefed",
       brief(&format!(
-        "This session was relaunched after these deployments went live: agency dddddddddddd went live at {}: agency \
+        "These deployments went live since you last briefed the owner on what went live: agency dddddddddddd went live at {}: agency \
          subject (commit dddddddddddd).",
         named(agency_at),
       ))
     )],
   );
 
+  assert!(
+    rows(&scratch, OWNER)
+      .await
+      .iter()
+      .all(|row| !row.contains("relaunch") && !row.contains("reopen"))
+  );
+
+  // Another unit deployed since is briefed as well, the briefing following any deployment rather than one unit's.
+  tokio::time::sleep(Duration::from_millis(20)).await;
+  let unit_at = now_ms() - 5;
+  deployed(
+    roots.path(),
+    "bmo-unit-b",
+    json!({ "commit": "e".repeat(40), "subject": "subject b again", "version": "0.4.0", "at": unit_at }),
+    None,
+  );
+  tokio::time::sleep(Duration::from_millis(20)).await;
+  around.riders(AGENT, ROOM).await;
+  assert!(rows(&scratch, OWNER).await[0].contains("unit-b 0.4.0 went live"));
+
   // The next process's first round, with nothing deployed since, writes nothing more.
-  Relaunches::new(Some(roots.path().to_path_buf())).note(&receiver, AGENT, ROOM).await;
+  Briefings::new(Some(roots.path().to_path_buf())).note(&receiver, AGENT, ROOM).await;
   assert_eq!(rows(&scratch, OWNER).await.len(), 1);
 
   // Named no deploy roots, nothing is read or written.
   Around::new(receiver.clone()).riders(AGENT, 8).await;
   assert_eq!(
     scratch
-      .texts(r#"SELECT "key" FROM "settings" WHERE "key" LIKE '%session_start%' ORDER BY "key""#)
+      .texts(r#"SELECT "key" FROM "settings" WHERE "key" LIKE '%briefed_at%' ORDER BY "key""#)
       .await,
-    [format!("{AGENT}_session_start:{ROOM}")],
+    [format!("{AGENT}_briefed_at:{ROOM}")],
   );
 }
 

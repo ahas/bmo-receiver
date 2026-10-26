@@ -1,6 +1,6 @@
 //! What stands around the conversations of one agent in the running process (docs/bmo-window.md, 「The room's
-//! window」): the rows that ride a room's next round, from the instruction pass, the relaunch instruction of a
-//! session the round finds reopened written first (docs/wake.md, 「Quiet instructions」), and the room shown
+//! window」): the rows that ride a room's next round, from the instruction pass, the deployment briefing the round
+//! finds owed written first (docs/wake.md, 「Quiet instructions」), and the room shown
 //! typing while its answer is on its way, on the room's own road, renewed on the round policy's clock until the
 //! round lets it go.
 
@@ -14,7 +14,7 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use tokio::task::JoinHandle;
 
 use super::conversation::{BoxFuture, Hooks};
-use super::relaunch::Relaunches;
+use super::relaunch::Briefings;
 use crate::receiver::Receiver;
 
 /// The conversations' surroundings in the running process.
@@ -22,9 +22,8 @@ pub struct Around {
   receiver: Receiver,
   // Each room shown typing now, by the task that renews it.
   typing: Mutex<HashMap<i64, JoinHandle<()>>>,
-  // The sessions reopened in this process, which write no relaunch instruction until deploy roots are
-  // named.
-  relaunches: Relaunches,
+  // Where the deploy roots stand, which writes no deployment briefing until they are named.
+  briefings: Briefings,
 }
 
 impl Around {
@@ -32,7 +31,7 @@ impl Around {
     Self {
       receiver,
       typing: Mutex::new(HashMap::default()),
-      relaunches: Relaunches::new(None),
+      briefings: Briefings::new(None),
     }
   }
 
@@ -40,7 +39,7 @@ impl Around {
   /// instruction.
   pub fn reading_deploys(self, roots: Option<PathBuf>) -> Self {
     Self {
-      relaunches: Relaunches::new(roots),
+      briefings: Briefings::new(roots),
       ..self
     }
   }
@@ -73,7 +72,7 @@ impl Hooks for Around {
     let agent = agent.to_owned();
 
     Box::pin(async move {
-      self.relaunches.note(&self.receiver, &agent, chat_id).await;
+      self.briefings.note(&self.receiver, &agent, chat_id).await;
 
       if let Some(pass) = self.receiver.pass() {
         pass.riders(&agent, chat_id).await;

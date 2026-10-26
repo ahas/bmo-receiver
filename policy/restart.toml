@@ -32,15 +32,13 @@ intent = "tell the owner you are back, in the light of why this went live."
 job_follow_up = "The job is not done yet. Do not summarise the work, do not say what changed, and do not call it finished: the job's own report is the one account of it."
 follow_up = "Do not describe the change beyond its reason."
 
-# The relaunch instruction (docs/wake.md, 「Quiet instructions」): the units whose deployment relaunches every
-# session the agents run on, by their deploy roots' names past `bmo-`; what its row is kept as and sorted under; and
-# its words: the fact naming each deployment ({deployed}, the clauses joined), one clause a unit ({unit},
-# {version}, {at}, {message}, {commit}), its intent, and what follows it.
-[relaunched]
-units = ["agency"]
-kind = "session-relaunched"
-sort = "relaunch"
-fact = "This session was relaunched after these deployments went live: {deployed}."
+# The deployment briefing (docs/wake.md, 「Quiet instructions」): what its row is kept as and sorted under, and its
+# words: the fact naming the deployments since the owner was last briefed ({deployed}, the clauses joined), one
+# clause a unit ({unit}, {version}, {at}, {message}, {commit}), its intent, and what follows it.
+[briefing]
+kind = "deployments-briefed"
+sort = "briefing"
+fact = "These deployments went live since you last briefed the owner on what went live: {deployed}."
 deployed = "{unit} {version} went live at {at}: {message} (commit {commit})"
 no_message = "{unit} {version} went live at {at} (commit {commit})"
 deployed_no_commit = "{unit} {version} went live at {at}: {message}"
