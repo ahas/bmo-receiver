@@ -306,8 +306,14 @@ flowchart TD
   the agent holds an ordinary account has the agent's own words under an ordinary sender number, and a receiver that
   derived the agent's identity from one service's token would count its own words as unread and fail to recognise a
   reply to itself.
-- **Whether a room is the owner's private chat is a chat service's question** (its `kind`), not a comparison
-  against the owner's number on one service.
+- **The owner's private chat is the configuration's `owner_room` where it names one:** a room on the record alone,
+  stood up once by `owner-room` (`docs/boundary-api.md`, 「The service and its commands」), whose members are the
+  owner and the chat agent. It reads as the owner's private chat on every screen and in every round, and the
+  console is its road. A chat service's `kind` of `owner` is then not read for any other room: the service's own
+  one-to-one with the owner is the room its other answers make it, its `privateTo` where it names one, an
+  ordinary room the owner can still talk in, and it keeps its own record.
+- **Where the configuration names none, whether a room is the owner's private chat is a chat service's question**
+  (its `kind`), not a comparison against the owner's number on one service.
 - **Whose one-to-one with the agent a room is, is a chat service's question too** (its `privateTo`). The
   receiver turns the answer into a user's private chat only where that person's sender is linked to a user
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
@@ -315,8 +321,14 @@ flowchart TD
   given as the rooms are stood up (`POST /companions`), and an agent's words are filed under the number it was
   given and under its name, so one room holds every speaker apart.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
+  the owner's private room where the configuration names one, kept in its record. Where it names none, it is
   asking each chat service for the owner's room (`GET /owner-room`): the first of the rooms whose record is shown,
   kept in that record, and otherwise the first chat service reaching the owner on its own, on that service.
+- **Every reading of the owner's room is that one room:** the room the system's notices go to where
+  `notices_room` names none, the room an instruction goes to where it names none, the room kept work whose room is
+  gone reaches, the room a console talk and a line typed into the agent's program run as, the room that is always
+  served and always hears its rest notice, and `GET /owner`'s `room`. The owner as a sender stays his number on
+  each road; a room is never read off it.
 
 ## What is kept for a moment
 

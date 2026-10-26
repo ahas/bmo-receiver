@@ -26,8 +26,10 @@ the protocol's receiving-side routes stand.
 
 The deployment's names are read from the same file: the owner; the chat agent's registration name, whose label
 and wake words (`GET /agents`) are the words a room calls it by; the delegate's registration name, whose label a
-delegation notice names; the infrastructure room, where one is named; the owner's notices room, `notices_room`, the
-room the system's notices to the owner go to, the owner's private chat where none is named; the language the rooms are spoken in, which
+delegation notice names; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
+one is named, a room on the record alone that `owner-room` below stands up once (`docs/receiver.md`, 「Identity, and
+reaching the owner」); the owner's notices room, `notices_room`, the room the system's notices to the owner go to,
+the owner's private room where none is named; the language the rooms are spoken in, which
 a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; the brain
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code
 stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's
@@ -49,6 +51,12 @@ base address and token.
 - **`deliver-waiting`** runs one pass over the instruction rows a job's end left waiting, with no clock of the
   receiver's.
 - **`tool-env`** writes where the receiver's tools find it and ends.
+- **`owner-room`** stands up the owner's private room once, on the record alone, and prints its number for the
+  configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
+  the record as its one provider, the owner and the chat agent its members and the chat agent's number there one
+  of the console's own. Run again, it prints the room it stood up before and stands up nothing. It writes the
+  store and never the configuration, and the room is the owner's private room once the configuration names it
+  and the service starts on it.
 - **`health`** asks the service the configuration names whether it is ready and ends.
 - **`nouns`** prints the nouns `bmo` dispatches to this command, one a line (「The unit command」).
 - **`import`** moves the old archive's exported rows into this store. It reads one export directory — a manifest
@@ -70,7 +78,7 @@ the operations machine's:
 
 | Noun | Words | What it asks |
 |---|---|---|
-| `room say` | `[--chat <id>] [--by <who>] [--reply] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's chat where `--chat` names none |
+| `room say` | `[--chat <id>] [--by <who>] [--reply] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |

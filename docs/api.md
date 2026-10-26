@@ -81,7 +81,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Answers |
 |---|---|
-| `GET /owner` | `senderId`, the owner as a sender, and `room`, the owner's private room |
+| `GET /owner` | `senderId`, the owner as a sender, and `room`, the owner's private room: the configuration's `owner_room` where it names one, else the room the chat services answer as the owner's |
 
 ## Rooms
 

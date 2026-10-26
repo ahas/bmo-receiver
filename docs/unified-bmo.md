@@ -81,8 +81,13 @@
 
 ## Console conversation in the private chat
 
-- **Two places to speak.** The owner's private chat is one room two roads both reach: the owner's everyday chat
-  service and the web console's own, the chat's record.
+- **Two places to speak.** The owner's private chat is one room. Where the configuration names `owner_room`, it is
+  a room on the record alone and the web console is its road (`docs/receiver.md`, 「Identity, and reaching the
+  owner」); where it names none, it is the chat service's one-to-one with the owner, which two roads both reach:
+  the owner's everyday chat service and the web console's own, the chat's record.
+- **A private room stood up anew starts with an empty record.** The room the owner's chat was before keeps its own
+  record and goes on as an ordinary room; the session is the agent's one across its rooms either way, so nothing of
+  it moves.
 - **Each road is a window onto the owner's chat, and neither is its default.** What the agent says there on its
   own (a job's report, a deployment's or a restart's notice, a queue notice, a voice briefing, a question a job
   puts to the owner) is kept in the chat's own record, bound to no road, and the console's screen shows it, since
