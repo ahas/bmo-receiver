@@ -1,5 +1,7 @@
 # The receiver's fixed API
 
+**Fixed at 0.1.0-rev.1.**
+
 This document is the receiver's contract: every route it serves, in the one common wire format, grouped by the
 resource each acts on. `docs/openapi.json` is the same contract in machine form, generated from the types in
 `crates/receiver-client`, and the Rust crate and the TypeScript package beside it are written from that one
