@@ -98,12 +98,14 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |
 | `console_pinned_rooms` | the rooms the console stands over the rest, as a JSON list of room numbers in the owner's order; a room's removal takes its number out, and a number the record no longer has stands for nothing | the console's pinned order (`docs/boundary-api.md`, 「The pinned order」), read by the console's room list |
 | `room_holder:<unit>` | a unit declared a holder of rows naming a room: its API base and its holdings, as JSON | the holder's declaration (`PUT /room-holders/{unit}`) |
-| `<agent>_active_route` | the road an agent's one chat session stands on, as JSON | the chat session |
-| `<agent>_pending_summary` | the note a replaced session left for the next fresh one | the chat session |
-| `<agent>_force_reset` | the owner's word to start an agent's session afresh, with its reason | the chat session |
+| `<agent>_active_route` | the road an agent's one chat session stands on, as JSON, with the tail of what the session answered in each room, the transcript a replacement falls back on | the chat session |
+| `<agent>_force_reset` | the owner's word to start an agent's session afresh, with its reason, spent by the replacement it asks for | the chat session |
 | `<agent>_cache:<session>` | what the receiver knows of a session's cache between turns, as JSON: the fingerprint of the head and the agency's reason for a changed prefix its last turn stood on, when that turn was, and whether a resumed turn read nothing from the cache (`docs/unified-bmo.md`, 「Replacing the session」) | the chat session |
 | `<agent>_session_start`, `<agent>_session_start:<room>` | when the agent's one session, or its session of the room, last reopened, in epoch milliseconds (`docs/wake.md`, 「Quiet instructions」) | the relaunch instruction |
 | `<agent>_last_chat_launch` | the launch the agent's one chat session last stood on, as JSON: the room it stood in, whether every word of it was the owner's, whether the room's tools were on, and when it went out, in epoch milliseconds | the chat session |
+
+No setting holds the note a replaced session leaves: that note is its handoff file under the data root
+(「The data root's folders」 below).
 
 ## The data root's folders
 
@@ -118,3 +120,12 @@ The data root is the configuration's. Three stores under it keep a folder per ro
 
 A room's folder in a store is found only where it stands; finding it makes nothing. The folders go only with
 the removal of the room's registration.
+
+One folder under the data root is kept per agent rather than per room:
+
+| Store | Folder | Holds |
+|---|---|---|
+| the handoffs | `handoffs/<agent>/` | each handoff a replaced session of the agent's wrote, as `<epoch-ms>.md`, the moment it was asked for, and `latest.md`, a copy of the newest (`docs/unified-bmo.md`, 「Replacing the session」) |
+
+A handoff is written by the agent's session with its own file tool and read by the receiver once, for the new
+session's first turn; the receiver makes the folder as it asks for one and removes nothing from it.

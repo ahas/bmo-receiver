@@ -318,3 +318,20 @@ async fn drafting_row(
 pub async fn no_drafting(db: &sea_orm::DatabaseConnection) {
   drafting(db, &[], &[], 150).await;
 }
+
+/// What a session with a file tool does with the handoff instruction: `note` written to the file it names.
+pub fn writing_handoff(note: &'static str) -> impl Fn(&Turn) + Send + Sync + 'static {
+  move |turn: &Turn| {
+    if let Some(path) = handoff_path(&turn.prompt) {
+      std::fs::write(path, note).unwrap();
+    }
+  }
+}
+
+/// The file a handoff instruction names, where the prompt is one.
+pub fn handoff_path(prompt: &str) -> Option<String> {
+  prompt
+    .lines()
+    .filter(|line| line.contains("/handoffs/") && line.trim_end().ends_with(".md"))
+    .find_map(|line| line.find('/').map(|at| line[at..].trim_end().to_owned()))
+}

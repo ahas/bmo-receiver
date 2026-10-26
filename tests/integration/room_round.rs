@@ -360,7 +360,8 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   documents(data.path());
 
   let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
-  let session = Arc::new(StandInSession::new(SESSION, ANSWER));
+  let session =
+    Arc::new(StandInSession::new(SESSION, ANSWER).acting(crate::common::session::writing_handoff(NOTE)));
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
   let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
@@ -369,7 +370,6 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   standing.agency.registering(vec![agent]);
   standing.agency.carrying_on(session.clone());
   receiver.hold_runner(Arc::new(runner.clone()));
-  bmo_receiver::chat::cache::hand_over(scratch.db(), AGENT, NOTE).await.unwrap();
   bmo_receiver::chat::cache::force_reset(
     scratch.db(),
     AGENT,
@@ -386,12 +386,10 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
     .await;
 
   receiver.message(&said(6, FIRST), &Context::default(), owners_room()).await.unwrap();
-  until("the round's end", || {
-    !session.prompts().is_empty() && runner.idle() && !session.working()
-  })
-  .await;
+  until("the round's end", || session.prompts().len() > 1 && runner.idle() && !session.working()).await;
 
-  let prompt = &session.prompts()[0];
+  // The old session was asked for its handoff first; the new one's first turn is the round's.
+  let prompt = &session.prompts()[1];
 
   assert!(
     prompt.contains(NOTE),

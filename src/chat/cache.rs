@@ -17,17 +17,14 @@ use receiver_policy::handover::HANDOVER;
 use receiver_policy::providers::PROVIDERS;
 use receiver_ports::agency::SessionState;
 
+use super::sentinels::{is_skip, is_wait};
 use crate::store::{Fault, settings};
 use crate::{now_ms, run};
 
-/// Where the road an agent's one session stands on is kept, the note its replaced session left for the next
-/// fresh one, the owner's word to start it afresh, and what a session's cache was opened against.
+/// Where the road an agent's one session stands on is kept, the owner's word to start it afresh, and what a
+/// session's cache stood on.
 pub fn active_key(agent: &str) -> String {
   format!("{agent}_active_route")
-}
-
-pub fn pending_key(agent: &str) -> String {
-  format!("{agent}_pending_summary")
 }
 
 pub fn force_key(agent: &str) -> String {
@@ -39,7 +36,8 @@ pub fn state_key(agent: &str, session: &str) -> String {
 }
 
 /// The road an agent's one session stands on: the provider and model it answers on, the login it was opened
-/// under, the session itself and, where the session reported no session of its own, the words it answered with.
+/// under, the session itself and the tail of what its sessions answered in each room, the transcript a replacement
+/// falls back on where the closing session wrote no handoff.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Route {
@@ -90,21 +88,6 @@ static HEAD: LazyLock<String> = LazyLock::new(|| {
   format!("{:x}", Sha256::digest(lines.as_bytes()))
 });
 
-/// The note a replaced session leaves for the fresh one, as the block its next turn opens with.
-pub fn carried_note(note: Option<&str>) -> String {
-  let lines = &HANDOVER.chat;
-
-  match note.filter(|held| !held.trim().is_empty()) {
-    Some(note) => lines
-      .carried
-      .iter()
-      .map(|line| fill_marks(line, &[("note", note)]))
-      .collect::<Vec<_>>()
-      .join("\n"),
-    None => lines.lost.join("\n"),
-  }
-}
-
 /// The road an agent's one session stands on, where one is kept.
 pub async fn active_route(db: &DatabaseConnection, agent: &str) -> Result<Option<Route>, Fault> {
   Ok(
@@ -151,8 +134,11 @@ pub async fn reset_reason(
   asked: &Route,
   standing: &SessionState,
 ) -> Result<Option<SessionReason>, Fault> {
-  if settings::get(db, &force_key(agent)).await?.is_some_and(|forced| !forced.is_empty()) {
-    return Ok(Some(SessionReason::DowngradeForced));
+  if let Some(forced) = settings::get(db, &force_key(agent)).await?.filter(|forced| !forced.is_empty()) {
+    let reason =
+      serde_json::from_value(serde_json::Value::String(forced)).unwrap_or(SessionReason::DowngradeForced);
+
+    return Ok(Some(reason));
   }
 
   if let Some(moved) = active_route(db, agent).await?.and_then(|held| {
@@ -202,36 +188,55 @@ pub async fn force_reset(db: &DatabaseConnection, agent: &str, reason: SessionRe
   settings::set(db, &force_key(agent), &reason.to_string()).await
 }
 
-/// The note a replaced session left, spent for the fresh session's turn.
-pub async fn pending_note(db: &DatabaseConnection, agent: &str) -> Result<Option<String>, Fault> {
-  let held = settings::take(db, &pending_key(agent)).await?;
-
-  Ok(held.filter(|note| !note.trim().is_empty()))
+/// The owner's word to start afresh spent by the replacement it asked for.
+pub async fn spend_force(db: &DatabaseConnection, agent: &str) -> Result<(), Fault> {
+  forget_setting(db, &force_key(agent)).await
 }
 
-/// The words a session that reported none of its own leaves for the next: the room it stood in, what the turn
-/// asked and what the session answered, carried on from what the road before it kept, cut to the tail.
-fn transcript_of(agent: &str, previous: Option<&Route>, text: &str) -> String {
-  let lines = &HANDOVER.transcript;
-  let said = [
-    fill_marks(&lines.room, &[("chat", agent)]),
-    fill_marks(&lines.answer, &[("agent", agent), ("text", text)]),
-  ]
-  .join("\n");
-  let joined: Vec<String> = [previous.and_then(|held| held.transcript.clone()).unwrap_or_default(), said]
-    .into_iter()
-    .filter(|part| !part.is_empty())
-    .collect();
+/// What the receiver knew of a session's cache let go, as the session is replaced: the next turn starts its record.
+pub async fn forget_state(db: &DatabaseConnection, agent: &str, session: &str) -> Result<(), Fault> {
+  forget_setting(db, &state_key(agent, session)).await
+}
+
+/// The transcript the road keeps of what the agent's sessions answered, where it holds any: the note a replaced
+/// session's successor falls back on.
+pub async fn transcript(db: &DatabaseConnection, agent: &str) -> Result<Option<String>, Fault> {
+  Ok(
+    active_route(db, agent)
+      .await?
+      .and_then(|route| route.transcript)
+      .filter(|kept| !kept.trim().is_empty()),
+  )
+}
+
+/// The transcript carried on with one more answer of the agent's in a room, cut to the tail: an answer that
+/// says nothing (empty, a skip or a wait) adds nothing.
+fn transcript_of(agent: &str, chat_id: i64, previous: Option<&Route>, text: &str) -> Option<String> {
+  let kept = previous.and_then(|held| held.transcript.clone()).unwrap_or_default();
+  let text = text.trim();
+
+  if text.is_empty() || is_skip(text) || is_wait(text) {
+    return (!kept.is_empty()).then_some(kept);
+  }
+
+  let said = fill_marks(
+    &HANDOVER.transcript.answer,
+    &[("agent", agent), ("chat", &chat_id.to_string()), ("text", text)],
+  );
+  let joined: Vec<String> = [kept, said].into_iter().filter(|part| !part.is_empty()).collect();
   let units: Vec<u16> = joined.join("\n").encode_utf16().collect();
 
-  String::from_utf16_lossy(&units[units.len().saturating_sub(HANDOVER.transcript_tail_chars)..])
+  Some(String::from_utf16_lossy(
+    &units[units.len().saturating_sub(HANDOVER.transcript_tail_chars)..],
+  ))
 }
 
-/// What a turn leaves of its session: the road it went out on, the agency's reason for a changed prefix the
-/// session's state named after it, the session it resumed where it resumed one, what the run reported of the
-/// cache, and the words it answered with.
+/// What a turn leaves of its session: the room it answered, the road it went out on, the agency's reason for a
+/// changed prefix the session's state named after it, the session it resumed where it resumed one, what the run
+/// reported of the cache, and the words it answered with.
 #[derive(Debug, Clone)]
 pub struct Leaving {
+  pub chat_id: i64,
   pub route: Route,
   pub moved: Option<String>,
   pub resumed: Option<String>,
@@ -263,21 +268,10 @@ pub async fn remember(db: &DatabaseConnection, agent: &str, leaving: &Leaving) -
   }
 
   let previous = active_route(db, agent).await?;
-  let transcript = leaving
-    .route
-    .session
-    .is_none()
-    .then(|| transcript_of(agent, previous.as_ref(), &leaving.text));
+  let transcript = transcript_of(agent, leaving.chat_id, previous.as_ref(), &leaving.text);
   let mut route = leaving.route.clone();
 
   route.transcript = transcript;
 
   set_active_route(db, agent, &route).await
-}
-
-/// An agent's one session handed over by the note it wrote of itself: the note held for the fresh session its
-/// next turn opens, and the road let go.
-pub async fn hand_over(db: &DatabaseConnection, agent: &str, note: &str) -> Result<(), Fault> {
-  settings::set(db, &pending_key(agent), note).await?;
-  forget_setting(db, &active_key(agent)).await
 }

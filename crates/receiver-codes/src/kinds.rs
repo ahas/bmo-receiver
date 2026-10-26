@@ -43,6 +43,8 @@ pub enum SessionReason {
   Downgrade,
   /// The model was replaced on its own, and the session after it.
   DowngradeForced,
+  /// The session filled its window, and its provider hands it over by its own note rather than a fold.
+  Full,
 }
 
 /// What opened a turn of a room that no person's words opened, as the console's verdicts show it.

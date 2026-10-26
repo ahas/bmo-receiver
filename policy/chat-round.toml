@@ -101,7 +101,7 @@ owed = "OWED ANSWER: {count} of the new message(s) above are the owner's own wor
 # where that message shows none.
 language_named = "ANSWER LANGUAGE: {language} — the language of the message addressed to you; answer in it, whatever language the instruction or its result came in."
 language_room = "ANSWER LANGUAGE: {language} — this room's language, since the message addressed to you does not show one of its own; answer in it, whatever language the instruction or its result came in."
-woken = "Your memory of this conversation was just replaced ({reason}), so what you hold of it is a summary written for you rather than the conversation itself, and that summary is written in English as well. {language}"
+woken = "Your memory of this conversation was just replaced ({reason}), so what you hold of it is the note your new session opened on rather than the conversation itself, whatever language that note is written in. {language}"
 # The forced close of a turn owing the owner an answer, under the owed line that already takes <<SKIP>> away.
 forced_owed = "The waiting window is over. Give your final answer now; <<WAIT>> is forbidden."
 forced = "The waiting window is over. Give your final answer now; <<WAIT>> is forbidden. <<SKIP>> is still allowed if the messages were not addressed to you."

@@ -7,20 +7,18 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
-use receiver_codes::{FixedLine, HealthFact};
+use receiver_codes::{FixedLine, HealthFact, SessionReason};
 use receiver_policy::chat_health::CHAT_HEALTH;
-use receiver_policy::handover::HANDOVER;
 use receiver_policy::providers::{Handover, PROVIDERS};
 use receiver_policy::resident_turn::RESIDENT_TURN;
 
 use receiver_ports::gate::TurnEvent;
 
 use super::ask::Carry;
-use super::cache::{active_route, hand_over};
+use super::cache::{active_route, force_reset};
 use super::conversation::{Asking, Carrying, Conversations, Follower, Held};
 use super::notices;
 use super::notices::Voiced;
-use super::prompt::quiet_room;
 use super::sentinels::{is_skip, is_wait};
 use super::window::{Material, composed, select};
 use crate::form;
@@ -272,85 +270,15 @@ pub async fn handover_of(receiver: &Receiver, agent: &str) -> Handover {
   PROVIDERS.provider(&provider).map(|found| found.handover).unwrap_or(Handover::Fold)
 }
 
-/// An agent's one session handed over by its own note: the session asked once more, on the run its turns go out
-/// on, for its handoff, and the note it wrote held for the fresh session its next turn opens.
-pub async fn hand_off(
-  receiver: &Receiver,
-  conversations: &Conversations,
-  agent: &str,
-  chat_id: i64,
-  session: Option<&str>,
-) -> bool {
-  let instruction = HANDOVER.chat.carried.first().cloned().unwrap_or_default();
-  let said: Vec<String> = vec![instruction.clone()];
-  let none: Vec<Inbound> = vec![];
-  let empty: Vec<String> = vec![];
-  let none_events: Vec<TurnEvent> = vec![];
-  let room = quiet_room(receiver, receiver.owner_id(), chat_id).await.unwrap_or(Room::default());
-  let material = Material {
-    agent,
-    chat_id,
-    room,
-    messages: &none,
-    instructions: &empty,
-    said: &said,
-    events: &none_events,
-    recent: &empty,
-    holds: None,
-    round: None,
-  };
-  let selection = match select(receiver, &material).await {
-    Ok(selection) => selection,
-    Err(why) => {
-      eprintln!("{agent}: the handoff selection failed: {}", why.detail);
-
-      return false;
-    }
-  };
-  let began = now_ms();
-  let asking = Asking {
-    chat_id,
-    session: session.unwrap_or_default().to_owned(),
-    prompt: composed(&selection, &instruction),
-    via: None,
-    privileged: false,
-    answers: vec![],
-    began,
-    context: selection.context.clone(),
-  };
-  let held = Held {
-    agent: agent.to_owned(),
-    chat_id,
-    session: session.map(str::to_owned),
-    account: None,
-    context_tokens: None,
-    all_from_owner: false,
-    replaced: vec![],
-    last_consumed_id: None,
-  };
-  let follower = Follower::new(conversations, chat_id);
-  let carrying = Carry::new(receiver.clone());
-  let note = match carrying.carry(&asking, &held, &follower).await {
-    Ok(answered) => form::strip_prompt_scaffolding(&answered.text),
-    Err(why) => {
-      eprintln!("{agent}: the handoff failed: {why:?}");
-
-      return false;
-    }
-  };
-
-  if note.trim().is_empty()
-    || note.trim().to_lowercase() == HANDOVER.chat.lost.first().cloned().unwrap_or_default()
-  {
-    eprintln!("{agent}: the session wrote no handoff note, it goes on as it was");
-
-    return false;
-  }
-
-  match hand_over(receiver.db(), agent, &note).await {
+/// An agent's one full session handed over by its own note rather than folded: the owner's word to start it
+/// afresh written with the reason `full`, so its next turn asks it for its handoff file and opens the new session
+/// on it, the one way a session is replaced (docs/unified-bmo.md, 「Replacing the session」); whether the word
+/// was written.
+pub async fn hand_off(receiver: &Receiver, agent: &str) -> bool {
+  match force_reset(receiver.db(), agent, SessionReason::Full).await {
     Ok(()) => true,
     Err(why) => {
-      eprintln!("{agent}: the handoff note could not be held: {}", why.detail);
+      eprintln!("{agent}: the full session's handoff was not asked for: {}", why.detail);
 
       false
     }

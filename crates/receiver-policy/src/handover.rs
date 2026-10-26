@@ -1,6 +1,6 @@
-//! What passes from a room's closed session to the one that replaces it (docs/unified-bmo.md, 「Replacing the
-//! session」): how much of the old conversation a transcript keeps, the blocks that are the conversation, and the
-//! note the new session's first turn opens with.
+//! What passes from a closed session to the one that replaces it (docs/unified-bmo.md, 「Replacing the
+//! session」): the instruction the closing session writes its handoff file by, how much of the old conversation a
+//! transcript keeps, the blocks that are the conversation, and the notes the new session's first turn opens with.
 
 use serde::Deserialize;
 
@@ -12,21 +12,32 @@ pub struct Block {
   pub close: String,
 }
 
-/// The lines a transcript is written in.
+/// The line an answer is kept in a transcript by.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Transcript {
-  pub room: String,
   pub answer: String,
 }
 
-/// The two notes a room's session is handed: the summary under its heading, and the word that nothing was
+/// The lines of a replacement: the instruction asking the closing session for its handoff file, and the three
+/// notes a new session is handed: the handoff, the transcript under its heading, and the word that nothing was
 /// recovered.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Notes {
+  pub ask: Vec<String>,
+  pub handed: Vec<String>,
   pub carried: Vec<String>,
   pub lost: Vec<String>,
+}
+
+/// The notice the owner is queued where nothing of a replaced session could be carried over.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LostNotice {
+  pub intent: String,
+  pub kind: String,
+  pub ttl_minutes: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,9 +47,16 @@ pub struct Handover {
   pub transcript_tail_chars: usize,
   /// What a room's own speaker is named in a transcript.
   pub room_speaker: String,
+  /// How long the closing session's handoff turn is given, in seconds.
+  pub ask_seconds: u64,
+  /// The folder under the data root an agent's handoffs are kept in, `{agent}` its name.
+  pub folder: String,
+  /// The name the newest handoff is copied to.
+  pub latest: String,
   pub transcript: Transcript,
   pub conversation: Vec<Block>,
   pub chat: Notes,
+  pub lost_notice: LostNotice,
 }
 
 crate::part!(pub HANDOVER: Handover = "handover.toml");

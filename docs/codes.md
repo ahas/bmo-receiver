@@ -135,6 +135,7 @@ family. No code carries a sentence in a room's language.
 | Code | Fields | When |
 |---|---|---|
 | `fold-failed` | `room`, `reason` | a room's fold did not happen; the owner hears why |
+| `handoff-lost` | `agent`, `reason` | an agent's session was replaced and neither its handoff nor a transcript of it could be carried to the new one; the owner hears it once |
 
 ### VoiceFact
 
@@ -224,6 +225,7 @@ session once the setting has changed, one waiting per setting.
 | `no-prefix` | the session holds no record of its prefix |
 | `downgrade` | a downgrade was noticed |
 | `downgrade-forced` | the model was replaced on its own |
+| `full` | the session filled its window and its provider hands it over by its own note rather than a fold |
 
 ### TurnOpening
 

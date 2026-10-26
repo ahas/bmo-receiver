@@ -159,8 +159,9 @@
 - **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
   effort, or another login), the cache lifetime its provider declares passed, or the owner asked for a fresh
   start. The agency carries the replacement as the session's provider declares.
-  Where the provider hands a full session over by its own note, the session is asked once more for its handoff
-  note, and the receiver keeps what it writes as the agent's pending note.
+  A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
+  folded: the owner's word to start it afresh is written for it, with the reason `full`, and its next turn
+  replaces it.
 - **The head is what the session's cache stands on:** the common system prompt, which the agency composes and
   keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of
   it, so no part of a turn is the head: not the room-switch block or its mark, the reference blocks, the turn's
@@ -175,18 +176,29 @@
   deployment that rewrites them moves and nothing a room or a turn fills in does.
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
   generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
-- **The new session's first turn carries the note:** the receiver takes the agent's pending note as it opens the
-  new session and puts it at the head of that turn. The pending note is the only note carried; no summary is kept
-  for the agent anywhere else.
-- **Behind the note, the first turn is whole:** it carries everything the turn would have carried on the old
-  session, the room's messages archived since the agent last answered there among them. What arrived around the
-  handover that the agent never read reaches the new session in that turn, up to the archived block's cap: the
-  newest of them, with a line counting the older ones left in the room's archive (`docs/bmo-window.md`,
-  「What every turn carries」).
+- **Before the old session is ended it writes its handoff,** whatever the reason. The receiver asks it one more
+  turn, the handover policy's `ask` instruction (`handover.toml`), naming the file it writes with its file tool:
+  `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」). The file
+  holds what the session was in the middle of and how far it got, the promises it made and what wakes them,
+  the open threads of each room, what the next session must do first, and what it learned was wrong. The turn
+  is bounded by the policy's `ask_seconds`; a run that fails or passes the bound ends the session all the same.
+  A file that stands and is not empty is copied to `handoffs/<agent>/latest.md`, the newest handoff.
+- **The new session's first turn carries the note at its head:** the handoff file's path and its whole content,
+  so the session can read it again with its file tool.
+- **Where the old session wrote nothing,** the note is the transcript the receiver keeps of what the session
+  answered in each room, the tail of it kept on the road the session stands on, carried under its own heading.
+- **Only where neither stands** does the first turn open on the `lost` lines, saying memory could not be
+  restored; the whole old context is never read again. The owner's private chat is then queued one notice
+  (`handoff-lost`, `docs/codes.md`) that the handoff could not be recovered.
+- **The owner's word to start afresh is spent** by the replacement it asked for: one word, one replacement.
+- **Behind the note, the first turn is whole:** it is composed for the new session, which holds nothing yet, so
+  the room's block and every reference document go in full, and it carries everything the turn would have
+  carried on the old session, the room's messages archived since the agent last answered there among them.
+  What arrived around the handover that the agent never read reaches the new session in that turn, up to the
+  archived block's cap: the newest of them, with a line counting the older ones left in the room's archive
+  (`docs/bmo-window.md`, 「What every turn carries」).
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
   keeps one session across its rooms; a room's own session is the agency's to resume.
-- **Never a full re-read:** where no pending note is held, the whole old context is not read again; the new
-  session is opened with a line saying memory could not be restored, ahead of the same whole first turn.
 - **Moving between rooms carries no summary of a room:** the room's block and its archived messages since the
   agent last answered there, up to the archived block's cap, are what a turn in another room reads, as every
   turn does.

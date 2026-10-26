@@ -1,5 +1,8 @@
 //! Replacing the chat agent's one session (docs/unified-bmo.md, 「Replacing the session」): a turn on an unmoved
 //! head resumes the session whatever its own composition carries, and a head the agency says moved replaces it.
+//! Before it is ended the old session writes its handoff file, which the new session's first turn carries; where it
+//! writes nothing the receiver's transcript of it stands in, and only where neither stands is nothing recovered and
+//! the owner told so.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -79,8 +82,8 @@ async fn until(what: &str, holds: impl Fn() -> bool) {
 
 /// The chat agent on its one session across its rooms, in the owner's chat.
 struct Unified {
-  _scratch: Scratch,
-  _data: tempfile::TempDir,
+  scratch: Scratch,
+  data: tempfile::TempDir,
   standing: Standing,
   session: Arc<StandInSession>,
   runner: Runner,
@@ -108,12 +111,22 @@ impl Unified {
     receiver.hold_runner(Arc::new(runner.clone()));
 
     Unified {
-      _scratch: scratch,
-      _data: data,
+      scratch,
+      data,
       standing,
       session,
       runner,
     }
+  }
+
+  // The notices the owner's chat was queued of a handoff lost.
+  async fn lost_notices(&self) -> Vec<String> {
+    self
+      .scratch
+      .texts(&format!(
+        r#"SELECT "text" FROM "instructions" WHERE "chat_id" = {OWNER} AND "kind" = 'handoff-lost'"#
+      ))
+      .await
   }
 
   // The owner's words, and the round they open run to its end.
@@ -183,4 +196,107 @@ async fn a_session_opened_before_with_no_record_of_its_head_is_replaced_and_one_
 
   fresh.round(1, "the first words").await;
   assert!(fresh.standing.agency.ended().is_empty());
+}
+
+const NOTE: &str = "In the middle of the owner's question about the deployment; promised a reply by noon.";
+
+#[tokio::test]
+async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_session_opens_on_it() {
+  let unified =
+    Unified::on(StandInSession::new(SESSION, ANSWER).acting(crate::common::session::writing_handoff(NOTE)))
+      .await;
+
+  unified.round(1, "the first words").await;
+  unified.session.prefix_changed("reload: a prompt document");
+  unified.round(2, "the second words").await;
+
+  let prompts = unified.session.prompts();
+
+  assert_eq!(prompts.len(), 3, "{prompts:?}");
+
+  // The old session was asked, before it was ended, to write its handoff at a file under the data root.
+  let path = crate::common::session::handoff_path(&prompts[1]).expect("the handoff names its file");
+  let folder = unified.data.path().join("handoffs").join(AGENT);
+
+  assert!(path.starts_with(&folder.display().to_string()), "{path}");
+  assert_eq!(std::fs::read_to_string(&path).unwrap(), NOTE);
+  assert_eq!(
+    std::fs::read_to_string(folder.join("latest.md")).unwrap(),
+    NOTE,
+    "the newest is copied beside it"
+  );
+  assert_eq!(unified.standing.agency.ended(), [SESSION]);
+
+  // The new session's first turn opens on the file's path and its whole text, ahead of the round's own words.
+  let first = &prompts[2];
+
+  assert!(first.contains(&path) && first.contains(NOTE), "{first}");
+  assert!(first.find(NOTE) < first.find("the second words"), "{first}");
+  assert!(!first.contains("could not be recovered"), "{first}");
+  assert!(unified.lost_notices().await.is_empty());
+}
+
+#[tokio::test]
+async fn a_session_that_writes_no_handoff_leaves_the_transcript_of_what_it_answered() {
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  unified.round(1, "the first words").await;
+  unified.session.prefix_changed("reload: a prompt document");
+  unified.round(2, "the second words").await;
+
+  let prompts = unified.session.prompts();
+  let first = prompts.last().unwrap();
+
+  assert_eq!(prompts.len(), 3, "{prompts:?}");
+  assert!(first.contains("WHAT YOU ANSWERED BEFORE"), "{first}");
+  assert!(first.contains(&format!("{AGENT} (room {OWNER}): {ANSWER}")), "{first}");
+  assert!(!first.contains("could not be recovered"), "{first}");
+  assert!(unified.lost_notices().await.is_empty());
+}
+
+#[tokio::test]
+async fn nothing_is_recovered_only_where_neither_a_handoff_nor_a_transcript_stands_and_the_owner_is_told() {
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  bmo_receiver::chat::cache::force_reset(
+    unified.scratch.db(),
+    AGENT,
+    receiver_codes::SessionReason::DowngradeForced,
+  )
+  .await
+  .unwrap();
+  unified.round(1, "the first words").await;
+
+  let prompts = unified.session.prompts();
+  let first = prompts.last().unwrap();
+
+  assert_eq!(prompts.len(), 2, "the handoff was asked, then the round: {prompts:?}");
+  assert!(first.contains("could not be recovered"), "{first}");
+
+  let told = unified.lost_notices().await;
+
+  assert_eq!(told.len(), 1, "{told:?}");
+  assert!(told[0].contains("neither its handoff nor a transcript"), "{told:?}");
+
+  // The owner's word to start afresh is spent by the one replacement.
+  unified.round(2, "the second words").await;
+  assert_eq!(unified.standing.agency.ended(), [SESSION]);
+}
+
+#[tokio::test]
+async fn a_full_session_handed_over_by_its_note_is_replaced_at_its_next_turn_through_the_same_handoff() {
+  let unified =
+    Unified::on(StandInSession::new(SESSION, ANSWER).acting(crate::common::session::writing_handoff(NOTE)))
+      .await;
+
+  unified.round(1, "the first words").await;
+  assert!(bmo_receiver::chat::fold::hand_off(&unified.standing.receiver, AGENT).await);
+  unified.round(2, "the second words").await;
+
+  let prompts = unified.session.prompts();
+
+  assert_eq!(prompts.len(), 3, "{prompts:?}");
+  assert!(crate::common::session::handoff_path(&prompts[1]).is_some(), "{}", prompts[1]);
+  assert!(prompts[2].contains(NOTE), "{}", prompts[2]);
+  assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }

@@ -1,7 +1,7 @@
-# What passes from a room's closed session to the one that replaces it (docs/unified-bmo.md, 「Replacing the
-# session」): how much of the old conversation a transcript keeps, how the room's words are told apart from the
-# scaffolding around them, and the note the new session's first turn opens with. The summariser and its note are
-# the brain's; a job worker's notes are the agency's.
+# What passes from a closed session to the one that replaces it (docs/unified-bmo.md, 「Replacing the session」): the
+# instruction the closing session writes its handoff file by, how much of the old conversation a transcript keeps,
+# how the room's words are told apart from the scaffolding around them, and the notes the new session's first turn
+# opens with.
 
 # How much of an old conversation a transcript keeps, in UTF-16 units: the tail is what a session is in the middle
 # of.
@@ -10,10 +10,16 @@ transcript_tail_chars = 40000
 # What a room's own speaker is named in a transcript, beside the agent's own name.
 room_speaker = "room"
 
-# The lines a transcript is written in: a room's opening, {chat}, and an answer of an agent's, {agent} in the room
-# {chat} saying {text}.
+# How long the closing session's handoff turn is given, in seconds; past it the session is ended all the same.
+ask_seconds = 300
+
+# The folder under the data root an agent's handoffs are kept in, `{agent}` its name, and the name the newest is
+# copied to beside them; each handoff is named by the moment it was asked for, in epoch milliseconds, `.md`.
+folder = "handoffs/{agent}"
+latest = "latest.md"
+
+# The line an answer of a session's is kept in a transcript by: {agent} in the room {chat} saying {text}.
 [transcript]
-room = "room {chat}:"
 answer = "{agent} (room {chat}): {text}"
 
 # The two blocks of a round's prompt that are the conversation, by the line each opens on and the line it closes
@@ -26,19 +32,46 @@ close = "END OF NEW MESSAGES"
 open = "Quiet instruction from the system ("
 close = "END OF QUIET INSTRUCTION"
 
-# The notes a room's session is handed: the summary under its heading, or the word that nothing was recovered.
+# The notes a session is handed: `ask`, the one more turn a session about to be replaced is asked, `{path}` the
+# file it writes; `handed`, the new session's first lines where that file stands, `{path}` and its whole text
+# `{note}`; `carried`, where only the receiver's transcript of the old session stands, `{note}`; `lost`, the word
+# that nothing was recovered.
 [chat]
-carried = [
+ask = [
+  "Quiet instruction from the system: this session is about to be closed, and a new session takes over every room you answer. It remembers nothing of this one but what you write now.",
+  "Write your handoff for it with your file tool, to this file, whole: {path}",
+  "The file holds, each under its own heading: what you were in the middle of and how far you got; every promise you made that is not yet kept, and what wakes you to keep it; the open threads of each room, by its chat id; what the next session must do first; and what you learned was wrong, so that it is not believed again.",
+  "Write facts, ids, names and times as they stand, not a story of the conversation. Write only the file and change nothing else. Nothing about this is said in any room: once the file is written, output exactly <<SKIP>>.",
+]
+handed = [
   "Quiet instruction from the system: your previous session was closed and this is a new one.",
-  "Below is what that session was in the middle of, written by another agent that read its record. Take it as your own memory of this room's recent conversation. It is a summary, so it is thinner than what you would remember — where it is silent, you simply do not recall, and you say so plainly rather than inventing.",
+  "Before it closed, that session wrote its handoff for you to this file: {path}. Its whole text stands below. Take it as your own memory of what you were doing; where it is silent you do not recall, and you say so plainly rather than inventing. Read the file again with your file tool whenever you need it.",
   "Who the people here are does not come from this: that reaches you through the reference material attached to each round, as always.",
-  "Nothing about this needs saying in the room: output exactly <<SKIP>>.",
+  "The replacement itself is said in no room: answer the rest of this turn as it asks.",
   "",
-  "WHAT YOU WERE IN THE MIDDLE OF:",
+  "YOUR HANDOFF ({path}):",
   "{note}",
+  "END OF HANDOFF",
+]
+carried = [
+  "Quiet instruction from the system: your previous session was closed and this is a new one, and it left no handoff.",
+  "Below is the tail of what that session answered in each room, as the receiver kept it. Take it as your own memory of the rooms' recent conversation. It holds your answers alone, so it is thinner than what you would remember: where it is silent you do not recall, and you say so plainly rather than inventing.",
+  "Who the people here are does not come from this: that reaches you through the reference material attached to each round, as always.",
+  "The replacement itself is said in no room: answer the rest of this turn as it asks.",
+  "",
+  "WHAT YOU ANSWERED BEFORE:",
+  "{note}",
+  "END OF WHAT YOU ANSWERED",
 ]
 lost = [
   "Quiet instruction from the system: your previous session was closed and this is a new one.",
   "What that session was in the middle of could not be recovered, so you remember none of this room's recent conversation. If someone refers to something you cannot place, say plainly that you have lost the thread and ask.",
-  "Nothing about this needs saying in the room: output exactly <<SKIP>>.",
+  "The replacement itself is said in no room: answer the rest of this turn as it asks.",
 ]
+
+# The notice the owner's private chat is queued where the handoff could not be recovered: what it is for and the
+# kind it stands under, one at a time.
+[lost_notice]
+intent = "tell the owner, in one short line, that your session was replaced and nothing of it could be carried over, so you have lost the thread of the rooms' recent conversation."
+kind = "handoff-lost"
+ttl_minutes = 60

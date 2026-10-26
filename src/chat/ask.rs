@@ -19,11 +19,12 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
 use receiver_ports::http::PortFailure;
 
-use super::cache::{Leaving, Route, carried_note, pending_note, remember, reset_reason};
+use super::cache::{Leaving, Route, forget_state, remember, reset_reason, spend_force, transcript};
 use super::context::{RoomSend, State, forget_documents, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
   Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
 };
+use super::handoff::{self, Note, carried_note};
 use super::progress::{RunProgress, picture_of};
 use super::room::{RoomContext, room_context};
 use crate::now_ms;
@@ -164,6 +165,68 @@ impl Carry {
     (state.provider, state.tier)
   }
 
+  /// The agent's one session replaced: asked one more turn for its handoff file, ended with what it held, the
+  /// owner's word to start afresh spent, and started again; the new session and the note its first turn opens
+  /// with: the handoff, else the receiver's transcript of the old session, else the word that nothing was
+  /// recovered, of which the owner is told.
+  async fn replace(
+    &self,
+    agent: &str,
+    old: &str,
+    scope: Scope,
+    reason: SessionReason,
+  ) -> Result<(Session, String), Failure> {
+    let receiver = &self.receiver;
+    let agency = receiver.units().agency.clone();
+    let db = receiver.db();
+    let handed = handoff::ask(receiver, agent, old).await;
+
+    agency.end(old).await.map_err(fault_of)?;
+
+    // The ended session's loads, its room's block and its cache record go with it; the one started next holds
+    // nothing yet.
+    if let Err(why) = forget_documents(receiver, Some(old)).await {
+      eprintln!("{agent}: the ended session's loads were not forgotten: {}", why.detail);
+    }
+
+    if let Err(why) = super::context::forget_room(db, Some(old)).await {
+      eprintln!("{agent}: the ended session's room block was not forgotten: {}", why.detail);
+    }
+
+    if let Err(why) = forget_state(db, agent, old).await {
+      eprintln!("{agent}: the ended session's cache record was not forgotten: {}", why.detail);
+    }
+
+    if let Err(why) = spend_force(db, agent).await {
+      eprintln!("{agent}: the word to start afresh was not spent: {}", why.detail);
+    }
+
+    let note = match handed {
+      Some(handed) => Note::Handed(handed),
+      None => match transcript(db, agent).await.ok().flatten() {
+        Some(kept) => Note::Carried(kept),
+        None => Note::Lost,
+      },
+    };
+
+    if note == Note::Lost {
+      handoff::tell_lost(receiver, agent, reason).await;
+    }
+
+    let again = agency.start(agent, scope).await.map_err(fault_of)?;
+
+    println!(
+      "{agent}: session {old} replaced ({reason}), the new one opening on {}",
+      match &note {
+        Note::Handed(handed) => handed.path.display().to_string(),
+        Note::Carried(_) => "the transcript".to_owned(),
+        Note::Lost => "nothing recovered".to_owned(),
+      }
+    );
+
+    Ok((again, carried_note(&note)))
+  }
+
   pub async fn carries(&self, asking: &Asking, held: &Held, follower: &Follower) -> Result<Reply, Failure> {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
@@ -182,20 +245,13 @@ impl Carry {
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
 
-    let (sent, send) = sent_prompt(receiver, Some(started_id.as_str()), Some(&room), true, &asking.prompt)
-      .await
-      .map_err(|why| Failure::Failed(why.detail))?;
-    let loaded = loaded_in(receiver, Some(started_id.as_str()))
-      .await
-      .map_err(|why| Failure::Failed(why.detail))?;
-    let marked = states(&asking.prompt, &loaded);
     // A session the agency has just started is not opened until its first turn, so a state it answers
     // "not opened" for is the fresh session's, with no provider or model to resume yet.
     let standing = agency.state(&started_id).await.unwrap_or_default();
 
-    // The one session an agent keeps across its rooms, where the road says it may not be resumed, is let go
-    // here and started again, the agent's pending note — the one note it left — riding at the head. A room's
-    // own session is the agency's to resume.
+    // The one session an agent keeps across its rooms, where its head or its road moved, is asked for its
+    // handoff, let go here and started again, the note it left riding at the head of the new one's first turn
+    // (docs/unified-bmo.md, 「Replacing the session」). A room's own session is the agency's to resume.
     let asked = Route {
       provider: standing.provider.as_deref().unwrap_or_default().to_owned(),
       model: standing.model.as_deref().unwrap_or_default().to_owned(),
@@ -211,22 +267,27 @@ impl Carry {
     } else {
       None
     };
-
-    let (session, prompt, replaced): (Session, String, Vec<SessionReason>) = match reason {
-      None => (started, sent, vec![]),
+    let (session, note, replaced): (Session, Option<String>, Vec<SessionReason>) = match reason {
+      None => (started, None, vec![]),
       Some(reason) => {
-        agency.end(&started_id).await.map_err(fault_of)?;
+        let again = self.replace(agent, &started_id, scope, reason).await?;
 
-        // The ended session's loads go with it; the one started next holds nothing yet.
-        if let Err(why) = forget_documents(receiver, Some(started_id.as_str())).await {
-          eprintln!("{agent}: the ended session's loads were not forgotten: {}", why.detail);
-        }
-
-        let note = pending_note(db, agent).await.ok().flatten();
-        let again = agency.start(agent, scope).await.map_err(fault_of)?;
-
-        (again, format!("{}\n\n{}", carried_note(note.as_deref()), sent), vec![reason])
+        (again.0, Some(again.1), vec![reason])
       }
+    };
+
+    // The turn is composed for the session it goes on: a new one holds nothing yet, so the room's block and every
+    // reference document go in full.
+    let (sent, send) = sent_prompt(receiver, Some(session.id.as_str()), Some(&room), true, &asking.prompt)
+      .await
+      .map_err(|why| Failure::Failed(why.detail))?;
+    let loaded = loaded_in(receiver, Some(session.id.as_str()))
+      .await
+      .map_err(|why| Failure::Failed(why.detail))?;
+    let marked = states(&asking.prompt, &loaded);
+    let prompt = match note {
+      Some(note) => format!("{note}\n\n{sent}"),
+      None => sent,
     };
 
     let turn = turn_of(asking, &session, &room, &prompt);
@@ -313,14 +374,14 @@ impl Carry {
     let outcome = ended.get("outcome").and_then(Value::as_str).unwrap_or_default();
 
     if delivered == Delivery::Delivered {
-      let _ =
-        remember_held(receiver, Some(started_id.as_str()), &session.id, Some(&room), true, &asking.prompt)
-          .await;
+      let resumed = replaced.is_empty().then_some(started_id.as_str());
+      let _ = remember_held(receiver, resumed, &session.id, Some(&room), true, &asking.prompt).await;
 
       let _ = remember(
         db,
         agent,
         &Leaving {
+          chat_id,
           route: Route {
             provider: standing.provider.as_deref().unwrap_or_default().to_owned(),
             model: standing.model.as_deref().unwrap_or_default().to_owned(),

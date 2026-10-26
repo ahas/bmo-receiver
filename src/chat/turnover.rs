@@ -4,11 +4,12 @@
 //! round's verdict, kept beside the room by the gate. The road a turn walked and what it spent are published by
 //! the agency as `road-walked` and `usage-spent`, and the receiver writes neither.
 
+use receiver_policy::providers::Handover;
 use receiver_ports::gate::Judgement;
 use serde_json::json;
 
 use super::conversation::{BoxFuture, Conversations, Held, Noting, Reply, unified_session};
-use super::fold::{Failures, Folding, compact, fold_timeout};
+use super::fold::{Failures, Folding, compact, fold_timeout, hand_off, handover_of};
 use super::prompt::recent_lines;
 use super::sentinels::{is_skip, is_wait};
 use crate::form::without_control_markers;
@@ -173,6 +174,13 @@ impl Noting for Noter {
         recent,
         timeout: fold_timeout(),
       };
+
+      // A full session its provider hands over by its own note is replaced at its next turn, not folded.
+      if unified_session(receiver, agent).await && handover_of(receiver, agent).await == Handover::Handoff {
+        hand_off(receiver, agent).await;
+
+        return;
+      }
 
       compact(
         receiver,

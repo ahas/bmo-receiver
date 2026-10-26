@@ -10,6 +10,7 @@ pub mod conversation;
 pub mod draft;
 pub mod fallback;
 pub mod fold;
+pub mod handoff;
 pub mod health;
 pub mod instructions;
 pub mod logins;
