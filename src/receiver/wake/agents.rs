@@ -251,6 +251,24 @@ pub async fn own_number(
   Ok(given.map(|row| row.try_get("", "sender_id")).transpose()?)
 }
 
+/// The sender an agent's newest own words in a room's record are archived under, whatever road carried them; none
+/// where the record holds no words of the agent's there.
+pub async fn archived_number(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  agent: &str,
+) -> Result<Option<i64>, NotReceived> {
+  let row = one(
+    db,
+    r#"SELECT "sender_id" FROM "messages" WHERE "chat_id" = $1 AND "agent_name" = $2 AND "sender_id" IS NOT NULL
+       ORDER BY "sent_at" DESC, "message_id" DESC LIMIT 1"#,
+    vec![chat_id.into(), agent.into()],
+  )
+  .await?;
+
+  Ok(row.map(|row| row.try_get("", "sender_id")).transpose()?)
+}
+
 /// When an agent's window in a room closes, in epoch milliseconds; zero where none was opened.
 pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) -> Result<i64, NotReceived> {
   let row = one(

@@ -120,10 +120,22 @@ async fn a_rooms_record_answers_the_fields_the_api_names() {
     (StatusCode::OK, json!({ "owner": false })),
   );
 
-  // The agent's own number, and the two ways a row is queued.
+  // The agent's own number: none before it has said anything in the room, then the sender its own words there
+  // are archived under, whatever road carried them.
   assert_eq!(
     get(&front, &format!("/rooms/7/own-number?agentName={AGENT}")).await,
     (StatusCode::OK, json!({ "number": null })),
+  );
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via", "agent_name")
+         VALUES (7, 2, 9000000000011, 'the agent', 2000, 'Here.', 'record', $1)"#,
+      vec![AGENT.into()],
+    )
+    .await;
+  assert_eq!(
+    get(&front, &format!("/rooms/7/own-number?agentName={AGENT}")).await,
+    (StatusCode::OK, json!({ "number": 9000000000011_i64 })),
   );
   // Whether a text waits for something to happen first, by the receiver's reading of promises: the words it
   // stands for are the policy's, kept as data, so the sentence asked in is read the way they are.

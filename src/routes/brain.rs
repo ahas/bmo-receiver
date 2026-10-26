@@ -230,23 +230,26 @@ pub async fn spoke_between(State(served): State<Served>, Path(room): Path<i64>, 
     .and_then(answered)
 }
 
-/// The sender the agent's own words stand under in a room, or null.
+/// The sender the agent's own words stand under in a room: the number the room's road gave it, else the one its
+/// newest own words in the room's record are archived under; null where neither is.
 pub async fn own_number(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
   let asked = query::<OwnNumberAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let Some(road) = receiver.roads().room_road(room).await else {
-    return answered(json!({ "number": null }));
-  };
-  let Some(designated) = agents::registered(&receiver, &asked.agent_name).await.map_err(reached)? else {
-    return answered(json!({ "number": null }));
-  };
-  let identity = receiver.roads().identity_in(room).await;
+  let designated = agents::registered(&receiver, &asked.agent_name).await.map_err(reached)?;
+  let given = match (&designated, receiver.roads().room_road(room).await) {
+    (Some(designated), Some(road)) => {
+      let identity = receiver.roads().identity_in(room).await;
 
-  agents::own_number(&receiver, &designated, &road, identity)
-    .await
-    .map(|number| json!({ "number": number }))
-    .map_err(reached)
-    .and_then(answered)
+      agents::own_number(&receiver, designated, &road, identity).await.map_err(reached)?
+    }
+    _ => None,
+  };
+  let number = match given {
+    Some(number) => Some(number),
+    None => agents::archived_number(receiver.db(), room, &asked.agent_name).await.map_err(reached)?,
+  };
+
+  answered(json!({ "number": number }))
 }
 
 /// Of those asked, the people who have stood as a sender in the room.

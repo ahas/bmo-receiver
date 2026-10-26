@@ -93,7 +93,7 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `companion`, whether it answers beside the chat agent) |
 | `GET /answerers` | `room` (optional) | a page of `{room, agents}`: every room's agents answering it, or one room's |
 | `GET /rooms/{roomId}/roads` | | `kind` (`owner` or `group`) and `oneToOne` |
-| `GET /rooms/{roomId}/own-number` | `agentName` | `number` (or null), the sender an agent's own words stand under |
+| `GET /rooms/{roomId}/own-number` | `agentName` | `number` (or null), the sender an agent's own words stand under: the number the room's road gave it, else the sender its newest own words in the room's record are archived under |
 | `GET /rooms/{roomId}/spoke-between` | `person`, `from`, `to` (epoch milliseconds) | `spoke`, whether the person spoke in that span |
 | `GET /rooms/{roomId}/people` | `ids`, comma-separated | a page of `Person`: those among `ids` who have stood as a sender in the room |
 | `GET /rooms/{roomId}/owner-spoke` | `person`, `before`, `windowMs` | `owner` and `spoke`: whether the person is the owner, and whether the owner spoke in the span |
