@@ -308,7 +308,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
   receiver registers `room-title`, `typed-line` and `road-verbs` at its own `POST /hooks/{point}`. Until the
   agency states those points, the receiver answers them as `docs/api.md`, 「Hooks」, states.
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver keeps
-  what was recorded as its `restart_reason` setting.
+  what was recorded as its `restart_reason` setting, and where none was, reads its own deployment record
+  (「The deployments」) at start-up for the purpose and the commit.
 - **The agency's session state** names no `tier`. The receiver reads one where the state carries it and matches
   the draft process table by it (`docs/drafting.md`, 「The process table」); until the agency states it, every
   session reads as no tier and matches only rows of any tier.

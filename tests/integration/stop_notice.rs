@@ -77,3 +77,54 @@ async fn the_unannounced_stop_line_stands_without_a_fresh_record_and_none_where_
   assert_eq!(stop_line(&receiver, NOW).await, None);
   assert!(!notice_enabled(scratch.db(), OWNER, "restart").await);
 }
+
+fn own(at: i64) -> bmo_receiver::chat::relaunch::Deployed {
+  bmo_receiver::chat::relaunch::Deployed {
+    unit: "unit-a".to_owned(),
+    version: "1.2.0".to_owned(),
+    message: Some("the deploy's message".to_owned()),
+    commit: Some("0123456789ab".to_owned()),
+    at,
+  }
+}
+
+// The back notice a start leaves: the recorded reason where one stands, the receiver's own fresh deployment record
+// where none does, and the unannounced restart where neither speaks.
+#[tokio::test]
+async fn a_start_with_no_recorded_reason_tells_its_own_fresh_deployment_and_never_an_unannounced_restart() {
+  use bmo_receiver::chat::restart::{back_notice, take_reason};
+
+  let scratch = Scratch::new().await;
+  let now = bmo_receiver::now_ms();
+  let fresh = own(now - 60_000);
+  let reason = take_reason(scratch.db(), Some(&fresh))
+    .await
+    .expect("the own record speaks for the start");
+
+  assert_eq!(reason["purpose"], "the deploy's message");
+  assert_eq!(reason["commit"], "0123456789ab");
+
+  let told = back_notice(Some(&reason)).fact;
+
+  assert!(told.contains("the deploy's message") && told.contains("0123456789ab"), "{told}");
+  assert!(!told.contains(&RESTART.unannounced.fact), "{told}");
+
+  let stale = own(now - (RESTART.fresh_minutes + 1) * 60_000);
+
+  assert_eq!(
+    take_reason(scratch.db(), Some(&stale)).await,
+    None,
+    "a stale record speaks for no start"
+  );
+  assert_eq!(take_reason(scratch.db(), None).await, None);
+
+  record(&scratch, json!({ "purpose": "the recorded purpose", "commit": "fedcba", "at": now })).await;
+
+  let recorded = take_reason(scratch.db(), Some(&fresh)).await.unwrap();
+
+  assert_eq!(
+    recorded["purpose"], "the recorded purpose",
+    "a recorded reason comes first, and is spent"
+  );
+  assert_eq!(take_reason(scratch.db(), None).await, None);
+}

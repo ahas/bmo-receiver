@@ -64,16 +64,21 @@ agent that answers the room says the line.
   1. Before the receiver stops for a deployment, the deployment records its purpose and the items going live,
      and the receiver sends the going-down notice as it stops (「System notices」); no session is woken to say
      it, since a turn spent on going down is a turn the owner's session reads again on every turn after it.
-  2. After starting, the receiver queues one back notice for the owner's chat with the recorded purpose. When a
-     job is still running or will report, the notice says so, and the session neither summarises the work nor
-     calls it finished: the job's own report does that once.
+  2. After starting, the receiver queues one back notice for the owner's chat with the deployment's purpose.
+     The purpose is the one a deployment recorded as the `restart_reason` setting where one stands; where none
+     does, it is the receiver's own deployment record, `deployed.json` under the deploy root its release stands
+     in, where that record went live within the fresh window (`policy/restart.toml`, `fresh_minutes`): its
+     deploy message as the purpose and its commit, the same facts the deployment briefing names, so the two
+     never contradict. When a job is still running or will report, the notice says so, and the session neither
+     summarises the work nor calls it finished: the job's own report does that once.
   3. The back notice after a deployment rides for three minutes: the deployment's outcome fact (`deployed`, or
      the way it stopped short) follows within seconds and opens the one turn the restart costs, with the back
      notice and the queue standing at start-up in it. A deployment that tells no outcome leaves the back notice
      to open its own turn when the three minutes are up.
   4. The back line is never sent verbatim. A job's line is English, as every close's reason is, and the session
      says it in the room's own language.
-  5. A restart no deployment announced has no purpose to tell: its going-down notice is the restart one, and its
+  5. A restart no deployment announced, one with neither a recorded reason nor a fresh deployment record, has no
+     purpose to tell: its going-down notice is the restart one, and its
      back notice opens its turn at once and says only that the agent is back from an unannounced restart.
   6. **What went live is briefed to the owner, not the room.** At the first round after a deployment went live,
      the deployment briefing (`docs/wake.md`, 「Quiet instructions」) goes to the owner's private chat,

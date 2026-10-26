@@ -14,13 +14,14 @@ use receiver_policy::fill_marks;
 use receiver_policy::rest::REST;
 use receiver_policy::restart::RESTART;
 use sea_orm::DatabaseConnection;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use receiver_ports::agency::RestKind;
 
 use super::conversation::Conversations;
 use super::notices;
 use super::notices::Voiced;
+use super::relaunch::{Deployed, deployment};
 use crate::receiver::wake::{rest, standing};
 use crate::receiver::{Inbound, Receiver, rows};
 use crate::store::{Fault, settings};
@@ -120,17 +121,35 @@ pub async fn lift_rest_if_due(receiver: &Receiver) -> Result<(), Fault> {
   Ok(())
 }
 
-/// Why the process restarted, as the deployment recorded it, read once and spent: none where no deployment
-/// announced it or its record is too old to speak for this stop.
-pub async fn take_reason(db: &DatabaseConnection) -> Option<Value> {
+/// Why the process restarted, read once and spent: the reason a deployment recorded, else the receiver's own
+/// deployment record where it went live within the fresh window (docs/voiced-notices.md, 「Deploy and restart」);
+/// none where neither speaks for this start.
+pub async fn take_reason(db: &DatabaseConnection, own: Option<&Deployed>) -> Option<Value> {
   let raw = settings::get(db, REASON_KEY).await.ok().flatten();
 
   let _ = run(db, r#"DELETE FROM "settings" WHERE "key" = $1"#, vec![REASON_KEY.into()]).await;
 
-  let reason = raw.and_then(|held| serde_json::from_str::<Value>(held.as_str()).ok());
+  let fresh = |at: i64| now_ms() - at <= RESTART.fresh_minutes * 60_000;
+  let recorded = raw
+    .and_then(|held| serde_json::from_str::<Value>(held.as_str()).ok())
+    .filter(|reason| reason["at"].as_i64().is_some_and(fresh));
 
-  reason.filter(|reason| {
-    reason["at"].as_i64().is_some_and(|at| now_ms() - at <= RESTART.fresh_minutes * 60_000)
+  recorded.or_else(|| {
+    own
+      .filter(|deployed| fresh(deployed.at))
+      .map(|deployed| json!({ "purpose": deployed.message, "commit": deployed.commit, "at": deployed.at }))
+  })
+}
+
+/// The receiver's own deployment, as the record under the deploy root its release stands in tells it: the first
+/// folder above the running binary that holds a deployment record.
+pub fn own_deployment() -> Option<Deployed> {
+  let binary = std::env::current_exe().ok()?;
+
+  binary.ancestors().skip(1).find_map(|folder| {
+    let unit = folder.file_name()?.to_string_lossy().trim_start_matches("bmo-").to_owned();
+
+    folder.join("deployed.json").is_file().then(|| deployment(folder, &unit)).flatten()
   })
 }
 
@@ -230,7 +249,8 @@ pub fn back_notice(reason: Option<&Value>) -> Voiced {
 /// The owner's back notice queued as the process starts.
 pub async fn queue_back_notice(receiver: &Receiver) {
   let db = receiver.db();
-  let reason = take_reason(db).await;
+  let own = own_deployment();
+  let reason = take_reason(db, own.as_ref()).await;
 
   if !notice_enabled(db, receiver.deployment().owner_id, "restart").await {
     return;
