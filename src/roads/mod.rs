@@ -10,7 +10,7 @@ pub mod providers;
 pub mod record;
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use bmo_chat_client::{
@@ -26,6 +26,7 @@ use crate::kept::Kept;
 use crate::receiver::{Receiver, Room};
 use crate::room_record::forget::{Forgetting, RoomForget};
 use crate::room_record::{Facing, RoomHolding, Says};
+use crate::{all, one};
 use receiver_codes::{RoomRemovalRefusal, RoomRemovalWarning};
 
 // The administrator's own private chat on any road, where reports and questions reach the administrator.
@@ -92,6 +93,8 @@ pub struct Roads {
   chats: ChatServices,
   declared: Arc<Mutex<BTreeMap<String, ChatDeclaration>>>,
   rooms: Kept<(String, i64), Option<ProviderRoom>>,
+  // The receiver's store, which says which rooms stand on the record alone; given once the receiver stands.
+  store: Arc<OnceLock<sea_orm::DatabaseConnection>>,
 }
 
 // A chat service's answer that did not come is said once and read as no answer, so one service that does not
@@ -114,7 +117,53 @@ impl Roads {
       chats,
       declared: Arc::default(),
       rooms: Kept::new(span),
+      store: Arc::default(),
     }
+  }
+
+  /// The roads reading the receiver's store for the rooms on the record alone; the first given stands.
+  pub fn with_store(&self, db: sea_orm::DatabaseConnection) {
+    let _ = self.store.set(db);
+  }
+
+  /// Whether a room no chat service holds stands on the record alone (docs/receiver.md, 「A room's chat
+  /// providers」): its list of providers names the record, or, where none was chosen, the room is one the receiver
+  /// numbered on the record or keeps messages of.
+  async fn on_record(&self, chat_id: i64) -> bool {
+    let Some(db) = self.store.get() else { return false };
+    let record = Road::Record.key();
+    let chosen: Vec<String> = all(
+      db,
+      r#"SELECT "provider" FROM "room_providers" WHERE "chat_id" = $1"#,
+      vec![chat_id.into()],
+    )
+    .await
+    .map(|rows| rows.iter().filter_map(|row| row.try_get::<String>("", "provider").ok()).collect())
+    .unwrap_or_default();
+
+    if !chosen.is_empty() {
+      return chosen.iter().any(|key| key == record);
+    }
+
+    one(
+      db,
+      r#"SELECT 1 AS "known" WHERE EXISTS (SELECT 1 FROM "provider_rooms" WHERE "provider" = $1 AND "chat_id" = $2)
+           OR EXISTS (SELECT 1 FROM "messages" WHERE "chat_id" = $2)"#,
+      vec![record.into(), chat_id.into()],
+    )
+    .await
+    .ok()
+    .flatten()
+    .is_some()
+  }
+
+  /// The room's own road: the chat service that holds it, else the record where the room stands on it alone.
+  async fn own(&self, chat_id: i64) -> Option<Road> {
+    if let Some(key) = self.room_road(chat_id).await {
+      return Some(Road::Service(key));
+    }
+
+    self.on_record(chat_id).await.then_some(Road::Record)
   }
 
   pub fn chats(&self) -> &ChatServices {
@@ -313,13 +362,13 @@ impl Roads {
       return Some(Road::Record);
     }
 
-    self.room_road(chat_id).await.map(Road::Service)
+    self.own(chat_id).await
   }
 
   /// The road a turn in a room answers on, given the road it was asked on: that road where it is the room's own or
   /// reaches the room, and the room's own road everywhere else.
   pub async fn answering(&self, chat_id: i64, via: Option<&str>) -> Option<Road> {
-    let own = self.room_road(chat_id).await.map(Road::Service);
+    let own = self.own(chat_id).await;
     let Some(via) = via else { return own };
 
     if via == ROADS.record.key {
@@ -350,7 +399,7 @@ impl Roads {
     let (came, asked) = (distinct(came), distinct(asked));
 
     match (came.as_slice(), asked.as_slice()) {
-      ([_, _, ..], _) => self.room_road(chat_id).await.map(Road::Service),
+      ([_, _, ..], _) => self.own(chat_id).await,
       ([one], _) | ([], [one]) => self.answering(chat_id, Some(one)).await,
       _ => self.unasked(chat_id).await,
     }

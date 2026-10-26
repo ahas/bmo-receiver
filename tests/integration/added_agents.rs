@@ -101,3 +101,69 @@ async fn a_field_the_agency_refuses_comes_back_as_the_receivers_code_and_nothing
     "no options are copied for a refused row"
   );
 }
+
+#[tokio::test]
+async fn an_added_agents_console_room_is_born_on_the_record_and_its_first_answer_is_kept_there() {
+  use bmo_receiver::chat::reply::{OutgoingReply, send_reply};
+  use bmo_receiver::roads::Road;
+
+  let scratch = Scratch::new().await;
+  let front = bench(&scratch).await;
+  let (status, answer) = post(&front, "/companions", added()).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+
+  let room = answer["room"]["id"].as_i64().unwrap();
+  let receiver = &front.standing.receiver;
+
+  assert_eq!(
+    scratch
+      .texts(&format!(r#"SELECT "provider" FROM "room_providers" WHERE "chat_id" = {room}"#))
+      .await,
+    ["record"],
+    "the room is born with the record as its one provider"
+  );
+  assert_eq!(receiver.roads().answering(room, Some("record")).await, Some(Road::Record));
+  assert_eq!(receiver.roads().answering(room, None).await, Some(Road::Record));
+  assert_eq!(receiver.roads().unasked(room).await, Some(Road::Record));
+
+  let sent = send_reply(
+    receiver,
+    &OutgoingReply {
+      agent: Some(ADDED.to_owned()),
+      chat_id: room,
+      text: "The first answer.".to_owned(),
+      via: Some("record".to_owned()),
+      ..OutgoingReply::default()
+    },
+  )
+  .await;
+
+  assert!(sent.is_some(), "the answer has a road");
+  assert_eq!(
+    scratch
+      .count(r#"SELECT COUNT(*) FROM "messages" WHERE "chat_id" = $1"#, vec![room.into()])
+      .await,
+    1,
+    "the first answer is kept in the room"
+  );
+}
+
+#[tokio::test]
+async fn a_room_whose_providers_are_the_record_alone_answers_on_it_and_an_unknown_room_has_no_road() {
+  use bmo_receiver::roads::{Road, providers};
+
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let receiver = &front.standing.receiver;
+
+  providers::choose(receiver.db(), -77, &["record".to_owned()]).await.unwrap();
+
+  assert_eq!(receiver.roads().answering(-77, Some("record")).await, Some(Road::Record));
+  assert_eq!(receiver.roads().unasked(-77).await, Some(Road::Record));
+  assert_eq!(
+    receiver.roads().answering(-78, None).await,
+    None,
+    "a room the receiver never saw has no road"
+  );
+}

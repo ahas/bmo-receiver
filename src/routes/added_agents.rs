@@ -214,6 +214,10 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   )
   .await
   .map_err(store)?;
+  // A console room is born on the record alone: its one provider is the record, so its answers stand there.
+  crate::roads::providers::choose(receiver.db(), chat_id, std::slice::from_ref(&road))
+    .await
+    .map_err(store)?;
   run(
     receiver.db(),
     r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES ($1, $2) ON CONFLICT ("chat_id") DO UPDATE SET "title" = excluded."title""#,

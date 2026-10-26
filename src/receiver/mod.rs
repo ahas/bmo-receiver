@@ -372,6 +372,8 @@ impl Receiver {
     let deployment = Arc::new(deployment);
     let news: Arc<dyn News> = Arc::new(Unheard);
 
+    units.roads.with_store(db.clone());
+
     Self {
       speech: Speech::new(db.clone(), deployment.clone(), units.clone(), news.clone()),
       db,

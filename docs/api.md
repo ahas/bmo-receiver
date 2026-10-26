@@ -433,7 +433,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   are the same rounds, its judgement of window words first and its draft process among them (`docs/wake.md`). The
   paths, the fields `companion` and `companions` above, and the codes `not-companion` and `seeded-companion` keep
   the names the agency's resource and the console's language pack carry.
-- The receiver writes the agent's console room, its number there and the room's answerers; the agent's half is
+- The receiver writes the agent's console room, its number there, its one provider, the record, and the room's
+  answerers; the agent's half is
   the agency's, and its gate options the gate's. What a name may be is the agency's to say. A field the agency
   refuses comes back as the refusal of that field (`name`, `label`, `provider`, `model`, `worker`; `agent` as
   `not-companion`; any other as `upstream-failed`).

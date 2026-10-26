@@ -121,6 +121,10 @@ flowchart TD
     kept: it is answered as held, kept no second time and wakes nobody.
   - A provider that refuses or does not answer is said in the journal and leaves the message kept as it is.
 - **A room on the record alone** reaches no messenger: what is said there stands in the archive and the console.
+  A room no chat service holds has the record as its own road where its list of providers names the record, or,
+  where no list was chosen, where the receiver numbered it on the record or keeps messages of it: an agent's
+  console room is such a room, born with the record as its one provider. Every answer, send and line nobody
+  asked for there goes on the record, whether or not a chat service shows the record.
   Adding a chat service to its list starts carrying every message kept from then on to that service; taking it
   off stops it. A chat service still handing over a room's messages after it was taken off the list is still
   heard, and what it hands over is kept and carried to the room's providers like any message.
