@@ -218,13 +218,16 @@ needs itself:
   room's memories — with how many entries of it this session has not read yet, and, where the gate gives one, a
   line of what changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its version, by
   the agency's record of the session's loads (`GET /session-loads/{sessionId}`), is read and counted out.
-- **Then one hint, never an order:** where the brain may hold something the answer needs, open its index or search
-  it and read what is needed; otherwise just answer. Whether the agent reads is its own choice, and nothing counts
+- **Then one hint, never an order:** read the index or search the brain when the answer needs it; otherwise just
+  answer. It stands in the index block every turn carries, the draft process's first question among them, so the
+  draft step is where the agent meets it. Whether the agent reads is its own choice, and nothing counts
   or holds it to having read. The only hard rule stands in the draft process's `facts` question: nothing unread is
   spoken of as fact.
-- **The counts are the gate's to give.** Until the gate serves the index (`docs/boundary-api.md`, 「Contract
-  gaps」), they are counted over the entries the gate's selection answers for the turn, grouped by their source;
-  the bodies of those entries go nowhere, and the pickers' choice shapes nothing else of the turn.
+- **The counts are the gate's** (`GET /reference/index`, `docs/boundary-api.md`, 「The gate」): its `unread`, what
+  the session's loads do not hold, and its `hint`, one line of what changed in the last three days. A piece the
+  session already loaded is counted out of its group. Where the gate serves no index, the counts are taken over
+  the entries the selection answers, by their source, with no hint; the bodies of those entries go nowhere either
+  way.
 - **A person's own thread** from the group rooms they share with the agent, handed to a turn in their private
   room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's, and goes in whole as
   before, loaded once per session per version.

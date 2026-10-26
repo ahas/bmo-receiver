@@ -23,7 +23,7 @@ use receiver_ports::agency::{
   RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
-use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
+use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement, Sanitise, Sanitised};
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
@@ -457,6 +457,9 @@ impl Chat for StandInChat {
   }
 }
 
+/// One index asked of the gate: the room, and the session and agent it was asked for.
+pub type IndexAsked = (i64, Option<String>, Option<String>);
+
 /// The gate: the sanitiser marks what it read, every attach of a round's judgements asked is kept, each the room,
 /// the message and the round's start, and every copy of gate options asked is kept, each the agent it is for and
 /// the agent copied from.
@@ -468,9 +471,35 @@ pub struct StandInGate {
   pub read: Mutex<Vec<String>>,
   pub attached: Mutex<Vec<(i64, i64, i64)>>,
   pub copied: Mutex<Vec<(String, String)>>,
+  /// The index the gate serves, by room, and the session and agent each was asked for; none served where empty.
+  pub index: Mutex<BTreeMap<i64, Vec<IndexGroup>>>,
+  pub indexed: Mutex<Vec<IndexAsked>>,
 }
 
 impl Gate for StandInGate {
+  fn index<'a>(
+    &'a self,
+    room: i64,
+    session: Option<&'a str>,
+    agent: Option<&'a str>,
+  ) -> BoxFuture<'a, Answer<Option<Vec<IndexGroup>>>> {
+    Box::pin(async move {
+      let index = self.index.lock().unwrap();
+
+      if index.is_empty() {
+        return Ok(None);
+      }
+
+      self
+        .indexed
+        .lock()
+        .unwrap()
+        .push((room, session.map(str::to_owned), agent.map(str::to_owned)));
+
+      Ok(Some(index.get(&room).cloned().unwrap_or_default()))
+    })
+  }
+
   fn reference<'a>(&'a self, _envelope: &'a Envelope) -> BoxFuture<'a, Answer<Vec<Entry>>> {
     *self.referred.lock().unwrap() += 1;
 

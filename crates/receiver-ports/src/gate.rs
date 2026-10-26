@@ -149,6 +149,32 @@ pub trait Gate: Send + Sync {
   /// The gate options of `from_agent_name` copied, as they are now, for the agent that has just stood up.
   fn copy_options<'a>(&'a self, agent_name: &'a str, from_agent_name: &'a str)
   -> BoxFuture<'a, Answer<()>>;
+
+  /// The brain's index for an agent in a room, its unread counted against the session's loads; none where the gate
+  /// serves no index.
+  fn index<'a>(
+    &'a self,
+    _room: i64,
+    _session: Option<&'a str>,
+    _agent: Option<&'a str>,
+  ) -> BoxFuture<'a, Answer<Option<Vec<IndexGroup>>>> {
+    Box::pin(async { Ok(None) })
+  }
+}
+
+/// One group of the brain's index as the gate answers it: its name, how many of its entries the session has not
+/// read, and what changed lately, where anything did.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct IndexGroup {
+  pub group: String,
+  pub unread: u64,
+  #[serde(default)]
+  pub hint: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Index {
+  groups: Vec<IndexGroup>,
 }
 
 /// The gate over HTTP.
@@ -193,6 +219,24 @@ impl Gate for HttpGate {
       let entries: Entries = self.caller.post(&["reference", "selected"], envelope).await?;
 
       Ok(entries.entries)
+    })
+  }
+
+  fn index<'a>(
+    &'a self,
+    room: i64,
+    session: Option<&'a str>,
+    agent: Option<&'a str>,
+  ) -> BoxFuture<'a, Answer<Option<Vec<IndexGroup>>>> {
+    Box::pin(async move {
+      let mut query = vec![("room", room.to_string())];
+
+      query.extend(session.map(|session| ("session", session.to_owned())));
+      query.extend(agent.map(|agent| ("agent", agent.to_owned())));
+
+      let index: Index = self.caller.get(&["reference", "index"], &query).await?;
+
+      Ok(Some(index.groups))
     })
   }
 

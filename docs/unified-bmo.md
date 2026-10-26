@@ -209,9 +209,9 @@
   (`docs/bmo-window.md`, 「What every turn carries」); then the brain.
 - **The brain, once, for every room:** the new session walks the index once. In place of the turn's own index
   block its first turn carries one for every room the agent's one session has answered in (`bmo_rooms`): each
-  room by its number and title with its groups' unread counts where they are known — the turn's own room's from
-  its selection, every other room's once the gate serves its index (`docs/boundary-api.md`, 「Contract gaps」),
-  until then each such room named for the agent to open the index of — and the index's one hint. It is a hint
+  room by its number and title with its groups' unread counts and hints as the gate's index gives them for the
+  new session (`GET /reference/index`), a room whose index the gate does not answer named for the agent to open
+  itself — and the index's one hint. It is a hint
   and no obligation: the agent looks over what the brain holds before it answers where it judges that worth
   doing.
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row

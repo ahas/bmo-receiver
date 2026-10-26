@@ -173,7 +173,8 @@ receiver hands it the turn's envelope and the words on their way in and out, eve
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `offGates`, `records` | `entries`, each `path`, `text` and `source`; the receiver counts them into the turn's index by `source` and versions and attaches no body (「Contract gaps」) |
+| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `offGates`, `records` | `entries`, each `path`, `text` and `source`: what no gate picks, which the gate hands the brain to count; the receiver attaches no body of them |
+| a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`; the receiver reads `group`, `unread` and `hint` into the turn's index and the walk |
 | the sanitiser | `POST /sanitised` | `text`, `label`, `roomId?`, `messageId?` | `text`, `changed` |
 | a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |
 | a round's judgements attached | `POST /judgements/attached` | `roomId`, `messageId`, `since` in epoch milliseconds | 204 |
@@ -262,15 +263,6 @@ or whose number is the one that service gave a delivery, is answered as held and
 ## Contract gaps
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:
-
-- **The gate's index** (`docs/bmo-window.md`, 「What every turn carries」): the receiver reads a turn's index off
-  `GET /reference/index?session=<session>&room=<room>`, answering per group — `system-documents`, `room-rules`,
-  `knowledge`, `people` and `room-memories` — its level 0, `{group, unread, hint}`, the entries the session has
-  not read and a line of what changed lately where there is one, and its level 1, `entries`, each `{slug, holds,
-  read_when}`: what the entry is called, what it holds and when it is worth reading. The gate serves no such route
-  yet. Until it does, the receiver counts level 0 itself over the entries `POST /reference/selected` answers for
-  the turn, by their `source`, the session's loads counted out, gives no hint, and reads no level 1; the bodies the
-  selection answers go into no turn, and the gate's pickers may be switched off on its side.
 
 - **The web unit's language pack** holds no sentence for the fixed line `still-working` (`docs/codes.md`,
   「Fixed lines」): until it does, the render is refused `unknown-code` and the room hears the policy's plain sentence

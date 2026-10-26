@@ -241,3 +241,49 @@ async fn the_turn_carries_the_brains_index_with_the_sessions_reads_counted_out_a
     "the index stands after the room's words"
   );
 }
+
+#[tokio::test]
+async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_counted_out_there() {
+  use receiver_ports::gate::IndexGroup;
+
+  let round = Group::new(StandInSession::new(SESSION, "Here.")).await;
+  let group = |group: &str, unread: u64, hint: Option<&str>| IndexGroup {
+    group: group.to_owned(),
+    unread,
+    hint: hint.map(str::to_owned),
+  };
+
+  round.standing.gate.index.lock().unwrap().insert(
+    ROOM,
+    vec![
+      group("system-documents", 0, None),
+      group("room-rules", 4, Some("2 entries changed in the last three days.")),
+      group("knowledge", 7, None),
+      group("people", 1, None),
+      group("room-memories", 3, None),
+    ],
+  );
+  round.hand(1, "agent-a what do the rules say", true).await;
+  round.rounds_over(1).await;
+
+  let prompt = &round.session.prompts()[0];
+  let index = &CHAT_ROUND.index;
+
+  assert!(
+    prompt.contains(&format!(
+      "- {}: 4 not read; lately: 2 entries changed in the last three days.",
+      index.room_rules
+    )),
+    "{prompt}"
+  );
+  assert!(prompt.contains(&format!("- {}: 7 not read", index.knowledge)), "{prompt}");
+  assert!(prompt.contains(&index.hint), "the nudge stands in the turn");
+
+  let asked = round.standing.gate.indexed.lock().unwrap().clone();
+
+  assert_eq!(
+    asked[0],
+    (ROOM, Some(SESSION.to_owned()), Some(AGENT.to_owned())),
+    "the index is the session's"
+  );
+}

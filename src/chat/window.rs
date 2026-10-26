@@ -101,6 +101,18 @@ impl Group {
     }
   }
 
+  /// The group the gate's index names by its word, or none for a word it does not hold.
+  pub fn named(word: &str) -> Option<Self> {
+    match word {
+      "system-documents" => Some(Self::SystemDocuments),
+      "room-rules" => Some(Self::RoomRules),
+      "knowledge" => Some(Self::Knowledge),
+      "people" => Some(Self::People),
+      "room-memories" => Some(Self::RoomMemories),
+      _ => None,
+    }
+  }
+
   /// What the index calls it.
   pub fn word(self) -> &'static str {
     let said = &CHAT_ROUND.index;
@@ -149,12 +161,47 @@ pub fn group_lines(counts: &[(Group, usize)], hints: &HashMap<Group, String>) ->
     .collect()
 }
 
-/// The index block a turn carries: its head, a line a group, the hint and its end.
-pub fn index_block(counts: &[(Group, usize)]) -> String {
+/// The gate's index of a room for a session read into counts and hints, a group at a time in the turn's order; none
+/// where the gate serves no index or does not answer.
+pub async fn gate_index(
+  receiver: &Receiver,
+  chat_id: i64,
+  session: Option<&str>,
+  agent: &str,
+) -> Option<(Vec<(Group, usize)>, HashMap<Group, String>)> {
+  let groups = match receiver.units().gate.index(chat_id, session, Some(agent)).await {
+    Ok(Some(groups)) => groups,
+    Ok(None) => return None,
+    Err(why) => {
+      eprintln!("bmo-receiver: chat {chat_id} the brain's index could not be read: {why}");
+      return None;
+    }
+  };
+  let mut counts = vec![];
+  let mut hints = HashMap::new();
+
+  for group in Group::ALL {
+    let Some(read) = groups.iter().find(|one| Group::named(&one.group) == Some(group)) else {
+      continue;
+    };
+
+    counts.push((group, read.unread as usize));
+
+    if let Some(hint) = read.hint.as_ref().filter(|hint| !hint.trim().is_empty()) {
+      hints.insert(group, hint.clone());
+    }
+  }
+
+  Some((counts, hints))
+}
+
+/// The index block a turn carries: its head, a line a group with what changed lately where the gate says, the hint
+/// and its end.
+pub fn index_block(counts: &[(Group, usize)], hints: &HashMap<Group, String>) -> String {
   let said = &CHAT_ROUND.index;
   let mut lines = vec![said.head.clone()];
 
-  lines.extend(group_lines(counts, &HashMap::new()));
+  lines.extend(group_lines(counts, hints));
   lines.push(said.hint.clone());
   lines.push(said.end.clone());
   lines.join("\n")
@@ -396,8 +443,16 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
     }
   };
   // The entries are counted into the index and go into no turn: the agent reads what it needs itself.
-  let loaded = super::context::loaded_in(receiver, material.session).await?;
-  let counts = unread(&entries, &loaded);
+  // The counts are the gate's index for the session, a piece it already loaded counted out; where the gate serves
+  // none, they are counted over the selection's entries, with no hint.
+  let (counts, hints) = match gate_index(receiver, chat_id, material.session, material.agent).await {
+    Some(read) => read,
+    None => {
+      let loaded = super::context::loaded_in(receiver, material.session).await?;
+
+      (unread(&entries, &loaded), HashMap::new())
+    }
+  };
   let thread = match thread_entry(receiver, chat_id).await {
     Ok(thread) => thread.into_iter().collect::<Vec<Entry>>(),
     Err(why) => {
@@ -410,7 +465,7 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
   selection
     .context
     .extend(entries.iter().map(|entry| (source_name(entry), entry.path.clone())));
-  selection.index = index_block(&counts);
+  selection.index = index_block(&counts, &hints);
   selection.counts = counts;
   selection.entries = entries;
 
@@ -472,7 +527,13 @@ pub fn composed(selection: &Selection, body: &str) -> String {
 /// agent's one session has answered in, the turn's own among them, each by its number and title with its groups'
 /// unread counts where they are known — the turn's own room's, read off the turn's own index block — and the line
 /// for a room whose counts the gate does not give yet; then the index's hint.
-pub async fn walk(receiver: &Receiver, own: i64, own_index: Option<&str>) -> Result<String, Fault> {
+pub async fn walk(
+  receiver: &Receiver,
+  own: i64,
+  own_index: Option<&str>,
+  session: Option<&str>,
+  agent: &str,
+) -> Result<String, Fault> {
   let said = &CHAT_ROUND.index;
   let mut rooms: Vec<i64> =
     crate::all(receiver.db(), r#"SELECT "chat_id" FROM "bmo_rooms" ORDER BY "chat_id""#, vec![])
@@ -502,10 +563,10 @@ pub async fn walk(receiver: &Receiver, own: i64, own_index: Option<&str>) -> Res
         .to_owned(),
     );
 
-    if chat == own && !own_lines.is_empty() {
-      lines.extend(own_lines.iter().cloned());
-    } else {
-      lines.push(said.walk_unknown.clone());
+    match gate_index(receiver, chat, session, agent).await {
+      Some((counts, hints)) if !counts.is_empty() => lines.extend(group_lines(&counts, &hints)),
+      _ if chat == own && !own_lines.is_empty() => lines.extend(own_lines.iter().cloned()),
+      _ => lines.push(said.walk_unknown.clone()),
     }
   }
 
@@ -518,13 +579,19 @@ pub async fn walk(receiver: &Receiver, own: i64, own_index: Option<&str>) -> Res
 /// A first turn's prompt with the walk in place of the turn's own index block, where it carries one, and after
 /// everything else otherwise: the brain comes after the room's words (docs/unified-bmo.md, 「Replacing the
 /// session」).
-pub async fn walked(receiver: &Receiver, own: i64, prompt: &str) -> Result<String, Fault> {
+pub async fn walked(
+  receiver: &Receiver,
+  own: i64,
+  prompt: &str,
+  session: Option<&str>,
+  agent: &str,
+) -> Result<String, Fault> {
   let said = &CHAT_ROUND.index;
   let span = prompt
     .find(&said.head)
     .and_then(|start| prompt[start..].find(&said.end).map(|end| (start, start + end + said.end.len())));
   let own_index = span.map(|(start, end)| &prompt[start..end]);
-  let walk = walk(receiver, own, own_index).await?;
+  let walk = walk(receiver, own, own_index, session, agent).await?;
 
   Ok(match span {
     Some((start, end)) => format!("{}{walk}{}", &prompt[..start], &prompt[end..]),

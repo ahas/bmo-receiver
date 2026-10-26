@@ -331,7 +331,7 @@ impl Carry {
     // once for every room the session answers.
     let prompt = match note {
       Some(note) => {
-        let walked = super::window::walked(receiver, chat_id, &sent)
+        let walked = super::window::walked(receiver, chat_id, &sent, Some(session.id.as_str()), agent)
           .await
           .map_err(|why| Failure::Failed(why.detail))?;
 
