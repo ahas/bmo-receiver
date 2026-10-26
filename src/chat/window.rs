@@ -1,8 +1,8 @@
 //! The one window every turn of the chat agent's session passes (docs/bmo-window.md): what a turn brought
-//! selected over for its reference — the room's memories, the matcher's rules, the rows its events wake and the
-//! gates' picks, with a user's own thread in their private room — and each document wrapped to go to a session in
-//! full once per version, passing the sanitiser on its way in. The window hands the gate the turn's envelope and
-//! reads back the pieces it chooses.
+//! selected over for its core — the speakers' sheet heads, the room's due memories and the rows its events wake,
+//! with a user's own thread in their private room — each entry wrapped to go to a session in full once per version,
+//! passing the sanitiser on its way in, and beside it the brain's index with its hint. The window hands the gate the
+//! turn's envelope and reads back what attaches.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -58,9 +58,8 @@ pub struct Material<'a> {
   pub session: Option<&'a str>,
 }
 
-/// A turn's selection: the entries the gate answered, which go into no turn and are counted into its index; the
-/// index block; the block the receiver's own words of rooms go in as, a person's thread; and what the turn's log
-/// is told of them.
+/// A turn's selection: the entries it carries whole, what the gate answered and a person's thread; the block they
+/// go in as; the index block and its counts; and what the turn's log is told of them.
 #[derive(Clone, Debug, Default)]
 pub struct Selection {
   pub entries: Vec<Entry>,
@@ -442,9 +441,9 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
       vec![]
     }
   };
-  // The entries are counted into the index and go into no turn: the agent reads what it needs itself.
-  // The counts are the gate's index for the session, a piece it already loaded counted out; where the gate serves
-  // none, they are counted over the selection's entries, with no hint.
+  // The entries are what attaches without a pick, the turn's core, and go in whole with a person's thread; the agent
+  // reads anything more through the index. The counts are the gate's index for the session, a piece it already
+  // loaded counted out; where the gate serves none, they are counted over the selection's entries, with no hint.
   let (counts, hints) = match gate_index(receiver, chat_id, material.session, material.agent).await {
     Some(read) => read,
     None => {
@@ -453,27 +452,23 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
       (unread(&entries, &loaded), HashMap::new())
     }
   };
-  let thread = match thread_entry(receiver, chat_id).await {
-    Ok(thread) => thread.into_iter().collect::<Vec<Entry>>(),
-    Err(why) => {
-      eprintln!("bmo-receiver: the private-room thread could not be read: {why}");
-      vec![]
-    }
-  };
-  let mut selection = made(receiver, material.agent, chat_id, message_id, thread).await?;
+  let mut core = entries;
 
-  selection
-    .context
-    .extend(entries.iter().map(|entry| (source_name(entry), entry.path.clone())));
+  match thread_entry(receiver, chat_id).await {
+    Ok(thread) => core.extend(thread),
+    Err(why) => eprintln!("bmo-receiver: the private-room thread could not be read: {why}"),
+  }
+
+  let mut selection = made(receiver, material.agent, chat_id, message_id, core).await?;
+
   selection.index = index_block(&counts, &hints);
   selection.counts = counts;
-  selection.entries = entries;
 
   Ok(selection)
 }
 
-// The receiver's own words of rooms go in wrapped, each passing the sanitiser first, since they are written out of
-// what was said in the rooms.
+// The turn's core goes in wrapped, each entry passing the sanitiser first, since sheets, memories and a person's
+// thread are written out of what was said in the rooms.
 async fn made(
   receiver: &Receiver,
   agent: &str,

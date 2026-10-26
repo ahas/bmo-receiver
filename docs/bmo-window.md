@@ -206,13 +206,17 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
   - what the turn answered already, where it is asked again, the gates switched off for the agent, and whether
     the turn's road records its gates.
 - **What the gate decides:** the entries the turn carries, all of the turn's agent's own and of rows marked for
-  every agent, never another agent's. Nothing of a room attaches for standing there: the gate attaches the head
-  of the standing sheet of each person who spoke, the room's errands whose event has come, and the rows the turn's
-  events wake, and of everything else — the room's rules, its other memories and the brain's references — only
-  what it picks for the turn. A turn with no line at all still carries what attaches without a pick.
+  every agent, never another agent's. Nothing of a room attaches for standing there, and no gate picks: the gate
+  answers what attaches without a pick — the head of the standing sheet of each person who spoke, the room's due
+  memories, the errands whose event has come, at most three, and the rows the turn's events wake. The room's
+  rules, its other memories and the brain's references are no turn's to be handed; the agent reads them through
+  the index. A turn with no line at all still carries what attaches.
 
-None of it goes into the turn as a piece. The turn carries the brain's index instead, and the agent reads what it
-needs itself:
+**What the gate answers is the turn's core and goes in whole.** Each entry passes the sanitiser on its way in and
+goes to the session in full once per version, then as a mark naming it while the session holds that version, in
+one reference block with a person's own thread.
+
+Beside the core, the turn carries the brain's index, and the agent reads anything more it needs itself:
 
 - **One line a group** — the system documents, the room's rules, knowledge, the people the brain knows and the
   room's memories — with how many entries of it this session has not read yet, and, where the gate gives one, a
@@ -226,11 +230,10 @@ needs itself:
 - **The counts are the gate's** (`GET /reference/index`, `docs/boundary-api.md`, 「The gate」): its `unread`, what
   the session's loads do not hold, and its `hint`, one line of what changed in the last three days. A piece the
   session already loaded is counted out of its group. Where the gate serves no index, the counts are taken over
-  the entries the selection answers, by their source, with no hint; the bodies of those entries go nowhere either
-  way.
+  the entries the selection answers, by their source, with no hint.
 - **A person's own thread** from the group rooms they share with the agent, handed to a turn in their private
-  room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's, and goes in whole as
-  before, loaded once per session per version.
+  room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's, and goes in whole
+  in the same block, loaded once per session per version.
 - **The block stands after the turn's words and instructions,** ahead of its closing lines, so a session reads
   what came in before it decides whether to look anything up.
 
@@ -253,8 +256,8 @@ Beside the reference, a turn carries the room's messages since the agent last an
   sanitiser; no piece goes in with it. It joins what the round holds once the agency's session push answers it
   `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
-  the first, which rides the round's own turn, an item or a check. It carries no reference of its own: the index
-  went in with the round's turn. A question, or the closing check once the message stands, carries the room's
+  the first, which rides the round's own turn, an item or a check. It carries no reference of its own: the core and
+  the index went in with the round's turn. A question, or the closing check once the message stands, carries the room's
   words that came in meanwhile as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It is composed like any turn,

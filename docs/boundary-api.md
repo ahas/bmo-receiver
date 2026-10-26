@@ -173,7 +173,7 @@ receiver hands it the turn's envelope and the words on their way in and out, eve
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `offGates`, `records` | `entries`, each `path`, `text` and `source`: what no gate picks, which the gate hands the brain to count; the receiver attaches no body of them |
+| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `offGates`, `records` | `entries`, each `path`, `text` and `source`: what no gate picks, which the gate hands the brain to count; the receiver puts each in the turn whole, as the turn's core |
 | a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`; the receiver reads `group`, `unread` and `hint` into the turn's index and the walk |
 | the sanitiser | `POST /sanitised` | `text`, `label`, `roomId?`, `messageId?` | `text`, `changed` |
 | a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |

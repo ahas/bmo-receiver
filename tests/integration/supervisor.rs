@@ -190,7 +190,7 @@ async fn an_answer_to_the_judgement_opens_the_ordinary_round_and_a_named_call_sk
 }
 
 #[tokio::test]
-async fn the_turn_carries_the_brains_index_with_the_sessions_reads_counted_out_and_no_piece_body() {
+async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
   let round = Group::new(StandInSession::new(SESSION, "Here.")).await;
   let entry = |path: &str, text: &str, source: Source| Entry {
     path: path.to_owned(),
@@ -199,45 +199,43 @@ async fn the_turn_carries_the_brains_index_with_the_sessions_reads_counted_out_a
     fragment: None,
   };
 
+  // What attaches without a pick: a speaker's sheet head, the room's due memories and a row an event woke.
   *round.standing.gate.entries.lock().unwrap() = vec![
-    entry("rules/one", "BODY OF RULE ONE", Source::Rule),
-    entry("rules/two", "BODY OF RULE TWO", Source::Situation),
-    entry("people/31/sheet.md", "BODY OF A PERSON", Source::Person),
-    entry("memories/-500", "BODY OF A MEMORY", Source::Memory),
+    entry("rooms/-500/people/31/sheet.md", "BODY OF A PERSON", Source::Person),
+    entry("memories/-500", "BODY OF THE DUE MEMORIES", Source::Memory),
+    entry("situations/7", "BODY OF A WOKEN ROW", Source::Situation),
   ];
-  // The session already read the first rule at this version, and the person at another.
+  // The session already read the person's sheet head at this version.
   round.standing.agency.loads.lock().unwrap().insert(
     SESSION.to_owned(),
-    vec![
-      Load {
-        path: "rules/one".to_owned(),
-        version: bun_hash("BODY OF RULE ONE").to_string(),
-      },
-      Load {
-        path: "people/31/sheet.md".to_owned(),
-        version: "an older version".to_owned(),
-      },
-    ],
+    vec![Load {
+      path: "rooms/-500/people/31/sheet.md".to_owned(),
+      version: bun_hash("BODY OF A PERSON").to_string(),
+    }],
   );
 
-  round.hand(1, "agent-a what do the rules say", true).await;
+  round.hand(1, "agent-a what is due today", true).await;
   round.rounds_over(1).await;
 
   let prompt = &round.session.prompts()[0];
   let index = &CHAT_ROUND.index;
 
-  for body in ["BODY OF RULE ONE", "BODY OF RULE TWO", "BODY OF A PERSON", "BODY OF A MEMORY"] {
-    assert!(!prompt.contains(body), "no piece's body goes in: {prompt}");
+  assert!(prompt.contains("Reference for this message (3):"), "{prompt}");
+
+  for body in ["BODY OF THE DUE MEMORIES", "BODY OF A WOKEN ROW"] {
+    assert!(prompt.contains(body), "the core goes in whole: {prompt}");
   }
 
-  assert!(!prompt.contains("(already loaded)") && !prompt.contains("Reference for this message"));
-  assert!(prompt.contains(&format!("- {}: 1 not read", index.room_rules)), "{prompt}");
-  assert!(prompt.contains(&format!("- {}: 1 not read", index.people)), "{prompt}");
+  assert!(
+    !prompt.contains("BODY OF A PERSON")
+      && prompt.contains("[rooms/-500/people/31/sheet.md] (already loaded)"),
+    "an entry the session holds at its version goes as a mark: {prompt}"
+  );
   assert!(prompt.contains(&format!("- {}: 1 not read", index.room_memories)), "{prompt}");
   assert!(prompt.contains(&format!("- {}: 0 not read", index.knowledge)), "{prompt}");
   assert!(prompt.contains(&index.hint));
   assert!(
-    prompt.find("agent-a what do the rules say") < prompt.find(&index.head),
+    prompt.find("agent-a what is due today") < prompt.find(&index.head),
     "the index stands after the room's words"
   );
 }
