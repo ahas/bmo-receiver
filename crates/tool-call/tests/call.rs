@@ -142,3 +142,44 @@ fn a_manifest_that_names_no_entry_differs_from_the_executable_nowhere() {
   std::fs::write(dir.path().join("tool.toml"), "tool = { name = \"none\", protocol = 1 }\n").unwrap();
   assert_eq!(differences(dir.path(), &[]), Vec::<String>::new());
 }
+
+// The tool host's record names no data root and no place of its own: the call's BMO_DATA_DIR gives the one, the
+// record's labels the other (docs/chat-mcp.md, 「How a call runs」).
+#[test]
+fn a_tool_host_record_takes_its_data_root_from_the_call_and_its_place_from_its_labels() {
+  let handed = tool_call::read_handed(
+    serde_json::json!({
+      "protocol": 1,
+      "kind": "call",
+      "entry": "bmo/say",
+      "arguments": { "text": "a line" },
+      "session": {
+        "holderName": "agent-a",
+        "namespaces": ["bmo"],
+        "capabilities": ["room.tools"],
+        "grants": [],
+        "variables": { "BMO_DATA_DIR": "/srv/data" },
+        "labels": { "line": "chat", "place": "/srv/data/agent-places/agent-a" },
+        "expiresAt": null,
+        "createdAt": 1
+      }
+    })
+    .to_string()
+    .as_bytes(),
+  )
+  .unwrap();
+  let session = handed.session.completed(Some("/srv/data".to_owned()));
+
+  assert_eq!(session.data_root, std::path::PathBuf::from("/srv/data"));
+  assert_eq!(session.place, Some(std::path::PathBuf::from("/srv/data/agent-places/agent-a")));
+
+  // A record that names its own keeps them.
+  let own = tool_call::Session {
+    data_root: "/own".into(),
+    place: Some("/own/place".into()),
+    ..tool_call::Session::default()
+  }
+  .completed(Some("/srv/data".to_owned()));
+
+  assert_eq!((own.data_root, own.place), ("/own".into(), Some("/own/place".into())));
+}

@@ -31,7 +31,8 @@ needs its road to perform, so the room's block names the sending entries a room'
 
 - **The tool runs its own executable,** as every placed tool does. It reads the turn from the call's session
   record (the run its place names, or the run's own variables) and refuses an overtaken turn there before it
-  reads anything else.
+  reads anything else. The record's place is its `place` where it names one, else its `labels.place`, which is
+  where the tool host's record carries it; the turn's variables are then read off that place's `run.json`.
 - **Every entry but one asks the receiver for the send:** `POST /sends` with the entry's name as `tool`, its
   arguments as `input`, and the asker (the room, the road the turn names for it, the turn's agent, the chat that
   set it off as `by`, and whether a job asks). The receiver carries the act as that agent, on its own lines, and
@@ -40,7 +41,9 @@ needs its road to perform, so the room's block names the sending entries a room'
   answers; a call made outside any agent's turn is refused here, since there is no agent to speak as.
 - **Where each unit is found:** the receiver's address and token from the call's environment
   (`RECEIVER_ADDRESS`, `RECEIVER_TOKEN`), else from `env/receiver.env` under the data root, which the receiver's
-  `tool-env` verb writes as it is deployed; agency's server, which answers the reset point a turn is refused on,
+  `tool-env` verb writes as it is deployed. The data root is the record's `dataRoot` where it names one, else the
+  call's `BMO_DATA_DIR`, the variable every session the agency issues carries; the receiver's token is never a
+  session variable. Agency's server, which answers the reset point a turn is refused on,
   from `AGENCY_CONTROL_PORT` and `AGENCY_CONTROL_TOKEN`, else from `env/agency.env`, the file agency's server takes
   its own environment from, at the port it answers on where none is named.
 - **A send's room is the one the call names or the turn's own,** its road the turn's own for the turn's own room

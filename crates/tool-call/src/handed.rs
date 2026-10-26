@@ -44,8 +44,10 @@ pub struct Handed {
 /// The request read off `input`, or why it does not read: an object that is no request, or one in a protocol
 /// version the receiver's tools do not speak.
 pub fn read_handed(input: impl std::io::Read) -> Result<Handed, String> {
-  let handed: Handed =
+  let mut handed: Handed =
     serde_json::from_reader(input).map_err(|why| format!("the request does not read: {why}"))?;
+
+  handed.session = handed.session.completed(std::env::var(crate::session::DATA_ROOT_VARIABLE).ok());
 
   if handed.protocol != PROTOCOL {
     return Err(format!(
