@@ -305,6 +305,8 @@ pub struct Deployment {
   pub delegate: Option<String>,
   /// The infrastructure room, where the configuration names one.
   pub infra_room: Option<i64>,
+  /// The room the system's notices to the owner go to, where the configuration names one.
+  pub notices_room: Option<i64>,
   /// The language the rooms are spoken in, which a fixed line is rendered in.
   pub language: String,
   /// The largest file a message may carry to be kept, in bytes; none where no cap is set.
@@ -490,6 +492,13 @@ impl Receiver {
 
   pub fn owner_id(&self) -> i64 {
     self.deployment.owner_id
+  }
+
+  /// The owner's notices room (docs/boundary-api.md, 「Configuration」): the room the system's notices to the
+  /// owner go to, the deployment briefing, the tool host's changes and the service's own lines among them; his
+  /// private chat where the configuration names none.
+  pub fn notices_room(&self) -> i64 {
+    self.deployment.notices_room.unwrap_or(self.deployment.owner_id)
   }
 
   /// The name the owner goes by in a room: the one the room's own service last showed him by there, never one

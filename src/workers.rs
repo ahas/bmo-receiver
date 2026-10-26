@@ -76,7 +76,7 @@ impl Workers {
       return Ok(());
     };
 
-    queue_notice(&self.receiver, self.receiver.owner_id(), &notice)
+    queue_notice(&self.receiver, self.receiver.notices_room(), &notice)
       .await
       .map(drop)
       .map_err(told)

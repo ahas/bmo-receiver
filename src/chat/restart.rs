@@ -115,7 +115,7 @@ pub async fn lift_rest_if_due(receiver: &Receiver) -> Result<(), Fault> {
     rides_ms: None,
   };
 
-  let _ = notices::queue_notice(receiver, receiver.deployment().owner_id, &notice).await;
+  let _ = notices::queue_notice(receiver, receiver.notices_room(), &notice).await;
   kick(receiver);
 
   Ok(())
@@ -156,7 +156,7 @@ pub fn own_deployment() -> Option<Deployed> {
 /// The going-down line as it stands at a moment, under the service's own mark; none where the room turned restart
 /// notices off.
 pub async fn stop_line(receiver: &Receiver, at: i64) -> Option<String> {
-  let owner = receiver.deployment().owner_id;
+  let owner = receiver.notices_room();
 
   if !notice_enabled(receiver.db(), owner, "restart").await {
     return None;
@@ -186,7 +186,7 @@ pub async fn say_stop(receiver: &Receiver) {
     return;
   };
 
-  if let Err(why) = receiver.speech().say(receiver.deployment().owner_id, &line).await {
+  if let Err(why) = receiver.speech().say(receiver.notices_room(), &line).await {
     eprintln!("the stop notice was not said: {why}");
   }
 }

@@ -232,14 +232,14 @@ written by the wake itself: the deployment briefing, what went live since the ow
   `deployments-briefed`, which a newer one replaces while it waits, and writing it moves the session's moment to
   now.
 - **It asks for the owner's briefing.** Its intent and follow-up tell the session to tell the owner, in his
-  private chat, what went live: one short paragraph in his language and in the agent's own words, with no talk of
+  notices room (the configuration's `notices_room`, his private chat where it names none), what went live: one short paragraph in his language and in the agent's own words, with no talk of
   tools and nothing claimed of a release beyond its message, subject and commit. The instruction withholds the
   silence: a turn that carries only it writes the brief. A turn the owner's own words opened answers him first
   and gives the brief after it.
-- **It is the owner's own** (`docs/bmo-window.md`, 「Rows that ride」): the row is queued for his private chat, and
-  only a round of that chat carries it. It is written before that round asks for its riders, so the round's own
-  turn carries it. Unridden past the restart policy's ride while, it opens a turn of the owner's chat.
-- **No other room hears of it.** The briefing is said in the owner's private chat alone; the room whose round
+- **It is the owner's own** (`docs/bmo-window.md`, 「Rows that ride」): the row is queued for his notices room, and
+  only a round of that room carries it. It is written before that round asks for its riders, so the round's own
+  turn carries it. Unridden past the restart policy's ride while, it opens a turn of that room.
+- **No other room hears of it.** The briefing is said in the owner's notices room alone; the room whose round
   found the deployments is told nothing of them.
 
 ### The tool host's changes
@@ -251,7 +251,7 @@ written by the wake itself: the deployment briefing, what went live since the ow
   updated (a placing that replaced another version of it) or removed, each entry by its full name, how it is
   reached (`call` or `act`) and the first sentence of its description; that a tool is read with
   `bmo use <tool> --describe` before it is called; and that nothing needs saying in any room.
-- **It rides and wakes nobody** (`docs/bmo-window.md`, 「Rows that ride」): it is queued in the owner's private chat
+- **It rides and wakes nobody** (`docs/bmo-window.md`, 「Rows that ride」): it is queued in the owner's notices room
   under the kind `tools-changed:<agent>:<tool>`, so a later change of the same tool replaces the agent's one not
   yet handed over, and rides for good in a round of any room the agent's session answers.
 

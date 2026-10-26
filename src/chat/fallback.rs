@@ -107,7 +107,7 @@ pub async fn answered_by(receiver: &Receiver, answering: &Answering) -> Result<(
   }
 
   settings::set(db, PROVIDER_KEY, &answering.provider).await?;
-  queue_notice(receiver, receiver.owner_id(), &answering_notice(answering))
+  queue_notice(receiver, receiver.notices_room(), &answering_notice(answering))
     .await
     .map(drop)
     .map_err(|why| Fault::new(why.to_string()))
@@ -130,7 +130,7 @@ pub async fn ended(receiver: &Receiver) -> Result<(), Fault> {
 
   settings::forget(db, SINCE_KEY).await?;
   settings::forget(db, PROVIDER_KEY).await?;
-  queue_notice(receiver, receiver.owner_id(), &notice)
+  queue_notice(receiver, receiver.notices_room(), &notice)
     .await
     .map(drop)
     .map_err(|why| Fault::new(why.to_string()))

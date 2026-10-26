@@ -52,6 +52,8 @@ pub struct Config {
   pub delegate: Option<String>,
   #[serde(default)]
   pub infra_room: Option<i64>,
+  #[serde(default)]
+  pub notices_room: Option<i64>,
   pub language: String,
   #[serde(default)]
   pub attachment_bytes: Option<u64>,
@@ -122,6 +124,7 @@ impl Config {
       addresses: call_names,
       delegate: self.delegate.clone(),
       infra_room: self.infra_room,
+      notices_room: self.notices_room,
       language: self.language.clone(),
       attachment_bytes: self.attachment_bytes,
     }

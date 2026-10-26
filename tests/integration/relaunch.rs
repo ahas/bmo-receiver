@@ -47,7 +47,7 @@ fn named(at: i64) -> String {
 // The instruction around the facts.
 fn brief(fact: &str) -> String {
   format!(
-    "{fact}\n\nWhat this is for: tell the owner, in his private chat, what went live: each deployment's unit, \
+    "{fact}\n\nWhat this is for: tell the owner, in this room, what went live: each deployment's unit, \
      version, message or subject, commit and the moment it went live.\n\nWhat follows: Write the brief now, in the \
      owner's language and in your own words: one short paragraph naming each deployment with the unit, version, \
      message or subject, commit and moment above, and nothing of what a release carries beyond them. Do not mention \
@@ -200,4 +200,33 @@ fn a_record_missing_its_commit_or_message_is_named_by_what_it_holds() {
 
   assert!(text.contains("unit-a 1.0.0 went live at 2023-11-14T22:13:20Z: no commit"));
   assert!(text.contains("unit-b 2.0.0 went live at 2023-11-14T22:13:21Z."));
+}
+
+#[tokio::test]
+async fn the_briefing_goes_to_the_owners_notices_room_where_one_is_named() {
+  const NOTICES: i64 = -9;
+
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let roots = tempdir().unwrap();
+  let mut given = deployment();
+
+  given.notices_room = Some(NOTICES);
+
+  let standing = unrun(scratch.db(), DataRoot::new(data.path()), vec![], given);
+  let receiver = standing.receiver.clone();
+
+  deployed(
+    roots.path(),
+    "bmo-unit-a",
+    json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
+    None,
+  );
+  Around::new(receiver.clone())
+    .reading_deploys(Some(roots.path().to_path_buf()))
+    .riders(AGENT, ROOM)
+    .await;
+
+  assert_eq!(rows(&scratch, NOTICES).await.len(), 1, "the briefing stands in the notices room");
+  assert!(rows(&scratch, OWNER).await.is_empty(), "the owner's private chat hears nothing of it");
 }

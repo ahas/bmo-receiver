@@ -58,7 +58,7 @@ pub async fn set(receiver: &Receiver, key: &str, value: bool) -> Result<(), NotR
       rides_ms: None,
     };
 
-    queue_notice(receiver, receiver.owner_id(), &notice).await?;
+    queue_notice(receiver, receiver.notices_room(), &notice).await?;
     super::restart::kick(receiver);
   }
 

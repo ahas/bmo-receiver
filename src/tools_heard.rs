@@ -93,7 +93,7 @@ pub async fn tell(
       ..Queued::default()
     };
 
-    queue(receiver.db(), agent, receiver.owner_id(), &text, &queued)
+    queue(receiver.db(), agent, receiver.notices_room(), &text, &queued)
       .await
       .map_err(|why| why.to_string())?;
   }

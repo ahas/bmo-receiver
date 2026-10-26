@@ -26,7 +26,8 @@ the protocol's receiving-side routes stand.
 
 The deployment's names are read from the same file: the owner; the chat agent's registration name, whose label
 and wake words (`GET /agents`) are the words a room calls it by; the delegate's registration name, whose label a
-delegation notice names; the infrastructure room, where one is named; the language the rooms are spoken in, which
+delegation notice names; the infrastructure room, where one is named; the owner's notices room, `notices_room`, the
+room the system's notices to the owner go to, the owner's private chat where none is named; the language the rooms are spoken in, which
 a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; the brain
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code
 stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's

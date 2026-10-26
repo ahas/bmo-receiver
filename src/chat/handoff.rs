@@ -145,7 +145,7 @@ pub async fn tell_lost(receiver: &Receiver, agent: &str, reason: SessionReason) 
     rides_ms: None,
   };
 
-  if let Err(why) = notices::queue_notice(receiver, receiver.owner_id(), &notice).await {
+  if let Err(why) = notices::queue_notice(receiver, receiver.notices_room(), &notice).await {
     eprintln!("{agent}: the owner was not told the handoff was lost: {why}");
   }
 }

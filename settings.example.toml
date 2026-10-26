@@ -18,6 +18,8 @@ language = "en"
 # relaunched session is told of, and the consumer's name in place of `receiver`.
 delegate = "agent-b"
 infra_room = -1
+# The room the system's notices to the owner go to; the owner's private chat where none is named.
+notices_room = -2
 attachment_bytes = 26214400
 brain_root = ".local/share/bmo/data/brain"
 document_tree = ".local/share/bmo-agency/deploy"

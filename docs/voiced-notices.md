@@ -6,6 +6,12 @@ agent that answers the room says the line.
 
 ## The rule
 
+- **The system's notices to the owner stand in his notices room:** the room the configuration's `notices_room`
+  names (`docs/boundary-api.md`, 「Configuration」), his private chat where it names none. The deployment briefing,
+  the tool host's changes, the service's going-down and back notices, a rest's and a fallback's notices, a
+  worker's fall, a lost handoff, a run past its time and the voice briefing's switch all go there; a notice
+  below said to go to the owner's private chat goes to his notices room where one is named.
+
 - **Every line the system says in a chat on its own account is a voiced notice.** The receiver does not send a
   sentence. It hands the room's voice a quiet instruction carrying the facts, and the session says it in one
   short line, in that room's voice and manner.
@@ -81,7 +87,7 @@ agent that answers the room says the line.
      purpose to tell: its going-down notice is the restart one, and its
      back notice opens its turn at once and says only that the agent is back from an unannounced restart.
   6. **What went live is briefed to the owner, not the room.** At the first round after a deployment went live,
-     the deployment briefing (`docs/wake.md`, 「Quiet instructions」) goes to the owner's private chat,
+     the deployment briefing (`docs/wake.md`, 「Quiet instructions」) goes to the owner's notices room,
      naming one clause a unit: the unit, its version, its deploy message or subject, its commit and when it went
      live, as the deployment record holds them. It asks for one short paragraph in the owner's language, in the
      agent's own words, with no talk of tools and nothing claimed of a release beyond those facts. It is the one
@@ -89,12 +95,12 @@ agent that answers the room says the line.
      instruction writes the brief; a turn the owner's own words opened answers him first. A release that failed
      its checks or never went live has no deployment record and is named in no brief; the deployment outcome
      notice tells that release's outcome as it happened.
-- **Rest and fallback.** Going to rest is a fixed line (see below), said in the owner's chat as the agency's
+- **Rest and fallback.** Going to rest is a fixed line (see below), said in the owner's notices room as the agency's
   `rest.changed` comes: `rest-begins` with its end for a limit, `provider-down` for an outage. Coming back
   (the rest lifted, the outage over, the compaction done, the provider answering again, a stand-in taking over
   or stepping down, a downgraded answer) is voiced. The agency publishes the stand-in's moves and a worker's
   fall as events (`fallback.changed`, `worker.changed`) and the receiver queues each notice for the owner's
-  chat: the stand-in's provider and model, with the one before it where one stood, or the stand-in done; and
+  notices room: the stand-in's provider and model, with the one before it where one stood, or the stand-in done; and
   the worker, the model it fell to and the one it was launched on, its job, and whether its session was dropped
   or kept.
 - **A login's end.** The agency's `account.changed` carries its `notice`, the words its policy composes
@@ -171,7 +177,7 @@ spoken, and the session writes what is said.
   `GET /voice-briefing` (`docs/api.md`, 「The voice briefing」). A request naming neither, or both, is refused
   `one-switch`.
 - **Moving the whole briefing is told to the owner.** The receiver queues the voice fact `briefing-on` or
-  `briefing-off` for the owner's private chat under the kind `voice-briefing`, so a switch flipped twice before
+  `briefing-off` for the owner's notices room under the kind `voice-briefing`, so a switch flipped twice before
   the session speaks leaves one line, about where it ended. A write that changes nothing says nothing, and moving
   the second switch says nothing: it changes how the owner hears a briefing, not what the agent says.
 
@@ -236,7 +242,7 @@ spoken, and the session writes what is said.
 
 ## Operating notices per chat
 
-- **The restart notice is the owner's private chat's.** The going-down line is a system notice the stopping
+- **The restart notice is the owner's notices room's.** The going-down line is a system notice the stopping
   receiver sends, a deployment's or an unannounced stop's (「System notices」). On the next start-up the owner's
   session is told it is back, with the deployment's purpose, and says so in the same turn as the deployment's
   outcome; the same turn or the one the deployment briefing opens also briefs him on what went live (「What each
@@ -274,7 +280,7 @@ spoken, and the session writes what is said.
 - **A line the receiver sends as the service, not as an agent, is a system notice.** It opens with the system
   mark and states what the service is doing, in no persona's voice; the archive files it as the service's own
   line, mark and all.
-- **The going-down notice is one.** The receiver sends it to the owner's private chat as it stops, under the
+- **The going-down notice is one.** The receiver sends it to the owner's notices room as it stops, under the
   restart switch: a stop a fresh deployment record speaks for names the items the record carries, and a stop no
   deployment announced says the service restarts. The back line stays the agent's own, voiced (「What each path
   says」).

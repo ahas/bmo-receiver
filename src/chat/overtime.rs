@@ -126,7 +126,7 @@ pub async fn ask(receiver: &Receiver, asked: &Asked) -> Result<i64, Fault> {
   queue(
     receiver.db(),
     &receiver.deployment().agent,
-    receiver.owner_id(),
+    receiver.notices_room(),
     &order(asked, now_ms()),
     &queued,
   )
