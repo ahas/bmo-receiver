@@ -6,9 +6,7 @@ use bmo_receiver::chat::draft::log::Answered;
 use bmo_receiver::chat::draft::table::{
   ANY, PastCeiling, Process, Question, question_refusal, refusal, resolve,
 };
-use bmo_receiver::chat::draft::{
-  Plan, appended, question_words, read_answer, record_errand, wake_errand, words,
-};
+use bmo_receiver::chat::draft::{Plan, question_words, read_answer, record_errand, wake_errand, words};
 use bmo_receiver::chat::prompt::Scope;
 use bmo_receiver::receiver::Inbound;
 use receiver_policy::drafting::DRAFTING;
@@ -281,45 +279,13 @@ fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_blo
   }
 }
 
-fn fixture(name: &str) -> String {
-  std::fs::read_to_string(format!("tests/fixtures/{name}")).unwrap().trim().to_owned()
-}
-
 #[test]
-fn a_closing_answer_that_writes_the_standing_message_again_goes_out_once() {
-  // The live pair: the standing message and the closing check's answer, the same sentence but for one mark.
-  let standing = fixture("closing-standing.txt");
-  let answer = fixture("closing-answer.txt");
+fn the_closing_check_shows_the_message_as_it_stands_and_asks_for_it_whole() {
+  use bmo_receiver::chat::draft::closing_words;
 
-  assert_ne!(standing, answer);
-  assert_eq!(appended(&standing, &answer), standing, "one message, not the sentence twice");
-  // Written again near enough, a letter dropped, it is the message as written.
-  let mut letters: Vec<char> = answer.chars().collect();
-  let second = letters
-    .iter()
-    .enumerate()
-    .filter(|(_, character)| character.is_alphanumeric())
-    .nth(1)
-    .unwrap()
-    .0;
+  let turn = closing_words("  the message as it stands  ", "#7: words that came", &scope());
 
-  letters.remove(second);
-
-  let reworded: String = letters.into_iter().collect();
-
-  assert_eq!(appended(&standing, &format!("{reworded} ")), reworded);
-
-  // White space and marks set aside, an answer holding the standing message whole is the message as written.
-  assert_eq!(appended("Hi there.", "Before: hi there"), "Before: hi there");
-  // One opening on the standing message adds only what follows it, the standing message's own mark left out.
-  assert_eq!(
-    appended("Hi there!", "Hi there! And one more thing."),
-    "Hi there!\n\nAnd one more thing."
-  );
-  assert_eq!(appended("Hi there!", "hi, there"), "Hi there!");
-  // Anything else is added after the standing message.
-  assert_eq!(
-    appended("The build is green.", "Also, the deploy went out at noon."),
-    "The build is green.\n\nAlso, the deploy went out at noon."
-  );
+  assert!(turn.contains(&format!("{}\nthe message as it stands\n", DRAFTING.standing)), "{turn}");
+  assert!(turn.ends_with("#7: words that came"), "{turn}");
+  assert!(DRAFTING.arrived.contains("whole") && !DRAFTING.arrived.contains("sent after it"));
 }

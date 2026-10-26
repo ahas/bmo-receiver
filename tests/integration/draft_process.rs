@@ -763,29 +763,7 @@ async fn said_during_the_last(round: &Drafting) {
 }
 
 #[tokio::test]
-async fn the_closing_check_keeps_the_standing_message_and_adds_its_answer_after_it() {
-  let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "the first message", "and the answer to the newest words"])
-    .holding_turn(2);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
-
-  said_during_the_last(&round).await;
-
-  let sent = round.sent();
-
-  assert_eq!(sent.len(), 1, "the two go out as one message: {sent:?}");
-
-  let first = sent[0].find("the first message");
-  let added = sent[0].find("and the answer to the newest words");
-
-  assert!(
-    first.is_some() && added.is_some() && first < added,
-    "the answer stands after the message: {sent:?}"
-  );
-}
-
-#[tokio::test]
-async fn a_closing_check_that_writes_the_message_again_whole_is_not_doubled() {
+async fn the_closing_checks_answer_is_the_whole_message_in_the_standing_ones_place() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["notes", "the first message", "the first message, and the newest words answered"])
     .holding_turn(2);
@@ -793,11 +771,49 @@ async fn a_closing_check_that_writes_the_message_again_whole_is_not_doubled() {
 
   said_during_the_last(&round).await;
 
+  let prompts = round.session.prompts();
   let sent = round.sent();
 
+  assert!(
+    prompts[2].contains(&DRAFTING.standing) && prompts[2].contains("the first message"),
+    "the closing check shows the message as it stands: {}",
+    prompts[2]
+  );
   assert_eq!(sent.len(), 1, "{sent:?}");
-  assert_eq!(sent[0].matches("the first message").count(), 1, "{sent:?}");
-  assert!(sent[0].contains("the newest words answered"), "{sent:?}");
+  assert!(sent[0].contains("the first message, and the newest words answered"), "{sent:?}");
+  assert_eq!(sent[0].matches("the first message").count(), 1, "nothing is joined: {sent:?}");
+}
+
+#[tokio::test]
+async fn the_live_pair_goes_out_once_as_the_closing_check_wrote_it() {
+  // The standing message and the closing check's answer as the store held them for one message, the same
+  // sentence but for one mark: the answer alone goes out.
+  let (standing, answer) = (fixture("closing-standing.txt"), fixture("closing-answer.txt"));
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["notes", &standing, &answer])
+    .holding_turn(2);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  // The people write Korean, as the room's did, so the answers stand in their language.
+  round.hear(1, &fixture("addressing-korean.txt")).await;
+  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
+  round.hear(2, &fixture("addressing-korean.txt")).await;
+  until("the words waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+  round.session.let_go();
+  round.ended(3).await;
+
+  let sent = round.sent();
+  let texts: Vec<String> = sent
+    .iter()
+    .map(|send| {
+      serde_json::from_str::<serde_json::Value>(send).unwrap()["fields"]["text"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+    })
+    .collect();
+
+  assert_eq!(texts, [answer], "the second text alone goes out");
 }
 
 #[tokio::test]

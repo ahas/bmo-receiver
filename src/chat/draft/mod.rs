@@ -198,65 +198,16 @@ pub fn waiting_line(pending: &[i64]) -> String {
   fill_marks(&DRAFTING.waiting, &[("ids", &stringify(&pending).unwrap_or_default())])
 }
 
-/// How near an answer must be to the standing message, character by character, to be that message written again.
-const WRITTEN_AGAIN: f64 = 0.8;
-
-// The marks that may close a sentence, which an answer opening on the standing message carries before what it adds.
-const CLOSING_MARKS: &str = ".,!?;:~…。、！？‥)]}\"'”’」』";
-
-// What a text is read by against another: its letters and digits alone, in one case.
-fn bare(text: &str) -> String {
-  text
-    .chars()
-    .filter(|character| character.is_alphanumeric())
-    .flat_map(char::to_lowercase)
-    .collect()
-}
-
-// Where in `text` its first `count` letters and digits end, so what follows them is read as written.
-fn past_bare(text: &str, count: usize) -> usize {
-  let mut seen = 0;
-
-  for (at, character) in text.char_indices() {
-    if seen == count {
-      return at;
-    }
-
-    if character.is_alphanumeric() {
-      seen += character.to_lowercase().count();
-    }
-  }
-
-  text.len()
-}
-
-/// The message once the closing check answered the words that arrived (docs/drafting.md, 「Once the message stands,
-/// one closing check」), the two read with white space and punctuation set aside: an answer that holds the standing
-/// message whole, or writes it again near enough, is the message as written; one that opens on it adds only what
-/// follows it; any other is added after the standing message, the two one message.
-pub fn appended(standing: &str, answer: &str) -> String {
-  let (standing, answer) = (standing.trim(), answer.trim());
-  let (held, said) = (bare(standing), bare(answer));
-
-  if held.is_empty() {
-    return answer.to_owned();
-  }
-
-  // The standing message as it stood, and only what follows it.
-  if said.starts_with(&held) {
-    // What closed the standing message's last word — its full stop, its mark — is the standing message's.
-    let added = answer[past_bare(answer, held.chars().count())..]
-      .trim_start_matches(|character: char| character.is_whitespace() || CLOSING_MARKS.contains(character))
-      .trim();
-
-    return if added.is_empty() { standing.to_owned() } else { format!("{standing}\n\n{added}") };
-  }
-
-  if said.contains(&held) || strsim::normalized_levenshtein(&held, &said) >= WRITTEN_AGAIN {
-    return answer.to_owned();
-  }
-
-  format!("{standing}\n\n{answer}")
+/// The closing check's turn (docs/drafting.md, 「Once the message stands, one closing check」): its line and the
+/// turn's scope, the message as it stands under its head, then the block of what arrived.
+pub fn closing_words(standing: &str, block: &str, scope: &Scope) -> String {
+  format!(
+    "{}\n{}\n\n{}\n{}\n\n{block}",
+    fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]),
+    scope_line(scope),
+    DRAFTING.standing,
+    standing.trim()
+  )
 }
 
 /// An answer that says something: not empty, not a skip and not a wait.
@@ -807,11 +758,7 @@ impl Drafter {
       && !past(ceiling_at)
       && let Some((block, took)) = run.arrived().await
     {
-      let words = format!(
-        "{}\n{}\n\n{block}",
-        fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]),
-        scope_line(drafted.scope)
-      );
+      let words = closing_words(&standing.text, &block, drafted.scope);
 
       match run.ask(Kind::Item, "arrived", &words, true).await {
         Ok(Some((answer, read))) => {
@@ -823,9 +770,8 @@ impl Drafter {
           } else if is_wait(&answer.text) || run.only_marks || answer.text.trim().is_empty() {
             message = Some(standing.clone());
           } else {
-            let text = appended(&standing.text, &answer.text);
-
-            message = Some(Reply { text, ..answer });
+            // The answer is the whole message as it now goes out, in the standing one's place.
+            message = Some(answer);
           }
         }
         Ok(None) => conversations.give_back_words(chat, took),
