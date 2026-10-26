@@ -5,14 +5,16 @@ use receiver_policy::quiet::QUIET;
 use receiver_ports::agency::{Agency, OpenRun};
 
 /// The open runs that count as under way at `now_ms`, each named as a line: one whose name carries a long-work
-/// word however long it has run, any other started within the policy's span.
+/// word however long it has run, a chat turn's started within the policy's span, and no other.
 pub fn under_way(open: &[OpenRun], now_ms: i64) -> Vec<String> {
   let span = QUIET.recent_minutes * 60_000;
 
   open
     .iter()
     .filter(|run| {
-      QUIET.long_words.iter().any(|word| run.name.contains(word.as_str())) || now_ms - run.started_at < span
+      let carries = |words: &[String]| words.iter().any(|word| run.name.contains(word.as_str()));
+
+      carries(&QUIET.long_words) || (carries(&QUIET.turn_words) && now_ms - run.started_at < span)
     })
     .map(|run| format!("run {} {} under way since {}", run.id, run.name, run.started_at))
     .collect()

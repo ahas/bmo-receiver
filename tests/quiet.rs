@@ -21,10 +21,11 @@ fn a_long_run_counts_however_long_it_has_run_and_another_only_within_the_span() 
     open(1, "agent-a:research:7", 240),
     open(2, "agent-a:chat:-3:100", 2),
     open(3, "agent-a:chat:-3:50", 300),
+    open(4, "unit-a:job-17", 2),
   ];
   let named = under_way(&runs, NOW);
 
-  assert_eq!(named.len(), 2, "{named:?}");
+  assert_eq!(named.len(), 2, "a job's run counts not: {named:?}");
   assert!(named[0].starts_with("run 1 agent-a:research:7"));
   assert!(named[1].starts_with("run 2 agent-a:chat:-3:100"));
   assert!(under_way(&[], NOW).is_empty(), "nothing open is quiet");

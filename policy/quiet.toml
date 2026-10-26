@@ -4,6 +4,8 @@
 # A run whose name carries one of these words counts however long it has run: a research run goes for hours.
 long_words = ["research"]
 
-# Any other open run counts where it started within this span, in minutes: a chat turn ends within it, and a run
-# open longer was left open rather than at work.
+# A chat turn's run, named as the receiver names its turns' runs (`chat:<room>:…` after the agent's name), counts
+# where it started within this span, in minutes: a turn ends within it, and one open longer was left open rather
+# than at work. Any other run, a job's among them, counts not: a restart of the receiver cuts none.
+turn_words = [":chat:"]
 recent_minutes = 30

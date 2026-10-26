@@ -54,7 +54,8 @@ base address and token.
 - **`quiet`** says whether work stands under way that a restart of the receiver would cut, for the testbed's wait
   before a deployment's flip (`testbed.toml`, `quiet`): it asks the agency for the runs still open and names each
   that counts, a run whose name carries one of the long-work words of `quiet.toml` however long it has run, and
-  any other started within that policy's span, a chat turn among them. It ends 0 where none counts and 1 where
+  a chat turn's run, named as the receiver names its turns' runs, started within that policy's span; a job's
+  run counts not, since a restart of the receiver cuts none. It ends 0 where none counts and 1 where
   some does or the agency did not answer, each one named on its own line.
 - **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
   title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with

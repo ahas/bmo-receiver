@@ -8,7 +8,9 @@ use serde::Deserialize;
 pub struct Quiet {
   /// The words a run's name carries for work that counts however long it has run.
   pub long_words: Vec<String>,
-  /// The span within which any other open run counts, in minutes.
+  /// The words a chat turn's run carries.
+  pub turn_words: Vec<String>,
+  /// The span within which an open chat turn's run counts, in minutes.
   pub recent_minutes: i64,
 }
 
