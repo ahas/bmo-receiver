@@ -28,35 +28,51 @@ process.
   and the result it carries, and the note a replaced session holds of its own past.
 - English is the language this machine talks to its agents in; it is not the language of the room, and a turn
   with nothing but the machine's language in front of it answers in it.
-  - **The prompt names the answer language** (its `ANSWER LANGUAGE` line) on every turn that has the machine's
-    language in front of it: a turn carrying a quiet instruction, a turn with no new message from the room, and
-    the first turn after the session's memory was replaced (folded up, swapped for a fresh one carrying the
-    note, or opened again because the account changed), which says it in the note about the replacement.
-  - **The answer language is the speaker's,** read afresh on every turn off the message that addresses the agent:
-    the newest message of the turn's own, else the newest message on the page that is not the agent's own. Its
-    language is told by its script (「The language a text is written in」), and the line names it outright.
-    The room's configured language stands in only where no such message stands or its language cannot be told,
-    and the line then says it is the room's.
+- **The answer language is a person's, never a turn's.** The agent answers each person in the language that
+  person writes; a turn that answers two people answers each in their own.
+  - **A person's language in a room is read off their own prose there:** the newest message of theirs on the
+    turn's page or in its words that holds prose names it, and it is remembered for the room and the person in
+    the store (`people_languages`, `docs/store.md`). Prose is what a message keeps once its quoted spans, its
+    code, its addresses and paths and its bracketed spans — the placeholder a chat service writes for a file, a
+    picture or a sticker it carried — are set aside, and only where it still holds at least the number of
+    letters `policy/chat-round.toml` names (`[language]`, `prose_letters`). A message with no prose — a file, a
+    bare link, code, numbers, an emoji — never changes a person's language.
+  - Where a person has written no prose in the room yet, the deployment's language stands for theirs; the
+    receiver keeps no language of a room's own.
+  - **The people a turn answers** are the speakers of its words, the agent's own aside; a turn with no words of
+    anybody's answers the owner in the owner's own chat, and elsewhere the newest speaker on the page who is not
+    the agent.
+- **The prompt names each person's language** in its one `ANSWER LANGUAGE` line on every turn: one clause a
+  person it answers, `<name>: <language>`, so a turn answering one person carries one clause; a turn answering
+  nobody names the deployment's language as the room's. The line says the language is the person's, whatever
+  language the machine's own lines, an instruction or its result came in. The first turn after the session's
+  memory was replaced (folded up, swapped for a fresh one carrying the note, or opened again because the account
+  changed) says it in the note about the replacement.
+- **The room's block carries the rule** (`policy/chat-line.toml`, `[room]`, `languages`): answer each person in
+  the language they write, and where one turn answers several people, each in their own.
 - **The language a text is written in** is told by the letters of its prose, quoted spans set aside: Hangul
   letters count for Korean, kana for Japanese, each twice, since one stands for a syllable, and Latin letters
   for English, once; the language whose letters weigh most is the text's, and a text with none of them, or two
   that weigh the same, is in no language that can be told.
-  - **Every answer is held to the answer language** before it goes out, the same reading the line names, made
-    afresh off the message that addresses the agent once the round's words stand: the language of that message,
-    else the room's configured language. A room where people write in different languages is judged per
-    addressing message, so an answer goes out in the language of whoever addressed the agent. An answer is in
-    the wrong language when its prose (what is left once code blocks, inline code, addresses and paths are set
-    aside) runs to at least four words of another language that can be told and fewer than a quarter of its
-    words are in the answer language. A word is Korean where it holds a Hangul syllable, Japanese where it holds
-    kana, and English where it is made of Latin letters alone. Such an answer is the `language` check failing:
-    the same session is asked once more to write it in the answer language, which the errand names, and where
-    the second writing fails too, nothing goes out.
-  - **What is never turned back**: an answer carrying the answer language beside its code, its commands, its
+  - **An answer is held to the languages of the people it answers** before it goes out, the same people and
+    languages the line names, read once the round's words stand. A word is Korean where it holds a Hangul
+    syllable, Japanese where it holds kana, and English where it is made of Latin letters alone, and only the
+    answer's prose counts (what is left once code blocks, inline code, addresses and paths are set aside). An
+    answer fails the `language` check only where it holds none of those languages at all and runs to at least
+    the policy's number of words of another (`policy/second-asks.toml`, `[language]`, `judged_from`): a turn
+    answering one person fails where the answer holds none of that person's language, a turn answering several
+    where it holds none of any of theirs. An answer that answers each of several people in their own language
+    passes.
+  - **A failed check asks once and never rewrites:** the same session is asked once more to answer each person
+    in their own language, which the errand names person by person. Where its second answer still holds none of
+    them, the first answer goes out as the session wrote it; the check never holds an answer back and never
+    turns it into one language.
+  - **What is never turned back**: an answer carrying a person's language beside its code, its commands, its
     paths and its names in another language, since a particle on an English name makes the word Korean; a
     short answer whose foreign words are only a name or two, and a model name, a version or a hyphenated code,
     none of which counts as a word of any language; and an answer in no language that can be told.
   - Where the session is replaced inside the run, which is what the account change and the forced reset do, the
-    prompt has already gone out without the line and the answer is held to the language on its own.
+    prompt has already gone out without the line and the answer is held to the languages on its own.
 
 ## A promise stands on a record
 

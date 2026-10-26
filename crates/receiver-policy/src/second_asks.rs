@@ -43,7 +43,6 @@ pub struct Reading {
 #[serde(deny_unknown_fields)]
 pub struct Language {
   pub judged_from: usize,
-  pub answer_share: f64,
 }
 
 #[derive(Debug, Deserialize)]

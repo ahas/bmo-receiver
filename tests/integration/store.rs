@@ -10,6 +10,7 @@ use bmo_receiver::store::migration::m20261022_000008_news_briefs::TABLES as NEWS
 use bmo_receiver::store::migration::m20261023_000009_room_providers::TABLES as ROOM_PROVIDERS_TABLES;
 use bmo_receiver::store::migration::m20261023_000010_room_modes::TABLE as ROOM_MODES;
 use bmo_receiver::store::migration::m20261023_000012_draft_process::TABLES as DRAFT_PROCESS_TABLES;
+use bmo_receiver::store::migration::m20261026_000016_people_languages::TABLE as PEOPLE_LANGUAGES;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -38,14 +39,22 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
   let made: Vec<String> = TABLES
     .iter()
     .copied()
-    .chain([RECORD_NUMBERS, ROOM_WINDOWS, PEOPLE_READS, MESSAGE_METADATA, ROOM_MODES, RECORD_TABLE])
+    .chain([
+      RECORD_NUMBERS,
+      ROOM_WINDOWS,
+      PEOPLE_READS,
+      MESSAGE_METADATA,
+      ROOM_MODES,
+      PEOPLE_LANGUAGES,
+      RECORD_TABLE,
+    ])
     .chain(NEWS_BRIEFS_TABLES)
     .chain(ROOM_PROVIDERS_TABLES)
     .chain(DRAFT_PROCESS_TABLES)
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 15);
+  assert_eq!(migrate(db).await.unwrap(), 16);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -152,9 +161,9 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
     ]
   );
 
-  // The line's index is made four migrations before the draft process's turn bound column, the draft process's,
-  // the message voice's and the send-from column's between them.
-  Migrator::down(db, Some(5)).await.unwrap();
+  // The line's index is made five migrations before the people's languages, the draft process's turn bound
+  // column, the draft process's, the message voice's and the send-from column's between them.
+  Migrator::down(db, Some(6)).await.unwrap();
 
   let before = stated(database.texts(MESSAGE_INDEXES).await);
 
@@ -165,7 +174,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
   );
 
-  assert_eq!(migrate(db).await.unwrap(), 5);
+  assert_eq!(migrate(db).await.unwrap(), 6);
   assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
 }
 

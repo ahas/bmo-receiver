@@ -88,8 +88,14 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(CHAT_ROUND.blocks.archived_left_out.contains("{count}"));
   assert!(CHAT_ROUND.shape.quoted.contains("{quote}"));
   assert!(CHAT_ROUND.closing.woken.contains("{language}"));
-  assert!(CHAT_ROUND.closing.language_named.contains("{language}"));
+  assert!(CHAT_ROUND.closing.language.contains("{people}"));
+  assert!(
+    CHAT_ROUND.closing.language_person.contains("{name}")
+      && CHAT_ROUND.closing.language_person.contains("{language}")
+  );
   assert!(CHAT_ROUND.closing.language_room.contains("{language}"));
+  assert!(CHAT_ROUND.language.prose_letters > 0);
+  assert!(SECOND_ASKS.errands.language.contains("{people}"));
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
   assert!(SECOND_ASKS.errands.owed.contains("{count}"));
   assert!(SECOND_ASKS.errands.wake_on.contains("{chat}"));

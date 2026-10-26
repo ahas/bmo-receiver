@@ -196,14 +196,16 @@ where it says something: neither empty nor a skip nor a wait.
 
 - **Once the items are done, the text is checked before it is sent,** with no model:
   - `length`: at most the policy's `max_chars` characters;
-  - `language`: the text is in the turn's answer language, the language of the message that addresses the agent
-    or else the room's (`docs/answer-checks.md`, 「The language an answer goes out in」);
+  - `language`: the text holds the language of at least one person the turn answers, each person's language
+    read off their own prose in the room (`docs/answer-checks.md`, 「The language an answer goes out in」);
   - `format`: none of the process's own lines stands in the text: no question it was asked, and not the head of
     the block of words that came meanwhile.
 - **A check that fails is asked once:** one more turn of the same session, the check's errand naming what is
-  wrong, its answer the text from then on. The checks then read the new text. A check that fails again sends
-  nothing, and the end of the process records the checks that failed. A check that fails only after another's
-  asking is asked once in its turn.
+  wrong, its answer the text from then on. The checks then read the new text. A `length` or `format` check that
+  fails again sends nothing, and the end of the process records the checks that failed; the `language` check
+  failing again puts back the text it was asked over, which goes out as it stood, and a `language` check alone
+  failing past the ceiling holds nothing back either. A check that fails only after another's asking is asked
+  once in its turn.
 - **A skip in the answer to an item or a check** ends the process with nothing sent, as a skip in any question
   does.
 

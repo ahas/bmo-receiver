@@ -5,7 +5,7 @@ use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
 
-use super::super::promises::answered_in_the_wrong_language;
+use super::super::promises::answered_in_none_of;
 use super::super::sentinels::SKIP;
 use crate::form::without_control_markers;
 use crate::receiver::Inbound;
@@ -31,10 +31,13 @@ impl Check {
   }
 }
 
-/// What the checks read a text against: the turn's answer language, the process's own lines and the longest text
-/// let go.
+/// What the checks read a text against: the languages of the people the turn answers and each person with theirs,
+/// whether the language check still stands, the process's own lines and the longest text let go.
 pub struct Reading<'a> {
-  pub language: &'a str,
+  pub languages: &'a [String],
+  pub people: &'a str,
+  /// Whether the language check is read: it is read until its one asking has been answered.
+  pub language: bool,
   pub own_lines: &'a [String],
   pub max_chars: usize,
 }
@@ -95,7 +98,9 @@ pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
     failed.push(Check::Length);
   }
 
-  if answered_in_the_wrong_language(text, reading.language) {
+  let languages: Vec<&str> = reading.languages.iter().map(String::as_str).collect();
+
+  if reading.language && answered_in_none_of(text, &languages) {
     failed.push(Check::Language);
   }
 
@@ -116,7 +121,7 @@ pub fn errand(check: Check, text: &str, reading: &Reading) -> String {
       &[("count", &text.chars().count().to_string()), ("limit", &reading.max_chars.to_string())],
     ),
     Check::Language => {
-      fill_marks(&errands.language, &[("what", &errands.answer), ("language", reading.language)])
+      fill_marks(&errands.language, &[("what", &errands.answer), ("people", reading.people)])
     }
     Check::Format => errands.format.clone(),
   }

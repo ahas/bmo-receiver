@@ -12,6 +12,8 @@ room_header = "ROOM PERSONA — the people and the manner of the room you are in
 head = "ROOM CONTEXT — chat {chat} ({kind})"
 name = "Room name: {title}"
 replaces = "This replaces previous room-specific instructions and traits for the current room only."
+# The rule every room's block carries of the language an answer is written in (docs/answer-checks.md).
+languages = "LANGUAGES — answer each person in the language that person writes; where one turn answers several people, answer each of them in their own language."
 # The documents a group's block carries, and an owner's chat's, among the chat line's documents.
 group_document = "rules.md"
 owner_document = "owner.md"

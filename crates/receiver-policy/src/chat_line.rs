@@ -28,6 +28,8 @@ pub struct Room {
   pub head: String,
   pub name: String,
   pub replaces: String,
+  /// The rule of answering each person in the language they write.
+  pub languages: String,
   pub group_document: String,
   pub owner_document: String,
   pub writing: String,

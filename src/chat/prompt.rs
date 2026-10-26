@@ -10,10 +10,10 @@ use receiver_policy::fill_marks;
 use serde::Serialize;
 
 use super::conversation::unified_session;
+use super::languages;
 use super::shape::Reading;
 use super::window::{self, Material, Selection};
 use crate::companion::consult::{consult_block, room_windows_block, tells_of_queue};
-use crate::language::text_language;
 use crate::receiver::{Inbound, Receiver, Room, rows};
 use crate::roads::Roads;
 use crate::{Fault, now_ms, one};
@@ -104,40 +104,6 @@ pub async fn quiet_room(receiver: &Receiver, _owner: i64, chat_id: i64) -> Resul
     identity: None,
     private_to: None,
   })
-}
-
-/// The message that addresses the agent on a turn: the newest of the turn's own, else the newest on the page
-/// that is not the agent's own words in the room.
-pub fn addressing<'a>(
-  batch: &'a [Inbound],
-  recent: &'a [Inbound],
-  own: Option<i64>,
-) -> Option<&'a Inbound> {
-  batch.last().or_else(|| {
-    recent
-      .iter()
-      .rev()
-      .find(|message| message.sender_id.is_some() && message.sender_id != own)
-  })
-}
-
-/// The language a turn is answered in (docs/answer-checks.md, 「The language an answer goes out in」): the
-/// language of the message that addresses the agent, else the room's configured language.
-pub fn answer_language(receiver: &Receiver, addressed: Option<&Inbound>) -> String {
-  addressed
-    .and_then(|message| text_language(&message.text))
-    .map_or_else(|| receiver.deployment().language.clone(), str::to_owned)
-}
-
-/// The line naming the language a turn is answered in, saying whether it is the speaker's or the room's.
-pub fn answer_language_note(receiver: &Receiver, addressed: Option<&Inbound>) -> String {
-  let closing = &CHAT_ROUND.closing;
-  let line = match addressed.and_then(|message| text_language(&message.text)) {
-    Some(_) => &closing.language_named,
-    None => &closing.language_room,
-  };
-
-  fill_marks(line, &[("language", &answer_language(receiver, addressed))])
 }
 
 // What kind of room the turn is in: the owner's chat, a user's own private chat, or a group.
@@ -433,15 +399,17 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     parts.push(fill_marks(owed_line, &[("count", &owed.to_string())]));
   }
 
-  let language = answer_language_note(receiver, addressing(round.batch, &recent, round.room.identity));
+  // The answer language is each person's own, named on every turn (docs/answer-checks.md).
+  let addressees =
+    languages::addressees(receiver, chat_id, round.owner, round.batch, &recent, round.room.identity)
+      .await?;
+  let language = languages::line(receiver, &addressees);
 
-  if let Some(reason) = round.woken {
-    parts.push(String::new());
-    parts.push(fill_marks(&closing.woken, &[("reason", reason), ("language", &language)]));
-  } else if !round.instructions.is_empty() || round.batch.is_empty() {
-    parts.push(String::new());
-    parts.push(language);
-  }
+  parts.push(String::new());
+  parts.push(match round.woken {
+    Some(reason) => fill_marks(&closing.woken, &[("reason", reason), ("language", &language)]),
+    None => language,
+  });
 
   parts.push(String::new());
   parts.push(match (round.questioned, round.force, owed > 0) {

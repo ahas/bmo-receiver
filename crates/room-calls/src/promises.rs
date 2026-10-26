@@ -284,9 +284,9 @@ fn word_language(word: &str) -> Option<&'static str> {
   }
 }
 
-/// Whether an answer came out in a language other than the turn's answer language, by its prose: enough words
-/// of another language that can be told, and too few of the answer language beside them.
-pub fn answered_in_the_wrong_language(answer: &str, language: &str) -> bool {
+/// Whether an answer came out in none of the languages it is held to, by its prose: enough words of another
+/// language that can be told, and not one word of any of those languages beside them.
+pub fn answered_in_none_of(answer: &str, languages: &[&str]) -> bool {
   let prose = NOT_PROSE
     .iter()
     .fold(answer.to_owned(), |rest, pattern| pattern.replace_all(&rest, " ").into_owned());
@@ -296,9 +296,8 @@ pub fn answered_in_the_wrong_language(answer: &str, language: &str) -> bool {
     .split(is_space)
     .filter_map(|word| word_language(word.trim_matches(|character: char| !letter(character))))
     .collect();
-  let own = told.iter().filter(|word| **word == language).count();
-  let other = told.len() - own;
-  let thresholds = &SECOND_ASKS.language;
+  let held = told.iter().filter(|word| languages.contains(word)).count();
+  let other = told.len() - held;
 
-  other >= thresholds.judged_from && (own as f64) < (told.len() as f64) * thresholds.answer_share
+  held == 0 && other >= SECOND_ASKS.language.judged_from
 }

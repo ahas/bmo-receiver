@@ -39,6 +39,7 @@ takes it outright: the table holds no default agent.
 | `delegate_chats` | a room in delegate mode (`docs/rooms.md`) | room |
 | `photo_chats` | a room's word on whether its agent opens the pictures it stores (`docs/pictures.md`) | room |
 | `muted_members` | a person muted in a room (`docs/rooms.md`) | room and person |
+| `people_languages` | the language a person writes in a room, read off their newest message there that holds prose, the message it was read off and when (`docs/answer-checks.md`, 「The language an answer goes out in」) | room and person |
 | `chat_notices` | a room's rest or restart notice switched on or off (`docs/voiced-notices.md`) | room and kind |
 | `chat_reads` | the last message of a room the receiver has read | room |
 | `chat_titles` | a room's title | room |

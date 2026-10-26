@@ -1,25 +1,28 @@
-//! The answer language a turn names and its answer is held to (`docs/answer-checks.md`, 「The language an answer
-//! goes out in」): the language of the message that addresses the agent, read afresh each turn, and the room's
-//! configured language only where that message shows none.
+//! The answer language, a person's and never a turn's (`docs/answer-checks.md`, 「The language an answer goes out
+//! in」): each person's language read off their own prose in the room and remembered there, a message with no prose
+//! never changing it, the turn's line naming each person it answers, and an answer held to the languages of the
+//! people it answers.
 
 use bmo_receiver::chat::draft::checks::{Check, Reading, errand, failing};
-use bmo_receiver::chat::prompt::{addressing, answer_language, answer_language_note};
+use bmo_receiver::chat::languages::{Addressee, addressees, clauses, held_to, line, people, remembered};
 use bmo_receiver::data_root::DataRoot;
-use bmo_receiver::language::text_language;
+use bmo_receiver::language::{prose_language, text_language};
 use bmo_receiver::receiver::Inbound;
 use tempfile::tempdir;
 
 use crate::common::Scratch;
 use crate::common::units::{deployment, unrun};
 
+const ROOM: i64 = -5;
 const OWN: i64 = 90;
+const OWNER: i64 = 1;
 
-fn said(message_id: i64, sender: i64, text: &str) -> Inbound {
+fn said(message_id: i64, sender: i64, name: &str, text: &str) -> Inbound {
   Inbound {
-    chat_id: -5,
+    chat_id: ROOM,
     message_id,
     sender_id: Some(sender),
-    sender_name: "someone".into(),
+    sender_name: name.into(),
     sent_at: message_id,
     text: text.into(),
     image_path: None,
@@ -31,112 +34,161 @@ fn said(message_id: i64, sender: i64, text: &str) -> Inbound {
   }
 }
 
+fn korean(name: &str) -> String {
+  std::fs::read_to_string(format!("tests/fixtures/{name}")).unwrap().trim().to_owned()
+}
+
+#[test]
+fn only_prose_names_its_writers_language() {
+  assert_eq!(prose_language(&korean("addressing-korean.txt")), Some("ko"));
+  assert_eq!(prose_language("What time is the meeting tomorrow?"), Some("en"));
+
+  for no_prose in [
+    "[File taskNode.7z]",
+    "https://example.com/a/long/path/to/a/page",
+    "```\nlet value = compute(input);\n```",
+    "12:30 — 42",
+    "\u{1F600}\u{1F44D}",
+    "ok",
+  ] {
+    assert_eq!(prose_language(no_prose), None, "{no_prose}");
+  }
+
+  // A placeholder's own Latin letters weigh nothing beside a caption written in another language.
+  assert_eq!(
+    prose_language(&format!("[File taskNode.7z] {}", korean("addressing-korean.txt"))),
+    Some("ko")
+  );
+  assert_eq!(
+    text_language("[File taskNode.7z]"),
+    Some("en"),
+    "the bare script reading is no person's language"
+  );
+}
+
 #[tokio::test]
-async fn the_turn_names_the_language_of_the_message_that_addresses_the_agent() {
+async fn a_file_message_does_not_change_a_persons_language() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
-  let korean = std::fs::read_to_string("tests/fixtures/addressing-korean.txt").unwrap();
-  let korean = said(1, 2, korean.trim());
-  let english = said(2, 3, "What time is the meeting tomorrow?");
-  let room = &receiver.deployment().language;
+  let written = said(1, 2, "person-a", &korean("addressing-korean.txt"));
+  let file = said(2, 2, "person-a", "[File taskNode.7z]");
 
-  assert_eq!(text_language(&korean.text), Some("ko"));
-  assert_eq!(text_language(&english.text), Some("en"));
-  assert_eq!(text_language("12:30 — 42"), None);
-
-  // A Korean message addressing the agent names Korean, an English one English, whatever else the page holds.
-  let note = answer_language_note(
+  // The person's Korean prose on the page names their language, and the file they send after it does not move it.
+  let found = addressees(
     &receiver,
-    addressing(std::slice::from_ref(&korean), std::slice::from_ref(&english), None),
+    ROOM,
+    OWNER,
+    std::slice::from_ref(&file),
+    std::slice::from_ref(&written),
+    Some(OWN),
+  )
+  .await
+  .unwrap();
+
+  assert_eq!(
+    found,
+    vec![Addressee {
+      person: 2,
+      name: "person-a".into(),
+      language: "ko".into()
+    }]
   );
+  assert_eq!(remembered(&receiver, ROOM, 2).await.unwrap().as_deref(), Some("ko"));
 
-  assert!(
-    note.starts_with("ANSWER LANGUAGE: ko — the language of the message addressed to you"),
-    "{note}"
-  );
+  // Once the prose is off the page, the room remembers it: a file alone still answers in Korean.
+  let found = addressees(&receiver, ROOM, OWNER, std::slice::from_ref(&file), &[], Some(OWN))
+    .await
+    .unwrap();
 
-  let note = answer_language_note(
-    &receiver,
-    addressing(std::slice::from_ref(&english), std::slice::from_ref(&korean), None),
-  );
+  assert_eq!(found[0].language, "ko");
 
-  assert!(
-    note.starts_with("ANSWER LANGUAGE: en — the language of the message addressed to you"),
-    "{note}"
-  );
+  // A person who has written no prose yet stands on the deployment's language.
+  let stranger = said(3, 3, "person-b", "[Photo]");
+  let found = addressees(&receiver, ROOM, OWNER, std::slice::from_ref(&stranger), &[], Some(OWN))
+    .await
+    .unwrap();
 
-  // With no message of the turn's own, the newest on the page that is not the agent's own addresses it.
-  let page = [korean.clone(), said(3, OWN, "An answer of the agent's own.")];
-
-  assert_eq!(addressing(&[], &page, Some(OWN)).map(|one| one.message_id), Some(1));
-  assert!(
-    answer_language_note(&receiver, addressing(&[], &page, Some(OWN))).starts_with("ANSWER LANGUAGE: ko")
-  );
-
-  // Where no message tells a language, the room's configured one stands in.
-  let numbers = said(4, 2, "12:30");
-  let note = answer_language_note(&receiver, addressing(std::slice::from_ref(&numbers), &[], None));
-
-  assert!(note.starts_with(&format!("ANSWER LANGUAGE: {room} — this room's language")), "{note}");
-  assert!(
-    answer_language_note(&receiver, None).starts_with(&format!("ANSWER LANGUAGE: {room} — this room's"))
-  );
-}
-
-// What the language check reads an answer against, in a turn answered in `language`.
-fn reading(language: &str) -> Reading<'_> {
-  Reading {
-    language,
-    own_lines: &[],
-    max_chars: 4_000,
-  }
+  assert_eq!(found[0].language, receiver.deployment().language);
 }
 
 #[tokio::test]
-async fn the_answer_is_held_to_the_language_of_the_message_that_addresses_the_agent() {
+async fn two_people_of_two_languages_get_two_clauses_and_an_answer_to_each_in_their_own_passes() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
-  let mut korean_room = deployment();
+  let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
+  let batch = [
+    said(1, 2, "person-a", &korean("addressing-korean.txt")),
+    said(2, 3, "person-b", "What time is the meeting tomorrow?"),
+    said(3, OWN, "the agent", "An earlier answer of the agent's own."),
+  ];
 
-  korean_room.language = "ko".to_owned();
+  assert_eq!(
+    people(ROOM, OWNER, &batch, &[], Some(OWN)),
+    vec![2, 3],
+    "the agent's own words answer nobody"
+  );
 
-  let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], korean_room).receiver;
-  let korean = std::fs::read_to_string("tests/fixtures/addressing-korean.txt").unwrap();
-  let korean = said(1, 2, korean.trim());
-  let english = said(2, 3, "What time is the meeting tomorrow?");
-  let korean_answer = std::fs::read_to_string("tests/fixtures/answer-korean.txt").unwrap();
+  let found = addressees(&receiver, ROOM, OWNER, &batch, &[], Some(OWN)).await.unwrap();
+  let named = line(&receiver, &found);
+
+  assert_eq!(clauses(&found), "person-a: ko; person-b: en");
+  assert!(
+    named.starts_with("ANSWER LANGUAGE — ") && named.ends_with(": person-a: ko; person-b: en."),
+    "{named}"
+  );
+  assert_eq!(named.lines().count(), 1);
+
+  let languages = held_to(&receiver, &found);
+  let people = clauses(&found);
+  let reading = Reading {
+    languages: &languages,
+    people: &people,
+    language: true,
+    own_lines: &[],
+    max_chars: 4_000,
+  };
+  let korean_answer = korean("answer-korean.txt");
   let english_answer = "The meeting starts at three in the afternoon, in the main hall.";
+  let japanese_answer = "\u{304A}\u{306F}\u{3088}\u{3046} \u{3054}\u{3056}\u{3044}\u{307E}\u{3059} \u{3042}\u{308A}\u{304C}\u{3068}\u{3046} \u{3055}\u{3088}\u{3046}\u{306A}\u{3089}";
 
-  // A Korean room the English speaker addressed: an English answer passes, a Korean one is asked again in English.
-  let language = answer_language(
-    &receiver,
-    addressing(std::slice::from_ref(&english), std::slice::from_ref(&korean), None),
+  assert_eq!(failing(&format!("{korean_answer}\n\n{english_answer}"), &reading), vec![]);
+  assert_eq!(
+    failing(&korean_answer, &reading),
+    vec![],
+    "an answer holding one of their languages passes"
+  );
+  assert_eq!(failing(japanese_answer, &reading), vec![Check::Language]);
+  assert!(errand(Check::Language, japanese_answer, &reading).contains("person-a: ko; person-b: en"));
+}
+
+#[tokio::test]
+async fn one_person_is_one_clause_and_a_korean_answer_to_a_korean_speaker_passes() {
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
+  let batch = [said(1, 2, "person-a", &korean("addressing-korean.txt"))];
+  let found = addressees(&receiver, ROOM, OWNER, &batch, &[], Some(OWN)).await.unwrap();
+  let languages = held_to(&receiver, &found);
+  let people = clauses(&found);
+  let reading = Reading {
+    languages: &languages,
+    people: &people,
+    language: true,
+    own_lines: &[],
+    max_chars: 4_000,
+  };
+
+  assert_eq!(people, "person-a: ko");
+  assert_eq!(failing(&korean("answer-korean.txt"), &reading), vec![]);
+  assert_eq!(
+    failing("The meeting starts at three in the afternoon, in the main hall.", &reading),
+    vec![Check::Language]
   );
 
-  assert_eq!(language, "en");
-  assert_eq!(failing(english_answer, &reading(&language)), vec![]);
-  assert_eq!(failing(korean_answer.trim(), &reading(&language)), vec![Check::Language]);
-  assert!(errand(Check::Language, korean_answer.trim(), &reading(&language)).contains("again, in en,"));
-
-  // The Korean speaker who addresses the agent next in the same room is answered in Korean.
-  let language = answer_language(
-    &receiver,
-    addressing(std::slice::from_ref(&korean), std::slice::from_ref(&english), None),
+  // A turn answering nobody names the room's language.
+  assert!(
+    line(&receiver, &[])
+      .starts_with(&format!("ANSWER LANGUAGE: {} — this room's", receiver.deployment().language))
   );
-
-  assert_eq!(language, "ko");
-  assert_eq!(failing(korean_answer.trim(), &reading(&language)), vec![]);
-  assert_eq!(failing(english_answer, &reading(&language)), vec![Check::Language]);
-
-  // Where no message addressing the agent tells a language, the room's configured one stands in.
-  let numbers = said(4, 2, "12:30");
-
-  for addressed in [addressing(std::slice::from_ref(&numbers), &[], None), None] {
-    let language = answer_language(&receiver, addressed);
-
-    assert_eq!(language, "ko");
-    assert_eq!(failing(english_answer, &reading(&language)), vec![Check::Language]);
-    assert_eq!(failing(korean_answer.trim(), &reading(&language)), vec![]);
-  }
 }
