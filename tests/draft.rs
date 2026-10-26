@@ -44,6 +44,7 @@ fn row(provider: &str, tier: &str, agent: &str, rounds: &[&str]) -> Process {
     tier: tier.to_owned(),
     agent: agent.to_owned(),
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
+    send_from: String::new(),
     light: vec!["final".to_owned()],
     light_chars: 12,
     ceiling_seconds: 150,
@@ -77,15 +78,30 @@ fn an_item_closes_on_the_turn_s_scope_and_what_waits() {
 
 #[test]
 fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
-  let first = question_words("intent", "why?", 1, 3, &scope());
-  let last = question_words("final", "write it", 3, 3, &scope());
+  let plan = Plan {
+    questions: [("information", "what?"), ("facts", "true?"), ("final", "write it")]
+      .map(|(name, text)| (name.to_owned(), text.to_owned()))
+      .to_vec(),
+    send_from_at: 1,
+    ..Plan::default()
+  };
+  let first = question_words("intent", "why?", 1, 3, &plan.send_line(0), &scope());
+  let second = question_words("facts", "true?", 2, 3, &plan.send_line(1), &scope());
+  let last = question_words("final", "write it", 3, 3, &plan.send_line(2), &scope());
 
   assert!(first.contains("question 1 of 3 (intent)") && first.contains("\n\nwhy?\n"));
   assert!(
-    first.contains("<<SEND>>") && first.contains("<<SKIP>>"),
-    "the lead names the two markers"
+    first.contains("before question 2 (facts)")
+      && first.contains("<<SKIP>>")
+      && !first.contains("<<SEND>>, what"),
+    "a question before the one a send is read from says so: {first}"
+  );
+  assert!(
+    second.contains("begin the answer with <<SEND>>"),
+    "a send is read from facts on: {second}"
   );
   assert!(last.contains("3 of 3 (final)") && last.contains("the message"));
+  assert!(!plan.send_open(0) && plan.send_open(1) && plan.send_open(2));
 }
 
 #[test]
@@ -99,11 +115,9 @@ fn the_first_question_opens_on_the_opening_unless_it_is_the_last() {
   let head = DRAFTING.opening.split('{').next().unwrap_or_default();
 
   assert!(three.questioned() && !one.questioned() && !Plan::default().questioned());
-  assert!(
-    three
-      .first_words()
-      .is_some_and(|words| words.contains(head) && words.ends_with("\n\nask intent"))
-  );
+  assert!(three.first_words().is_some_and(|words| {
+    words.contains(head) && words.contains(&DRAFTING.send_open) && words.ends_with("\n\nask intent")
+  }));
   assert!(
     one
       .first_words()
@@ -187,6 +201,17 @@ fn a_set_names_known_questions_ending_in_the_last_and_bounds_its_numbers() {
   assert!(refusal(&row(ANY, ANY, ANY, &["final", "intent"]), &catalogue).is_some());
   assert!(refusal(&row(ANY, ANY, ANY, &["final", "final"]), &catalogue).is_some());
   assert!(refusal(&row(ANY, ANY, ANY, &["unknown", "final"]), &catalogue).is_some());
+
+  let sending = |from: &str| Process {
+    send_from: from.to_owned(),
+    ..row(ANY, ANY, ANY, &["information", "facts", "final"])
+  };
+
+  assert_eq!(refusal(&sending("facts"), &catalogue), None);
+  assert!(
+    refusal(&sending("memory"), &catalogue).is_some(),
+    "a send is read from a question of rounds"
+  );
 
   let mut long = row(ANY, ANY, ANY, &["final"]);
 

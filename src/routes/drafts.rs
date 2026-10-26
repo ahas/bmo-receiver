@@ -17,6 +17,8 @@ use crate::chat::draft::table::{self, PastCeiling, Process};
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProcessSet {
   rounds: Vec<String>,
+  #[serde(default)]
+  send_from: String,
   light: Vec<String>,
   light_chars: u32,
   ceiling_seconds: u32,
@@ -64,6 +66,7 @@ pub async fn set_process(
     tier,
     agent,
     rounds: asked.rounds,
+    send_from: asked.send_from,
     light: asked.light,
     light_chars: asked.light_chars,
     ceiling_seconds: asked.ceiling_seconds,

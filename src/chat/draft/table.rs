@@ -56,13 +56,16 @@ impl PastCeiling {
 }
 
 /// A row of the table: its key, each part a name or `*`, the questions of an ordinary and of a light turn, the
-/// light bound, the ceiling and what is done past it, and whether the console set it.
+/// question a send is read from, the light bound, the ceiling and what is done past it, and whether the console
+/// set it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Process {
   pub provider: String,
   pub tier: String,
   pub agent: String,
   pub rounds: Vec<String>,
+  /// The question of `rounds` from whose answer on a send is read; empty for the first.
+  pub send_from: String,
   pub light: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
@@ -77,6 +80,7 @@ impl Process {
       tier: row.tier.clone(),
       agent: row.agent.clone(),
       rounds: row.rounds.clone(),
+      send_from: row.send_from.clone(),
       light: row.light.clone(),
       light_chars: row.light_chars,
       ceiling_seconds: row.ceiling_seconds,
@@ -108,6 +112,7 @@ impl Process {
       "tier": self.tier,
       "agentName": self.agent,
       "rounds": self.rounds,
+      "sendFrom": self.send_from,
       "light": self.light,
       "lightChars": self.light_chars,
       "ceilingSeconds": self.ceiling_seconds,
@@ -145,6 +150,7 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
     tier: text("tier")?,
     agent: text("agent")?,
     rounds: names(&text("rounds")?),
+    send_from: text("send_from")?,
     light: names(&text("light")?),
     light_chars: u32::try_from(number("light_chars")?).unwrap_or(0),
     ceiling_seconds: u32::try_from(number("ceiling_seconds")?).unwrap_or(0),
@@ -158,7 +164,8 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
 pub async fn rows<C: ConnectionTrait>(db: &C) -> Result<Vec<Process>, Fault> {
   let read = all(
     db,
-    r#"SELECT "provider", "tier", "agent", "rounds", "light", "light_chars", "ceiling_seconds", "past_ceiling"
+    r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "light", "light_chars", "ceiling_seconds",
+            "past_ceiling"
          FROM "draft_processes" ORDER BY "provider", "tier", "agent""#,
     vec![],
   )
@@ -246,6 +253,13 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
     }
   }
 
+  if !process.send_from.is_empty() && !process.rounds.contains(&process.send_from) {
+    return Some(format!(
+      "sendFrom names the question {}, which rounds does not hold.",
+      process.send_from
+    ));
+  }
+
   if process.ceiling_seconds == 0 || process.ceiling_seconds > LONGEST_CEILING {
     return Some(format!("ceilingSeconds must be from 1 to {LONGEST_CEILING}."));
   }
@@ -283,18 +297,19 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
   run(
     db,
     r#"INSERT INTO "draft_processes"
-         ("provider", "tier", "agent", "rounds", "light", "light_chars", "ceiling_seconds", "past_ceiling",
-          "set_at")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ("provider", "tier", "agent", "rounds", "send_from", "light", "light_chars", "ceiling_seconds",
+          "past_ceiling", "set_at")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT ("provider", "tier", "agent") DO UPDATE SET
-         "rounds" = EXCLUDED."rounds", "light" = EXCLUDED."light", "light_chars" = EXCLUDED."light_chars",
-         "ceiling_seconds" = EXCLUDED."ceiling_seconds", "past_ceiling" = EXCLUDED."past_ceiling",
-         "set_at" = EXCLUDED."set_at""#,
+         "rounds" = EXCLUDED."rounds", "send_from" = EXCLUDED."send_from", "light" = EXCLUDED."light",
+         "light_chars" = EXCLUDED."light_chars", "ceiling_seconds" = EXCLUDED."ceiling_seconds",
+         "past_ceiling" = EXCLUDED."past_ceiling", "set_at" = EXCLUDED."set_at""#,
     vec![
       process.provider.clone().into(),
       process.tier.clone().into(),
       process.agent.clone().into(),
       listed(&process.rounds).into(),
+      process.send_from.clone().into(),
       listed(&process.light).into(),
       i64::from(process.light_chars).into(),
       i64::from(process.ceiling_seconds).into(),

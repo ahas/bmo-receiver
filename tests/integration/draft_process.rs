@@ -22,7 +22,7 @@ use receiver_policy::drafting::DRAFTING;
 use receiver_policy::second_asks::SECOND_ASKS;
 
 use crate::common::Scratch;
-use crate::common::session::{StandInSession, drafting, drafting_past};
+use crate::common::session::{StandInSession, drafting, drafting_past, drafting_sending};
 use crate::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
@@ -310,6 +310,40 @@ async fn a_send_in_the_first_round_is_the_message_and_nothing_more_is_asked() {
   assert!(sent.len() == 1 && sent[0].contains("the answer, ready at once"), "{sent:?}");
   assert!(!sent[0].contains("<<SEND>>"), "the marker never reaches the room: {sent:?}");
   assert_eq!(round.log().await, ["question intent send", "end  message"]);
+}
+
+#[tokio::test]
+async fn a_send_before_the_question_a_send_is_read_from_is_notes_and_the_next_question_is_asked() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[
+    "<<SEND>> too soon",
+    "<<SEND>> the answer, once the facts are read",
+    "never asked",
+  ]);
+  let rounds = ["information", "facts", "final"];
+  let round = Drafting::new(session, &rounds, &["final"], 150).await;
+
+  drafting_sending(round.scratch.db(), &rounds, "facts", &["final"], 150).await;
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 2, "facts is asked after the early send: {prompts:#?}");
+  assert!(
+    prompts[0].contains("before question 2 (facts)") && !prompts[0].contains(&DRAFTING.send_open),
+    "the first question says no message is written before facts: {}",
+    prompts[0]
+  );
+  assert!(prompts[1].contains(&DRAFTING.send_open), "facts reads a send: {}", prompts[1]);
+  assert!(
+    sent.len() == 1 && sent[0].contains("once the facts are read") && !sent[0].contains("too soon"),
+    "{sent:?}"
+  );
+  assert_eq!(
+    round.log().await,
+    ["question information answered", "question facts send", "end  message"]
+  );
 }
 
 #[tokio::test]

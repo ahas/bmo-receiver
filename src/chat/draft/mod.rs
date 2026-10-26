@@ -47,11 +47,12 @@ pub fn words(errand: &str, scope: &Scope, pending: &[i64]) -> String {
 }
 
 /// The process a round opens before its turn goes out (docs/drafting.md, 「The process table」): its questions by
-/// name with their texts, the row of the table it read, its ceiling and what is done past it. A round no row
-/// matches asks nothing and has no ceiling.
+/// name with their texts, the place of the question a send is read from (from 0), the row of the table it read,
+/// its ceiling and what is done past it. A round no row matches asks nothing and has no ceiling.
 #[derive(Clone, Debug)]
 pub struct Plan {
   pub questions: Vec<(String, String)>,
+  pub send_from_at: usize,
   pub row: String,
   pub ceiling_ms: Option<i64>,
   pub past_ceiling: PastCeiling,
@@ -61,6 +62,7 @@ impl Default for Plan {
   fn default() -> Self {
     Plan {
       questions: vec![],
+      send_from_at: 0,
       row: String::new(),
       ceiling_ms: None,
       past_ceiling: PastCeiling::Send,
@@ -74,13 +76,32 @@ impl Plan {
     self.questions.len() > 1
   }
 
+  /// Whether a send is read in the answer to the question at a place (from 0).
+  pub fn send_open(&self, at: usize) -> bool {
+    at >= self.send_from_at
+  }
+
+  /// What a question's turn says of the send marker: that a send is read at this question, or from which
+  /// question on it is.
+  pub fn send_line(&self, at: usize) -> String {
+    if self.send_open(at) {
+      return DRAFTING.send_open.clone();
+    }
+
+    let name = self.questions.get(self.send_from_at).map(|(name, _)| name.as_str()).unwrap_or_default();
+
+    fill_marks(&DRAFTING.send_closed, &[("from", &(self.send_from_at + 1).to_string()), ("name", name)])
+  }
+
   /// What the first question adds to the round's turn, where the process asks any: the opening, or the last
   /// question's line where it is also the last, then the question. The turn's own scope stands in it already.
   pub fn first_words(&self) -> Option<String> {
     let (name, text) = self.questions.first()?;
     let count = self.questions.len();
     let lead = if count == 1 { &DRAFTING.last_lead } else { &DRAFTING.opening };
-    let lead = fill_marks(lead, &[("number", "1"), ("count", &count.to_string()), ("name", name)]);
+    let send = self.send_line(0);
+    let lead =
+      fill_marks(lead, &[("number", "1"), ("count", &count.to_string()), ("name", name), ("send", &send)]);
 
     Some(format!("{lead}\n\n{text}"))
   }
@@ -100,11 +121,26 @@ pub fn read_answer(text: &str) -> (String, Answered) {
   }
 }
 
-/// The opening of a later question turn: the lead naming its place, then the question and the turn's scope.
-pub fn question_words(name: &str, text: &str, number: usize, count: usize, scope: &Scope) -> String {
+/// The opening of a later question turn: the lead naming its place and what it says of the send marker, then
+/// the question and the turn's scope.
+pub fn question_words(
+  name: &str,
+  text: &str,
+  number: usize,
+  count: usize,
+  send: &str,
+  scope: &Scope,
+) -> String {
   let lead = if number == count { &DRAFTING.last_lead } else { &DRAFTING.lead };
-  let lead =
-    fill_marks(lead, &[("number", &number.to_string()), ("count", &count.to_string()), ("name", name)]);
+  let lead = fill_marks(
+    lead,
+    &[
+      ("number", &number.to_string()),
+      ("count", &count.to_string()),
+      ("name", name),
+      ("send", send),
+    ],
+  );
 
   format!("{lead}\n\n{text}\n{}", scope_line(scope))
 }
@@ -202,6 +238,7 @@ impl Run<'_> {
     kind: Kind,
     name: &str,
     words: &str,
+    send_open: bool,
   ) -> Result<Option<(Reply, Answered)>, Failure> {
     let drafted = self.drafted;
     let chat = self.held.chat_id;
@@ -243,6 +280,8 @@ impl Run<'_> {
           (false, true) => read_answer(SKIP),
           (false, false) => read_answer(&text),
         };
+        // A send before the question a send is read from is notes like any answer.
+        let ending = if ending == Answered::Send && !send_open { Answered::Answered } else { ending };
         let answer = Reply { text, ..answered };
 
         if let Err(why) = note_session(
@@ -413,10 +452,13 @@ impl Drafter {
         ..Plan::default()
       };
     };
-    let list = if light(batch, instructions, process.light_chars) {
-      &process.light
+    let is_light = light(batch, instructions, process.light_chars);
+    let list = if is_light { &process.light } else { &process.rounds };
+    // A light turn reads a send from its first question whatever the row names.
+    let send_from_at = if is_light {
+      0
     } else {
-      &process.rounds
+      list.iter().position(|name| name == &process.send_from).unwrap_or(0)
     };
     let catalogue = table::questions(receiver.db()).await.unwrap_or_default();
     let questions = list
@@ -434,6 +476,7 @@ impl Drafter {
 
     Plan {
       questions,
+      send_from_at,
       row: format!("{}/{}/{}", process.provider, process.tier, process.agent),
       ceiling_ms: Some(i64::from(process.ceiling_seconds) * 1000),
       past_ceiling: process.past_ceiling,
@@ -470,6 +513,12 @@ impl Drafter {
     };
     let first_text = run.marked(&drafted.reply.text);
     let (text, first_read) = read_answer(if first_text.is_empty() { SKIP } else { &first_text });
+    // A send before the question a send is read from is notes like any answer.
+    let first_read = if first_read == Answered::Send && !plan.send_open(0) {
+      Answered::Answered
+    } else {
+      first_read
+    };
     let first = Reply {
       text,
       ..drafted.reply.clone()
@@ -513,7 +562,8 @@ impl Drafter {
       let number = at + 1;
       let last = number == count;
       let (name, text) = &plan.questions[at];
-      let mut words = question_words(name, text, number, count, drafted.scope);
+      let send = plan.send_line(at);
+      let mut words = question_words(name, text, number, count, &send, drafted.scope);
 
       run.asked.push(text.clone());
 
@@ -530,7 +580,7 @@ impl Drafter {
 
       run.log.start(number, count, name);
 
-      let asked = run.ask(Kind::Question, name, &words).await;
+      let asked = run.ask(Kind::Question, name, &words, plan.send_open(at)).await;
       let block = block.map(|(_, took)| took).unwrap_or_default();
 
       match asked {
@@ -580,7 +630,7 @@ impl Drafter {
     {
       let words = format!("{}\n{}\n\n{block}", DRAFTING.arrived, scope_line(drafted.scope));
 
-      match run.ask(Kind::Item, "arrived", &words).await {
+      match run.ask(Kind::Item, "arrived", &words, true).await {
         Ok(Some((answer, read))) => {
           run.shown.extend(took);
 
@@ -616,7 +666,10 @@ impl Drafter {
     if message.is_none() && owed > 0 {
       let errand = fill_marks(&SECOND_ASKS.errands.owed, &[("count", &owed.to_string())]);
 
-      match run.ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending)).await {
+      match run
+        .ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending), true)
+        .await
+      {
         Ok(Some((answer, read))) if usable(&answer.text) && read != Answered::Skip => {
           message = Some(answer)
         }
@@ -662,7 +715,9 @@ impl Drafter {
       };
       let Some(errand) = errand else { continue };
 
-      let asked = run.ask(Kind::Item, item.word(), &words(&errand, drafted.scope, &drafted.pending)).await;
+      let asked = run
+        .ask(Kind::Item, item.word(), &words(&errand, drafted.scope, &drafted.pending), true)
+        .await;
 
       match asked {
         Ok(Some((answer, read))) => {
@@ -721,7 +776,7 @@ impl Drafter {
         asked.insert(check);
 
         let answered = run
-          .ask(Kind::Check, check.word(), &words(&errand, drafted.scope, &drafted.pending))
+          .ask(Kind::Check, check.word(), &words(&errand, drafted.scope, &drafted.pending), true)
           .await;
 
         match answered {

@@ -759,6 +759,8 @@ pub struct DraftProcess {
   /// An agent, or `*` for any.
   pub agent_name: String,
   pub rounds: Vec<String>,
+  /// The question of `rounds` from whose answer on a send is read; empty for the first.
+  pub send_from: String,
   pub light: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
@@ -773,6 +775,9 @@ pub struct DraftProcess {
 #[serde(rename_all = "camelCase")]
 pub struct DraftProcessSet {
   pub rounds: Vec<String>,
+  /// The question of `rounds` from whose answer on a send is read; empty, and left out, for the first.
+  #[serde(default)]
+  pub send_from: String,
   pub light: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,

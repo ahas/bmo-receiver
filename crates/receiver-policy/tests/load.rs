@@ -103,7 +103,9 @@ fn the_rounds_lines_carry_their_marks() {
 #[test]
 fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.lead.contains("{number}") && DRAFTING.lead.contains("{count}"));
-  assert!(DRAFTING.opening.contains("{number}") && DRAFTING.opening.contains("<<SEND>>"));
+  assert!(DRAFTING.opening.contains("{number}") && DRAFTING.opening.contains("{send}"));
+  assert!(DRAFTING.lead.contains("{send}") && DRAFTING.send_open.contains("<<SEND>>"));
+  assert!(DRAFTING.send_closed.contains("{from}") && DRAFTING.send_closed.contains("{name}"));
   assert!(CHAT_ROUND.closing.questioned_owed.contains("{count}"));
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final") && DRAFTING.max_chars > 0);
@@ -118,6 +120,11 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
       assert!(list.iter().all(|name| DRAFTING.questions.contains_key(name)), "{process:?}");
       assert_eq!(list.last().map(String::as_str), Some("final"), "{process:?}");
     }
+
+    assert!(
+      process.send_from.is_empty() || process.rounds.contains(&process.send_from),
+      "{process:?}"
+    );
   }
 
   assert!(DRAFTING.process.iter().any(|process| process.provider == "*" && process.agent == "*"));

@@ -1181,6 +1181,8 @@ export interface components {
             /** @description A provider's key, or `*` for any. */
             provider: string;
             rounds: string[];
+            /** @description The question of `rounds` from whose answer on a send is read; empty for the first. */
+            sendFrom: string;
             /** @description `set` or `default`. */
             source: string;
             /** @description A tier, or `*` for any. */
@@ -1196,6 +1198,11 @@ export interface components {
             /** @description `send` or `skip`. */
             pastCeiling: string;
             rounds: string[];
+            /**
+             * @description The question of `rounds` from whose answer on a send is read; empty, and left out, for the first.
+             * @default
+             */
+            sendFrom: string;
         };
         /** @description A question of the draft process's catalogue. */
         DraftQuestion: {

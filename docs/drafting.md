@@ -17,25 +17,32 @@ leaves.
 - **A round's notes are what it read, what it established and what is still unknown.** The facts themselves go
   to the brain during the round, by the agent's own tools; the notes go to the round log (「The round log」
   below), so the brain and the draft record both hold what the round established.
-- **The first question has the most freedom.** It says, in the owner's words: a simple call is answered now and
-  the process stops; where the facts already found and what is now known are enough, the message is written now;
-  where the agent cannot tell whether a fact it found is stale, it searches before deciding, with the web
+- **The first question has the most freedom,** up to the question the row reads a send from (「The process
+  table」 below). It says, in the owner's words: where a send is read at it, a simple call is answered now and
+  the process stops, and where the facts already found and what is now known are enough, the message is written
+  now; where the agent cannot tell whether a fact it found is stale, it searches before deciding, with the web
   search, the web fetch, the translation and the brain's tools its session holds; otherwise it notes what the
   message needs and goes on.
 - **Confidence comes from a fact's dates, and hedging is no option.** The brain's facts carry when they hold from
   and when they were last confirmed: a fact found or confirmed recently is said with confidence, and one the
   agent is not confident of is searched for quietly before it answers. The message never tells the room that
   something may be out of date; the search is the agent's own and the room hears only its result.
+- **A fact about the system's live state has one source.** A login, a usage window, a model, what is running,
+  what is deployed, a setting: such a fact counts only when read now from the service that owns it, by its route
+  or its tool. A file, a cache or an earlier answer that mirrors that state is not a source. What has no source
+  is read now, and what cannot be read now is said as not confirmed, never as fact. The first question and the
+  `facts` question both say so.
 - **A question is a turn of the same session,** opened as `question` (`docs/bmo-window.md`, 「The openings」),
   so it holds the round's intent, its reference and its cache; the first question is the round's own turn. Every
   tool the round's turn has is open in every question: reading and writing memories, searching, filing a job,
   `say`. A question to read more is answered by reading; a question whether a promise was kept is answered by
   keeping it.
 - **The receiver reads four things of an answer and nothing else:** `<<SKIP>>` standing in it outside a code
-  span or fence, which ends the process in any round with nothing sent; `<<SEND>>` opening it, which makes what
-  follows the marker the message in any round and ends the questions there, so a greeting or a question already
-  answerable pays no further round; the marks `<<DONE #<number>>>` and `<<SEPARATE #<number>>>` on a message shown
-  to the round (「What came in meanwhile」 below); and the answer itself. A skip anywhere in an answer wins over a
+  span or fence, which ends the process in any round with nothing sent; `<<SEND>>` opening it, which, from the
+  question the row reads a send from on, makes what follows the marker the message and ends the questions there,
+  so a question already answerable pays no further round, and before that question is notes like any answer; the
+  marks `<<DONE #<number>>>` and `<<SEPARATE #<number>>>` on a message shown to the round (「What came in
+  meanwhile」 below); and the answer itself. A skip anywhere in an answer wins over a
   send that opens it, and a send with nothing after it is a skip.
 - **A round whose first answer is `<<WAIT>>` runs no further process:** the wait stands as `docs/wake.md`,
   「Waiting」, says, and the round that takes the waited words opens the process again.
@@ -52,7 +59,7 @@ leaves.
 |---|---|
 | `intent` | why the words were said and what the speaker wants; whether to answer is the pregate's reading, so this asks the reason |
 | `information` | what the message needs to know and what more must be read; where the selected reference falls short, read |
-| `facts` | whether what the message rests on is true; nothing undecided spoken of as known, no variable guessed |
+| `facts` | whether what the message rests on is true and where each fact came from: the system's live state read now from the service that owns it, nothing undecided spoken of as known, no variable guessed |
 | `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved |
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
 | `fit` | whether the message fits the room's rules, the persona and the language the other person speaks |
@@ -61,12 +68,14 @@ leaves.
 - **The first question rides the round's own turn:** the room's words and the round's closing lines as the window
   composes them, the closing lines saying that the question below is to be answered, then the question's opening
   and the question. The opening is the policy's: the place and count of the question, the
-  first question's freedom and the confidence rule above, the notes an answer is, and the two markers. Where the
+  first question's freedom, the confidence rule and the source rule above, the notes an answer is, whether a send
+  is read at this question (`send_open` or `send_closed`), and the two markers. Where the
   first question is the last, as a light turn's `final` is, it opens on the last question's line instead and
   its answer is the message, so the round is one turn.
 - **Every later question goes out as one more turn** opening on the process's lead line, naming the question's
   place and count, that the answer is notes, that the facts established go to the brain, that the message is
-  written last, the two markers, that nothing is hedged, and the two marks a message that arrived meanwhile takes;
+  written last, whether a send is read at this question, the two markers, that nothing is hedged, and the two
+  marks a message that arrived meanwhile takes;
   then the question; then the turn's scope; then the block of messages that arrived since the last answer, where
   any did (「What came in meanwhile」 below). Every question but the last closes on the messages still waiting and
   that they are shown with the next question; the last opens on its own line, that its answer is the message, and
@@ -79,15 +88,19 @@ leaves.
 - **One table says which questions a turn is asked:** rows keyed by a provider, a tier and an agent, each a name
   or `*` for any. A row holds:
   - `rounds`, the questions of an ordinary turn, in order;
+  - `sendFrom`, the question of `rounds` from whose answer on a send is read; empty for the first;
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
   - `ceilingSeconds`, the time the whole process may take (「Time」 below);
   - `pastCeiling`, `send` or `skip`: what becomes of the turn once the ceiling has passed.
-- **The policy's rows are the defaults** (`drafting.toml`): any provider, `intent`, `information`, `facts`,
-  `memory`, `promises` and `final`, the small models' process; Claude's provider, `information`, `memory`,
-  `promises` and `final`;
-  every light turn `final` alone; 150 seconds, past which `final` is asked at once; 12 characters for a light
-  turn.
+- **A send is read from the row's `sendFrom` question on.** Before it, an answer opening on `<<SEND>>` is notes
+  and the process goes on, so the questions that establish the facts are asked before anything is written; each
+  question's own line says whether a send is read at it. A light turn's list reads a send from its first question
+  whatever the row names.
+- **The policy's rows are the defaults** (`drafting.toml`): any provider, `information`, `facts` and `final`, the
+  small models' process; Claude's provider, `information`, `facts`, `memory`, `promises` and `final`; both read a
+  send from `facts` on; every light turn `final` alone; 150 seconds, past which `final` is asked at once; 12
+  characters for a light turn.
 - **The console's rows stand over them** (「The routes」 below): a row set for a key the policy also holds takes its
   place, and a row set for a key of its own adds one, which is how an agent is given a process of its own.
 - **A round reads its row before its turn goes out,** since the turn carries the first question: the provider and
@@ -227,9 +240,9 @@ where it says something: neither empty nor a skip nor a wait.
   `source`: `set` where the console set it, `default` where the policy's stands.
 - **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a row, `*` standing for any in each place, and
   answers it as it now stands. A list naming a question the catalogue does not hold, a list that holds questions
-  and does not end in `final` or holds it before the end, a ceiling outside 1 to 3,600 seconds, a light bound
-  outside 0 to 1,000 characters or a `pastCeiling` other than `send` and `skip` is refused `bad-request`, and
-  nothing is written.
+  and does not end in `final` or holds it before the end, a `sendFrom` that is not empty and names no question
+  of `rounds`, a ceiling outside 1 to 3,600 seconds, a light bound outside 0 to 1,000 characters or a
+  `pastCeiling` other than `send` and `skip` is refused `bad-request`, and nothing is written.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes the console's row away; the policy's row of the
   key stands again where it holds one. A key the console set no row for is `not-found`.
 - **`GET /draft-questions`** answers the catalogue, each question with its `source`; **`PUT
