@@ -16,6 +16,7 @@ use tokio::time::MissedTickBehavior;
 
 use receiver_codes::SessionReason;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::handover::HANDOVER;
 use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
 use receiver_ports::http::PortFailure;
 
@@ -214,6 +215,14 @@ impl Carry {
     }
 
     let again = agency.start(agent, scope).await.map_err(fault_of)?;
+
+    if let Some(times) = handoff::in_a_row(receiver, agent, &format!("replacement-{reason}"), true).await {
+      eprintln!(
+        "{agent}: session replaced again for the same reason ({reason}), {times} in a row, each within {} minutes of \
+         the last",
+        HANDOVER.again_minutes
+      );
+    }
 
     println!(
       "{agent}: session {old} replaced ({reason}), the new one opening on {}",

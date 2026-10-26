@@ -57,16 +57,59 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_refus
   assert_eq!((status, body["code"].as_str()), (StatusCode::CONFLICT, Some("conflict")));
   drop(under_way);
 
-  // An agent whose session never opened has nothing to hand over.
-  session.now_at(None);
-
-  let (status, _) = post(&front, "/handoffs/agent-a", json!({ "reason": "a program stood anew" })).await;
-
-  assert_eq!(status, StatusCode::NO_CONTENT);
-
   let (status, _) = post(&front, "/handoffs/agent-a", json!({ "reason": "" })).await;
 
   assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn an_agent_whose_session_never_opened_has_nothing_to_hand_over() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let session = Arc::new(StandInSession::new("agent-c@agent", "unused").acting(writing_handoff(NOTE)));
+  let mut agent = registration("agent-c", "Agent X", vec![ADDRESS], None, true);
+
+  agent.row.insert("sessionScope".to_owned(), json!("agent"));
+  front.standing.agency.registering(vec![agent]);
+  front.standing.agency.carrying_on(session.clone());
+  session.now_at(None);
+
+  let (status, _) = post(&front, "/handoffs/agent-c", json!({ "reason": "a program stood anew" })).await;
+
+  assert_eq!(status, StatusCode::NO_CONTENT);
+  assert!(session.prompts().is_empty(), "no session was asked");
+}
+
+#[tokio::test]
+async fn a_handoff_asked_again_within_the_span_does_not_reach_the_session_and_answers_the_one_kept() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let session = Arc::new(
+    StandInSession::new("agent-b@agent", "unused")
+      .at_generation(3)
+      .acting(writing_handoff(NOTE)),
+  );
+  let mut agent = registration("agent-b", "Agent X", vec![ADDRESS], None, true);
+
+  agent.row.insert("sessionScope".to_owned(), json!("agent"));
+  front.standing.agency.registering(vec![agent]);
+  front.standing.agency.carrying_on(session.clone());
+
+  let (status, first) = post(&front, "/handoffs/agent-b", json!({ "reason": "a fresh session" })).await;
+
+  assert_eq!(status, StatusCode::OK, "{first}");
+
+  let asked = session.prompts().len();
+
+  // The road's program exits after each answer and the agency asks again, and again: the session is asked once.
+  for _ in 0..3 {
+    let (status, again) = post(&front, "/handoffs/agent-b", json!({ "reason": "a fresh session" })).await;
+
+    assert_eq!(status, StatusCode::OK, "{again}");
+    assert_eq!(again["path"], first["path"], "the one kept answers");
+  }
+
+  assert_eq!(session.prompts().len(), asked, "the standing session was asked once");
 }
 
 fn owners_room() -> Room {

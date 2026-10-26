@@ -377,6 +377,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `room` where it keeps one in each room — for its handoff file as a replacement does, bounded by the handover
   policy's `ask_seconds`, and keeps the file for the next fresh session's first turn, which opens on it. `reason`
   names why a fresh session is coming, for the receiver's journal.
+- **An asking within `again_minutes` of the last one asked** (`handover.toml`) does not reach the standing
+  session: it answers 200 with the file that one kept where it is still kept, else 204, and the journal counts
+  the askings in a row.
 - **A failure to reach the agency** answers 502 `upstream-failed`.
 
 ## Rounds

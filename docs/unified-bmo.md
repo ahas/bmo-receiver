@@ -208,6 +208,12 @@
   opened carries it as its note, in the order below; a turn on a session the agency resumed lets it go. Where the
   agent has no opened session to ask, or it wrote nothing, the transcript the receiver keeps stands in at the next
   replacement as above.
+- **A handoff is asked at most once in a span** (`handover.toml`, `again_minutes`). The agency asking again for
+  the same agent's handoff within that span of the last one the standing session was asked for is answered with
+  the file that one kept, where it is still kept, else with nothing, and the standing session is not asked. Each
+  such asking is logged with how many have come in a row, and so is a replacement for the same reason within
+  the span of the last one, so a road whose program cannot keep its session shows in the journal instead of
+  asking turn after turn.
 - **The first turn goes in one order: the handoff, then the room, then the brain.** First the note above; then
   the room's block, in full since the new session holds nothing yet, and the turn as it would have gone to the
   old session, the room's messages archived since the agent last answered there among them, so what arrived

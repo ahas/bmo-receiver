@@ -194,3 +194,63 @@ pub async fn take_pending(receiver: &Receiver, agent: &str, fresh: bool) -> Opti
     text,
   }))
 }
+
+/// The last asking of one kind for an agent: when it was made, and how many have come in a row since within the
+/// handover policy's span (docs/unified-bmo.md, 「Replacing the session」).
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+struct Last {
+  at: i64,
+  times: u32,
+}
+
+fn last_key(agent: &str, kind: &str) -> String {
+  format!("{agent}_last_{kind}")
+}
+
+/// How many askings of `kind` for an agent have come in a row within the span of the last one made, this one
+/// counted; none where this one comes outside it, which is then written down as the last made. `moves` has an
+/// asking within the span count as made too, so the span runs from it.
+pub async fn in_a_row(receiver: &Receiver, agent: &str, kind: &str, moves: bool) -> Option<u32> {
+  let db = receiver.db();
+  let key = last_key(agent, kind);
+  let now = now_ms();
+  let span = HANDOVER.again_minutes * 60_000;
+  let last = crate::store::settings::get(db, &key)
+    .await
+    .ok()
+    .flatten()
+    .and_then(|held| serde_json::from_str::<Last>(&held).ok());
+  let (next, counted) = match last {
+    Some(last) if now - last.at < span => {
+      let times = last.times + 1;
+
+      (
+        Last {
+          at: if moves { now } else { last.at },
+          times,
+        },
+        Some(times),
+      )
+    }
+    _ => (Last { at: now, times: 1 }, None),
+  };
+
+  if let Err(why) =
+    crate::store::settings::set(db, &key, &serde_json::to_string(&next).unwrap_or_default()).await
+  {
+    eprintln!("{agent}: the last {kind} was not written down: {}", why.detail);
+  }
+
+  counted
+}
+
+/// The handoff kept for an agent's next fresh session, where its file still stands, without taking it.
+pub async fn kept(receiver: &Receiver, agent: &str) -> Option<Handoff> {
+  let path = crate::store::settings::get(receiver.db(), &pending_key(agent)).await.ok().flatten()?;
+  let text = std::fs::read_to_string(&path).ok().filter(|text| !text.trim().is_empty())?;
+
+  Some(Handoff {
+    path: PathBuf::from(path),
+    text,
+  })
+}

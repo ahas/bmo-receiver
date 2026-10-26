@@ -13,6 +13,10 @@ room_speaker = "room"
 # How long the closing session's handoff turn is given, in seconds; past it the session is ended all the same.
 ask_seconds = 300
 
+# The span within which a handoff asked again for the same agent is not asked of its session, in minutes: the one
+# kept stands in, and the asking is logged with how many have come in a row.
+again_minutes = 5
+
 # The folder under the data root an agent's handoffs are kept in, `{agent}` its name, and the name the newest is
 # copied to beside them; each handoff is named by the moment it was asked for, in epoch milliseconds, `.md`.
 folder = "handoffs/{agent}"

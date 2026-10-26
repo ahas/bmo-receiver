@@ -13,8 +13,9 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::chat::ask::Carry;
-use crate::chat::handoff::Asking;
+use crate::chat::handoff::{self, Asking};
 use crate::routes::{Refusal, Served, read, refused};
+use receiver_policy::handover::HANDOVER;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,13 +46,29 @@ pub async fn hand_off(
     ));
   };
 
-  println!("{agent}: a handoff asked ahead of a fresh session ({})", asked.reason.trim());
+  let receiver = served.receiver.as_ref();
+  let reason = asked.reason.trim();
 
-  let carry = Carry::new(served.receiver.as_ref().clone());
-  let written = carry
-    .hand_off(&agent, asked.room)
-    .await
-    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.reason()))?;
+  // A handoff is asked at most once in the policy's span: an asking again within it is answered with the one kept,
+  // and counted, so a road that cannot keep its session shows instead of asking turn after turn.
+  let written = match handoff::in_a_row(receiver, &agent, "handoff", false).await {
+    Some(times) => {
+      eprintln!(
+        "{agent}: a handoff asked again ({reason}), {times} in a row within {} minutes; the session is not asked \
+         again and the one kept stands: the road its program stands on may not keep a session",
+        HANDOVER.again_minutes
+      );
+      handoff::kept(receiver, &agent).await
+    }
+    None => {
+      println!("{agent}: a handoff asked ahead of a fresh session ({reason})");
+
+      Carry::new(receiver.clone())
+        .hand_off(&agent, asked.room)
+        .await
+        .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.reason()))?
+    }
+  };
 
   Ok(match written {
     Some(handed) => Json(json!({

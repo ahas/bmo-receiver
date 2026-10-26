@@ -49,6 +49,8 @@ pub struct Handover {
   pub room_speaker: String,
   /// How long the closing session's handoff turn is given, in seconds.
   pub ask_seconds: u64,
+  /// The span within which a handoff asked again for the same agent is not asked of its session, in minutes.
+  pub again_minutes: i64,
   /// The folder under the data root an agent's handoffs are kept in, `{agent}` its name.
   pub folder: String,
   /// The name the newest handoff is copied to.
