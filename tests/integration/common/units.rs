@@ -746,6 +746,7 @@ pub fn deployment() -> Deployment {
     addresses: vec![ADDRESS.to_owned()],
     delegate: Some("agent-b".to_owned()),
     infra_room: None,
+    owner_room: None,
     notices_room: None,
     language: "en".to_owned(),
     attachment_bytes: Some(CAP),

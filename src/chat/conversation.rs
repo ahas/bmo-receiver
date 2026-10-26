@@ -608,8 +608,14 @@ impl Conversations {
     self.0.receiver.clone()
   }
 
+  /// The owner as a sender.
   pub fn owner(&self) -> i64 {
     self.0.receiver.owner_id()
+  }
+
+  /// The owner's private room.
+  pub fn owner_room(&self) -> i64 {
+    self.0.receiver.owner_room()
   }
 
   /// Every event of a room goes out as the agent's own: under the speaker its turns there are shown as.
@@ -1501,7 +1507,7 @@ impl Conversations {
       return self.silent_end(chat_id, &batch, &held).await;
     }
 
-    let mut owed = if chat_id == owner {
+    let mut owed = if chat_id == self.owner_room() {
       batch.iter().filter(|message| message.sender_id == Some(owner)).count()
     } else {
       0
@@ -1614,7 +1620,7 @@ impl Conversations {
 
       if !grown.is_empty() {
         batch = carried.messages.clone();
-        owed = if chat_id == owner {
+        owed = if chat_id == self.owner_room() {
           batch.iter().filter(|message| message.sender_id == Some(owner)).count()
         } else {
           0
@@ -1788,7 +1794,7 @@ impl Conversations {
     // A notice turn of the owner's private chat is heard as well as read (docs/voiced-notices.md, 「The summary of
     // a notice turn」): nobody spoke in its round, and it sent a line.
     if let Some(sent) = &sent
-      && chat_id == owner
+      && chat_id == self.owner_room()
       && batch.is_empty()
       && !instructions.is_empty()
       && super::briefing::speaks(&receiver, self.agent()).await
@@ -1860,7 +1866,7 @@ impl Conversations {
       marked.remove(&message.message_id);
     }
 
-    alone && instructions == 0 && !room.owner_room && chat_id != self.owner()
+    alone && instructions == 0 && !room.owner_room && chat_id != self.owner_room()
   }
 
   // The agent's own judgement of whether to answer words that did not name it (docs/wake.md, 「The room's queue and
@@ -2397,24 +2403,25 @@ impl Conversations {
     let receiver = self.receiver();
     let db = receiver.db();
     let owner = self.owner();
+    let room_id = self.owner_room();
     let name = crate::receiver::reads::display_name(db, owner)
       .await?
       .unwrap_or_else(|| CHAT_ROUND.typed.nameless.clone());
-    let batch = [super::typed::message(text, owner, &name, at_ms)];
+    let batch = [super::typed::message(text, room_id, owner, &name, at_ms)];
     let pending: HashSet<i64> = self
       .state()
       .queue
-      .get(&owner)
+      .get(&room_id)
       .map(|gathering| gathering.iter().map(|message| message.message_id).collect())
       .unwrap_or_default();
     let mode = self.mode().await;
-    let queue_line = self.queue_line(owner).await;
+    let queue_line = self.queue_line(room_id).await;
     let composed = prompt::compose(
       &receiver,
       &Round {
         agent: self.agent(),
-        chat_id: owner,
-        room: prompt::quiet_room(&receiver, owner, owner).await?,
+        chat_id: room_id,
+        room: prompt::quiet_room(&receiver, room_id).await?,
         owner,
         batch: &batch,
         instructions: &[],
@@ -2436,7 +2443,7 @@ impl Conversations {
       },
     )
     .await?;
-    let room = room_context(&receiver, owner, owner, None).await?;
+    let room = room_context(&receiver, room_id, None).await?;
     let written = composed.prompt.clone();
     let (sent, _) = sent_prompt(&receiver, Some(session_id), Some(&room), true, &written).await?;
 

@@ -98,7 +98,7 @@ pub async fn recent_lines(receiver: &Receiver, owner: i64, chat_id: i64) -> Resu
 
 /// What a turn that reads no words of its own knows of its room: whether it is the owner's own chat. Who spoke
 /// and who BMO is there are its messages' to say, and it has none.
-pub async fn quiet_room(receiver: &Receiver, _owner: i64, chat_id: i64) -> Result<Room, Fault> {
+pub async fn quiet_room(receiver: &Receiver, chat_id: i64) -> Result<Room, Fault> {
   Ok(Room {
     owner_room: receiver.roads().is_owner_room(chat_id).await,
     identity: None,
@@ -395,7 +395,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   }
 
   // The owner's own words in his own chat are owed an answer whatever else the round carried.
-  let owed = if chat_id == round.owner {
+  let owed = if round.room.owner_room {
     round.batch.iter().filter(|message| message.sender_id == Some(round.owner)).count()
   } else {
     0

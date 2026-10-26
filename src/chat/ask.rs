@@ -248,7 +248,7 @@ impl Carry {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let unified = unified_session(receiver, agent).await;
-    let scope = scope_of(unified, room.unwrap_or_else(|| receiver.owner_id()));
+    let scope = scope_of(unified, room.unwrap_or_else(|| receiver.owner_room()));
     let Ok(standing) = agency.start(agent, scope).await else {
       return Ok(None);
     };
@@ -287,7 +287,7 @@ impl Carry {
     let started = agency.start(agent, scope).await.map_err(fault_of)?;
     let started_id = started.id.to_owned();
 
-    let room = room_context(receiver, receiver.owner_id(), chat_id, asking.via.as_deref())
+    let room = room_context(receiver, chat_id, asking.via.as_deref())
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
 

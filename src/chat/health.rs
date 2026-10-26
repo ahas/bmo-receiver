@@ -156,7 +156,7 @@ impl crate::chat::conversation::Orders for FailureOrders {
       )
         .await
         .ok().unwrap_or_default();
-      let owner = receiver.deployment().owner_id;
+      let owner = receiver.notices_room();
       let oldest = now_ms() - CHAT_HEALTH.order.check_seconds as i64 * 1_000;
 
       for row in due {

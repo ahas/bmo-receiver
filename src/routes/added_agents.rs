@@ -19,6 +19,7 @@ use receiver_ports::agency::{Agent, ConsoleAgentRow, FieldRefusal};
 use sea_orm::DatabaseConnection;
 
 use crate::receiver::Receiver;
+use crate::roads::record::{next_room, next_sender};
 use crate::room_record::{Facing, RoomHolding, Says};
 use crate::routes::{Answered, Refusal, Served, answered, code, read, refused, store, unit};
 use crate::store::Fault;
@@ -110,30 +111,6 @@ async fn room_of(db: &DatabaseConnection, name: &str) -> Result<Option<i64>, Fau
     .map(|row| row.try_get::<i64>("", "chat_id"))
     .transpose()?,
   )
-}
-
-// The number the next console room takes: below every room the receiver has numbered.
-async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
-  let least = one(db, r#"SELECT MIN("chat_id") AS "least" FROM "provider_rooms""#, vec![])
-    .await
-    .unwrap_or(None);
-  let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
-
-  Ok(least.min(0) - 1)
-}
-
-// The sender number an added agent's words are filed under in its room: below every number the road has given.
-async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fault> {
-  let least = one(
-    db,
-    r#"SELECT MIN("sender_id") AS "least" FROM "provider_users" WHERE "provider" = $1"#,
-    vec![road.into()],
-  )
-  .await
-  .unwrap_or(None);
-  let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
-
-  Ok(least.min(0) - 1)
 }
 
 /// An agent added with a room of the console's own, answered with every added agent as it then stands and

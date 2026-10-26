@@ -286,24 +286,25 @@ pub async fn answer(
   conversations: &Conversations,
   request: &TalkRequest,
 ) -> Result<Option<String>, TalkFailure> {
-  let owner = conversations.owner();
+  // Every use here is the owner's private room: the talk runs as a round of it.
+  let owners = conversations.owner_room();
   let receiver = conversations.receiver();
 
-  if conversations.silenced(owner).await {
+  if conversations.silenced(owners).await {
     return Err(TalkFailure::Resting);
   }
 
   let said = request.said.clone();
-  let names = (receiver.owner_name(owner).await, agent_label(&receiver, conversations.agent()).await);
+  let names = (receiver.owner_name(owners).await, agent_label(&receiver, conversations.agent()).await);
   let written = prompt(&request.head, &request.turns, &said, &names.0, &names.1);
-  let room = receiver.roads().room_facts(owner).await;
+  let room = receiver.roads().room_facts(owners).await;
   let messages: Vec<Inbound> = vec![];
   let recent: Vec<String> = vec![];
   let instructions: Vec<String> = vec![];
   let events: Vec<receiver_ports::gate::TurnEvent> = vec![];
   let material = Material {
     agent: conversations.agent(),
-    chat_id: owner,
+    chat_id: owners,
     room,
     messages: &messages,
     instructions: &instructions,
@@ -318,9 +319,9 @@ pub async fn answer(
     Ok(selection) => selection,
     Err(why) => return Err(TalkFailure::Other(why.detail)),
   };
-  let held = conversations.held_session(owner).await;
+  let held = conversations.held_session(owners).await;
   let asking = Asking {
-    chat_id: owner,
+    chat_id: owners,
     session: held.session.clone().unwrap_or_default(),
     prompt: composed(&selection, &written),
     via: None,
@@ -329,7 +330,7 @@ pub async fn answer(
     began: now_ms(),
     context: selection.context.clone(),
   };
-  let follower = Follower::new(conversations, owner);
+  let follower = Follower::new(conversations, owners);
   let carried = Carry::new(receiver).carries(&asking, &held, &follower).await;
 
   Ok(match carried {

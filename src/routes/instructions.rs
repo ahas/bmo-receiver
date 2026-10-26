@@ -137,8 +137,10 @@ enum Effect {
 pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Instruction>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let room_id = asked.room.unwrap_or(receiver.owner_id());
-  let room = rows::kept_work_room(receiver.db(), room_id, receiver.owner_id()).await.map_err(store)?;
+  let room_id = asked.room.unwrap_or(receiver.owner_room());
+  let room = rows::kept_work_room(receiver.db(), room_id, receiver.owner_room())
+    .await
+    .map_err(store)?;
   let mut text = said(&asked.said);
   let mut queued = Queued {
     kind: asked.kind.as_deref(),

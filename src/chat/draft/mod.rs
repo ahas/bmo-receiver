@@ -787,7 +787,7 @@ impl Drafter {
 
     let (answered, _, _) = run.sorted();
     let owed = drafted.owed
-      + if chat == owner && !skipped {
+      + if chat == receiver.owner_room() && !skipped {
         answered.iter().filter(|message| message.sender_id == Some(owner)).count()
       } else {
         0

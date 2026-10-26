@@ -43,7 +43,7 @@ fn leading_integer(text: &str) -> Option<i64> {
 
 // Whether the room is one the receiver serves: the owner's own, or one its record holds a title or a message for.
 pub(crate) async fn known(receiver: &Receiver, chat_id: i64) -> Result<bool, Refusal> {
-  if chat_id == receiver.owner_id() {
+  if chat_id == receiver.owner_room() {
     return Ok(true);
   }
 

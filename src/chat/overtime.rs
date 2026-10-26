@@ -138,7 +138,7 @@ pub async fn withdraw(receiver: &Receiver, closed: &Closed) -> Result<u64, Fault
   run(
     receiver.db(),
     r#"DELETE FROM "instructions" WHERE "chat_id" = $1 AND "kind" = $2 AND "handed_at" IS NULL AND "delivered_at" IS NULL"#,
-    vec![receiver.owner_id().into(), kind(&closed.run).into()],
+    vec![receiver.notices_room().into(), kind(&closed.run).into()],
   )
   .await
 }

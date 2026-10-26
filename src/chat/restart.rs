@@ -252,13 +252,13 @@ pub async fn queue_back_notice(receiver: &Receiver) {
   let own = own_deployment();
   let reason = take_reason(db, own.as_ref()).await;
 
-  if !notice_enabled(db, receiver.deployment().owner_id, "restart").await {
+  if !notice_enabled(db, receiver.notices_room(), "restart").await {
     return;
   }
 
   let notice = back_notice(reason.as_ref());
 
-  let _ = notices::queue_notice(receiver, receiver.deployment().owner_id, &notice).await;
+  let _ = notices::queue_notice(receiver, receiver.notices_room(), &notice).await;
   kick(receiver);
 }
 

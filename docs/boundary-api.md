@@ -51,8 +51,8 @@ base address and token.
 - **`deliver-waiting`** runs one pass over the instruction rows a job's end left waiting, with no clock of the
   receiver's.
 - **`tool-env`** writes where the receiver's tools find it and ends.
-- **`owner-room`** stands up the owner's private room once, on the record alone, and prints its number for the
-  configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
+- **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
+  title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
   the record as its one provider, the owner and the chat agent its members and the chat agent's number there one
   of the console's own. Run again, it prints the room it stood up before and stands up nothing. It writes the
   store and never the configuration, and the room is the owner's private room once the configuration names it

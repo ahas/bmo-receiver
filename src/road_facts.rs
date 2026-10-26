@@ -194,7 +194,7 @@ impl RoadChanges {
     queue(
       receiver.db(),
       &receiver.deployment().agent,
-      receiver.owner_id(),
+      receiver.owner_room(),
       &fact.instruction(),
       &queued,
     )

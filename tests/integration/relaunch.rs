@@ -230,3 +230,39 @@ async fn the_briefing_goes_to_the_owners_notices_room_where_one_is_named() {
   assert_eq!(rows(&scratch, NOTICES).await.len(), 1, "the briefing stands in the notices room");
   assert!(rows(&scratch, OWNER).await.is_empty(), "the owner's private chat hears nothing of it");
 }
+
+#[tokio::test]
+async fn the_briefing_goes_to_the_owners_private_room_where_one_is_named_and_no_notices_room_is() {
+  const PRIVATE: i64 = -11;
+
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let roots = tempdir().unwrap();
+  let mut given = deployment();
+
+  given.owner_room = Some(PRIVATE);
+
+  let standing = unrun(scratch.db(), DataRoot::new(data.path()), vec![], given);
+  let receiver = standing.receiver.clone();
+
+  deployed(
+    roots.path(),
+    "bmo-unit-a",
+    json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
+    None,
+  );
+  Around::new(receiver.clone())
+    .reading_deploys(Some(roots.path().to_path_buf()))
+    .riders(AGENT, ROOM)
+    .await;
+
+  assert_eq!(
+    rows(&scratch, PRIVATE).await.len(),
+    1,
+    "the briefing stands in the owner's private room"
+  );
+  assert!(
+    rows(&scratch, OWNER).await.is_empty(),
+    "the chat service's one-to-one hears nothing of it"
+  );
+}

@@ -21,6 +21,7 @@ mod expiry;
 mod handoffs;
 mod import;
 mod kept;
+mod owner_room;
 mod private_thread;
 mod receiver;
 mod relaunch;

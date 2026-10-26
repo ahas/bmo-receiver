@@ -69,6 +69,13 @@ enum Command {
   Health,
   /// The nouns `bmo` dispatches to this command, one a line.
   Nouns,
+  /// The owner's private room stood up once on the record alone, its number printed for the configuration's
+  /// `owner_room`; run again, the one stood up before.
+  OwnerRoom {
+    /// The room's title.
+    #[arg(long, value_name = "words")]
+    title: String,
+  },
   /// Moves the old archive's exported rows into this store (docs/store.md, TODO #1923).
   Import {
     /// The export directory the item's export hand wrote.
@@ -224,6 +231,30 @@ async fn deliver_waiting(config: &Config) -> Result<u8, String> {
   .map_err(|why| why.detail.to_owned())
 }
 
+/// The owner's private room stood up, or the one stood up before, and its number printed.
+async fn owner_room(config: &Config, title: &str) -> Result<u8, String> {
+  if title.trim().is_empty() {
+    return Err("--title names the room's title".to_owned());
+  }
+
+  let db = config.connect().await?;
+  let (room, made) = bmo_receiver::owner_room::stand_up(&db, &config.agent, title.trim())
+    .await
+    .map_err(|why| why.detail.to_owned())?;
+
+  if made {
+    println!("{room}");
+    eprintln!(
+      "bmo-receiver: the owner's private room stood up as {room}; name it owner_room in the configuration"
+    );
+  } else {
+    println!("{room}");
+    eprintln!("bmo-receiver: the owner's private room already stands as {room}");
+  }
+
+  Ok(0)
+}
+
 /// Whether the service the configuration names answers ready.
 async fn ask_health(config: &Config) -> Result<(), String> {
   let url = format!("{}/health", base_address(&config.listen));
@@ -354,6 +385,7 @@ async fn main() -> ExitCode {
   let ended = match cli.command {
     Command::Serve => serve(&config).await.map(|()| 0),
     Command::DeliverWaiting => deliver_waiting(&config).await,
+    Command::OwnerRoom { ref title } => owner_room(&config, title).await,
     Command::Health => ask_health(&config).await.map(|()| 0),
     Command::ToolEnv => write_env(&config).map(|written| {
       match written {

@@ -36,7 +36,7 @@ fn reached(why: NotReceived) -> Refusal {
 pub async fn owner(State(served): State<Served>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
 
-  answered(json!({ "senderId": receiver.owner_id(), "room": receiver.owner_id() }))
+  answered(json!({ "senderId": receiver.owner_id(), "room": receiver.owner_room() }))
 }
 
 /// What a room is to the deployment, in the shape the room list answers.
@@ -51,7 +51,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let db = receiver.db();
   let owner_room = receiver.roads().is_owner_room(room).await;
   let registered = rows::is_registered(db, room).await.map_err(store)?;
-  let work = rows::KeptWorkRoom::of(room, receiver.owner_id(), registered);
+  let work = rows::KeptWorkRoom::of(room, receiver.owner_room(), registered);
   let shown = reads::shown(db).await.map_err(store)?;
   let line = shown.iter().find(|line| line.chat_id == room);
   let pinned = crate::receiver::pinned::pinned(db).await.map_err(store)?;

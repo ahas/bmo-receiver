@@ -95,6 +95,8 @@ pub struct Roads {
   rooms: Kept<(String, i64), Option<ProviderRoom>>,
   // The receiver's store, which says which rooms stand on the record alone; given once the receiver stands.
   store: Arc<OnceLock<sea_orm::DatabaseConnection>>,
+  // The owner's private room the configuration names, where it names one; given once the receiver stands.
+  owners: Arc<OnceLock<i64>>,
 }
 
 // A chat service's answer that did not come is said once and read as no answer, so one service that does not
@@ -118,6 +120,23 @@ impl Roads {
       declared: Arc::default(),
       rooms: Kept::new(span),
       store: Arc::default(),
+      owners: Arc::default(),
+    }
+  }
+
+  /// The owner's private room the configuration names (docs/receiver.md, 「Identity, and reaching the owner」); the
+  /// first given stands.
+  pub fn with_owner_room(&self, room: i64) {
+    let _ = self.owners.set(room);
+  }
+
+  /// Whether a room is the owner's private chat, where `said` is whether its chat service says so: the configured
+  /// room alone where the configuration names one, a chat service's `kind` of `owner` then read for no room;
+  /// what the service says where it names none.
+  pub fn owners_room(&self, chat_id: i64, said: bool) -> bool {
+    match self.owners.get() {
+      Some(room) => *room == chat_id,
+      None => said,
     }
   }
 
@@ -278,13 +297,16 @@ impl Roads {
       let Some(Some(room)) = self.room_of(key, chat_id).await else { continue };
 
       return Room {
-        owner_room: room.kind == RoomKind::Owner,
+        owner_room: self.owners_room(chat_id, room.kind == RoomKind::Owner),
         identity: room.identity,
         private_to: room.private_to,
       };
     }
 
-    Room::default()
+    Room {
+      owner_room: self.owners_room(chat_id, false),
+      ..Room::default()
+    }
   }
 
   /// Whether a chat service reads a room in the owner's account alone (docs/receiver.md, 「A read-only room」): its

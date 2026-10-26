@@ -34,7 +34,7 @@ pub async fn take_down(receiver: &Receiver) {
   numbers.sort_unstable();
   numbers.dedup();
 
-  let owner = receiver.owner_id();
+  let owner = receiver.owner_room();
   let road = receiver.roads().room_road(owner).await;
   let mut standing = Vec::new();
 

@@ -305,6 +305,8 @@ pub struct Deployment {
   pub delegate: Option<String>,
   /// The infrastructure room, where the configuration names one.
   pub infra_room: Option<i64>,
+  /// The owner's private room, a room on the record alone, where the configuration names one.
+  pub owner_room: Option<i64>,
   /// The room the system's notices to the owner go to, where the configuration names one.
   pub notices_room: Option<i64>,
   /// The language the rooms are spoken in, which a fixed line is rendered in.
@@ -375,6 +377,10 @@ impl Receiver {
     let news: Arc<dyn News> = Arc::new(Unheard);
 
     units.roads.with_store(db.clone());
+
+    if let Some(room) = deployment.owner_room {
+      units.roads.with_owner_room(room);
+    }
 
     Self {
       speech: Speech::new(db.clone(), deployment.clone(), units.clone(), news.clone()),
@@ -490,15 +496,28 @@ impl Receiver {
     &self.deployment
   }
 
+  /// The owner as a sender: his number on each road. A room is never read off it.
   pub fn owner_id(&self) -> i64 {
     self.deployment.owner_id
   }
 
+  /// The owner's private room (docs/receiver.md, 「Identity, and reaching the owner」): the configuration's
+  /// `owner_room` where it names one, else the chat service's one-to-one with him, which that service numbers as
+  /// his own number.
+  pub fn owner_room(&self) -> i64 {
+    self.deployment.owner_room.unwrap_or(self.deployment.owner_id)
+  }
+
+  /// Whether the configuration names the owner's private room, so a chat service's `kind` of `owner` is not read.
+  pub fn owner_room_named(&self) -> bool {
+    self.deployment.owner_room.is_some()
+  }
+
   /// The owner's notices room (docs/boundary-api.md, 「Configuration」): the room the system's notices to the
   /// owner go to, the deployment briefing, the tool host's changes and the service's own lines among them; his
-  /// private chat where the configuration names none.
+  /// private room where the configuration names none.
   pub fn notices_room(&self) -> i64 {
-    self.deployment.notices_room.unwrap_or(self.deployment.owner_id)
+    self.deployment.notices_room.unwrap_or_else(|| self.owner_room())
   }
 
   /// The name the owner goes by in a room: the one the room's own service last showed him by there, never one
@@ -692,7 +711,7 @@ impl Receiver {
 
         // The owner's own chat always hears the rest notice: it is how the owner learns why the agent has gone
         // quiet everywhere else.
-        if !on && chat_id == self.owner_id() {
+        if !on && chat_id == self.owner_room() {
           SettingFact::RestNoticeKept
         } else {
           rows::set_notice(db, chat_id, "rest", on).await?;

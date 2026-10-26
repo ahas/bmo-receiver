@@ -367,7 +367,7 @@ pub async fn notice(State(served): State<Served>, body: axum::body::Bytes) -> Ac
   let id = queue(
     receiver.db(),
     &receiver.deployment().agent,
-    receiver.owner_id(),
+    receiver.owner_room(),
     &frame(&fact, OWNER_INTENT, None, false),
     &queued,
   )

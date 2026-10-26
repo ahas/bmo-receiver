@@ -77,7 +77,7 @@ impl Speech {
 
   /// A line said straight to the owner, in the owner's own chat where a line nobody asked for goes there.
   pub async fn say_to_owner(&self, text: &str) -> Result<Option<i64>, NotSaid> {
-    self.say(self.deployment.owner_id, text).await
+    self.say(self.deployment.owner_room.unwrap_or(self.deployment.owner_id), text).await
   }
 
   /// A room just shut told so, in the one fixed line; nothing where no sentence can be made of it.

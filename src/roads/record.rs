@@ -95,3 +95,29 @@ pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> R
 
   Ok(message.message_id)
 }
+
+/// The number the next room the record stands up takes, a console room or the owner's private room: below every
+/// room the receiver has numbered.
+pub async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
+  let least = one(db, r#"SELECT MIN("chat_id") AS "least" FROM "provider_rooms""#, vec![])
+    .await
+    .unwrap_or(None);
+  let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
+
+  Ok(least.min(0) - 1)
+}
+
+/// The sender number an agent's words are filed under in a room the record stands up: below every number the road
+/// has given.
+pub async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fault> {
+  let least = one(
+    db,
+    r#"SELECT MIN("sender_id") AS "least" FROM "provider_users" WHERE "provider" = $1"#,
+    vec![road.into()],
+  )
+  .await
+  .unwrap_or(None);
+  let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
+
+  Ok(least.min(0) - 1)
+}

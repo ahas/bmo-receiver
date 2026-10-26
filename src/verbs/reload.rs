@@ -387,9 +387,9 @@ pub async fn chats_concerned(receiver: &Receiver, places: &Places, path: &str) -
     ["persona", "rooms", _, ..] => only(named.parse::<i64>().into_iter().collect()),
     ["persona", ..] => sessions.clone(),
     ["agents", "chat", ..] if named == "rules" => {
-      sessions.iter().filter(|chat| **chat != receiver.owner_id()).copied().collect()
+      sessions.iter().filter(|chat| **chat != receiver.owner_room()).copied().collect()
     }
-    ["agents", "chat", ..] if named == "owner" => only(vec![receiver.owner_id()]),
+    ["agents", "chat", ..] if named == "owner" => only(vec![receiver.owner_room()]),
     ["agents", "chat", ..] => sessions.clone(),
     _ if CHAT_DOCUMENTS.contains(&parts.join("/").as_str()) => sessions.clone(),
     _ => vec![],

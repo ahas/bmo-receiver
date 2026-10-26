@@ -63,7 +63,6 @@ pub fn note(messages: usize, instructions: usize) -> String {
 /// The paragraph the push's words go into the working turn as.
 pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
   let receiver = push.receiver;
-  let chat_id = push.chat_id;
   let blocks = &CHAT_ROUND.blocks;
   let shown = HashSet::new();
   let reading = |fetch: bool| Reading {
@@ -98,7 +97,7 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
     parts.push(blocks.quiet_end.clone());
   }
 
-  let owed = if chat_id == push.owner {
+  let owed = if push.room.owner_room {
     push.messages.iter().filter(|message| message.sender_id == Some(push.owner)).count()
   } else {
     0

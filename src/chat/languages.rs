@@ -22,7 +22,7 @@ pub struct Addressee {
 /// turn with no words of anybody's answers the owner in the owner's own chat, and elsewhere the newest speaker on
 /// the page who is not the agent.
 pub fn people(
-  chat_id: i64,
+  owners_room: bool,
   owner: i64,
   batch: &[Inbound],
   recent: &[Inbound],
@@ -41,7 +41,7 @@ pub fn people(
   }
 
   if people.is_empty() {
-    if chat_id == owner {
+    if owners_room {
       people.push(owner);
     } else if let Some(person) = recent
       .iter()
@@ -124,7 +124,7 @@ pub async fn addressees(
 ) -> Result<Vec<Addressee>, Fault> {
   let mut found = vec![];
 
-  for person in people(chat_id, owner, batch, recent, own) {
+  for person in people(chat_id == receiver.owner_room(), owner, batch, recent, own) {
     let language = match written(person, batch.iter().chain(recent)) {
       Some((language, message_id)) => {
         remember(receiver, chat_id, person, language, message_id).await?;

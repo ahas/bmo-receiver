@@ -1006,7 +1006,8 @@ pub async fn tell_owner(sends: &Sends, text: &str) -> Result<Vec<String>, VerbEr
     silent: false,
     fold: false,
   };
-  let owner = sends.receiver().owner_id();
+  // A line to the owner goes into his private room.
+  let owner = sends.receiver().owner_room();
   let unasked = sends.own_road(owner, "text").await;
   let unasked_key = unasked.as_ref().map(|going| going.road.key().to_owned()).ok();
   let Err(why) = on(sends, owner, &send, unasked).await else {

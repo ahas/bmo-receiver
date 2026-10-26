@@ -240,7 +240,7 @@ pub async fn compact(
             .flatten()
             .unwrap_or(chat_id.to_string());
           let fact = HealthFact::FoldFailed { room, reason };
-          let owner = receiver.deployment().owner_id;
+          let owner = receiver.notices_room();
           let notice = Voiced {
             fact: fact.to_string(),
             intent: "tell the owner of a fold that did not happen.".to_owned(),

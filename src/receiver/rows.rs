@@ -63,18 +63,18 @@ pub struct KeptWorkRoom {
 pub async fn kept_work_room<C: ConnectionTrait>(
   db: &C,
   chat_id: i64,
-  owner_id: i64,
+  owner_room: i64,
 ) -> Result<KeptWorkRoom, Fault> {
-  Ok(KeptWorkRoom::of(chat_id, owner_id, is_registered(db, chat_id).await?))
+  Ok(KeptWorkRoom::of(chat_id, owner_room, is_registered(db, chat_id).await?))
 }
 
 impl KeptWorkRoom {
   /// Where work filed from a room is told, for a room whose registration is known to stand or to be gone.
-  pub fn of(chat_id: i64, owner_id: i64, registered: bool) -> Self {
-    let removed = chat_id != owner_id && !registered;
+  pub fn of(chat_id: i64, owner_room: i64, registered: bool) -> Self {
+    let removed = chat_id != owner_room && !registered;
 
     Self {
-      chat_id: if removed { owner_id } else { chat_id },
+      chat_id: if removed { owner_room } else { chat_id },
       removed: removed.then_some(chat_id),
     }
   }

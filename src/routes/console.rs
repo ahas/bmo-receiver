@@ -143,7 +143,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
     let owner_room = receiver.roads().is_owner_room(room.chat_id).await;
     let registered = rows::is_registered(db, room.chat_id).await.map_err(store)?;
-    let work = rows::KeptWorkRoom::of(room.chat_id, receiver.owner_id(), registered);
+    let work = rows::KeptWorkRoom::of(room.chat_id, receiver.owner_room(), registered);
     items.push(json!({
       "id": room.chat_id,
       "title": room.title,

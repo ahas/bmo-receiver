@@ -124,7 +124,7 @@ async fn two_people_of_two_languages_get_two_clauses_and_an_answer_to_each_in_th
   ];
 
   assert_eq!(
-    people(ROOM, OWNER, &batch, &[], Some(OWN)),
+    people(ROOM == OWNER, OWNER, &batch, &[], Some(OWN)),
     vec![2, 3],
     "the agent's own words answer nobody"
   );

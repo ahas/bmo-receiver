@@ -206,9 +206,7 @@ pub async fn touch(
     };
   }
 
-  let room = quiet_room(receiver, receiver.deployment().owner_id, chat_id)
-    .await
-    .unwrap_or(Room::default());
+  let room = quiet_room(receiver, chat_id).await.unwrap_or(Room::default());
   let recent = recent_lines(receiver, receiver.deployment().owner_id, chat_id)
     .await
     .unwrap_or_default();

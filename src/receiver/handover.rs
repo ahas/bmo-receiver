@@ -92,7 +92,7 @@ impl Receiver {
     }
 
     Room {
-      owner_room: facts.kind == Some(RoomKind::Owner),
+      owner_room: self.roads().owners_room(room_id, facts.kind == Some(RoomKind::Owner)),
       identity: facts.identity,
       private_to: facts.private_to,
     }

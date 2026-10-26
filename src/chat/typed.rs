@@ -13,10 +13,10 @@ use super::conversation::{BoxFuture, Conversations, Typing};
 use crate::Fault;
 use crate::receiver::{Inbound, Receiver};
 
-/// The line as one message of the owner's in his private chat, sent at `at_ms`.
-pub fn message(text: &str, owner: i64, name: &str, at_ms: i64) -> Inbound {
+/// The line as one message of the owner's in his private room, sent at `at_ms`.
+pub fn message(text: &str, room: i64, owner: i64, name: &str, at_ms: i64) -> Inbound {
   Inbound {
-    chat_id: owner,
+    chat_id: room,
     message_id: CHAT_ROUND.typed.number,
     sender_id: Some(owner),
     sender_name: name.to_owned(),

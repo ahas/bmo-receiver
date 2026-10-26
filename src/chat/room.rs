@@ -67,7 +67,7 @@ static TONE: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^tone:[ \t]*(\S+)[ \t]*(?:\n|$)").expect("a tone line"));
 
 /// What the room is: the owner's own chat, or a group.
-pub async fn room_kind(receiver: &Receiver, _owner_id: i64, chat_id: i64) -> Result<&'static str, Fault> {
+pub async fn room_kind(receiver: &Receiver, chat_id: i64) -> Result<&'static str, Fault> {
   Ok(if receiver.roads().is_owner_room(chat_id).await { "owner" } else { "group" })
 }
 
@@ -381,8 +381,9 @@ pub fn name_order(left: &str, right: &str) -> std::cmp::Ordering {
 
 /// The roster the owner's own chat is given: the one shared chat agent with the rooms it is connected to, then
 /// each kind of agent with every agent of it under the names the owner calls it by.
-pub async fn roster(receiver: &Receiver, owner_id: i64) -> Result<String, Fault> {
+pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
   let db = receiver.db();
+  let owners = receiver.owner_room();
   let words = &CHAT_LINE.room;
   let rooms: Vec<i64> = all(db, r#"SELECT "chat_id" FROM "bmo_rooms" ORDER BY "chat_id""#, vec![])
     .await?
@@ -392,7 +393,7 @@ pub async fn roster(receiver: &Receiver, owner_id: i64) -> Result<String, Fault>
   let mut named = vec![words.roster_owner_room.clone()];
 
   for room in rooms {
-    if room == owner_id {
+    if room == owners {
       continue;
     }
 
@@ -450,13 +451,12 @@ pub async fn roster(receiver: &Receiver, owner_id: i64) -> Result<String, Fault>
 /// the room, and the line that restates it.
 pub async fn room_context(
   receiver: &Receiver,
-  owner_id: i64,
   chat_id: i64,
   via: Option<&str>,
 ) -> Result<RoomContext, Fault> {
   let trees = Trees::of(receiver);
   let said = &CHAT_LINE.room;
-  let kind = room_kind(receiver, owner_id, chat_id).await?;
+  let kind = room_kind(receiver, chat_id).await?;
   let home_road = receiver.roads().room_road(chat_id).await.map(Road::Service).unwrap_or(Road::Record);
   let home = receiver.roads().facts(&home_road).await;
   let answering = receiver.roads().answering(chat_id, via).await.unwrap_or(home_road);
@@ -476,7 +476,7 @@ pub async fn room_context(
     parts.push(read_required(&trees.agent_dir("chat").join(&said.group_document))?);
   } else {
     parts.push(read_required(&trees.agent_dir("chat").join(&said.owner_document))?);
-    parts.push(roster(receiver, owner_id).await?);
+    parts.push(roster(receiver).await?);
   }
 
   parts.push(fill_marks(&said.writing, &[("writing", &road.writing)]));

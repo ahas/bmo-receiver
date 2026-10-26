@@ -136,7 +136,7 @@ pub async fn tell_rest(receiver: &Receiver, line: &FixedLine) -> Result<(), NotS
     return Ok(());
   };
 
-  receiver.speech().say(receiver.deployment().owner_id, &line).await.map(drop)
+  receiver.speech().say(receiver.owner_room(), &line).await.map(drop)
 }
 
 /// The kind a rest is published under where it closed the last login that would answer.
