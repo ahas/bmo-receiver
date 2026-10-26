@@ -2330,14 +2330,34 @@ impl Conversations {
     ratio: Option<f64>,
     fold_at: Option<f64>,
   ) {
-    if self.state().folding.contains(&chat_id) || !super::fold::past_fold(session, ratio, fold_at) {
+    // A fold that is not made says why, unless the context is simply under the share (docs/wake.md).
+    let Some(held) = session else {
+      eprintln!("chat {chat_id}: no fold: the round holds no session");
+      return;
+    };
+    let Some(carried) = ratio else {
+      eprintln!("chat {chat_id}: no fold judged: the state of session {held} names no context");
+      return;
+    };
+
+    if !super::fold::past_fold(session, ratio, fold_at) {
+      return;
+    }
+
+    if self.state().folding.contains(&chat_id) {
+      eprintln!(
+        "chat {chat_id}: no fold of session {held} at {carried:.2}: a fold of the room is under way"
+      );
       return;
     }
 
     // A session past its cache lifetime is not folded: the fold would pay its whole prefix again for nothing.
     if super::cache::expired(self.0.receiver.db(), self.agent()).await {
+      eprintln!("chat {chat_id}: no fold of session {held} at {carried:.2}: it is past its cache lifetime");
       return;
     }
+
+    eprintln!("chat {chat_id}: folding session {held} at {carried:.2} of its window");
 
     let this = self.clone();
 
@@ -2348,8 +2368,9 @@ impl Conversations {
       let receiver = this.receiver();
       let held = this.state().active.get(&chat_id).map(|conv| conv.held.clone());
 
-      if let Some(held) = held {
-        this.0.noting.fold(&this, &receiver, this.agent(), chat_id, &held, room).await;
+      match held {
+        Some(held) => this.0.noting.fold(&this, &receiver, this.agent(), chat_id, &held, room).await,
+        None => eprintln!("chat {chat_id}: no fold: the room's conversation ended before its fold began"),
       }
 
       this.state().folding.remove(&chat_id);

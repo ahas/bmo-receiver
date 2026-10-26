@@ -173,6 +173,10 @@ its rounds.
   session's fold ratio, and not otherwise. The ratio is the agency's, read with the session's state
   (`foldRatio`, the value its fold-ratio table holds for the session's provider and tier); where the state
   names none, the resident turn policy's `fold_ratio` stands in.
+- **A round whose answer went out and whose session does not fold says why** in the service's journal, where
+  the reason is other than a context under the share: no session held, no context the session's state names (a
+  state that could not be read, with the agency's answer, among them), a fold of the room already under way, or
+  the session past its cache lifetime.
 
 ## An agent's reset
 
