@@ -370,6 +370,9 @@ pub struct OpenRun {
   pub name: String,
   #[serde(default)]
   pub started_at: i64,
+  /// The job the run is a turn of, where it is one.
+  #[serde(default)]
+  pub job_id: Option<i64>,
 }
 
 #[derive(Deserialize)]

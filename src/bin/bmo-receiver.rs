@@ -71,7 +71,11 @@ enum Command {
   Nouns,
   /// Whether work stands under way that a restart would cut: 0 where none does, 1 where some does or the agency
   /// did not answer, each one named.
-  Quiet,
+  Quiet {
+    /// Counts every open run of a job too, for a unit whose restart can cut a worker's tool calls mid-turn.
+    #[arg(long)]
+    with_jobs: bool,
+  },
   /// The owner's private room stood up once on the record alone, its number printed for the configuration's
   /// `owner_room`; run again, the one stood up before.
   OwnerRoom {
@@ -235,10 +239,10 @@ async fn deliver_waiting(config: &Config) -> Result<u8, String> {
 }
 
 /// Whether work stands under way, each one named on its own line.
-async fn quiet(config: &Config) -> u8 {
+async fn quiet(config: &Config, jobs: bool) -> u8 {
   let units = config.units();
 
-  match bmo_receiver::quiet::asked(units.agency.as_ref(), bmo_receiver::now_ms()).await {
+  match bmo_receiver::quiet::asked(units.agency.as_ref(), bmo_receiver::now_ms(), jobs).await {
     Ok(under_way) if under_way.is_empty() => 0,
     Ok(under_way) => {
       for line in under_way {
@@ -410,7 +414,7 @@ async fn main() -> ExitCode {
     Command::Serve => serve(&config).await.map(|()| 0),
     Command::DeliverWaiting => deliver_waiting(&config).await,
     Command::OwnerRoom { ref title } => owner_room(&config, title).await,
-    Command::Quiet => Ok(quiet(&config).await),
+    Command::Quiet { with_jobs } => Ok(quiet(&config, with_jobs).await),
     Command::Health => ask_health(&config).await.map(|()| 0),
     Command::ToolEnv => write_env(&config).map(|written| {
       match written {
