@@ -271,6 +271,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` and
   `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`). The act goes out as the asker's agent, on
   the road the turn names.
+- **A `say`** answers once the line is on its way: the receiver puts the words through the room's gates and into
+  the room apart from the call, opens the room's window for the agent that said it, and tells the chat that set
+  it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.
 - **A file send** is one document, or several files as one album: each file a `path` on this machine and an
   optional `name`, with an optional `caption`. The bytes go to the verb the room's road declares, `document` for
   one file and `album` for several; a file a room's folder holds goes only into that room, and a job sends none.

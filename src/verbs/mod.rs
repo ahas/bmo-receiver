@@ -75,7 +75,7 @@ pub struct LaunchAsked {
 
 /// What a run's launcher was asked to do: open the row, start the process, close the row, and write a line of
 /// the run's log under its unit. The rows and the log are the agency's; the binary fills this seam with its own
-/// launcher, and with none standing a verb that says a line of its own is refused.
+/// launcher, and with none standing a verb that says a line of its own says it in the receiver itself.
 pub trait Launch: Send + Sync {
   fn start(&self, asked: &RunAsked) -> BoxFuture<'_, Option<i64>>;
 

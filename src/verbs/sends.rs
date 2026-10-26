@@ -79,7 +79,7 @@ impl Sends {
   }
 
   /// The sends standing on this launcher of a verb's own runs, which opens the row, starts the process and
-  /// closes the row; with none standing a verb that says a line of its own is refused.
+  /// closes the row; with none standing a verb that says a line of its own says it in the receiver itself.
   pub fn with_launch(mut self, launch: Arc<dyn Launch>) -> Self {
     self.launch = launch;
     self

@@ -47,10 +47,10 @@ const RELAY_CAP_WINDOW_MS: i64 = 10 * 60_000;
 // The first line of what was sent is named by at most this many characters.
 const OPENING_WIDTH: usize = 60;
 
-/// The unit one line's run goes by. It carries the clock, so two never collide and a person reading the
-/// journal can tell which line a unit was.
+/// The unit one line's run goes by. It carries the clock, so a person reading the journal can tell which line a
+/// unit was, and a draw of its own beside it, so two lines asked in the same moment never share one.
 pub fn say_unit(now_ms: i64) -> String {
-  format!("bmo-say-{now_ms}")
+  format!("bmo-say-{now_ms}-{:06x}", rand::random::<u32>() & 0x00ff_ffff)
 }
 
 /// Which chat is told what became of a line, or none: only a chat session, and only about a room that is not
@@ -200,13 +200,29 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
       title,
       agent: "say".to_owned(),
       command,
-      scratch: vec![text_path],
+      scratch: vec![text_path.clone()],
       utility: true,
     })
     .await;
 
+  // With no launcher standing, the receiver says the line itself, apart from the call, as the runner would.
   if !launched {
-    return Err(VerbError::Refused(format!("{unit} did not come up")));
+    let run = SayRun {
+      chat_id: asked.chat_id,
+      text_path,
+      run_id,
+      unit: unit.clone(),
+      started_by: asked.started_by.clone().unwrap_or_default(),
+      reply: asked.reply,
+      via: via.map(str::to_owned),
+    };
+    let sends = sends.clone();
+
+    tokio::spawn(async move {
+      if let Err(why) = say_run(&sends, &run).await {
+        eprintln!("say: chat {}: {why}", run.chat_id);
+      }
+    });
   }
 
   Ok(vec![format!(

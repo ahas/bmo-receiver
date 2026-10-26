@@ -107,8 +107,8 @@ async fn a_line_asked_to_be_said_is_launched_and_nobody_waits_on_the_gates() {
 }
 
 #[tokio::test]
-async fn a_line_asked_without_a_launcher_standing_is_refused() {
-  let (_scratch, _road, _launcher, receiver) = stood().await;
+async fn a_line_asked_without_a_launcher_standing_is_said_by_the_receiver_itself() {
+  let (_scratch, road, _launcher, receiver) = stood().await;
   let sends = Sends::new(receiver.clone(), None, None);
 
   assert!(
@@ -131,7 +131,7 @@ async fn a_line_asked_without_a_launcher_standing_is_refused() {
     "an answer comes back to the chat that asked for it, so --reply needs --by chat:<your own chatId>, and that chat cannot be the room being written to.",
   );
 
-  let Err(VerbError::Refused(why)) = say(
+  let lines = say(
     &sends,
     &SayAsked {
       chat_id: ROOM,
@@ -142,10 +142,23 @@ async fn a_line_asked_without_a_launcher_standing_is_refused() {
     None,
   )
   .await
-  else {
-    panic!("no launcher stands, so the line is not said");
-  };
-  assert!(why.contains("did not come up"), "{why}");
+  .unwrap();
+
+  assert!(lines[0].starts_with("say launched as bmo-say-"), "the call answers at once: {lines:?}");
+
+  // The receiver puts the words in the room apart from the call.
+  for _ in 0..200 {
+    if !road.sent().is_empty() {
+      break;
+    }
+
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+  }
+
+  let sent: Vec<String> = road.sent().iter().map(|send| serde_json::to_string(send).unwrap()).collect();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("words"), "{sent:?}");
 }
 
 #[test]
