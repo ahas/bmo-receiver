@@ -46,6 +46,11 @@ token = "web-token"
 base = "http://127.0.0.1:3280"
 token = "warmer-token"
 
+# The voice engine, where the deployment speaks briefings; without it no briefing is spoken.
+[voice]
+base = "http://127.0.0.1:3290"
+token = "voice-token"
+
 # Each chat service's road, by its key, with its base address and token. The keys are the deployment's; nothing
 # in the receiver compares one to a literal.
 [roads.road-a]

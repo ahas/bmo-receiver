@@ -29,6 +29,7 @@ use receiver_ports::agency::{Agency, Agents};
 use receiver_ports::gate::Gate;
 use receiver_ports::http::{Answer, PortFailure};
 use receiver_ports::job::Job;
+use receiver_ports::voice::VoiceEngine;
 use receiver_ports::warmer::Warmer;
 use receiver_ports::web::Web;
 use sea_orm::DatabaseConnection;
@@ -315,6 +316,8 @@ pub struct Units {
   pub job: Arc<dyn Job>,
   pub web: Arc<dyn Web>,
   pub warmer: Arc<dyn Warmer>,
+  /// The voice engine, where the configuration names one: a deployment without it speaks no briefing.
+  pub voice: Option<Arc<dyn VoiceEngine>>,
 }
 
 /// The receiver: the database it keeps messages in, the deployment it answers for, the data root it keeps files

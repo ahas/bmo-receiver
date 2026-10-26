@@ -62,6 +62,7 @@ family. No code carries a sentence in a room's language.
 | `wordless` | 400 | | a briefing with nothing to say |
 | `not-up` | 502 | `unit` | the briefing's unit did not come up |
 | `one-switch` | 400 | | a switch asked with no switch or no value |
+| `unreachable` | 502 | `reason` | no voice engine is configured, or the engine did not take the briefing |
 
 ### RoomRemovalRefusal
 

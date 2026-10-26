@@ -1841,6 +1841,17 @@ impl Conversations {
       self.relay_answer(chat_id, &sent.text).await;
     }
 
+    // A notice turn of the owner's private chat is heard as well as read (docs/voiced-notices.md, 「The summary of
+    // a notice turn」): nobody spoke in its round, and it sent a line.
+    if let Some(sent) = &sent
+      && chat_id == owner
+      && batch.is_empty()
+      && !instructions.is_empty()
+      && super::briefing::speaks(&receiver, self.agent()).await
+    {
+      self.summarise(chat_id, &mut held, &via, sent).await;
+    }
+
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.in_flight = false;
     }
@@ -1987,6 +1998,50 @@ impl Conversations {
       .await;
 
     Ok(passed)
+  }
+
+  // A notice turn's summary, written by the same session in one light turn of the summary's quiet instruction once
+  // the line has gone out, and handed to the voice engine with the line it speaks; a session that gives none has
+  // the line's opening spoken.
+  async fn summarise(&self, chat_id: i64, held: &mut Held, via: &str, sent: &Sent) {
+    let receiver = self.receiver();
+    let asking = Asking {
+      chat_id,
+      session: held.session.clone().unwrap_or_default(),
+      prompt: fill_marks(&CHAT_ROUND.voice.summary, &[("line", &sent.text)]),
+      via: (!via.is_empty()).then(|| via.to_owned()),
+      privileged: held.all_from_owner,
+      answers: vec![],
+      began: now_ms(),
+      context: vec![],
+    };
+    let follower = Follower::new(self, chat_id);
+    let answer = match self.0.carrying.carry(&asking, held, &follower).await {
+      Ok(reply) => {
+        held.context_tokens = reply.context_tokens.or(held.context_tokens);
+        held.session = reply.session.clone().or(held.session.clone());
+        held.replaced = reply.replaced.clone();
+        self.keep_session(chat_id, held);
+
+        Some(crate::form::strip_prompt_scaffolding(&reply.text))
+      }
+      Err(why) => {
+        eprintln!("notice turn in {chat_id}: its summary was not written ({why:?}); its opening is spoken");
+
+        None
+      }
+    };
+
+    follower.finish();
+    super::briefing::speak_summary(
+      &receiver,
+      self.agent(),
+      chat_id,
+      sent.message_id,
+      &sent.text,
+      answer.as_deref(),
+    )
+    .await;
   }
 
   // An answer once filed reaches the receiver as every word filed in a room does, so another agent of the room

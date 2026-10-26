@@ -12,6 +12,7 @@ use receiver_ports::chat::ChatServices;
 use receiver_ports::gate::HttpGate;
 use receiver_ports::http::Peer;
 use receiver_ports::job::HttpJob;
+use receiver_ports::voice::{HttpVoice, VoiceEngine};
 use receiver_ports::warmer::HttpWarmer;
 use receiver_ports::web::HttpWeb;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
@@ -69,6 +70,9 @@ pub struct Config {
   pub job: Peer,
   pub web: Peer,
   pub warmer: Peer,
+  /// The voice engine, where the deployment speaks briefings.
+  #[serde(default)]
+  pub voice: Option<Peer>,
   #[serde(default)]
   pub roads: BTreeMap<String, Peer>,
 }
@@ -132,6 +136,7 @@ impl Config {
       job: Arc::new(HttpJob::new(&self.job)),
       web: Arc::new(HttpWeb::new(&self.web)),
       warmer: Arc::new(HttpWarmer::new(&self.warmer)),
+      voice: self.voice.as_ref().map(|peer| Arc::new(HttpVoice::new(peer)) as Arc<dyn VoiceEngine>),
     }
   }
 

@@ -775,6 +775,46 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "conflict", "upstream-failed"]
   );
   add!(
+    "GET",
+    "/voice-briefing",
+    "voiceBriefing",
+    "Voice briefing",
+    "The voice briefing's two switches as they stand.",
+    vec![],
+    None,
+    vec![(200, json_answer::<VoiceBriefing>(&mut generator))],
+    vec!["unauthorized"]
+  );
+  add!(
+    "PUT",
+    "/voice-briefing",
+    "switchVoiceBriefing",
+    "Voice briefing",
+    "One of the voice briefing's switches moved; moving the whole briefing is told to the owner.",
+    vec![],
+    Some(generator.subschema_for::<VoiceBriefingSwitch>()),
+    vec![(200, json_answer::<VoiceBriefing>(&mut generator))],
+    vec!["unauthorized", "one-switch", "upstream-failed"]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/messages/{messageId}/reading",
+    "readLine",
+    "Voice briefing",
+    "A line's full reading, launched in the voice engine where none stands, answered as it stands there otherwise.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, json_answer::<LineReading>(&mut generator))],
+    vec![
+      "unauthorized",
+      "not-found",
+      "switched-off",
+      "voiceless",
+      "unreachable",
+      "upstream-failed"
+    ]
+  );
+  add!(
     "POST",
     "/events",
     "publishEvent",

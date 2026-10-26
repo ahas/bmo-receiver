@@ -29,6 +29,8 @@ pub enum VoiceRefusal {
   NotUp { unit: String },
   #[error("say which switch is moved, on or autoplay, and whether it is true or false")]
   OneSwitch,
+  #[error("the voice engine did not take the briefing: {reason}")]
+  Unreachable { reason: String },
 }
 
 impl VoiceRefusal {
@@ -36,7 +38,7 @@ impl VoiceRefusal {
     match self {
       Self::SwitchedOff | Self::Voiceless { .. } => StatusCode::CONFLICT,
       Self::Unsigned | Self::Wordless | Self::OneSwitch => StatusCode::BAD_REQUEST,
-      Self::NotUp { .. } => StatusCode::BAD_GATEWAY,
+      Self::NotUp { .. } | Self::Unreachable { .. } => StatusCode::BAD_GATEWAY,
     }
   }
 }

@@ -26,6 +26,7 @@ use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, Judgement, Sanitise, Sanitised};
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
+use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
 use receiver_ports::warmer::{Target, Used, Warmer};
 use receiver_ports::web::{
   Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web,
@@ -1313,6 +1314,71 @@ impl Runner for Taken {
   }
 }
 
+/// The voice engine, keeping every briefing it was handed and answering a line's briefings from them, each in the
+/// state the test sets.
+pub struct StandInVoice {
+  pub briefed: Mutex<Vec<NewBriefing>>,
+  pub state: Mutex<String>,
+}
+
+impl StandInVoice {
+  pub fn new() -> Self {
+    Self {
+      briefed: Mutex::default(),
+      state: Mutex::new("waiting".to_owned()),
+    }
+  }
+
+  /// Every briefing handed over, in order.
+  pub fn briefed(&self) -> Vec<NewBriefing> {
+    self.briefed.lock().unwrap().clone()
+  }
+}
+
+impl VoiceEngine for StandInVoice {
+  fn brief<'a>(&'a self, briefing: &'a NewBriefing) -> BoxFuture<'a, Answer<Briefing>> {
+    Box::pin(async move {
+      let mut briefed = self.briefed.lock().unwrap();
+
+      briefed.push(briefing.clone());
+
+      Ok(Briefing {
+        id: briefed.len() as i64,
+        kind: briefing.kind.clone(),
+        state: "waiting".to_owned(),
+      })
+    })
+  }
+
+  fn of_line<'a>(
+    &'a self,
+    chat_id: i64,
+    message_id: i64,
+    kind: &'a str,
+  ) -> BoxFuture<'a, Answer<Vec<Briefing>>> {
+    Box::pin(async move {
+      let state = self.state.lock().unwrap().clone();
+      let briefed = self.briefed.lock().unwrap();
+
+      Ok(
+        briefed
+          .iter()
+          .enumerate()
+          .rev()
+          .filter(|(_, one)| {
+            one.chat_id == chat_id && one.message_id == Some(message_id) && one.kind == kind
+          })
+          .map(|(at, one)| Briefing {
+            id: at as i64 + 1,
+            kind: one.kind.clone(),
+            state: state.clone(),
+          })
+          .collect(),
+      )
+    })
+  }
+}
+
 /// The cache warmer, keeping what the receiver registered and reported.
 pub struct StandInWarmer {
   pub registered: Mutex<Vec<(String, String)>>,
@@ -1388,6 +1454,7 @@ pub struct Standing {
   pub taken: Arc<Taken>,
   pub web: Arc<StandInWeb>,
   pub warmer: Arc<StandInWarmer>,
+  pub voice: Arc<StandInVoice>,
 }
 
 /// The same standing, with the receiver's own wake in place of the recording one: the rule every message is
@@ -1431,6 +1498,7 @@ pub fn unrun(
   let job = Arc::new(StandInJob::new());
   let taken = Arc::new(Taken::new(db.clone()));
   let warmer = Arc::new(StandInWarmer::new());
+  let voice = Arc::new(StandInVoice::new());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
@@ -1439,6 +1507,7 @@ pub fn unrun(
     job: job.clone(),
     web: web.clone(),
     warmer: warmer.clone(),
+    voice: Some(voice.clone()),
   };
   // The stand-in agency's registrations move as a test sets them, so the receiver asks it on every read; a test of
   // the kept list keeps it itself.
@@ -1457,5 +1526,6 @@ pub fn unrun(
     taken,
     web,
     warmer,
+    voice,
   }
 }

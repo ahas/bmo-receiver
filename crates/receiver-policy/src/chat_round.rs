@@ -32,6 +32,8 @@ pub struct Kinds {
 #[serde(deny_unknown_fields)]
 pub struct Voice {
   pub emotions: Vec<String>,
+  /// The quiet instruction a notice turn's summary is asked in, `{line}` the line the turn sent.
+  pub summary: String,
 }
 
 #[derive(Debug, Deserialize)]

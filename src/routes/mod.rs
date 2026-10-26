@@ -4,6 +4,7 @@
 
 mod as_owner;
 mod brain;
+mod briefing;
 mod companions;
 mod console;
 mod consult;
@@ -152,6 +153,9 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/consult-lines", get(block)),
     ("POST", "/talks", post(talk)),
     ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
+    ("GET", "/voice-briefing", get(briefing::switches)),
+    ("PUT", "/voice-briefing", put(briefing::switch)),
+    ("POST", "/rooms/{roomId}/messages/{messageId}/reading", post(briefing::reading)),
     ("POST", "/events", post(events::told)),
     ("GET", "/events", get(events::stream)),
     ("GET", "/live", get(events::live)),

@@ -9,6 +9,7 @@ pub mod gate;
 pub mod http;
 pub mod job;
 pub mod tool_host;
+pub mod voice;
 pub mod warmer;
 pub mod web;
 

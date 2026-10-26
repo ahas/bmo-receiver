@@ -32,6 +32,9 @@ export type Talk = Schemas["Talk"];
 export type TalkAnswer = Schemas["TalkAnswer"];
 export type HandoffAsked = Schemas["HandoffAsked"];
 export type HandoffWritten = Schemas["HandoffWritten"];
+export type VoiceBriefing = Schemas["VoiceBriefing"];
+export type VoiceBriefingSwitch = Schemas["VoiceBriefingSwitch"];
+export type LineReading = Schemas["LineReading"];
 export type CompanionRequest = Schemas["CompanionRequest"];
 export type Companions = Schemas["Companions"];
 export type PinnedRooms = Schemas["PinnedRooms"];
@@ -237,6 +240,25 @@ export function receiverClient(options: ReceiverOptions) {
       const result = await client.POST("/handoffs/{agentName}", { params: { path: { agentName } }, body });
 
       return result.response.status === 204 ? (answered(result), null) : answered(result);
+    },
+
+    /** `GET /voice-briefing`. */
+    async voiceBriefing(): Promise<VoiceBriefing> {
+      return answered(await client.GET("/voice-briefing", {}));
+    },
+
+    /** `PUT /voice-briefing`, exactly one switch named. */
+    async switchVoiceBriefing(body: VoiceBriefingSwitch): Promise<VoiceBriefing> {
+      return answered(await client.PUT("/voice-briefing", { body }));
+    },
+
+    /** `POST /rooms/{roomId}/messages/{messageId}/reading`. */
+    async readLine(roomId: number, messageId: number): Promise<LineReading> {
+      return answered(
+        await client.POST("/rooms/{roomId}/messages/{messageId}/reading", {
+          params: { path: { roomId, messageId } },
+        }),
+      );
     },
 
     /** `POST /events`. */

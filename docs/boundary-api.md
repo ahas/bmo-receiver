@@ -31,7 +31,9 @@ a fixed line is rendered in; the attachment size cap, the largest file a message
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code
 stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's
 `.local/share` where it names none; the tool host's control socket, `tool_host_socket`, where it stands apart
-from the one 「The tool host」 below finds; and each chat service's road name with its base address and token.
+from the one 「The tool host」 below finds; the voice engine's base address and token under `voice`, where the
+deployment speaks briefings, a configuration without it speaking none; and each chat service's road name with its
+base address and token.
 
 ### The service and its commands
 
@@ -221,6 +223,15 @@ and its senders, the grants in a room, a sender's relation in a room, a message'
 relation on an object, making and revoking a grant, and a fixed line's words. The port reads the model as
 `inForce`, a grant's holder as `subjectKey` and a grant's lapse as `expiresAt`, and sends a grant's lapse as
 `expiresAt`.
+
+### The voice engine
+
+Its `docs/boundary-api.md` and `docs/openapi.json`, in camelCase and behind its token, at the `voice` the
+configuration names: `POST /briefings` with `voiceName`, `text`, `chatId`, `messageId`, `kind`, `title?`,
+`emotion?` and `plays`, a notice turn's summary or a line's full reading; and `GET /briefings` with `chatId`,
+`messageId` and `kind`, the page a line's full reading is looked up in. The voice an agent speaks in is the
+`voice` its agency registration names. The receiver reads `id`, `state` and `kind` of a briefing, and nothing of
+its sound: listeners read that, and the briefing's events, from the engine.
 
 ### The cache warmer
 

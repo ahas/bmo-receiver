@@ -139,6 +139,84 @@ agent that answers the room says the line.
   each is voiced to the chat that would have heard it, from the code its unit sends. A failed voice run, and a
   dead job, say plainly that nothing more is coming.
 
+## The voice briefing
+
+A line of the chat agent's is heard as well as read: a notice turn of the owner's private chat is spoken as a
+summary, and any agent's line can be read out whole from its chip. The voice engine speaks and keeps every
+briefing with its room and its line (its `docs/boundary-api.md`, 「Briefings」); the receiver decides when one is
+spoken, and the session writes what is said.
+
+### The switches
+
+- **One switch for the whole briefing,** the receiver's setting `voice_briefing`, `on` or `off`; a missing row
+  reads as on. It is read at every door: before a notice turn's summary is asked for and before a line's full
+  reading is launched. A refusal is `switched-off` (`docs/codes.md`, 「VoiceRefusal」).
+- **A second switch, whether a briefing plays by itself,** the setting `voice_briefing_autoplay`, on unless it
+  holds `off`. It decides only whether a listener plays a summary on its own: the receiver hands it to the engine
+  with each summary, as it stands at that moment, and the engine keeps it on the briefing and its events. It stays
+  switchable while the whole briefing is off.
+- **The console moves them** through `PUT /voice-briefing`, one switch at a time, and reads both through
+  `GET /voice-briefing` (`docs/api.md`, 「The voice briefing」). A request naming neither, or both, is refused
+  `one-switch`.
+- **Moving the whole briefing is told to the owner.** The receiver queues the voice fact `briefing-on` or
+  `briefing-off` for the owner's private chat under the kind `voice-briefing`, so a switch flipped twice before
+  the session speaks leaves one line, about where it ended. A write that changes nothing says nothing, and moving
+  the second switch says nothing: it changes how the owner hears a briefing, not what the agent says.
+
+### Whose voice
+
+- **A voice is an agent's,** the `voice` its registration names at the agency, a voice the engine holds by that
+  name. An agent whose registration names none is never spoken: no summary is asked of its turns and its line's
+  reading is refused `voiceless`.
+- **Nothing is spoken without the engine.** A configuration that names no voice engine speaks nothing: no summary
+  is asked for, and a reading is refused `unreachable`, as is one the engine did not take.
+
+### The summary of a notice turn
+
+- **A turn qualifies** when all of these hold: it is the owner's private chat; nobody spoke in its round, so it
+  carried quiet instructions and no message of anyone; it sent a line, so a `<<SKIP>>` or a `<<WAIT>>` is not
+  spoken; the switch is on; and its agent has a voice.
+- **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one light
+  turn once the line has gone out and before the round lets go of the room. The instruction carries the line as
+  the facts, and asks for what is to be heard: a one-line title saying what the briefing is about, in the agent's
+  own words for this briefing, then one or two spoken sentences of the line's gist, never the line read out, every
+  notice of the turn covered in its newest state (`policy/chat-round.toml`, `[voice]`). Its answer goes to no road
+  and stands in no room.
+- **A session that gives no summary has its line's opening spoken:** the first sentence, or the first two where
+  the first is short, with no title. An answer of `<<SKIP>>`, an empty answer and a failed turn are each this case.
+- **The receiver carries the facts to the engine:** `POST /briefings` of kind `summary`, in the agent's voice,
+  naming the room and the message the line went out as, with the title where the session gave one and
+  whether it plays by itself as the second switch stands. The line already stands when the summary is asked for,
+  so the summary never awaits it.
+- **A summary that fails tells nobody.** The line stands in the room as text either way, so a turn that could not
+  be asked, an engine that refused the briefing or a synthesis that failed is the receiver's journal line or the
+  engine's own, and no notice is queued.
+- **Ordinary conversation is never spoken by itself.** A round somebody spoke in, the owner in his own chat or a
+  message pushed into a round a notice opened, is a conversation, and its answer stays text.
+
+### The full reading on a line's chip
+
+- **Every line of an agent with a voice can be read out whole,** in that agent's voice, through
+  `POST /rooms/{roomId}/messages/{messageId}/reading`. The line is a message the receiver archived as an agent's
+  send, with words of its own; any other message is `not-found`.
+- **Nothing is made before it is asked for.** The receiver asks the engine for the line's full reading
+  (`GET /briefings` by room, line and kind): one waiting or speaking answers `making`, one done answers `ready`,
+  and where there is none, or the last one failed, it launches one with `POST /briefings` of kind `full` and
+  answers `making`. The answer names the briefing, whose sound the engine serves.
+- **It is kept on the line** by the engine, so a later ask answers `ready` at once. It goes to no road and no
+  listener plays it by itself.
+- **It asks the switch and the voice** like every briefing: switched off, it is refused `switched-off`; an agent
+  with no voice, `voiceless`.
+
+### What a listener hears
+
+- **The engine's event stream.** A listener reads `briefing.ended` on the engine's stream and plays a summary
+  that is `done` and plays by itself; it shows rather than plays one it learns of more than two minutes after it
+  ended. The sound is the engine's `GET /briefings/{briefingId}/sound`.
+- **A briefing a unit other than the engine put in a room as a voice message** is told through the receiver's
+  `POST /events` as a `briefing` event, stamped with whether it plays by itself as the second switch stands, and
+  goes out on the receiver's stream to the same listeners.
+
 ## Operating notices per chat
 
 - **The restart notice is the owner's private chat's.** The going-down line is a system notice the stopping

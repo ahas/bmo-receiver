@@ -626,6 +626,33 @@ pub struct HandoffWritten {
   pub bytes: u64,
 }
 
+/// The voice briefing's two switches: the whole briefing, and whether a summary plays by itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceBriefing {
+  pub on: bool,
+  pub autoplay: bool,
+}
+
+/// One of the voice briefing's switches moved: exactly one of the two, as a boolean.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceBriefingSwitch {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub on: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub autoplay: Option<bool>,
+}
+
+/// A line's full reading: `making` while the voice engine speaks it, `ready` once it can be heard, and the
+/// engine's briefing, whose sound the engine serves.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LineReading {
+  pub state: String,
+  pub briefing_id: i64,
+}
+
 /// A talk's topic and what the owner says.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

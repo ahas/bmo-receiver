@@ -337,6 +337,23 @@ repository's, in `VERSION`; it is never taken from a registry.
   registered. Its body is the warmer's own published body, `kind` among it optional, and a `skipped` answer
   carries its code (`docs/codes.md`, 「SkipReason」), which the warmer requires of every skip.
 
+## The voice briefing
+
+| Route | Body | Answers |
+|---|---|---|
+| `GET /voice-briefing` | | `on` and `autoplay`, the two switches as they stand |
+| `PUT /voice-briefing` | `on` or `autoplay`, exactly one, a boolean | `on` and `autoplay`, as they now stand |
+| `POST /rooms/{roomId}/messages/{messageId}/reading` | | `state` (`making` or `ready`) and `briefingId`, the engine's briefing of the line's full reading |
+
+- **The switches** are the whole briefing's and whether a summary plays by itself (`docs/voiced-notices.md`, 「The
+  voice briefing」); each is on unless it was set off. A body naming neither switch, or both, or a value that is not
+  a boolean, is refused 400 `one-switch`.
+- **A line's full reading** is launched in the voice engine where none stands, or answered as it stands there. It
+  is refused 409 `switched-off` while the whole briefing is off, 409 `voiceless` where the line's agent has no
+  voice, 404 `not-found` where the message is no agent's line with words, and 502 `unreachable` where no voice
+  engine is configured or the engine did not answer. The sound is the engine's: the console reads it there by the
+  briefing's id.
+
 ## Handoffs
 
 | Route | Body | Answers |

@@ -4,6 +4,7 @@
 
 pub mod around;
 pub mod ask;
+pub mod briefing;
 pub mod cache;
 pub mod context;
 pub mod conversation;

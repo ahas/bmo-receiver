@@ -691,6 +691,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/messages/{messageId}/reading": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A line's full reading, launched in the voice engine where none stands, answered as it stands there otherwise. */
+        post: operations["readLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/messages/{messageId}/sender-is-owner": {
         parameters: {
             query?: never;
@@ -995,6 +1012,24 @@ export interface paths {
         put?: never;
         /** A talk the owner has with the chat agent about a topic it names. */
         post: operations["talk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/voice-briefing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The voice briefing's two switches as they stand. */
+        get: operations["voiceBriefing"];
+        /** One of the voice briefing's switches moved; moving the whole briefing is told to the owner. */
+        put: operations["switchVoiceBriefing"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1407,6 +1442,15 @@ export interface components {
             source: string;
             storedPath: string | null;
             summary: string | null;
+        };
+        /**
+         * @description A line's full reading: `making` while the voice engine speaks it, `ready` once it can be heard, and the
+         *     engine's briefing, whose sound the engine serves.
+         */
+        LineReading: {
+            /** Format: int64 */
+            briefingId: number;
+            state: string;
         };
         /** @description The live board: the process's turns, folds and each room's queued message. */
         Live: {
@@ -1873,6 +1917,16 @@ export interface components {
         TalkTurn: {
             owner: boolean;
             text: string;
+        };
+        /** @description The voice briefing's two switches: the whole briefing, and whether a summary plays by itself. */
+        VoiceBriefing: {
+            autoplay: boolean;
+            on: boolean;
+        };
+        /** @description One of the voice briefing's switches moved: exactly one of the two, as a boolean. */
+        VoiceBriefingSwitch: {
+            autoplay?: boolean | null;
+            on?: boolean | null;
         };
         /** @description How long the chat agent's window in a room has left. */
         Window: {
@@ -3432,6 +3486,38 @@ export interface operations {
             };
         };
     };
+    readLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineReading"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-found, switched-off, voiceless, unreachable, upstream-failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     senderIsOwner: {
         parameters: {
             query?: never;
@@ -4153,6 +4239,68 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, conflict, not-ready, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    voiceBriefing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceBriefing"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    switchVoiceBriefing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceBriefingSwitch"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceBriefing"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, one-switch, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;

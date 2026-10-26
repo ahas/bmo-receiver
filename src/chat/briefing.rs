@@ -1,0 +1,283 @@
+//! The voice briefing (docs/voiced-notices.md, 「The voice briefing」): its two switches, the voice an agent speaks
+//! in, a notice turn's summary handed to the voice engine, and a line's full reading launched or answered as it
+//! stands there. The engine speaks and keeps every briefing; this decides when one is spoken.
+
+use receiver_codes::{VoiceFact, VoiceRefusal};
+use receiver_ports::voice::NewBriefing;
+
+use super::notices::{Voiced, queue_notice};
+use crate::receiver::{NotReceived, Receiver};
+use crate::store::settings;
+
+/// The setting the whole briefing is switched by, on unless it holds `off`.
+pub const SWITCH: &str = "voice_briefing";
+
+/// The setting whether a summary plays by itself is switched by, on unless it holds `off`.
+pub const AUTOPLAY: &str = "voice_briefing_autoplay";
+
+/// The kind the owner's line about the switch stands under, one waiting at a time.
+const SWITCH_KIND: &str = "voice-briefing";
+
+// A switch's line not said within this long is no longer worth saying.
+const SWITCH_TTL_MS: i64 = 30 * 60_000;
+
+// How short a line's first sentence is for its second to be spoken with it.
+const SHORT_OPENING: usize = 40;
+
+/// Whether a switch is on: any value but `off`, and no row at all.
+pub async fn on(receiver: &Receiver, key: &str) -> bool {
+  settings::get(receiver.db(), key).await.ok().flatten().as_deref() != Some("off")
+}
+
+/// The two switches as they stand.
+pub async fn switches(receiver: &Receiver) -> (bool, bool) {
+  (on(receiver, SWITCH).await, on(receiver, AUTOPLAY).await)
+}
+
+/// One switch set; moving the whole briefing queues its line for the owner's private chat, and a write that
+/// changes nothing says nothing.
+pub async fn set(receiver: &Receiver, key: &str, value: bool) -> Result<(), NotReceived> {
+  let was = on(receiver, key).await;
+
+  settings::set(receiver.db(), key, if value { "on" } else { "off" }).await?;
+
+  if key == SWITCH && was != value {
+    let fact = if value { VoiceFact::BriefingOn } else { VoiceFact::BriefingOff };
+    let notice = Voiced {
+      fact: fact.to_string(),
+      intent: "tell the owner that the voice briefing was switched, and what that means for what he hears."
+        .to_owned(),
+      follow_up: None,
+      optional: false,
+      kind: Some(SWITCH_KIND.to_owned()),
+      ttl_ms: Some(SWITCH_TTL_MS),
+      events: vec![],
+      rides_ms: None,
+    };
+
+    queue_notice(receiver, receiver.owner_id(), &notice).await?;
+    super::restart::kick(receiver);
+  }
+
+  Ok(())
+}
+
+/// The voice an agent's lines are spoken in, the one its registration names; none where it names none.
+pub async fn voice_of(receiver: &Receiver, agent: &str) -> Option<String> {
+  let agents = receiver.agents().await.ok()?;
+  let registered = agents.agents.iter().find(|one| one.name == agent)?;
+
+  registered
+    .row
+    .get("voice")
+    .and_then(serde_json::Value::as_str)
+    .map(str::trim)
+    .filter(|voice| !voice.is_empty())
+    .map(str::to_owned)
+}
+
+// The label an agent is named by in a refusal.
+async fn label_of(receiver: &Receiver, agent: &str) -> String {
+  let agents = receiver.agents().await.ok();
+
+  agents
+    .and_then(|agents| agents.agents.into_iter().find(|one| one.name == agent))
+    .and_then(|registered| registered.label)
+    .filter(|label| !label.trim().is_empty())
+    .unwrap_or_else(|| agent.to_owned())
+}
+
+/// The opening of a line, spoken for a notice turn whose session gave no summary: its first sentence, or its first
+/// two where the first is short.
+pub fn line_opening(text: &str) -> String {
+  let mut sentences: Vec<String> = vec![];
+  let mut current = String::new();
+  let mut characters = text.chars().peekable();
+
+  while let Some(character) = characters.next() {
+    if character == '\n' {
+      sentences.push(std::mem::take(&mut current));
+      continue;
+    }
+
+    current.push(character);
+
+    let ends = matches!(character, '.' | '?' | '!' | '…')
+      && characters.peek().is_none_or(|next| next.is_whitespace());
+
+    if ends {
+      sentences.push(std::mem::take(&mut current));
+    }
+  }
+
+  sentences.push(current);
+
+  let sentences: Vec<&str> = sentences.iter().map(|one| one.trim()).filter(|one| !one.is_empty()).collect();
+  let first = sentences.first().copied().unwrap_or_default();
+
+  match sentences.get(1) {
+    Some(second) if first.chars().count() < SHORT_OPENING => format!("{first} {second}"),
+    _ => first.to_owned(),
+  }
+}
+
+/// A session's answer to the summary's instruction read as a title and the words spoken: the first line the title
+/// and the rest the words, or the whole the words where it is one line; none where it gave no summary.
+pub fn summary_of(answer: &str) -> Option<(Option<String>, String)> {
+  let answer = answer.trim();
+
+  if answer.is_empty() || super::sentinels::is_skip(answer) {
+    return None;
+  }
+
+  let lines: Vec<&str> = answer.lines().map(str::trim).filter(|line| !line.is_empty()).collect();
+
+  match lines.as_slice() {
+    [] => None,
+    [only] => Some((None, (*only).to_owned())),
+    [title, rest @ ..] => Some((Some((*title).to_owned()), rest.join(" "))),
+  }
+}
+
+/// A notice turn's summary handed to the voice engine: the session's words where it gave any, the line's opening
+/// where it did not. Whether it plays by itself is the second switch as it stands now.
+pub async fn speak_summary(
+  receiver: &Receiver,
+  agent: &str,
+  chat_id: i64,
+  message_id: i64,
+  line: &str,
+  answer: Option<&str>,
+) {
+  let Some(engine) = receiver.units().voice.clone() else {
+    return;
+  };
+  let Some(voice) = voice_of(receiver, agent).await else {
+    return;
+  };
+  let (title, text) = match answer.and_then(summary_of) {
+    Some(summary) => summary,
+    None => (None, line_opening(line)),
+  };
+
+  if text.trim().is_empty() {
+    return;
+  }
+
+  let briefing = NewBriefing {
+    voice_name: voice,
+    text,
+    chat_id,
+    message_id: Some(message_id),
+    kind: "summary".to_owned(),
+    title,
+    emotion: None,
+    plays: on(receiver, AUTOPLAY).await,
+  };
+
+  match engine.brief(&briefing).await {
+    Ok(taken) => println!("notice turn in {chat_id}: summary taken as briefing {}", taken.id),
+    Err(why) => eprintln!("notice turn in {chat_id} could not be summarised: {why}"),
+  }
+}
+
+/// Whether a turn of this agent may be summarised at all: the switch on, a voice engine named and the agent's
+/// registration naming a voice.
+pub async fn speaks(receiver: &Receiver, agent: &str) -> bool {
+  receiver.units().voice.is_some()
+    && on(receiver, SWITCH).await
+    && voice_of(receiver, agent).await.is_some()
+}
+
+/// Where a line's full reading stands: being made, or ready to be heard, with the engine's briefing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reading {
+  pub ready: bool,
+  pub briefing: i64,
+}
+
+/// Why a line's full reading was not launched: a voice refusal, or no agent's line at that place.
+#[derive(Debug)]
+pub enum Unread {
+  Refused(VoiceRefusal),
+  NoLine,
+  Failed(NotReceived),
+}
+
+impl From<NotReceived> for Unread {
+  fn from(why: NotReceived) -> Self {
+    Self::Failed(why)
+  }
+}
+
+/// A line's full reading: answered as it stands in the engine where one is waiting, speaking or done, launched
+/// otherwise. Only an agent's own line, in a voice its registration names, has one.
+pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Result<Reading, Unread> {
+  if !on(receiver, SWITCH).await {
+    return Err(Unread::Refused(VoiceRefusal::SwitchedOff));
+  }
+
+  let line = crate::one(
+    receiver.db(),
+    r#"SELECT "text", "agent_name", "sender_name" FROM "messages" WHERE "chat_id" = $1 AND "message_id" = $2"#,
+    vec![chat_id.into(), message_id.into()],
+  )
+  .await
+  .map_err(NotReceived::from)?
+  .ok_or(Unread::NoLine)?;
+  let text: Option<String> =
+    line.try_get("", "text").map_err(|why| NotReceived::from(crate::Fault::from(why)))?;
+  let agent: Option<String> = line
+    .try_get("", "agent_name")
+    .map_err(|why| NotReceived::from(crate::Fault::from(why)))?;
+  let sender: Option<String> = line
+    .try_get("", "sender_name")
+    .map_err(|why| NotReceived::from(crate::Fault::from(why)))?;
+  let deployment = receiver.deployment();
+  // A line the receiver archived names its agent; one under the chat agent's own sender name is the chat agent's.
+  let agent = agent.or_else(|| {
+    (sender.as_deref() == Some(deployment.sender_name.as_str())).then(|| deployment.agent.clone())
+  });
+  let (Some(text), Some(agent)) = (text.filter(|text| !text.trim().is_empty()), agent) else {
+    return Err(Unread::NoLine);
+  };
+  let Some(voice) = voice_of(receiver, &agent).await else {
+    return Err(Unread::Refused(VoiceRefusal::Voiceless {
+      label: label_of(receiver, &agent).await,
+    }));
+  };
+  let unreachable = |reason: String| Unread::Refused(VoiceRefusal::Unreachable { reason });
+  let Some(engine) = receiver.units().voice.clone() else {
+    return Err(unreachable("no voice engine is configured".to_owned()));
+  };
+  let standing = engine
+    .of_line(chat_id, message_id, "full")
+    .await
+    .map_err(|why| unreachable(why.to_string()))?;
+
+  if let Some(standing) = standing.first().filter(|standing| standing.state != "failed") {
+    return Ok(Reading {
+      ready: standing.state == "done",
+      briefing: standing.id,
+    });
+  }
+
+  let taken = engine
+    .brief(&NewBriefing {
+      voice_name: voice,
+      text,
+      chat_id,
+      message_id: Some(message_id),
+      kind: "full".to_owned(),
+      title: None,
+      emotion: None,
+      plays: false,
+    })
+    .await
+    .map_err(|why| unreachable(why.to_string()))?;
+
+  Ok(Reading {
+    ready: false,
+    briefing: taken.id,
+  })
+}
