@@ -15,6 +15,7 @@ pub mod hearing;
 pub mod import;
 pub mod json;
 pub mod kept;
+pub mod language;
 pub mod receiver;
 pub mod roads;
 pub mod room_record;
@@ -27,7 +28,6 @@ pub mod text;
 pub mod tool_env;
 pub mod verbs;
 pub mod web_address;
-pub mod wording;
 pub mod workers;
 
 /// The text readings a JavaScript side is kept answers with, held in the shared crate so the receiver's verbs

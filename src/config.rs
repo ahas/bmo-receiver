@@ -55,8 +55,6 @@ pub struct Config {
   #[serde(default)]
   pub attachment_bytes: Option<u64>,
   #[serde(default)]
-  pub wording_document: Option<PathBuf>,
-  #[serde(default)]
   pub brain_root: Option<PathBuf>,
   #[serde(default)]
   pub document_tree: Option<PathBuf>,
@@ -118,7 +116,6 @@ impl Config {
       infra_room: self.infra_room,
       language: self.language.clone(),
       attachment_bytes: self.attachment_bytes,
-      wording_document: self.wording_document.clone(),
     }
   }
 

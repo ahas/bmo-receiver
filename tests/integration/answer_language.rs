@@ -5,8 +5,8 @@
 use bmo_receiver::chat::draft::checks::{Check, Reading, errand, failing};
 use bmo_receiver::chat::prompt::{addressing, answer_language, answer_language_note};
 use bmo_receiver::data_root::DataRoot;
+use bmo_receiver::language::text_language;
 use bmo_receiver::receiver::Inbound;
-use bmo_receiver::wording::text_language;
 use tempfile::tempdir;
 
 use crate::common::Scratch;
@@ -88,7 +88,6 @@ async fn the_turn_names_the_language_of_the_message_that_addresses_the_agent() {
 fn reading(language: &str) -> Reading<'_> {
   Reading {
     language,
-    glossary: &[],
     own_lines: &[],
     max_chars: 4_000,
   }

@@ -177,8 +177,6 @@ where it says something: neither empty nor a skip nor a wait.
   - `length`: at most the policy's `max_chars` characters;
   - `language`: the text is in the turn's answer language, the language of the message that addresses the agent
     or else the room's (`docs/answer-checks.md`, 「The language an answer goes out in」);
-  - `wording`: in a text written in Korean, no term the deployment's wording document bans; a text in another
-    language skips it (`docs/answer-checks.md`, 「The banned words」);
   - `format`: none of the process's own lines stands in the text: no question it was asked, and not the head of
     the block of words that came meanwhile.
 - **A check that fails is asked once:** one more turn of the same session, the check's errand naming what is

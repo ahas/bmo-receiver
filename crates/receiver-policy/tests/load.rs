@@ -94,7 +94,6 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(SECOND_ASKS.errands.owed.contains("{count}"));
   assert!(SECOND_ASKS.errands.wake_on.contains("{chat}"));
   assert!(SECOND_ASKS.errands.rule.contains("{chat}"));
-  assert!(SECOND_ASKS.errands.wording.contains("{terms}"));
   assert_eq!(SECOND_ASKS.errands.language.matches("{what}").count(), 2);
   assert_eq!(SECOND_ASKS.reading.pledge_final, 8);
   assert!(SECOND_ASKS.errands.length.contains("{count}") && SECOND_ASKS.errands.length.contains("{limit}"));

@@ -9,7 +9,6 @@ use bmo_receiver::chat::draft::table::{
 use bmo_receiver::chat::draft::{Plan, question_words, read_answer, record_errand, wake_errand, words};
 use bmo_receiver::chat::prompt::Scope;
 use bmo_receiver::receiver::Inbound;
-use bmo_receiver::wording::BannedTerm;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::second_asks::SECOND_ASKS;
 
@@ -143,12 +142,11 @@ fn a_turn_is_light_for_short_words_with_no_file_or_instructions_alone() {
 }
 
 #[test]
-fn the_checks_read_length_wording_and_the_process_s_own_lines() {
+fn the_checks_read_length_and_the_process_s_own_lines() {
   let asked = vec!["why was it said?".to_owned()];
   let lines = own_lines(&asked);
   let reading = Reading {
     language: "en",
-    glossary: &[],
     own_lines: &lines,
     max_chars: 10,
   };
@@ -157,36 +155,6 @@ fn the_checks_read_length_wording_and_the_process_s_own_lines() {
   assert_eq!(failing("far too long a text", &reading), vec![Check::Length]);
   assert!(failing("why was it said?", &reading).contains(&Check::Format));
   assert!(errand(Check::Length, "far too long a text", &reading).contains("19 characters, past the 10"));
-}
-
-// A banned term of a language, with what to write instead.
-fn banned(lang: &str, term: &str, instead: &str) -> BannedTerm {
-  BannedTerm {
-    lang: lang.to_owned(),
-    term: term.to_owned(),
-    instead: instead.to_owned(),
-    when: None,
-    keeps: vec![],
-  }
-}
-
-#[test]
-fn the_wording_check_reads_an_answer_written_in_korean_and_skips_an_english_one() {
-  let fixture = std::fs::read_to_string("tests/fixtures/wording-korean.txt").unwrap();
-  let [term, instead, korean] = fixture.lines().collect::<Vec<&str>>()[..] else {
-    panic!("the fixture holds a term, what to write and an answer");
-  };
-  let glossary = vec![banned("ko", term, instead), banned("en", "synergy", "working together")];
-  let reading = |language| Reading {
-    language,
-    glossary: &glossary,
-    own_lines: &[],
-    max_chars: 1_000,
-  };
-
-  assert_eq!(failing(korean, &reading("ko")), vec![Check::Wording]);
-  assert!(errand(Check::Wording, korean, &reading("ko")).contains(instead));
-  assert_eq!(failing("The synergy here is what we were after.", &reading("en")), vec![]);
 }
 
 #[test]

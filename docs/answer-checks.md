@@ -1,15 +1,15 @@
 # The checks an answer passes
 
 The readings the code holds a chat answer to before it goes out: the answer language, a promise that stands on a
-record, a rule the owner sets that stands on a row, and the banned words of the deployment's wording document.
-Each is an item or a check of the draft process (`docs/drafting.md`): where it finds something, the same session
-is asked once more, as one more turn of the process.
+record and a rule the owner sets that stands on a row. Each is an item or a check of the draft process
+(`docs/drafting.md`): where it finds something, the same session is asked once more, as one more turn of the
+process.
 
 ## Where the checks stand
 
 - **The process asks them once the message stands, in this order:** an owed answer over a skip
   (`docs/wake.md`), a promise recorded, a promise set to wake and a rule the owner set, as items; then the length,
-  the language, the banned words and the format, as the checks on the final text (`docs/drafting.md`, 「The
+  the language and the format, as the checks on the final text (`docs/drafting.md`, 「The
   items after the last question」 and 「The checks on the final text」).
 - **What the checks read stands in the receiver's policy**: the words of time to come, of keeping in mind, of
   waiting on something, of a condition and of a manner, the volitional and imperative endings, and the
@@ -100,12 +100,3 @@ is asked once more, as one more turn of the process.
     item, to file it as a situation memory and write the answer again saying so. Once and no more: where it
     still files nothing the answer stands, and the rule is not invented for the owner. A turn whose tools are off
     cannot file one and is not asked.
-
-## The banned words
-
-- An answer written in Korean is held to the banned words of the deployment's wording document, which the
-  configuration names, in every room and the owner's own chat alike, as the `wording` check. The document's
-  rules are rules of Korean wording, so an answer written in another language (「The language a text is written
-  in」), English among them, skips the check. An answer that uses one outside its quoted
-  spans is asked for once more with each term named beside what to write; where the second writing uses one
-  still, nothing goes out. Where the document cannot be read, no answer is held to it.

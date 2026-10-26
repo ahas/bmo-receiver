@@ -29,7 +29,6 @@ use super::window::composed;
 use crate::form::strip_prompt_scaffolding;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver};
-use crate::wording::{BannedTerm, read_glossary};
 
 use checks::{Check, Reading, failing, has_skip, light, own_lines};
 use log::{Answered, Ended, Kind, Log};
@@ -162,16 +161,6 @@ async fn wakes(receiver: &Receiver, agent: &str, runs: &[String]) -> bool {
       false
     }
   }
-}
-
-/// The banned words of the deployment's wording document, or none where it is not named or cannot be read.
-fn glossary(receiver: &Receiver) -> Vec<BannedTerm> {
-  receiver
-    .deployment()
-    .wording_document
-    .as_ref()
-    .map(|document| read_glossary(document.as_path()))
-    .unwrap_or_default()
 }
 
 /// The process as the conversations hold it: the receiver it runs on.
@@ -699,14 +688,12 @@ impl Drafter {
     // The checks on the final text, each asked once.
     let language =
       answer_language(receiver, addressing(drafted.batch, drafted.recent, drafted.room.identity));
-    let terms = glossary(receiver);
     let mut asked: BTreeSet<Check> = BTreeSet::new();
 
     loop {
       let lines = own_lines(&run.asked);
       let reading = Reading {
         language: &language,
-        glossary: &terms,
         own_lines: &lines,
         max_chars: DRAFTING.max_chars,
       };

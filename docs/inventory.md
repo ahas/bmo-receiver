@@ -220,5 +220,5 @@ speaks through the sends.
 | `src/receiver/labels.rs` | the label drawn into a picture's own band, which the file rules of build-18 need | build-18 |
 | `src/receiver/reads.rs` | the room reads another unit asks of them, which the owed contracts of build-12 answer | build-12 |
 | `src/routes/hooks.rs`, `src/routes/mod.rs` | the token check, the refusal shape and the route table every route shares | build-10, reworked by build-14 |
-| `src/wording.rs` | the banned-word reading the answer checks need, copied in because the old shared markup crate is a forbidden dependency | build-9 |
+| `src/language.rs` | the language a text is written in, told by the script of its prose, which the answer language check and the prompt's answer-language note read | build-9 |
 | `src/js.rs`, `src/chat/promises.rs` | the text readings and the answer readings; both moved into `crates/room-calls` and are re-exported from the root package | build-8, build-11 |

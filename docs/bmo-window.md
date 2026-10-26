@@ -296,7 +296,7 @@ flowchart TD
   saves to a file beside the session and hands over the path and the first 2 KB, so the model reads the rest
   with a tool call.
 - **What does not follow:** the answer stays on the program's screen. Nothing the receiver does with a round's
-  answer reaches it (the output gates, the wording check, the draft process, formatting, sending to a room) and
+  answer reaches it (the output gates, the draft process, formatting, sending to a room) and
   the line is not archived.
 - **When the receiver cannot compose it** (down, failing, or slower than the hook's bound) the hook answers no
   context and the line goes on as typed.
@@ -345,8 +345,8 @@ flowchart TD
   judges the answer.
 - **The mechanical checks stay in code,** on every round, as the process's items and checks: an owed answer to
   the owner's words, a promise with nothing recorded, a promise to act once something happens with nothing set
-  to wake the agent when it does, a rule the owner set and nothing filed, and the final text's length, language,
-  banned words and format (`docs/answer-checks.md`).
+  to wake the agent when it does, a rule the owner set and nothing filed, and the final text's length, language
+  and format (`docs/answer-checks.md`).
 
 ## What keeps the window the only way in
 
