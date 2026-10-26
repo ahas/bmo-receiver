@@ -193,6 +193,7 @@ session once the setting has changed, one waiting per setting.
 | `companion-engine-error` | `kind` (an `EngineError`) | a companion's engine ended its turn with an error |
 | `companion-cut` | `agent`, `reason` | a companion's turn its guard cut short; the next turn opens a new session |
 | `draw` | `label`, `asked`, `result`, `number`, `seed`, `method`, `answered`, `next` | a fair draw's room line (`docs/random-draw.md`) |
+| `still-working` | | a turn of a round's draft process ran past its bound; said once in the round while the turn goes on (`docs/drafting.md`, 「Time」) |
 
 ## Kinds
 

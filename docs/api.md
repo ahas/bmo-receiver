@@ -357,24 +357,25 @@ repository's, in `VERSION`; it is never taken from a registry.
 | Route | Body | Answers |
 |---|---|---|
 | `GET /draft-processes` | | a page of `DraftProcess`, the policy's rows and the console's |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`, `ceilingSeconds`, `pastCeiling` | the `DraftProcess` as it now stands |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`, `ceilingSeconds`, `turnSeconds?`, `pastCeiling` | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
 | `GET /draft-questions` | | a page of `DraftQuestion` |
 | `PUT /draft-questions/{name}` | `text` | the `DraftQuestion` as it now stands |
 
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
   names of the questions an ordinary and a light turn are asked, in order; `sendFrom`, the question of `rounds`
-  from whose answer on a send is read, empty for the first; `lightChars`; `ceilingSeconds`;
+  from whose answer on a send is read, empty for the first; `lightChars`; `ceilingSeconds`; `turnSeconds`, how
+  long one turn runs before the room is told the agent is still at work, 120 where a set names none;
   `pastCeiling`, `send` or `skip`; and `source`, `set` where the console set the row and `default` where the
   policy's stands (`docs/drafting.md`, 「The process table」). The page holds the policy's rows in their order,
   each replaced by the console's of the same key, then the console's own keys.
 - **A `DraftQuestion`** is `name`, `text` and `source`.
 - **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
   hold, where a list that holds questions does not end in `final` or holds it before its end, where `sendFrom` is
-  not empty and names no question of `rounds`, where the ceiling is outside 1 to 3,600 seconds, the light bound
-  outside 0 to 1,000 characters or `pastCeiling` neither `send` nor `skip`, and where a question's name is not a
-  lowercase word of letters, digits and dashes of at most 40 characters or its text is empty or past 4,000
-  characters.
+  not empty and names no question of `rounds`, where the ceiling or a turn's bound is outside 1 to 3,600
+  seconds, the light bound outside 0 to 1,000 characters or `pastCeiling` neither `send` nor `skip`, and where a
+  question's name is not a lowercase word of letters, digits and dashes of at most 40 characters or its text is
+  empty or past 4,000 characters.
 
 ## Companions
 

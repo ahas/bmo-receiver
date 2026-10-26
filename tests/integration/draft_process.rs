@@ -687,3 +687,81 @@ async fn words_said_during_the_last_question_stand_in_the_closing_check_before_t
     ]
   );
 }
+
+// The last question held working while `SHORT` comes into the room, then the closing check answered as scripted.
+async fn said_during_the_last(round: &Drafting) {
+  round.hear(1, ASKED).await;
+  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
+  round.hear(2, SHORT).await;
+  until("the words waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+  round.session.let_go();
+  round.ended(3).await;
+}
+
+#[tokio::test]
+async fn the_closing_check_keeps_the_standing_message_and_adds_its_answer_after_it() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["notes", "the first message", "and the answer to the newest words"])
+    .holding_turn(2);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  said_during_the_last(&round).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "the two go out as one message: {sent:?}");
+
+  let first = sent[0].find("the first message");
+  let added = sent[0].find("and the answer to the newest words");
+
+  assert!(
+    first.is_some() && added.is_some() && first < added,
+    "the answer stands after the message: {sent:?}"
+  );
+}
+
+#[tokio::test]
+async fn a_closing_check_that_writes_the_message_again_whole_is_not_doubled() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["notes", "the first message", "the first message, and the newest words answered"])
+    .holding_turn(2);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  said_during_the_last(&round).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert_eq!(sent[0].matches("the first message").count(), 1, "{sent:?}");
+  assert!(sent[0].contains("the newest words answered"), "{sent:?}");
+}
+
+#[tokio::test]
+async fn a_turn_past_its_bound_tells_the_room_once_that_the_agent_is_still_at_work_and_goes_on() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["notes", "the message after a long while"])
+    .working_for(Duration::from_millis(1300));
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  crate::common::session::drafting_turn_bounded(
+    round.scratch.db(),
+    &["intent", "final"],
+    &["final"],
+    150,
+    1,
+  )
+  .await;
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let sent = round.sent();
+  let still: Vec<&String> = sent.iter().filter(|send| send.contains("still-working")).collect();
+
+  // Both turns ran past the bound, and the room heard the line once, before the message.
+  assert_eq!(still.len(), 1, "{sent:?}");
+  assert!(
+    sent.last().unwrap().contains("the message after a long while"),
+    "the turn went on: {sent:?}"
+  );
+  assert_eq!(sent.len(), 2, "{sent:?}");
+}

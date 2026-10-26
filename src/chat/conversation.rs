@@ -1635,7 +1635,9 @@ impl Conversations {
       super::draft::log::tell_start(self, round, chat_id, self.agent(), 1, plan.questions.len(), question);
     }
 
-    let asked = self.0.carrying.carry(&asking, &held, &follower).await;
+    let asked =
+      super::draft::bounded(&receiver, chat_id, &plan, self.0.carrying.carry(&asking, &held, &follower))
+        .await;
     let carried = follower.finish();
     let mut scope = composed.scope.clone();
     let mut recent = composed.recent.clone();

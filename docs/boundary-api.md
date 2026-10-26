@@ -229,6 +229,9 @@ or whose number is the one that service gave a delivery, is answered as held and
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:
 
+- **The web unit's language pack** holds no sentence for the fixed line `still-working` (`docs/codes.md`,
+  「Fixed lines」): until it does, the render is refused `unknown-code` and the room hears the line as its code.
+
 - **The agency's `Agent`** carries no registration field for the receiver's roster: the receiver reads `awake`,
   `kind`, `wake_words`, `window_seconds` and `default_answerer` from an agent's row, and the agency's fixed `Agent`
   states only `name`, `label`, `role`, `gates`, `reasoning`, `voice`, `resetAt` and `standInAvailable`. Until the

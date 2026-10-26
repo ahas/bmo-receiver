@@ -9,6 +9,11 @@ pub mod log;
 pub mod table;
 
 use std::collections::{BTreeSet, HashSet};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
+use receiver_codes::FixedLine;
 
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
@@ -48,7 +53,8 @@ pub fn words(errand: &str, scope: &Scope, pending: &[i64]) -> String {
 
 /// The process a round opens before its turn goes out (docs/drafting.md, 「The process table」): its questions by
 /// name with their texts, the place of the question a send is read from (from 0), the row of the table it read,
-/// its ceiling and what is done past it. A round no row matches asks nothing and has no ceiling.
+/// its ceiling and what is done past it, the bound of one turn, and whether the round's room has heard it is still
+/// at work. A round no row matches asks nothing and has neither ceiling nor bound.
 #[derive(Clone, Debug)]
 pub struct Plan {
   pub questions: Vec<(String, String)>,
@@ -56,6 +62,8 @@ pub struct Plan {
   pub row: String,
   pub ceiling_ms: Option<i64>,
   pub past_ceiling: PastCeiling,
+  pub turn_ms: Option<u64>,
+  pub told: Arc<AtomicBool>,
 }
 
 impl Default for Plan {
@@ -66,8 +74,40 @@ impl Default for Plan {
       row: String::new(),
       ceiling_ms: None,
       past_ceiling: PastCeiling::Send,
+      turn_ms: None,
+      told: Arc::default(),
     }
   }
+}
+
+/// One turn of the process carried to its end; where it runs past the plan's bound, the round's room is told once
+/// in the round, in the fixed line, that the agent is still at work, and the turn goes on (docs/drafting.md,
+/// 「Time」).
+pub async fn bounded<T>(
+  receiver: &Receiver,
+  chat_id: i64,
+  plan: &Plan,
+  turn: impl Future<Output = T>,
+) -> T {
+  let Some(bound) = plan.turn_ms.filter(|_| !plan.told.load(Ordering::SeqCst)) else {
+    return turn.await;
+  };
+  let mut turn = std::pin::pin!(turn);
+
+  tokio::select! {
+    done = &mut turn => return done,
+    _ = tokio::time::sleep(Duration::from_millis(bound)) => {}
+  }
+
+  if !plan.told.swap(true, Ordering::SeqCst) {
+    let line = receiver.speech().rendered(&FixedLine::StillWorking).await;
+
+    if let Err(why) = receiver.speech().say(chat_id, &line, true).await {
+      eprintln!("chat {chat_id}: the line that the turn is still at work was not said: {why}");
+    }
+  }
+
+  turn.await
 }
 
 impl Plan {
@@ -148,6 +188,18 @@ pub fn question_words(
 /// The line every question but the last closes on: the messages still waiting, shown with the next question.
 pub fn waiting_line(pending: &[i64]) -> String {
   fill_marks(&DRAFTING.waiting, &[("ids", &stringify(&pending).unwrap_or_default())])
+}
+
+/// The message once the closing check answered the words that arrived: the standing message kept and the answer
+/// added after it, the two one message; an answer that holds the standing message whole is the message as written.
+pub fn appended(standing: &str, answer: &str) -> String {
+  let (standing, answer) = (standing.trim(), answer.trim());
+
+  if standing.is_empty() || answer.contains(standing) {
+    return answer.to_owned();
+  }
+
+  format!("{standing}\n\n{answer}")
 }
 
 /// An answer that says something: not empty, not a skip and not a wait.
@@ -267,7 +319,9 @@ impl Run<'_> {
       last_consumed_id: self.held.last_consumed_id,
     };
     let follower = Follower::new(self.conversations, chat);
-    let carried = Carry::new(self.drafter.receiver.clone()).carry(&asking, &held, &follower).await;
+    let receiver = &self.drafter.receiver;
+    let carrying = Carry::new(receiver.clone());
+    let carried = bounded(receiver, chat, drafted.plan, carrying.carry(&asking, &held, &follower)).await;
 
     self.only_marks = false;
 
@@ -480,6 +534,8 @@ impl Drafter {
       row: format!("{}/{}/{}", process.provider, process.tier, process.agent),
       ceiling_ms: Some(i64::from(process.ceiling_seconds) * 1000),
       past_ceiling: process.past_ceiling,
+      turn_ms: Some(u64::from(process.turn_seconds) * 1000),
+      told: Arc::default(),
     }
   }
 
@@ -637,10 +693,12 @@ impl Drafter {
           if read == Answered::Skip {
             message = None;
             skipped = true;
-          } else if is_wait(&answer.text) {
+          } else if is_wait(&answer.text) || run.only_marks || answer.text.trim().is_empty() {
             message = Some(standing.clone());
           } else {
-            message = Some(answer);
+            let text = appended(&standing.text, &answer.text);
+
+            message = Some(Reply { text, ..answer });
           }
         }
         Ok(None) => conversations.give_back_words(chat, took),

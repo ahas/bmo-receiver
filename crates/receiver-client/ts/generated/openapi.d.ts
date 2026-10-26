@@ -1187,6 +1187,11 @@ export interface components {
             source: string;
             /** @description A tier, or `*` for any. */
             tier: string;
+            /**
+             * Format: uint32
+             * @description How long one turn of the process runs before the room is told the agent is still at work, in seconds.
+             */
+            turnSeconds: number;
         };
         /** @description A row of the draft process table set by the console. */
         DraftProcessSet: {
@@ -1203,6 +1208,12 @@ export interface components {
              * @default
              */
             sendFrom: string;
+            /**
+             * Format: uint32
+             * @description How long one turn of the process runs before the room is told the agent is still at work, in seconds; the
+             *     policy's where left out.
+             */
+            turnSeconds?: number | null;
         };
         /** @description A question of the draft process's catalogue. */
         DraftQuestion: {

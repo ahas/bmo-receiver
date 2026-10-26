@@ -582,6 +582,12 @@
           "tier": {
             "description": "A tier, or `*` for any.",
             "type": "string"
+          },
+          "turnSeconds": {
+            "description": "How long one turn of the process runs before the room is told the agent is still at work, in seconds.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
@@ -593,6 +599,7 @@
           "light",
           "lightChars",
           "ceilingSeconds",
+          "turnSeconds",
           "pastCeiling",
           "source"
         ],
@@ -631,6 +638,15 @@
             "default": "",
             "description": "The question of `rounds` from whose answer on a send is read; empty, and left out, for the first.",
             "type": "string"
+          },
+          "turnSeconds": {
+            "description": "How long one turn of the process runs before the room is told the agent is still at work, in seconds; the\npolicy's where left out.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -2558,7 +2574,7 @@
   "info": {
     "description": "The chat receiver: the rooms and their messages, the rules, rights and windows of each room, the envelope a turn goes out in, and the waking of the agents a room's words, a quiet instruction or a job's end calls for. Every route answers in the common wire format: camelCase keys, times as integers of epoch milliseconds, rooms, messages and people as signed 64-bit integers, lists as pages of items and more, and every failure as a non-2xx answer carrying code and error. The routes a chat provider hands messages over on stand under /chat, as bmo-chat's protocol states them.",
     "title": "bmo-receiver",
-    "version": "0.33.1"
+    "version": "0.34.0"
   },
   "openapi": "3.1.0",
   "paths": {

@@ -70,6 +70,8 @@ pub struct Process {
   pub light_chars: u32,
   pub ceiling_seconds: u32,
   pub past_ceiling: PastCeiling,
+  /// How long one turn runs before the room is told the agent is still at work, in seconds.
+  pub turn_seconds: u32,
   pub set: bool,
 }
 
@@ -85,6 +87,7 @@ impl Process {
       light_chars: row.light_chars,
       ceiling_seconds: row.ceiling_seconds,
       past_ceiling: PastCeiling::of(&row.past_ceiling).unwrap_or(PastCeiling::Send),
+      turn_seconds: row.turn_seconds.unwrap_or(DRAFTING.turn_seconds),
       set: false,
     }
   }
@@ -117,6 +120,7 @@ impl Process {
       "lightChars": self.light_chars,
       "ceilingSeconds": self.ceiling_seconds,
       "pastCeiling": self.past_ceiling.word(),
+      "turnSeconds": self.turn_seconds,
       "source": if self.set { "set" } else { "default" },
     })
   }
@@ -155,6 +159,7 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
     light_chars: u32::try_from(number("light_chars")?).unwrap_or(0),
     ceiling_seconds: u32::try_from(number("ceiling_seconds")?).unwrap_or(0),
     past_ceiling: PastCeiling::of(&text("past_ceiling")?).unwrap_or(PastCeiling::Send),
+    turn_seconds: u32::try_from(number("turn_seconds")?).unwrap_or(DRAFTING.turn_seconds),
     set: true,
   })
 }
@@ -165,7 +170,7 @@ pub async fn rows<C: ConnectionTrait>(db: &C) -> Result<Vec<Process>, Fault> {
   let read = all(
     db,
     r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "light", "light_chars", "ceiling_seconds",
-            "past_ceiling"
+            "past_ceiling", "turn_seconds"
          FROM "draft_processes" ORDER BY "provider", "tier", "agent""#,
     vec![],
   )
@@ -264,6 +269,10 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
     return Some(format!("ceilingSeconds must be from 1 to {LONGEST_CEILING}."));
   }
 
+  if process.turn_seconds == 0 || process.turn_seconds > LONGEST_CEILING {
+    return Some(format!("turnSeconds must be from 1 to {LONGEST_CEILING}."));
+  }
+
   if process.light_chars > LARGEST_LIGHT {
     return Some(format!("lightChars must be from 0 to {LARGEST_LIGHT}."));
   }
@@ -298,12 +307,13 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
     db,
     r#"INSERT INTO "draft_processes"
          ("provider", "tier", "agent", "rounds", "send_from", "light", "light_chars", "ceiling_seconds",
-          "past_ceiling", "set_at")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          "past_ceiling", "turn_seconds", "set_at")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT ("provider", "tier", "agent") DO UPDATE SET
          "rounds" = EXCLUDED."rounds", "send_from" = EXCLUDED."send_from", "light" = EXCLUDED."light",
          "light_chars" = EXCLUDED."light_chars", "ceiling_seconds" = EXCLUDED."ceiling_seconds",
-         "past_ceiling" = EXCLUDED."past_ceiling", "set_at" = EXCLUDED."set_at""#,
+         "past_ceiling" = EXCLUDED."past_ceiling", "turn_seconds" = EXCLUDED."turn_seconds",
+         "set_at" = EXCLUDED."set_at""#,
     vec![
       process.provider.clone().into(),
       process.tier.clone().into(),
@@ -314,6 +324,7 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
       i64::from(process.light_chars).into(),
       i64::from(process.ceiling_seconds).into(),
       process.past_ceiling.word().into(),
+      i64::from(process.turn_seconds).into(),
       now_ms().into(),
     ],
   )

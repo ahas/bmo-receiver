@@ -19,6 +19,9 @@ pub struct Process {
   pub light_chars: u32,
   pub ceiling_seconds: u32,
   pub past_ceiling: String,
+  /// How long one turn runs before the room is told the agent is still at work, where the row names it.
+  #[serde(default)]
+  pub turn_seconds: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -26,6 +29,8 @@ pub struct Process {
 pub struct Drafting {
   /// The longest final text the length check lets go, in characters.
   pub max_chars: usize,
+  /// How long one turn runs before the room is told the agent is still at work, for a row that names none.
+  pub turn_seconds: u32,
   /// The opening of the first question, which rides the round's own turn where it is not also the last.
   pub opening: String,
   pub lead: String,

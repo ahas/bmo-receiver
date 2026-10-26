@@ -10,6 +10,8 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, rounds_of, store};
+use receiver_policy::drafting::DRAFTING;
+
 use crate::chat::draft::log;
 use crate::chat::draft::table::{self, PastCeiling, Process};
 
@@ -22,6 +24,8 @@ pub struct ProcessSet {
   light: Vec<String>,
   light_chars: u32,
   ceiling_seconds: u32,
+  #[serde(default)]
+  turn_seconds: Option<u32>,
   past_ceiling: String,
 }
 
@@ -71,6 +75,7 @@ pub async fn set_process(
     light_chars: asked.light_chars,
     ceiling_seconds: asked.ceiling_seconds,
     past_ceiling,
+    turn_seconds: asked.turn_seconds.unwrap_or(DRAFTING.turn_seconds),
     set: true,
   };
   let catalogue = table::questions(db).await.map_err(store)?;

@@ -261,7 +261,7 @@ pub async fn drafting_past(
   ceiling_seconds: u32,
   past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
 ) {
-  drafting_row(db, rounds, "", light, ceiling_seconds, past_ceiling).await;
+  drafting_row(db, rounds, "", light, ceiling_seconds, past_ceiling, 120).await;
 }
 
 /// The draft process every turn reads, reading a send from the question named on.
@@ -279,6 +279,27 @@ pub async fn drafting_sending(
     light,
     ceiling_seconds,
     bmo_receiver::chat::draft::table::PastCeiling::Send,
+    120,
+  )
+  .await;
+}
+
+/// The draft process every turn reads, one turn of it bounded to `turn_seconds`.
+pub async fn drafting_turn_bounded(
+  db: &sea_orm::DatabaseConnection,
+  rounds: &[&str],
+  light: &[&str],
+  ceiling_seconds: u32,
+  turn_seconds: u32,
+) {
+  drafting_row(
+    db,
+    rounds,
+    "",
+    light,
+    ceiling_seconds,
+    bmo_receiver::chat::draft::table::PastCeiling::Send,
+    turn_seconds,
   )
   .await;
 }
@@ -290,6 +311,7 @@ async fn drafting_row(
   light: &[&str],
   ceiling_seconds: u32,
   past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
+  turn_seconds: u32,
 ) {
   use bmo_receiver::chat::draft::table::{ANY, Process, set};
 
@@ -307,6 +329,7 @@ async fn drafting_row(
       light_chars: 12,
       ceiling_seconds,
       past_ceiling,
+      turn_seconds,
       set: true,
     },
   )

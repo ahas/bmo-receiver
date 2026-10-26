@@ -92,6 +92,8 @@ leaves.
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
   - `ceilingSeconds`, the time the whole process may take (「Time」 below);
+  - `turnSeconds`, the time one turn of it may run before the room is told the agent is still at work
+    (「Time」 below);
   - `pastCeiling`, `send` or `skip`: what becomes of the turn once the ceiling has passed.
 - **A send is read from the row's `sendFrom` question on.** Before it, an answer opening on `<<SEND>>` is notes
   and the process goes on, so the questions that establish the facts are asked before anything is written; each
@@ -99,8 +101,8 @@ leaves.
   whatever the row names.
 - **The policy's rows are the defaults** (`drafting.toml`): any provider, `information`, `facts` and `final`, the
   small models' process; Claude's provider, `information`, `facts`, `memory`, `promises` and `final`; both read a
-  send from `facts` on; every light turn `final` alone; 150 seconds, past which `final` is asked at once; 12
-  characters for a light turn.
+  send from `facts` on; every light turn `final` alone; 150 seconds, past which `final` is asked at once; 120
+  seconds a turn; 12 characters for a light turn.
 - **The console's rows stand over them** (「The routes」 below): a row set for a key the policy also holds takes its
   place, and a row set for a key of its own adds one, which is how an agent is given a process of its own.
 - **A round reads its row before its turn goes out,** since the turn carries the first question: the provider and
@@ -133,9 +135,11 @@ leaves.
   are all the owner's; the others wait for the next round.
 - **Once the message stands, one closing check.** Where words waited when the message came to stand — the answer
   to `final`, or one a send marker opened — the session is asked once more before the items and the checks: the
-  policy's `arrived` line, then the block. Its answer, marks taken out, is the message; an answer that is nothing
-  but marks leaves the message as it stood, a wait leaves it too, and a skip sends nothing. The check is not asked
-  past the ceiling, nor where the process came to nothing to send: those words wait for the next round.
+  policy's `arrived` line, then the block. The message as it stands is kept: the answer, marks taken out, answers
+  the words that arrived and is added after it, the two going out as one message. An answer that holds the
+  standing message whole is taken as the message as written; an answer that is nothing but marks leaves the
+  message as it stood, a wait leaves it too, and a skip sends nothing. The check is not asked past the ceiling,
+  nor where the process came to nothing to send: those words wait for the next round.
 - **The agent decides each message it was shown, by mark:**
   - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, the
     owner's words among it are owed an answer, and the answer is pinned to the newest of them;
@@ -157,6 +161,10 @@ leaves.
 - **The process runs inside the room's window,** so a row names a ceiling for the whole of it, counted from the
   moment the round's own turn, which carries the first question, went out. No later question starts past it; a
   question under way is let finish.
+- **A turn past its bound is let finish.** Where one turn of the process, the round's own turn that carries the
+  first question among them, is still running once the row's `turnSeconds` have passed since it went out, the
+  round's room hears the fixed line `still-working` (`docs/voiced-notices.md`, 「Lines that stay fixed」), and the
+  turn goes on to its end. The line is said once in a round: a later turn past its bound says nothing more.
 - **Before `final` has run, no message stands:** an answer before the last is notes.
 - **Past the ceiling, `send` asks `final` at once:** one last question, the notes already in the session, its
   answer the message. `skip` sends nothing. A process that already has its message, from `final` or from a send
@@ -241,8 +249,9 @@ where it says something: neither empty nor a skip nor a wait.
 - **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a row, `*` standing for any in each place, and
   answers it as it now stands. A list naming a question the catalogue does not hold, a list that holds questions
   and does not end in `final` or holds it before the end, a `sendFrom` that is not empty and names no question
-  of `rounds`, a ceiling outside 1 to 3,600 seconds, a light bound outside 0 to 1,000 characters or a
-  `pastCeiling` other than `send` and `skip` is refused `bad-request`, and nothing is written.
+  of `rounds`, a ceiling or a turn's bound outside 1 to 3,600 seconds, a light bound outside 0 to 1,000
+  characters or a `pastCeiling` other than `send` and `skip` is refused `bad-request`, and nothing is written. A
+  set that names no `turnSeconds` takes the policy's 120.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes the console's row away; the policy's row of the
   key stands again where it holds one. A key the console set no row for is `not-found`.
 - **`GET /draft-questions`** answers the catalogue, each question with its `source`; **`PUT

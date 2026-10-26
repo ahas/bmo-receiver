@@ -49,6 +49,7 @@ fn row(provider: &str, tier: &str, agent: &str, rounds: &[&str]) -> Process {
     light_chars: 12,
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
+    turn_seconds: 120,
     set: false,
   }
 }
@@ -217,6 +218,13 @@ fn a_set_names_known_questions_ending_in_the_last_and_bounds_its_numbers() {
 
   long.ceiling_seconds = 0;
   assert!(refusal(&long, &catalogue).is_some());
+
+  let mut unbounded = row(ANY, ANY, ANY, &["final"]);
+
+  unbounded.turn_seconds = 0;
+  assert!(refusal(&unbounded, &catalogue).is_some(), "a turn's bound is from 1 to 3,600 seconds");
+  unbounded.turn_seconds = 3601;
+  assert!(refusal(&unbounded, &catalogue).is_some());
   assert_eq!(question_refusal("tone-2", "a text"), None);
   assert!(question_refusal("Tone", "a text").is_some());
   assert!(question_refusal("tone", " ").is_some());
