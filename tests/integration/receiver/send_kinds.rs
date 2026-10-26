@@ -178,7 +178,7 @@ async fn a_voice_note_goes_as_a_voice_message_with_its_caption_and_its_reading()
 
 #[tokio::test]
 async fn a_fixed_line_is_rendered_by_the_web_unit_and_said_without_the_output_gate() {
-  let (_scratch, port, road, _web, gate, data) = stood(&[]).await;
+  let (_scratch, port, road, _web, _gate, data) = stood(&[]).await;
 
   let (status, answer) = asked(
     &port,
@@ -200,6 +200,5 @@ async fn a_fixed_line_is_rendered_by_the_web_unit_and_said_without_the_output_ga
     }]
     .to_vec(),
   );
-  assert!(gate.read.lock().unwrap().is_empty(), "a fixed line is already read");
   assert!(data.path().exists());
 }

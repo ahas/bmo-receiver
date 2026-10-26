@@ -63,10 +63,10 @@ it, reporting the file, the line and the kind but never the value.
 
 ## Version
 
-- **One version for the whole repository,** the workspace's, in semver. `VERSION` holds it and the
-  workspace's version equals it.
-- **A major change is a change to a contract a consumer reads;** an addition no existing consumer reads is
-  a minor change, anything else a patch.
+- **One version for the whole repository,** the workspace's. `VERSION` holds it and the workspace's version
+  equals it.
+- **It moves only at a release the owner declares,** as bmo-chat's `docs/conventions.md` 「Versions」 states; a
+  commit, a deploy, a fix or a contract change moves none, and a deployment is told apart by its commit.
 
 ## Build and test
 

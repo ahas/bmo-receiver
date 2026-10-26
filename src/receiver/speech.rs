@@ -1,7 +1,7 @@
 //! The lines the receiver says itself in a room (docs/receiver.md, 「Where it stands」): a shut room's, and any line
 //! said straight to the owner. Each goes where a line nobody asked for goes in its room — the room's record where a
-//! road reaching the room shows it, the room's own road elsewhere — its words read by the sanitiser first unless
-//! they come already read, and handed to the room's chat service as they stand, for its dialect to carry. Nothing
+//! road reaching the room shows it, the room's own road elsewhere — its words handed to the room's chat service as
+//! they stand, for its dialect to carry. Nothing
 //! is said in a read-only room (docs/receiver.md, 「A read-only room」).
 
 use std::sync::Arc;
@@ -10,8 +10,6 @@ use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFail
 use receiver_codes::FixedLine;
 use receiver_policy::fill_marks;
 use receiver_policy::fixed_lines::FIXED_LINES;
-use receiver_ports::PortFailure;
-use receiver_ports::gate::Sanitise;
 use receiver_ports::web::Render;
 use sea_orm::DatabaseConnection;
 use serde_json::{Map, Value};
@@ -30,8 +28,6 @@ pub enum NotSaid {
   ReadOnly { chat_id: i64 },
   #[error("the {road} road is not among the configured chat services")]
   Unlisted { road: String },
-  #[error("the sanitiser did not read the words: {0}")]
-  Sanitiser(PortFailure),
   #[error("the {road} road did not carry the line: {why}")]
   Chat { road: String, why: ClientFailure },
   #[error("the {road} road refused the line: {refusal}")]
@@ -50,9 +46,6 @@ pub struct Speech {
   news: Arc<dyn News>,
 }
 
-// What the sanitiser is told a line the receiver says itself is.
-const LABEL: &str = "a line the chat service is about to say in a chat room on its own account";
-
 impl Speech {
   pub fn new(
     db: DatabaseConnection,
@@ -68,26 +61,23 @@ impl Speech {
     }
   }
 
-  /// A line in a room, where a line nobody asked for goes there: its words as they stand where they come already
-  /// read — a fixed line's — and read by the sanitiser otherwise. The number of its first message, where its road
+  /// A line in a room, where a line nobody asked for goes there: the number of its first message, where its road
   /// gives one.
-  pub async fn say(&self, chat_id: i64, text: &str, cleaned: bool) -> Result<Option<i64>, NotSaid> {
+  pub async fn say(&self, chat_id: i64, text: &str) -> Result<Option<i64>, NotSaid> {
     if providers::read_only(&self.db, &self.units.roads, chat_id).await? {
       return Err(NotSaid::ReadOnly { chat_id });
     }
 
     let road = self.units.roads.unasked(chat_id).await.ok_or(NotSaid::NoRoad { chat_id })?;
-    let text = if cleaned { text.to_owned() } else { self.sanitised(chat_id, text).await? };
-
     match road {
-      Road::Record => self.kept(chat_id, &text, None, None, None).await.map(Some),
-      Road::Service(key) => self.sent(&key, chat_id, &text).await,
+      Road::Record => self.kept(chat_id, text, None, None, None).await.map(Some),
+      Road::Service(key) => self.sent(&key, chat_id, text).await,
     }
   }
 
   /// A line said straight to the owner, in the owner's own chat where a line nobody asked for goes there.
   pub async fn say_to_owner(&self, text: &str) -> Result<Option<i64>, NotSaid> {
-    self.say(self.deployment.owner_id, text, false).await
+    self.say(self.deployment.owner_id, text).await
   }
 
   /// A room just shut told so, in the one fixed line; nothing where no sentence can be made of it.
@@ -96,7 +86,7 @@ impl Speech {
       return Ok(None);
     };
 
-    self.say(chat_id, &line, true).await
+    self.say(chat_id, &line).await
   }
 
   /// A fixed line's words in the rooms' language, as the web unit's language packs render it, or the policy's plain
@@ -134,17 +124,6 @@ impl Speech {
         plain(&self.deployment.language, code, &fields)
       }
     }
-  }
-
-  async fn sanitised(&self, chat_id: i64, text: &str) -> Result<String, NotSaid> {
-    let asked = Sanitise {
-      text: text.to_owned(),
-      label: LABEL.to_owned(),
-      room_id: Some(chat_id),
-      message_id: None,
-    };
-
-    Ok(self.units.gate.sanitise(&asked).await.map_err(NotSaid::Sanitiser)?.text)
   }
 
   /// The line kept in the room's record as the chat agent's own: under the number the room's road gave the agent

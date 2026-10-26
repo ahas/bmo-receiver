@@ -23,7 +23,7 @@ use receiver_ports::agency::{
   RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
-use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement, Sanitise, Sanitised};
+use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
@@ -460,15 +460,13 @@ impl Chat for StandInChat {
 /// One index asked of the gate: the room, and the session and agent it was asked for.
 pub type IndexAsked = (i64, Option<String>, Option<String>);
 
-/// The gate: the sanitiser marks what it read, every attach of a round's judgements asked is kept, each the room,
-/// the message and the round's start, and every copy of gate options asked is kept, each the agent it is for and
+/// The gate: every attach of a round's judgements asked is kept, each the room, the message and the round's start, and every copy of gate options asked is kept, each the agent it is for and
 /// the agent copied from.
 #[derive(Default)]
 pub struct StandInGate {
   /// The entries the reference selection answers, and how many times it was asked.
   pub entries: Mutex<Vec<Entry>>,
   pub referred: Mutex<usize>,
-  pub read: Mutex<Vec<String>>,
   pub attached: Mutex<Vec<(i64, i64, i64)>>,
   pub copied: Mutex<Vec<(String, String)>>,
   /// The index the gate serves, by room, and the session and agent each was asked for; none served where empty.
@@ -506,17 +504,6 @@ impl Gate for StandInGate {
     let entries = self.entries.lock().unwrap().clone();
 
     Box::pin(async move { Ok(entries) })
-  }
-
-  fn sanitise<'a>(&'a self, asked: &'a Sanitise) -> BoxFuture<'a, Answer<Sanitised>> {
-    self.read.lock().unwrap().push(asked.text.clone());
-
-    Box::pin(async move {
-      Ok(Sanitised {
-        text: format!("{} (read)", asked.text),
-        changed: true,
-      })
-    })
   }
 
   fn judge<'a>(&'a self, _judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {

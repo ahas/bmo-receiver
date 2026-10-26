@@ -1,8 +1,8 @@
-//! The gate port: a turn's envelope handed over for its reference, words through the sanitiser on their way in
-//! and out, a room's judgements written and an added agent's gate options copied (`docs/boundary-api.md`, 「The
-//! gate」). The bodies are the gate's published shapes (`docs/api.md`): camelCase keys, epoch milliseconds, and the
-//! gate's own names — `roomId`, `messageId`, `speakerIds`, `peopleSpoke`, `offGates`, `gateName`, `agentName` and
-//! `fromAgentName`, with the situation road carrying `agentName`, `roomKind`, its events and `nowAt`.
+//! The gate port: a turn's envelope handed over for its reference, the brain's index read, a room's judgements
+//! written and an added agent's gate options copied (`docs/boundary-api.md`, 「The gate」). The bodies are the gate's
+//! published shapes (`docs/api.md`): camelCase keys, epoch milliseconds, and the gate's own names — `roomId`,
+//! `messageId`, `speakerIds`, `peopleSpoke`, `gateName`, `agentName` and `fromAgentName`, with the situation road
+//! carrying `agentName`, `roomKind`, its events and `nowAt`.
 
 use futures_util::future::BoxFuture;
 use reqwest::Method;
@@ -61,8 +61,6 @@ pub struct Envelope {
   /// What the turn answered already, where it is asked again.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub answered: Option<String>,
-  /// The gates switched off for the agent.
-  pub off_gates: Vec<String>,
   /// Whether the turn's road records its gates.
   pub records: bool,
 }
@@ -93,29 +91,6 @@ pub struct Entry {
   pub fragment: Option<i64>,
 }
 
-/// Words asked of the sanitiser.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Sanitise {
-  pub text: String,
-  /// What the words are, for the sanitiser's instructions.
-  pub label: String,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub room_id: Option<i64>,
-  /// The message a verdict on the words is kept under.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub message_id: Option<i64>,
-}
-
-/// What the sanitiser answered: the words as they are to be handed on, and whether anything was defused. A run
-/// somebody stopped is answered 409 with the code `stopped`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Sanitised {
-  pub text: String,
-  pub changed: bool,
-}
-
 /// A decision written into a room's log: a round's skip, a re-ask, an answer sent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -137,8 +112,6 @@ pub struct Judgement {
 pub trait Gate: Send + Sync {
   /// The pieces the turn's envelope calls for, in the order chosen.
   fn reference<'a>(&'a self, envelope: &'a Envelope) -> BoxFuture<'a, Answer<Vec<Entry>>>;
-
-  fn sanitise<'a>(&'a self, asked: &'a Sanitise) -> BoxFuture<'a, Answer<Sanitised>>;
 
   fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>>;
 
@@ -238,10 +211,6 @@ impl Gate for HttpGate {
 
       Ok(Some(index.groups))
     })
-  }
-
-  fn sanitise<'a>(&'a self, asked: &'a Sanitise) -> BoxFuture<'a, Answer<Sanitised>> {
-    Box::pin(self.caller.post(&["sanitised"], asked))
   }
 
   fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {

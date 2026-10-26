@@ -19,7 +19,7 @@ use tower::ServiceExt;
 use crate::common::Scratch;
 use crate::common::units::{ADDRESS, AGENT, SENDER, registration, standing};
 use bmo_receiver::chat::conversation::{BoxFuture, Talking};
-use bmo_receiver::chat::talk::{HeadPart, TalkFailure, TalkRequest};
+use bmo_receiver::chat::talk::{TalkFailure, TalkRequest};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
 
@@ -100,14 +100,7 @@ async fn asked(port: Router, path: &str, token: &str, body: &Value) -> (StatusCo
 }
 
 fn head(request: &TalkRequest) -> Vec<String> {
-  request
-    .head
-    .iter()
-    .map(|part| match part {
-      HeadPart::Line(line) => line.clone(),
-      HeadPart::Cleaned { line, text } => line.replace("{text}", text),
-    })
-    .collect()
+  request.head.clone()
 }
 
 #[tokio::test]

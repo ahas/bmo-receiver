@@ -17,7 +17,6 @@ says_now = "{owner} says now:"
 
 # The talk about one item, from the item talk panel: its head, by the item's {id}, {title} and {state}.
 [item]
-words = "the owner's words in the console's talk about an item"
 head = [
   "CONSOLE ITEM TALK — item #{id}: {title} ({state})",
   "{owner} is talking with you about this one item from the item talk panel of the web console, where it stands open beside the queue. This turn belongs to no chat room: your answer is shown in that panel alone, nobody in any room sees it, and nothing is sent to any chat. {owner} is the owner and this run is privileged, with your tools.",
@@ -45,7 +44,6 @@ waiting = "waiting for approval"
 # {writer}, the {file} on this machine and its {version}; then the passage the owner selected, under its {heading}
 # where it has one and marked where it was selected in the translation.
 [document]
-words = "the owner's words in the console's talk about a document"
 passage_clip = 2000
 head = [
   "CONSOLE DOCUMENT TALK — {document} ({label}, written by {writer})",

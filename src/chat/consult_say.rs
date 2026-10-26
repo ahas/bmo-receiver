@@ -1,5 +1,5 @@
 //! One line in the consult room under an agent's own name (docs/consult.md, 「The consult tool」): on the room's
-//! own road — the agent's words through the outgoing sanitiser under its own switch — filed under the agent's
+//! own road — the agent's words in the words' form — filed under the agent's
 //! number, opening the agent's own window where its row keeps one, and handed to the receiver like any word filed
 //! in the room, so the agent it calls is woken by the receiver's one rule.
 
@@ -9,7 +9,6 @@ use receiver_policy::consult::CONSULT;
 use receiver_policy::fill_marks;
 
 use super::consult::{label_of, window_line, window_states};
-use crate::chat::window::gate_on;
 use crate::form::outgoing;
 use crate::now_ms;
 use crate::receiver::wake::agents::{open_window, room_designated, watch_window};
@@ -66,16 +65,7 @@ pub async fn say(
     }));
   };
   let chat = designated.answers_unnamed();
-  let words = if chat {
-    text.to_owned()
-  } else {
-    let label = fill_marks(&CONSULT.sanitised, &[("name", &name)]);
-    let cleaned = gate_on(&receiver, agent, "sanitizer").await;
-
-    outgoing(&*receiver.units().gate, chat_id, text, &label, cleaned)
-      .await
-      .map_err(NotReceived::Unit)?
-  };
+  let words = if chat { text.to_owned() } else { outgoing(text) };
   let road = receiver.roads().answering(chat_id, None).await;
   let via = match &road {
     Some(Road::Service(key)) => key.clone(),

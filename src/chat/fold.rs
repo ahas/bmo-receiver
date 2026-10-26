@@ -188,7 +188,7 @@ pub async fn compact(
     && heard
     && let Some(said) = words(receiver, conversations, agent, chat_id, folding.room, &folding.recent).await
   {
-    let _ = receiver.speech().say(chat_id, &said, true).await;
+    let _ = receiver.speech().say(chat_id, &said).await;
   }
 
   let held_session = session.unwrap_or_default();
@@ -230,7 +230,7 @@ pub async fn compact(
 
       if standing.as_deref() != Some(reason.as_str()) {
         if heard && let Some(line) = receiver.speech().rendered(&FixedLine::CompactFailed).await {
-          let _ = receiver.speech().say(chat_id, &line, true).await;
+          let _ = receiver.speech().say(chat_id, &line).await;
         }
 
         if !receiver.roads().is_owner_room(chat_id).await {

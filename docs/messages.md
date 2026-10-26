@@ -59,7 +59,7 @@ agent has read) and what an agent can send back and when a room sees it typing.
   not as they are written, and until the code's own checks are done the round may still end in silence, whether
   the run said `<<SKIP>>` or `<<WAIT>>`.
 - **So every round shows typing from the moment an answer is let through,** one that read new messages and one
-  that carries only a quiet instruction alike, through the sanitiser and the send, and a round that ends without
+  that carries only a quiet instruction alike, through the send, and a round that ends without
   sending anything never shows it at all.
 - **Nothing shows it** during a rest in a room no stand-in is carrying, before the provider has answered again
   after an outage, or while that room's compaction is in progress, and a turn of a console talk never moves a

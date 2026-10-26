@@ -1,8 +1,8 @@
-//! The gate port against a stand-in of the gate's published routes (`docs/api.md`, 「Reference」, 「Sanitiser」,
-//! 「Judgements」 and 「Gates」).
+//! The gate port against a stand-in of the gate's published routes (`docs/api.md`, 「Reference」, 「Judgements」
+//! and 「Gates」).
 
 use receiver_ports::gate::{
-  Entry, Envelope, Gate, HttpGate, Judgement, RoomKind, Sanitise, Sanitised, Situation, Source, TurnEvent,
+  Entry, Envelope, Gate, HttpGate, Judgement, RoomKind, Situation, Source, TurnEvent,
 };
 use serde_json::json;
 
@@ -18,7 +18,6 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
     200,
     json!({ "entries": [{ "path": "docs/a.md", "text": "a", "source": "document" }] }),
   );
-  unit.answer("POST /sanitised", 200, json!({ "text": "clean", "changed": true }));
   unit.answer("POST /judgements", 201, json!({ "id": 1 }));
   unit.answer_empty("POST /judgements/attached", 204);
   unit.answer_empty("POST /options/copied", 204);
@@ -41,7 +40,6 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
     round: Some("r-1".to_owned()),
     people_spoke: true,
     answered: None,
-    off_gates: vec![],
     records: true,
   };
 
@@ -53,21 +51,6 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
       source: Source::Document,
       fragment: None,
     }]
-  );
-
-  let asked = Sanitise {
-    text: "words".to_owned(),
-    label: "a message".to_owned(),
-    room_id: Some(-7),
-    message_id: Some(11),
-  };
-
-  assert_eq!(
-    gate.sanitise(&asked).await.unwrap(),
-    Sanitised {
-      text: "clean".to_owned(),
-      changed: true,
-    }
   );
 
   let judgement = Judgement {
@@ -103,14 +86,8 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
           },
           "round": "r-1",
           "peopleSpoke": true,
-          "offGates": [],
           "records": true,
         }))
-      ),
-      call(
-        "POST /sanitised",
-        "",
-        Some(json!({ "text": "words", "label": "a message", "roomId": -7, "messageId": 11 }))
       ),
       call(
         "POST /judgements",
@@ -130,21 +107,4 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
     ]
   );
   assert!(unit.calls().iter().all(|call| call.authorization.as_deref() == Some("Bearer t")));
-}
-
-#[tokio::test]
-async fn a_stopped_sanitiser_run_comes_back_with_its_code() {
-  let unit = StandIn::start().await;
-
-  unit.answer("POST /sanitised", 409, json!({ "code": "stopped", "error": "The run was stopped." }));
-
-  let asked = Sanitise {
-    text: "words".to_owned(),
-    label: "a message".to_owned(),
-    room_id: None,
-    message_id: None,
-  };
-  let failure = HttpGate::new(&unit.peer("t")).sanitise(&asked).await.unwrap_err();
-
-  assert_eq!(failure.code(), Some("stopped"));
 }

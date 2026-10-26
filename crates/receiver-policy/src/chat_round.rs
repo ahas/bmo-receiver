@@ -66,16 +66,6 @@ pub struct Reads {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Labels {
-  pub message: String,
-  pub quoted: String,
-  pub instructions: String,
-  pub reference: String,
-  pub summary: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Shape {
   pub unknown: String,
   pub owner_tag: String,
@@ -254,7 +244,6 @@ pub struct ChatRound {
   pub voice: Voice,
   pub blocks: Blocks,
   pub reads: Reads,
-  pub labels: Labels,
   pub shape: Shape,
   pub closing: Closing,
   pub thread: Thread,

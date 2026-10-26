@@ -77,14 +77,6 @@ one = "#{first}"
 span = "#{first}–#{last}"
 quoted = "chat {chat} · quoted {ids}"
 
-# What the sanitiser is told each text is.
-[labels]
-message = "a message from {name} in a chat room"
-quoted = "a message from {name} in a chat room, quoted by a reply"
-instructions = "a quiet instruction carrying work handed back to the session"
-reference = "a reference document ({path})"
-summary = "a note summarising a room's recent conversation"
-
 # One message's line in the room shape, and the notes it carries.
 [shape]
 unknown = "unknown"

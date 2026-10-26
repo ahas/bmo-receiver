@@ -2,8 +2,7 @@
 //! item talk panel, a document in the document viewer (docs/boundary-api.md, 「For bmo-job」, `POST /talks`). The
 //! chat agent itself answers: the one session every room shares takes the turn as a round of the owner's private
 //! chat, in the same line as every room's rounds, and its answer is handed back to the console alone. What a turn
-//! is about is its subject's: the head it opens on and what the owner's words are called as they are cleaned. The
-//! session keeps its own memory of the talk, but it is folded and replaced over time, so a turn restates the last
+//! is about is its subject's: the head it opens on. The session keeps its own memory of the talk, but it is folded and replaced over time, so a turn restates the last
 //! few turns.
 
 use receiver_policy::fill_marks;
@@ -11,7 +10,7 @@ use receiver_policy::talk::TALK;
 
 use super::ask::Carry;
 use super::conversation::{Asking, BoxFuture, Conversations, Failure, Follower, Talking};
-use super::window::{Material, clean, composed, select};
+use super::window::{Material, composed, select};
 
 use crate::chat::consult::label_of;
 use crate::now_ms;
@@ -24,21 +23,10 @@ pub struct SaidTurn {
   pub text: String,
 }
 
-/// A part of a turn's head and whether it is the owner's own text, which is cleaned before it goes in.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum HeadPart {
-  /// A line of the head as the subject writes it.
-  Line(String),
-  /// Text the owner did not write the head around, cleaned and placed in the line by `{text}`.
-  Cleaned { line: String, text: String },
-}
-
-/// One turn asked: what the owner's words are called as they are cleaned, the head the subject opens on, the
-/// turns before this one and what he says now.
+/// One turn asked: the head the subject opens on, the turns before this one and what he says now.
 #[derive(Clone, Debug)]
 pub struct TalkRequest {
-  pub words: String,
-  pub head: Vec<HeadPart>,
+  pub head: Vec<String>,
   pub turns: Vec<SaidTurn>,
   pub said: String,
 }
@@ -204,8 +192,7 @@ pub fn item_request(item: &ItemTopic, turns: Vec<SaidTurn>, said: String) -> Tal
   let marks = [("id", id.as_str()), ("title", item.title.as_str()), ("state", state.as_str())];
 
   TalkRequest {
-    words: TALK.item.words.clone(),
-    head: TALK.item.head.iter().map(|line| HeadPart::Line(fill_marks(line, &marks))).collect(),
+    head: TALK.item.head.iter().map(|line| fill_marks(line, &marks)).collect(),
     turns,
     said,
   }
@@ -224,7 +211,7 @@ pub struct DocumentTopic {
   pub translated: bool,
 }
 
-/// The talk about one document: the head, then the passage he selected, cleaned, where he selected one.
+/// The talk about one document: the head, then the passage he selected, where he selected one.
 pub fn document_request(topic: &DocumentTopic, turns: Vec<SaidTurn>, said: String) -> TalkRequest {
   let lines = &TALK.document;
   let version: String = topic.version.chars().take(12).collect();
@@ -235,44 +222,25 @@ pub fn document_request(topic: &DocumentTopic, turns: Vec<SaidTurn>, said: Strin
     ("file", topic.file.as_str()),
     ("version", version.as_str()),
   ];
-  let mut head: Vec<HeadPart> =
-    lines.head.iter().map(|line| HeadPart::Line(fill_marks(line, &marks))).collect();
+  let mut head: Vec<String> = lines.head.iter().map(|line| fill_marks(line, &marks)).collect();
 
   if let Some(passage) = &topic.passage {
     let translated = if topic.translated { lines.translated.as_str() } else { "" };
 
-    head.push(HeadPart::Line(String::new()));
+    head.push(String::new());
 
-    // The heading goes in cleaned, inside the line that names it.
-    match &topic.heading {
-      Some(heading) => head.push(HeadPart::Cleaned {
-        line: fill_marks(
-          &lines.passage,
-          &[
-            ("under", &fill_marks(&lines.under, &[("heading", "{text}")])),
-            ("translated", translated),
-          ],
-        ),
-        text: heading.clone(),
-      }),
-      None => {
-        head.push(HeadPart::Line(fill_marks(&lines.passage, &[("under", ""), ("translated", translated)])))
-      }
-    }
+    // The heading goes inside the line that names it.
+    let under = match &topic.heading {
+      Some(heading) => fill_marks(&lines.under, &[("heading", heading)]),
+      None => String::new(),
+    };
 
-    head.push(HeadPart::Cleaned {
-      line: "{text}".to_owned(),
-      text: clip(passage, lines.passage_clip),
-    });
-    head.push(HeadPart::Line(lines.passage_end.clone()));
+    head.push(fill_marks(&lines.passage, &[("under", &under), ("translated", translated)]));
+    head.push(clip(passage, lines.passage_clip));
+    head.push(lines.passage_end.clone());
   }
 
-  TalkRequest {
-    words: lines.words.clone(),
-    head,
-    turns,
-    said,
-  }
+  TalkRequest { head, turns, said }
 }
 
 /// The talk about anything a caller names: the kind of thing it is, the head paragraph the caller writes and the
@@ -284,27 +252,19 @@ pub fn general_request(
   turns: Vec<SaidTurn>,
   said: String,
 ) -> TalkRequest {
-  let mut head = vec![HeadPart::Line(format!("This talk is about a {kind}."))];
+  let mut head = vec![format!("This talk is about a {kind}.")];
 
   if let Some(heading) = heading.filter(|line| !line.trim().is_empty()) {
-    head.push(HeadPart::Cleaned {
-      line: "{text}".to_owned(),
-      text: heading.to_owned(),
-    });
+    head.push(heading.to_owned());
   }
 
   for (name, value) in fields {
     let written = value.as_str().map(str::to_owned).unwrap_or_else(|| value.to_string());
 
-    head.push(HeadPart::Line(format!("{name}: {written}")));
+    head.push(format!("{name}: {written}"));
   }
 
-  TalkRequest {
-    words: format!("the {kind} the owner is talking about"),
-    head,
-    turns,
-    said,
-  }
+  TalkRequest { head, turns, said }
 }
 
 /// A turn's failure as the talk reads it: a rest, a limit, an outage, or the reason beside it.
@@ -319,7 +279,7 @@ fn failure_of(failure: Failure) -> TalkFailure {
   }
 }
 
-/// A talk's turn as the chat agent's conversations take it: the turn cleaned, restated and asked of the session
+/// A talk's turn as the chat agent's conversations take it: the turn restated and asked of the session
 /// the owner's chat resumes, whose answer is handed back rather than sent. The conversations hold their turn
 /// around it.
 pub async fn answer(
@@ -333,38 +293,9 @@ pub async fn answer(
     return Err(TalkFailure::Resting);
   }
 
-  let clean =
-    |text: String| clean(&receiver, conversations.agent(), text, request.words.clone(), owner, None);
-  let said = match clean(request.said.clone()).await {
-    Ok(said) => said,
-    Err(why) => return Err(TalkFailure::Other(why.detail)),
-  };
-  let mut head = Vec::new();
-
-  for part in &request.head {
-    head.push(match part {
-      HeadPart::Line(line) => line.clone(),
-      HeadPart::Cleaned { line, text } => match clean(text.clone()).await {
-        Ok(cleaned) => line.replace("{text}", &cleaned),
-        Err(why) => return Err(TalkFailure::Other(why.detail)),
-      },
-    });
-  }
-
-  let mut turns = Vec::new();
-
-  for turn in &request.turns {
-    match clean(turn.text.clone()).await {
-      Ok(text) => turns.push(SaidTurn {
-        owner: turn.owner,
-        text: text.clone(),
-      }),
-      Err(why) => return Err(TalkFailure::Other(why.detail)),
-    }
-  }
-
+  let said = request.said.clone();
   let names = (receiver.owner_name(owner).await, agent_label(&receiver, conversations.agent()).await);
-  let written = prompt(&head, &turns, &said, &names.0, &names.1);
+  let written = prompt(&request.head, &request.turns, &said, &names.0, &names.1);
   let room = receiver.roads().room_facts(owner).await;
   let messages: Vec<Inbound> = vec![];
   let recent: Vec<String> = vec![];

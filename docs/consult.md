@@ -59,7 +59,7 @@ flowchart TD
 - **`consult` puts one line in the consult room under the calling agent's own name,** whatever room its turn
   answers. It takes the words, and the number of a message in the consult room to answer, where it answers one.
 - **It is carried out by the receiver,** through `POST /consult/say`: the line goes out on the consult room's
-  own road, through the outgoing sanitiser under the agent's switch, is filed under the agent's number, opens the
+  own road in the words' form, is filed under the agent's number, opens the
   agent's own window where its row keeps one, and reaches the receiver like any word filed in the room.
 - **So the other agent is woken by the receiver's one rule:** its name in the line, the line answering one of its
   messages, or its window there still open.

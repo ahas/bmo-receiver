@@ -9,7 +9,7 @@ leaves.
 - **The process establishes what the message needs first and writes the message last.** A round's turn goes to
   the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after the agent's own
   judgement of whether to answer where the open window alone let the words in, and after the window's pregate:
-  the brain's index the gate's offer is counted into and the sanitiser on the words coming in. The turn carries,
+  the core the gate attaches and the brain's index. The turn carries,
   with the room's words and the index, the process's first question, and asks no answer:
   the agent reads, finds the facts the message rests on and engraves what it establishes in the brain with its
   tools as it goes. The receiver then asks the same session the process's further questions, one turn each, in
@@ -215,8 +215,8 @@ where it says something: neither empty nor a skip nor a wait.
 
 ## After the process
 
-- **The message goes to the round's send** (`docs/wake.md`, 「The room's queue and the round」): the outgoing
-  sanitiser and the words' form read it there, once. The window restarts, the read mark is written and the fold
+- **The message goes to the round's send** (`docs/wake.md`, 「The room's queue and the round」): the words'
+  form reads it there, once. The window restarts, the read mark is written and the fold
   reads the context the last turn of the process left.
 - **Nothing the process asked goes to the room** and none of it is archived: the questions and their answers are
   the session's own and the round log's.

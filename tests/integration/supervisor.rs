@@ -146,7 +146,6 @@ async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing
   assert!(prompts[0].contains("did anyone see the match last night"));
   assert!(!prompts[0].contains("TURN SCOPE") && !prompts[0].contains(&CHAT_ROUND.index.head));
   assert_eq!(*round.standing.gate.referred.lock().unwrap(), 0, "no reference was asked");
-  assert!(round.standing.gate.read.lock().unwrap().is_empty(), "nothing passed the sanitiser");
 
   let log = round
     .scratch

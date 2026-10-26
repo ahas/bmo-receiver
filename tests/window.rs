@@ -12,12 +12,12 @@ fn a_person_book_document_names_its_person_and_any_other_nobody() {
 
 #[test]
 fn a_wrapped_document_heads_itself_with_its_version() {
-  let block = once_block(-5, "docs/x.md", "abc", "cleaned");
+  let block = once_block(-5, "docs/x.md", "abc");
 
   assert_eq!(
     block,
     format!(
-      "{BLOCK_OPEN}{{\"path\":\"docs/x.md\",\"chat\":-5,\"person\":null,\"version\":\"190542993387777138\"}}\n[docs/x.md]\ncleaned\n{BLOCK_CLOSE}",
+      "{BLOCK_OPEN}{{\"path\":\"docs/x.md\",\"chat\":-5,\"person\":null,\"version\":\"190542993387777138\"}}\n[docs/x.md]\nabc\n{BLOCK_CLOSE}",
     ),
   );
 }

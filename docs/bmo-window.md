@@ -212,9 +212,9 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
   rules, its other memories and the brain's references are no turn's to be handed; the agent reads them through
   the index. A turn with no line at all still carries what attaches.
 
-**What the gate answers is the turn's core and goes in whole.** Each entry passes the sanitiser on its way in and
-goes to the session in full once per version, then as a mark naming it while the session holds that version, in
-one reference block with a person's own thread.
+**What the gate answers is the turn's core and goes in whole.** Each entry goes to the session in full once per
+version, then as a mark naming it while the session holds that version, in one reference block with a person's
+own thread.
 
 Beside the core, the turn carries the brain's index, and the agent reads anything more it needs itself:
 
@@ -252,8 +252,8 @@ Beside the reference, a turn carries the room's messages since the agent last an
 - **`round`**: a room's words, its quiet instructions, or both. The window selects over the batch and the
   instructions, with the instructions' events.
 - **`push`**: quiet instructions put into a turn that is still working; a room's words are never pushed, and
-  wait for the round's next question instead. A push carries the instructions alone, passed through the
-  sanitiser; no piece goes in with it. It joins what the round holds once the agency's session push answers it
+  wait for the round's next question instead. A push carries the instructions alone; no piece goes in with
+  it. It joins what the round holds once the agency's session push answers it
   `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
   the first, which rides the round's own turn, an item or a check. It carries no reference of its own: the core and
@@ -366,7 +366,7 @@ flowchart TD
   or sends a line first with `say` and goes on to the next; or answers `<<WAIT>>` to take the next words in with
   these.
 - **No content judgement stands between the agent and any room.** A round sends what the agent wrote at the end
-  of its draft process, held only to the code's own items and checks below and the outgoing sanitiser.
+  of its draft process, held only to the code's own items and checks below and the words' form.
 - **The draft process asks the agent its questions** (`docs/drafting.md`): the round's turn carries the first,
   the agent establishes what the message needs before it writes it, and what it answers is its own; no model
   judges the answer.

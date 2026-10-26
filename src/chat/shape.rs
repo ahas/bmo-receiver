@@ -182,9 +182,6 @@ fn present(path: &str) -> bool {
   Path::new(path).exists()
 }
 
-/// The sanitiser a reading that cleans nothing is typed by, never called.
-type Unread = fn(String, String, i64, Option<i64>) -> std::future::Ready<Result<String, Fault>>;
-
 /// What a picture fetched for a reply came to: where it now stands, that the message holds none, that no road
 /// reaches the room to fetch from, or that the fetch failed.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -315,14 +312,9 @@ impl Reading<'_> {
     }
   }
 
-  /// One send as its line, its words read by `clean` where it is given one.
-  pub async fn send_line<F, Fut>(&self, send: &Send<'_>, clean: Option<&F>) -> Result<String, Fault>
-  where
-    F: Fn(String, String, i64, Option<i64>) -> Fut,
-    Fut: std::future::Future<Output = Result<String, Fault>>,
-  {
+  /// One send as its line.
+  pub async fn send_line(&self, send: &Send<'_>) -> Result<String, Fault> {
     let shape = &CHAT_ROUND.shape;
-    let labels = &CHAT_ROUND.labels;
     let message = send.message;
     let mut notes = Vec::new();
     let look = looks_in(self.receiver, message.chat_id).await?;
@@ -371,15 +363,7 @@ impl Reading<'_> {
           fill_marks(&shape.quoted_shown, &[("id", &id), ("name", &target.sender_name)])
         }
         Some(target) => {
-          let text = match clean {
-            Some(clean) => {
-              let label = fill_marks(&labels.quoted, &[("name", &target.sender_name)]);
-
-              clean(target.text.clone(), label, message.chat_id, Some(message.message_id)).await?
-            }
-            None => target.text.clone(),
-          };
-          let quote = clip_quote(&text);
+          let quote = clip_quote(&target.text);
           let when = iso_instant(target.sent_at);
           let values = [
             ("id", id.as_str()),
@@ -394,15 +378,7 @@ impl Reading<'_> {
       notes.extend(self.reply_image_note(message.chat_id, reply_to, target.as_ref(), look).await);
     }
 
-    let words = send_words(send);
-    let text = match clean {
-      Some(clean) => {
-        let label = fill_marks(&labels.message, &[("name", &message.sender_name)]);
-
-        clean(words, label, message.chat_id, Some(message.message_id)).await?
-      }
-      None => words,
-    };
+    let text = send_words(send);
 
     Ok(shape_line(&ShapeLine {
       sent_at: message.sent_at,
@@ -415,21 +391,12 @@ impl Reading<'_> {
     }))
   }
 
-  /// The messages as the session reads them, one line to a send, none of them read by the sanitiser.
-  pub async fn plain_lines(&self, messages: &[Inbound]) -> Result<Vec<String>, Fault> {
-    self.lines::<Unread, _>(messages, None).await
-  }
-
-  /// The messages as the session reads them, one line to a send, read by `clean` where it is given one.
-  pub async fn lines<F, Fut>(&self, messages: &[Inbound], clean: Option<&F>) -> Result<Vec<String>, Fault>
-  where
-    F: Fn(String, String, i64, Option<i64>) -> Fut,
-    Fut: std::future::Future<Output = Result<String, Fault>>,
-  {
+  /// The messages as the session reads them, one line to a send.
+  pub async fn lines(&self, messages: &[Inbound]) -> Result<Vec<String>, Fault> {
     let mut lines = Vec::new();
 
     for send in sends(messages) {
-      lines.push(self.send_line(&send, clean).await?);
+      lines.push(self.send_line(&send).await?);
     }
 
     Ok(lines)

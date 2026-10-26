@@ -1452,7 +1452,7 @@ impl Conversations {
     let (held_words, mut batch, roads, mut instructions, ids, events, room, first_call, mut held) = taken;
     let mut via = self.road_of(chat_id, &batch, &roads).await;
 
-    // A round the open window alone let in is the agent's to judge first, before any reference, sanitiser or gate;
+    // A round the open window alone let in is the agent's to judge first, before any reference or gate;
     // a skip ends it there with nothing sent.
     if self.judged_first(chat_id, room, &batch, instructions.len())
       && self.supervise(chat_id, round, &batch, &mut held, &via).await?
@@ -1824,7 +1824,7 @@ impl Conversations {
 
   // The agent's own judgement of whether to answer words that did not name it (docs/wake.md, 「The room's queue and
   // the round」): one light turn of the same session carrying the room's recent words and the words judged, in the
-  // room shape, and the round policy's question; no reference, no sanitiser and no gate. Its row stands in the
+  // room shape, and the round policy's question; no reference and no gate. Its row stands in the
   // round log of its own kind. Answers whether the agent passed the words over.
   async fn supervise(
     &self,
@@ -1852,8 +1852,8 @@ impl Conversations {
       fetch_on_demand: false,
       shown: &shown,
     };
-    let recent_lines = reading.plain_lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
-    let judged_lines = reading.plain_lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
+    let recent_lines = reading.lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
+    let judged_lines = reading.lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
     let mut parts = vec![said.head.clone(), String::new(), said.recent.clone()];
 
     parts.extend(recent_lines);

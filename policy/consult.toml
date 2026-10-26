@@ -9,8 +9,6 @@ shown_items = 30
 # The setting the consult room's number is kept under.
 room_setting = "consult_room"
 
-# What an agent's line in the consult room is to the outgoing sanitiser, by the agent's {name}.
-sanitised = "a line the agent {name} is about to say in the consult room"
 
 # What `POST /consult/say` answers its agent with: the line was said in {room} under {name}'s own name, with the
 # number of the message it went out as where the road gave one ({number}, from `number` with its {id}).

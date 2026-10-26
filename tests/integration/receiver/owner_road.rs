@@ -64,7 +64,7 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
   let speech = standing.receiver.speech();
 
   let kept = speech.say_to_owner("the job is done").await.unwrap().unwrap();
-  let sent = speech.say(ROOM, "the game begins", false).await.unwrap();
+  let sent = speech.say(ROOM, "the game begins").await.unwrap();
   speech.denied(ROOM).await.unwrap();
 
   // The owner's line stands in the record, under the agent's number in the owner's chat and its name, below every
@@ -78,12 +78,12 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
         r#"SELECT "via" || ' ' || "sender_id" || ' ' || "sender_name" || ' ' || "text" FROM "messages" WHERE "chat_id" = {OWNER} AND "message_id" = {kept}"#
       ))
       .await,
-    [format!("record 7 {SENDER} the job is done (read)")]
+    [format!("record 7 {SENDER} the job is done")]
   );
   assert!(screen.sent().is_empty());
 
-  // The room's lines went on its own road: the sanitiser read the first, and the fixed line went as rendered,
-  // after the owner's line carried from his chat's record.
+  // The room's lines went on its own road, the fixed line as rendered, after the owner's line carried from his
+  // chat's record.
   let texts: Vec<String> = platform
     .sent()
     .into_iter()
@@ -94,7 +94,6 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
     .collect();
 
   assert_eq!(sent, Some(900));
-  assert_eq!(texts, ["the job is done (read)", "the game begins (read)", "chat-denied in en"]);
+  assert_eq!(texts, ["the job is done", "the game begins", "chat-denied in en"]);
   assert_eq!(platform.sent()[0].room_id, OWNER);
-  assert_eq!(*standing.gate.read.lock().unwrap(), ["the job is done", "the game begins"]);
 }

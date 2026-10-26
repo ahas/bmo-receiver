@@ -93,7 +93,7 @@ pub async fn recent_lines(receiver: &Receiver, owner: i64, chat_id: i64) -> Resu
     shown: &recent.iter().map(|message| message.message_id).collect(),
   };
 
-  reading.plain_lines(&recent).await
+  reading.lines(&recent).await
 }
 
 /// What a turn that reads no words of its own knows of its room: whether it is the owner's own chat. Who spoke
@@ -209,9 +209,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   let blocks = &CHAT_ROUND.blocks;
   let closing = &CHAT_ROUND.closing;
   let chat_id = round.chat_id;
-  let clean = |text: String, label: String, chat: i64, message: Option<i64>| {
-    window::clean(receiver, round.agent, text, label, chat, message)
-  };
   let mut parts: Vec<String> = Vec::new();
   let mut context: Vec<(String, String)> = Vec::new();
   let unread: Vec<Inbound> = archived(receiver, round)
@@ -280,7 +277,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     fetch_on_demand: false,
     shown: &recent.iter().map(|message| message.message_id).collect(),
   };
-  let recent_lines = plain.plain_lines(&recent).await?;
+  let recent_lines = plain.lines(&recent).await?;
   // The session the turn goes on, which the index counts the read entries out by: the one the round holds, else
   // the one the agency stands for the agent, which a start writes nothing of.
   let standing = match round.session {
@@ -309,17 +306,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     },
   )
   .await?;
-  let instructions = if round.instructions.is_empty() {
-    String::new()
-  } else {
-    clean(
-      round.instructions.join("\n\n"),
-      CHAT_ROUND.labels.instructions.clone(),
-      chat_id,
-      round.batch.last().map(|message| message.message_id),
-    )
-    .await?
-  };
+  let instructions = round.instructions.join("\n\n");
   let scope = Scope {
     chat_id,
     message_ids: round.batch.iter().map(|message| message.message_id).collect(),
@@ -339,7 +326,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   if !archived.is_empty() {
     context.push(("archive".to_owned(), archive_range(chat_id, &archived)));
 
-    let lines = reading(false).lines(&archived, Some(&clean)).await?;
+    let lines = reading(false).lines(&archived).await?;
 
     parts.push(String::new());
     parts.extend(archived_head(lines.len(), left_out));
@@ -362,7 +349,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     .collect();
 
   if !waited.is_empty() {
-    let lines = reading(round.tools_allowed).lines(&waited, Some(&clean)).await?;
+    let lines = reading(round.tools_allowed).lines(&waited).await?;
 
     parts.push(String::new());
     parts.push(fill_marks(&blocks.waited, &[("count", &lines.len().to_string())]));
@@ -371,7 +358,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   }
 
   if !fresh.is_empty() {
-    let lines = reading(round.tools_allowed).lines(&fresh, Some(&clean)).await?;
+    let lines = reading(round.tools_allowed).lines(&fresh).await?;
 
     parts.push(String::new());
     parts.push(fill_marks(&blocks.fresh, &[("count", &lines.len().to_string())]));

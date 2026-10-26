@@ -1,26 +1,13 @@
 //! The words' form before any road's marks: what a text is cleaned of before it is read into a room's marks.
 //! The scaffolding a session's own program writes and the markers it answers with are cut out, and a text left
-//! with nothing is refused; the sanitiser reads what is left unless it comes already read and whole; and a dash
-//! left between words is replaced by the net under the writing rules. Every way the receiver's words leave for a
-//! room passes this one place, so none of them has to remember it.
+//! with nothing is refused; and a dash left between words is replaced by the net under the writing rules. Every way
+//! the receiver's words leave for a room passes this one place, so none of them has to remember it.
 
 use std::sync::LazyLock;
-
-use receiver_ports::gate::{Gate, Sanitise, Sanitised};
-use receiver_ports::http::PortFailure;
 
 use crate::dashes::without_dashes;
 use crate::js;
 use regex::Regex;
-
-/// Why a text has no form to go out in.
-#[derive(Debug, thiserror::Error)]
-pub enum NotFormed {
-  #[error("refused to send prompt scaffolding to chat {0}")]
-  Scaffolding(i64),
-  #[error(transparent)]
-  Gate(#[from] PortFailure),
-}
 
 // Where the scaffolding begins: whatever follows the first of these is no message.
 static SCAFFOLDING: LazyLock<Vec<Regex>> = LazyLock::new(|| {
@@ -213,72 +200,7 @@ pub fn read_reply_request(written: &str) -> (String, ReplyTarget) {
   (rest, target)
 }
 
-/// What the sanitiser is told a message is, where the send names nothing else.
-pub fn message_label() -> String {
-  "a message the chat agent is about to send to a chat room".to_owned()
-}
-
-/// The boundary a text already read above the road is said to have been read at.
-pub const READ_ABOVE: &str = "the send path above the road";
-
-/// Words on their way out of a room: read by the sanitiser where the agent's own switch leaves it on, and their
-/// dashes replaced.
-pub async fn outgoing(
-  gate: &dyn Gate,
-  chat_id: i64,
-  text: &str,
-  label: &str,
-  on: bool,
-) -> Result<String, PortFailure> {
-  let words = if !on {
-    text.to_owned()
-  } else {
-    let asked = Sanitise {
-      text: text.to_owned(),
-      label: label.to_owned(),
-      room_id: Some(chat_id),
-      message_id: None,
-    };
-
-    match gate.sanitise(&asked).await {
-      Ok(Sanitised { text, changed }) => {
-        if changed {
-          println!("send chat {chat_id}: security-intrusion material was defused");
-        }
-
-        text
-      }
-      Err(why) => return Err(why),
-    }
-  };
-
-  Ok(without_dashes(&words, false))
-}
-
-/// A text in the words' form: scaffolding and markers cut, read by the sanitiser unless `read` says it came
-/// already read and the cut left it whole, under `label` where it is no message, and its dashes replaced.
-pub async fn cleaned(
-  gate: &dyn Gate,
-  chat_id: i64,
-  text: &str,
-  read: bool,
-  label: Option<&str>,
-) -> Result<String, NotFormed> {
-  let stripped = without_control_markers(&strip_prompt_scaffolding(text));
-
-  if stripped.is_empty() {
-    return Err(NotFormed::Scaffolding(chat_id));
-  }
-
-  // A verdict is about the words as they were handed over; where the guard cut something out of them the
-  // sanitiser reads what is left.
-  let words = if read && stripped == text {
-    stripped
-  } else {
-    let label = label.map_or_else(message_label, str::to_owned);
-
-    outgoing(gate, chat_id, &stripped, &label, true).await?
-  };
-
-  Ok(without_dashes(&words, false))
+/// Words on their way out of a room, their dashes replaced.
+pub fn outgoing(text: &str) -> String {
+  without_dashes(text, false)
 }

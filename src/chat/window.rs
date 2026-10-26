@@ -1,7 +1,7 @@
 //! The one window every turn of the chat agent's session passes (docs/bmo-window.md): what a turn brought
 //! selected over for its core — the speakers' sheet heads, the room's due memories and the rows its events wake,
 //! with a user's own thread in their private room — each entry wrapped to go to a session in full once per version,
-//! passing the sanitiser on its way in, and beside it the brain's index with its hint. The window hands the gate the
+//! and beside it the brain's index with its hint. The window hands the gate the
 //! turn's envelope and reads back what attaches.
 
 use std::collections::{HashMap, HashSet};
@@ -14,22 +14,12 @@ use receiver_policy::fill_marks;
 use regex::Regex;
 use serde::Serialize;
 
-use receiver_ports::agency::Agent;
-use receiver_ports::gate::{Entry, Envelope, RoomKind, Sanitise, Situation, Source, TurnEvent};
+use receiver_ports::gate::{Entry, Envelope, RoomKind, Situation, Source, TurnEvent};
 
 use super::thread::thread_entry;
 use crate::Fault;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver, Room, rows};
-
-// The gates that pick a turn's reference, each under the agent's own switch.
-const REFERENCE_GATES: [&str; 5] = [
-  "system-documents",
-  "room-rules",
-  "library-knowledge",
-  "people-search",
-  "situation-rules",
-];
 
 // The wrapping a document rides in until the session it goes to is settled; it opens with a private-use
 // character no document is written in, and never leaves this process.
@@ -240,70 +230,18 @@ pub fn person_book_owner(path: &str) -> Option<i64> {
 
 /// A document wrapped to go to a session once per version: its head names it, its room, whose it is and which
 /// version of it this is.
-pub fn once_block(chat: i64, path: &str, original: &str, text: &str) -> String {
+pub fn once_block(chat: i64, path: &str, text: &str) -> String {
   let head = BlockHead {
     path,
     chat,
     person: person_book_owner(path),
-    version: bun_hash(original).to_string(),
+    version: bun_hash(text).to_string(),
   };
 
   format!(
     "{BLOCK_OPEN}{}\n[{path}]\n{text}\n{BLOCK_CLOSE}",
     serde_json::to_string(&head).unwrap_or_default()
   )
-}
-
-/// Whether the agent's own registration leaves one of its gates switched off.
-fn switched_off(agent: &Agent, gate: &str) -> bool {
-  match agent.row.get("gates_off") {
-    Some(off) => off.as_array().is_some_and(|off| off.iter().any(|one| one.as_str() == Some(gate))),
-    None => false,
-  }
-}
-
-/// Whether a turn asks one of its agent's gates, by the agent's own switch.
-pub async fn gate_on(receiver: &Receiver, agent: &str, gate: &str) -> bool {
-  let listed = receiver.agents().await.ok();
-
-  match listed.as_ref().and_then(|listed| listed.agents.iter().find(|one| one.name == agent)) {
-    Some(agent) => !switched_off(agent, gate),
-    None => true,
-  }
-}
-
-/// A text on its way into the session's context, with any order to attack a real target defused, where the
-/// agent's own switch leaves the sanitiser on.
-pub async fn clean(
-  receiver: &Receiver,
-  agent: &str,
-  text: String,
-  label: String,
-  chat_id: i64,
-  message_id: Option<i64>,
-) -> Result<String, Fault> {
-  if !gate_on(receiver, agent, "sanitizer").await {
-    return Ok(text);
-  }
-
-  let asked = Sanitise {
-    text: text.to_owned(),
-    label: label.to_owned(),
-    room_id: Some(chat_id),
-    message_id,
-  };
-  let cleaned = receiver
-    .units()
-    .gate
-    .sanitise(&asked)
-    .await
-    .map_err(|why| Fault::new(format!("the sanitiser: {why}")))?;
-
-  if cleaned.changed {
-    println!("context chat {chat_id}: security-intrusion material was defused in {label}");
-  }
-
-  Ok(cleaned.text)
 }
 
 /// Whether anybody's words came into a turn rather than the system's own lines alone.
@@ -408,14 +346,6 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
   situation_lines.extend(instruction_lines);
   situation_lines.extend(material.said.iter().cloned());
 
-  let mut off_gates = Vec::new();
-
-  for gate in REFERENCE_GATES {
-    if !gate_on(receiver, material.agent, gate).await {
-      off_gates.push(gate.to_owned());
-    }
-  }
-
   let envelope = Envelope {
     room_id: chat_id,
     message_id,
@@ -431,7 +361,6 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
     round: material.round.clone(),
     people_spoke: spoke,
     answered,
-    off_gates,
     records: true,
   };
   let entries = match receiver.units().gate.reference(&envelope).await {
@@ -459,7 +388,7 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
     Err(why) => eprintln!("bmo-receiver: the private-room thread could not be read: {why}"),
   }
 
-  let mut selection = made(receiver, material.agent, chat_id, message_id, core).await?;
+  let mut selection = made(chat_id, core);
 
   selection.index = index_block(&counts, &hints);
   selection.counts = counts;
@@ -467,37 +396,27 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
   Ok(selection)
 }
 
-// The turn's core goes in wrapped, each entry passing the sanitiser first, since sheets, memories and a person's
-// thread are written out of what was said in the rooms.
-async fn made(
-  receiver: &Receiver,
-  agent: &str,
-  chat_id: i64,
-  message_id: Option<i64>,
-  entries: Vec<Entry>,
-) -> Result<Selection, Fault> {
+// The turn's core, each entry wrapped to go to the session once per version.
+fn made(chat_id: i64, entries: Vec<Entry>) -> Selection {
   if entries.is_empty() {
-    return Ok(Selection::default());
+    return Selection::default();
   }
 
   let blocks = &CHAT_ROUND.blocks;
   let mut parts = vec![fill_marks(&blocks.reference, &[("count", &entries.len().to_string())])];
 
   for entry in &entries {
-    let label = fill_marks(&CHAT_ROUND.labels.reference, &[("path", &entry.path)]);
-    let text = clean(receiver, agent, entry.text.clone(), label, chat_id, message_id).await?;
-
-    parts.push(once_block(chat_id, &entry.path, &entry.text, &text));
+    parts.push(once_block(chat_id, &entry.path, &entry.text));
   }
 
   parts.push(blocks.reference_end.clone());
 
-  Ok(Selection {
+  Selection {
     context: entries.iter().map(|entry| (source_name(entry), entry.path.clone())).collect(),
     entries,
     block: parts.join("\n"),
     ..Selection::default()
-  })
+  }
 }
 
 /// What the turn's log calls where an entry came from.

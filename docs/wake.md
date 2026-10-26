@@ -131,7 +131,7 @@ its rounds.
   instead of one per message.
 - **Quiet instructions, touches and the start-up backlog do not queue.**
 - **A session answers one round at a time, and a round is over only once its answer has gone out.** Sending is
-  not instant (the outgoing sanitiser runs inside it and may have to be waited out) so a round that counted
+  not instant (the road's send may have to be waited out) so a round that counted
   itself finished before it had sent would let the next message start a second run of the same session, and the
   room would read two answers to one thing, the older one arriving last.
 - **What arrives while a round is running waits in the buffer** and is read when that round hands over.
@@ -141,9 +141,9 @@ its rounds.
   agent's own judgement of whether to answer: one light turn of the same session carrying the room's recent words
   in the room shape and the words being judged, and the round policy's question (`chat-round.toml`,
   `[supervisor]`) whether they are said to it or want its answer. It carries no reference and no index, and
-  nothing of it passes the sanitiser or any gate. `<<SKIP>>` ends the round there: nothing is sent, the words are
+  nothing of it passes any gate. `<<SKIP>>` ends the round there: nothing is sent, the words are
   read and the window keeps the time it had, as a skipped round leaves it. Any other answer opens the ordinary
-  round, its reference, its sanitiser and its draft process. A round with a named call, a reply, words of a
+  round, its reference and its draft process. A round with a named call, a reply, words of a
   private chat or the owner's chat skips this step. The judgement is a row of the round log of its own kind,
   `supervisor` (`docs/drafting.md`, 「The round log」).
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the

@@ -54,9 +54,8 @@ flowchart TD
     receiver starts, each answer handed back to the receiver like any word filed in the room;
   - the console's road in: `POST /owner/messages` and `POST /owner/message-files` into any room it holds;
   - the delivery of every kept message to the room's chat providers (「A room's chat providers」 below);
-  - the words' form of its own sends: the scaffolding guard, the sanitiser's pass unless the words come already
-    read, under the label the send names where the text is no message, the dash net, and the words handed to the
-    room's chat service in the form its dialect reads; refused where nothing but scaffolding is left;
+  - the words' form of its own sends: the scaffolding guard, the dash net, and the words handed to the room's chat
+    service in the form its dialect reads; refused where nothing but scaffolding is left;
   - the going-down line said to the owner as it stops (`docs/voiced-notices.md`, 「System notices」);
   - the event stream and the live board (「The event stream」 below).
 - **What it does not carry:** a chat service's platform (its reading, its sending, its gathering of files and its

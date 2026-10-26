@@ -1,5 +1,5 @@
 //! A round's answer sent into its room (docs/receiver.md, 「The answer goes out」): the session's scaffolding and
-//! the send's own markers taken off, the words cleaned under the agent's own switch, and sent on the road the turn
+//! the send's own markers taken off, the dashes replaced, and sent on the road the turn
 //! answers on — the one its words came in on where that road reaches the room — in the one send that road folds
 //! into its parts, the first pinned to the message it answers. What went out names the round that wrote it, is
 //! attached to the run the round's turn opened at the agency, and the send's own verdict is written beside the
@@ -9,8 +9,7 @@ use bmo_chat_client::{ChatSend, ChatSendRequest};
 
 use super::conversation::{BoxFuture, Reply, ReplyRoad, Sent};
 use super::turnover::judge;
-use super::window::gate_on;
-use crate::form::{message_label, outgoing, strip_prompt_scaffolding, without_control_markers};
+use crate::form::{outgoing, strip_prompt_scaffolding, without_control_markers};
 use crate::now_ms;
 use crate::receiver::{Receiver, rows};
 use crate::roads::{Road, added};
@@ -112,17 +111,7 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
   }
 
   let started = now_ms();
-  let default = receiver.deployment().agent.clone();
-  let agent = reply.agent.clone().unwrap_or_else(|| default.to_owned());
-  let cleaned = gate_on(receiver, &agent, "sanitizer").await;
-  let text = match outgoing(&*receiver.units().gate, chat_id, &stripped, &message_label(), cleaned).await {
-    Ok(text) => text,
-    Err(why) => {
-      eprintln!("chat {chat_id}: the answer could not be cleaned: {why}");
-
-      return None;
-    }
-  };
+  let text = outgoing(&stripped);
   let road = receiver.roads().answering(chat_id, reply.via.as_deref()).await;
 
   match road {

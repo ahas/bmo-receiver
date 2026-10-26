@@ -2,7 +2,7 @@
 //! few turns, each clipped, and a subject's head names what it is about.
 
 use bmo_receiver::chat::talk::{
-  DocumentTopic, HeadPart, ItemTopic, SaidTurn, clip, document_request, item_request, prompt,
+  DocumentTopic, ItemTopic, SaidTurn, clip, document_request, item_request, prompt,
 };
 use receiver_policy::talk::TALK;
 
@@ -39,10 +39,12 @@ fn an_item_turn_opens_on_the_item_by_its_number_title_and_state() {
     "Where is it?".into(),
   );
 
-  assert!(request.head.iter().any(|part| match part {
-    HeadPart::Line(line) => line.contains("item #900") && line.contains("winding down"),
-    HeadPart::Cleaned { line, text } => line.contains("item #900") && line.contains(text),
-  }));
+  assert!(
+    request
+      .head
+      .iter()
+      .any(|line| line.contains("item #900") && line.contains("winding down"))
+  );
 }
 
 #[test]
@@ -61,14 +63,7 @@ fn a_document_turn_carries_the_passage_selected_under_its_heading() {
     vec![],
     "Why three minutes?".into(),
   );
-  let written: Vec<String> = request
-    .head
-    .iter()
-    .map(|part| match part {
-      HeadPart::Line(line) => line.clone(),
-      HeadPart::Cleaned { line, text } => line.replace("{text}", text),
-    })
-    .collect();
+  let written = &request.head;
 
   assert!(written.iter().any(|line| line.contains("docs/wake.md")));
   assert!(written.join("\n").contains("A room that woke the agent keeps a window."));

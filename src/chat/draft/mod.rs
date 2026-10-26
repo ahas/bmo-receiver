@@ -101,7 +101,7 @@ pub async fn bounded<T>(
 
   if !plan.told.swap(true, Ordering::SeqCst)
     && let Some(line) = receiver.speech().rendered(&FixedLine::StillWorking).await
-    && let Err(why) = receiver.speech().say(chat_id, &line, true).await
+    && let Err(why) = receiver.speech().say(chat_id, &line).await
   {
     eprintln!("chat {chat_id}: the line that the turn is still at work was not said: {why}");
   }

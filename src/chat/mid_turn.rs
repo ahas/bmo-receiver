@@ -10,7 +10,6 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 
 use super::shape::{Reading, sends};
-use super::window;
 use crate::Fault;
 use crate::receiver::Receiver;
 use crate::receiver::{Inbound, Room};
@@ -66,9 +65,6 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
   let receiver = push.receiver;
   let chat_id = push.chat_id;
   let blocks = &CHAT_ROUND.blocks;
-  let clean = |text: String, label: String, chat: i64, message: Option<i64>| {
-    window::clean(receiver, push.agent, text, label, chat, message)
-  };
   let shown = HashSet::new();
   let reading = |fetch: bool| Reading {
     receiver,
@@ -79,7 +75,7 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
   let mut parts = vec![note(sends(push.messages).len(), push.instructions.len())];
 
   if !push.messages.is_empty() {
-    let lines = reading(push.tools_allowed).lines(push.messages, Some(&clean)).await?;
+    let lines = reading(push.tools_allowed).lines(push.messages).await?;
     let ids: Vec<i64> = push.messages.iter().map(|message| message.message_id).collect();
 
     parts.push(String::new());
@@ -93,13 +89,7 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
   }
 
   // A push carries no piece: the round's index went in with its turn (docs/bmo-window.md, 「The openings」).
-  // The message the round reads last once the push is in, which what the push cleans belongs to.
-  let newest = push.messages.last().map(|message| message.message_id).or(push.consumed);
-  let instructions = if push.instructions.is_empty() {
-    String::new()
-  } else {
-    clean(push.instructions.join("\n\n"), CHAT_ROUND.labels.instructions.clone(), chat_id, newest).await?
-  };
+  let instructions = push.instructions.join("\n\n");
 
   if !push.instructions.is_empty() {
     parts.push(String::new());

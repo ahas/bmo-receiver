@@ -22,7 +22,6 @@ pub struct ItemStates {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Item {
-  pub words: String,
   pub head: Vec<String>,
   pub states: ItemStates,
 }
@@ -31,7 +30,6 @@ pub struct Item {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Document {
-  pub words: String,
   pub passage_clip: usize,
   pub head: Vec<String>,
   pub passage: String,

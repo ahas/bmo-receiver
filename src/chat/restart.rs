@@ -186,7 +186,7 @@ pub async fn say_stop(receiver: &Receiver) {
     return;
   };
 
-  if let Err(why) = receiver.speech().say(receiver.deployment().owner_id, &line, true).await {
+  if let Err(why) = receiver.speech().say(receiver.deployment().owner_id, &line).await {
     eprintln!("the stop notice was not said: {why}");
   }
 }

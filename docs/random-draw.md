@@ -52,8 +52,8 @@ flowchart TD
   post it again or read the seed out.
 - **It is a fixed line**, plain text with no markup and no game flavour, so it reads the same under every chat
   service's dialect: its code and fields are rendered in the room's language by the web unit's language packs,
-  or by the policy's plain sentence where they cannot (`docs/voiced-notices.md`, 「Lines that stay fixed」), it is recorded as the agent's, and it is not rewritten by
-  the outgoing sanitiser: a gate that folded a seed would make the draw impossible to check.
+  or by the policy's plain sentence where they cannot (`docs/voiced-notices.md`, 「Lines that stay fixed」), it is recorded as the agent's, and it is not rewritten
+  by any gate: a gate that folded a seed would make the draw impossible to check.
 - **What it carries:**
   1. the label, where one was given;
   2. the result: the faces and their total with the modifier, the number, the picked items or the order;

@@ -40,7 +40,6 @@ pub struct Work {
 pub struct Consult {
   pub shown_items: usize,
   pub room_setting: String,
-  pub sanitised: String,
   pub said: String,
   pub number: String,
   pub room_unset: String,
