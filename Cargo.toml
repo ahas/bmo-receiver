@@ -54,6 +54,8 @@ serde_json = "1.0.138"
 # A route's query, read into the shape the route takes.
 serde_urlencoded = "0.7.1"
 sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio"] }
+# How near the closing check's answer is to the message standing, character by character.
+strsim = "0.11.1"
 sse-stream = "0.2.6"
 strum = { version = "0.28.0", features = ["derive"] }
 tempfile = "3.20.0"
@@ -129,6 +131,8 @@ reqwest.workspace = true
 rand.workspace = true
 # The digest a labelled picture is named by.
 sha2.workspace = true
+# How near the closing check's answer is to the message standing.
+strsim.workspace = true
 
 [dev-dependencies]
 # The repository checks read `cargo metadata` and the testbed's declaration.

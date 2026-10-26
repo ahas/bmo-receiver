@@ -6,7 +6,9 @@ use bmo_receiver::chat::draft::log::Answered;
 use bmo_receiver::chat::draft::table::{
   ANY, PastCeiling, Process, Question, question_refusal, refusal, resolve,
 };
-use bmo_receiver::chat::draft::{Plan, question_words, read_answer, record_errand, wake_errand, words};
+use bmo_receiver::chat::draft::{
+  Plan, appended, question_words, read_answer, record_errand, wake_errand, words,
+};
 use bmo_receiver::chat::prompt::Scope;
 use bmo_receiver::receiver::Inbound;
 use receiver_policy::drafting::DRAFTING;
@@ -277,4 +279,47 @@ fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_blo
     assert!(!one.contains(rule) && !three.contains(rule), "{rule} stands in a question's turn");
     assert!(process.contains(rule), "{rule} stands in the room's block");
   }
+}
+
+fn fixture(name: &str) -> String {
+  std::fs::read_to_string(format!("tests/fixtures/{name}")).unwrap().trim().to_owned()
+}
+
+#[test]
+fn a_closing_answer_that_writes_the_standing_message_again_goes_out_once() {
+  // The live pair: the standing message and the closing check's answer, the same sentence but for one mark.
+  let standing = fixture("closing-standing.txt");
+  let answer = fixture("closing-answer.txt");
+
+  assert_ne!(standing, answer);
+  assert_eq!(appended(&standing, &answer), standing, "one message, not the sentence twice");
+  // Written again near enough, a letter dropped, it is the message as written.
+  let mut letters: Vec<char> = answer.chars().collect();
+  let second = letters
+    .iter()
+    .enumerate()
+    .filter(|(_, character)| character.is_alphanumeric())
+    .nth(1)
+    .unwrap()
+    .0;
+
+  letters.remove(second);
+
+  let reworded: String = letters.into_iter().collect();
+
+  assert_eq!(appended(&standing, &format!("{reworded} ")), reworded);
+
+  // White space and marks set aside, an answer holding the standing message whole is the message as written.
+  assert_eq!(appended("Hi there.", "Before: hi there"), "Before: hi there");
+  // One opening on the standing message adds only what follows it, the standing message's own mark left out.
+  assert_eq!(
+    appended("Hi there!", "Hi there! And one more thing."),
+    "Hi there!\n\nAnd one more thing."
+  );
+  assert_eq!(appended("Hi there!", "hi, there"), "Hi there!");
+  // Anything else is added after the standing message.
+  assert_eq!(
+    appended("The build is green.", "Also, the deploy went out at noon."),
+    "The build is green.\n\nAlso, the deploy went out at noon."
+  );
 }

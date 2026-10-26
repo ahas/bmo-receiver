@@ -148,10 +148,13 @@ leaves.
 - **Once the message stands, one closing check.** Where words waited when the message came to stand — the answer
   to `final`, or one a send marker opened — the session is asked once more before the items and the checks: the
   policy's `arrived` line, then the block. The message as it stands is kept: the answer, marks taken out, answers
-  the words that arrived and is added after it, the two going out as one message. An answer that holds the
-  standing message whole is taken as the message as written; an answer that is nothing but marks leaves the
-  message as it stood, a wait leaves it too, and a skip sends nothing. The check is not asked past the ceiling,
-  nor where the process came to nothing to send: those words wait for the next round.
+  the words that arrived and is added after it, the two going out as one message. The answer is read against the
+  standing message with white space and punctuation set aside and letters in one case: one that holds the
+  standing message whole, or one that is the standing message written again near enough (a likeness of 0.8 or
+  more between the two, character by character), is taken as the message as written; one that opens on the
+  standing message adds only what follows it; only what is left after these is added. An answer that is nothing
+  but marks leaves the message as it stood, a wait leaves it too, and a skip sends nothing. The check is not
+  asked past the ceiling, nor where the process came to nothing to send: those words wait for the next round.
 - **The agent decides each message it was shown, by mark:**
   - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, the
     owner's words among it are owed an answer, and the answer is pinned to the newest of them;

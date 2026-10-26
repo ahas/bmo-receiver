@@ -288,6 +288,7 @@ dependencies = [
  "serde_urlencoded",
  "sha2",
  "sqlx",
+ "strsim",
  "strum 0.28.0",
  "tempfile",
  "thiserror",

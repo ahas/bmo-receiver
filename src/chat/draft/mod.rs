@@ -198,12 +198,61 @@ pub fn waiting_line(pending: &[i64]) -> String {
   fill_marks(&DRAFTING.waiting, &[("ids", &stringify(&pending).unwrap_or_default())])
 }
 
-/// The message once the closing check answered the words that arrived: the standing message kept and the answer
-/// added after it, the two one message; an answer that holds the standing message whole is the message as written.
+/// How near an answer must be to the standing message, character by character, to be that message written again.
+const WRITTEN_AGAIN: f64 = 0.8;
+
+// The marks that may close a sentence, which an answer opening on the standing message carries before what it adds.
+const CLOSING_MARKS: &str = ".,!?;:~…。、！？‥)]}\"'”’」』";
+
+// What a text is read by against another: its letters and digits alone, in one case.
+fn bare(text: &str) -> String {
+  text
+    .chars()
+    .filter(|character| character.is_alphanumeric())
+    .flat_map(char::to_lowercase)
+    .collect()
+}
+
+// Where in `text` its first `count` letters and digits end, so what follows them is read as written.
+fn past_bare(text: &str, count: usize) -> usize {
+  let mut seen = 0;
+
+  for (at, character) in text.char_indices() {
+    if seen == count {
+      return at;
+    }
+
+    if character.is_alphanumeric() {
+      seen += character.to_lowercase().count();
+    }
+  }
+
+  text.len()
+}
+
+/// The message once the closing check answered the words that arrived (docs/drafting.md, 「Once the message stands,
+/// one closing check」), the two read with white space and punctuation set aside: an answer that holds the standing
+/// message whole, or writes it again near enough, is the message as written; one that opens on it adds only what
+/// follows it; any other is added after the standing message, the two one message.
 pub fn appended(standing: &str, answer: &str) -> String {
   let (standing, answer) = (standing.trim(), answer.trim());
+  let (held, said) = (bare(standing), bare(answer));
 
-  if standing.is_empty() || answer.contains(standing) {
+  if held.is_empty() {
+    return answer.to_owned();
+  }
+
+  // The standing message as it stood, and only what follows it.
+  if said.starts_with(&held) {
+    // What closed the standing message's last word — its full stop, its mark — is the standing message's.
+    let added = answer[past_bare(answer, held.chars().count())..]
+      .trim_start_matches(|character: char| character.is_whitespace() || CLOSING_MARKS.contains(character))
+      .trim();
+
+    return if added.is_empty() { standing.to_owned() } else { format!("{standing}\n\n{added}") };
+  }
+
+  if said.contains(&held) || strsim::normalized_levenshtein(&held, &said) >= WRITTEN_AGAIN {
     return answer.to_owned();
   }
 
