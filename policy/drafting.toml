@@ -19,7 +19,7 @@ turn_seconds = 120
 # on <<SEND>> is the message, what follows the marker, from the row's send_from question on; <<SKIP>> anywhere in
 # an answer ends the process with nothing sent; <<DONE #<number>>> and <<SEPARATE #<number>>> mark a message shown
 # to the round as needing no answer or as answered in a round of its own. `{voice}` in `send_open`, `last_lead` and
-# `arrived` is `voice`: an answer that may be the message is written in the room's voice, not as notes.
+# `arrived` is `voice`: an answer that may be the message is written in the voice the persona sets for the person answered, not as notes.
 opening = "This round's question {number} of {count} ({name}), the first and the freest: answer it with notes, as the draft process in the room's block says. {send}"
 lead = "The process asks question {number} of {count} ({name}): answer it with notes, as the draft process in the room's block says. {send}"
 send_open = "Where the words are a simple call, a greeting or a short word, or what you now hold is enough for the message, answer now: begin the answer with <<SEND>>, what follows it is the message, sent to this room as written, and the process ends there. {voice}"
@@ -28,7 +28,7 @@ last_lead = "The last question of the process, {number} of {count} ({name}). You
 waiting = "Messages waiting in the room: {ids}. They are shown with the next question; do not answer them now."
 arrived = "Messages arrived after your last answer and before the message went out. The message as it stands is shown below, then the messages that arrived, each with its number. Answer with the message as it should now go out, whole: it takes the standing message's place, so write all of it, not only what changes or what it adds. Answer with nothing but the marks to send the standing message unchanged. <<DONE #<number>>> marks a message that needs no answer, <<SEPARATE #<number>>> one to be answered in a round of its own after this one, <<REPLY #<number>>> the one your message answers; <<SKIP>> sends nothing. {voice}"
 standing = "The message as it stands:"
-voice = "Write what may be the message as the message itself, as this room's agent says it to this person: the voice and register you use with them here, in their language, never as notes or a report."
+voice = "Write what may be the message as the message itself, in the voice your persona sets for the person you answer, its register toward them included, and in their language, never as notes or a report."
 
 # The questions, by name: the seven the owner set. `final` is always the last question of a process.
 [questions]
@@ -38,7 +38,7 @@ facts = "Is that information true, and where did each fact come from? A fact abo
 memory = "Bring the brain up to date with its tools: recall the memories this answer needs, including similar ones; engrave the facts established so far; mark as done the promises and checks that were fulfilled; invalidate what this conversation showed no longer holds; and confirm what still holds, so its lastConfirmedAt moves."
 promises = "Where something is said like a promise, was it actually done? Where it was not, do it now with your tools, or change the words."
 fit = "Does it fit the room's rules, the persona and the language the other person speaks?"
-final = "Looking at what came in meanwhile and at the notes established so far, write the message to send to this room now, as you say it to this person in this room's voice. To send nothing, answer <<SKIP>> alone."
+final = "Looking at what came in meanwhile and at the notes established so far, write the message to send to this room now, in the voice your persona sets for the person you answer. To send nothing, answer <<SKIP>> alone."
 
 # The process table's default rows, matched most specific first: an agent's row before a provider's, a
 # provider's before a tier's; "*" stands for any. `rounds` are an ordinary turn's questions, `send_from` the

@@ -122,7 +122,8 @@ fn every_question_whose_answer_may_be_the_message_asks_for_the_rooms_voice_and_n
     "the send-from question asks for the room's voice: {facts}"
   );
   assert!(last.contains(&DRAFTING.voice), "the last question asks for it: {last}");
-  assert!(DRAFTING.questions["final"].contains("this room's voice"), "final's own text says so");
+  assert!(DRAFTING.questions["final"].contains("your persona sets"), "final's own text says so");
+  assert!(DRAFTING.voice.contains("your persona sets") && DRAFTING.voice.contains("register"));
   assert!(!notes.contains(&DRAFTING.voice), "a notes question says nothing of the voice: {notes}");
   assert!(
     !plan.first_words().unwrap_or_default().contains(&DRAFTING.voice),

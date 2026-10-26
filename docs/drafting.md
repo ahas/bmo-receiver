@@ -106,11 +106,13 @@ leaves.
   and the process goes on, so the questions that establish the facts are asked before anything is written; each
   question's own line says whether a send is read at it. A light turn's list reads a send from its first question
   whatever the row names.
-- **A question whose answer may be the message asks for it in the room's voice.** At the `sendFrom` question and
+- **A question whose answer may be the message asks for it in the persona's voice.** At the `sendFrom` question and
   every one after it, `final` among them, and at the closing check, the question's line says that an answer that
-  becomes the message is written as the message itself, as this room's agent says it to this person: in the voice
-  and register it uses with them in this room and in their language, never as notes or a report (`drafting.toml`,
-  `voice`). The questions before `sendFrom` stay notes and say nothing of the voice.
+  becomes the message is written as the message itself, in the voice the agent's persona sets for the person it
+  answers, its register toward them included, and in their language, never as notes or a report
+  (`drafting.toml`, `voice`); the line says so in every such turn, so the voice holds however long the session
+  runs. The receiver carries no register of its own and names no person's register: that is the persona's. The
+  questions before `sendFrom` stay notes and say nothing of the voice.
 - **The policy's rows are the defaults** (`drafting.toml`): any provider, `information`, `facts` and `final`, the
   small models' process; Claude's provider, `information`, `facts`, `memory`, `promises` and `final`; both read a
   send from `facts` on; every light turn `final` alone; 150 seconds, past which `final` is asked at once; 120
