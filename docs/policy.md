@@ -28,6 +28,7 @@ policy's (`docs/drafting.md`, 「The questions」).
 | `fixed-lines.toml` | `sentences`, each language's plain sentence by a fixed line's code | what a fixed line says where the web unit's language packs cannot render it (`docs/voiced-notices.md`, 「Lines that stay fixed」) |
 | `files.toml` | the largest file the console may attach, in bytes, and the name a file with none goes by | `POST /owner/message-files` |
 | `code-review.toml` | the lines a code review's talk is composed in, the places a review is pinned to, how much of the reviewed lines a turn carries | the talks |
+| `quiet.toml` | the words a run's name carries for work that counts as under way however long it has run, and the span within which any other open run counts, in minutes | `quiet` (`docs/boundary-api.md`, 「The service and its commands」) |
 | `kept.toml` | how long a chat service's facts of a room and the agency's list of agents are kept before they are asked again, in seconds (`docs/receiver.md`, 「What is kept for a moment」) | the roads' room facts, every read of the agents |
 | `queue.toml` | how long the owner may hold a job's question clock stopped from the console | the owner's answer to a job's question |
 | `owner-facts.toml` | what the owner's session is told of the agency's events that no other part words: a road the agency moved, returned or found closed, the facts and follow-ups of a worker fallen to a lesser model, and the lines of the overtime order | the workers' facts, the overtime order |

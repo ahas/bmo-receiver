@@ -1,0 +1,9 @@
+# What `quiet` counts as work under way that a restart of the receiver would cut (docs/boundary-api.md, 「The
+# service and its commands」), read off the agency's runs still open.
+
+# A run whose name carries one of these words counts however long it has run: a research run goes for hours.
+long_words = ["research"]
+
+# Any other open run counts where it started within this span, in minutes: a chat turn ends within it, and a run
+# open longer was left open rather than at work.
+recent_minutes = 30

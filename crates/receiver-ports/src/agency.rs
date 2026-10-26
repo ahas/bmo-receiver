@@ -361,6 +361,22 @@ pub struct Run {
   pub started_at: i64,
 }
 
+/// A run still open, as the list of runs answers it: its id, its unit's name and when it started.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenRun {
+  pub id: i64,
+  #[serde(default)]
+  pub name: String,
+  #[serde(default)]
+  pub started_at: i64,
+}
+
+#[derive(Deserialize)]
+struct OpenRuns {
+  items: Vec<OpenRun>,
+}
+
 /// Every call the receiver makes on the agency.
 pub trait Agency: Send + Sync {
   /// Every agent with its row and roads, and the roles.
@@ -416,6 +432,9 @@ pub trait Agency: Send + Sync {
 
   /// The ids of the runs a round's turns opened, in the order the agency answers them, newest first.
   fn round_runs<'a>(&'a self, round: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>>;
+
+  /// The runs still open, newest first.
+  fn open_runs(&self) -> BoxFuture<'_, Answer<Vec<OpenRun>>>;
 
   /// The message a run's answer went out as, attached to the run; its closing stays as it stands.
   fn attach_message(&self, run: i64, message: i64) -> BoxFuture<'_, Answer<()>>;
@@ -744,6 +763,17 @@ impl Agency for HttpAgency {
       let page: RunPage = self.caller.get(&["runs"], &[("round", round.to_owned())]).await?;
 
       Ok(page.items.into_iter().map(|run| run.id).collect())
+    })
+  }
+
+  fn open_runs(&self) -> BoxFuture<'_, Answer<Vec<OpenRun>>> {
+    Box::pin(async move {
+      let page: OpenRuns = self
+        .caller
+        .get(&["runs"], &[("live", "true".to_owned()), ("limit", "500".to_owned())])
+        .await?;
+
+      Ok(page.items)
     })
   }
 

@@ -16,6 +16,7 @@ pub mod json;
 pub mod kept;
 pub mod language;
 pub mod owner_room;
+pub mod quiet;
 pub mod receiver;
 pub mod road_facts;
 pub mod roads;

@@ -19,8 +19,8 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, ConsoleAgentRow, Delivery, Events, FieldRefusal, Forgotten, Load, Passed, Rest,
-  RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
+  Agency, Agent, Agents, ConsoleAgentRow, Delivery, Events, FieldRefusal, Forgotten, Load, OpenRun, Passed,
+  Rest, RestKind, Resting, Run, RunLine, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
@@ -815,6 +815,8 @@ pub struct StandInAgency {
   pub rounds_asked: Mutex<Vec<String>>,
   /// The sessions a fold was asked of.
   pub folds: Mutex<Vec<String>>,
+  /// The runs still open, as the list of runs answers them.
+  pub open: Mutex<Vec<OpenRun>>,
   pub attached: Mutex<Vec<(i64, i64)>>,
   // The sessions it lists, each with its state, where a test sets them.
   pub listed: Mutex<Option<Vec<(Session, SessionState)>>>,
@@ -849,6 +851,7 @@ impl StandInAgency {
       runs: Mutex::default(),
       rounds_asked: Mutex::default(),
       folds: Mutex::default(),
+      open: Mutex::default(),
       attached: Mutex::default(),
       listed: Mutex::default(),
       down: Mutex::default(),
@@ -1075,6 +1078,16 @@ impl Agency for StandInAgency {
 
     // Newest first, as the agency answers.
     Box::pin(async move { Ok(vec![ROUND_RUN, ROUND_RUN - 1]) })
+  }
+
+  fn open_runs(&self) -> BoxFuture<'_, Answer<Vec<OpenRun>>> {
+    if self.is_down() {
+      return agency_down("runs");
+    }
+
+    let open = self.open.lock().unwrap().clone();
+
+    Box::pin(async move { Ok(open) })
   }
 
   fn attach_message(&self, run: i64, message: i64) -> BoxFuture<'_, Answer<()>> {

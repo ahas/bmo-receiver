@@ -69,6 +69,9 @@ enum Command {
   Health,
   /// The nouns `bmo` dispatches to this command, one a line.
   Nouns,
+  /// Whether work stands under way that a restart would cut: 0 where none does, 1 where some does or the agency
+  /// did not answer, each one named.
+  Quiet,
   /// The owner's private room stood up once on the record alone, its number printed for the configuration's
   /// `owner_room`; run again, the one stood up before.
   OwnerRoom {
@@ -231,6 +234,27 @@ async fn deliver_waiting(config: &Config) -> Result<u8, String> {
   .map_err(|why| why.detail.to_owned())
 }
 
+/// Whether work stands under way, each one named on its own line.
+async fn quiet(config: &Config) -> u8 {
+  let units = config.units();
+
+  match bmo_receiver::quiet::asked(units.agency.as_ref(), bmo_receiver::now_ms()).await {
+    Ok(under_way) if under_way.is_empty() => 0,
+    Ok(under_way) => {
+      for line in under_way {
+        println!("{line}");
+      }
+
+      1
+    }
+    Err(why) => {
+      println!("the agency did not answer which runs are open: {why}");
+
+      1
+    }
+  }
+}
+
 /// The owner's private room stood up, or the one stood up before, and its number printed.
 async fn owner_room(config: &Config, title: &str) -> Result<u8, String> {
   if title.trim().is_empty() {
@@ -386,6 +410,7 @@ async fn main() -> ExitCode {
     Command::Serve => serve(&config).await.map(|()| 0),
     Command::DeliverWaiting => deliver_waiting(&config).await,
     Command::OwnerRoom { ref title } => owner_room(&config, title).await,
+    Command::Quiet => Ok(quiet(&config).await),
     Command::Health => ask_health(&config).await.map(|()| 0),
     Command::ToolEnv => write_env(&config).map(|written| {
       match written {
