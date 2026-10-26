@@ -22,6 +22,8 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     "model": "m",
     "place": null,
     "generation": 2,
+    "context": { "carried": 90_000, "window": 1_000_000 },
+    "foldRatio": 0.15,
   });
 
   unit.answer(
@@ -85,7 +87,14 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   };
 
   assert_eq!(agency.turn(&turn).await.unwrap(), Delivery::Blocked);
-  assert_eq!(agency.state("agent-a@-7").await.unwrap().provider.as_deref(), Some("claude-code"));
+  let state = agency.state("agent-a@-7").await.unwrap();
+
+  assert_eq!(state.provider.as_deref(), Some("claude-code"));
+  assert_eq!(
+    (state.context["carried"].as_i64(), state.context["window"].as_i64(), state.fold_ratio),
+    (Some(90_000), Some(1_000_000), Some(0.15)),
+    "what the session carries comes through, so its fold is judged from it"
+  );
   agency.fold("agent-a@-7").await.unwrap();
   assert_eq!(agency.sessions().await.unwrap(), [started]);
   assert_eq!(

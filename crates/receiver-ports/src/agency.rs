@@ -127,6 +127,8 @@ struct SessionMember {
   #[serde(default)]
   generation: Value,
   #[serde(default)]
+  context: Value,
+  #[serde(default)]
   fold_ratio: Option<f64>,
   #[serde(default)]
   tier: Option<String>,
@@ -150,7 +152,7 @@ impl SessionMember {
       model: self.model.filter(|model| !model.is_empty()),
       place: self.place,
       generation: self.generation,
-      context: Value::Null,
+      context: self.context,
       fold_ratio: self.fold_ratio,
       tier: self.tier.filter(|tier| !tier.is_empty()),
       prefix_change_reason: self.prefix_change_reason.filter(|why| !why.trim().is_empty()),

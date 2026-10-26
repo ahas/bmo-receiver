@@ -168,8 +168,8 @@ its rounds.
   with the rest; what is `waiting` or `refused` goes back to wait for the round after, and a `waiting` turn is
   offered nothing more (`docs/bmo-window.md`, `push`).
 - **A round folds its session only past the fold share:** once its answer has gone out, the session is folded as
-  work of its own where the context the agency reports it carrying after the round's last turn (`carried`
-  against `window`) has reached the
+  work of its own where the context the agency reports it carrying after the round's last turn (its session
+  state's `context`, `carried` against `window`) has reached the
   session's fold ratio, and not otherwise. The ratio is the agency's, read with the session's state
   (`foldRatio`, the value its fold-ratio table holds for the session's provider and tier); where the state
   names none, the resident turn policy's `fold_ratio` stands in.
