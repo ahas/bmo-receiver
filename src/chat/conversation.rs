@@ -1498,6 +1498,14 @@ impl Conversations {
       )
     };
     let (held_words, mut batch, roads, mut instructions, ids, events, room, first_call, mut held) = taken;
+
+    // The round's privilege is its own words', in any room and whatever an earlier round of the conversation read;
+    // a round of no words, a quiet instruction's, is the owner's in his private room alone (docs/unified-bmo.md).
+    held.all_from_owner = if batch.is_empty() {
+      room.owner_room
+    } else {
+      batch.iter().all(|message| message.sender_id == Some(owner))
+    };
     let mut via = self.road_of(chat_id, &batch, &roads).await;
 
     // A round the open window alone let in is the agent's to judge first, before any reference or gate;

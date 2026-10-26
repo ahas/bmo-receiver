@@ -517,3 +517,74 @@ async fn a_session_whose_program_carries_its_own_fold_is_never_folded_by_the_rec
     "the program's own fold stands: none is asked"
   );
 }
+
+// The owner's words in a room that is not his private room, as the road hands them over.
+fn owners_words_in(room: i64, message_id: i64, text: &str) -> Inbound {
+  Inbound {
+    chat_id: room,
+    ..said(message_id, text)
+  }
+}
+
+#[tokio::test]
+async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet_instructions_round() {
+  use bmo_receiver::chat::instructions::Rooms;
+
+  const LAB: i64 = -9_000_000_000_003;
+
+  let scratch = Scratch::new().await;
+
+  crate::common::session::no_drafting(scratch.db()).await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").holding(&[LAB]).owners(OWNER));
+
+  documents(data.path());
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, ANSWER));
+  let receiver = standing.receiver.clone();
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+  let lab = Room {
+    owner_room: false,
+    identity: Some(7),
+    private_to: None,
+  };
+
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+
+  // A job's end opens the room's conversation as a quiet instruction, and its round answers.
+  runner
+    .instruct(AGENT, LAB, "A job of the room ended.".to_owned(), 1, None, vec![])
+    .await;
+  until("the instruction's round", || {
+    session.prompts().len() == 1 && runner.idle() && !session.working()
+  })
+  .await;
+
+  // Then the owner speaks in the same room while the conversation still stands.
+  receiver
+    .message(
+      &owners_words_in(LAB, 2, &format!("{ADDRESS}, file this as an item.")),
+      &Context::default(),
+      lab,
+    )
+    .await
+    .unwrap();
+  until("the owner's round", || {
+    session.prompts().len() == 2 && runner.idle() && !session.working()
+  })
+  .await;
+
+  let turns = session.turns.lock().unwrap().clone();
+
+  assert_eq!(
+    turns[0].privileged,
+    Some(false),
+    "a quiet instruction outside his private room is not his"
+  );
+  assert_eq!(turns[1].privileged, Some(true), "the owner's own words are privileged in any room");
+}
