@@ -259,7 +259,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-receiver"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -1947,7 +1947,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-client"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "axum",
  "reqwest",
@@ -1960,7 +1960,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-codes"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "bmo-chat-client",
  "http",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-policy"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "serde",
  "toml",
@@ -1981,7 +1981,7 @@ dependencies = [
 
 [[package]]
 name = "receiver-ports"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "axum",
  "bmo-chat-client",
@@ -2139,7 +2139,7 @@ dependencies = [
 
 [[package]]
 name = "room-calls"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "bmo-chat-client",
  "chrono",
@@ -2438,7 +2438,7 @@ checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
 name = "send-tool"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "axum",
  "receiver-ports",
@@ -3193,7 +3193,7 @@ dependencies = [
 
 [[package]]
 name = "tool-call"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "dotenvy",
  "receiver-ports",
@@ -3440,7 +3440,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "wait-tool"
-version = "0.43.0"
+version = "0.1.0-rev.1"
 dependencies = [
  "chrono",
  "schemars",
