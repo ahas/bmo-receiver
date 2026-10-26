@@ -268,6 +268,11 @@ pub async fn deliver_pending(
 
     let cold = !rooms.is_active(&row.agent, row.chat_id);
 
+    // A row never wakes a session past its cache lifetime: it waits for a round a room's own words open.
+    if cold && super::cache::expired(db, &row.agent).await {
+      continue;
+    }
+
     if cold && now_ms - *last_cold_wake < gap_ms {
       held = true;
       continue;

@@ -135,6 +135,17 @@ its rounds.
   itself finished before it had sent would let the next message start a second run of the same session, and the
   room would read two answers to one thing, the older one arriving last.
 - **What arrives while a round is running waits in the buffer** and is read when that round hands over.
+- **Words the agent was not named in are judged first, by the agent itself.** In a room that is not the owner's
+  private chat, a round whose every message reached the session on its open window alone — none of them names
+  the agent (「The names and the window」), replies to its words or stands in a private chat — opens with the
+  agent's own judgement of whether to answer: one light turn of the same session carrying the room's recent words
+  in the room shape and the words being judged, and the round policy's question (`chat-round.toml`,
+  `[supervisor]`) whether they are said to it or want its answer. It carries no reference and no index, and
+  nothing of it passes the sanitiser or any gate. `<<SKIP>>` ends the round there: nothing is sent, the words are
+  read and the window keeps the time it had, as a skipped round leaves it. Any other answer opens the ordinary
+  round, its reference, its sanitiser and its draft process. A round with a named call, a reply, words of a
+  private chat or the owner's chat skips this step. The judgement is a row of the round log of its own kind,
+  `supervisor` (`docs/drafting.md`, 「The round log」).
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
   window is carried into the agent's session through the agency (`POST /sessions`, `GET /sessions/{sessionId}`,
   `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); a
@@ -222,7 +233,14 @@ alone, a reset names its `ranges`. The receiver takes its own rows of the ranges
 
 ## Quiet instructions
 
-A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet instruction」, states. One is
+A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet instruction」, states.
+
+- **No instruction wakes a session past its cache lifetime.** Where the agent's one session last answered longer
+  ago than the lifetime its provider declares (`providers.toml`, `cache_minutes`, else `keepalive_idle_minutes`), a row that would open a
+  turn of its own stays pending — a briefing past its ride, a fact, an order alike — and waits for a round a room's
+  own words open, which carries it; that round replaces the session through the handoff, as an expired session
+  always is (`docs/unified-bmo.md`, 「Replacing the session」). Waking it would pay its whole prefix again for
+  nothing. One is
 written by the wake itself: the deployment briefing, what went live since the owner was last briefed.
 
 - **A deployment is no session event.** The agency relays a turn into the session that stands, opening one only

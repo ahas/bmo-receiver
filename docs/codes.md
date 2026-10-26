@@ -243,6 +243,7 @@ session once the setting has changed, one waiting per setting.
 | `per-room` | the agent keeps a session in each room, so it has no one session to keep warm |
 | `no-session` | the session never stood in a room |
 | `used-recently` | the session was used not long enough ago for a touch |
+| `expired` | the session's last turn is older than its provider's cache lifetime, so a touch would pay its whole prefix again |
 | `no-conversation` | no conversations stand to be touched |
 | `not-chat-touch` | the ping names a target other than the chat touch |
 

@@ -160,6 +160,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/handoffs/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An agent's standing session asked for its handoff file ahead of a fresh session, kept for that session's first turn. */
+        post: operations["handOff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1241,14 +1258,17 @@ export interface components {
             detail: string | null;
             /** Format: int64 */
             id: number;
-            /** @description `turn` (only where the process asks no question), `question`, `item`, `check` or `end`. */
+            /**
+             * @description `supervisor` (the agent's own judgement whether to answer, before the round), `turn` (only where the process
+             *     asks no question), `question`, `item`, `check` or `end`.
+             */
             kind: string;
             /** Format: int64 */
             ms: number;
             /**
              * Format: int64
              * @description From 1, each question, item and check in the order asked, the round's own turn being the first question's
-             *     row.
+             *     row; 0 for the agent's own judgement before a round its open window alone let in.
              */
             number: number;
             /**
@@ -1293,6 +1313,21 @@ export interface components {
         Forgotten: {
             /** Format: int64 */
             forgotten: number;
+        };
+        /**
+         * @description A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room
+         *     whose session is asked where the agent keeps one in each room.
+         */
+        HandoffAsked: {
+            reason: string;
+            /** Format: int64 */
+            room?: number | null;
+        };
+        /** @description The handoff file a standing session wrote: where it stands and how long it is, in bytes. */
+        HandoffWritten: {
+            /** Format: uint64 */
+            bytes: number;
+            path: string;
         };
         /** @description `GET /health`. */
         Health: {
@@ -2240,6 +2275,48 @@ export interface operations {
                 content?: never;
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    handOff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffAsked"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffWritten"];
+                };
+            };
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, conflict, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -461,6 +461,9 @@ impl Chat for StandInChat {
 /// the agent copied from.
 #[derive(Default)]
 pub struct StandInGate {
+  /// The entries the reference selection answers, and how many times it was asked.
+  pub entries: Mutex<Vec<Entry>>,
+  pub referred: Mutex<usize>,
   pub read: Mutex<Vec<String>>,
   pub attached: Mutex<Vec<(i64, i64, i64)>>,
   pub copied: Mutex<Vec<(String, String)>>,
@@ -468,7 +471,11 @@ pub struct StandInGate {
 
 impl Gate for StandInGate {
   fn reference<'a>(&'a self, _envelope: &'a Envelope) -> BoxFuture<'a, Answer<Vec<Entry>>> {
-    Box::pin(async { Ok(vec![]) })
+    *self.referred.lock().unwrap() += 1;
+
+    let entries = self.entries.lock().unwrap().clone();
+
+    Box::pin(async move { Ok(entries) })
   }
 
   fn sanitise<'a>(&'a self, asked: &'a Sanitise) -> BoxFuture<'a, Answer<Sanitised>> {
@@ -1277,6 +1284,7 @@ impl Runner for Taken {
     message: &'a Inbound,
     _room: Room,
     opens_window: bool,
+    _window_only: bool,
   ) -> BoxFuture<'a, bool> {
     self.handed.lock().unwrap().push(Handed {
       agent: agent.to_owned(),

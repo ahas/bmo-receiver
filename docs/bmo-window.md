@@ -211,9 +211,25 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
   events wake, and of everything else — the room's rules, its other memories and the brain's references — only
   what it picks for the turn. A turn with no line at all still carries what attaches without a pick.
 
-All of it goes in the one reference block, loaded in full once per session per version and as a mark after
-that; which versions a session holds is the agency's record of the session's loads
-(`GET /session-loads/{sessionId}`).
+None of it goes into the turn as a piece. The turn carries the brain's index instead, and the agent reads what it
+needs itself:
+
+- **One line a group** — the system documents, the room's rules, knowledge, the people the brain knows and the
+  room's memories — with how many entries of it this session has not read yet, and, where the gate gives one, a
+  line of what changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its version, by
+  the agency's record of the session's loads (`GET /session-loads/{sessionId}`), is read and counted out.
+- **Then one hint, never an order:** where the brain may hold something the answer needs, open its index or search
+  it and read what is needed; otherwise just answer. Whether the agent reads is its own choice, and nothing counts
+  or holds it to having read. The only hard rule stands in the draft process's `facts` question: nothing unread is
+  spoken of as fact.
+- **The counts are the gate's to give.** Until the gate serves the index (`docs/boundary-api.md`, 「Contract
+  gaps」), they are counted over the entries the gate's selection answers for the turn, grouped by their source;
+  the bodies of those entries go nowhere, and the pickers' choice shapes nothing else of the turn.
+- **A person's own thread** from the group rooms they share with the agent, handed to a turn in their private
+  room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's, and goes in whole as
+  before, loaded once per session per version.
+- **The block stands after the turn's words and instructions,** ahead of its closing lines, so a session reads
+  what came in before it decides whether to look anything up.
 
 Beside the reference, a turn carries the room's messages since the agent last answered there:
 
@@ -230,15 +246,13 @@ Beside the reference, a turn carries the room's messages since the agent last an
 - **`round`**: a room's words, its quiet instructions, or both. The window selects over the batch and the
   instructions, with the instructions' events.
 - **`push`**: quiet instructions put into a turn that is still working; a room's words are never pushed, and
-  wait for the round's next question instead. The window selects over the pushed instructions, with their
-  events, for what the round does not already hold: no gate is offered a piece the
-  round carries, and a push of the system's lines alone asks only the matcher. It puts in whatever the running
-  turn does not already carry, and that joins what the round holds once the agency's session push answers it
+  wait for the round's next question instead. A push carries the instructions alone, passed through the
+  sanitiser; no piece goes in with it. It joins what the round holds once the agency's session push answers it
   `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
-  the first, which rides the round's own turn, an item or a check. It carries the round's own selection again; the documents have just gone in, so they stand as marks.
-  No gate selects for it but over the room's words that came in meanwhile: a question, or the closing check
-  once the message stands, carries those as one block, selected for as a push's are.
+  the first, which rides the round's own turn, an item or a check. It carries no reference of its own: the index
+  went in with the round's turn. A question, or the closing check once the message stands, carries the room's
+  words that came in meanwhile as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It is composed like any turn,
   so a row that has come due while the room was quiet is in front of the agent. Its answer goes to no room: what is due is done with tools, `say` for speaking.
@@ -253,6 +267,11 @@ Beside the reference, a turn carries the room's messages since the agent last an
 - **It is never beside another turn:** while any room is in a conversation or a compaction it answers `busy`;
   while the chat agent keeps a session per room, or its provider is off, resting or down, it answers `skipped`.
 - **Every turn of the session reports its use** to the warmer, so a session in use is never pinged.
+- **A session past its cache lifetime is not touched:** once its last turn is older than the lifetime its provider
+  declares (`providers.toml`, `cache_minutes`, else `keepalive_idle_minutes`), waking it would pay its whole prefix again for nothing, so
+  the touch answers `skipped` with `expired`, no fold is started for it, and no quiet instruction opens a turn of
+  its own on it (`docs/wake.md`, 「Quiet instructions」). It stays as it stands; the next round a room's own words
+  open replaces it through the handoff (`docs/unified-bmo.md`, 「Replacing the session」).
 
 ## A line typed into the program
 

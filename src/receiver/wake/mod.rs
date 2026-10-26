@@ -153,7 +153,17 @@ pub async fn woken_on(
     };
 
     // Every woken agent's turn goes to its own conversations, which open and close its window in the room.
-    hand(receiver, &agent.name, inbound, &files, ground.opens_window(), room, rest_gated).await;
+    hand(
+      receiver,
+      &agent.name,
+      inbound,
+      &files,
+      ground.opens_window(),
+      ground == Ground::Window,
+      room,
+      rest_gated,
+    )
+    .await;
   }
 
   Ok(())
@@ -302,12 +312,14 @@ async fn files_leading_up(
 /// message, opening the window where its ground does, each read through a reader where it came by a mode its
 /// road cannot pin an answer to; whether it was taken. A turn the rest's gate closed is taken only where a
 /// stand-in answers on the agent's road.
+#[allow(clippy::too_many_arguments)]
 pub async fn hand(
   receiver: &Receiver,
   agent: &str,
   inbound: &Inbound,
   files: &[Inbound],
   opens_window: bool,
+  window_only: bool,
   room: Room,
   rest_gated: bool,
 ) -> bool {
@@ -334,7 +346,9 @@ pub async fn hand(
   };
   let carried_files = files.iter().map(carried).collect::<Vec<Inbound>>();
 
-  runner.hand(agent, &carried_files, &carried(inbound), room, opens_window).await
+  runner
+    .hand(agent, &carried_files, &carried(inbound), room, opens_window, window_only)
+    .await
 }
 
 /// Words the owner said through another road — the screen, a talk — handed straight to his own conversation as
@@ -367,6 +381,7 @@ pub async fn hand_owner_words(receiver: &Receiver, message: Inbound) -> Result<b
           ..message
         },
         room,
+        false,
         false,
       )
       .await,

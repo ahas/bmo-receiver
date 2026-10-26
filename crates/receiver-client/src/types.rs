@@ -608,6 +608,24 @@ pub struct TalkTurn {
   pub text: String,
 }
 
+/// A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room
+/// whose session is asked where the agent keeps one in each room.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HandoffAsked {
+  pub reason: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub room: Option<i64>,
+}
+
+/// The handoff file a standing session wrote: where it stands and how long it is, in bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HandoffWritten {
+  pub path: String,
+  pub bytes: u64,
+}
+
 /// A talk's topic and what the owner says.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -731,10 +749,11 @@ pub struct DraftRound {
   pub id: i64,
   pub agent_name: String,
   /// From 1, each question, item and check in the order asked, the round's own turn being the first question's
-  /// row.
+  /// row; 0 for the agent's own judgement before a round its open window alone let in.
   pub number: i64,
   pub question: String,
-  /// `turn` (only where the process asks no question), `question`, `item`, `check` or `end`.
+  /// `supervisor` (the agent's own judgement whether to answer, before the round), `turn` (only where the process
+  /// asks no question), `question`, `item`, `check` or `end`.
   pub kind: String,
   pub answer_chars: i64,
   pub changed: bool,

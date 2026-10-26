@@ -118,8 +118,9 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final") && DRAFTING.max_chars > 0);
 
-  // The lead lines name the marks a message that arrived meanwhile takes, and so does the closing check.
-  for line in [&DRAFTING.lead, &DRAFTING.last_lead, &DRAFTING.arrived] {
+  // The room's block names the marks a message that arrived meanwhile takes, once for every question, and so does
+  // the closing check; the lead lines name only a question's place.
+  for line in [&CHAT_LINE.room.process, &DRAFTING.arrived] {
     assert!(line.contains("<<DONE #<number>>>") && line.contains("<<SEPARATE #<number>>>"), "{line}");
   }
 
@@ -177,6 +178,7 @@ fn the_roads_roles_lines_and_providers_answer_what_the_receiver_asks() {
   let claude = PROVIDERS.provider("claude-code").expect("claude-code is declared");
   assert_eq!((claude.turns, claude.handover), (Turns::Transcript, Handover::Fold));
   assert_eq!(claude.keepalive_idle_minutes, Some(40));
+  assert_eq!(claude.lifetime_minutes(), Some(60), "the touch is due before the cache expires");
   let registered = PROVIDERS.provider("registered").expect("registered is declared");
   assert_eq!((registered.turns, registered.handover), (Turns::Endpoint, Handover::Handoff));
   assert!(!registered.own_words.is_empty());

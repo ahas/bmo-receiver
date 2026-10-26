@@ -10,7 +10,7 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 
 use super::shape::{Reading, sends};
-use super::window::{self, Material};
+use super::window;
 use crate::Fault;
 use crate::receiver::Receiver;
 use crate::receiver::{Inbound, Room};
@@ -92,25 +92,7 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
     ));
   }
 
-  // The window selects over the pushed words as they were written, before the sanitiser cleans the
-  // instructions, as a round's own reference step does.
-  let recent = reading(false).plain_lines(push.messages).await?;
-  let selection = window::select(
-    receiver,
-    &Material {
-      agent: push.agent,
-      chat_id,
-      room: push.room,
-      messages: push.messages,
-      instructions: push.instructions,
-      said: &[],
-      events: push.events,
-      recent: &recent,
-      holds: Some(push.holds),
-      round: Some(push.round.to_owned()),
-    },
-  )
-  .await?;
+  // A push carries no piece: the round's index went in with its turn (docs/bmo-window.md, 「The openings」).
   // The message the round reads last once the push is in, which what the push cleans belongs to.
   let newest = push.messages.last().map(|message| message.message_id).or(push.consumed);
   let instructions = if push.instructions.is_empty() {
@@ -138,9 +120,8 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
   }
 
   Ok(Paragraph {
-    text: window::pushed(receiver, push.agent, &selection, push.holds, &parts.join("\n"), chat_id, newest)
-      .await?,
+    text: parts.join("\n"),
     instructions,
-    reference: selection.entries.iter().map(|entry| entry.path.clone()).collect(),
+    reference: vec![],
   })
 }

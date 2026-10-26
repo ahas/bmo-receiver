@@ -30,6 +30,8 @@ export type SendRequest = Schemas["SendRequest"];
 export type SendAnswer = Schemas["SendAnswer"];
 export type Talk = Schemas["Talk"];
 export type TalkAnswer = Schemas["TalkAnswer"];
+export type HandoffAsked = Schemas["HandoffAsked"];
+export type HandoffWritten = Schemas["HandoffWritten"];
 export type CompanionRequest = Schemas["CompanionRequest"];
 export type Companions = Schemas["Companions"];
 export type PinnedRooms = Schemas["PinnedRooms"];
@@ -228,6 +230,13 @@ export function receiverClient(options: ReceiverOptions) {
     /** `POST /talks`. */
     async talk(body: Talk): Promise<TalkAnswer> {
       return answered(await client.POST("/talks", { body }));
+    },
+
+    /** `POST /handoffs/{agentName}`: the file the agent's standing session wrote, or null where it wrote none. */
+    async handOff(agentName: string, body: HandoffAsked): Promise<HandoffWritten | null> {
+      const result = await client.POST("/handoffs/{agentName}", { params: { path: { agentName } }, body });
+
+      return result.response.status === 204 ? (answered(result), null) : answered(result);
     },
 
     /** `POST /events`. */

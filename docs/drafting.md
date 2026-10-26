@@ -7,9 +7,10 @@ leaves.
 ## What it is
 
 - **The process establishes what the message needs first and writes the message last.** A round's turn goes to
-  the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after the window's
-  pregate: the reference the gate selects, the sanitiser on the words coming in, the gate's reading of whether a
-  reply is wanted. The turn carries, with the room's words, the process's first question, and asks no answer:
+  the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after the agent's own
+  judgement of whether to answer where the open window alone let the words in, and after the window's pregate:
+  the brain's index the gate's offer is counted into and the sanitiser on the words coming in. The turn carries,
+  with the room's words and the index, the process's first question, and asks no answer:
   the agent reads, finds the facts the message rests on and engraves what it establishes in the brain with its
   tools as it goes. The receiver then asks the same session the process's further questions, one turn each, in
   order; every answer but the last is the agent's notes, and the answer to the last question is the message.
@@ -57,31 +58,33 @@ leaves.
 
 | Name | What it asks |
 |---|---|
-| `intent` | why the words were said and what the speaker wants; whether to answer is the pregate's reading, so this asks the reason |
-| `information` | what the message needs to know and what more must be read; where the selected reference falls short, read |
+| `intent` | why the words were said and what the speaker wants; whether to answer is already decided, so this asks the reason |
+| `information` | what the message needs to know and what more must be read; where what the session holds falls short and the brain may hold it, the brain's index opened or searched and read |
 | `facts` | whether what the message rests on is true and where each fact came from: the system's live state read now from the service that owns it, nothing undecided spoken of as known, no variable guessed |
 | `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved |
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
 | `fit` | whether the message fits the room's rules, the persona and the language the other person speaks |
 | `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, or send nothing; always the last |
 
+- **The process's fixed rules stand in the room's block, not in a turn:** that the message is written last, that
+  an answer before the last is notes of what was read, the facts established and engraved in the brain, each with
+  its source, and what is still unknown, the confidence rule and the source rule above, that nothing is hedged,
+  that `<<SKIP>>` ends the process, and the marks a message that arrived meanwhile takes (`chat-line.toml`,
+  `[room]`, `process`). The room's block goes to a session once per version and by its mark after that, so a
+  turn carries only what changes from question to question.
 - **The first question rides the round's own turn:** the room's words and the round's closing lines as the window
   composes them, the closing lines saying that the question below is to be answered, then the question's opening
-  and the question. The opening is the policy's: the place and count of the question, the
-  first question's freedom, the confidence rule and the source rule above, the notes an answer is, whether a send
-  is read at this question (`send_open` or `send_closed`), and the two markers. Where the
-  first question is the last, as a light turn's `final` is, it opens on the last question's line instead and
-  its answer is the message, so the round is one turn.
+  and the question. The opening is the policy's: the place and count of the question, that it is the first and
+  freest, and whether a send is read at this question (`send_open` or `send_closed`). Where the first question is
+  the last, as a light turn's `final` is, it opens on the last question's line instead and its answer is the
+  message, so the round is one turn.
 - **Every later question goes out as one more turn** opening on the process's lead line, naming the question's
-  place and count, that the answer is notes, that the facts established go to the brain, that the message is
-  written last, whether a send is read at this question, the two markers, that nothing is hedged, and the two
-  marks a message that arrived meanwhile takes;
-  then the question; then the turn's scope; then the block of messages that arrived since the last answer, where
-  any did (「What came in meanwhile」 below). Every question but the last closes on the messages still waiting and
-  that they are shown with the next question; the last opens on its own line, that its answer is the message, and
-  names the marks the same way. The lines are the policy's (`drafting.toml`).
-- **No gate is asked for a later question:** the turn carries the round's own selection again, its documents
-  marks by now, and no reference is selected and no judgement written for it.
+  place and count and whether a send is read at this question; then the question; then the turn's scope; then
+  the block of messages that arrived since the last answer, where any did (「What came in meanwhile」 below). Every
+  question but the last closes on the messages still waiting and that they are shown with the next question; the
+  last opens on its own line, that its answer is the message. The lines are the policy's (`drafting.toml`).
+- **No gate is asked for a later question:** the turn carries no reference of its own, and no judgement is
+  written for it.
 
 ## The process table
 
@@ -227,7 +230,10 @@ where it says something: neither empty nor a skip nor a wait.
 - **The round's own turn is the first question's row:** number 1, of kind `question`, named for the row's first
   question, its time counted from the round's start. Its kind is `turn` only where the row's list is empty and
   the turn asked no question, its answer being the message.
-- **The kinds are `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
+- **A round the agent judges first** (`docs/wake.md`, 「The room's queue and the round」) writes that judgement
+  as a row before the process's own: number 0, of kind `supervisor`, named `supervisor`, ending `skip` where the
+  round ends there and `answered` where it goes on. A round that ended there writes no other row.
+- **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
   answer opened on `<<SEND>>` and became the message, `skip` or `failed`.
 - **The process's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where
   nothing does, `withheld` where a check failed twice, `ceiling-message` where the ceiling had `final` asked at

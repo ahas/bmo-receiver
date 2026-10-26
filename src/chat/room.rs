@@ -468,6 +468,7 @@ pub async fn room_context(
     fill_marks(&said.name, &[("title", &title)]),
     said.replaces.clone(),
     said.languages.clone(),
+    said.process.clone(),
   ];
 
   if kind == "group" {

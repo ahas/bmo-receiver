@@ -227,6 +227,43 @@ impl Carry {
     Ok((again, carried_note(&note)))
   }
 
+  /// The agent's standing session asked for its handoff ahead of a fresh session the agency is about to open
+  /// (docs/api.md, 「Handoffs」), exactly as a replacement asks it, and the file kept for the next fresh session's
+  /// first turn: the file where it was written, none where the agent has no opened session to ask or it wrote
+  /// nothing.
+  pub async fn hand_off(
+    &self,
+    agent: &str,
+    room: Option<i64>,
+  ) -> Result<Option<handoff::Handoff>, Failure> {
+    let receiver = &self.receiver;
+    let agency = receiver.units().agency.clone();
+    let unified = unified_session(receiver, agent).await;
+    let scope = scope_of(unified, room.unwrap_or_else(|| receiver.owner_id()));
+    let Ok(standing) = agency.start(agent, scope).await else {
+      return Ok(None);
+    };
+    let state = agency.state(&standing.id).await.unwrap_or_default();
+
+    if !state.generation.as_i64().is_some_and(|generation| generation > 0) {
+      return Ok(None);
+    }
+
+    let Some(handed) = handoff::ask(receiver, agent, &standing.id).await else {
+      return Ok(None);
+    };
+
+    crate::store::settings::set(
+      receiver.db(),
+      &handoff::pending_key(agent),
+      &handed.path.to_string_lossy(),
+    )
+    .await
+    .map_err(|why| Failure::Failed(why.detail))?;
+
+    Ok(Some(handed))
+  }
+
   pub async fn carries(&self, asking: &Asking, held: &Held, follower: &Follower) -> Result<Reply, Failure> {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
@@ -275,6 +312,11 @@ impl Carry {
         (again.0, Some(again.1), vec![reason])
       }
     };
+    // A handoff the agency asked for before it opened a fresh session is that session's note; a session it
+    // resumed lets it go (docs/unified-bmo.md, 「Replacing the session」).
+    let fresh = !standing.generation.as_i64().is_some_and(|generation| generation > 0);
+    let pending = handoff::take_pending(receiver, agent, fresh && note.is_none()).await;
+    let note = note.or_else(|| pending.as_ref().map(carried_note));
 
     // The turn is composed for the session it goes on: a new one holds nothing yet, so the room's block and every
     // reference document go in full.
@@ -285,8 +327,16 @@ impl Carry {
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
     let marked = states(&asking.prompt, &loaded);
+    // A new session's first turn goes in one order: the handoff, then the room and its words, then the brain, walked
+    // once for every room the session answers.
     let prompt = match note {
-      Some(note) => format!("{note}\n\n{sent}"),
+      Some(note) => {
+        let walked = super::window::walked(receiver, chat_id, &sent)
+          .await
+          .map_err(|why| Failure::Failed(why.detail))?;
+
+        format!("{note}\n\n{walked}")
+      }
       None => sent,
     };
 

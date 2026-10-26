@@ -326,7 +326,7 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
     for message in &unread {
       let taken = match &runner {
         None => false,
-        Some(runner) => runner.hand(&agent, &[], message, room, false).await,
+        Some(runner) => runner.hand(&agent, &[], message, room, false, false).await,
       };
 
       if message.sent_at >= oldest && taken {

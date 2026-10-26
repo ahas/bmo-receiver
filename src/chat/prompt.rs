@@ -281,6 +281,17 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     shown: &recent.iter().map(|message| message.message_id).collect(),
   };
   let recent_lines = plain.plain_lines(&recent).await?;
+  // The session the turn goes on, which the index counts the read entries out by: the one the round holds, else
+  // the one the agency stands for the agent, which a start writes nothing of.
+  let standing = match round.session {
+    Some(session) => Some(session.to_owned()),
+    None => {
+      let unified = unified_session(receiver, round.agent).await;
+      let scope = super::ask::scope_of(unified, chat_id);
+
+      receiver.units().agency.start(round.agent, scope).await.ok().map(|session| session.id)
+    }
+  };
   let selection = window::select(
     receiver,
     &Material {
@@ -294,6 +305,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
       recent: &recent_lines,
       holds: None,
       round: round.round.clone(),
+      session: standing.as_deref(),
     },
   )
   .await?;
@@ -375,6 +387,16 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     parts.push(fill_marks(&blocks.quiet, &[("count", &round.instructions.len().to_string())]));
     parts.push(instructions.clone());
     parts.push(blocks.quiet_end.clone());
+  }
+
+  // What the brain holds stands after the turn's words, so the session reads what came in before it decides
+  // whether to look anything up; a person's own thread from their group rooms goes in beside it whole
+  // (docs/bmo-window.md, 「What every turn carries」).
+  for block in [&selection.block, &selection.index] {
+    if !block.is_empty() {
+      parts.push(String::new());
+      parts.push(block.clone());
+    }
   }
 
   // A notice of the queue shows the other agents' work and the consult room beside it.

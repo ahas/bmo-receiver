@@ -31,7 +31,6 @@ use super::prompt::{Scope, scope_line};
 use super::records::run_records;
 use super::sentinels::{Mark, SKIP, is_skip, is_wait, round_marks, sent_now, without_round_marks};
 use super::turnover::note_session;
-use super::window::composed;
 use crate::form::strip_prompt_scaffolding;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver};
@@ -299,7 +298,8 @@ impl Run<'_> {
     let asking = Asking {
       chat_id: chat,
       session: self.held.session.clone().unwrap_or_default(),
-      prompt: composed(drafted.selection, words),
+      // A later turn of the process carries no reference of its own: the index went in with the round's turn.
+      prompt: words.to_owned(),
       via: match drafted.via.as_str() {
         "" => None,
         road => Some(road.to_owned()),

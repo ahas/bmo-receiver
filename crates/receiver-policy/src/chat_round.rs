@@ -48,7 +48,6 @@ pub struct Blocks {
   pub quiet: String,
   pub quiet_end: String,
   pub reference: String,
-  pub reference_pushed: String,
   pub reference_end: String,
 }
 
@@ -268,6 +267,38 @@ pub struct ChatRound {
   pub typed: Typed,
   pub reference: Reference,
   pub language: Language,
+  pub supervisor: Supervisor,
+  pub index: Index,
+}
+
+/// The agent's own judgement that opens a round its every message reached on the open window alone.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Supervisor {
+  pub head: String,
+  pub recent: String,
+  pub judged: String,
+  pub question: String,
+  pub name: String,
+}
+
+/// The brain's index a turn carries in place of the pieces, and the walk a new session's first turn carries.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Index {
+  pub head: String,
+  pub group: String,
+  pub group_hint: String,
+  pub hint: String,
+  pub end: String,
+  pub system_documents: String,
+  pub room_rules: String,
+  pub knowledge: String,
+  pub people: String,
+  pub room_memories: String,
+  pub walk_head: String,
+  pub walk_room: String,
+  pub walk_unknown: String,
 }
 
 /// How a person's language in a room is read: the least letters a message's prose must hold to name it.

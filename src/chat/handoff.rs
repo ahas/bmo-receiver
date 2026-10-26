@@ -149,3 +149,48 @@ pub async fn tell_lost(receiver: &Receiver, agent: &str, reason: SessionReason) 
     eprintln!("{agent}: the owner was not told the handoff was lost: {why}");
   }
 }
+
+/// The settings key a handoff written ahead of a fresh session the agency opens is kept under, until that session's
+/// first turn carries it (docs/unified-bmo.md, 「Replacing the session」).
+pub fn pending_key(agent: &str) -> String {
+  format!("{agent}_handoff_pending")
+}
+
+// The agents whose handoff is being asked for now.
+static UNDER_WAY: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> =
+  std::sync::LazyLock::new(Default::default);
+
+/// An agent's handoff being asked for, held so a second asking for the same agent is told it is under way; none
+/// where one already is. Dropped, it lets the agent go.
+pub struct Asking(String);
+
+impl Asking {
+  pub fn begin(agent: &str) -> Option<Self> {
+    let mut under_way = UNDER_WAY.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    under_way.insert(agent.to_owned()).then(|| Asking(agent.to_owned()))
+  }
+}
+
+impl Drop for Asking {
+  fn drop(&mut self) {
+    UNDER_WAY.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&self.0);
+  }
+}
+
+/// The handoff kept for an agent's next fresh session taken: its note where the session the turn goes on is a fresh
+/// one and the file still stands, none otherwise. Taken either way, so a session the agency resumed lets it go.
+pub async fn take_pending(receiver: &Receiver, agent: &str, fresh: bool) -> Option<Note> {
+  let path = crate::store::settings::take(receiver.db(), &pending_key(agent)).await.ok().flatten()?;
+
+  if !fresh {
+    return None;
+  }
+
+  let text = std::fs::read_to_string(&path).ok().filter(|text| !text.trim().is_empty())?;
+
+  Some(Note::Handed(Handoff {
+    path: PathBuf::from(path),
+    text,
+  }))
+}

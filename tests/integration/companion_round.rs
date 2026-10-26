@@ -147,7 +147,7 @@ impl Rounds {
   }
 
   async fn hear(&self, message_id: i64, text: &str) {
-    self.companion.enqueue(said(message_id, text), owners_room(), false).await;
+    self.companion.enqueue(said(message_id, text), owners_room(), false, false).await;
   }
 
   // A quiet instruction for the companion in the room, its row handing back `run` where it names one.

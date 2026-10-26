@@ -643,7 +643,12 @@ async fn words_said_during_the_first_question_are_not_pushed_and_stand_under_the
   );
   assert!(!prompts[0].contains(SHORT), "the round's own turn does not carry them");
   assert!(prompts[1].contains(SHORT), "the second question carries them: {}", prompts[1]);
-  assert!(prompts[1].contains("<<DONE #<number>>>"), "the lead names the marks: {}", prompts[1]);
+  assert!(
+    prompts[0].contains("<<DONE #<number>>>"),
+    "the room's block names the marks: {}",
+    prompts[0]
+  );
+  assert!(!prompts[1].contains("<<DONE #<number>>>"), "a question's lead names only its place");
   assert!(!prompts[2].contains(SHORT), "a block is shown once");
   assert_eq!(prompts.len(), 3, "the words shown call no round of their own");
   assert!(sent.len() == 1 && sent[0].contains("the message that takes both"), "{sent:?}");

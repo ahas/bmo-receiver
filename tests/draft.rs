@@ -92,9 +92,7 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
 
   assert!(first.contains("question 1 of 3 (intent)") && first.contains("\n\nwhy?\n"));
   assert!(
-    first.contains("before question 2 (facts)")
-      && first.contains("<<SKIP>>")
-      && !first.contains("<<SEND>>, what"),
+    first.contains("before question 2 (facts)") && !first.contains("<<SEND>>, what"),
     "a question before the one a send is read from says so: {first}"
   );
   assert!(
@@ -231,4 +229,24 @@ fn a_set_names_known_questions_ending_in_the_last_and_bounds_its_numbers() {
   assert_eq!(question_refusal("tone-2", "a text"), None);
   assert!(question_refusal("Tone", "a text").is_some());
   assert!(question_refusal("tone", " ").is_some());
+}
+
+#[test]
+fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_block() {
+  let plan = |names: &[&str]| Plan {
+    questions: names.iter().map(|name| ((*name).to_owned(), String::new())).collect(),
+    ..Plan::default()
+  };
+  let one = plan(&["final"]).first_words().unwrap();
+  let three = plan(&["intent", "information", "final"]).first_words().unwrap();
+  let process = &receiver_policy::chat_line::CHAT_LINE.room.process;
+
+  // The template a question adds to a turn is its place and its send line, a few hundred characters at most.
+  assert!(one.trim().chars().count() <= 200, "{} characters: {one}", one.chars().count());
+  assert!(three.trim().chars().count() <= 500, "{} characters: {three}", three.chars().count());
+
+  for rule in ["<<DONE #<number>>>", "<<SEPARATE #<number>>>", "validFrom", "live state"] {
+    assert!(!one.contains(rule) && !three.contains(rule), "{rule} stands in a question's turn");
+    assert!(process.contains(rule), "{rule} stands in the room's block");
+  }
 }

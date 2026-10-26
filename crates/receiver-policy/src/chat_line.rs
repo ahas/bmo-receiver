@@ -30,6 +30,8 @@ pub struct Room {
   pub replaces: String,
   /// The rule of answering each person in the language they write.
   pub languages: String,
+  /// The draft process's fixed rules.
+  pub process: String,
   pub group_document: String,
   pub owner_document: String,
   pub writing: String,

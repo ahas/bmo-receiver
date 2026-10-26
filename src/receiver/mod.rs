@@ -237,7 +237,8 @@ pub trait Pass: Send + Sync {
 }
 
 /// Where a woken agent's turn goes: its conversations, which take the files leading up to the message ahead of
-/// it and the message itself into the room's queue, opening the room's window where its ground does; whether
+/// it and the message itself into the room's queue, opening the room's window where its ground does and marking
+/// the message as admitted by the open window alone where that was its only ground; whether
 /// anything stood to take it. And everything the agent keeps of a room, forgotten as the room's registration is
 /// removed.
 pub trait Runner: Send + Sync {
@@ -248,6 +249,7 @@ pub trait Runner: Send + Sync {
     message: &'a Inbound,
     room: Room,
     opens_window: bool,
+    window_only: bool,
   ) -> BoxFuture<'a, bool>;
 
   fn forget(&self, chat_id: i64) -> BoxFuture<'_, ()>;
@@ -264,6 +266,7 @@ impl Runner for NoRunner {
     message: &'a Inbound,
     _room: Room,
     _opens_window: bool,
+    _window_only: bool,
   ) -> BoxFuture<'a, bool> {
     Box::pin(async {
       eprintln!(

@@ -79,6 +79,9 @@ pub enum SkipReason {
   NoConversation,
   /// The ping names a target other than the chat touch.
   NotChatTouch,
+  /// The session's last turn is older than its provider's cache lifetime, so a touch would pay its whole prefix
+  /// again.
+  Expired,
 }
 
 /// How a companion's engine ended its turn with an error.

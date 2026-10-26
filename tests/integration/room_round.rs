@@ -402,6 +402,16 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
     "within the cap nothing is left out: {prompt}"
   );
   assert!(prompt.find(NOTE) < prompt.find(MISSED), "the note stands ahead of the turn");
+
+  // Then the brain, walked once for every room the session answers, behind the room's words.
+  let walk = prompt.find(&CHAT_ROUND.index.walk_head).unwrap_or_else(|| panic!("no walk: {prompt}"));
+
+  assert!(prompt.find(MISSED).unwrap() < walk, "the brain comes after the room's words");
+  assert!(prompt[walk..].contains(&CHAT_ROUND.index.hint));
+  assert!(
+    !prompt.contains(&CHAT_ROUND.index.head),
+    "the walk takes the place of the turn's own index"
+  );
 }
 
 #[tokio::test]

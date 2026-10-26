@@ -164,13 +164,37 @@ pub async fn reset_reason(
     return Ok(Some(SessionReason::Prefix));
   }
 
-  let minutes = PROVIDERS.provider(&asked.provider).and_then(|found| found.keepalive_idle_minutes);
+  let minutes = PROVIDERS.provider(&asked.provider).and_then(|found| found.lifetime_minutes());
 
   Ok(
     minutes
       .filter(|lifetime| now_ms() - state.at >= *lifetime as i64 * 60_000)
       .map(|_| SessionReason::Expired),
   )
+}
+
+/// Whether the agent's one session has outlived its cache (docs/bmo-window.md, 「The touch」): its last turn older
+/// than the lifetime its provider declares. A session with no record, or a provider declaring none, has not.
+pub async fn expired(db: &DatabaseConnection, agent: &str) -> bool {
+  let Some(route) = active_route(db, agent).await.ok().flatten() else {
+    return false;
+  };
+  let Some(session) = route.session.as_deref() else {
+    return false;
+  };
+  let Some(state) = settings::get(db, &state_key(agent, session))
+    .await
+    .ok()
+    .flatten()
+    .and_then(|held| serde_json::from_str::<CacheState>(&held).ok())
+  else {
+    return false;
+  };
+
+  PROVIDERS
+    .provider(&route.provider)
+    .and_then(|found| found.lifetime_minutes())
+    .is_some_and(|lifetime| now_ms() - state.at >= lifetime as i64 * 60_000)
 }
 
 /// Whether the head a session's last turn stood on has moved: the agency naming a reason for a changed prefix

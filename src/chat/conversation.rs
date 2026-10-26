@@ -25,10 +25,10 @@ use super::prompt::{self, Round, Scope as RoundScope};
 use super::reply::Sender;
 use super::room::room_context;
 use super::sentinels::{is_skip, is_wait};
+use super::shape::Reading;
 use super::talk::{TalkFailure, TalkRequest};
 use super::touch::TouchAnswer;
 use super::turnover::Noter;
-use super::window;
 use super::window::Selection;
 
 use crate::Fault;
@@ -533,6 +533,8 @@ struct State {
   // The agent's own runs going now, by name with the room each runs for, which a reset or a room's removal
   // stands its cancellation over.
   going: HashMap<String, i64>,
+  // The messages of each room that reached the session on its open window alone, which the agent judges first.
+  window_only: HashMap<i64, HashSet<i64>>,
 }
 
 /// A run of an agent's own named as going until this is dropped.
@@ -943,8 +945,9 @@ impl Conversations {
   }
 
   /// A room's message joins its queue rather than waking the session at once; a message that calls the agent opens
-  /// the room's window now, so what the caller adds meanwhile is let in.
-  pub async fn enqueue(&self, message: Inbound, room: Room, opens_window: bool) {
+  /// the room's window now, so what the caller adds meanwhile is let in. A message the open window alone let in is
+  /// marked so, for the round to judge first (docs/wake.md, 「The room's queue and the round」).
+  pub async fn enqueue(&self, message: Inbound, room: Room, opens_window: bool, window_only: bool) {
     let chat_id = message.chat_id;
 
     if opens_window {
@@ -952,6 +955,10 @@ impl Conversations {
     }
 
     let mut state = self.state();
+
+    if window_only {
+      state.window_only.entry(chat_id).or_default().insert(message.message_id);
+    }
 
     // A wait is on the people whose words it holds: one of them speaking again starts theirs over.
     if let Some(conv) = state.active.get_mut(&chat_id)
@@ -1542,6 +1549,17 @@ impl Conversations {
       return Ok(());
     }
 
+    // A round the open window alone let in is the agent's to judge first, before any reference, sanitiser or gate;
+    // a skip ends it there with nothing sent.
+    if self.judged_first(chat_id, room, &batch, instructions.len())
+      && self.supervise(chat_id, round, &batch, &mut held, &via).await?
+    {
+      self.consume(chat_id, &batch).await;
+      held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
+
+      return self.silent_end(chat_id, &batch, &held).await;
+    }
+
     let mut owed = if chat_id == owner {
       batch.iter().filter(|message| message.sender_id == Some(owner)).count()
     } else {
@@ -1619,7 +1637,7 @@ impl Conversations {
     let asking = Asking {
       chat_id,
       session: held.session.clone().unwrap_or_default(),
-      prompt: window::composed(&composed.selection, &prompt),
+      prompt: prompt.clone(),
       via: match via.as_str() {
         "" => None,
         road => Some(road.to_owned()),
@@ -1762,45 +1780,7 @@ impl Conversations {
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
 
     if is_skip(&reply.text) {
-      self.keep_session(chat_id, &held);
-
-      let consumed = {
-        let mut state = self.state();
-        let Some(conv) = state.active.get_mut(&chat_id) else {
-          return Ok(());
-        };
-
-        conv.asked_at = None;
-        conv.held.last_consumed_id
-      };
-
-      self.persist(&held).await;
-      self.record_skip(chat_id, (!batch.is_empty()).then_some(consumed).flatten()).await;
-
-      // The round is over once its skip is written down, as an answered round is once its answer has gone out.
-      let close = {
-        let mut state = self.state();
-        let Some(conv) = state.active.get_mut(&chat_id) else {
-          return Ok(());
-        };
-
-        conv.in_flight = false;
-
-        if batch.is_empty() {
-          !conv.answered && conv.buffer.is_empty() && conv.instructions.is_empty()
-        } else {
-          conv.answered = true;
-          false
-        }
-      };
-
-      if close {
-        self.close(chat_id).await;
-        return Ok(());
-      }
-
-      self.pump_pending(chat_id);
-      return Ok(());
+      return self.silent_end(chat_id, &batch, &held).await;
     }
 
     self.keep_session(chat_id, &held);
@@ -1869,6 +1849,144 @@ impl Conversations {
     self.pump_pending(chat_id);
 
     Ok(())
+  }
+
+  // A round that ends in silence: its session kept, its skip written down and the round over, as an answered round
+  // is once its answer has gone out; a round of the system's lines alone closes a conversation nothing keeps open.
+  async fn silent_end(&self, chat_id: i64, batch: &[Inbound], held: &Held) -> Result<(), Failure> {
+    self.keep_session(chat_id, held);
+
+    let consumed = {
+      let mut state = self.state();
+      let Some(conv) = state.active.get_mut(&chat_id) else {
+        return Ok(());
+      };
+
+      conv.asked_at = None;
+      conv.held.last_consumed_id
+    };
+
+    self.persist(held).await;
+    self.record_skip(chat_id, (!batch.is_empty()).then_some(consumed).flatten()).await;
+
+    let close = {
+      let mut state = self.state();
+      let Some(conv) = state.active.get_mut(&chat_id) else {
+        return Ok(());
+      };
+
+      conv.in_flight = false;
+
+      if batch.is_empty() {
+        !conv.answered && conv.buffer.is_empty() && conv.instructions.is_empty()
+      } else {
+        conv.answered = true;
+        false
+      }
+    };
+
+    if close {
+      self.close(chat_id).await;
+      return Ok(());
+    }
+
+    self.pump_pending(chat_id);
+    Ok(())
+  }
+
+  // Whether a round is the agent's to judge first: words of a room that is not the owner's chat, every one of
+  // them let in by the open window alone, with no quiet instruction beside them. The marks are spent either way.
+  fn judged_first(&self, chat_id: i64, room: Room, batch: &[Inbound], instructions: usize) -> bool {
+    let mut state = self.state();
+    let marked = state.window_only.entry(chat_id).or_default();
+    let alone = !batch.is_empty() && batch.iter().all(|message| marked.contains(&message.message_id));
+
+    for message in batch {
+      marked.remove(&message.message_id);
+    }
+
+    alone && instructions == 0 && !room.owner_room && chat_id != self.owner()
+  }
+
+  // The agent's own judgement of whether to answer words that did not name it (docs/wake.md, 「The room's queue and
+  // the round」): one light turn of the same session carrying the room's recent words and the words judged, in the
+  // room shape, and the round policy's question; no reference, no sanitiser and no gate. Its row stands in the
+  // round log of its own kind. Answers whether the agent passed the words over.
+  async fn supervise(
+    &self,
+    chat_id: i64,
+    round: &str,
+    batch: &[Inbound],
+    held: &mut Held,
+    via: &str,
+  ) -> Result<bool, Failure> {
+    let receiver = self.receiver();
+    let said = &CHAT_ROUND.supervisor;
+    let judged: HashSet<i64> = batch.iter().map(|message| message.message_id).collect();
+    let recent: Vec<Inbound> =
+      rows::recent_messages(receiver.db(), chat_id, CHAT_ROUND.recent_messages, "")
+        .await
+        .map_err(|why| Failure::Failed(why.detail))?
+        .into_iter()
+        .filter(|message| !judged.contains(&message.message_id))
+        .collect();
+    let shown: HashSet<i64> =
+      recent.iter().map(|message| message.message_id).chain(judged.iter().copied()).collect();
+    let reading = Reading {
+      receiver: &receiver,
+      owner: self.owner(),
+      fetch_on_demand: false,
+      shown: &shown,
+    };
+    let recent_lines = reading.plain_lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
+    let judged_lines = reading.plain_lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
+    let mut parts = vec![said.head.clone(), String::new(), said.recent.clone()];
+
+    parts.extend(recent_lines);
+    parts.push(String::new());
+    parts.push(said.judged.clone());
+    parts.extend(judged_lines);
+    parts.push(String::new());
+    parts.push(said.question.clone());
+
+    let started = now_ms();
+    let asking = Asking {
+      chat_id,
+      session: held.session.clone().unwrap_or_default(),
+      prompt: parts.join("\n"),
+      via: (!via.is_empty()).then(|| via.to_owned()),
+      privileged: held.all_from_owner,
+      answers: batch.iter().map(|message| message.message_id).collect(),
+      began: started,
+      context: vec![],
+    };
+    let follower = Follower::new(self, chat_id);
+    let reply = self.0.carrying.carry(&asking, held, &follower).await?;
+
+    follower.finish();
+    held.context_tokens = reply.context_tokens.or(held.context_tokens);
+    held.session = reply.session.clone().or(held.session.clone());
+    held.replaced = reply.replaced.clone();
+    self.keep_session(chat_id, held);
+
+    let passed = is_skip(&crate::form::strip_prompt_scaffolding(&reply.text));
+    let mut log = super::draft::log::Log::new(self, round, chat_id, self.agent()).numbered_from(0);
+
+    log
+      .turn(
+        super::draft::log::Kind::Supervisor,
+        &said.name,
+        Some(&reply.text),
+        if passed {
+          super::draft::log::Answered::Skip
+        } else {
+          super::draft::log::Answered::Answered
+        },
+        now_ms() - started,
+      )
+      .await;
+
+    Ok(passed)
   }
 
   // An answer once filed reaches the receiver as every word filed in a room does, so another agent of the room
@@ -2219,6 +2337,11 @@ impl Conversations {
       return;
     }
 
+    // A session past its cache lifetime is not folded: the fold would pay its whole prefix again for nothing.
+    if super::cache::expired(self.0.receiver.db(), self.agent()).await {
+      return;
+    }
+
     let this = self.clone();
 
     self.state().folding.insert(chat_id);
@@ -2296,7 +2419,7 @@ impl Conversations {
     )
     .await?;
     let room = room_context(&receiver, owner, owner, None).await?;
-    let written = window::composed(&composed.selection, &composed.prompt);
+    let written = composed.prompt.clone();
     let (sent, _) = sent_prompt(&receiver, Some(session_id), Some(&room), true, &written).await?;
 
     remember_held(&receiver, Some(session_id), session_id, Some(&room), true, &written).await?;

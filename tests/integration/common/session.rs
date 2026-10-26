@@ -41,6 +41,8 @@ pub struct StandInSession {
   prefix_change: Mutex<Option<String>>,
   // The generation its state names: none until a test sets one.
   generation: Mutex<serde_json::Value>,
+  // The provider its state names.
+  provider: Mutex<String>,
   // What a turn does beside answering, where a test sets it: a handoff written, as a session with a file tool
   // writes it.
   acting: Mutex<Option<Act>>,
@@ -63,6 +65,7 @@ impl StandInSession {
       working_for: Mutex::new(Duration::ZERO),
       prefix_change: Mutex::default(),
       generation: Mutex::new(json!(null)),
+      provider: Mutex::new("provider-a".to_owned()),
       acting: Mutex::default(),
     }
   }
@@ -70,6 +73,17 @@ impl StandInSession {
   /// Its state names this reason for a changed prefix from now on.
   pub fn prefix_changed(&self, why: &str) {
     *self.prefix_change.lock().unwrap() = Some(why.to_owned());
+  }
+
+  /// Its state names this provider from now on.
+  pub fn on_provider(self, provider: &str) -> Self {
+    *self.provider.lock().unwrap() = provider.to_owned();
+    self
+  }
+
+  /// Its state names this generation from now on, or none, on a session already standing.
+  pub fn now_at(&self, generation: Option<i64>) {
+    *self.generation.lock().unwrap() = generation.map_or(json!(null), |generation| json!(generation));
   }
 
   /// Its state names this generation from now on.
@@ -157,7 +171,7 @@ impl StandInSession {
   pub fn state(&self) -> BoxFuture<'_, Answer<SessionState>> {
     let state = SessionState {
       session: self.id.clone(),
-      provider: Some("provider-a".to_owned()),
+      provider: Some(self.provider.lock().unwrap().clone()),
       model: Some("model-a".to_owned()),
       place: json!(null),
       generation: self.generation.lock().unwrap().clone(),

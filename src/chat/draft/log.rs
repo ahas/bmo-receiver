@@ -37,6 +37,8 @@ pub fn tell_start(
 /// What a row of the log is a row of.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
+  /// The agent's own judgement whether to answer, before a round its open window alone let in.
+  Supervisor,
   /// The round's own turn where the process asks no question, its answer being the message.
   Turn,
   /// A question of the process's list, the first riding the round's own turn.
@@ -52,6 +54,7 @@ pub enum Kind {
 impl Kind {
   pub fn word(self) -> &'static str {
     match self {
+      Self::Supervisor => "supervisor",
       Self::Turn => "turn",
       Self::Question => "question",
       Self::Item => "item",
@@ -128,6 +131,12 @@ impl Log {
       number: 1,
       last: None,
     }
+  }
+
+  /// The same log numbering its rows from `number`: the judgement before a round is its row 0.
+  pub fn numbered_from(mut self, number: i64) -> Self {
+    self.number = number;
+    self
   }
 
   /// A question of the process told as it starts.

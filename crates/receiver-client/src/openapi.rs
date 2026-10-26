@@ -765,6 +765,17 @@ pub fn openapi() -> Value {
   );
   add!(
     "POST",
+    "/handoffs/{agentName}",
+    "handOff",
+    "Handoffs",
+    "An agent's standing session asked for its handoff file ahead of a fresh session, kept for that session's first turn.",
+    vec![name_parameter("agentName")],
+    Some(generator.subschema_for::<HandoffAsked>()),
+    vec![(200, json_answer::<HandoffWritten>(&mut generator)), (204, empty_answer())],
+    vec!["unauthorized", "bad-request", "conflict", "upstream-failed"]
+  );
+  add!(
+    "POST",
     "/events",
     "publishEvent",
     "Events",

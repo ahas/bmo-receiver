@@ -381,6 +381,7 @@ pub async fn answer(
     recent: &recent,
     holds: None,
     round: None,
+    session: None,
   };
   let selection = match select(&receiver, &material).await {
     Ok(selection) => selection,

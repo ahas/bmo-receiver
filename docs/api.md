@@ -337,6 +337,19 @@ repository's, in `VERSION`; it is never taken from a registry.
   registered. Its body is the warmer's own published body, `kind` among it optional, and a `skipped` answer
   carries its code (`docs/codes.md`, 「SkipReason」), which the warmer requires of every skip.
 
+## Handoffs
+
+| Route | Body | Answers |
+|---|---|---|
+| `POST /handoffs/{agentName}` | `reason`, `room?` | 200 `path`, `bytes`: the handoff file the agent's standing session wrote; 204 where it has no session to ask or wrote nothing; 409 `conflict` while a handoff of the agent is under way |
+
+- **The agency asks this before it opens a fresh session for an agent that had one** (`docs/unified-bmo.md`,
+  「Replacing the session」). The receiver asks the agent's standing session — its one session, or the session of
+  `room` where it keeps one in each room — for its handoff file as a replacement does, bounded by the handover
+  policy's `ask_seconds`, and keeps the file for the next fresh session's first turn, which opens on it. `reason`
+  names why a fresh session is coming, for the receiver's journal.
+- **A failure to reach the agency** answers 502 `upstream-failed`.
+
 ## Rounds
 
 | Route | Query | Answers |
@@ -346,8 +359,10 @@ repository's, in `VERSION`; it is never taken from a registry.
 | `GET /rounds/drafts` | `room`, `rounds` (comma-separated) | a page of `{round, rows}`, each row a `DraftRound` |
 
 - **A `DraftRound`** is one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」):
-  `id`, `agentName`, `number` (from 1, the round's own turn being the first question's row), `question`, `kind`
-  (`turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is empty), `answerChars`,
+  `id`, `agentName`, `number` (from 1, the round's own turn being the first question's row; 0 for the agent's own
+  judgement before a round), `question`, `kind` (`supervisor`, the agent's own judgement whether to answer words
+  its open window alone let in, `turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is
+  empty), `answerChars`,
   `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`,
   `ceiling-message` or `ceiling-skip` for the end), `detail` (or null), `answer` (or null), `ms` and `at`. The rows
   of a round stand in the order they were written.

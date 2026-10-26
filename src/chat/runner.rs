@@ -87,15 +87,16 @@ impl crate::receiver::Runner for Runner {
     message: &'a Inbound,
     room: Room,
     opens_window: bool,
+    window_only: bool,
   ) -> BoxFuture<'a, bool> {
     let conversations = self.of(agent);
 
     Box::pin(async move {
       for file in files {
-        conversations.enqueue(file.clone(), room, false).await;
+        conversations.enqueue(file.clone(), room, false, window_only).await;
       }
 
-      conversations.enqueue(message.clone(), room, opens_window).await;
+      conversations.enqueue(message.clone(), room, opens_window, window_only).await;
 
       true
     })

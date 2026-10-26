@@ -123,6 +123,7 @@ pub async fn words(
     recent,
     holds: None,
     round: None,
+    session: None,
   };
   let selection = match select(receiver, &material).await {
     Ok(selection) => selection,

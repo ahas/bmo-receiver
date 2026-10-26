@@ -10,6 +10,7 @@ mod consult;
 mod drafts;
 mod events;
 mod figures;
+mod handoffs;
 mod hooks;
 mod instructions;
 mod message_files;
@@ -150,6 +151,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("POST", "/consult-lines", post(consult_say)),
     ("GET", "/consult-lines", get(block)),
     ("POST", "/talks", post(talk)),
+    ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
     ("POST", "/events", post(events::told)),
     ("GET", "/events", get(events::stream)),
     ("GET", "/live", get(events::live)),

@@ -174,6 +174,15 @@ pub async fn touch(
     return skipped;
   }
 
+  // A session past its cache lifetime stays as it stands: waking it pays its whole prefix again for nothing.
+  if super::cache::expired(db, agent).await {
+    return TouchAnswer {
+      outcome: TouchOutcome::Skipped,
+      code: Some(SkipReason::Expired),
+      reason: Some("the session's cache lifetime passed".to_owned()),
+    };
+  }
+
   let Some(last) = last_launch(db, agent).await else {
     return TouchAnswer {
       outcome: TouchOutcome::Skipped,
@@ -218,6 +227,7 @@ pub async fn touch(
     recent: &recent,
     holds: None,
     round: None,
+    session: None,
   };
   let selection = match select(receiver, &material).await {
     Ok(selection) => selection,

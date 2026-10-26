@@ -39,7 +39,7 @@ pub async fn replay(
     let mut untaken: Vec<Inbound> = vec![];
 
     for message in &after {
-      if runner.hand(&agent, &[], message, room, false).await {
+      if runner.hand(&agent, &[], message, room, false, false).await {
         untaken.push(Inbound {
           via_reader: Some(false),
           ..message.clone()

@@ -157,14 +157,15 @@
 ## Replacing the session
 
 - **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
-  effort, or another login), the cache lifetime its provider declares passed, or the owner asked for a fresh
+  effort, or another login), the cache lifetime its provider declares passed (`providers.toml`, `cache_minutes`,
+  else `keepalive_idle_minutes`), or the owner asked for a fresh
   start. The agency carries the replacement as the session's provider declares.
   A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
   folded: the owner's word to start it afresh is written for it, with the reason `full`, and its next turn
   replaces it.
 - **The head is what the session's cache stands on:** the common system prompt, which the agency composes and
   keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of
-  it, so no part of a turn is the head: not the room-switch block or its mark, the reference blocks, the turn's
+  it, so no part of a turn is the head: not the room-switch block or its mark, the brain's index block, the turn's
   scope line, the queue line, the room's facts, the words and instructions it carries or its closing lines, and
   not a question, an item or a check of the draft process. A turn of any room on an unmoved head resumes the
   session.
@@ -191,12 +192,28 @@
   restored; the whole old context is never read again. The owner's private chat is then queued one notice
   (`handoff-lost`, `docs/codes.md`) that the handoff could not be recovered.
 - **The owner's word to start afresh is spent** by the replacement it asked for: one word, one replacement.
-- **Behind the note, the first turn is whole:** it is composed for the new session, which holds nothing yet, so
-  the room's block and every reference document go in full, and it carries everything the turn would have
-  carried on the old session, the room's messages archived since the agent last answered there among them.
-  What arrived around the handover that the agent never read reaches the new session in that turn, up to the
+- **No fresh session opens without its handoff, whoever opens it.** Where the agency is about to open a fresh
+  session for an agent that had one — the kept session gone, a program stood anew that cannot resume it, its own
+  restart — it asks the receiver first (`POST /handoffs/{agentName}`, `docs/api.md`, 「Handoffs」), and the receiver
+  asks the agent's standing session, usually still alive in its pane, for its handoff file exactly as a
+  replacement does, under the same `ask_seconds` bound. The file it writes is kept for the agent
+  (`<agent>_handoff_pending`, `docs/store.md`), and the next turn on a session the agency's state says was never
+  opened carries it as its note, in the order below; a turn on a session the agency resumed lets it go. Where the
+  agent has no opened session to ask, or it wrote nothing, the transcript the receiver keeps stands in at the next
+  replacement as above.
+- **The first turn goes in one order: the handoff, then the room, then the brain.** First the note above; then
+  the room's block, in full since the new session holds nothing yet, and the turn as it would have gone to the
+  old session, the room's messages archived since the agent last answered there among them, so what arrived
+  while the handover was under way and the old session never read stands right behind the handoff, up to the
   archived block's cap: the newest of them, with a line counting the older ones left in the room's archive
-  (`docs/bmo-window.md`, 「What every turn carries」).
+  (`docs/bmo-window.md`, 「What every turn carries」); then the brain.
+- **The brain, once, for every room:** the new session walks the index once. In place of the turn's own index
+  block its first turn carries one for every room the agent's one session has answered in (`bmo_rooms`): each
+  room by its number and title with its groups' unread counts where they are known — the turn's own room's from
+  its selection, every other room's once the gate serves its index (`docs/boundary-api.md`, 「Contract gaps」),
+  until then each such room named for the agent to open the index of — and the index's one hint. It is a hint
+  and no obligation: the agent looks over what the brain holds before it answers where it judges that worth
+  doing.
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
   keeps one session across its rooms; a room's own session is the agency's to resume.
 - **Moving between rooms carries no summary of a room:** the room's block and its archived messages since the
