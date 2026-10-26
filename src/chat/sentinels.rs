@@ -29,22 +29,28 @@ pub fn sent_now(text: &str) -> Option<&str> {
   trim(text).strip_prefix(SEND).map(trim)
 }
 
-/// What an answer of the draft process says of a message shown to its round (docs/drafting.md, 「What came in
-/// meanwhile」): that it needs no answer, or that it is answered in a round of its own.
+/// What an answer of the draft process says of a message of its round (docs/drafting.md, 「What came in
+/// meanwhile」): that it needs no answer, that it is answered in a round of its own, or that it is the one the
+/// answer answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mark {
   Done,
   Separate,
+  Reply,
 }
 
 static ROUND_MARK: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"<<(DONE|SEPARATE) #([0-9]+)>>").expect("a round mark"));
+  LazyLock::new(|| Regex::new(r"<<(DONE|SEPARATE|REPLY) #([0-9]+)>>").expect("a round mark"));
 
 fn marks_in(text: &str) -> Vec<(Mark, i64)> {
   ROUND_MARK
     .captures_iter(text)
     .filter_map(|found| {
-      let mark = if &found[1] == "DONE" { Mark::Done } else { Mark::Separate };
+      let mark = match &found[1] {
+        "DONE" => Mark::Done,
+        "SEPARATE" => Mark::Separate,
+        _ => Mark::Reply,
+      };
 
       found[2].parse().ok().map(|id| (mark, id))
     })
@@ -69,7 +75,7 @@ pub fn round_marks(text: &str) -> Vec<(Mark, i64)> {
 }
 
 static ROUND_MARK_SPACED: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"[ \t]?<<(?:DONE|SEPARATE) #[0-9]+>>").expect("a round mark"));
+  LazyLock::new(|| Regex::new(r"[ \t]?<<(?:DONE|SEPARATE|REPLY) #[0-9]+>>").expect("a round mark"));
 
 /// An answer with every round mark taken out, so nothing after reads them as words.
 pub fn without_round_marks(text: &str) -> String {

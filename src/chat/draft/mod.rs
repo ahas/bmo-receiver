@@ -542,6 +542,7 @@ impl Run<'_> {
       took,
       done,
       separate,
+      reply_to: self.marks.iter().rev().find(|(mark, _)| *mark == Mark::Reply).map(|(_, id)| *id),
     }
   }
 }

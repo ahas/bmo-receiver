@@ -926,3 +926,26 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
 
   assert!(others.iter().all(|row| row == "none"), "{others:?}");
 }
+
+#[tokio::test]
+async fn the_answers_pin_stands_on_the_rooms_record_as_on_the_road() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message itself"]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("\"replyToMessageId\":1"), "the road pins it: {sent:?}");
+
+  let kept = round
+    .scratch
+    .texts(
+      r#"SELECT coalesce("reply_to_message_id"::text, 'none') FROM "messages" WHERE "text" = 'the message itself'"#,
+    )
+    .await;
+
+  assert_eq!(kept, ["1"], "the record names the message the answer is pinned to");
+}

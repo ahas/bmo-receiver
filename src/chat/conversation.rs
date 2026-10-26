@@ -213,6 +213,27 @@ pub struct Made {
   pub done: Vec<Inbound>,
   /// The messages shown to the round that the agent marked to be answered in a round of their own.
   pub separate: Vec<Inbound>,
+  /// The message the agent marked as the one its answer answers, by its number, where it marked one.
+  pub reply_to: Option<i64>,
+}
+
+/// The message a round's answer is pinned to (docs/drafting.md, 「The answer is pinned to the message it
+/// answers」): the one the agent named among those it answers; else the oldest of them that asks something of the
+/// agent; else the newest.
+pub fn pin_target(
+  answered: &[Inbound],
+  named: Option<i64>,
+  asks: impl Fn(&Inbound) -> bool,
+) -> Option<&Inbound> {
+  named
+    .and_then(|id| answered.iter().find(|message| message.message_id == id))
+    .or_else(|| answered.iter().find(|message| asks(message)))
+    .or_else(|| answered.last())
+}
+
+/// Whether a message asks something of an agent: it calls the agent by a word it answers to, or asks a question.
+pub fn asks_of(agent: &wake::agents::Designated, message: &Inbound) -> bool {
+  agent.called_by(&message.text) || message.text.contains('?') || message.text.contains('\u{ff1f}')
 }
 
 /// What makes a round's message (docs/drafting.md): the process a round opens before its turn goes out, whose
@@ -1397,6 +1418,20 @@ impl Conversations {
     }
   }
 
+  // The round's answer pinned to the message it answers among those it answers, where a road can aim at it.
+  async fn pin(&self, chat_id: i64, answered: &[Inbound], named: Option<i64>) {
+    let agent = designated(&self.receiver(), self.agent()).await;
+    let Some(message) = pin_target(answered, named, |message| asks_of(&agent, message)) else {
+      return;
+    };
+    let pins = self.0.receiver.roads().pinnable(&message.via, message.mode.as_deref()).await;
+    let target = (!message.via_reader.unwrap_or(false) && pins).then_some(message.message_id);
+
+    if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      conv.reply_target = target;
+    }
+  }
+
   // One round, from what is waiting to whatever it ends in.
   async fn round(
     &self,
@@ -1678,6 +1713,9 @@ impl Conversations {
       self.consume(chat_id, &read).await;
       held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
     }
+
+    // The answer is pinned to the message it answers, whatever the owner is owed.
+    self.pin(chat_id, &batch, made.reply_to).await;
 
     // The fold reads the context the process's last turn left.
     let ratio = reply.context_ratio().or(ratio);

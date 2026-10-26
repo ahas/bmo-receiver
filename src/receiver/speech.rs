@@ -138,6 +138,20 @@ impl Speech {
     agent: Option<&str>,
     voice: Option<ChatVoice>,
   ) -> Result<i64, NotSaid> {
+    self.kept_replying(chat_id, text, None, sent, agent, voice).await
+  }
+
+  /// The line kept as `kept` keeps it, as a reply to the message it is pinned to where it is pinned to one
+  /// (docs/drafting.md, 「The pin stands on the room's record」).
+  pub async fn kept_replying(
+    &self,
+    chat_id: i64,
+    text: &str,
+    reply_to: Option<i64>,
+    sent: Option<(&str, Option<i64>)>,
+    agent: Option<&str>,
+    voice: Option<ChatVoice>,
+  ) -> Result<i64, NotSaid> {
     let roads = &self.units.roads;
     let numbered = match roads.room_road(chat_id).await {
       Some(road) => record::agent_number(&self.db, &road, &self.deployment.agent).await?,
@@ -151,7 +165,7 @@ impl Speech {
     let kept = record::Kept {
       chat_id,
       text,
-      reply_to: None,
+      reply_to,
       via: Road::Record.key(),
       sender_id,
       name: &self.deployment.sender_name,
@@ -170,7 +184,7 @@ impl Speech {
     let delivery = Delivery {
       chat_id,
       message_id,
-      reply_to: None,
+      reply_to,
       owner: false,
       standing,
       carried: Carried::words(text),

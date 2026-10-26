@@ -154,16 +154,23 @@ leaves.
   meaning for the messages shown. The check is not asked past the ceiling, nor where the process came to nothing
   to send: those words wait for the next round.
 - **The agent decides each message it was shown, by mark:**
-  - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, the
-    owner's words among it are owed an answer, and the answer is pinned to the newest of them;
+  - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, and
+    the owner's words among it are owed an answer;
   - `<<DONE #<number>>>`: it needs no answer: the read mark moves past it, nothing is sent for it and nothing is
     owed it;
   - `<<SEPARATE #<number>>>`: it is answered in a round of its own: once the round's message is made it goes back
-    to the front of what waits, and the round after takes it with a pregate of its own.
+    to the front of what waits, and the round after takes it with a pregate of its own;
+  - `<<REPLY #<number>>>`: it is the message the answer answers, and the answer is pinned to it.
 
-  A mark counts in any answer of the process, outside a code span or fence, and only for a message shown to the
-  round; a message marked both ways is separate. Marks are taken out of an answer before anything else reads it,
-  and never reach the room.
+  A mark counts in any answer of the process, outside a code span or fence, and only for a message of the round,
+  its own or one shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
+  the last stands. Marks are taken out of an answer before anything else reads it, and never reach the room.
+- **The answer is pinned to the message it answers:** the one a `<<REPLY #<number>>>` mark names among the
+  round's messages it answers; where none is named, the oldest of them that asks something of the agent — one
+  that calls it by a word it answers to, or asks a question; else the newest of them. Owing the owner an answer
+  does not move the pin. Where the road cannot aim at the message, nothing is pinned.
+- **The pin stands on the room's record:** the answer's row there names the message it is pinned to as its
+  `replyToMessageId`, whichever road it went out on, so the console and the chat service show the same reply.
 - **Nothing else opens a round for a message shown inside a round.** Words that come after the closing check, or
   while an item or a check works, were shown to nobody and open the next round.
 - **A turn whose run failed showed nothing:** the block it carried goes back to wait, and a process that is

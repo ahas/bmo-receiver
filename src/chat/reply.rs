@@ -146,7 +146,7 @@ async fn carry(
   let numbers = match road {
     Road::Record => receiver
       .speech()
-      .kept(chat_id, text, None, Some(&agent), None)
+      .kept_replying(chat_id, text, reply.reply_to, None, Some(&agent), None)
       .await
       .ok()
       .map(|kept| (kept, kept)),
@@ -162,7 +162,7 @@ async fn carry(
           id,
           receiver
             .speech()
-            .kept(chat_id, text, Some((&key, Some(id))), Some(&agent), voice)
+            .kept_replying(chat_id, text, reply.reply_to, Some((&key, Some(id))), Some(&agent), voice)
             .await
             .unwrap_or(id),
         ))
