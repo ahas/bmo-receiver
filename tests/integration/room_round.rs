@@ -138,7 +138,7 @@ impl Round {
     round.hear(1, FIRST).await;
     until("the first turn", || round.session.working()).await;
     round.hear(2, LATER).await;
-    until("the words said meanwhile waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+    until("the words said meanwhile waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
     // A look at the working turn passes, and still nothing is pushed.
     tokio::time::sleep(Duration::from_millis(50)).await;
     round.session.let_go();

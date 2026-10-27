@@ -624,7 +624,8 @@ async fn said_during_the_first(round: &Drafting) {
   round.hear(1, ASKED).await;
   until("the round's turn", || round.session.prompts().len() == 1 && round.session.working()).await;
   round.hear(2, SHORT).await;
-  until("the words waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+  // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
+  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
   // The working turn is looked at meanwhile, and nothing is pushed into it.
   tokio::time::sleep(Duration::from_millis(50)).await;
   round.session.let_go();
@@ -723,7 +724,8 @@ async fn words_said_during_the_last_question_stand_in_the_closing_check_before_t
   round.hear(1, ASKED).await;
   until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
   round.hear(2, SHORT).await;
-  until("the words waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+  // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
+  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
   round.session.let_go();
   round.ended(3).await;
 
@@ -757,7 +759,8 @@ async fn said_during_the_last(round: &Drafting) {
   round.hear(1, ASKED).await;
   until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
   round.hear(2, SHORT).await;
-  until("the words waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+  // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
+  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
   round.session.let_go();
   round.ended(3).await;
 }
@@ -798,7 +801,8 @@ async fn the_live_pair_goes_out_once_as_the_closing_check_wrote_it() {
   round.hear(1, &fixture("addressing-korean.txt")).await;
   until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
   round.hear(2, &fixture("addressing-korean.txt")).await;
-  until("the words waiting", || round.runner.of(AGENT).pending(OWNER) == [2]).await;
+  // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
+  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
   round.session.let_go();
   round.ended(3).await;
 

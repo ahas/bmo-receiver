@@ -2364,6 +2364,17 @@ impl Conversations {
 
   // The words a room still has waiting for a round: its buffer and what the queue is gathering.
   /// The messages waiting for a room's next round: those its conversation holds and those its queue gathers.
+  /// The words a room's conversation holds for its next look, those the queue still gathers left out: what a
+  /// round's next question or closing check takes.
+  pub fn buffered(&self, chat_id: i64) -> Vec<i64> {
+    self
+      .state()
+      .active
+      .get(&chat_id)
+      .map(|conv| conv.buffer.iter().map(|message| message.message_id).collect())
+      .unwrap_or_default()
+  }
+
   pub fn pending(&self, chat_id: i64) -> Vec<i64> {
     let state = self.state();
     let buffered = state.active.get(&chat_id).map(|conv| conv.buffer.clone()).unwrap_or_default();
