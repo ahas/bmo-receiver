@@ -286,7 +286,7 @@ head = "BEFORE THIS ROUND: the words below did not name you, did not reply to yo
 situation = "The room's situation:"
 recent = "The room's recent words:"
 judged = "The words to judge:"
-question = "Are these words said to you, or do they want your answer? Where neither, answer <<SKIP>> alone: nothing is sent and the round ends. Where either, answer one short line saying which; the round then goes on, and the answer is written in it."
+question = "Are these words said to you, or do they want your answer? Where neither, answer <<SKIP>> alone: nothing is sent and the round ends. Where either, answer one short line saying which; the round then goes on, and the answer is written in it. A draft or a note from this session is not a message unless the room's record holds it: judge the room's words and its record, never a draft."
 name = "supervisor"
 
 # The brain's index a turn carries in place of the pieces (docs/bmo-window.md, 「What every turn carries」): the head,

@@ -317,41 +317,63 @@ async fn a_send_in_the_first_round_is_the_message_and_nothing_more_is_asked() {
 }
 
 #[tokio::test]
-async fn a_send_before_the_question_a_send_is_read_from_is_notes_and_the_next_question_is_asked() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[
-    "<<SEND>> too soon",
-    "<<SEND>> the answer, once the facts are read",
-    "never asked",
-  ]);
+async fn a_send_before_the_question_a_send_is_read_from_is_the_message_and_nothing_more_is_asked() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["<<SEND>> the answer, ready at once", "never asked"]);
   let rounds = ["information", "facts", "final"];
   let round = Drafting::new(session, &rounds, &["final"], 150).await;
 
   drafting_sending(round.scratch.db(), &rounds, "facts", &["final"], 150).await;
   round.hear(1, ASKED).await;
-  round.ended(2).await;
+  round.ended(1).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 2, "facts is asked after the early send: {prompts:#?}");
+  assert_eq!(prompts.len(), 1, "no later question is asked after an early send: {prompts:#?}");
   assert!(
-    prompts[0].contains("before question 2 (facts)") && !prompts[0].contains(&DRAFTING.voice),
-    "the first question says no message is written before facts, and asks for notes: {}",
+    prompts[0].contains("question 2 (facts)") && prompts[0].contains("<<SEND>>"),
+    "the first question says where the message is asked for and may be written now: {}",
     prompts[0]
   );
-  let open = receiver_policy::fill_marks(&DRAFTING.send_open, &[("voice", &DRAFTING.voice)]);
   assert!(
-    prompts[1].contains(&open) && prompts[1].contains(&DRAFTING.voice),
-    "facts reads a send, written in the room's voice: {}",
-    prompts[1]
-  );
-  assert!(
-    sent.len() == 1 && sent[0].contains("once the facts are read") && !sent[0].contains("too soon"),
+    sent.len() == 1 && sent[0].contains("the answer, ready at once") && !sent[0].contains("<<SEND>>"),
     "{sent:?}"
   );
+  assert_eq!(round.log().await, ["question information send", "end  message"]);
+}
+
+#[tokio::test]
+async fn a_draft_that_holds_the_answer_is_sent_and_a_repeated_request_is_answered_again() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["<<SEND>> 400207-005: 1,500,000", "400207-005: 1,500,000"]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, "what is the price of 400207-005?").await;
+  round.ended(1).await;
+
+  let first = round.sent();
+
+  assert_eq!(first.len(), 1, "{first:?}");
+  assert!(first[0].contains("1,500,000"), "the draft's answer is the message: {first:?}");
+  assert!(
+    round.session.prompts()[0].contains("A draft"),
+    "the round says a draft is not a message"
+  );
+
+  // The repeated request is answered again: the first answer was a draft that has now gone out, not a reason to skip.
+  round.hear(2, "what is the price of 400207-005 again?").await;
+  round.ended(2).await;
+
+  let sent = round.sent();
+  let prompts = round.session.prompts();
+
+  assert_eq!(sent.len(), 2, "the repeated request is answered again: {sent:?}");
+  assert!(sent[1].contains("1,500,000"), "{sent:?}");
+  assert!(prompts[1].contains("what is the price of 400207-005 again?"), "{prompts:#?}");
   assert_eq!(
     round.log().await,
-    ["question information answered", "question facts send", "end  message"]
+    ["question final send", "end  message", "question final answered", "end  message"]
   );
 }
 

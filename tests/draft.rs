@@ -95,8 +95,8 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
 
   assert!(first.contains("question 1 of 3 (intent)") && first.contains("\n\nwhy?\n"));
   assert!(
-    first.contains("before question 2 (facts)") && !first.contains("<<SEND>>, what"),
-    "a question before the one a send is read from says so: {first}"
+    first.contains("question 2 (facts)") && first.contains("<<SEND>>") && !first.contains(&DRAFTING.voice),
+    "a question before the one a send is read from may still carry a message, without the voice line: {first}"
   );
   assert!(
     second.contains("begin the answer with <<SEND>>"),
@@ -130,7 +130,7 @@ fn every_question_whose_answer_may_be_the_message_asks_for_the_rooms_voice_and_n
   assert!(!notes.contains(&DRAFTING.voice), "a notes question says nothing of the voice: {notes}");
   assert!(
     !plan.first_words().unwrap_or_default().contains(&DRAFTING.voice),
-    "the first question, before the send-from one, stays notes"
+    "the first question, before the send-from one, names no voice; a message sent there is still the message"
   );
 }
 

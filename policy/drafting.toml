@@ -16,14 +16,14 @@ turn_seconds = 120
 # `{from}` and `{name}` there the place and the name of the question a send is read from. `waiting` closes
 # every later question but the last, `{ids}` the messages waiting for the round. `arrived` opens the one closing
 # check asked once the message stands, where messages arrived after the last question went out. An answer opening
-# on <<SEND>> is the message, what follows the marker, from the row's send_from question on; <<SKIP>> anywhere in
+# on <<SEND>> is the message, what follows the marker, wherever it stands; <<SKIP>> anywhere in
 # an answer ends the process with nothing sent; <<DONE #<number>>> and <<SEPARATE #<number>>> mark a message shown
 # to the round as needing no answer or as answered in a round of its own. `{voice}` in `send_open`, `last_lead` and
 # `arrived` is `voice`: an answer that may be the message is written in the voice the persona sets for the person answered, not as notes.
 opening = "This round's question {number} of {count} ({name}), the first and the freest: answer it with notes, as the draft process in the room's block says. {send}"
 lead = "The process asks question {number} of {count} ({name}): answer it with notes, as the draft process in the room's block says. {send}"
 send_open = "Where the words are a simple call, a greeting or a short word, or what you now hold is enough for the message, answer now: begin the answer with <<SEND>>, what follows it is the message, sent to this room as written, and the process ends there. {voice}"
-send_closed = "No message is written before question {from} ({name}): an answer opening on <<SEND>> here is read as notes, and the process goes on."
+send_closed = "The message is asked for from question {from} ({name}) on. If it is already complete, write it now: begin with <<SEND>>, what follows is the message, sent to this room as written, and the process ends there; otherwise answer with notes."
 last_lead = "The last question of the process, {number} of {count} ({name}). Your answer to it is the message, sent to the room as you write it; <<SKIP>> sends nothing. {voice}"
 waiting = "Messages waiting in the room: {ids}. They are shown with the next question; do not answer them now."
 arrived = "Messages arrived after your last answer and before the message went out. The message as it stands is shown below, then the messages that arrived, each with its number. Answer with the message as it should now go out, whole: it takes the standing message's place, so write all of it, not only what changes or what it adds. Answer with nothing but the marks to send the standing message unchanged. <<DONE #<number>>> marks a message that needs no answer, <<SEPARATE #<number>>> one to be answered in a round of its own after this one, <<REPLY #<number>>> the one your message answers; <<SKIP>> sends nothing. {voice}"

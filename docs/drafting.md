@@ -23,12 +23,11 @@ leaves.
 - **A round's notes are what it read, what it established and what is still unknown.** The facts themselves go
   to the brain during the round, by the agent's own tools; the notes go to the round log (「The round log」
   below), so the brain and the draft record both hold what the round established.
-- **The first question has the most freedom,** up to the question the row reads a send from (「The process
-  table」 below). It says, in the owner's words: where a send is read at it, a simple call is answered now and
-  the process stops, and where the facts already found and what is now known are enough, the message is written
-  now; where the agent cannot tell whether a fact it found is stale, it searches before deciding, with the web
-  search, the web fetch, the translation and the brain's tools its session holds; otherwise it notes what the
-  message needs and goes on.
+- **The first question has the most freedom,** and a send is honored wherever it stands (「The process table」
+  below). It says, in the owner's words: a simple call is answered now, and where what is now known is enough
+  the message is written now, with `<<SEND>>` beginning it; where the agent cannot tell whether a fact it found
+  is stale, it searches before deciding, with the web search, the web fetch, the translation and the brain's
+  tools its session holds; otherwise it notes what the message needs and goes on.
 - **Confidence comes from a fact's dates, and hedging is no option.** The brain's facts carry when they hold from
   and when they were last confirmed: a fact found or confirmed recently is said with confidence, and one the
   agent is not confident of is searched for quietly before it answers. The message never tells the room that
@@ -44,12 +43,16 @@ leaves.
   `say`. A question to read more is answered by reading; a question whether a promise was kept is answered by
   keeping it.
 - **The receiver reads four things of an answer and nothing else:** `<<SKIP>>` standing in it outside a code
-  span or fence, which ends the process in any round with nothing sent; `<<SEND>>` opening it, which, from the
-  question the row reads a send from on, makes what follows the marker the message and ends the questions there,
-  so a question already answerable pays no further round, and before that question is notes like any answer; the
-  marks `<<DONE #<number>>>` and `<<SEPARATE #<number>>>` on a message shown to the round (「What came in
-  meanwhile」 below); and the answer itself. A skip anywhere in an answer wins over a
-  send that opens it, and a send with nothing after it is a skip.
+  span or fence, which ends the process in any round with nothing sent; `<<SEND>>` opening it, wherever it
+  stands, which makes what follows the marker the message and ends the questions there, so a question already
+  answerable pays no further round and a message written in a draft is never read as notes; the marks
+  `<<DONE #<number>>>` and `<<SEPARATE #<number>>>` on a message shown to the round (「What came in meanwhile」
+  below); and the answer itself. A skip anywhere in an answer wins over a send that opens it, and a send with
+  nothing after it is a skip.
+- **A draft is not a message.** The room's messages are the only record of what the room has heard. A round
+  log's answer, a note, or an earlier turn of the session that was not sent is not something said, and no round
+  skips a repeated request because it wrote the answer in one; the duplicate rule reads the room's own record and
+  nothing else.
 - **A round whose first answer is `<<WAIT>>` runs no further process:** the wait stands as `docs/wake.md`,
   「Waiting」, says, and the round that takes the waited words opens the process again.
 - **Every agent's round runs the process,** the chat agent's and any other agent's alike: no agent's turns are
@@ -85,7 +88,8 @@ leaves.
   an answer before the last is notes of what was read, the facts established and engraved in the brain, each with
   its source, and what is still unknown, the confidence rule and the source rule above, that nothing is hedged,
   that `<<SKIP>>` ends the process and is for words that ask nothing and change nothing, so a person's telling the
-  agent something of themselves, which it keeps, is answered in the same round, and the marks a message that arrived meanwhile takes (`chat-line.toml`,
+  agent something of themselves, which it keeps, is answered in the same round, that a draft or a note is not a
+  message the room has heard and never the reason for a skip, and the marks a message that arrived meanwhile takes (`chat-line.toml`,
   `[room]`, `process`). The room's block goes to a session once per version and by its mark after that, so a
   turn carries only what changes from question to question.
 - **The first question rides the round's own turn:** the room's words and the round's closing lines as the window
@@ -107,23 +111,26 @@ leaves.
 - **One table says which questions a turn is asked:** rows keyed by a provider, a tier and an agent, each a name
   or `*` for any. A row holds:
   - `rounds`, the questions of an ordinary turn, in order;
-  - `sendFrom`, the question of `rounds` from whose answer on a send is read; empty for the first;
+  - `sendFrom`, the question of `rounds` from which the process asks for the message, a send being honored
+    wherever it stands; empty for the first;
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
   - `ceilingSeconds`, the time the whole process may take (「Time」 below);
   - `turnSeconds`, the time one turn of it may run before the journal says it ran long (「Time」 below);
   - `pastCeiling`, `send` or `skip`: what becomes of the turn once the ceiling has passed.
-- **A send is read from the row's `sendFrom` question on.** Before it, an answer opening on `<<SEND>>` is notes
-  and the process goes on, so the questions that establish the facts are asked before anything is written; each
-  question's own line says whether a send is read at it. A light turn's list reads a send from its first question
-  whatever the row names.
+- **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the question from which the process
+  asks for the message, and the question's line says that a complete message may be written now; a send before it
+  is the message too, and the process ends there. Where the agent does not send, the questions that establish the
+  facts are asked before anything is written. A light turn's list asks for a send at its first question whatever
+  the row names.
 - **A question whose answer may be the message asks for it in the persona's voice.** At the `sendFrom` question and
   every one after it, `final` among them, and at the closing check, the question's line says that an answer that
   becomes the message is written as the message itself, in the voice the agent's persona sets for the person it
   answers, its register toward them included, and in their language, never as notes or a report
   (`drafting.toml`, `voice`); the line says so in every such turn, so the voice holds however long the session
-  runs. The receiver carries no register of its own and names no person's register: that is the persona's. The
-  questions before `sendFrom` stay notes and say nothing of the voice.
+  runs. The receiver carries no register of its own and names no person's register: that is the persona's. A
+  message sent before `sendFrom` is written as the message itself and in that voice, though the line there names
+  no voice; an answer that is not sent stays notes.
 - **The policy's rows are the defaults** (`drafting.toml`): any provider, `information`, `facts` and `final`, the
   small models' process; Claude's provider, `information`, `facts`, `memory`, `promises` and `final`; both read a
   send from `facts` on; every light turn `final` alone; 150 seconds, past which `final` is asked at once; 120

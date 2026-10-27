@@ -447,7 +447,6 @@ impl Run<'_> {
     kind: Kind,
     name: &str,
     words: &str,
-    send_open: bool,
   ) -> Result<Option<(Reply, Answered)>, Failure> {
     let drafted = self.drafted;
     let chat = self.held.chat_id;
@@ -493,8 +492,6 @@ impl Run<'_> {
           (false, true) => read_answer(SKIP),
           (false, false) => read_answer(&text),
         };
-        // A send before the question a send is read from is notes like any answer.
-        let ending = if ending == Answered::Send && !send_open { Answered::Answered } else { ending };
         let answer = Reply { text, ..answered };
 
         if let Err(why) = note_session(
@@ -729,12 +726,6 @@ impl Drafter {
     };
     let first_text = run.marked(&drafted.reply.text);
     let (text, first_read) = read_answer(if first_text.is_empty() { SKIP } else { &first_text });
-    // A send before the question a send is read from is notes like any answer.
-    let first_read = if first_read == Answered::Send && !plan.send_open(0) {
-      Answered::Answered
-    } else {
-      first_read
-    };
     let first = Reply {
       text,
       ..drafted.reply.clone()
@@ -796,7 +787,7 @@ impl Drafter {
 
       run.log.start(number, count, name);
 
-      let asked = run.ask(Kind::Question, name, &words, plan.send_open(at)).await;
+      let asked = run.ask(Kind::Question, name, &words).await;
       let block = block.map(|(_, took)| took).unwrap_or_default();
 
       match asked {
@@ -846,7 +837,7 @@ impl Drafter {
     {
       let words = closing_words(&standing.text, &block, drafted.scope);
 
-      match run.ask(Kind::Item, "arrived", &words, true).await {
+      match run.ask(Kind::Item, "arrived", &words).await {
         Ok(Some((answer, read))) => {
           run.shown.extend(took);
 
@@ -883,10 +874,7 @@ impl Drafter {
     if message.is_none() && owed > 0 {
       let errand = fill_marks(&SECOND_ASKS.errands.owed, &[("count", &owed.to_string())]);
 
-      match run
-        .ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending), true)
-        .await
-      {
+      match run.ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending)).await {
         Ok(Some((answer, read))) if usable(&answer.text) && read != Answered::Skip => {
           message = Some(answer)
         }
@@ -932,9 +920,7 @@ impl Drafter {
       };
       let Some(errand) = errand else { continue };
 
-      let asked = run
-        .ask(Kind::Item, item.word(), &words(&errand, drafted.scope, &drafted.pending), true)
-        .await;
+      let asked = run.ask(Kind::Item, item.word(), &words(&errand, drafted.scope, &drafted.pending)).await;
 
       match asked {
         Ok(Some((answer, read))) => {
@@ -1049,7 +1035,7 @@ impl Drafter {
         }
 
         let answered = run
-          .ask(Kind::Check, check.word(), &words(&errand, drafted.scope, &drafted.pending), true)
+          .ask(Kind::Check, check.word(), &words(&errand, drafted.scope, &drafted.pending))
           .await;
 
         match answered {
