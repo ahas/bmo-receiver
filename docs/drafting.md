@@ -208,7 +208,8 @@ leaves.
   its own or one shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
   the last stands. Marks are taken out of an answer before anything else reads it, and never reach the room.
 - **The answer is pinned to the message it answers only where the reader needs it.** A `<<REPLY #<number>>>` mark
-  names the message, and the answer is pinned to it. Where none is named, the message is the oldest of the
+  names the message, including one older than the round's own, and the answer is pinned to it. Where none is named,
+  the message is the oldest of the
   round's messages it answers that asks something of the agent — one that calls it by a word it answers to, or
   asks a question; else the newest — and the answer is pinned to that message only when another message has been
   said in the room since it. An answer to the room's newest line goes unpinned. Owing the owner an answer does not

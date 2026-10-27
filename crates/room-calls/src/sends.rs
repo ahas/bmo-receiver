@@ -41,6 +41,9 @@ pub struct SayInput {
   /// An answer is wanted back.
   #[serde(default, skip_serializing_if = "off")]
   pub reply: bool,
+  /// The message this send replies to, by its number in the room.
+  #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
+  pub reply_to: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -78,6 +81,9 @@ pub struct PhotoInput {
   /// The caption.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub caption: Option<String>,
+  /// The message this send replies to, by its number in the room.
+  #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
+  pub reply_to: Option<i64>,
 }
 
 /// One file of a file send.
@@ -105,6 +111,9 @@ pub struct FileInput {
   /// The caption.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub caption: Option<String>,
+  /// The message this send replies to, by its number in the room.
+  #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
+  pub reply_to: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -127,6 +136,9 @@ pub struct VoiceInput {
   /// What was actually read out, where that differs from the caption.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub transcript: Option<String>,
+  /// The message this send replies to, by its number in the room.
+  #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
+  pub reply_to: Option<i64>,
 }
 
 /// A fixed line asked of a room: its code, and the fields the code carries.
@@ -188,6 +200,9 @@ pub struct StickerInput {
   pub via: Option<String>,
   /// The sticker's emoji.
   pub emoji: String,
+  /// The message this send replies to, by its number in the room.
+  #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
+  pub reply_to: Option<i64>,
 }
 
 /// What a draw draws.

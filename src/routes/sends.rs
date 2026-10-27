@@ -35,6 +35,7 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
         chat_id: chat,
         text: input.text.clone(),
         reply: input.reply,
+        reply_to: input.reply_to,
         started_by: asker.by.clone(),
       };
 
@@ -50,8 +51,16 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
         })
         .collect();
 
-      messages::photo(&sends, receiver.data_root(), chat, &pictures, input.caption.as_deref(), asker.job)
-        .await
+      messages::photo(
+        &sends,
+        receiver.data_root(),
+        chat,
+        &pictures,
+        input.caption.as_deref(),
+        input.reply_to,
+        asker.job,
+      )
+      .await
     }
     Act::File(input) => {
       let files: Vec<messages::SendFile> = input
@@ -63,7 +72,16 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
         })
         .collect();
 
-      messages::file(&sends, receiver.data_root(), chat, &files, input.caption.as_deref(), asker.job).await
+      messages::file(
+        &sends,
+        receiver.data_root(),
+        chat,
+        &files,
+        input.caption.as_deref(),
+        input.reply_to,
+        asker.job,
+      )
+      .await
     }
     Act::Voice(input) => {
       let note = messages::VoiceNote {
@@ -73,11 +91,11 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
         transcript: input.transcript.as_deref(),
       };
 
-      messages::voice(&sends, receiver.data_root(), chat, note, asker.job).await
+      messages::voice(&sends, receiver.data_root(), chat, note, input.reply_to, asker.job).await
     }
     Act::React(input) => messages::react(&sends, chat, input.message, &input.emoji).await,
     Act::Pin(input) => messages::pin(&sends, chat, input.message, input.unpin).await,
-    Act::Sticker(input) => messages::sticker(&sends, chat, &input.emoji).await,
+    Act::Sticker(input) => messages::sticker(&sends, chat, &input.emoji, input.reply_to).await,
     Act::RandomDraw(input) => draws::draw(&sends, chat, &input.request(), asker.via.as_deref()).await,
     Act::FixedLine(input) => messages::fixed_line(&sends, chat, &input.code, &input.fields).await,
   }

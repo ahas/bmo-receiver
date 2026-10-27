@@ -78,6 +78,7 @@ struct Group {
   scratch: Scratch,
   _data: tempfile::TempDir,
   standing: Standing,
+  chat: Arc<StandInChat>,
   session: Arc<StandInSession>,
   runner: Runner,
 }
@@ -93,7 +94,7 @@ impl Group {
 
     documents(data.path());
 
-    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
     let session = Arc::new(session);
     let receiver = standing.receiver.clone();
     let timings = Timings {
@@ -114,6 +115,7 @@ impl Group {
       scratch,
       _data: data,
       standing,
+      chat,
       session,
       runner,
     }
@@ -534,5 +536,48 @@ async fn the_note_stays_under_its_ceiling_and_the_update_is_one_light_turn() {
     prompts[1].len(),
     note[0].len(),
     prompts[0].len() + note[0].len()
+  );
+}
+
+#[tokio::test]
+async fn a_reply_mark_in_the_supervisors_answer_pins_the_older_line_it_names() {
+  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&[
+    "They asked me.",
+    "<<REPLY #1>> They asked me.",
+    "Here.",
+  ]))
+  .await;
+
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         VALUES ($1, 1, 31, 'member', 1760000000, 'a voice note', 'road-a')"#,
+      vec![ROOM.into()],
+    )
+    .await;
+
+  round.hand(2, "did you hear the recording?", false).await;
+  round.rounds_over(3).await;
+
+  let sent = round.chat.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  let pinned = serde_json::to_string(&sent[0])
+    .ok()
+    .and_then(|line| serde_json::from_str::<serde_json::Value>(&line).ok())
+    .and_then(|line| line.get("replyToMessageId").and_then(serde_json::Value::as_i64));
+
+  assert_eq!(pinned, Some(1), "the supervisor's mark pins the older line: {sent:?}");
+
+  assert_eq!(
+    round
+      .scratch
+      .texts(
+        r#"SELECT coalesce("reply_to_message_id"::text, 'none') FROM "messages" WHERE "message_id" = -1"#
+      )
+      .await,
+    ["1"],
+    "the record names the older message"
   );
 }

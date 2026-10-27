@@ -90,6 +90,7 @@ async fn a_line_asked_to_be_said_is_launched_and_nobody_waits_on_the_gates() {
     chat_id: ROOM,
     text: "  The job is done.  ".to_owned(),
     reply: false,
+    reply_to: None,
     started_by: Some(format!("chat:{OWNER}")),
   };
   let lines = say(&sends, &asked, None).await.unwrap();
@@ -107,6 +108,31 @@ async fn a_line_asked_to_be_said_is_launched_and_nobody_waits_on_the_gates() {
 }
 
 #[tokio::test]
+async fn a_line_with_a_reply_target_is_sent_as_a_reply_to_it() {
+  let (_scratch, road, launcher, receiver) = stood().await;
+  let sends = Sends::new(receiver.clone(), Some(AGENT.to_owned()), None).with_launch(launcher);
+
+  say(
+    &sends,
+    &SayAsked {
+      chat_id: ROOM,
+      text: "here it is".to_owned(),
+      reply: false,
+      reply_to: Some(20620),
+      started_by: None,
+    },
+    None,
+  )
+  .await
+  .unwrap();
+
+  let sent = road.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert_eq!(sent[0].reply_to_message_id, Some(20620));
+}
+
+#[tokio::test]
 async fn a_line_asked_without_a_launcher_standing_is_said_by_the_receiver_itself() {
   let (_scratch, road, _launcher, receiver) = stood().await;
   let sends = Sends::new(receiver.clone(), None, None);
@@ -116,6 +142,7 @@ async fn a_line_asked_without_a_launcher_standing_is_said_by_the_receiver_itself
       chat_id: ROOM,
       text: "  ".to_owned(),
       reply: false,
+      reply_to: None,
       started_by: None
     })
     .is_some()
@@ -125,6 +152,7 @@ async fn a_line_asked_without_a_launcher_standing_is_said_by_the_receiver_itself
       chat_id: ROOM,
       text: "words".to_owned(),
       reply: true,
+      reply_to: None,
       started_by: None
     })
     .unwrap(),
@@ -137,6 +165,7 @@ async fn a_line_asked_without_a_launcher_standing_is_said_by_the_receiver_itself
       chat_id: ROOM,
       text: "words".to_owned(),
       reply: false,
+      reply_to: None,
       started_by: None,
     },
     None,
@@ -201,7 +230,7 @@ async fn a_pin_goes_quietly_and_the_acts_the_road_does_not_perform_are_refused_i
   };
   assert_eq!(why, verb_refusal("the road-a road", "reaction"), "{why}");
 
-  let Err(VerbError::Refused(why)) = sticker(&sends, ROOM, "balloon").await else {
+  let Err(VerbError::Refused(why)) = sticker(&sends, ROOM, "balloon", None).await else {
     panic!("the road declares no sticker");
   };
   assert!(why.contains("sticker"), "{why}");
@@ -230,7 +259,7 @@ async fn a_rooms_file_never_goes_into_another_room_and_a_job_sends_none_of_it() 
     label: None,
   }]
   .to_vec();
-  let Err(VerbError::Refused(why)) = photo(&sends, &root, -400, &pictures, None, false).await else {
+  let Err(VerbError::Refused(why)) = photo(&sends, &root, -400, &pictures, None, None, false).await else {
     panic!("the file is kept for another room");
   };
   assert!(why.contains("is kept for room"), "{why}");
@@ -250,7 +279,7 @@ async fn a_picture_the_road_does_not_perform_is_refused_in_one_sentence() {
     label: None,
   }]
   .to_vec();
-  let Err(VerbError::Refused(why)) = photo(&sends, &root, ROOM, &pictures, None, false).await else {
+  let Err(VerbError::Refused(why)) = photo(&sends, &root, ROOM, &pictures, None, None, false).await else {
     panic!("the road performs no album send");
   };
 
@@ -358,7 +387,7 @@ async fn on_a_record_room_the_record_keeps_a_reaction_a_pin_an_edit_a_delete_and
   assert_eq!(column(kept, "text").await, "", "a delete clears the words and keeps the row");
   assert!(!column(kept, "deleted_at").await.is_empty());
 
-  sticker(&sends, ROOM, "🎈").await.unwrap();
+  sticker(&sends, ROOM, "🎈", None).await.unwrap();
   assert_eq!(
     scratch
       .texts(&format!(

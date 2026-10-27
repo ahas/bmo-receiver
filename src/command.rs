@@ -42,6 +42,9 @@ pub struct SayArgs {
   /// Asks the room for an answer back, which comes to the chat `--by` names.
   #[arg(long)]
   pub reply: bool,
+  /// The message this line replies to, by its number in the room.
+  #[arg(long = "reply-to")]
+  pub reply_to: Option<i64>,
   /// The words; read from standard input where none are given.
   #[arg(long)]
   pub text: Option<String>,
@@ -195,6 +198,7 @@ pub async fn room_say(
     via: None,
     text: words(args.text)?,
     reply: args.reply,
+    reply_to: args.reply_to,
   };
 
   asked_sends::ask(&config.data_root, asker, Act::Say(input)).await
@@ -221,6 +225,7 @@ pub async fn photo(
     via: None,
     pictures,
     caption: args.caption,
+    reply_to: None,
   };
 
   asked_sends::ask(&config.data_root, asked_sends::shell_asker(chat, via, None), Act::Photo(input)).await
@@ -268,6 +273,7 @@ pub async fn sticker(
     chat: None,
     via: None,
     emoji,
+    reply_to: None,
   };
 
   asked_sends::ask(&config.data_root, asked_sends::shell_asker(chat, via, None), Act::Sticker(input)).await

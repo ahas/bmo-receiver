@@ -39,20 +39,29 @@ pub enum Mark {
   Reply,
 }
 
-static ROUND_MARK: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"<<(DONE|SEPARATE|REPLY) #([0-9]+)>>").expect("a round mark"));
+static ROUND_MARK: LazyLock<Regex> = LazyLock::new(|| {
+  Regex::new(r"<<(?:(DONE|SEPARATE|REPLY) #([0-9]+)|REPLY:([0-9]+))>>").expect("a round mark")
+});
 
 fn marks_in(text: &str) -> Vec<(Mark, i64)> {
   ROUND_MARK
     .captures_iter(text)
     .filter_map(|found| {
-      let mark = match &found[1] {
-        "DONE" => Mark::Done,
-        "SEPARATE" => Mark::Separate,
-        _ => Mark::Reply,
+      let (mark, id) = match (found.get(1), found.get(2), found.get(3)) {
+        (Some(mark), Some(id), _) => {
+          let mark = match mark.as_str() {
+            "DONE" => Mark::Done,
+            "SEPARATE" => Mark::Separate,
+            _ => Mark::Reply,
+          };
+
+          (mark, id.as_str())
+        }
+        (_, _, Some(id)) => (Mark::Reply, id.as_str()),
+        _ => return None,
       };
 
-      found[2].parse().ok().map(|id| (mark, id))
+      id.parse().ok().map(|id| (mark, id))
     })
     .collect()
 }
@@ -74,8 +83,9 @@ pub fn round_marks(text: &str) -> Vec<(Mark, i64)> {
     .collect()
 }
 
-static ROUND_MARK_SPACED: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"[ \t]?<<(?:DONE|SEPARATE|REPLY) #[0-9]+>>").expect("a round mark"));
+static ROUND_MARK_SPACED: LazyLock<Regex> = LazyLock::new(|| {
+  Regex::new(r"[ \t]?<<(?:(?:DONE|SEPARATE|REPLY) #[0-9]+|REPLY:[0-9]+)>>").expect("a round mark")
+});
 
 /// An answer with every round mark taken out, so nothing after reads them as words.
 pub fn without_round_marks(text: &str) -> String {

@@ -67,6 +67,8 @@ pub struct SayAsked {
   pub text: String,
   /// Whether an answer is wanted back, which is asked for rather than assumed.
   pub reply: bool,
+  /// The message this line replies to, by its number in the room.
+  pub reply_to: Option<i64>,
   /// Who set it off: a chat session names its own chat and is told there what became of the line.
   pub started_by: Option<String>,
 }
@@ -140,6 +142,11 @@ pub fn failed_instruction(chat_id: i64, text: &str, reason: &str) -> String {
 
 /// A line put in a room without holding up whoever asked for it: the road asked, the words put on the disk for
 /// the run alone, the run's row opened and the run launched, answered the moment it is up.
+fn replying(mut request: ChatSendRequest, reply_to: Option<i64>) -> ChatSendRequest {
+  request.reply_to_message_id = reply_to;
+  request
+}
+
 pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<Vec<String>, VerbError> {
   if let Some(refusal) = say_refusal(asked) {
     return Err(VerbError::Refused(format!("say: {refusal}\n{SAY_USAGE}")));
@@ -152,6 +159,23 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
 
   write_private(&text_path, asked.text.trim())
     .map_err(|why| VerbError::Refused(format!("the words could not be put on the disk: {why}")))?;
+
+  // A line that answers a named message is said here, not through a runner, so the reply target the tool carries
+  // reaches the room with it.
+  if asked.reply_to.is_some() {
+    let run = SayRun {
+      chat_id: asked.chat_id,
+      text_path,
+      run_id: None,
+      unit: unit.clone(),
+      started_by: asked.started_by.clone().unwrap_or_default(),
+      reply: asked.reply,
+      reply_to: asked.reply_to,
+      via: via.map(str::to_owned),
+    };
+
+    return say_run(sends, &run).await;
+  }
 
   let run_id = sends
     .launch()
@@ -214,6 +238,7 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
       unit: unit.clone(),
       started_by: asked.started_by.clone().unwrap_or_default(),
       reply: asked.reply,
+      reply_to: asked.reply_to,
       via: via.map(str::to_owned),
     };
     let sends = sends.clone();
@@ -256,6 +281,8 @@ pub struct SayRun {
   pub started_by: String,
   /// Whether that chat asked the room for an answer back.
   pub reply: bool,
+  /// The message this line replies to, by its number in the room.
+  pub reply_to: Option<i64>,
   /// The road the caller's turn is read on, which the news of the line goes back on.
   pub via: Option<String>,
 }
@@ -281,13 +308,16 @@ pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbEr
     sends
       .send(
         &road,
-        &ChatSendRequest::new(
-          run_.chat_id,
-          ChatSend::Text {
-            text: text.clone(),
-            silent: false,
-            fold: true,
-          },
+        &replying(
+          ChatSendRequest::new(
+            run_.chat_id,
+            ChatSend::Text {
+              text: text.clone(),
+              silent: false,
+              fold: true,
+            },
+          ),
+          run_.reply_to,
         ),
       )
       .await
@@ -542,17 +572,25 @@ pub async fn react(
 }
 
 /// One of the deployment's stickers, sent by its emoji.
-pub async fn sticker(sends: &Sends, chat_id: i64, emoji: &str) -> Result<Vec<String>, VerbError> {
+pub async fn sticker(
+  sends: &Sends,
+  chat_id: i64,
+  emoji: &str,
+  reply_to: Option<i64>,
+) -> Result<Vec<String>, VerbError> {
   let road = sends.road(chat_id, "sticker").await?;
 
   match sends
     .send(
       &road,
-      &ChatSendRequest::new(
-        chat_id,
-        ChatSend::Sticker {
-          emoji: emoji.to_owned(),
-        },
+      &replying(
+        ChatSendRequest::new(
+          chat_id,
+          ChatSend::Sticker {
+            emoji: emoji.to_owned(),
+          },
+        ),
+        reply_to,
       ),
     )
     .await
@@ -588,6 +626,7 @@ pub async fn photo(
   chat_id: i64,
   pictures: &[Picture],
   caption: Option<&str>,
+  reply_to: Option<i64>,
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
   let pictures: Vec<(String, String)> = pictures
@@ -640,12 +679,15 @@ pub async fn photo(
   let sent = sends
     .send(
       &road,
-      &ChatSendRequest::new(
-        chat_id,
-        ChatSend::Album {
-          items,
-          caption: caption.map(str::to_owned),
-        },
+      &replying(
+        ChatSendRequest::new(
+          chat_id,
+          ChatSend::Album {
+            items,
+            caption: caption.map(str::to_owned),
+          },
+        ),
+        reply_to,
       ),
     )
     .await
@@ -755,6 +797,7 @@ pub async fn file(
   chat_id: i64,
   files: &[SendFile],
   caption: Option<&str>,
+  reply_to: Option<i64>,
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
   let mut held: Vec<ReadFile> = vec![];
@@ -782,13 +825,16 @@ pub async fn file(
       sends
         .send(
           &road,
-          &ChatSendRequest::new(
-            chat_id,
-            ChatSend::Text {
-              text: caption.to_owned(),
-              silent: false,
-              fold: false,
-            },
+          &replying(
+            ChatSendRequest::new(
+              chat_id,
+              ChatSend::Text {
+                text: caption.to_owned(),
+                silent: false,
+                fold: false,
+              },
+            ),
+            reply_to,
           ),
         )
         .await
@@ -799,12 +845,15 @@ pub async fn file(
     let sent = sends
       .send(
         &road,
-        &ChatSendRequest::new(
-          chat_id,
-          ChatSend::Document {
-            bytes: file.bytes,
-            file_name: file.name.clone(),
-          },
+        &replying(
+          ChatSendRequest::new(
+            chat_id,
+            ChatSend::Document {
+              bytes: file.bytes,
+              file_name: file.name.clone(),
+            },
+          ),
+          reply_to,
         ),
       )
       .await;
@@ -835,12 +884,15 @@ pub async fn file(
     let sent = sends
       .send(
         &road,
-        &ChatSendRequest::new(
-          chat_id,
-          ChatSend::Album {
-            items,
-            caption: caption.map(str::to_owned),
-          },
+        &replying(
+          ChatSendRequest::new(
+            chat_id,
+            ChatSend::Album {
+              items,
+              caption: caption.map(str::to_owned),
+            },
+          ),
+          reply_to,
         ),
       )
       .await
@@ -878,6 +930,7 @@ pub async fn voice(
   data_root: &DataRoot,
   chat_id: i64,
   note: VoiceNote<'_>,
+  reply_to: Option<i64>,
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
   let path = note.path.trim();
@@ -909,14 +962,17 @@ pub async fn voice(
   sends
     .send(
       &road,
-      &ChatSendRequest::new(
-        chat_id,
-        ChatSend::Voice {
-          audio: file.bytes,
-          said,
-          caption,
-          transcript,
-        },
+      &replying(
+        ChatSendRequest::new(
+          chat_id,
+          ChatSend::Voice {
+            audio: file.bytes,
+            said,
+            caption,
+            transcript,
+          },
+        ),
+        reply_to,
       ),
     )
     .await

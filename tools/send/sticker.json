@@ -19,6 +19,14 @@
         "string",
         "null"
       ]
+    },
+    "replyTo": {
+      "description": "The message this send replies to, by its number in the room.",
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
     }
   },
   "required": [

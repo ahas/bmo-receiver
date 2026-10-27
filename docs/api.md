@@ -288,7 +288,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `by?`, `job`), `tool`, `input` | `lines`, what the act said, and `refusal` where it ended in one |
+| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `by?`, `job`), `tool`, `input`; the `say`, `photo`, `file`, `voice` and `sticker` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one |
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs the road a room is answered on performs |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |

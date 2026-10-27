@@ -24,6 +24,7 @@ fn an_asked_send_is_written_with_its_tool_its_input_and_its_asker() {
       chat: None,
       via: None,
       emoji: ":+1:".to_owned(),
+      reply_to: None,
     }),
   };
   let written = serde_json::to_value(&asked).unwrap();
@@ -61,6 +62,7 @@ fn a_file_send_is_written_with_its_files_and_caption() {
         },
       ],
       caption: Some("the two of them".to_owned()),
+      reply_to: None,
     }),
   };
   let written = serde_json::to_value(&asked).unwrap();
@@ -97,6 +99,7 @@ fn a_voice_send_is_written_with_its_path_its_caption_and_what_it_says() {
       caption: Some("the news".to_owned()),
       said: Some("today's news".to_owned()),
       transcript: Some("the whole of the news".to_owned()),
+      reply_to: None,
     }),
   };
   let written = serde_json::to_value(&asked).unwrap();

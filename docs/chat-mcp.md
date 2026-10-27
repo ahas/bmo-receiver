@@ -7,20 +7,24 @@ and watches are `docs/reminders.md`'s. The other tools of the catalogue are thei
 
 ## Its entries
 
-- **`say`**: words into the turn's room, or the room `chat` names, on the turn's road or the one `via` names;
+- **`say`**: words into the turn's room, or the room `chat` names, on the turn's road or the one `via` names,
+  with an optional `replyTo` naming the message in the room the line replies to;
   `reply` asks for an answer back.
 - **`consult`**: one line in the consult room under the calling agent's own name (`docs/consult.md`).
-- **`photo`**: one picture or an album, each `url` with an optional `label`, and a `caption` (`docs/pictures.md`).
+- **`photo`**: one picture or an album, each `url` with an optional `label`, a `caption` (`docs/pictures.md`) and
+  an optional `replyTo` naming the message it replies to.
 - **`file`**: one file from this machine, or several as one album, each a `path` and an optional `name`, with a
-  `caption`. A file a room's folder holds goes only into that room, and a job sends none of them
+  `caption` and an optional `replyTo` naming the message it replies to. A file a room's folder holds goes only into that room, and a job sends none of them
   (`docs/room-files.md`).
-- **`voice`**: an OGG/Opus voice note at `path`, with its `caption`, what it `said` and the `transcript` read out.
+- **`voice`**: an OGG/Opus voice note at `path`, with its `caption`, what it `said`, the `transcript` read out and
+  an optional `replyTo` naming the message it replies to.
 - **`fixed_line`**: a fixed line's `code` and its `fields`, which the web unit's language packs render, the
   receiver's policy sentence standing in where they cannot (`docs/voiced-notices.md`, 「Lines that stay fixed」);
   the receiver says it without the output gate or any session, and refuses a code no sentence can be made of.
 - **`react`**: an emoji reaction on a message, or none to clear it.
 - **`pin`**: a message pinned, or unpinned.
-- **`sticker`**: one of the deployment's stickers, picked by its emoji.
+- **`sticker`**: one of the deployment's stickers, picked by its emoji, with an optional `replyTo` naming the
+  message it replies to.
 - **`random_draw`**: a fair draw (`docs/random-draw.md`).
 
 Every entry is marked open-world. Its arguments are its schema, one JSON schema file beside the manifest for each

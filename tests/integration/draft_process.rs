@@ -985,16 +985,14 @@ fn pinned(sent: &[String]) -> Option<i64> {
     .and_then(|line| line.get("replyToMessageId").and_then(serde_json::Value::as_i64))
 }
 
-async fn kept_pin(round: &Drafting) -> String {
+async fn pinned_rows(round: &Drafting) -> Vec<String> {
   round
     .scratch
     .texts(
-      r#"SELECT coalesce("reply_to_message_id"::text, 'none') FROM "messages" WHERE "text" = 'the message itself'"#,
+      r#"SELECT "reply_to_message_id"::text FROM "messages"
+         WHERE "chat_id" = 42 AND "agent_name" IS NOT NULL AND "reply_to_message_id" IS NOT NULL"#,
     )
     .await
-    .into_iter()
-    .next()
-    .unwrap_or_default()
 }
 
 #[tokio::test]
@@ -1009,7 +1007,23 @@ async fn an_answer_to_the_newest_line_goes_unpinned() {
 
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert_eq!(pinned(&sent), None, "a direct answer carries no reply pin: {sent:?}");
-  assert_eq!(kept_pin(&round).await, "none", "the record carries no visible pin either");
+  assert!(pinned_rows(&round).await.is_empty(), "the record carries no visible pin either");
+}
+
+#[tokio::test]
+async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY:1>> the message itself"]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.hear(2, "and this?").await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert_eq!(pinned(&sent), Some(1), "the older line named by the marker is pinned: {sent:?}");
+  assert_eq!(pinned_rows(&round).await, ["1"], "the record names the older message");
 }
 
 #[tokio::test]
@@ -1024,5 +1038,5 @@ async fn an_explicit_reply_mark_pins_even_the_newest_line() {
 
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert_eq!(pinned(&sent), Some(1), "the mark pins the newest line: {sent:?}");
-  assert_eq!(kept_pin(&round).await, "1", "the record names the pinned message");
+  assert_eq!(pinned_rows(&round).await, ["1"], "the record names the pinned message");
 }

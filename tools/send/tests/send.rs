@@ -155,6 +155,22 @@ async fn say_is_asked_of_the_receivers_sends_route_with_the_turn_as_its_asker() 
 }
 
 #[tokio::test]
+async fn a_send_carries_the_reply_target_the_tool_names() {
+  let book = Book::default();
+  let (base, port) = stood(book.clone()).await;
+  let data = tempdir().unwrap();
+  write_env(data.path(), base, port);
+  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
+
+  let answered = call(&session, "say", json!({ "text": "hello there", "replyTo": 20620 })).await;
+
+  assert!(!answered.is_error, "{}", answered.plain());
+  let (_, body) = asked_of(&book);
+
+  assert_eq!(body["input"]["replyTo"], 20620);
+}
+
+#[tokio::test]
 async fn consult_is_asked_of_the_receivers_consult_route_under_the_turns_agent() {
   let book = Book::default();
   let (base, port) = stood(book.clone()).await;

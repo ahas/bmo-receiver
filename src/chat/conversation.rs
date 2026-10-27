@@ -383,6 +383,7 @@ pub trait Orders: Send + Sync {
 struct Conv {
   room: Room,
   reply_target: Option<i64>,
+  reply_marked: Option<i64>,
   buffer: Vec<Inbound>,
   instructions: Vec<String>,
   instruction_ids: Vec<i64>,
@@ -504,6 +505,7 @@ impl Conv {
     Self {
       room,
       reply_target: None,
+      reply_marked: None,
       buffer: vec![],
       instructions: vec![],
       instruction_ids: vec![],
@@ -1452,9 +1454,24 @@ impl Conversations {
   // The round's answer pinned to the message it answers among those it answers, where a road can aim at it and
   // the pin tells the reader which line it answers: an explicit mark, or a message another line has come after.
   async fn pin(&self, chat_id: i64, answered: &[Inbound], named: Option<i64>) {
-    let agent = designated(&self.receiver(), self.agent()).await;
-    let explicit = named.is_some_and(|id| answered.iter().any(|message| message.message_id == id));
-    let Some(message) = pin_target(answered, named, |message| asks_of(&agent, message)) else {
+    let db = self.0.receiver.db();
+    let named_message = match named {
+      Some(id) => match answered.iter().find(|message| message.message_id == id) {
+        Some(message) => Some(message.clone()),
+        None => rows::message(db, chat_id, id, "").await.ok().flatten(),
+      },
+      None => None,
+    };
+    let explicit = named_message.is_some();
+    let message = match named_message {
+      Some(message) => Some(message),
+      None => {
+        let agent = designated(&self.receiver(), self.agent()).await;
+
+        pin_target(answered, None, |message| asks_of(&agent, message)).cloned()
+      }
+    };
+    let Some(message) = message else {
       self.reply_target(chat_id, None);
 
       return;
@@ -1777,8 +1794,16 @@ impl Conversations {
       held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
     }
 
-    // The answer is pinned to the message it answers, whatever the owner is owed.
-    self.pin(chat_id, &batch, made.reply_to).await;
+    // The answer is pinned to the message it answers, whatever the owner is owed; a mark the supervisor's
+    // first answer set stands in where this answer names none.
+    let named = made
+      .reply_to
+      .or_else(|| self.state().active.get(&chat_id).and_then(|conv| conv.reply_marked));
+    self.pin(chat_id, &batch, named).await;
+
+    if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      conv.reply_marked = None;
+    }
 
     // The fold reads the context the process's last turn left.
     let ratio = reply.context_ratio().or(ratio);
@@ -2047,6 +2072,18 @@ impl Conversations {
     self.keep_session(chat_id, held);
 
     let passed = is_skip(&crate::form::strip_prompt_scaffolding(&reply.text));
+
+    if !passed
+      && let Some(id) = super::sentinels::round_marks(&reply.text)
+        .into_iter()
+        .rev()
+        .find(|(mark, _)| *mark == super::sentinels::Mark::Reply)
+        .map(|(_, id)| id)
+      && let Some(conv) = self.state().active.get_mut(&chat_id)
+    {
+      conv.reply_marked = Some(id);
+    }
+
     let mut log = super::draft::log::Log::new(self, round, chat_id, self.agent()).numbered_from(0);
 
     log
