@@ -726,6 +726,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/messages/{messageId}/forwards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A message the owner forwards into another room, kept there as his and marked as forwarded. */
+        post: operations["forward"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/messages/{messageId}/metadata": {
         parameters: {
             query?: never;
@@ -1451,6 +1468,19 @@ export interface components {
             /** Format: int64 */
             forgotten: number;
         };
+        /** @description A message forwarded into another room: the room it goes into. */
+        Forward: {
+            /** Format: int64 */
+            to: number;
+        };
+        /** @description The message a forwarded copy stands for. */
+        ForwardedFrom: {
+            /** Format: int64 */
+            messageId: number;
+            /** Format: int64 */
+            room: number;
+            senderName: string;
+        };
         /**
          * @description A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room
          *     whose session is asked where the agent keeps one in each room.
@@ -1592,6 +1622,11 @@ export interface components {
              */
             editedAt: number | null;
             files: components["schemas"]["KeptFile"][];
+            /**
+             * @description Where a copy the owner forwarded came from: the room, the message and who said it; null on any other message.
+             * @default null
+             */
+            forwardedFrom: components["schemas"]["ForwardedFrom"] | null;
             /** Format: int64 */
             id: number;
             imagePath: string | null;
@@ -3713,6 +3748,42 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, not-found */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    forward: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Forward"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -208,7 +208,26 @@ pub struct Message {
   /// The reactions the record keeps on the message, in the order they were put there.
   #[serde(default)]
   pub reactions: Vec<Reaction>,
+  /// Where a copy the owner forwarded came from: the room, the message and who said it; null on any other message.
+  #[serde(default)]
+  pub forwarded_from: Option<ForwardedFrom>,
   pub files: Vec<KeptFile>,
+}
+
+/// The message a forwarded copy stands for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ForwardedFrom {
+  pub room: i64,
+  pub message_id: i64,
+  pub sender_name: String,
+}
+
+/// A message forwarded into another room: the room it goes into.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Forward {
+  pub to: i64,
 }
 
 /// A reaction the record keeps on a message: its emoji and who put it there, an agent's name or a person's number.

@@ -969,6 +969,41 @@
         ],
         "type": "object"
       },
+      "Forward": {
+        "description": "A message forwarded into another room: the room it goes into.",
+        "properties": {
+          "to": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "type": "object"
+      },
+      "ForwardedFrom": {
+        "description": "The message a forwarded copy stands for.",
+        "properties": {
+          "messageId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "senderName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "room",
+          "messageId",
+          "senderName"
+        ],
+        "type": "object"
+      },
       "HandoffAsked": {
         "description": "A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room\nwhose session is asked where the agent keeps one in each room.",
         "properties": {
@@ -1332,6 +1367,18 @@
             },
             "type": "array"
           },
+          "forwardedFrom": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ForwardedFrom"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Where a copy the owner forwarded came from: the room, the message and who said it; null on any other message."
+          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -1436,6 +1483,7 @@
           "deletedAt",
           "pinnedAt",
           "reactions",
+          "forwardedFrom",
           "files"
         ],
         "type": "object"
@@ -5343,6 +5391,72 @@
         "x-codes": [
           "unauthorized",
           "not-found"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}/forwards": {
+      "post": {
+        "operationId": "forward",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Forward"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Created."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, failed"
+          }
+        },
+        "summary": "A message the owner forwards into another room, kept there as his and marked as forwarded.",
+        "tags": [
+          "Sends"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "conflict",
+          "failed"
         ]
       }
     },

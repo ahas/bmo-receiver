@@ -335,3 +335,49 @@ async fn a_chosen_list_rules_both_ways_and_names_the_rooms_own_road() {
   assert_eq!(kept(7).await, vec!["said on the road again".to_owned()]);
   assert_eq!(roads.own(ROOM).await, Some(Road::Service("road-a".to_owned())));
 }
+
+#[tokio::test]
+async fn a_message_the_owner_forwards_is_kept_as_his_in_the_room_it_goes_into_marked_and_carried_there() {
+  let scratch = Scratch::new().await;
+  let (front, road) = front(&scratch).await;
+
+  // A message said in another room the receiver holds.
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         VALUES (-200, 5, 55, 'someone', 1, 'the words to pass on', 'record')"#,
+      vec![],
+    )
+    .await;
+
+  let (status, answer) = post(&front, "/rooms/-200/messages/5/forwards", json!({ "to": ROOM })).await;
+
+  assert_eq!(status, StatusCode::CREATED, "{answer}");
+
+  let copy = answer["id"].as_i64().unwrap();
+  let (status, kept) = get(&front, &format!("/rooms/{ROOM}/messages/{copy}")).await;
+
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(kept["text"], "the words to pass on");
+  assert_eq!(kept["senderId"], OWNER, "kept as the owner's");
+  assert_eq!(kept["forwardedFrom"], json!({ "room": -200, "messageId": 5, "senderName": "someone" }));
+
+  let carried = road.sent();
+
+  assert_eq!(carried.len(), 1, "carried out on the room's own road: {carried:?}");
+  assert_eq!(carried[0].mode, Some(ChatVoice::HumanReader), "in the owner's own voice");
+
+  // Refusals: into its own room, a message not held, a room not held.
+  assert_eq!(
+    post(&front, "/rooms/-200/messages/5/forwards", json!({ "to": -200 })).await.0,
+    StatusCode::BAD_REQUEST
+  );
+  assert_eq!(
+    post(&front, "/rooms/-200/messages/9/forwards", json!({ "to": ROOM })).await.0,
+    StatusCode::NOT_FOUND
+  );
+  assert_eq!(
+    post(&front, "/rooms/-200/messages/5/forwards", json!({ "to": -999 })).await.0,
+    StatusCode::NOT_FOUND
+  );
+}

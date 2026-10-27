@@ -145,6 +145,7 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
     "deletedAt": kept.deleted_at,
     "pinnedAt": kept.pinned_at,
     "reactions": reads::reactions(receiver.db(), room, message).await.map_err(store)?,
+    "forwardedFrom": super::console::forwarded_from(&kept.forwarded),
     "files": files,
   }))
 }

@@ -199,7 +199,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
   `kind` (`sticker`, or null for any other), `editedAt`, `deletedAt` and `pinnedAt` (epoch milliseconds, or null),
-  `reactions`, each `emoji` with `by`, who put it there (an agent's name or a person's number), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+  `reactions`, each `emoji` with `by`, who put it there (an agent's name or a person's number), `forwardedFrom`
+  (`room`, `messageId` and `senderName` of the message it copies, or null), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`
@@ -278,6 +279,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs the road a room is answered on performs |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, and up to ten `file` fields | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
+| `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into | 201, `room` and `id`, the copy kept there |
 
 - **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` and
   `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`). The act goes out as the asker's agent, on
@@ -300,6 +302,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
   room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413
   `too-large`; a `replyTo` the archive does not hold is refused 409.
+- **A forward** copies a message the owner picks into another room: kept there under a console number as the
+  owner's, his number and the name that room shows him by, its words the message's own, marked `forwardedFrom`
+  with the room, the message and who said it, and carried to that room's providers as every kept message is, so
+  it goes out on the room's own road. It wakes nobody. A message or a room the receiver does not hold is refused
+  404 `not-found`, a forward into the room it stands in 400 `bad-request`, and a deleted message 409 `conflict`.
 
 ## Consult lines
 

@@ -86,6 +86,8 @@ pub struct Page {
   pub edited_at: Option<i64>,
   pub deleted_at: Option<i64>,
   pub pinned_at: Option<i64>,
+  /// The room, the message and the name of who said it, on a copy the owner forwarded.
+  pub forwarded: Option<(i64, i64, String)>,
   pub files: Vec<KeptFile>,
 }
 
@@ -121,6 +123,17 @@ impl Page {
       edited_at: row.try_get("", "edited_at").unwrap_or(None),
       deleted_at: row.try_get("", "deleted_at").unwrap_or(None),
       pinned_at: row.try_get("", "pinned_at").unwrap_or(None),
+      forwarded: match (
+        row.try_get::<Option<i64>>("", "forwarded_room").unwrap_or(None),
+        row.try_get::<Option<i64>>("", "forwarded_message").unwrap_or(None),
+      ) {
+        (Some(room), Some(message)) => Some((
+          room,
+          message,
+          row.try_get::<Option<String>>("", "forwarded_name").unwrap_or(None).unwrap_or_default(),
+        )),
+        _ => None,
+      },
       files: vec![],
     })
   }

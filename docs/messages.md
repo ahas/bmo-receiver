@@ -23,6 +23,9 @@ agent has read) and what an agent can send back and when a room sees it typing.
   writes for it, carrying what a reader could act on, plus the caption when there is one. It is archived and
   routed like any message.
 - **Anything forwarded is prefixed with who it came from,** as the chat service hands it over.
+- **The owner forwards a message from the console** into another room: a copy kept there as his, marked as
+  forwarded with where it came from and who said it, carried out on that room's own road and waking nobody
+  (`docs/api.md`, 「Sends」).
 - **An edit (`POST /edited`) changes the archived text in place and wakes nobody.**
 - **A message kept in a room goes to each of the room's other chat providers** (`docs/receiver.md`, 「A room's
   chat providers」); a message read back from a room's past goes nowhere.

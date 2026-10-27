@@ -124,6 +124,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/rooms/{roomId}/avatar", get(message_files::room_avatar)),
     ("GET", "/people/{personId}/avatar", get(message_files::person_avatar)),
     ("PUT", "/avatars/{kind}/{subject}", put(avatars::set)),
+    ("POST", "/rooms/{roomId}/messages/{messageId}/forwards", post(say::forward)),
     ("DELETE", "/avatars/{kind}/{subject}", delete(avatars::unset)),
     ("GET", "/rooms/{roomId}/figures", get(figures::figures)),
     ("GET", "/rooms/{roomId}/window", get(console::room_window)),

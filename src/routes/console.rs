@@ -266,6 +266,7 @@ fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
         "deletedAt": Value::Null,
         "pinnedAt": Value::Null,
         "reactions": [],
+        "forwardedFrom": Value::Null,
         "files": [],
       })
     })
@@ -425,6 +426,14 @@ async fn unheld(db: &DatabaseConnection, room: i64) -> Result<(), Refusal> {
   ))
 }
 
+/// Where a forwarded copy came from, in the one message shape; null on any other message.
+pub fn forwarded_from(forwarded: &Option<(i64, i64, String)>) -> Value {
+  match forwarded {
+    Some((room, message, name)) => json!({ "room": room, "messageId": message, "senderName": name }),
+    None => Value::Null,
+  }
+}
+
 /// The page's messages with the files each carried kept beside it, in the one message shape.
 async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result<Vec<Value>, Fault> {
   let mut lines: Vec<Value> = vec![];
@@ -464,6 +473,7 @@ async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result
       "deletedAt": page.deleted_at,
       "pinnedAt": page.pinned_at,
       "reactions": reads::reactions(receiver.db(), room, page.message_id).await?,
+      "forwardedFrom": forwarded_from(&page.forwarded),
       "files": files,
     }));
   }

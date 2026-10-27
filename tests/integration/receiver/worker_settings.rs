@@ -120,6 +120,7 @@ async fn a_message_said_in_a_room_is_read_back_whole() {
         "deletedAt": null,
         "pinnedAt": null,
         "reactions": [],
+        "forwardedFrom": null,
         "files": [],
       })
     ),

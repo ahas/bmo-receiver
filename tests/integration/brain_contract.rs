@@ -24,7 +24,7 @@ async fn a_rooms_record_answers_the_fields_the_api_names() {
         "id": 1, "room": 7, "senderId": OWNER, "senderName": "someone", "sentAt": 1_000,
         "text": "words", "imagePath": null, "replyToMessageId": null, "answerSeconds": null,
         "round": null, "album": null, "via": null, "agentName": null, "voice": null, "kind": null, "editedAt": null, "deletedAt": null,
-        "pinnedAt": null, "reactions": [], "files": [],
+        "pinnedAt": null, "reactions": [], "forwardedFrom": null, "files": [],
       })], "more": false })
     ),
   );

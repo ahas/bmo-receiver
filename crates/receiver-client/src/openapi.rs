@@ -786,6 +786,17 @@ pub fn openapi() -> Value {
   );
   add!(
     "POST",
+    "/rooms/{roomId}/messages/{messageId}/forwards",
+    "forward",
+    "Sends",
+    "A message the owner forwards into another room, kept there as his and marked as forwarded.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    Some(generator.subschema_for::<Forward>()),
+    vec![(201, json_answer::<Value>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "conflict", "failed"]
+  );
+  add!(
+    "POST",
     "/owner/message-files",
     "ownerMessageFiles",
     "Sends",

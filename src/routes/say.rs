@@ -4,8 +4,9 @@
 //! receiver does not hold is refused before anything is written.
 
 use axum::{
+  Json,
   body::Bytes,
-  extract::{Multipart, State},
+  extract::{Multipart, Path, State},
   http::StatusCode,
 };
 use bmo_chat_client::{FileItem, MessageFile};
@@ -329,4 +330,91 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
   answered(
     json!({ "id": sent.first().and_then(|held| held.get("id")), "sent": sent, "checking": [], "failed": turned_away }),
   )
+}
+
+#[derive(Deserialize)]
+pub struct ForwardBody {
+  to: i64,
+}
+
+/// A message the owner forwards into another room (docs/api.md, 「Sends」): a copy kept there as his, marked with
+/// where it came from and who said it, carried out on that room's own road, waking nobody.
+pub async fn forward(
+  State(served): State<Served>,
+  Path((room, message)): Path<(i64, i64)>,
+  body: Bytes,
+) -> Result<(StatusCode, Json<Value>), Refusal> {
+  let asked = read::<ForwardBody>(&body)?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  if asked.to == room {
+    return Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      "a message is forwarded into another room",
+    ));
+  }
+
+  let Some(source) =
+    crate::receiver::reads::message_of(receiver.db(), room, message).await.map_err(store)?
+  else {
+    return Err(refused(
+      StatusCode::NOT_FOUND,
+      "not-found",
+      &format!("The receiver keeps no message {message} in room {room}."),
+    ));
+  };
+
+  if source.deleted_at.is_some() {
+    return Err(refused(StatusCode::CONFLICT, "conflict", &format!("Message {message} was deleted.")));
+  }
+
+  if !known(&receiver, asked.to).await? {
+    return Err(refused(
+      StatusCode::NOT_FOUND,
+      "not-found",
+      &format!("The receiver holds no room {}.", asked.to),
+    ));
+  }
+
+  let name = receiver.owner_name(asked.to).await;
+  let kept = record::Kept {
+    chat_id: asked.to,
+    text: &source.text,
+    reply_to: None,
+    via: Road::Record.key(),
+    sender_id: Some(receiver.owner_id()),
+    name: &name,
+    agent: None,
+    voice: None,
+  };
+  let copy = record::keep(receiver.db(), receiver.news(), kept).await.map_err(store)?;
+
+  crate::run(
+    receiver.db(),
+    r#"UPDATE "messages" SET "forwarded_room" = $3, "forwarded_message" = $4, "forwarded_name" = $5
+       WHERE "chat_id" = $1 AND "message_id" = $2"#,
+    vec![
+      asked.to.into(),
+      copy.into(),
+      room.into(),
+      message.into(),
+      source.sender_name.clone().into(),
+    ],
+  )
+  .await
+  .map_err(store)?;
+
+  let delivery = Delivery {
+    chat_id: asked.to,
+    message_id: copy,
+    reply_to: None,
+    owner: true,
+    standing: vec![Road::Record.key().to_owned()],
+    carried: Carried::words(&source.text),
+  };
+
+  providers::deliver(receiver.db(), receiver.roads(), &delivery).await;
+
+  Ok((StatusCode::CREATED, Json(json!({ "room": asked.to, "id": copy }))))
 }
