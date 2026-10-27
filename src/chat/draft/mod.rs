@@ -465,7 +465,7 @@ impl Run<'_> {
     let drafted = self.drafted;
     let chat = self.held.chat_id;
     let receiver = &self.drafter.receiver;
-    let took = self.conversations.meanwhile(chat, drafted.privileged);
+    let took = self.conversations.meanwhile(chat, drafted.privileged).await;
 
     if took.is_empty() {
       return None;

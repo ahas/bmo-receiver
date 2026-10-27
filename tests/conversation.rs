@@ -84,3 +84,22 @@ fn the_answer_is_pinned_to_the_message_it_answers_not_to_the_owners_aside_after_
   assert_eq!(pin_target(&called[..1], None, asks).map(|one| one.message_id), Some(1));
   assert_eq!(pin_target(&[], None, asks), None);
 }
+
+#[test]
+fn waiting_words_join_a_working_round_only_where_they_carry_its_privilege() {
+  use bmo_receiver::chat::conversation::joins_round;
+
+  const OWNER: i64 = 1;
+  const PERSON: i64 = 2;
+
+  // The owner's round: his words join, an agent's line alone keeps nothing out, another person's words wait.
+  assert!(joins_round(true, &[OWNER], OWNER));
+  assert!(joins_round(true, &[], OWNER), "an agent's line alone joins and holds nothing back");
+  assert!(!joins_round(true, &[OWNER, PERSON], OWNER));
+
+  // A round that is not his, opened by an agent's line alone: his own words wait and open a round of his own.
+  assert!(!joins_round(false, &[OWNER], OWNER));
+  assert!(joins_round(false, &[PERSON], OWNER));
+  assert!(joins_round(false, &[OWNER, PERSON], OWNER));
+  assert!(joins_round(false, &[], OWNER));
+}

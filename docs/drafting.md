@@ -145,8 +145,11 @@ leaves.
 - **The words reach the agent at a question boundary alone.** Each time an answer of the process comes back, the
   receiver takes what waited since its last look and puts it under the next question as one block, composed the
   way a push's words are: the window selects for what the round does not already hold, and each message stands
-  with its number. In a round that read only the owner's words, the block takes the waiting words only where they
-  are all the owner's; the others wait for the next round.
+  with its number. The block takes the waiting words only where they carry the round's privilege, read by people's
+  words alone as the round's own is (`docs/unified-bmo.md`, the run-privilege mark): a round that is the owner's
+  takes them where every person's words among them are his, an agent's line neither keeping them out nor letting
+  them in; a round that is not his never takes words that are his alone. The others wait and open the round after,
+  where the owner's own words carry his privilege.
 - **Once the message stands, one closing check.** Where words waited when the message came to stand — the answer
   to `final`, or one a send marker opened — the session is asked once more before the items and the checks: the
   policy's `arrived` line, the message as it stands, then the block. The answer, marks taken out, is the whole

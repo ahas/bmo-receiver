@@ -134,6 +134,15 @@ impl Reply {
   }
 }
 
+/// Whether waiting words join a working round, by the senders of their people's words (docs/drafting.md, 「What came
+/// in meanwhile」): into the owner's round where every person among them is he, an agent's line alone keeping
+/// nothing out; into a round that is not his where they are not his alone, so his own words open the round after.
+pub fn joins_round(privileged: bool, peoples: &[i64], owner: i64) -> bool {
+  let all_his = peoples.iter().all(|sender| *sender == owner);
+
+  if privileged { all_his } else { peoples.is_empty() || !all_his }
+}
+
 /// What a conversation keeps of the session its room's turns go on: the session it resumes, why it was replaced,
 /// what it holds of its context, the message its turns have read up to and whether every word it took was the
 /// owner's.
@@ -2075,16 +2084,42 @@ impl Conversations {
   }
 
   /// The words that came into a room while its round's draft process ran, taken for the process's next question or
-  /// its closing check: into a round that read only the owner's words, only words that are all the owner's.
-  pub fn meanwhile(&self, chat_id: i64, privileged: bool) -> Vec<Inbound> {
+  /// its closing check where they carry the round's privilege, read by people's words alone (docs/drafting.md,
+  /// 「What came in meanwhile」): into the owner's round, words whose people's words are all his; into a round that is
+  /// not his, never words that are his alone. The others wait and open the round after.
+  pub async fn meanwhile(&self, chat_id: i64, privileged: bool) -> Vec<Inbound> {
     let owner = self.owner();
+    let (waiting, room) = {
+      let state = self.state();
+      let Some(conv) = state.active.get(&chat_id) else {
+        return vec![];
+      };
+
+      (conv.buffer.clone(), conv.room)
+    };
+
+    if waiting.is_empty() {
+      return vec![];
+    }
+
+    let peoples = self.peoples_senders(chat_id, &waiting, room).await;
+
+    if !joins_round(privileged, &peoples, owner) {
+      return vec![];
+    }
+
+    // Exactly the words looked at go; any that came since wait for the next look.
     let mut state = self.state();
     let Some(conv) = state.active.get_mut(&chat_id) else {
       return vec![];
     };
-    let keeps = !privileged || conv.buffer.iter().all(|message| message.sender_id == Some(owner));
+    let looked: HashSet<i64> = waiting.iter().map(|message| message.message_id).collect();
+    let (took, kept): (Vec<Inbound>, Vec<Inbound>) = std::mem::take(&mut conv.buffer)
+      .into_iter()
+      .partition(|message| looked.contains(&message.message_id));
 
-    if keeps { std::mem::take(&mut conv.buffer) } else { vec![] }
+    conv.buffer = kept;
+    took
   }
 
   /// Words the process showed and did not answer for, back at the front of what waits.
