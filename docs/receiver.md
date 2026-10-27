@@ -52,7 +52,8 @@ flowchart TD
   - the one runner: each woken agent's turns in its conversations, the chat agent's and every other agent's alike,
     every agent's rows of the instruction pass, and the words the room sessions left untaken taken up as the
     receiver starts, each answer handed back to the receiver like any word filed in the room;
-  - the console's road in: `POST /owner/messages` and `POST /owner/message-files` into any room it holds;
+  - the console's road in: `POST /owner/messages` and `POST /owner/message-files` into any room it holds, the
+    second with `voice` for a recording;
   - the delivery of every kept message to the room's chat providers (「A room's chat providers」 below);
   - the words' form of its own sends: the scaffolding guard, the dash net, and the words handed to the room's chat
     service in the form its dialect reads; refused where nothing but scaffolding is left;
@@ -215,6 +216,10 @@ flowchart TD
     send that takes a caption that long and ahead of the files as words otherwise. A file
     past the ceiling a road takes is refused 413 and turned away with its name, and a call none of whose files
     stood answers as one refusal.
+  - A voice note is the same form with `voice`: one sound file, kept as a message under the voice word and the
+    caption beside it, and handed to the room's other providers as a voice message with that caption. The
+    console records it; no reading of it is made, so what it says stands only in the recording. A call with
+    no file, more than one, or one that is no sound is refused 400, and a file past the ceiling 413.
 - **`POST /owner/instructions` says the owner's words to a room's session**, framed as the owner speaking from the console,
   delivered as a quiet instruction, so the room sees nothing but the answer it leads to; a chat the archive has
   never seen is refused.

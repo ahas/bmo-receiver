@@ -21,6 +21,7 @@ use crate::common::Scratch;
 use crate::common::units::{ADDRESS, AGENT, OWNER, SENDER, StandInChat, registration, standing};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
+use receiver_policy::roads::ROADS;
 
 const TOKEN: &str = "the-token";
 const ROOM: i64 = -100;
@@ -351,6 +352,83 @@ async fn files_the_owner_put_in_a_room_go_as_the_albums_the_road_takes_with_the_
     ]
     .to_vec(),
   );
+}
+
+#[tokio::test]
+async fn a_voice_note_the_owner_recorded_is_kept_as_a_sound_and_carried_as_a_voice_message() {
+  let (scratch, port, road) = stood(&[ROOM]).await;
+
+  scratch
+    .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
+    .await;
+
+  let body = form(
+    &[
+      ("chatId".to_owned(), "-100".to_owned()),
+      ("text".to_owned(), "The news".to_owned()),
+      ("voice".to_owned(), "true".to_owned()),
+    ],
+    &[("audio/ogg".to_owned(), "voice.ogg".to_owned(), "OggSvoice".to_owned())],
+  );
+  let (status, answer) = form_asked(&port, "/owner/message-files", body).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(answer["sent"].as_array().map(Vec::len), Some(1), "{answer:?}");
+  assert!(answer["failed"].as_array().unwrap().is_empty(), "{answer:?}");
+  assert_eq!(
+    road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
+    [ChatSend::Voice {
+      audio: b"OggSvoice".to_vec(),
+      said: "The news".to_owned(),
+      caption: Some("The news".to_owned()),
+      transcript: None,
+    }]
+    .to_vec(),
+  );
+  assert!(road.sent().iter().all(|held| held.mode == Some(ChatVoice::HumanReader)));
+
+  let message_id = answer["sent"][0]["id"].as_i64().unwrap();
+
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "text" FROM "messages" WHERE "chat_id" = -100 AND "message_id" = {message_id}"#
+      ))
+      .await,
+    [format!("{} The news", ROADS.marks.voice)],
+    "the room keeps the voice word and the caption beside it",
+  );
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "kind" FROM "collected_items" WHERE "chat_id" = -100 AND "message_id" = {message_id}"#
+      ))
+      .await,
+    ["audio".to_owned()],
+    "the recording itself stands in the room's files as a sound",
+  );
+}
+
+#[tokio::test]
+async fn a_voice_note_with_more_than_one_file_or_no_sound_is_refused() {
+  let (_scratch, port, _road) = stood(&[ROOM]).await;
+
+  let two = form(
+    &[("chatId".to_owned(), OWNER.to_string()), ("voice".to_owned(), "true".to_owned())],
+    &[
+      ("audio/ogg".to_owned(), "one.ogg".to_owned(), "OggSone".to_owned()),
+      ("audio/ogg".to_owned(), "two.ogg".to_owned(), "OggStwo".to_owned()),
+    ],
+  );
+
+  assert_eq!(form_asked(&port, "/owner/message-files", two).await.0, StatusCode::BAD_REQUEST);
+
+  let paper = form(
+    &[("chatId".to_owned(), OWNER.to_string()), ("voice".to_owned(), "true".to_owned())],
+    &[("application/pdf".to_owned(), "paper.pdf".to_owned(), "pdf".to_owned())],
+  );
+
+  assert_eq!(form_asked(&port, "/owner/message-files", paper).await.0, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

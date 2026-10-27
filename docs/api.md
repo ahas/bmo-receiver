@@ -286,7 +286,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `by?`, `job`), `tool`, `input` | `lines`, what the act said, and `refusal` where it ended in one |
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs the road a room is answered on performs |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
-| `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, and up to ten `file` fields | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
+| `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into | 201, `room` and `id`, the copy kept there |
 
 - **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` and
@@ -306,6 +306,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   language; a code with no sentence anywhere is refused and nothing is said (`docs/voiced-notices.md`, 「Lines that
   stay fixed」).
 - An owner's file send is the form above.
+- **An owner's voice note** is the same form with `voice` true: one `file` that is a sound. The room keeps it
+  as one message under the policy's voice word and the caption beside it, its file the recording, and hands it to
+  the room's other providers as the chat protocol's `voice` kind with the caption. A call with no file, more than
+  one, or one that is no sound is refused 400 `bad-request`; a file past the ceiling a road takes is refused 413
+  `too-large`.
 - **The owner's words** from the console are archived in the room under a console number, the owner's number and
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
   room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413

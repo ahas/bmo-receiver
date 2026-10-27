@@ -200,6 +200,11 @@ pub enum Carried {
     files: Vec<FileItem>,
     caption: String,
   },
+  /// One recording, kept in the room's record, that the room's other providers are handed as a voice message.
+  Voice {
+    audio: Vec<u8>,
+    caption: String,
+  },
 }
 
 impl Carried {
@@ -490,6 +495,12 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
 
         file_sends(files, caption, limit)
       }
+      Carried::Voice { audio, caption } => vec![ChatSend::Voice {
+        audio: audio.clone(),
+        said: caption.clone(),
+        caption: (!caption.trim().is_empty()).then(|| caption.clone()),
+        transcript: None,
+      }],
     };
 
     for (at, send) in sends.into_iter().enumerate() {

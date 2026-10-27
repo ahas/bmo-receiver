@@ -9,7 +9,8 @@ use axum::{
   extract::{Multipart, Path, State},
   http::StatusCode,
 };
-use bmo_chat_client::{FileItem, MessageFile};
+use bmo_chat_client::{ChatFileKind, FileItem, MessageFile};
+use receiver_policy::roads::ROADS;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -184,6 +185,7 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
   let mut chat_id: Option<i64> = None;
   let mut caption = String::new();
   let mut reply_field: Option<String> = None;
+  let mut voice = false;
   let mut given: Vec<OwnerFile> = vec![];
 
   while let Some(field) = form
@@ -215,6 +217,14 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
             .await
             .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?,
         )
+      }
+      "voice" => {
+        let written = field
+          .text()
+          .await
+          .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?;
+
+        voice = matches!(written.trim().to_ascii_lowercase().as_str(), "true" | "1" | "yes" | "on");
       }
       "file" => {
         let name = field.file_name().unwrap_or_default().to_owned();
@@ -248,6 +258,15 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
 
   let reply_value = reply_field.map(Value::String);
   let reply = reply_target(&receiver, chat_id, reply_value.as_ref()).await?;
+
+  if voice {
+    if given.len() != 1 {
+      return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "a voice note carries one sound file"));
+    }
+
+    return say_voice(&receiver, chat_id, reply, caption, given.remove(0)).await;
+  }
+
   let mut turned_away: Vec<Value> = vec![];
   let mut kept: Vec<OwnerFile> = vec![];
 
@@ -330,6 +349,84 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
   answered(
     json!({ "id": sent.first().and_then(|held| held.get("id")), "sent": sent, "checking": [], "failed": turned_away }),
   )
+}
+
+// One recording the console made, kept in the room's record under the policy's voice word and the caption beside it,
+// and carried to the room's other providers as a voice message (docs/api.md, 「Sends」).
+async fn say_voice(
+  receiver: &Receiver,
+  chat_id: i64,
+  reply: Option<i64>,
+  caption: String,
+  file: OwnerFile,
+) -> Answered {
+  if let Some(reason) = refusal(&file.name, u64::try_from(file.bytes.len()).unwrap_or(0)) {
+    return Err(refused(StatusCode::PAYLOAD_TOO_LARGE, "too-large", &reason));
+  }
+
+  let mime = file.mime.trim().to_ascii_lowercase();
+
+  if !mime.starts_with("audio/") {
+    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "a voice note carries one sound file"));
+  }
+
+  let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
+  let text = match caption.trim() {
+    "" => ROADS.marks.voice.clone(),
+    said => format!("{} {said}", ROADS.marks.voice),
+  };
+  let message = Inbound {
+    chat_id,
+    message_id,
+    sender_id: Some(receiver.owner_id()),
+    sender_name: receiver.owner_name(chat_id).await,
+    sent_at: now_ms(),
+    text,
+    image_path: None,
+    reply_to_message_id: reply,
+    via: Road::Record.key().to_owned(),
+    mode: None,
+    via_reader: None,
+    album: None,
+  };
+  let item = MessageFile {
+    id: "1".to_owned(),
+    name: file.name.clone(),
+    mime: file.mime.clone(),
+    bytes: file.bytes.clone(),
+    kind: Some(ChatFileKind::VoiceNote),
+  };
+  let room = receiver.roads().room_facts(chat_id).await;
+
+  Receiver::attachment(
+    receiver,
+    &message,
+    &Context {
+      carries_file: true,
+      spoken_text: (!caption.trim().is_empty()).then(|| caption.clone()),
+      ..Context::default()
+    },
+    room,
+    &[item],
+  )
+  .await
+  .map_err(failed)?;
+  carried(
+    receiver,
+    &message,
+    Carried::Voice {
+      audio: file.bytes,
+      caption,
+    },
+  )
+  .await?;
+
+  answered(json!({
+    "id": message_id,
+    "sent": [{ "name": file.name, "id": message_id }],
+    "checking": [],
+    "failed": [],
+  }))
 }
 
 #[derive(Deserialize)]
