@@ -2,7 +2,7 @@
 //! kept out of it — the words of another agent they share a room with, and a member who is not them. The account
 //! model stands in force, so the thread is followed (`docs/store.md`, the `private_thread` setting).
 
-use bmo_receiver::chat::thread::thread_entry;
+use bmo_receiver::chat::thread::{remember_mark, thread_entry};
 use bmo_receiver::data_root::DataRoot;
 
 use std::sync::Arc;
@@ -97,8 +97,8 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
       .await;
   }
 
-  let thread = thread_entry(&stood.receiver, PRIVATE).await.unwrap().unwrap();
-  let carried = thread.text;
+  let thread = thread_entry(&stood.receiver, PRIVATE, Some("session-a")).await.unwrap().unwrap();
+  let carried = thread.entry.unwrap().text;
 
   for kept in [
     "shared question",
@@ -124,4 +124,91 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
   ] {
     assert!(!carried.contains(left), "{left} carried into {carried}");
   }
+
+  // The turn that handed it writes the mark the session keeps.
+  remember_mark(stood.receiver.db(), "session-a", thread.mark.unwrap()).await.unwrap();
+
+  // A later line is handed as growth alone, not with the thread it follows.
+  for (id, sender, name, text) in [(20, OWNER, "tester", "a later word"), (21, 0, SENDER, "a later answer")]
+  {
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
+           VALUES ($1, $2, NULLIF($3, 0), $4, $5, $6)"#,
+        vec![
+          SHARED.into(),
+          id.into(),
+          sender.into(),
+          name.into(),
+          (at + 1_000 + id).into(),
+          text.into(),
+        ],
+      )
+      .await;
+  }
+
+  let grown = thread_entry(&stood.receiver, PRIVATE, Some("session-a")).await.unwrap().unwrap();
+  let grown_mark = grown.mark.unwrap();
+  let grown = grown.entry.unwrap().text;
+
+  assert!(grown.contains("since this person's thread was last handed"), "{grown}");
+  assert!(grown.contains("a later word") && grown.contains("a later answer"), "{grown}");
+  assert!(!grown.contains("mixed question"), "{grown}");
+  assert!(!grown.contains("shared question"), "{grown}");
+  remember_mark(stood.receiver.db(), "session-a", grown_mark).await.unwrap();
+
+  // With nothing new, no block goes and the piece stands held.
+  let still = thread_entry(&stood.receiver, PRIVATE, Some("session-a")).await.unwrap().unwrap();
+
+  assert!(still.entry.is_none());
+  assert!(still.path.starts_with("threads/user-"), "{}", still.path);
+  assert!(still.holds.contains("this person's thread"), "{}", still.holds);
+  assert!(still.mark.is_none());
+
+  // The window hands that held piece to the round's log as held, with no block of its own.
+  let selection = bmo_receiver::chat::window::select(
+    &stood.receiver,
+    &bmo_receiver::chat::window::Material {
+      agent: AGENT,
+      chat_id: PRIVATE,
+      room: bmo_receiver::receiver::Room {
+        owner_room: false,
+        identity: None,
+        private_to: Some(OWNER),
+      },
+      messages: &[],
+      instructions: &[],
+      said: &[],
+      events: &[],
+      recent: &[],
+      holds: None,
+      round: None,
+      session: Some("session-a"),
+    },
+  )
+  .await
+  .unwrap();
+
+  assert!(
+    selection.held.iter().any(|(path, holds)| path.starts_with("threads/user-")
+      && holds.as_deref().is_some_and(|holds| holds.contains("this person's thread"))),
+    "{:?}",
+    selection.held
+  );
+  assert!(selection.thread_mark.is_none());
+
+  let reads = bmo_receiver::chat::draft::held_reads(&selection.held);
+
+  assert!(
+    reads.iter().any(|read| read.path.starts_with("threads/user-") && read.how == "held"),
+    "{reads:?}"
+  );
+
+  // A new session starts again from the whole thread within its days.
+  let fresh = thread_entry(&stood.receiver, PRIVATE, Some("session-b")).await.unwrap().unwrap();
+  let fresh = fresh.entry.unwrap().text;
+
+  assert!(fresh.contains("over the last seven days"), "{fresh}");
+  assert!(fresh.contains("mixed question") && fresh.contains("a later word"), "{fresh}");
+  assert!(!fresh.contains("since this person's thread was last handed"), "{fresh}");
 }

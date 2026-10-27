@@ -99,10 +99,15 @@ pub fn make_folders(data_root: &DataRoot) {
   }
 }
 
-/// The start's work, in order, for the receiver standing on this configuration: the folders made, the warmer
-/// told of the consumer and its one target, and the agency told of the three hooks it answers.
+/// The start's work, in order, for the receiver standing on this configuration: the folders made, every session's
+/// thread mark let go, the warmer told of the consumer and its one target, and the agency told of the three hooks it
+/// answers.
 pub async fn settle(receiver: &Receiver, consumer: &str, listen: &str, token: &str) {
   make_folders(receiver.data_root());
+
+  if let Err(why) = crate::chat::thread::forget_marks(receiver.db()).await {
+    eprintln!("bmo-receiver: the thread marks were not let go: {}", why.detail);
+  }
 
   let base = base_address(listen);
   let units: Units = receiver.units().clone();

@@ -1,7 +1,10 @@
 //! A person's own thread, followed into their private room: in a user's private room, the turn is handed what that
 //! user and the chat agent said to each other in the group rooms the user is in and the agent answers over the last
-//! days, and nothing anyone else said nor what the user said to another agent there. It is a reference document
-//! like any other, so it goes to a session in full once per version.
+//! days, and nothing anyone else said nor what the user said to another agent there. A session is handed it whole
+//! once, then only the lines added since the last line it was handed; the mark is the session's, so a new session
+//! starts again from the whole thread.
+
+use sea_orm::DatabaseConnection;
 
 use crate::js;
 use receiver_policy::chat_round::CHAT_ROUND;
@@ -12,11 +15,64 @@ use crate::Fault;
 use crate::receiver::wake::agents::Designated;
 use crate::receiver::{Inbound, Receiver, rows, wake};
 use crate::store::settings;
-use crate::{all, now_ms};
+use crate::{all, now_ms, run};
 use receiver_ports::gate::{Entry, Source};
+
+// The setting a session's thread mark stands under, and the line it names as `room:messageId`.
+const MARK_PREFIX: &str = "thread_mark:";
+
+/// The last line of the thread a session was handed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ThreadMark {
+  pub room: i64,
+  pub message_id: i64,
+}
+
+fn mark_key(session: &str) -> String {
+  format!("{MARK_PREFIX}{session}")
+}
+
+async fn read_mark(db: &DatabaseConnection, session: &str) -> Option<ThreadMark> {
+  let held = settings::get(db, &mark_key(session)).await.ok().flatten()?;
+  let (room, message) = held.split_once(':')?;
+
+  Some(ThreadMark {
+    room: room.parse().ok()?,
+    message_id: message.parse().ok()?,
+  })
+}
+
+/// The session's mark written once the turn that handed the line was delivered.
+pub async fn remember_mark(db: &DatabaseConnection, session: &str, mark: ThreadMark) -> Result<(), Fault> {
+  settings::set(db, &mark_key(session), &format!("{}:{}", mark.room, mark.message_id)).await
+}
+
+/// A session's thread mark let go, as its session folds or is replaced: the next turn is handed the whole thread.
+pub async fn forget_mark(db: &DatabaseConnection, session: &str) -> Result<(), Fault> {
+  settings::forget(db, &mark_key(session)).await
+}
+
+/// Every session's thread mark let go, as the receiver starts: a session that continues across a restart is handed
+/// the whole thread again.
+pub async fn forget_marks(db: &DatabaseConnection) -> Result<(), Fault> {
+  run(db, r#"DELETE FROM "settings" WHERE "key" LIKE 'thread_mark:%'"#, vec![]).await?;
+
+  Ok(())
+}
+
+/// What one turn is handed of a person's thread: the entry to attach, or the held piece where the session has seen
+/// every line already; the mark the delivered turn keeps, naming the last line it handed.
+#[derive(Clone, Debug)]
+pub struct ThreadPiece {
+  pub path: String,
+  pub holds: String,
+  pub entry: Option<Entry>,
+  pub mark: Option<ThreadMark>,
+}
 
 struct ThreadLine {
   room: i64,
+  message_id: i64,
   at: i64,
   text: String,
 }
@@ -82,6 +138,7 @@ fn exchanges(
           theirs.insert(message.message_id);
           lines.push(ThreadLine {
             room,
+            message_id: message.message_id,
             at: message.sent_at,
             text: said_line(message, &message.sender_name),
           });
@@ -103,6 +160,7 @@ fn exchanges(
           theirs.insert(one.message_id);
           lines.push(ThreadLine {
             room,
+            message_id: one.message_id,
             at: one.sent_at,
             text: said_line(one, &one.sender_name),
           });
@@ -114,6 +172,7 @@ fn exchanges(
       if answering || replied.is_some_and(|id| theirs.contains(&id)) {
         lines.push(ThreadLine {
           room,
+          message_id: message.message_id,
           at: message.sent_at,
           text: said_line(message, bot_name),
         });
@@ -125,6 +184,39 @@ fn exchanges(
   }
 
   lines
+}
+
+// The newest lines whose text fits the ceiling, keeping at least one.
+fn newest_within(lines: &[ThreadLine], ceiling: usize) -> &[ThreadLine] {
+  let mut total: usize = lines.iter().map(|line| js::units(&line.text) + 1).sum();
+  let mut first = 0;
+
+  while lines.len() - first > 1 && total > ceiling {
+    total -= js::units(&lines[first].text) + 1;
+    first += 1;
+  }
+
+  &lines[first..]
+}
+
+// The oldest lines whose text fits the ceiling, keeping at least one, so a delta too large for one turn goes on
+// from the line it reached.
+fn oldest_within(lines: &[ThreadLine], ceiling: usize) -> &[ThreadLine] {
+  let mut total = 0;
+  let mut end = 0;
+
+  for line in lines {
+    let size = js::units(&line.text) + 1;
+
+    if end > 0 && total + size > ceiling {
+      break;
+    }
+
+    total += size;
+    end += 1;
+  }
+
+  &lines[..end]
 }
 
 // The answerers of a room BMO shares with other agents, and the numbers their lines are filed under.
@@ -191,8 +283,13 @@ impl Hearers {
 }
 
 /// The thread for a turn in a room, or none where the room is no user's private room, the model of users is not
-/// in force, the setting turns it off, or the user said nothing in a group room lately.
-pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<Entry>, Fault> {
+/// in force, the setting turns it off, or the user said nothing in a group room lately. `session` names the session
+/// the turn goes on, whose mark says which line it was last handed.
+pub async fn thread_entry(
+  receiver: &Receiver,
+  chat_id: i64,
+  session: Option<&str>,
+) -> Result<Option<ThreadPiece>, Fault> {
   let db = receiver.db();
   let thread = &CHAT_ROUND.thread;
 
@@ -271,22 +368,41 @@ pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<En
     }
   }
 
-  if lines.is_empty() {
+  // Oldest first, and the room and message number break a tie, so a mark names one line on every reading.
+  lines.sort_by_key(|line| (line.at, line.room, line.message_id));
+
+  let mark = match session.filter(|session| !session.is_empty()) {
+    Some(session) => read_mark(db, session).await,
+    None => None,
+  };
+
+  if lines.is_empty() && mark.is_none() {
     return Ok(None);
   }
 
-  // The newest kept where the whole runs past the ceiling.
-  lines.sort_by_key(|line| line.at);
+  let path = fill_marks(&thread.path, &[("user", &user.to_string())]);
+  let holds = thread.holds.clone();
+  let (kept, added) = match mark {
+    None => (newest_within(&lines, thread.ceiling_chars), false),
+    Some(mark) => {
+      let start = lines
+        .iter()
+        .position(|line| line.room == mark.room && line.message_id == mark.message_id)
+        .map_or(0, |at| at + 1);
 
-  let mut total: usize = lines.iter().map(|line| js::units(&line.text) + 1).sum();
-  let mut first = 0;
+      (oldest_within(&lines[start..], thread.ceiling_chars), true)
+    }
+  };
 
-  while lines.len() - first > 1 && total > thread.ceiling_chars {
-    total -= js::units(&lines[first].text) + 1;
-    first += 1;
+  if kept.is_empty() {
+    return Ok(Some(ThreadPiece {
+      path,
+      holds,
+      entry: None,
+      mark: None,
+    }));
   }
 
-  let kept = &lines[first..];
   let mut rooms: Vec<i64> = Vec::new();
 
   for line in kept {
@@ -295,18 +411,28 @@ pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<En
     }
   }
 
-  let mut text = vec![thread.heading.clone()];
+  let mut text = vec![if added { thread.added.clone() } else { thread.heading.clone() }];
 
   for room in rooms {
     text.push(fill_marks(&thread.room, &[("room", &room.to_string())]));
     text.extend(kept.iter().filter(|line| line.room == room).map(|line| line.text.clone()));
   }
 
-  Ok(Some(Entry {
-    path: fill_marks(&thread.path, &[("user", &user.to_string())]),
-    text: text.join("\n"),
-    source: Source::Archive,
-    fragment: None,
-    holds: Some(thread.holds.clone()),
+  let mark = kept.last().map(|line| ThreadMark {
+    room: line.room,
+    message_id: line.message_id,
+  });
+
+  Ok(Some(ThreadPiece {
+    path: path.clone(),
+    holds: holds.clone(),
+    entry: Some(Entry {
+      path,
+      text: text.join("\n"),
+      source: Source::Archive,
+      fragment: None,
+      holds: Some(holds),
+    }),
+    mark,
   }))
 }

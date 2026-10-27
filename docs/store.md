@@ -92,6 +92,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `mode` | `owner_only` or `everyone`: whose messages wake the agents (`docs/rooms.md`) | the owner's mode command |
 | `photos_look` | `on` while the agent opens the pictures rooms store; absent otherwise | the photos switch |
 | `private_thread` | `off` turns a person's own thread in a group room off (`chat-round.toml`, its `setting`) | the thread |
+| `thread_mark:<session>` | the last line of a person's own thread handed to a session, as `room:messageId`; a new or replaced session has none (`docs/bmo-window.md`, 「What every turn carries」) | the thread |
 | `voice_briefing` | `off` while voice briefings are switched off | the voice switch |
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
 | `consult_room` | the consult room's number (`consult.toml`, its `room_setting`) | the consult room (`docs/consult.md`) |

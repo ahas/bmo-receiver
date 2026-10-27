@@ -261,10 +261,12 @@ where it says something: neither empty nor a skip nor a wait.
   piece where the gate's index lists it, else the name the piece came with: a piece of the turn's core carries the
   name its maker gives it, the gate's where the gate names one and the policy's word for the gate's sort of piece
   otherwise (`chat-round.toml`, `[reference.holds]`), and a person's thread the thread's own (`[thread]`, `holds`).
-  `memoryId` stands where the piece is one memory of the brain: the id the gate's index gives the entry, else the
-  one its path names, `memories/<id>` or `memories/<room>/memory-<id>`; the room's due list, `memories/<room>`, and
-  every other piece carry none. `how` is `attached`, a piece of the turn's core that went in full; `held`, a piece
-  of the core that went as a mark because the session already held that version, and a piece the agent read itself
+  A thread whose lines were all handed to the session before the round stands as `held` by that path, with no block
+  of its own in the turn. `memoryId` stands where the piece is one memory of the brain: the id the gate's index
+  gives the entry, else the one its path names, `memories/<id>` or `memories/<room>/memory-<id>`; the room's due
+  list, `memories/<room>`, and every other piece carry none. `how` is `attached`, a piece of the turn's core that
+  went in full; `held`, a piece of the core that went as a mark because the session already held that version, and
+  a piece the agent read itself
   through the index at a version the session already held before the round's turn; or `read`, a piece the agent
   read itself through the index during the round at a version the session did not hold. A read through the index is
   a load the session gained or changed between the round's turn and its end (the agency's `GET

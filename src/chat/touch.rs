@@ -251,6 +251,7 @@ pub async fn touch(
     answers: vec![],
     began: now,
     context: selection.context.clone(),
+    thread_mark: None,
   };
   let held = Held {
     agent: agent.to_owned(),

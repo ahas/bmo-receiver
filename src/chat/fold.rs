@@ -143,6 +143,7 @@ pub async fn words(
     answers: vec![],
     began,
     context: selection.context.clone(),
+    thread_mark: None,
   };
   let held = Held {
     agent: agent.to_owned(),

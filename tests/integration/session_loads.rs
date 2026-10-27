@@ -36,7 +36,7 @@ async fn a_turns_loads_are_laid_over_the_ones_its_session_held_and_another_sessi
     ("s-2".to_owned(), vec![load("docs/b.md", "v2")]),
   ]);
 
-  remember_held(&standing.receiver, Some("s-1"), "s-1", Some(&room), true, "")
+  remember_held(&standing.receiver, Some("s-1"), "s-1", Some(&room), true, "", None)
     .await
     .unwrap();
 
@@ -55,7 +55,7 @@ async fn a_turns_loads_are_laid_over_the_ones_its_session_held_and_another_sessi
     ..room
   };
 
-  remember_held(&standing.receiver, Some("s-1"), "s-2", Some(&changed), true, "")
+  remember_held(&standing.receiver, Some("s-1"), "s-2", Some(&changed), true, "", None)
     .await
     .unwrap();
 

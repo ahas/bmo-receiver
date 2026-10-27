@@ -16,7 +16,7 @@ use serde::Serialize;
 
 use receiver_ports::gate::{Entry, Envelope, RoomKind, Situation, Source, TurnEvent};
 
-use super::thread::thread_entry;
+use super::thread::{ThreadMark, thread_entry};
 use crate::Fault;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver, Room, rows};
@@ -57,6 +57,11 @@ pub struct Selection {
   pub counts: Vec<(Group, usize)>,
   pub block: String,
   pub context: Vec<(String, String)>,
+  /// Pieces that stand as held marks alone, by path and what they hold: a person's thread once its session has
+  /// every line of it.
+  pub held: Vec<(String, Option<String>)>,
+  /// The thread line this turn hands, kept under the session once the turn is delivered.
+  pub thread_mark: Option<ThreadMark>,
 }
 
 /// A group of the brain's index, as a turn names it.
@@ -385,9 +390,20 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
     }
   };
   let mut core = entries;
+  let mut held = Vec::new();
+  let mut thread_mark = None;
 
-  match thread_entry(receiver, chat_id).await {
-    Ok(thread) => core.extend(thread),
+  match thread_entry(receiver, chat_id, material.session).await {
+    Ok(Some(thread)) => {
+      if let Some(entry) = thread.entry {
+        core.push(entry);
+      } else {
+        held.push((thread.path, Some(thread.holds)));
+      }
+
+      thread_mark = thread.mark;
+    }
+    Ok(None) => {}
     Err(why) => eprintln!("bmo-receiver: the private-room thread could not be read: {why}"),
   }
 
@@ -395,6 +411,8 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
 
   selection.index = index_block(&counts, &hints);
   selection.counts = counts;
+  selection.held = held;
+  selection.thread_mark = thread_mark;
 
   Ok(selection)
 }

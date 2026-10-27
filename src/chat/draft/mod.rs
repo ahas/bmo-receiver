@@ -263,6 +263,20 @@ pub struct Before {
   pub names: HashMap<String, String>,
 }
 
+/// The pieces a turn's selection leaves out of its core because the session was handed all of them before, as the
+/// round's log lists them: held by their path, with what they hold.
+pub fn held_reads(held: &[(String, Option<String>)]) -> Vec<log::Read> {
+  held
+    .iter()
+    .map(|(path, holds)| log::Read {
+      path: path.clone(),
+      holds: holds.clone(),
+      memory_id: None,
+      how: "held".to_owned(),
+    })
+    .collect()
+}
+
 /// The brain memory a piece read is, off the two path forms the gate builds for one memory: `memories/<id>` and
 /// `memories/<room>/memory-<id>`. The room's due list, `memories/<room>`, is none.
 pub fn memory_of(path: &str, chat_id: i64) -> Option<i64> {
@@ -362,6 +376,14 @@ impl Run<'_> {
         read(path, if *state == super::context::State::Held { "held" } else { "attached" })
       })
       .collect();
+
+    // A piece the turn's core leaves out because the session was handed all of it before stands as held alone.
+    reads.extend(
+      held_reads(&self.drafted.selection.held)
+        .into_iter()
+        .filter(|read| !before.core.contains_key(&read.path)),
+    );
+
     let outside = |path: &str| !before.core.contains_key(path) && !super::context::room_block(path);
     let mut pulled: BTreeSet<(String, &'static str)> = after
       .iter()
@@ -443,6 +465,7 @@ impl Run<'_> {
       answers: vec![],
       began: started,
       context: drafted.selection.context.clone(),
+      thread_mark: None,
     };
     let held = Held {
       agent: self.agent.to_owned(),

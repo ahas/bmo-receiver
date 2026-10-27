@@ -67,6 +67,11 @@
     same way only after success, in the agency's record of the session's loads (`PUT /session-loads/{sessionId}`).
   - That record is not emptied by a room switch; only a new session and a session fold empty it
     (`DELETE /session-loads/{sessionId}`).
+  - **A person's own thread** is the receiver's own document, not the gate's: a session is handed it whole on its
+    first turn in the person's private room, then only the lines added since the last line it was handed, under a
+    heading saying so; a turn with no new line attaches nothing and its draft record lists the piece as `held`. The
+    last line handed is kept for that session, not the room, so a new or replaced session, a fold's included,
+    starts again from the whole thread.
 - **A road with no session** needs the context on every request; the agency carries it as that road's line
   declares.
 

@@ -446,7 +446,16 @@ impl Carry {
 
     if delivered == Delivery::Delivered {
       let resumed = replaced.is_empty().then_some(started_id.as_str());
-      let _ = remember_held(receiver, resumed, &session.id, Some(&room), true, &asking.prompt).await;
+      let _ = remember_held(
+        receiver,
+        resumed,
+        &session.id,
+        Some(&room),
+        true,
+        &asking.prompt,
+        asking.thread_mark,
+      )
+      .await;
 
       let _ = remember(
         db,

@@ -329,6 +329,7 @@ pub async fn answer(
     answers: Vec::new(),
     began: now_ms(),
     context: selection.context.clone(),
+    thread_mark: selection.thread_mark,
   };
   let follower = Follower::new(conversations, owners);
   let carried = Carry::new(receiver).carries(&asking, &held, &follower).await;

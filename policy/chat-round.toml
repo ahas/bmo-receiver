@@ -134,7 +134,8 @@ prose_letters = 6
 # A person's own thread from the group rooms they are in, handed to a turn in their private room
 # (docs/unified-bmo.md, 「Checked on every request」): the setting that turns it off where it reads
 # `off`, how far back it reaches, how much of a room's talk is read to find it, the longest line it keeps
-# of one message and the most it hands over, and how it is written.
+# of one message and the most it hands over, how it is written, and the heading of the lines added since the
+# session was last handed the thread.
 [thread]
 setting = "private_thread"
 days = 7
@@ -144,6 +145,7 @@ ceiling_chars = 12000
 path = "threads/user-{user}"
 holds = "this person's thread from the group rooms they are in"
 heading = "What this person and you said to each other in the group rooms they are in, over the last seven days: their own words and your answers to them, and nobody else's. Continue it here, with them; it is said in no other room."
+added = "What this person and you have said to each other since this person's thread was last handed: their own words and your answers to them, and nobody else's. Continue it here, with them; it is said in no other room."
 room = "[room {room}]"
 line = "{at} {who}: {text}"
 cut = "…"

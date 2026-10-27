@@ -232,8 +232,11 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
   session already loaded is counted out of its group. Where the gate serves no index, the counts are taken over
   the entries the selection answers, by their source, with no hint.
 - **A person's own thread** from the group rooms they share with the agent, handed to a turn in their private
-  room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's, and goes in whole
-  in the same block, loaded once per session per version.
+  room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's. A session is handed
+  it whole on its first turn and then only the lines added since the last line it was handed, under the same path
+  and a heading saying so; a turn with no new line attaches nothing and the draft record lists the piece as `held`.
+  The mark is the session's, so a new or replaced session is handed the whole thread again, within the days the
+  thread reaches.
 - **The block stands after the turn's words and instructions,** ahead of its closing lines, so a session reads
   what came in before it decides whether to look anything up.
 

@@ -27,6 +27,7 @@ use super::room::room_context;
 use super::sentinels::{is_skip, is_wait};
 use super::shape::Reading;
 use super::talk::{TalkFailure, TalkRequest};
+use super::thread::ThreadMark;
 use super::touch::TouchAnswer;
 use super::turnover::Noter;
 use super::window::Selection;
@@ -173,6 +174,8 @@ pub struct Asking {
   /// What the turn was built with, each document by its source and its path, which the carrying writes down
   /// beside its run.
   pub context: Vec<(String, String)>,
+  /// The thread line this turn handed, kept under the session once the turn is delivered.
+  pub thread_mark: Option<ThreadMark>,
 }
 
 /// What carries a composed turn into the agent's session and answers with what the session said. The agency
@@ -1617,6 +1620,7 @@ impl Conversations {
       answers: batch.iter().map(|message| message.message_id).collect(),
       began: started,
       context: composed.context.clone(),
+      thread_mark: composed.selection.thread_mark,
     };
 
     // The first question is told as it starts, as every later one is.
@@ -1948,6 +1952,7 @@ impl Conversations {
       answers: batch.iter().map(|message| message.message_id).collect(),
       began: started,
       context: vec![],
+      thread_mark: None,
     };
     let follower = Follower::new(self, chat_id);
     let reply = self.0.carrying.carry(&asking, held, &follower).await?;
@@ -1992,6 +1997,7 @@ impl Conversations {
       answers: vec![],
       began: now_ms(),
       context: vec![],
+      thread_mark: None,
     };
     let follower = Follower::new(self, chat_id);
     let answer = match self.0.carrying.carry(&asking, held, &follower).await {
@@ -2042,6 +2048,7 @@ impl Conversations {
       answers: vec![],
       began: now_ms(),
       context: vec![],
+      thread_mark: None,
     };
     let follower = Follower::new(self, chat_id);
     let carried = self.0.carrying.carry(&asking, &held, &follower).await;
@@ -2552,7 +2559,16 @@ impl Conversations {
     let written = composed.prompt.clone();
     let (sent, _) = sent_prompt(&receiver, Some(session_id), Some(&room), true, &written).await?;
 
-    remember_held(&receiver, Some(session_id), session_id, Some(&room), true, &written).await?;
+    remember_held(
+      &receiver,
+      Some(session_id),
+      session_id,
+      Some(&room),
+      true,
+      &written,
+      composed.selection.thread_mark,
+    )
+    .await?;
 
     Ok(super::typed::context(&sent))
   }

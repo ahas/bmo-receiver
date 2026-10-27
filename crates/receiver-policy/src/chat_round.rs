@@ -126,6 +126,8 @@ pub struct Thread {
   /// What a round's reads name the thread by (docs/drafting.md, 「The round log」).
   pub holds: String,
   pub heading: String,
+  /// The heading of the lines added since the session was last handed the thread.
+  pub added: String,
   pub room: String,
   pub line: String,
   pub cut: String,
