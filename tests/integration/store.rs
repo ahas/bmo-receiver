@@ -56,7 +56,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 18);
+  assert_eq!(migrate(db).await.unwrap(), 19);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -163,10 +163,10 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
     ]
   );
 
-  // The line's index is made seven migrations before the console-set pictures, the round log's reads, the people's
-  // languages, the draft process's turn bound column, the draft process's, the message voice's and the send-from
-  // column's between them.
-  Migrator::down(db, Some(8)).await.unwrap();
+  // The line's index is made eight migrations before the record's numbers, the console-set pictures, the round
+  // log's reads, the people's languages, the draft process's turn bound column, the draft process's, the message
+  // voice's and the send-from column's between them.
+  Migrator::down(db, Some(9)).await.unwrap();
 
   let before = stated(database.texts(MESSAGE_INDEXES).await);
 
@@ -177,7 +177,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
   );
 
-  assert_eq!(migrate(db).await.unwrap(), 8);
+  assert_eq!(migrate(db).await.unwrap(), 9);
   assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
 }
 
@@ -268,4 +268,39 @@ async fn a_transaction_that_met_the_old_plan_fails_alone() {
   transaction.rollback().await.unwrap();
 
   assert!(one(&db, read, vec![1i64.into()]).await.unwrap().is_some());
+}
+
+#[tokio::test]
+async fn the_rows_under_the_consoles_former_key_are_the_records_and_an_agent_keeps_one_record_number() {
+  let database = Scratch::blank().await;
+  let db = database.db();
+
+  Migrator::up(db, Some(18)).await.unwrap();
+
+  for row in [
+    r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ('console', 'agent-a', 9000000000012), ('record', 'agent-a', -1), ('console', 'agent-b', 9000000000011)"#,
+    r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ('console', 'room-a', -9000000000003, 'Room A')"#,
+    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via") VALUES (-9000000000003, -1, 9000000000012, 'Agent A', 1, 'hello', 'console')"#,
+    r#"INSERT INTO "avatars" ("kind", "subject_id", "photo_id", "path", "updated_at") VALUES ('person', 9000000000012, 'p', '/a.jpg', 1)"#,
+  ] {
+    database.run(row, vec![]).await;
+  }
+
+  assert_eq!(migrate(db).await.unwrap(), 1);
+  assert_eq!(
+    database.texts(r#"SELECT "provider" || ':' || "user_id" || ':' || "sender_id" FROM "provider_users" ORDER BY "user_id""#).await,
+    ["record:agent-a:-1", "record:agent-b:9000000000011"],
+    "one record number to an agent, the record's where it held two"
+  );
+  assert_eq!(database.texts(r#"SELECT "provider" FROM "provider_rooms""#).await, ["record"]);
+  assert_eq!(
+    database.texts(r#"SELECT "sender_id"::text FROM "messages""#).await,
+    ["-1"],
+    "its words fold into it"
+  );
+  assert_eq!(
+    database.texts(r#"SELECT "subject_id"::text FROM "avatars""#).await,
+    ["-1"],
+    "and its picture"
+  );
 }

@@ -330,6 +330,8 @@ flowchart TD
   given as the rooms are stood up (`POST /companions`), and an agent's words are filed under the number it was
   given and under its own name, the label its registration carries (the chat agent's, the deployment's sender
   name), each message naming the agent that said it, so one room holds every speaker apart.
+- **Every agent holds one number on the record,** under the record's own key, the one it was first given in
+  whichever room: its words in every room the record numbers stand under it, and its kept picture with them.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
   the owner's private room, kept in its record and carried to the providers its list names.
 - **Every reading of the owner's room is that one room:** the room the system's notices go to where
