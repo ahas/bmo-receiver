@@ -1935,8 +1935,46 @@ impl Conversations {
     let opening = super::draft::table::supervisor_text(receiver.db())
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
-    let mut parts = vec![opening, String::new(), said.recent.clone()];
+    let old = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
+    let update = super::situation::update_prompt(old.as_deref(), &recent_lines, &judged_lines);
+    let update_started = now_ms();
+    let asking = Asking {
+      chat_id,
+      session: held.session.clone().unwrap_or_default(),
+      prompt: update,
+      via: (!via.is_empty()).then(|| via.to_owned()),
+      privileged: held.all_from_owner,
+      answers: batch.iter().map(|message| message.message_id).collect(),
+      began: update_started,
+      context: vec![],
+      thread_mark: None,
+    };
+    let follower = Follower::new(self, chat_id);
+    let update_reply = self.0.carrying.carry(&asking, held, &follower).await?;
 
+    follower.finish();
+    held.context_tokens = update_reply.context_tokens.or(held.context_tokens);
+    held.session = update_reply.session.clone().or(held.session.clone());
+    held.replaced = update_reply.replaced.clone();
+    self.keep_session(chat_id, held);
+
+    let note = super::situation::note_from_answer(&update_reply.text).or(old);
+
+    if let Some(note) = &note
+      && let Err(why) = super::situation::write(receiver.db(), chat_id, note).await
+    {
+      eprintln!("chat {chat_id}: the situation note was not kept: {}", why.detail);
+    }
+
+    let mut parts = vec![opening, String::new()];
+
+    if let Some(note) = &note {
+      parts.push(said.situation.clone());
+      parts.push(note.clone());
+      parts.push(String::new());
+    }
+
+    parts.push(said.recent.clone());
     parts.extend(recent_lines);
     parts.push(String::new());
     parts.push(said.judged.clone());
@@ -1960,7 +1998,7 @@ impl Conversations {
     follower.finish();
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
     held.session = reply.session.clone().or(held.session.clone());
-    held.replaced = reply.replaced.clone();
+    held.replaced.extend(reply.replaced.clone());
     self.keep_session(chat_id, held);
 
     let passed = is_skip(&crate::form::strip_prompt_scaffolding(&reply.text));
@@ -1976,7 +2014,7 @@ impl Conversations {
         } else {
           super::draft::log::Answered::Answered
         },
-        now_ms() - started,
+        now_ms() - update_started,
       )
       .await;
 

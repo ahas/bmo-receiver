@@ -407,6 +407,12 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
     Err(why) => eprintln!("bmo-receiver: the private-room thread could not be read: {why}"),
   }
 
+  match super::situation::entry(receiver, chat_id).await {
+    Ok(Some(note)) => core.push(note),
+    Ok(None) => {}
+    Err(why) => eprintln!("bmo-receiver: the room's situation note could not be read: {why}"),
+  }
+
   let mut selection = made(chat_id, core);
 
   selection.index = index_block(&counts, &hints);

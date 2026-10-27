@@ -267,8 +267,23 @@ pub struct ChatRound {
   pub typed: Typed,
   pub reference: Reference,
   pub language: Language,
+  pub situation: Situation,
   pub supervisor: Supervisor,
   pub index: Index,
+}
+
+/// The room's situation note, updated by one light turn before the supervisor's judgement.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Situation {
+  pub holds: String,
+  pub ceiling_chars: usize,
+  pub head: String,
+  pub previous: String,
+  pub none: String,
+  pub recent: String,
+  pub judged: String,
+  pub cut: String,
 }
 
 /// The agent's own judgement that opens a round its every message reached on the open window alone.
@@ -276,6 +291,7 @@ pub struct ChatRound {
 #[serde(deny_unknown_fields)]
 pub struct Supervisor {
   pub head: String,
+  pub situation: String,
   pub recent: String,
   pub judged: String,
   pub question: String,

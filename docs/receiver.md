@@ -346,6 +346,14 @@ flowchart TD
   the room that is always served and always hears its rest notice, and `GET /owner`'s `room`. The owner as a
   sender stays his number on each road; a room is never read off it.
 
+## The room's situation
+
+- **A room's situation note is the receiver's own row** (`room_situations`, `docs/store.md`), one a room, replaced
+  when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation` rows are
+  rules for a situation, and what the agent remembers beyond the room is the brain's. The supervisor updates the
+  note before its judgement (`docs/drafting.md`, 「The situation note」), and every round's draft carries it as a
+  piece of the core.
+
 ## What is kept for a moment
 
 - **A room's facts and the agency's list of agents are read once and kept for a short span,** rather than asked

@@ -6,13 +6,15 @@ leaves.
 
 ## What it is
 
-- **The agent decides first whether to answer.** Where the open window alone let the words in, the round's very
-  first step is the agent's own judgement of whether to answer them (`docs/wake.md`, 「The room's queue and the
-  round」), before every pregate: no reference is asked, no index read and no gate run until it answers that the
-  round goes on. A skip ends the round there.
+- **The room's situation is updated first, and then the agent decides whether to answer.** Where the open window
+  alone let the words in, the round's first step is one light turn that updates the room's situation note from the
+  new lines (`docs/wake.md`, 「The room's queue and the round」), and the second is the agent's own judgement of
+  whether to answer them, reading that note with the new lines. Neither step asks a reference, reads an index or
+  runs a gate; a skip ends the round there.
 - **The process establishes what the message needs first and writes the message last.** A round's turn goes to
   the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where
-  one is asked, and after the window's pregate: the core the gate attaches and the brain's index. The turn carries,
+  one is asked, and after the window's pregate: the core the gate attaches, the room's situation note and the
+  brain's index. The turn carries,
   with the room's words and the index, the process's first question, and asks no answer:
   the agent reads, finds the facts the message rests on and engraves what it establishes in the brain with its
   tools as it goes. The receiver then asks the same session the process's further questions, one turn each, in
@@ -135,6 +137,28 @@ leaves.
   greeting, a word of thanks, a short call. A light turn is asked the row's `light` list. Whether a turn is light
   is read of what the round took when its turn went out.
 
+## The situation note
+
+- **One note a room, the receiver's own.** The note stands in `room_situations` (`docs/store.md`), one row a room,
+  replaced when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation`
+  rows are rules for a situation, while this note is written and read by the receiver alone. It is handed as a
+  piece of the round's core at `room-situations/<room>`, with the source the gate calls a situation and the holds the
+  policy names (`chat-round.toml`, `[situation]`, `holds`).
+- **One light turn before the judgement.** The update turn carries the note as it stands, the room's recent words
+  and the new lines, in the policy's words; its answer is the note. A turn that answers `<<SKIP>>` or `<<WAIT>>`,
+  or nothing, leaves the note as it stood. The note is stored before the judgement, so the judgement and the
+  round's draft read the same note.
+- **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
+  the policy's `cut`; the update prompt names the ceiling. The extra cost of a judged turn is that one light turn
+  and the note the judgement carries: on a short line with the note at the ceiling, the update prompt measures
+  about 3,400 characters and the note adds about 600 to the judgement, some 4,000 characters a judged turn, or
+  roughly 1,000 tokens at four characters to a token. The fixed room context stands in both turns, so the update
+  turn is the larger part of the extra.
+- **The judgement reads it with the new lines.** The judging turn carries the note under `[supervisor] situation`,
+  before the room's recent words and the words judged. The note changes the material the judgement reads, never an
+  addressee rule: a conversation between others is left alone, and a line that asks the agent or resumes an earlier
+  thread with it is answered.
+
 ## What came in meanwhile
 
 - **No room message goes into a turn of the process while it works.** From the round's own turn to the process's
@@ -256,13 +280,14 @@ where it says something: neither empty nor a skip nor a wait.
 - **A round the agent judges first** (`docs/wake.md`, 「The room's queue and the round」) writes that judgement
   as a row before the process's own: number 0, of kind `supervisor`, named `supervisor`, ending `skip` where the
   round ends there and `answered` where it goes on. A round that ended there writes no other row.
-- **The end row names what the round read from the brain,** its `reads`, each a `path`, what the piece holds
+- **The end row names what the round read,** its `reads`, each a `path`, what the piece holds
   (`holds`), the brain memory it is (`memoryId`) and how it was read (`how`). `holds` is the index's words for the
   piece where the gate's index lists it, else the name the piece came with: a piece of the turn's core carries the
   name its maker gives it, the gate's where the gate names one and the policy's word for the gate's sort of piece
-  otherwise (`chat-round.toml`, `[reference.holds]`), and a person's thread the thread's own (`[thread]`, `holds`).
-  A thread whose lines were all handed to the session before the round stands as `held` by that path, with no block
-  of its own in the turn. `memoryId` stands where the piece is one memory of the brain: the id the gate's index
+  otherwise (`chat-round.toml`, `[reference.holds]`), a person's thread the thread's own (`[thread]`, `holds`), and
+  the room's situation note the situation policy's (`[situation]`, `holds`). A thread whose lines were all handed to
+  the session before the round stands as `held` by that path, with no block of its own in the turn, and a note the
+  session holds at its version stands as `held` the same way. `memoryId` stands where the piece is one memory of the brain: the id the gate's index
   gives the entry, else the one its path names, `memories/<id>` or `memories/<room>/memory-<id>`; the room's due
   list, `memories/<room>`, and every other piece carry none. `how` is `attached`, a piece of the turn's core that
   went in full; `held`, a piece of the core that went as a mark because the session already held that version, and

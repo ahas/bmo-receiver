@@ -260,12 +260,26 @@ memory = "the room's memories now due"
 room = "the room"
 archive = "the room's archive"
 
+# The room's situation note, updated by one light turn before the supervisor's judgement (docs/drafting.md,
+# 「The situation note」): the name the note's piece stands under, the most the note may hold, what the update is
+# asked, and the lines the note as it stands, the room's recent words and the new lines stand under.
+[situation]
+holds = "the room's situation"
+ceiling_chars = 600
+head = "Before you judge whether to answer, update the room's situation note from the new lines. Say what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
+previous = "The room's situation note as it stands:"
+none = "There is no situation note for this room yet."
+recent = "The room's recent words:"
+judged = "The new lines:"
+cut = "…"
+
 # The agent's own judgement that opens a round whose every message reached it on its open window alone
 # (docs/wake.md, 「The room's queue and the round」): the head and the question, which together are the draft
 # catalogue's `supervisor` text where the console set none (docs/drafting.md, 「The routes」), the lines the room's
-# recent words and the words judged stand under, and the name its row of the round log goes under.
+# situation, its recent words and the words judged stand under, and the name its row of the round log goes under.
 [supervisor]
 head = "BEFORE THIS ROUND: the words below did not name you, did not reply to your words and do not stand in a private chat. Decide first whether to answer them."
+situation = "The room's situation:"
 recent = "The room's recent words:"
 judged = "The words to judge:"
 question = "Are these words said to you, or do they want your answer? Where neither, answer <<SKIP>> alone: nothing is sent and the round ends. Where either, answer one short line saying which; the round then goes on, and the answer is written in it."

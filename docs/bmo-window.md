@@ -237,6 +237,10 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
   and a heading saying so; a turn with no new line attaches nothing and the draft record lists the piece as `held`.
   The mark is the session's, so a new or replaced session is handed the whole thread again, within the days the
   thread reaches.
+- **The room's situation** is the receiver's own note, one row a room, handed as a piece of the core at
+  `room-situations/<room>` (`docs/drafting.md`, 「The situation note」): the supervisor updates it before its judgement,
+  the judgement reads it with the new lines, and the round's draft carries it. It is not a brain memory, and the
+  note's text is the version the session holds.
 - **The block stands after the turn's words and instructions,** ahead of its closing lines, so a session reads
   what came in before it decides whether to look anything up.
 
