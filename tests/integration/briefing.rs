@@ -15,6 +15,7 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use serde_json::json;
+use tempfile::tempdir;
 
 use crate::common::Scratch;
 use crate::common::queue::{get, post, put, stood};
@@ -84,6 +85,32 @@ async fn the_switches_move_one_at_a_time_and_only_the_whole_ones_move_is_told_to
     text[0].contains("switched the voice briefing on"),
     "the line is about where it ended: {}",
     text[0]
+  );
+}
+
+#[tokio::test]
+async fn a_briefing_line_goes_to_the_owners_private_room_even_where_a_notices_room_is_named() {
+  const NOTICES: i64 = -9;
+
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let mut given = deployment();
+
+  given.notices_room = Some(NOTICES);
+
+  let standing = unrun(scratch.db(), DataRoot::new(data.path()), vec![], given);
+
+  standing.agency.registering(vec![voiced(Some(VOICE))]);
+  bmo_receiver::chat::briefing::set(&standing.receiver, bmo_receiver::chat::briefing::SWITCH, false)
+    .await
+    .unwrap();
+
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "kind" || ' ' || "chat_id" FROM "instructions" ORDER BY "id""#)
+      .await,
+    [format!("voice-briefing {OWNER}")],
+    "the switch line stands in the owner's private room"
   );
 }
 

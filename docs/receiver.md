@@ -337,13 +337,14 @@ flowchart TD
   name), each message naming the agent that said it, so one room holds every speaker apart.
 - **Every agent holds one number on the record,** under the record's own key, the one it was first given in
   whichever room: its words in every room the record numbers stand under it, and its kept picture with them.
-- **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
-  the owner's private room, kept in its record and carried to the providers its list names.
-- **Every reading of the owner's room is that one room:** the room the system's notices go to where
-  `notices_room` names none, the room an instruction goes to where it names none, the room kept work whose room is
-  gone reaches, the room a console talk and a line typed into the agent's program run as, the room that is always
-  served and always hears its rest notice, and `GET /owner`'s `room`. The owner as a sender stays his number on
-  each road; a room is never read off it.
+- **Reaching the owner without naming a transport** (the login notice, the restart notice and a briefing's
+  lines) is the owner's private room, kept in its record and carried to the providers its list names. A rest
+  notice and the other system notices go to the notices room where one is named, as below.
+- **Every reading of the owner's room is that one room:** a briefing's room always, the room the system's other
+  notices go to where `notices_room` names none, the room an instruction goes to where it names none, the room
+  kept work whose room is gone reaches, the room a console talk and a line typed into the agent's program run as,
+  the room that is always served and always hears its rest notice, and `GET /owner`'s `room`. The owner as a
+  sender stays his number on each road; a room is never read off it.
 
 ## What is kept for a moment
 

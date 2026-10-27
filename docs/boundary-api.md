@@ -28,7 +28,7 @@ The deployment's names are read from the same file: the owner; the chat agent's 
 and wake words (`GET /agents`) are the words a room calls it by; the delegate's registration name, whose label a
 delegation notice names; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
 one is named in place of the room numbered as the owner's own number, a room `owner-room` below stands up on the
-record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's notices to the owner go to,
+record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's other notices to the owner go to, never a briefing's, which goes to his private room;
 the owner's private room where none is named; the language the rooms are spoken in, which
 a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; the brain
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code

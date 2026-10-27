@@ -307,7 +307,8 @@ pub struct Deployment {
   pub infra_room: Option<i64>,
   /// The owner's private room, a room on the record alone, where the configuration names one.
   pub owner_room: Option<i64>,
-  /// The room the system's notices to the owner go to, where the configuration names one.
+  /// The room the system's notices to the owner go to, where the configuration names one. A briefing never
+  /// follows it: a briefing goes to the owner's private room alone.
   pub notices_room: Option<i64>,
   /// The language the rooms are spoken in, which a fixed line is rendered in.
   pub language: String,
@@ -512,8 +513,8 @@ impl Receiver {
   }
 
   /// The owner's notices room (docs/boundary-api.md, 「Configuration」): the room the system's notices to the
-  /// owner go to, the deployment briefing, the tool host's changes and the service's own lines among them; his
-  /// private room where the configuration names none.
+  /// owner go to, the tool host's changes and a rest's and a fallback's among them, but never a briefing's; his
+  /// private room where the configuration names none. A briefing goes to [`Self::owner_room`] alone.
   pub fn notices_room(&self) -> i64 {
     self.deployment.notices_room.unwrap_or_else(|| self.owner_room())
   }

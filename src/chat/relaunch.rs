@@ -187,7 +187,7 @@ impl Briefings {
       return;
     }
 
-    let owner = receiver.notices_room();
+    let owner = receiver.owner_room();
     let queued = Queued {
       kind: Some(&said.kind),
       sort: Some(&said.sort),

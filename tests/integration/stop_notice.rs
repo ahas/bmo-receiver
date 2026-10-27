@@ -4,8 +4,8 @@
 //! service's own mark for it.
 
 use crate::common::Scratch;
-use crate::common::units::{OWNER, standing};
-use bmo_receiver::chat::restart::{notice_enabled, stop_line};
+use crate::common::units::{AGENT, OWNER, deployment, registration, standing, unrun};
+use bmo_receiver::chat::restart::{notice_enabled, queue_back_notice, stop_line};
 use bmo_receiver::data_root::DataRoot;
 use receiver_policy::restart::RESTART;
 use serde_json::json;
@@ -76,6 +76,37 @@ async fn the_unannounced_stop_line_stands_without_a_fresh_record_and_none_where_
 
   assert_eq!(stop_line(&receiver, NOW).await, None);
   assert!(!notice_enabled(scratch.db(), OWNER, "restart").await);
+}
+
+#[tokio::test]
+async fn the_restart_back_notice_goes_to_the_owners_private_room_where_a_notices_room_is_named() {
+  const NOTICES: i64 = -9;
+
+  let scratch = Scratch::new().await;
+  let data = TempDir::new().unwrap();
+  let mut given = deployment();
+
+  given.notices_room = Some(NOTICES);
+
+  let standing = unrun(scratch.db(), DataRoot::new(data.path()), vec![], given);
+
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None, true)]);
+  queue_back_notice(&standing.receiver).await;
+
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "kind" || ' ' || "chat_id" FROM "instructions" WHERE "kind" = 'restart-back'"#)
+      .await,
+    [format!("restart-back {OWNER}")],
+    "the back notice stands in the owner's private room"
+  );
+  assert_eq!(
+    scratch
+      .count(r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = -9"#, vec![])
+      .await,
+    0,
+    "the notices room hears nothing of it"
+  );
 }
 
 fn own(at: i64) -> bmo_receiver::chat::relaunch::Deployed {

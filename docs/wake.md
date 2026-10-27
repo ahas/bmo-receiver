@@ -239,14 +239,14 @@ written by the wake itself: the deployment briefing, what went live since the ow
   `deployments-briefed`, which a newer one replaces while it waits, and writing it moves the session's moment to
   now.
 - **It asks for the owner's briefing.** Its intent and follow-up tell the session to tell the owner, in his
-  notices room (the configuration's `notices_room`, his private chat where it names none), what went live: one short paragraph in his language and in the agent's own words, with no talk of
+  private room, what went live: one short paragraph in his language and in the agent's own words, with no talk of
   tools and nothing claimed of a release beyond its message, subject and commit. The instruction withholds the
   silence: a turn that carries only it writes the brief. A turn the owner's own words opened answers him first
   and gives the brief after it.
-- **It is the owner's own** (`docs/bmo-window.md`, 「Rows that ride」): the row is queued for his notices room, and
+- **It is the owner's own** (`docs/bmo-window.md`, 「Rows that ride」): the row is queued for his private room, and
   only a round of that room carries it. It is written before that round asks for its riders, so the round's own
   turn carries it. Unridden past the restart policy's ride while, it opens a turn of that room.
-- **No other room hears of it.** The briefing is said in the owner's notices room alone; the room whose round
+- **No other room hears of it.** The briefing is said in the owner's private room alone; the room whose round
   found the deployments is told nothing of them.
 
 ### The tool host's changes
