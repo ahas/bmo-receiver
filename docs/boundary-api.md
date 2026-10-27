@@ -229,6 +229,12 @@ read again at every connection. Where no socket can be named, nothing is heard o
   hears neither a frame nor the host's ping for a minute, is opened again after the policy's wait
   (`policy/tool-host.toml`). What the host published while nothing listened is heard by nobody, as the host's own
   document says.
+- **A voice note is heard through bmo-ear.** The receiver issues a tool session for itself with the issuer token
+  (`POST /tool-sessions`; the `bmo` namespace, the `room.tools` capability, `BMO_DATA_DIR`) and calls
+  `bmo/transcribe` with the saved recording's path (`POST /tool-calls`), keeping the session for the next call. The
+  answer's `structuredContent` carries `transcript`, `language` and `duration`; a tool failure is kept as the
+  message's failed hearing, never as silence.
+
 - **Whose tools an event changes** is read off the tool sessions standing when it is heard: a chat agent of the
   agency's registration (`GET /agents`, its `kind` `chat`) is told of an event whose namespaces meet those of a
   session the host holds for it (`docs/wake.md`, 「Quiet instructions」). An agent with no session standing is told

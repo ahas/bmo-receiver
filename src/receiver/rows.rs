@@ -119,10 +119,13 @@ pub async fn save_message(
 ) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "reply_to_message_id", "via", "album", "agent_name", "voice")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        ON CONFLICT ("chat_id", "message_id") DO UPDATE SET "sender_id" = excluded."sender_id", "sender_name" = excluded."sender_name",
          "sent_at" = excluded."sent_at", "text" = excluded."text", "image_path" = excluded."image_path",
+         "transcript" = COALESCE(excluded."transcript", "messages"."transcript"),
+         "voice_seconds" = COALESCE(excluded."voice_seconds", "messages"."voice_seconds"),
+         "voice_state" = COALESCE(excluded."voice_state", "messages"."voice_state"),
          "reply_to_message_id" = excluded."reply_to_message_id", "via" = excluded."via", "answer_seconds" = NULL, "round" = NULL, "album" = excluded."album",
          "agent_name" = excluded."agent_name", "voice" = excluded."voice""#,
     vec![
@@ -133,12 +136,34 @@ pub async fn save_message(
       message.sent_at.into(),
       message.text.clone().into(),
       message.image_path.clone().into(),
+      message.transcript.clone().into(),
+      message.voice_seconds.into(),
+      message.voice_state.clone().into(),
       message.reply_to_message_id.into(),
       message.via.clone().into(),
       message.album.into(),
       agent_name.into(),
       voice.into(),
     ],
+  )
+  .await
+  .map(drop)
+}
+
+/// What a voice note's recording was heard as: its transcript, how long it ran and whether it could be heard.
+pub async fn set_voice(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+  transcript: Option<&str>,
+  seconds: Option<f64>,
+  state: &str,
+) -> Result<(), Fault> {
+  run(
+    db,
+    r#"UPDATE "messages" SET "transcript" = $1, "voice_seconds" = $2, "voice_state" = $3
+       WHERE "chat_id" = $4 AND "message_id" = $5"#,
+    vec![transcript.into(), seconds.into(), state.into(), chat_id.into(), message_id.into()],
   )
   .await
   .map(drop)
@@ -155,6 +180,9 @@ fn inbound_of(row: &QueryResult, via: &str) -> Result<Inbound, DbErr> {
     sent_at: row.try_get("", "sent_at")?,
     text: row.try_get("", "text")?,
     image_path: row.try_get("", "image_path")?,
+    transcript: row.try_get("", "transcript")?,
+    voice_seconds: row.try_get("", "voice_seconds")?,
+    voice_state: row.try_get("", "voice_state")?,
     reply_to_message_id: row.try_get("", "reply_to_message_id")?,
     via: row.try_get::<Option<String>>("", "via")?.unwrap_or_else(|| via.to_owned()),
     mode: None,

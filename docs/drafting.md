@@ -56,6 +56,15 @@ leaves.
   exempt from it. A console talk, a typed line, the touch and the line before a fold are no rounds of a room and
   run none.
 
+## A voice note
+
+- **The turn reads a voice note as text.** The receiver transcribes the saved recording before the turn
+  (`docs/messages.md`, 「Every kind of message」), and the line stands as a voice message with its length and what
+  was said. The room block tells the agent voice arrives as text. A recording that could not be transcribed is one
+  line saying so, never nothing.
+- **The transcript is not the message's words.** The archived text stays the service's voice mark and its caption;
+  the transcript stands on its own column and the console reads it under the player.
+
 ## The questions
 
 - **The questions are a catalogue, by name,** each a text the session is asked. The policy holds seven, in English

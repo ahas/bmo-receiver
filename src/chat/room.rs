@@ -470,6 +470,7 @@ pub async fn room_context(
     said.replaces.clone(),
     said.languages.clone(),
     said.process.clone(),
+    said.voice.clone(),
   ];
 
   if kind == "group" {

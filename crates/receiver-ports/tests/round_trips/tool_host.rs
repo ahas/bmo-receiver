@@ -7,10 +7,11 @@ use std::time::Duration;
 use axum::extract::Query;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::routing::get;
+use axum::routing::{get, post};
 use futures_util::StreamExt;
+use receiver_ports::hearing::{Heard, Hearing, HttpHearing};
 use receiver_ports::tool_host::{HttpToolHost, ToolHost};
-use serde_json::json;
+use serde_json::{Value, json};
 
 const ISSUER: &str = "issuer-token-a";
 
@@ -104,6 +105,74 @@ async fn the_catalogues_changes_and_the_sessions_are_read_on_the_socket_with_the
   assert_eq!(
     standing.iter().map(|session| session.holder_name.as_str()).collect::<Vec<_>>(),
     ["agent-a", "agent-b"]
+  );
+}
+
+fn session_issued(headers: &HeaderMap) -> bool {
+  headers.get("authorization").and_then(|value| value.to_str().ok()) == Some("Bearer session-a")
+}
+
+async fn issue_session(headers: HeaderMap, body: axum::Json<Value>) -> axum::response::Response {
+  if !issued(&headers) {
+    return StatusCode::FORBIDDEN.into_response();
+  }
+
+  let record = &body.0;
+
+  assert_eq!(record["namespaces"], json!(["bmo"]));
+  assert_eq!(record["capabilities"], json!(["room.tools"]));
+
+  axum::Json(json!({ "token": "session-a", "expiresAt": null, "createdAt": 1 })).into_response()
+}
+
+async fn transcribe_call(headers: HeaderMap, body: axum::Json<Value>) -> axum::response::Response {
+  if !session_issued(&headers) {
+    return StatusCode::FORBIDDEN.into_response();
+  }
+
+  let call = &body.0;
+
+  assert_eq!((call["namespace"].as_str(), call["name"].as_str()), (Some("bmo"), Some("transcribe")));
+  assert_eq!(call["input"]["path"], "/tmp/voice.oga");
+
+  axum::Json(json!({
+    "namespace": "bmo",
+    "name": "transcribe",
+    "result": {
+      "isError": false,
+      "content": [{ "type": "text", "text": "{\"transcript\":\"hello\",\"language\":\"ko\",\"duration\":2.5}" }],
+      "structuredContent": { "transcript": "hello", "language": "ko", "device": "cpu", "duration": 2.5 }
+    },
+    "spentMs": 2
+  }))
+  .into_response()
+}
+
+#[tokio::test]
+async fn a_recording_is_heard_through_a_tool_session_the_receiver_issues_itself() {
+  let dir = tempfile::tempdir().unwrap();
+  let socket = dir.path().join("host.sock");
+  let token = dir.path().join("issuer-token");
+
+  std::fs::write(&token, ISSUER).unwrap();
+
+  let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+  let app = axum::Router::new()
+    .route("/tool-sessions", post(issue_session))
+    .route("/tool-calls", post(transcribe_call));
+
+  tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+  let hearing = HttpHearing::new(socket, token, dir.path().to_path_buf());
+  let heard = hearing.transcribe(std::path::Path::new("/tmp/voice.oga")).await.unwrap();
+
+  assert_eq!(
+    heard,
+    Heard {
+      transcript: "hello".to_owned(),
+      language: "ko".to_owned(),
+      seconds: Some(2.5),
+    }
   );
 }
 

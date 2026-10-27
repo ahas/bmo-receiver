@@ -324,6 +324,26 @@ impl Reading<'_> {
         notes.push(image_attached(look, present(path).then_some(path.as_str())));
       }
 
+      if let Some(state) = &one.voice_state {
+        let seconds = one
+          .voice_seconds
+          .map(|seconds| format!("{seconds:.1}"))
+          .unwrap_or_else(|| "?".to_owned());
+        let transcript = one
+          .transcript
+          .as_deref()
+          .unwrap_or_default()
+          .split_whitespace()
+          .collect::<Vec<_>>()
+          .join(" ");
+
+        notes.push(match state.as_str() {
+          "heard" if transcript.is_empty() => fill_marks(&shape.voice_empty, &[("seconds", &seconds)]),
+          "heard" => fill_marks(&shape.voice, &[("seconds", &seconds), ("transcript", &transcript)]),
+          _ => shape.voice_failed.clone(),
+        });
+      }
+
       let kept = all(
         self.receiver.db(),
         r#"SELECT "source", "stored_path", "summary" FROM "collected_items"

@@ -23,6 +23,11 @@ agent has read) and what an agent can send back and when a room sees it typing.
   writes for it, carrying what a reader could act on, plus the caption when there is one. It is archived and
   routed like any message.
 - **Anything forwarded is prefixed with who it came from,** as the chat service hands it over.
+- **A voice note is heard before it reaches the turn.** Once its recording stands, the receiver hands the saved
+  file to bmo-ear (`bmo/transcribe`, through the tool host) and keeps what was heard, how long it ran and whether
+  it could be heard on the message's row. The turn reads it as a voice message with its length and its transcript;
+  a recording that could not be heard is one line saying so, never silence. The console shows the transcript under
+  the player. A voice note still being gathered is heard when its file comes.
 - **A signed-in person acts on a message from the console** as the agents do on the record: reacts, pins, edits
   and deletes their own, and sends a sticker of the record's set (`docs/api.md`, 「Messages」); a room's pinned
   messages are listed newest pin first.

@@ -43,6 +43,9 @@ fn said(message_id: i64, text: &str) -> Inbound {
     sent_at: 1_760_000_000 + message_id,
     text: text.into(),
     image_path: None,
+    transcript: None,
+    voice_seconds: None,
+    voice_state: None,
     reply_to_message_id: None,
     via: "road-a".into(),
     mode: Some("bot-account".into()),
@@ -332,6 +335,10 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
   let index = &CHAT_ROUND.index;
 
   assert!(prompt.contains("Reference for this message (3):"), "{prompt}");
+  assert!(
+    prompt.contains(&receiver_policy::chat_line::CHAT_LINE.room.voice),
+    "the room block tells the agent voice arrives as text: {prompt}"
+  );
   assert!(
     !prompt.contains(&CHAT_ROUND.supervisor.question),
     "a named call skips the judgement: {prompt}"

@@ -2,6 +2,7 @@
 //! what it was asked: a chat service, the gate, the web unit, where the receiver's news is heard, and the wake.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -24,6 +25,7 @@ use receiver_ports::agency::{
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
+use receiver_ports::hearing::{Heard as HearingHeard, Hearing};
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
@@ -1384,6 +1386,66 @@ impl StandInVoice {
   }
 }
 
+/// The listening tool as a test sets it: what it hears, or the reason it does not, and every path it was handed.
+pub struct StandInHearing {
+  answer: Mutex<Option<Result<HearingHeard, String>>>,
+  asked: Mutex<Vec<PathBuf>>,
+}
+
+impl StandInHearing {
+  pub fn new() -> Self {
+    Self {
+      answer: Mutex::new(Some(Ok(HearingHeard {
+        transcript: "a voice note".to_owned(),
+        language: "en".to_owned(),
+        seconds: Some(1.0),
+      }))),
+      asked: Mutex::default(),
+    }
+  }
+
+  /// What the next recording is heard as.
+  pub fn saying(&self, transcript: &str, seconds: Option<f64>) {
+    *self.answer.lock().unwrap() = Some(Ok(HearingHeard {
+      transcript: transcript.to_owned(),
+      language: "en".to_owned(),
+      seconds,
+    }));
+  }
+
+  /// The next recording it cannot hear, and why.
+  pub fn failing(&self, why: &str) {
+    *self.answer.lock().unwrap() = Some(Err(why.to_owned()));
+  }
+
+  /// Every recording path it was handed, in order.
+  pub fn asked(&self) -> Vec<PathBuf> {
+    self.asked.lock().unwrap().clone()
+  }
+}
+
+impl Hearing for StandInHearing {
+  fn transcribe<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, Answer<HearingHeard>> {
+    self.asked.lock().unwrap().push(path.to_path_buf());
+
+    let answer = self.answer.lock().unwrap().clone();
+
+    Box::pin(async move {
+      match answer {
+        Some(Ok(heard)) => Ok(heard),
+        Some(Err(why)) => Err(PortFailure::Transport {
+          url: "http://tool-host/tool-calls".to_owned(),
+          why,
+        }),
+        None => Err(PortFailure::Transport {
+          url: "http://tool-host/tool-calls".to_owned(),
+          why: "the stand-in hearing was given no answer".to_owned(),
+        }),
+      }
+    })
+  }
+}
+
 impl VoiceEngine for StandInVoice {
   fn brief<'a>(&'a self, briefing: &'a NewBriefing) -> BoxFuture<'a, Answer<Briefing>> {
     Box::pin(async move {
@@ -1504,6 +1566,7 @@ pub struct Standing {
   pub web: Arc<StandInWeb>,
   pub warmer: Arc<StandInWarmer>,
   pub voice: Arc<StandInVoice>,
+  pub hearing: Arc<StandInHearing>,
 }
 
 /// The same standing, with the receiver's own wake in place of the recording one: the rule every message is
@@ -1548,6 +1611,7 @@ pub fn unrun(
   let taken = Arc::new(Taken::new(db.clone()));
   let warmer = Arc::new(StandInWarmer::new());
   let voice = Arc::new(StandInVoice::new());
+  let hearing = Arc::new(StandInHearing::new());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
@@ -1557,6 +1621,7 @@ pub fn unrun(
     web: web.clone(),
     warmer: warmer.clone(),
     voice: Some(voice.clone()),
+    hearing: Some(hearing.clone()),
   };
   // The stand-in agency's registrations move as a test sets them, so the receiver asks it on every read; a test of
   // the kept list keeps it itself.
@@ -1576,5 +1641,6 @@ pub fn unrun(
     web,
     warmer,
     voice,
+    hearing,
   }
 }

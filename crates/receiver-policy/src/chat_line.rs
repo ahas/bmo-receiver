@@ -32,6 +32,8 @@ pub struct Room {
   pub languages: String,
   /// The draft process's fixed rules.
   pub process: String,
+  /// That a voice message arrives as text.
+  pub voice: String,
   pub group_document: String,
   pub owner_document: String,
   pub writing: String,

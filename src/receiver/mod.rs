@@ -7,6 +7,7 @@ pub mod commands;
 pub mod figures;
 pub mod files;
 pub mod handover;
+pub mod hearing;
 pub mod labels;
 pub mod left_board;
 pub mod metadata;
@@ -27,6 +28,7 @@ use receiver_codes::{RoomRemovalRefusal, SettingFact};
 use receiver_policy::kept::KEPT;
 use receiver_ports::agency::{Agency, Agents};
 use receiver_ports::gate::Gate;
+use receiver_ports::hearing::Hearing;
 use receiver_ports::http::{Answer, PortFailure};
 use receiver_ports::job::Job;
 use receiver_ports::voice::VoiceEngine;
@@ -59,6 +61,12 @@ pub struct Inbound {
   pub sent_at: i64,
   pub text: String,
   pub image_path: Option<String>,
+  /// What bmo-ear heard in a voice note, once the recording stands.
+  pub transcript: Option<String>,
+  /// How long the recording ran, where bmo-ear heard it.
+  pub voice_seconds: Option<f64>,
+  /// `heard` or `failed`, for a voice note whose recording was heard; none for a message that carries no voice.
+  pub voice_state: Option<String>,
   pub reply_to_message_id: Option<i64>,
   /// The key of the road that took it in. Kept and handed on; never compared to a literal.
   pub via: String,
@@ -329,6 +337,8 @@ pub struct Units {
   pub warmer: Arc<dyn Warmer>,
   /// The voice engine, where the configuration names one: a deployment without it speaks no briefing.
   pub voice: Option<Arc<dyn VoiceEngine>>,
+  /// The listening tool, where the tool host stands: a deployment without it hears no voice note.
+  pub hearing: Option<Arc<dyn Hearing>>,
 }
 
 /// The receiver: the database it keeps messages in, the deployment it answers for, the data root it keeps files
@@ -781,6 +791,7 @@ impl Receiver {
     }
 
     files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, inbound, handed).await?;
+    hearing::hear(self, inbound, handed).await?;
 
     if context.gathering && handed.is_empty() {
       return Ok(());
@@ -819,6 +830,8 @@ impl Receiver {
     if Self::is_agents_own(&inbound, room) {
       return Ok(());
     }
+
+    hearing::hear(self, &inbound, &patch.files).await?;
 
     let owner = inbound.sender_id == Some(self.owner_id());
 

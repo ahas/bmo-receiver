@@ -10,6 +10,7 @@ use std::sync::Arc;
 use receiver_ports::agency::HttpAgency;
 use receiver_ports::chat::ChatServices;
 use receiver_ports::gate::HttpGate;
+use receiver_ports::hearing::{Hearing, HttpHearing};
 use receiver_ports::http::Peer;
 use receiver_ports::job::HttpJob;
 use receiver_ports::voice::{HttpVoice, VoiceEngine};
@@ -143,6 +144,9 @@ impl Config {
       web: Arc::new(HttpWeb::new(&self.web)),
       warmer: Arc::new(HttpWarmer::new(&self.warmer)),
       voice: self.voice.as_ref().map(|peer| Arc::new(HttpVoice::new(peer)) as Arc<dyn VoiceEngine>),
+      hearing: self.tool_host().map(|(socket, token)| {
+        Arc::new(HttpHearing::new(socket, token, self.data_root.clone())) as Arc<dyn Hearing>
+      }),
     }
   }
 

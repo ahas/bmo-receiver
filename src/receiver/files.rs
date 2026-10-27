@@ -276,6 +276,24 @@ fn free_path(folder: &Path, message_id: i64, source: &str, taken: &[String]) -> 
   }
 }
 
+/// The saved recording a voice note's message carries, where its file stands on the disk.
+pub async fn voice_path(db: &DatabaseConnection, inbound: &Inbound) -> Result<Option<String>, Fault> {
+  let Some(row) = one(
+    db,
+    r#"SELECT "stored_path" FROM "collected_items"
+       WHERE "chat_id" = $1 AND "message_id" = $2 AND "kind" = 'audio'
+         AND "stored_path" IS NOT NULL AND "stored_path" <> ''
+       ORDER BY "id" LIMIT 1"#,
+    vec![inbound.chat_id.into(), inbound.message_id.into()],
+  )
+  .await?
+  else {
+    return Ok(None);
+  };
+
+  Ok(Some(row.try_get("", "stored_path")?))
+}
+
 // What one file's row records of it.
 struct Kept<'a> {
   kind: &'static str,

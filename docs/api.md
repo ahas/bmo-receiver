@@ -206,9 +206,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   narrows it as it narrows any page, and a deleted message's cleared words carry nothing.
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
-  `kind` (`sticker`, or null for any other), `editedAt`, `deletedAt` and `pinnedAt` (epoch milliseconds, or null),
-  `reactions`, each `emoji` with `by`, who put it there (an agent's name or a person's number), `forwardedFrom`
-  (`room`, `messageId` and `senderName` of the message it copies, or null), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+  `transcript` (the words heard in a voice note, or null), `voiceSeconds` (how long the recording ran, or null),
+  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker`, or null for any other), `editedAt`, `deletedAt` and
+  `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
+  or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
+  and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`

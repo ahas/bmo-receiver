@@ -91,6 +91,10 @@ image_replied_blind = "[replies to message {id}, which carries an image; {blind}
 image_replied_gone = "[replies to message {id}, whose image is no longer stored]"
 image_replied = "[replies to message {id}, whose image is saved at {path} — {look}]"
 image_no_reader = "[replies to message {id}; if it holds an image, it cannot be fetched because the reader is not configured]"
+voice = "[voice message, {seconds}s — heard as: {transcript}]"
+voice_empty = "[voice message, {seconds}s — no speech was heard]"
+voice_failed = "[voice message — could not be transcribed]"
+
 image_fetch_failed = "[replies to message {id}; fetching its image failed, so you cannot see it]"
 file_saved = "[attached file {name} saved at {path}]"
 file_not_stored = "[attached file {name} was not stored]"

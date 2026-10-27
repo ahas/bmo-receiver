@@ -30,6 +30,9 @@ pub fn inbound(room_id: i64, message_id: i64, message: &HandedMessage) -> Inboun
     sent_at: message.sent_at,
     text: message.text.clone(),
     image_path: None,
+    transcript: None,
+    voice_seconds: None,
+    voice_state: None,
     reply_to_message_id: message.reply_to_message_id,
     via: message.via.clone(),
     mode: serde_json::to_value(message.mode)

@@ -3,13 +3,16 @@
 //! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
 //! name kept apart; and a file past the cap or one that failed leaving its row for a later hand-over.
 
+use std::collections::HashSet;
 use std::io::Cursor;
 use std::sync::Arc;
 
-use bmo_chat_client::{GatheredPatch, MessageFile};
+use bmo_chat_client::{ChatFileKind, GatheredPatch, MessageFile};
+use bmo_receiver::chat::shape::Reading;
 use bmo_receiver::data_root::DataRoot;
-use bmo_receiver::receiver::{Context, Room};
+use bmo_receiver::receiver::{Context, Room, rows};
 use image::{ImageFormat, Rgb, RgbImage, Rgba, RgbaImage};
+use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::roads::ROADS;
 
 use super::inbound;
@@ -45,11 +48,56 @@ fn carrying() -> Context {
 }
 
 async fn handed(standing: &Standing, message_id: i64, files: &[MessageFile]) {
+  handed_text(standing, message_id, "[file]", files).await;
+}
+
+async fn handed_text(standing: &Standing, message_id: i64, text: &str, files: &[MessageFile]) {
   standing
     .receiver
-    .attachment(&inbound(ROOM, message_id, 55, "[file]"), &carrying(), Room::default(), files)
+    .attachment(&inbound(ROOM, message_id, 55, text), &carrying(), Room::default(), files)
     .await
     .unwrap();
+}
+
+fn voice() -> MessageFile {
+  MessageFile {
+    id: "1".into(),
+    name: "voice.oga".into(),
+    mime: "audio/ogg".into(),
+    bytes: vec![0x4f, 0x67, 0x67, 0x53, 0x00],
+    kind: Some(ChatFileKind::VoiceNote),
+  }
+}
+
+async fn voice_row(scratch: &Scratch, message_id: i64) -> String {
+  scratch
+    .texts(&format!(
+      r#"SELECT COALESCE("transcript", '') || '|' || COALESCE("voice_seconds"::text, '') || '|' || COALESCE("voice_state", '')
+         FROM "messages" WHERE "chat_id" = {ROOM} AND "message_id" = {message_id}"#
+    ))
+    .await
+    .into_iter()
+    .next()
+    .unwrap_or_default()
+}
+
+async fn voice_line(standing: &Standing, message_id: i64) -> String {
+  let message = rows::message(standing.receiver.db(), ROOM, message_id, "road-a")
+    .await
+    .unwrap()
+    .unwrap();
+  let shown = HashSet::new();
+
+  Reading {
+    receiver: &standing.receiver,
+    owner: 55,
+    fetch_on_demand: false,
+    shown: &shown,
+  }
+  .lines(&[message])
+  .await
+  .unwrap()
+  .remove(0)
 }
 
 fn encoded(picture: image::DynamicImage, format: ImageFormat) -> Vec<u8> {
@@ -266,4 +314,41 @@ async fn a_file_past_the_cap_keeps_its_row_without_the_file_until_a_later_hand_o
 
   assert_eq!(row().await, format!("{} | none", stored.to_string_lossy()));
   assert_eq!(std::fs::read(&stored).unwrap(), b"fits");
+}
+
+#[tokio::test]
+async fn a_voice_note_is_heard_before_its_turn_and_kept_with_its_transcript() {
+  let (scratch, _data, standing) = stood().await;
+
+  standing.hearing.saying("Good morning, the backup finished.", Some(2.5));
+  handed_text(&standing, 1, &ROADS.marks.voice, &[voice()]).await;
+
+  assert_eq!(voice_row(&scratch, 1).await, "Good morning, the backup finished.|2.5|heard");
+  assert_eq!(standing.hearing.asked().len(), 1);
+  assert!(standing.hearing.asked()[0].to_string_lossy().ends_with("voice.oga"));
+
+  let line = voice_line(&standing, 1).await;
+
+  assert!(line.contains("heard as: Good morning, the backup finished."), "{line}");
+
+  let page = bmo_receiver::receiver::reads::latest(scratch.db(), ROOM, 1).await.unwrap();
+  let shown = serde_json::to_value(&page[0]).unwrap();
+
+  assert_eq!(shown["transcript"], "Good morning, the backup finished.");
+  assert_eq!(shown["voiceSeconds"], 2.5);
+  assert_eq!(shown["voiceState"], "heard");
+}
+
+#[tokio::test]
+async fn a_voice_note_that_cannot_be_heard_is_one_line_saying_so() {
+  let (scratch, _data, standing) = stood().await;
+
+  standing.hearing.failing("the node is down");
+  handed_text(&standing, 1, &ROADS.marks.voice, &[voice()]).await;
+
+  assert_eq!(voice_row(&scratch, 1).await, "||failed");
+
+  let line = voice_line(&standing, 1).await;
+
+  assert!(line.contains(&CHAT_ROUND.shape.voice_failed), "{line}");
 }
