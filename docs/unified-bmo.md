@@ -81,21 +81,18 @@
 
 ## Console conversation in the private chat
 
-- **Two places to speak.** The owner's private chat is one room. Where the configuration names `owner_room`, it is
-  a room on the record alone and the web console is its road (`docs/receiver.md`, 「Identity, and reaching the
-  owner」); where it names none, it is the chat service's one-to-one with the owner, which two roads both reach:
-  the owner's everyday chat service and the web console's own, the chat's record.
-- **A private room stood up anew starts with an empty record.** The room the owner's chat was before keeps its own
-  record and goes on as an ordinary room; the session is the agent's one across its rooms either way, so nothing of
-  it moves.
+- **Two places to speak.** The owner's private chat is one room (`docs/receiver.md`, 「Identity, and reaching the
+  owner」), which the web console's own road, the chat's record, always reaches, and each messenger on its list of
+  providers reaches as well. On the record alone it is spoken in the console alone.
 - **Each road is a window onto the owner's chat, and neither is its default.** What the agent says there on its
   own (a job's report, a deployment's or a restart's notice, a queue notice, a voice briefing, a question a job
   puts to the owner) is kept in the chat's own record, bound to no road, and the console's screen shows it, since
   it reads the chat's whole line.
-- **Which messengers see the chat is the room's list of providers** (`docs/receiver.md`, 「A room's chat
-  providers」), the same setting every room has: every message kept in the chat goes to each provider on it,
-  wherever it was said. A chat on the record alone is seen in the console alone; with the everyday chat service
-  on its list, everything said in it stands there too.
+- **Which messengers see the chat, and whose words it takes, is the room's list of providers** (`docs/receiver.md`,
+  「A room's chat providers」), the same setting every room has: every message kept in the chat goes to each
+  provider on it, wherever it was said, and a messenger off the list neither hears it nor is heard in it. A chat
+  on the record alone is seen in the console alone; with the everyday chat service on its list, everything said
+  in it stands there too.
 - **Where an answer goes** is decided by where the words came from: the road carried on the messages of the batch
   itself, not a name anything compares. The answer is kept and then goes to the chat's other providers like any
   message.

@@ -54,6 +54,9 @@ in `policy/commands.toml`; each command also has a plain form that is the same i
 
 ## Operating notices and pictures
 
+- **A notice and a picture go only where the room's providers say:** kept in the room's record and carried to the
+  messengers its list names, never out on one the list does not name (`docs/receiver.md`, 「A room's chat
+  providers」).
 - **The owner switches the room's rest notice and restart notice** on and off with `notice:rest:on|off` and
   `notice:restart:on|off`, and whether the agent opens the pictures the room stores with `photos:on|off` (or the
   words of the policy for each).

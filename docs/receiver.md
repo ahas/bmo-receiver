@@ -97,7 +97,9 @@ flowchart TD
 ## A room's chat providers
 
 - **A room is on one or more chat providers, and which is one setting of the room's registration.** A provider is
-  a road a room's messages come and go on: each chat service the configuration lists, and the room's record, the
+  a road a room's messages come and go on, and the setting says both ways which: whether a messenger's messages
+  for the room are taken, and whether what is said in the room goes out to that messenger. Every room stands in
+  the web console whatever its providers, since the console reads the archive. each chat service the configuration lists, and the room's record, the
   road the receiver keeps itself, which is the web console's, since the console reads the archive. Each is named
   by its key, as the record's stands in the policy and a chat service's in the configuration; nothing here names
   one provider apart from the others.
@@ -120,14 +122,22 @@ flowchart TD
     provider hands over that is the echo of such a send, by its tag or by that number, is the message already
     kept: it is answered as held, kept no second time and wakes nobody.
   - A provider that refuses or does not answer is said in the journal and leaves the message kept as it is.
-- **A room on the record alone** reaches no messenger: what is said there stands in the archive and the console.
-  A room no chat service holds has the record as its own road where its list of providers names the record, or,
-  where no list was chosen, where the receiver numbered it on the record or keeps messages of it: an agent's
-  console room is such a room, born with the record as its one provider. Every answer, send and line nobody
-  asked for there goes on the record, whether or not a chat service shows the record.
-  Adding a chat service to its list starts carrying every message kept from then on to that service; taking it
-  off stops it. A chat service still handing over a room's messages after it was taken off the list is still
-  heard, and what it hands over is kept and carried to the room's providers like any message.
+- **A chosen list rules both directions.** A message a chat service hands over for a room whose chosen list does
+  not name that service is not taken: it is not kept, wakes nobody and is not answered, and the journal says so
+  once for the room and the service. Nothing of the room goes out on a chat service the list does not name: no
+  answer, no send, no line the receiver says itself, no notice and no picture.
+- **A chosen list names the room's own road: its first provider.** A turn whose words came in on a road the list
+  names answers on that road; every other answer, every send that names no road or one the list does not name,
+  and every line nobody asked for goes on the room's own road. Where a room has chosen its list, neither whether a
+  road shows the room's whole line nor whether a chat service reaches the room beyond its own rooms is read for
+  it: the list alone decides.
+- **A room on the record alone** reaches no messenger: what is said there stands in the archive and the console,
+  whether or not a chat service holds the room. A room whose list names the record alone is such a room; so is a
+  room no chat service holds and whose list was never chosen, where the receiver numbered it on the record or
+  keeps messages of it: an agent's console room is born with the record as its one provider.
+- **Detaching a messenger is taking it off the list,** and attaching it again is putting it back, from the
+  console's provider setting: from then on its messages for the room are taken again and every message kept is
+  carried to it. Nothing else of the room changes, its record and its registration among them.
 
 ## A read-only room
 
@@ -306,14 +316,13 @@ flowchart TD
   the agent holds an ordinary account has the agent's own words under an ordinary sender number, and a receiver that
   derived the agent's identity from one service's token would count its own words as unread and fail to recognise a
   reply to itself.
-- **The owner's private chat is the configuration's `owner_room` where it names one:** a room on the record alone,
-  stood up once by `owner-room` (`docs/boundary-api.md`, 「The service and its commands」), whose members are the
-  owner and the chat agent. It reads as the owner's private chat on every screen and in every round, and the
-  console is its road. A chat service's `kind` of `owner` is then not read for any other room: the service's own
-  one-to-one with the owner is the room its other answers make it, its `privateTo` where it names one, an
-  ordinary room the owner can still talk in, and it keeps its own record.
-- **Where the configuration names none, whether a room is the owner's private chat is a chat service's question**
-  (its `kind`), not a comparison against the owner's number on one service.
+- **The owner's private chat is the room numbered as his own number,** the one he has always had, or the room the
+  configuration's `owner_room` names in its place. It reads as the owner's private chat on every screen and in
+  every round, and a chat service's `kind` of `owner` is read for no other room. Which messengers it is on is its
+  list of providers like any room's: on the record alone, it is answered in the console alone, and a messenger he
+  detached from it is attached again from the console's provider setting.
+- **`owner-room` stands up a room on the record alone** (`docs/boundary-api.md`, 「The service and its commands」),
+  the owner and the chat agent its members, for a configuration that names it as `owner_room`.
 - **Whose one-to-one with the agent a room is, is a chat service's question too** (its `privateTo`). The
   receiver turns the answer into a user's private chat only where that person's sender is linked to a user
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
@@ -321,9 +330,7 @@ flowchart TD
   given as the rooms are stood up (`POST /companions`), and an agent's words are filed under the number it was
   given and under its name, so one room holds every speaker apart.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
-  the owner's private room where the configuration names one, kept in its record. Where it names none, it is
-  asking each chat service for the owner's room (`GET /owner-room`): the first of the rooms whose record is shown,
-  kept in that record, and otherwise the first chat service reaching the owner on its own, on that service.
+  the owner's private room, kept in its record and carried to the providers its list names.
 - **Every reading of the owner's room is that one room:** the room the system's notices go to where
   `notices_room` names none, the room an instruction goes to where it names none, the room kept work whose room is
   gone reaches, the room a console talk and a line typed into the agent's program run as, the room that is always
