@@ -80,3 +80,32 @@ async fn the_command_stands_the_room_up_once_on_the_record_alone() {
   assert_eq!((again, made), (room, false), "a second run stands up nothing");
   assert_eq!(settings::get(scratch.db(), "owner_room_made").await.unwrap(), Some(room.to_string()));
 }
+
+#[tokio::test]
+async fn a_room_number_once_given_is_never_given_again_and_stays_below_every_room_the_store_holds() {
+  use bmo_receiver::roads::record::next_room;
+
+  let scratch = Scratch::new().await;
+
+  // A room another provider numbered stands only in the messages: the next number goes below it.
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         VALUES (-9000000000004, 1, 5, 'someone', 1, 'hello', 'road-a')"#,
+      vec![],
+    )
+    .await;
+
+  let first = next_room(scratch.db()).await.unwrap();
+
+  assert_eq!(first, -9_000_000_000_005);
+
+  // The room given that number is retired, every row of it gone: its number stays retired.
+  scratch.run(r#"DELETE FROM "messages""#, vec![]).await;
+
+  assert_eq!(
+    next_room(scratch.db()).await.unwrap(),
+    first - 1,
+    "a retired room's number is never given again"
+  );
+}

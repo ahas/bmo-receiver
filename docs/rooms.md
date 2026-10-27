@@ -5,6 +5,13 @@ reply budget, and the infrastructure room. Default access, owner-only work and r
 `docs/unified-bmo.md` (「Default access and per-room delegation」). The words each command is matched by are data,
 in `policy/commands.toml`; each command also has a plain form that is the same in every language, given below.
 
+## A room's number
+
+- **A room number the record gives is never given again,** to a room standing or one gone: the record numbers a
+  room it stands up, an added agent's console room or the owner's own room among them, below every room number
+  the store holds anywhere — a registration, a title, a message, a list of providers — and below the lowest it
+  ever gave, which it keeps (`record_room_mark` in the settings) so a retired room's number stays retired.
+
 ## The infrastructure room
 
 - **The configuration may name one room as the infrastructure room,** the owner's board for the machines and

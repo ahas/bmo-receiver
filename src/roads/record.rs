@@ -96,15 +96,35 @@ pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> R
   Ok(message.message_id)
 }
 
-/// The number the next room the record stands up takes, a console room or the owner's private room: below every
-/// room the receiver has numbered.
-pub async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
-  let least = one(db, r#"SELECT MIN("chat_id") AS "least" FROM "provider_rooms""#, vec![])
-    .await
-    .unwrap_or(None);
-  let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
+/// The settings key the lowest room number the record ever gave is kept under.
+pub const ROOM_MARK: &str = "record_room_mark";
 
-  Ok(least.min(0) - 1)
+/// The number the next room the record stands up takes, a console room or the owner's private room (docs/rooms.md,
+/// 「A room's number」): below every room number the store holds anywhere and below the lowest the record ever gave,
+/// which it keeps, so a number once given is never given again.
+pub async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
+  let least = one(
+    db,
+    r#"SELECT MIN("least") AS "least" FROM (
+         SELECT MIN("chat_id") AS "least" FROM "provider_rooms"
+         UNION ALL SELECT MIN("chat_id") FROM "messages"
+         UNION ALL SELECT MIN("chat_id") FROM "chat_titles"
+         UNION ALL SELECT MIN("chat_id") FROM "room_providers"
+         UNION ALL SELECT MIN("chat_id") FROM "bmo_rooms"
+       ) AS "held""#,
+    vec![],
+  )
+  .await?
+  .and_then(|row| row.try_get::<Option<i64>>("", "least").ok().flatten())
+  .unwrap_or(0);
+  let mark = crate::store::settings::get(db, ROOM_MARK)
+    .await?
+    .and_then(|held| held.trim().parse::<i64>().ok());
+  let next = least.min(mark.unwrap_or(0)).min(0) - 1;
+
+  crate::store::settings::set(db, ROOM_MARK, &next.to_string()).await?;
+
+  Ok(next)
 }
 
 /// The sender number an agent's words are filed under in a room the record stands up: below every number the road
