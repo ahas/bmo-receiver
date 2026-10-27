@@ -99,8 +99,7 @@ leaves.
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
   - `ceilingSeconds`, the time the whole process may take (「Time」 below);
-  - `turnSeconds`, the time one turn of it may run before the room is told the agent is still at work
-    (「Time」 below);
+  - `turnSeconds`, the time one turn of it may run before the journal says it ran long (「Time」 below);
   - `pastCeiling`, `send` or `skip`: what becomes of the turn once the ceiling has passed.
 - **A send is read from the row's `sendFrom` question on.** Before it, an answer opening on `<<SEND>>` is notes
   and the process goes on, so the questions that establish the facts are asked before anything is written; each
@@ -186,10 +185,11 @@ leaves.
 - **The process runs inside the room's window,** so a row names a ceiling for the whole of it, counted from the
   moment the round's own turn, which carries the first question, went out. No later question starts past it; a
   question under way is let finish.
-- **A turn past its bound is let finish.** Where one turn of the process, the round's own turn that carries the
-  first question among them, is still running once the row's `turnSeconds` have passed since it went out, the
-  round's room hears the fixed line `still-working` (`docs/voiced-notices.md`, 「Lines that stay fixed」), and the
-  turn goes on to its end. The line is said once in a round: a later turn past its bound says nothing more.
+- **A turn past its bound is let finish, and the room hears nothing of it.** Where one turn of the process, the
+  round's own turn that carries the first question among them, is still running once the row's `turnSeconds`
+  have passed since it went out, the journal says so once in the round and the turn goes on to its end; the
+  console's row of the answering agent already shows it at work, and no holding line goes into any room
+  (`docs/voiced-notices.md`, 「A turn past its clock」).
 - **Before `final` has run, no message stands:** an answer before the last is notes.
 - **Past the ceiling, `send` asks `final` at once:** one last question, the notes already in the session, its
   answer the message. `skip` sends nothing. A process that already has its message, from `final` or from a send

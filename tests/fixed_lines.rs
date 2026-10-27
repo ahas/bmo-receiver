@@ -59,7 +59,6 @@ fn a_line_falls_back_to_its_sentence_with_its_fields_as_words_and_never_as_its_c
     FixedLine::GoingDownForUpdate {
       items: vec![12, 14],
     },
-    FixedLine::StillWorking,
   ] {
     let (code, fields) = fields_of(&line);
 
@@ -91,7 +90,7 @@ fn a_line_falls_back_to_its_sentence_with_its_fields_as_words_and_never_as_its_c
 #[test]
 fn a_code_no_sentence_can_be_made_of_is_dropped() {
   assert_eq!(plain("ko", "no-such-line", &Map::new()), None);
-  assert_eq!(plain("xx", "still-working", &Map::new()), None);
+  assert_eq!(plain("xx", "going-down", &Map::new()), None);
 
   let mut fields = Map::new();
 

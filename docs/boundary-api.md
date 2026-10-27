@@ -281,10 +281,6 @@ or whose number is the one that service gave a delivery, is answered as held and
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:
 
-- **The web unit's language pack** holds no sentence for the fixed line `still-working` (`docs/codes.md`,
-  「Fixed lines」): until it does, the render is refused `unknown-code` and the room hears the policy's plain sentence
-  for it.
-
 - **The word `companion`** stands in names other units match on, while every chat agent here is an equal
   supervisor whose rounds run the same way: the agency's resource for the agents the console adds
   (`POST /companions`, `DELETE /companions/{companionName}`) and its reset's kind `companion-reset.created`, and

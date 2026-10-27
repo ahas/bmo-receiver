@@ -34,8 +34,6 @@ pub enum FixedLine {
   GoingDown,
   /// A fair draw's room line.
   Draw(DrawLine),
-  /// A turn of a round's draft process ran past its bound and goes on: said once in the round.
-  StillWorking,
 }
 
 coded!(FixedLine);

@@ -13,7 +13,6 @@ chat-denied = "이 방은 이제 듣지 않아요. 여기서 하는 말은 더 �
 going-down-for-update = "업데이트를 위해 잠시 내려갔다가 곧 돌아옵니다."
 going-down = "잠시 다시 시작했다가 곧 돌아옵니다."
 draw = "추첨 {number}번 결과: {result} (시드 {seed}, 다음 시드 약속 {next})"
-still-working = "아직 답을 쓰고 있어요. 조금만 기다려 주세요."
 
 [sentences.en]
 rest-begins = "A usage limit has been reached, so I cannot answer for a while. I will answer again once it lifts."
@@ -25,4 +24,3 @@ chat-denied = "This room is no longer listened to. What is said here is no longe
 going-down-for-update = "Going down for an update for a moment; back shortly."
 going-down = "Restarting for a moment; back shortly."
 draw = "Draw {number}: {result} (seed {seed}, next seed commitment {next})"
-still-working = "Still writing the answer. Please wait a little."

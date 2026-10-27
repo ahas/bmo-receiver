@@ -13,8 +13,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use receiver_codes::FixedLine;
-
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
@@ -80,15 +78,9 @@ impl Default for Plan {
   }
 }
 
-/// One turn of the process carried to its end; where it runs past the plan's bound, the round's room is told once
-/// in the round, in the fixed line, that the agent is still at work, and the turn goes on (docs/drafting.md,
-/// 「Time」).
-pub async fn bounded<T>(
-  receiver: &Receiver,
-  chat_id: i64,
-  plan: &Plan,
-  turn: impl Future<Output = T>,
-) -> T {
+/// One turn of the process carried to its end; where it runs past the plan's bound, the journal says so once in the
+/// round and the turn goes on, the room hearing nothing of it (docs/drafting.md, 「Time」).
+pub async fn bounded<T>(chat_id: i64, plan: &Plan, turn: impl Future<Output = T>) -> T {
   let Some(bound) = plan.turn_ms.filter(|_| !plan.told.load(Ordering::SeqCst)) else {
     return turn.await;
   };
@@ -99,11 +91,11 @@ pub async fn bounded<T>(
     _ = tokio::time::sleep(Duration::from_millis(bound)) => {}
   }
 
-  if !plan.told.swap(true, Ordering::SeqCst)
-    && let Some(line) = receiver.speech().rendered(&FixedLine::StillWorking).await
-    && let Err(why) = receiver.speech().say(chat_id, &line).await
-  {
-    eprintln!("chat {chat_id}: the line that the turn is still at work was not said: {why}");
+  if !plan.told.swap(true, Ordering::SeqCst) {
+    eprintln!(
+      "chat {chat_id}: a turn of the draft process ran past its {}s bound and goes on",
+      bound / 1000
+    );
   }
 
   turn.await
@@ -395,7 +387,7 @@ impl Run<'_> {
     let follower = Follower::new(self.conversations, chat);
     let receiver = &self.drafter.receiver;
     let carrying = Carry::new(receiver.clone());
-    let carried = bounded(receiver, chat, drafted.plan, carrying.carry(&asking, &held, &follower)).await;
+    let carried = bounded(chat, drafted.plan, carrying.carry(&asking, &held, &follower)).await;
 
     self.only_marks = false;
 

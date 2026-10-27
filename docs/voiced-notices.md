@@ -114,7 +114,9 @@ agent that answers the room says the line.
   only when the agent cannot answer at all. A turn somebody stopped is the other case, and it goes the other
   way: the room that was watching the agent type hears one voiced line saying the answer was cut off with no
   result, the owner hears nothing at all, and nothing is recorded to recover from: a stop is not a failure.
-- **A turn past its clock.** A worker's turn that reached its bound (the agency's `overtime-request.created`) is
+- **A turn past its clock.** A chat agent's turn past its clock, the chat agent's or an added agent's, gets no
+  holding line in any room: the console shows the answering agent at work. The order below is for a worker's job
+  alone, in the notices room. A worker's turn that reached its bound (the agency's `overtime-request.created`) is
   handed to the agent's session in the owner's chat as an order to decide on, keep or cut, never as a line to
   say; the order is withdrawn where `overtime-request.changed` comes first.
   - The order carries the ask's number, what the run is doing, its agent and run, how long it has run and since
@@ -315,6 +317,5 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
-| `still-working` (a turn of the draft process ran past its bound) | The session that would say it is the one still at work on the turn (`docs/drafting.md`, 「Time」). |
 | A job's question to the owner, and the job's answers when the owner talks it over | A numbered form the owner answers by number; its options, and what the job says about them, reach the owner exactly as the job wrote them. bmo-job sends them. |
 | Pass-through content (search, browse and say results) | An agent, or whoever set it, already wrote it. |

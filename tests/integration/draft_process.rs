@@ -817,7 +817,7 @@ async fn the_live_pair_goes_out_once_as_the_closing_check_wrote_it() {
 }
 
 #[tokio::test]
-async fn a_turn_past_its_bound_tells_the_room_once_that_the_agent_is_still_at_work_and_goes_on() {
+async fn a_turn_past_its_bound_tells_the_room_nothing_and_goes_on() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["notes", "the message after a long while"])
     .working_for(Duration::from_millis(1300));
@@ -835,15 +835,10 @@ async fn a_turn_past_its_bound_tells_the_room_once_that_the_agent_is_still_at_wo
   round.ended(2).await;
 
   let sent = round.sent();
-  let still: Vec<&String> = sent.iter().filter(|send| send.contains("still-working")).collect();
 
-  // Both turns ran past the bound, and the room heard the line once, before the message.
-  assert_eq!(still.len(), 1, "{sent:?}");
-  assert!(
-    sent.last().unwrap().contains("the message after a long while"),
-    "the turn went on: {sent:?}"
-  );
-  assert_eq!(sent.len(), 2, "{sent:?}");
+  // Both turns ran past the bound, and the room heard nothing but the message: no holding line in any room.
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the message after a long while"), "the turn went on: {sent:?}");
 }
 
 #[tokio::test]

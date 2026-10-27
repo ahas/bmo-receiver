@@ -5,8 +5,8 @@
 # The longest final text the `length` check lets go, in characters.
 max_chars = 4000
 
-# How long one turn of the process runs before the round's room hears the fixed line `still-working`, once in the
-# round, in seconds: the bound of a row that names none, the console's set among them.
+# How long one turn of the process runs before the journal says it ran long, once in the round, in seconds: the
+# bound of a row that names none, the console's set among them. The room hears nothing of it.
 turn_seconds = 120
 
 # The lines a question turn is written in. `opening` opens the first question, which rides the round's own turn,
