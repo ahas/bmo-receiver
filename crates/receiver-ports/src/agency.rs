@@ -380,6 +380,24 @@ struct OpenRuns {
   items: Vec<OpenRun>,
 }
 
+/// A job starting or running, as the list of jobs answers it: its id, its worker, its item and when it started.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunningJob {
+  pub id: i64,
+  #[serde(default)]
+  pub worker_name: Option<String>,
+  #[serde(default)]
+  pub item_id: Option<i64>,
+  #[serde(default)]
+  pub started_at: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct RunningJobs {
+  items: Vec<RunningJob>,
+}
+
 /// Every call the receiver makes on the agency.
 pub trait Agency: Send + Sync {
   /// Every agent with its row and roads, and the roles.
@@ -438,6 +456,9 @@ pub trait Agency: Send + Sync {
 
   /// The runs still open, newest first.
   fn open_runs(&self) -> BoxFuture<'_, Answer<Vec<OpenRun>>>;
+
+  /// The jobs starting or running, newest first.
+  fn running_jobs(&self) -> BoxFuture<'_, Answer<Vec<RunningJob>>>;
 
   /// The message a run's answer went out as, attached to the run; its closing stays as it stands.
   fn attach_message(&self, run: i64, message: i64) -> BoxFuture<'_, Answer<()>>;
@@ -774,6 +795,17 @@ impl Agency for HttpAgency {
       let page: OpenRuns = self
         .caller
         .get(&["runs"], &[("live", "true".to_owned()), ("limit", "500".to_owned())])
+        .await?;
+
+      Ok(page.items)
+    })
+  }
+
+  fn running_jobs(&self) -> BoxFuture<'_, Answer<Vec<RunningJob>>> {
+    Box::pin(async move {
+      let page: RunningJobs = self
+        .caller
+        .get(&["jobs"], &[("running", "true".to_owned()), ("limit", "500".to_owned())])
         .await?;
 
       Ok(page.items)

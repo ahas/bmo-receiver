@@ -54,9 +54,9 @@ base address and token.
 - **`quiet`** says whether work stands under way that a restart of the receiver would cut, for the testbed's wait
   before a deployment's flip (`testbed.toml`, `quiet`): it asks the agency for the runs still open and names each
   that counts, a run whose name carries one of the long-work words of `quiet.toml` however long it has run, and
-  a chat turn's run, named as the receiver names its turns' runs, started within that policy's span. A job's
-  run counts only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every
-  open run the agency ties to a job counts, however long it has run. It ends 0 where none counts and 1 where
+  a chat turn's run, named as the receiver names its turns' runs, started within that policy's span. A job counts
+  only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
+  agency answers as starting or running counts, however long it has run. It ends 0 where none counts and 1 where
   some does or the agency did not answer, each one named on its own line.
 - **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
   title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
@@ -151,7 +151,8 @@ room's matter.
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
-| the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, each its `id`, `name` and `startedAt`, which `quiet` reads |
+| the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, newest first, each its `id`, `name` and `startedAt`, which `quiet` reads |
+| the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `workerName`, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
 | a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, newest first; the round's last run is the one with the highest id, whatever the order |
 | an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |
 | the events | `GET /events?kinds=` | | a stream of the kinds named |

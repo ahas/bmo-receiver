@@ -438,3 +438,61 @@ async fn a_sessions_loads_are_read_kept_whole_and_forgotten_by_its_id() {
     ]
   );
 }
+
+#[tokio::test]
+async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_first() {
+  use receiver_ports::agency::{OpenRun, RunningJob};
+
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+
+  unit.answer(
+    "GET /runs",
+    200,
+    json!({ "items": [
+      { "id": 12, "name": "agent-a:chat:-7:2", "startedAt": 2_000, "jobId": null, "state": "open" },
+      { "id": 11, "name": "unit-a:research-1", "startedAt": 1_000, "state": "open" },
+    ], "more": false }),
+  );
+  unit.answer(
+    "GET /jobs",
+    200,
+    json!({ "items": [
+      { "id": 906_425, "workerName": "worker-a", "itemId": 2283, "startedAt": 3_000, "state": "running" },
+    ], "more": false }),
+  );
+
+  assert_eq!(
+    agency.open_runs().await.unwrap(),
+    [
+      OpenRun {
+        id: 12,
+        name: "agent-a:chat:-7:2".to_owned(),
+        started_at: 2_000,
+        job_id: None
+      },
+      OpenRun {
+        id: 11,
+        name: "unit-a:research-1".to_owned(),
+        started_at: 1_000,
+        job_id: None
+      },
+    ]
+  );
+  assert_eq!(
+    agency.running_jobs().await.unwrap(),
+    [RunningJob {
+      id: 906_425,
+      worker_name: Some("worker-a".to_owned()),
+      item_id: Some(2283),
+      started_at: Some(3_000)
+    }]
+  );
+  assert_eq!(
+    unit.took(),
+    [
+      call("GET /runs", "live=true&limit=500", None),
+      call("GET /jobs", "running=true&limit=500", None)
+    ]
+  );
+}
