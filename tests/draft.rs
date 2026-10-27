@@ -274,7 +274,13 @@ fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_blo
   assert!(one.trim().chars().count() <= 350, "{} characters: {one}", one.chars().count());
   assert!(three.trim().chars().count() <= 650, "{} characters: {three}", three.chars().count());
 
-  for rule in ["<<DONE #<number>>>", "<<SEPARATE #<number>>>", "validFrom", "live state"] {
+  for rule in [
+    "<<DONE #<number>>>",
+    "<<SEPARATE #<number>>>",
+    "validFrom",
+    "live state",
+    "ask nothing of you and change nothing",
+  ] {
     assert!(!one.contains(rule) && !three.contains(rule), "{rule} stands in a question's turn");
     assert!(process.contains(rule), "{rule} stands in the room's block");
   }

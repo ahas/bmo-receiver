@@ -73,7 +73,8 @@ leaves.
 - **The process's fixed rules stand in the room's block, not in a turn:** that the message is written last, that
   an answer before the last is notes of what was read, the facts established and engraved in the brain, each with
   its source, and what is still unknown, the confidence rule and the source rule above, that nothing is hedged,
-  that `<<SKIP>>` ends the process, and the marks a message that arrived meanwhile takes (`chat-line.toml`,
+  that `<<SKIP>>` ends the process and is for words that ask nothing and change nothing, so a person's telling the
+  agent something of themselves, which it keeps, is answered in the same round, and the marks a message that arrived meanwhile takes (`chat-line.toml`,
   `[room]`, `process`). The room's block goes to a session once per version and by its mark after that, so a
   turn carries only what changes from question to question.
 - **The first question rides the round's own turn:** the room's words and the round's closing lines as the window
