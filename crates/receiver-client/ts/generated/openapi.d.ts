@@ -38,6 +38,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/avatars/{kind}/{subject}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A picture set from the console on a room, a person or an agent, as a form with one picture. */
+        put: operations["setAvatar"];
+        post?: never;
+        /** A picture set from the console let go, so the one its chat service handed over stands. */
+        delete: operations["unsetAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/companions": {
         parameters: {
             query?: never;
@@ -2092,6 +2110,74 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    setAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                subject: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description A refusal or failure: unauthorized, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    unsetAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                subject: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description A refusal or failure: unauthorized, unknown-kind, no-number, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

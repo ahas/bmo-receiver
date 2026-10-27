@@ -2846,6 +2846,121 @@
         ]
       }
     },
+    "/avatars/{kind}/{subject}": {
+      "delete": {
+        "operationId": "unsetAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, unknown-kind, no-number, failed"
+          }
+        },
+        "summary": "A picture set from the console let go, so the one its chat service handed over stands.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "unknown-kind",
+          "no-number",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "setAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed"
+          }
+        },
+        "summary": "A picture set from the console on a room, a person or an agent, as a form with one picture.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "unknown-kind",
+          "no-picture-given",
+          "not-a-picture",
+          "picture-too-large",
+          "no-number",
+          "failed"
+        ]
+      }
+    },
     "/companions": {
       "post": {
         "operationId": "addCompanion",

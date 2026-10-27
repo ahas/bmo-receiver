@@ -36,6 +36,7 @@ macro_rules! refused {
 }
 
 pub mod added_agents;
+pub mod avatars;
 pub mod consult;
 pub mod draws;
 pub mod fixed_lines;
@@ -51,6 +52,7 @@ pub mod talk;
 pub mod voice;
 
 pub use added_agents::{AddedAgentFact, AddedAgentRefusal};
+pub use avatars::AvatarRefusal;
 pub use consult::ConsultRefusal;
 pub use draws::{DrawAsked, DrawLine, DrawResult};
 pub use fixed_lines::FixedLine;

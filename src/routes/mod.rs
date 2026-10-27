@@ -4,6 +4,7 @@
 
 mod added_agents;
 mod as_owner;
+mod avatars;
 mod brain;
 mod briefing;
 mod console;
@@ -122,6 +123,8 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/avatars", get(message_files::avatars)),
     ("GET", "/rooms/{roomId}/avatar", get(message_files::room_avatar)),
     ("GET", "/people/{personId}/avatar", get(message_files::person_avatar)),
+    ("PUT", "/avatars/{kind}/{subject}", put(avatars::set)),
+    ("DELETE", "/avatars/{kind}/{subject}", delete(avatars::unset)),
     ("GET", "/rooms/{roomId}/figures", get(figures::figures)),
     ("GET", "/rooms/{roomId}/window", get(console::room_window)),
     ("GET", "/providers", get(rooms::providers)),

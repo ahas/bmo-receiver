@@ -33,6 +33,16 @@ family. No code carries a sentence in a room's language.
 | `not-answerer` | 409 | `agent`, `room` | the calling agent does not answer in the consult room |
 | `no-agent` | 400 | | the call was made outside any agent's turn |
 
+### AvatarRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `unknown-kind` | 400 | `kind` | the subject's kind is none of `room`, `person` and `agent` |
+| `no-picture-given` | 400 | | the form holds no `picture` |
+| `not-a-picture` | 400 | | the picture cannot be read as one |
+| `picture-too-large` | 413 | `size_bytes`, `largest_bytes` | the picture is past the ceiling one file may be |
+| `no-number` | 404 | `agent` | the agent stands under no number in any room |
+
 ### OwnerSendRefusal
 
 | Code | Status | Fields | When |

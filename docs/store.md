@@ -52,6 +52,7 @@ takes it outright: the table holds no default agent.
 | `bmo_session_rooms` | a room a chat session has been given the context of | session and room |
 | `collected_items` | a file a message carried, kept in the message-file store (`docs/room-files.md`) | its number; one per room, message and the file's id among its message's files, `file_unique_id` |
 | `avatars` | the picture a room or a person wears, its photo id, stored path and when it was taken (`docs/pictures.md`) | kind and subject |
+| `avatar_sets` | the picture set on a room or a person from the console, its stored path and when it was set (`docs/pictures.md`) | kind and subject |
 | `random_draws` | a fair draw made in a room (`docs/random-draw.md`) | its number |
 | `random_draw_rooms` | the seed a room's next draw will use and its commitment | room |
 | `say_relays` | an answer to relay back to the room that asked another room something | its number |

@@ -10,6 +10,7 @@ mod agency_events;
 mod agent_rounds;
 mod alone_runs;
 mod answer_language;
+mod avatars;
 mod brain_contract;
 mod briefing;
 mod consult_block;

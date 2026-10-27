@@ -190,13 +190,18 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /avatars` | `after`, `limit` | a page of `Avatar`: the profile pictures kept, oldest taken first |
 | `GET /rooms/{roomId}/avatar` | | the room's kept profile picture, as its bytes |
 | `GET /people/{personId}/avatar` | | the person's kept profile picture, as its bytes |
+| `PUT /avatars/{kind}/{subject}` | a form with one `picture`; `kind` is `room`, `person` or `agent` | `items`, each `kind`, `id` and `takenAt`: the picture set, under every number the agent stands under for an agent |
+| `DELETE /avatars/{kind}/{subject}` | | `items`, each `kind` and `id` whose console-set picture went |
 
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null)
   and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
-  or its file is gone (`docs/pictures.md`, 「Profile pictures」).
+  or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set is refused 400 `unknown-kind` for a
+  kind other than the three, 400 `no-picture-given`
+  where the form holds no `picture`, 400 `not-a-picture` where it cannot be read as one, 413 `picture-too-large`
+  past `files.toml`'s `largest_bytes`, and an agent standing under no number 404 `no-number`.
 - **`agentName` and `voice`** stand on a send the receiver archived itself, naming the agent whose words these are
   and the voice the send went out in (`bot-account`, `human-avatar`, `human-reader`); both are null on a message
   that came in from a provider, which the provider's echo of the receiver's own send keeps, since that message is

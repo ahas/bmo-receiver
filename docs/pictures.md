@@ -78,6 +78,17 @@ receiver keeps the pictures and decides what a session is shown.
   the receiver for every number it shows and a chat service's own route for what the receiver does not keep, and
   carries `takenAt` in the address, so a browser reuses the picture it holds until the picture itself changes.
   Wherever there is no picture, a name's first letter stands in for one.
+- **A picture is set from the console too,** on one route shape for three kinds of subject:
+  `PUT /avatars/{kind}/{subject}`, the body a form with one `picture`, where `kind` is `room` (a room's number),
+  `person` (a person's number, the owner's own among them) or `agent` (an agent's registration name, the picture
+  then set under every number the agent stands under in the rooms: each a road or the record gave it, and each its
+  own words are archived under). The picture is laid on white, filed as a JPEG under the data root's
+  `avatars/set/` and kept in `avatar_sets`, beside the picture a chat service hands over, never in its place.
+- **The newer one stands:** a room's and a person's picture is the newer of the one its chat service handed over
+  and the one set from the console, on every route that serves one (`GET /rooms/{roomId}/avatar`,
+  `GET /people/{personId}/avatar`) and in `GET /avatars`, which lists each subject once, `takenAt` the moment its
+  standing picture was taken. `DELETE /avatars/{kind}/{subject}` lets the console-set picture go, so the chat
+  service's stands where one is kept. Each change tells the console with `avatars.changed`.
 
 ## Whether an agent looks
 

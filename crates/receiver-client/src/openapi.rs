@@ -391,6 +391,36 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "not-found"]
   );
   add!(
+    "PUT",
+    "/avatars/{kind}/{subject}",
+    "setAvatar",
+    "Rooms",
+    "A picture set from the console on a room, a person or an agent, as a form with one picture.",
+    vec![name_parameter("kind"), name_parameter("subject")],
+    Some(generator.subschema_for::<Value>()),
+    vec![(200, json_answer::<Value>(&mut generator))],
+    vec![
+      "unauthorized",
+      "unknown-kind",
+      "no-picture-given",
+      "not-a-picture",
+      "picture-too-large",
+      "no-number",
+      "failed"
+    ]
+  );
+  add!(
+    "DELETE",
+    "/avatars/{kind}/{subject}",
+    "unsetAvatar",
+    "Rooms",
+    "A picture set from the console let go, so the one its chat service handed over stands.",
+    vec![name_parameter("kind"), name_parameter("subject")],
+    None,
+    vec![(200, json_answer::<Value>(&mut generator))],
+    vec!["unauthorized", "unknown-kind", "no-number", "failed"]
+  );
+  add!(
     "GET",
     "/rooms/{roomId}/pictures",
     "pictures",

@@ -583,8 +583,15 @@ pub async fn avatars(
 ) -> Result<Vec<Avatar>, Fault> {
   all(
     db,
-    r#"SELECT "kind", "subject_id", "path", "updated_at" FROM "avatars"
-       WHERE "path" IS NOT NULL AND "path" <> '' AND "updated_at" > $1
+    // Each subject once, its standing picture the newer of the one handed over and the one set from the console.
+    r#"SELECT "kind", "subject_id", "path", "updated_at" FROM (
+         SELECT DISTINCT ON ("kind", "subject_id") "kind", "subject_id", "path", "updated_at" FROM (
+           SELECT "kind", "subject_id", "path", "updated_at" FROM "avatars" WHERE "path" IS NOT NULL AND "path" <> ''
+           UNION ALL SELECT "kind", "subject_id", "path", "set_at" AS "updated_at" FROM "avatar_sets"
+         ) AS "kept"
+         ORDER BY "kind", "subject_id", "updated_at" DESC
+       ) AS "standing"
+       WHERE "updated_at" > $1
        ORDER BY "updated_at", "kind", "subject_id" LIMIT $2"#,
     vec![after.unwrap_or(0).into(), limit.into()],
   )
@@ -603,7 +610,11 @@ pub async fn avatar_of(
   Ok(
     one(
       db,
-      r#"SELECT "kind", "subject_id", "path", "updated_at" FROM "avatars" WHERE "kind" = $1 AND "subject_id" = $2"#,
+      r#"SELECT "kind", "subject_id", "path", "updated_at" FROM (
+           SELECT "kind", "subject_id", "path", "updated_at" FROM "avatars" WHERE "kind" = $1 AND "subject_id" = $2
+           UNION ALL SELECT "kind", "subject_id", "path", "set_at" AS "updated_at" FROM "avatar_sets"
+             WHERE "kind" = $1 AND "subject_id" = $2
+         ) AS "kept" ORDER BY "updated_at" DESC LIMIT 1"#,
       vec![kind.into(), subject_id.into()],
     )
     .await?
