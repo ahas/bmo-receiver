@@ -132,6 +132,9 @@ pub trait Web: Send + Sync {
 
   /// A fixed line's words in a language.
   fn render<'a>(&'a self, line: &'a Render) -> BoxFuture<'a, Answer<String>>;
+
+  /// The rooms the console has open now, from the web unit's watching route.
+  fn watched_rooms(&self) -> BoxFuture<'_, Answer<Vec<i64>>>;
 }
 
 /// The web unit over HTTP.
@@ -199,6 +202,12 @@ struct Rendered {
   text: String,
 }
 
+#[derive(Deserialize)]
+struct Watching {
+  #[serde(default)]
+  rooms: Vec<i64>,
+}
+
 impl Web for HttpWeb {
   fn model_in_force(&self) -> BoxFuture<'_, Answer<bool>> {
     Box::pin(async move {
@@ -263,6 +272,14 @@ impl Web for HttpWeb {
       let rendered: Rendered = self.caller.post(&["words", "render"], line).await?;
 
       Ok(rendered.text)
+    })
+  }
+
+  fn watched_rooms(&self) -> BoxFuture<'_, Answer<Vec<i64>>> {
+    Box::pin(async move {
+      let watching: Watching = self.caller.get(&["watching"], &[]).await?;
+
+      Ok(watching.rooms)
     })
   }
 }

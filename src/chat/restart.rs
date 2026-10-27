@@ -280,24 +280,43 @@ async fn answerer_numbers(receiver: &Receiver, chat_id: i64, road: &str) -> Hash
   HashSet::from_iter(rows.iter().filter_map(|row| row.try_get::<i64>("", "sender_id").ok()))
 }
 
-/// The words a restart left unread, handed to the rooms where they wake the agent: in a room the agent answers and
-/// that has not fallen silent, every message after its read mark that is no answerer's own — the owner's alone
-/// where the room hears only him, and nobody's muted — woken on where one of them, not too old, wakes him by the
-/// receiver's rule. A room with no read mark is marked read at its latest message and left.
+/// The words a restart left unread, handed to the rooms whose console window is open: one room at a time, in
+/// room order, each room's session taking the lines after its read mark as one turn before the next room is
+/// served. A window closed before its turn skips its room; the read mark the conversation writes after the turn
+/// keeps a line from being served twice. The rooms are the web unit's watching route, so a closed window is never
+/// served and the agent never has to ask.
 pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) -> Result<(), Fault> {
+  let web = receiver.units().web.clone();
+  let open = match web.watched_rooms().await {
+    Ok(rooms) => rooms,
+    Err(why) => {
+      eprintln!("restart: the console's open rooms could not be read: {why}");
+
+      return Ok(());
+    }
+  };
+  let mut open = open;
+  open.sort_unstable();
+  open.dedup();
+
+  if open.is_empty() {
+    return Ok(());
+  }
+
   let db = receiver.db();
   let owner = receiver.deployment().owner_id;
   let everyone = standing::hears_everyone(receiver).await.unwrap_or(false);
-  let oldest = now_ms() - CHAT_ROUND.backlog.max_age_seconds * 1_000;
-  let agent = receiver.deployment().agent.clone();
   let rooms = receiver.roads();
-  let runner = receiver.runner();
 
-  for row in all(db, r#"SELECT DISTINCT "chat_id" FROM "messages" ORDER BY "chat_id""#, vec![])
-    .await
-    .unwrap_or_default()
-  {
-    let chat_id = row.try_get::<i64>("", "chat_id").ok().unwrap_or(0);
+  for chat_id in open {
+    // The set may have moved while the room before it was served: a window that closed is not served.
+    let still_open = web.watched_rooms().await.unwrap_or_default();
+
+    if !still_open.contains(&chat_id) {
+      println!("restart: chat {chat_id} closed before its turn, so its backlog waits");
+
+      continue;
+    }
 
     if !answers(receiver, chat_id).await || conversations.silenced(chat_id).await {
       continue;
@@ -339,27 +358,31 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
       });
     }
 
-    let mut woken = false;
-
-    for message in &unread {
-      let taken = match &runner {
-        None => false,
-        Some(runner) => runner.hand(&agent, &[], message, room, false, false).await,
-      };
-
-      if message.sent_at >= oldest && taken {
-        woken = true;
-
-        break;
-      }
-    }
-
-    if !woken {
+    if unread.is_empty() {
       continue;
     }
 
-    println!("resuming backlog in chat {chat_id}: {} message(s)", unread.len());
+    let count = unread.len();
+    let last = unread.last().map(|message| message.message_id).unwrap_or_default();
+
+    println!("resuming backlog in chat {chat_id}: {count} message(s)");
     conversations.wake(unread, room).await;
+
+    // One room at a time: the next room waits until this room's turn has gone out and its read mark stands at
+    // the last line handed, which is what keeps a served line from being served again.
+    let waited = tokio::time::timeout(Duration::from_secs(CHAT_ROUND.backlog.turn_seconds), async {
+      while !rows::is_read(db, chat_id, last).await.unwrap_or(false) {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+      }
+    })
+    .await;
+
+    if waited.is_err() {
+      eprintln!(
+        "restart: chat {chat_id} was still answering after {}s, so the next open room waits",
+        CHAT_ROUND.backlog.turn_seconds
+      );
+    }
   }
 
   Ok(())

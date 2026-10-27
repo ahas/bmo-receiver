@@ -46,7 +46,9 @@ flowchart TD
   - the restart (`docs/voiced-notices.md`, 「Deploy and restart」): a rest lifted past its end, every room but the
     owner's read up to its latest message and the owner told where it was a limit's rest; and, as the receiver
     starts, the owner's back notice with the deployment's purpose, then the words a restart left unread handed to
-    the rooms where they wake an agent;
+    each room whose console window is open, one room at a time and in room order, the room's read mark advancing
+    as its turn goes out; a window that closes before its turn leaves its room waiting, and a line already served
+    is not served again;
   - the console's talks about an item and a document (`POST /talks`), each turn a round of the owner's chat on the
     chat agent's session;
   - the one runner: each woken agent's turns in its conversations, the chat agent's and every other agent's alike,

@@ -129,7 +129,9 @@ its rounds.
   conversation already talking.
 - **An empty queue has no timer,** so a quiet room costs nothing and a busy one costs one run per five seconds
   instead of one per message.
-- **Quiet instructions, touches and the start-up backlog do not queue.**
+- **Quiet instructions, touches and the start-up backlog do not queue.** The start-up backlog is one turn per room
+  whose console window is open, handed in room order; its lines are read as the turn goes out, so a room's window
+  closing leaves its lines for the next time and a line served is not served again.
 - **A session answers one round at a time, and a round is over only once its answer has gone out.** Sending is
   not instant (the road's send may have to be waited out) so a round that counted
   itself finished before it had sent would let the next message start a second run of the same session, and the

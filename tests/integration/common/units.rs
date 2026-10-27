@@ -533,6 +533,7 @@ pub struct StandInWeb {
   pub model: Mutex<bool>,
   // The names the web unit says are the administrator's.
   pub admins: Mutex<BTreeSet<String>>,
+  pub watched: Mutex<Vec<i64>>,
 }
 
 impl StandInWeb {
@@ -542,7 +543,13 @@ impl StandInWeb {
       grants: Mutex::default(),
       model: Mutex::default(),
       admins: Mutex::default(),
+      watched: Mutex::default(),
     }
+  }
+
+  /// The rooms the console has open, as the web unit answers.
+  pub fn watching(&self, rooms: &[i64]) {
+    *self.watched.lock().unwrap() = rooms.to_vec();
   }
 
   /// The name the web unit answers for as the administrator's.
@@ -641,6 +648,12 @@ impl Web for StandInWeb {
 
   fn render<'a>(&'a self, line: &'a Render) -> BoxFuture<'a, Answer<String>> {
     Box::pin(async move { Ok(format!("{} in {}", line.code, line.language)) })
+  }
+
+  fn watched_rooms(&self) -> BoxFuture<'_, Answer<Vec<i64>>> {
+    let rooms = self.watched.lock().unwrap().clone();
+
+    Box::pin(async move { Ok(rooms) })
   }
 }
 

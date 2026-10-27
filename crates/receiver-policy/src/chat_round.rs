@@ -215,8 +215,8 @@ pub struct Instructions {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Backlog {
-  pub max_age_seconds: i64,
   pub settle_ms: u64,
+  pub turn_seconds: u64,
 }
 
 /// How often a room being answered is shown typing again.
