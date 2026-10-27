@@ -275,3 +275,63 @@ async fn a_providers_echo_of_the_receivers_own_send_keeps_the_sends_agent_and_vo
     "the echo is kept no second time",
   );
 }
+
+#[tokio::test]
+async fn a_chosen_list_rules_both_ways_and_names_the_rooms_own_road() {
+  use bmo_receiver::roads::Road;
+
+  let scratch = Scratch::new().await;
+  let (front, road) = front(&scratch).await;
+  let receiver = front.receiver();
+  let routes = handovers(&front);
+  let kept = |id: i64| {
+    let scratch = &scratch;
+    async move {
+      scratch
+        .texts(&format!(
+          r#"SELECT "text" FROM "messages" WHERE "chat_id" = -100 AND "message_id" = {id}"#
+        ))
+        .await
+    }
+  };
+
+  // The road detached: the room stands on the record alone.
+  put(&front, "/rooms/-100/providers", json!({ "providers": ["record"] })).await;
+
+  let roads = receiver.roads();
+
+  assert_eq!(
+    roads.own(ROOM).await,
+    Some(Road::Record),
+    "the first provider named is the room's own road"
+  );
+  assert_eq!(
+    roads.answering(ROOM, Some("road-a")).await,
+    Some(Road::Record),
+    "a road off the list answers nothing"
+  );
+  assert_eq!(roads.answering(ROOM, Some("record")).await, Some(Road::Record));
+  assert_eq!(
+    roads.unasked(ROOM).await,
+    Some(Road::Record),
+    "a line nobody asked for stays on the record"
+  );
+
+  // What the detached road hands over is not taken, and nothing of the room goes out on it.
+  assert_ne!(hand(&routes, 6, handed("said on the detached road", None)).await, StatusCode::CREATED);
+  assert!(kept(6).await.is_empty(), "a message a detached road hands over is not kept");
+
+  receiver.speech().say(ROOM, "a notice for the room").await.unwrap();
+  assert!(
+    road.sent().is_empty(),
+    "nothing of the room goes out on a road its list does not name: {:?}",
+    road.sent()
+  );
+
+  // Attached again, the road is heard and carried to, and it is the room's own road once it is first.
+  put(&front, "/rooms/-100/providers", json!({ "providers": ["road-a", "record"] })).await;
+
+  assert_eq!(hand(&routes, 7, handed("said on the road again", None)).await, StatusCode::CREATED);
+  assert_eq!(kept(7).await, vec!["said on the road again".to_owned()]);
+  assert_eq!(roads.own(ROOM).await, Some(Road::Service("road-a".to_owned())));
+}

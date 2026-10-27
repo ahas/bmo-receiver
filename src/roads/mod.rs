@@ -95,7 +95,8 @@ pub struct Roads {
   rooms: Kept<(String, i64), Option<ProviderRoom>>,
   // The receiver's store, which says which rooms stand on the record alone; given once the receiver stands.
   store: Arc<OnceLock<sea_orm::DatabaseConnection>>,
-  // The owner's private room the configuration names, where it names one; given once the receiver stands.
+  // The owner's private room: the configuration's `owner_room`, else the room numbered as his own number; given
+  // once the receiver stands.
   owners: Arc<OnceLock<i64>>,
 }
 
@@ -124,15 +125,13 @@ impl Roads {
     }
   }
 
-  /// The owner's private room the configuration names (docs/receiver.md, 「Identity, and reaching the owner」); the
-  /// first given stands.
+  /// The owner's private room (docs/receiver.md, 「Identity, and reaching the owner」); the first given stands.
   pub fn with_owner_room(&self, room: i64) {
     let _ = self.owners.set(room);
   }
 
-  /// Whether a room is the owner's private chat, where `said` is whether its chat service says so: the configured
-  /// room alone where the configuration names one, a chat service's `kind` of `owner` then read for no room;
-  /// what the service says where it names none.
+  /// Whether a room is the owner's private chat: the owner's private room alone, a chat service's `kind` of
+  /// `owner` read for no room; where the roads were given none, what the service says, `said`.
   pub fn owners_room(&self, chat_id: i64, said: bool) -> bool {
     match self.owners.get() {
       Some(room) => *room == chat_id,
@@ -176,8 +175,40 @@ impl Roads {
     .is_some()
   }
 
-  /// The room's own road: the chat service that holds it, else the record where the room stands on it alone.
-  async fn own(&self, chat_id: i64) -> Option<Road> {
+  /// The providers a room's list names, in order, where its list was chosen; none where it was never set
+  /// (docs/receiver.md, 「A room's chat providers」).
+  pub async fn chosen(&self, chat_id: i64) -> Option<Vec<String>> {
+    let db = self.store.get()?;
+    let chosen: Vec<String> = all(
+      db,
+      r#"SELECT "provider" FROM "room_providers" WHERE "chat_id" = $1 ORDER BY "place""#,
+      vec![chat_id.into()],
+    )
+    .await
+    .map(|rows| rows.iter().filter_map(|row| row.try_get::<String>("", "provider").ok()).collect())
+    .unwrap_or_default();
+
+    (!chosen.is_empty()).then_some(chosen)
+  }
+
+  /// Whether a room takes and is sent what a road carries: every road where its list was never chosen, and the
+  /// roads its chosen list names where it was.
+  pub async fn admits(&self, chat_id: i64, key: &str) -> bool {
+    self.chosen(chat_id).await.is_none_or(|chosen| chosen.iter().any(|named| named == key))
+  }
+
+  // A provider's key as the road it is.
+  fn road_of(key: &str) -> Road {
+    if key == ROADS.record.key { Road::Record } else { Road::Service(key.to_owned()) }
+  }
+
+  /// The room's own road: the first provider its chosen list names; where none was chosen, the chat service that
+  /// holds it, else the record where the room stands on it alone.
+  pub async fn own(&self, chat_id: i64) -> Option<Road> {
+    if let Some(chosen) = self.chosen(chat_id).await {
+      return chosen.first().map(|key| Self::road_of(key));
+    }
+
     if let Some(key) = self.room_road(chat_id).await {
       return Some(Road::Service(key));
     }
@@ -380,6 +411,11 @@ impl Roads {
   /// itself, a send that names no road: the room's record where a road reaching the room shows it, the room's own
   /// road everywhere else, and none where no road holds the room.
   pub async fn unasked(&self, chat_id: i64) -> Option<Road> {
+    // A chosen list alone decides: its first provider is where such a line goes.
+    if self.chosen(chat_id).await.is_some() {
+      return self.own(chat_id).await;
+    }
+
     if self.shown(chat_id).await {
       return Some(Road::Record);
     }
@@ -392,6 +428,11 @@ impl Roads {
   pub async fn answering(&self, chat_id: i64, via: Option<&str>) -> Option<Road> {
     let own = self.own(chat_id).await;
     let Some(via) = via else { return own };
+
+    // A chosen list alone decides: the road asked on where the list names it, the room's own road otherwise.
+    if let Some(chosen) = self.chosen(chat_id).await {
+      return if chosen.iter().any(|named| named == via) { Some(Self::road_of(via)) } else { own };
+    }
 
     if via == ROADS.record.key {
       return if self.shown(chat_id).await { Some(Road::Record) } else { own };

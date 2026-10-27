@@ -37,6 +37,8 @@ fn stood_deployment(board: i64) -> Deployment {
   let mut given = deployment();
 
   given.infra_room = Some(board);
+  // The administrator's private chat is the room the configuration names as his.
+  given.owner_room = Some(OWNERS);
   given
 }
 

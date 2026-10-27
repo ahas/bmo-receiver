@@ -35,7 +35,11 @@ pub async fn take_down(receiver: &Receiver) {
   numbers.dedup();
 
   let owner = receiver.owner_room();
-  let road = receiver.roads().room_road(owner).await;
+  // A road the room's chosen providers do not name is sent nothing of it, a take-out among them.
+  let road = match receiver.roads().room_road(owner).await {
+    Some(road) if receiver.roads().admits(owner, &road).await => Some(road),
+    _ => None,
+  };
   let mut standing = Vec::new();
 
   for message_id in numbers {

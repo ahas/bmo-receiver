@@ -378,9 +378,7 @@ impl Receiver {
 
     units.roads.with_store(db.clone());
 
-    if let Some(room) = deployment.owner_room {
-      units.roads.with_owner_room(room);
-    }
+    units.roads.with_owner_room(deployment.owner_room.unwrap_or(deployment.owner_id));
 
     Self {
       speech: Speech::new(db.clone(), deployment.clone(), units.clone(), news.clone()),

@@ -99,6 +99,23 @@ impl Receiver {
   }
 }
 
+// The rooms and roads whose hand-over was not taken, so the journal says it once for each.
+static UNTAKEN: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<(i64, String)>>> =
+  std::sync::LazyLock::new(Default::default);
+
+fn untaken(room_id: i64, via: &str) {
+  let told = UNTAKEN
+    .lock()
+    .unwrap_or_else(std::sync::PoisonError::into_inner)
+    .insert((room_id, via.to_owned()));
+
+  if told {
+    println!(
+      "bmo-receiver: room {room_id}'s providers do not name {via}, so what {via} hands over for it is not taken"
+    );
+  }
+}
+
 fn failed(why: NotReceived) -> WireError {
   WireError::new(ErrorCode::Failed, format!("The hand-over was not taken: {why}."))
 }
@@ -118,6 +135,17 @@ impl ChatReceiver for Receiver {
         .map_err(|why| failed(NotReceived::Store(why)))?;
 
     if copy {
+      return Ok(HeldMessage {
+        created: false,
+        message,
+      });
+    }
+
+    // A room whose chosen providers do not name the road takes nothing it hands over (docs/receiver.md, 「A room's
+    // chat providers」).
+    if !self.roads().admits(room_id, &message.via).await {
+      untaken(room_id, &message.via);
+
       return Ok(HeldMessage {
         created: false,
         message,
