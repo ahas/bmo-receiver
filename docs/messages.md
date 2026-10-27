@@ -48,6 +48,14 @@ agent has read) and what an agent can send back and when a room sees it typing.
   declare. A refusal is the road's one sentence, and nothing is sent.
 - **Every send goes through bmo-chat-client** to the chat service the room's road names (`POST /send`,
   `POST /media`), in the words' form the dialect of that chat service reads (`POST /dialect/read`).
+- **On the record, a room's road of its own, the record keeps every act on its messages,** and the console is the
+  reader: a reaction stands in the message's reactions under who put it there, one to a reactor, an empty emoji
+  taking that reactor's off; a pin stands as the moment it was pinned, taken off by an unpin; an edit stands as the
+  new words and the moment they changed; a delete keeps the message in its place in the room's line with its words
+  cleared and the moment it went; a sticker is a message of its own, its kind `sticker`, its words the sticker's
+  emoji, and its picture where the deployment holds one. Each tells the room's screens with `message.changed`, and
+  each goes on to the room's other providers wherever the message stands under a number of the provider's own,
+  as a kept message does (`docs/receiver.md`, 「A room's chat providers」).
 - **Everyday conversation is answered with a sticker** (a greeting, a joke, small talk, a remark that only wants a
   nod) when one of the set fits, sending it and then answering `<<SKIP>>` so no words follow; words are for
   questions, errands and reports.

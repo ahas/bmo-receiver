@@ -225,6 +225,44 @@ impl Sends {
 
   // The line kept in the room's record for a send the record road carries.
   async fn kept(&self, going: &Going, request: &ChatSendRequest) -> Result<Sent, NotSent> {
+    // An act on a message the record keeps is kept on that message, and carried where the message stands.
+    let by = going
+      .speaker
+      .as_ref()
+      .map(|speaker| speaker.agent.clone())
+      .unwrap_or_else(|| self.receiver.deployment().agent.clone());
+    let acted = match &request.send {
+      ChatSend::Reaction { message_id, emoji } => {
+        Some((*message_id, record::Act::Reaction { by: &by, emoji }))
+      }
+      ChatSend::Pin { message_id, on, .. } => Some((*message_id, record::Act::Pin { on: *on })),
+      ChatSend::Edit { message_id, text } => Some((*message_id, record::Act::Edit { text })),
+      ChatSend::Delete { message_id } => Some((*message_id, record::Act::Delete)),
+      _ => None,
+    };
+
+    if let Some((message_id, act)) = acted {
+      let db = self.receiver.db();
+
+      if !record::act(db, request.room_id, message_id, act).await.map_err(kept)? {
+        return Err(NotSent::Refused(format!(
+          "the record of room {} keeps no message {message_id}",
+          request.room_id
+        )));
+      }
+
+      self
+        .receiver
+        .news()
+        .publish(&crate::events::message_changed(request.room_id, message_id));
+      providers::carry_act(db, self.receiver.roads(), request.room_id, message_id, &request.send).await;
+
+      return Ok(Sent {
+        message_id: Some(message_id),
+        missed: vec![],
+      });
+    }
+
     let text = kept_line(&request.send);
     let name = match &going.speaker {
       Some(speaker) => speaker.name.clone(),
@@ -253,6 +291,13 @@ impl Sends {
       voice: None,
     };
     let message_id = record::keep(self.receiver.db(), self.receiver.news(), line).await.map_err(kept)?;
+
+    if matches!(request.send, ChatSend::Sticker { .. }) {
+      record::mark_sticker(self.receiver.db(), request.room_id, message_id)
+        .await
+        .map_err(kept)?;
+    }
+
     let delivery = Delivery {
       chat_id: request.room_id,
       message_id,

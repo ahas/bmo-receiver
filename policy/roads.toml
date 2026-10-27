@@ -9,7 +9,7 @@
 [record]
 key = "record"
 label = "the room's record"
-can = ["text", "replyTo", "photo", "album", "document", "audio", "voice"]
+can = ["text", "replyTo", "photo", "album", "document", "audio", "voice", "sticker", "reaction", "pin", "edit", "delete"]
 shows = "What you say in this turn is kept in the room's own record, which no road carries to a platform: every screen that reads the room shows it — a voice message, a voice briefing or a sound file in its own player, any other file with its download, a picture as itself — and a road that carries only what is sent on it does not. Never tell the reader that something the record keeps cannot be seen or heard."
 # What a document, a voice and an audio file an agent sent into the record are kept as, the same words a chat
 # service keeps a received one under: {name} is the file's name, {said} what a voice said, and the caption the

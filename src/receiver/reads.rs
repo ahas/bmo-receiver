@@ -81,6 +81,11 @@ pub struct Page {
   pub via: Option<String>,
   pub agent_name: Option<String>,
   pub voice: Option<String>,
+  /// `sticker` for a sticker kept on the record, none for any other.
+  pub kind: Option<String>,
+  pub edited_at: Option<i64>,
+  pub deleted_at: Option<i64>,
+  pub pinned_at: Option<i64>,
   pub files: Vec<KeptFile>,
 }
 
@@ -112,6 +117,10 @@ impl Page {
       via: row.try_get::<Option<String>>("", "via")?,
       agent_name: row.try_get("", "agent_name")?,
       voice: row.try_get("", "voice")?,
+      kind: row.try_get("", "kind").unwrap_or(None),
+      edited_at: row.try_get("", "edited_at").unwrap_or(None),
+      deleted_at: row.try_get("", "deleted_at").unwrap_or(None),
+      pinned_at: row.try_get("", "pinned_at").unwrap_or(None),
       files: vec![],
     })
   }
@@ -621,6 +630,36 @@ pub async fn avatar_of(
     .map(|row| Avatar::of(&row))
     .transpose()?,
   )
+}
+
+/// A reaction kept on the record on a message: its emoji and who put it there.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Reaction {
+  pub emoji: String,
+  pub by: String,
+}
+
+/// The reactions the record keeps on a message, in the order they were put there.
+pub async fn reactions(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+) -> Result<Vec<Reaction>, Fault> {
+  all(
+    db,
+    r#"SELECT "emoji", "by" FROM "message_reactions" WHERE "chat_id" = $1 AND "message_id" = $2 ORDER BY "at", "by""#,
+    vec![chat_id.into(), message_id.into()],
+  )
+  .await?
+  .iter()
+  .map(|row| {
+    Ok(Reaction {
+      emoji: row.try_get("", "emoji")?,
+      by: row.try_get("", "by")?,
+    })
+  })
+  .collect::<Result<_, DbErr>>()
+  .map_err(Fault::from)
 }
 
 /// The files a message carried, as the room's store kept them.

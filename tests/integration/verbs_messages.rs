@@ -275,3 +275,100 @@ async fn the_owners_line_goes_through_the_receivers_own_lines_with_no_gate_and_n
     .to_vec(),
   );
 }
+
+#[tokio::test]
+async fn on_a_record_room_the_record_keeps_a_reaction_a_pin_an_edit_a_delete_and_a_sticker_and_carries_them()
+ {
+  use bmo_receiver::roads::providers;
+
+  let (scratch, road, _launcher, receiver) = stood().await;
+  let sends = Sends::new(receiver.clone(), Some(AGENT.to_owned()), None);
+  let column = |id: i64, name: &str| {
+    let scratch = &scratch;
+    let sql = format!(
+      r#"SELECT COALESCE("{name}"::text, '') FROM "messages" WHERE "chat_id" = {ROOM} AND "message_id" = {id}"#
+    );
+    async move { scratch.texts(&sql).await.concat() }
+  };
+
+  // The room on the record first and the road beside it: a line kept goes to the road under a number of its own.
+  providers::choose(receiver.db(), ROOM, &["record".to_owned(), "road-a".to_owned()])
+    .await
+    .unwrap();
+
+  let kept = receiver.speech().kept(ROOM, "a line on the record", None, None, None).await.unwrap();
+  let carried = road.sent().len();
+
+  assert_eq!(
+    react(&sends, ROOM, kept, "👍").await.unwrap(),
+    [format!("reacted 👍 to message {kept}")]
+  );
+  assert_eq!(
+    scratch
+      .texts(&format!(r#"SELECT "emoji" || '|' || "by" FROM "message_reactions" WHERE "chat_id" = {ROOM} AND "message_id" = {kept}"#))
+      .await,
+    [format!("👍|{AGENT}")],
+    "the record keeps the reaction under who put it there"
+  );
+  assert!(
+    road.sent()[carried..].iter().any(|held| matches!(held.send, ChatSend::Reaction { .. })),
+    "the act goes on to the road where the message stands under its number: {:?}",
+    road.sent()
+  );
+
+  react(&sends, ROOM, kept, "none").await.unwrap();
+  assert!(
+    scratch
+      .texts(&format!(r#"SELECT "emoji" FROM "message_reactions" WHERE "message_id" = {kept}"#))
+      .await
+      .is_empty(),
+    "an empty emoji takes the reactor's off"
+  );
+
+  pin(&sends, ROOM, kept, false).await.unwrap();
+  assert!(!column(kept, "pinned_at").await.is_empty(), "the pin stands as when it was pinned");
+  pin(&sends, ROOM, kept, true).await.unwrap();
+  assert!(column(kept, "pinned_at").await.is_empty(), "an unpin takes it off");
+
+  let going = sends.road(ROOM, "edit").await.unwrap();
+
+  sends
+    .send(
+      &going,
+      &bmo_chat_client::ChatSendRequest::new(
+        ROOM,
+        ChatSend::Edit {
+          message_id: kept,
+          text: "edited".to_owned(),
+        },
+      ),
+    )
+    .await
+    .unwrap();
+  assert_eq!(column(kept, "text").await, "edited");
+  assert!(!column(kept, "edited_at").await.is_empty());
+
+  sends
+    .send(
+      &going,
+      &bmo_chat_client::ChatSendRequest::new(ROOM, ChatSend::Delete { message_id: kept }),
+    )
+    .await
+    .unwrap();
+  assert_eq!(column(kept, "text").await, "", "a delete clears the words and keeps the row");
+  assert!(!column(kept, "deleted_at").await.is_empty());
+
+  sticker(&sends, ROOM, "🎈").await.unwrap();
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "text" || '|' || "kind" FROM "messages" WHERE "chat_id" = {ROOM} AND "kind" IS NOT NULL"#
+      ))
+      .await,
+    ["🎈|sticker"],
+    "a sticker is a message of its own"
+  );
+
+  // An act on a message the record does not keep is refused.
+  assert!(react(&sends, ROOM, 999_999, "👍").await.is_err());
+}

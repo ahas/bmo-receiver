@@ -193,7 +193,30 @@ pub struct Message {
   /// The voice the send went out in (`bot-account`, `human-avatar`, `human-reader`), set beside `agentName` and
   /// null on a message that came in from a provider.
   pub voice: Option<String>,
+  /// `sticker` for a sticker kept on the record, null for any other message.
+  #[serde(default)]
+  pub kind: Option<String>,
+  /// When the record kept an edit of the message, in epoch milliseconds.
+  #[serde(default)]
+  pub edited_at: Option<i64>,
+  /// When the record kept the message's delete, its words cleared, in epoch milliseconds.
+  #[serde(default)]
+  pub deleted_at: Option<i64>,
+  /// When the record kept the message pinned, in epoch milliseconds; null where it stands unpinned.
+  #[serde(default)]
+  pub pinned_at: Option<i64>,
+  /// The reactions the record keeps on the message, in the order they were put there.
+  #[serde(default)]
+  pub reactions: Vec<Reaction>,
   pub files: Vec<KeptFile>,
+}
+
+/// A reaction the record keeps on a message: its emoji and who put it there, an agent's name or a person's number.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Reaction {
+  pub emoji: String,
+  pub by: String,
 }
 
 /// What a chat service handed over beside a message, opaque to the receiver.

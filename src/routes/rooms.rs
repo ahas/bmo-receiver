@@ -140,6 +140,11 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
     "via": kept.via,
     "agentName": kept.agent_name,
     "voice": kept.voice,
+    "kind": kept.kind,
+    "editedAt": kept.edited_at,
+    "deletedAt": kept.deleted_at,
+    "pinnedAt": kept.pinned_at,
+    "reactions": reads::reactions(receiver.db(), room, message).await.map_err(store)?,
     "files": files,
   }))
 }

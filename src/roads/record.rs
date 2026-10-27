@@ -121,3 +121,80 @@ pub async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fau
 
   Ok(least.min(0) - 1)
 }
+
+/// An act the record keeps on one of a room's messages (docs/messages.md, 「What an agent can send back」).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Act<'a> {
+  /// A reaction put on by `by`, an empty emoji taking that reactor's off.
+  Reaction {
+    by: &'a str,
+    emoji: &'a str,
+  },
+  Pin {
+    on: bool,
+  },
+  Edit {
+    text: &'a str,
+  },
+  Delete,
+}
+
+/// The act kept on the message: whether the room's record holds the message at all.
+pub async fn act(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+  act: Act<'_>,
+) -> Result<bool, Fault> {
+  let stands = one(
+    db,
+    r#"SELECT 1 AS "one" FROM "messages" WHERE "chat_id" = $1 AND "message_id" = $2"#,
+    vec![chat_id.into(), message_id.into()],
+  )
+  .await?
+  .is_some();
+
+  if !stands {
+    return Ok(false);
+  }
+
+  let at = now_ms();
+  let (sql, values): (&str, Vec<sea_orm::Value>) = match act {
+    Act::Reaction { by, emoji: "" } => (
+      r#"DELETE FROM "message_reactions" WHERE "chat_id" = $1 AND "message_id" = $2 AND "by" = $3"#,
+      vec![chat_id.into(), message_id.into(), by.into()],
+    ),
+    Act::Reaction { by, emoji } => (
+      r#"INSERT INTO "message_reactions" ("chat_id", "message_id", "by", "emoji", "at") VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT ("chat_id", "message_id", "by") DO UPDATE SET "emoji" = excluded."emoji", "at" = excluded."at""#,
+      vec![chat_id.into(), message_id.into(), by.into(), emoji.into(), at.into()],
+    ),
+    Act::Pin { on } => (
+      r#"UPDATE "messages" SET "pinned_at" = $3 WHERE "chat_id" = $1 AND "message_id" = $2"#,
+      vec![chat_id.into(), message_id.into(), on.then_some(at).into()],
+    ),
+    Act::Edit { text } => (
+      r#"UPDATE "messages" SET "text" = $3, "edited_at" = $4 WHERE "chat_id" = $1 AND "message_id" = $2"#,
+      vec![chat_id.into(), message_id.into(), text.into(), at.into()],
+    ),
+    Act::Delete => (
+      r#"UPDATE "messages" SET "text" = '', "deleted_at" = $3 WHERE "chat_id" = $1 AND "message_id" = $2"#,
+      vec![chat_id.into(), message_id.into(), at.into()],
+    ),
+  };
+
+  run(db, sql, values).await?;
+
+  Ok(true)
+}
+
+/// A message kept as a sticker: its kind marked once it stands.
+pub async fn mark_sticker(db: &DatabaseConnection, chat_id: i64, message_id: i64) -> Result<(), Fault> {
+  run(
+    db,
+    r#"UPDATE "messages" SET "kind" = 'sticker' WHERE "chat_id" = $1 AND "message_id" = $2"#,
+    vec![chat_id.into(), message_id.into()],
+  )
+  .await
+  .map(drop)
+}

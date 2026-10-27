@@ -254,6 +254,11 @@ fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
         "via": Value::Null,
         "agentName": message.agent_name,
         "voice": message.voice,
+        "kind": Value::Null,
+        "editedAt": Value::Null,
+        "deletedAt": Value::Null,
+        "pinnedAt": Value::Null,
+        "reactions": [],
         "files": [],
       })
     })
@@ -447,6 +452,11 @@ async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result
       "via": page.via,
       "agentName": page.agent_name,
       "voice": page.voice,
+      "kind": page.kind,
+      "editedAt": page.edited_at,
+      "deletedAt": page.deleted_at,
+      "pinnedAt": page.pinned_at,
+      "reactions": reads::reactions(receiver.db(), room, page.message_id).await?,
       "files": files,
     }));
   }

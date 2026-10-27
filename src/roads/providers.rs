@@ -398,6 +398,48 @@ pub async fn echo(
 /// said it and in the voice the room answers in otherwise, each send tagged and the number its copy went out as
 /// kept. A service that reads the room in the owner's account alone is handed the owner's words alone. A provider
 /// that refuses or does not answer is said in the journal and leaves the message as it was kept.
+/// An act on a kept message carried to each of the room's other providers where the message stands under a
+/// number of the provider's own (docs/messages.md, 「What an agent can send back」): the act sent with that number.
+pub async fn carry_act(
+  db: &DatabaseConnection,
+  roads: &Roads,
+  chat_id: i64,
+  message_id: i64,
+  act: &ChatSend,
+) {
+  let Ok(listed) = listed(db, roads, chat_id).await else { return };
+
+  for key in listed.providers {
+    if key == Road::Record.key() {
+      continue;
+    }
+
+    let Some(service) = roads.chats().road(&key) else { continue };
+    let Some(number) = number_on(db, chat_id, message_id, &key).await else { continue };
+    let send = match act.clone() {
+      ChatSend::Reaction { emoji, .. } => ChatSend::Reaction {
+        message_id: number,
+        emoji,
+      },
+      ChatSend::Pin { on, silent, .. } => ChatSend::Pin {
+        message_id: number,
+        on,
+        silent,
+      },
+      ChatSend::Edit { text, .. } => ChatSend::Edit {
+        message_id: number,
+        text,
+      },
+      ChatSend::Delete { .. } => ChatSend::Delete { message_id: number },
+      _ => continue,
+    };
+
+    if let Err(why) = service.send(&ChatSendRequest::new(chat_id, send)).await {
+      eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {why}");
+    }
+  }
+}
+
 pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery) {
   let chat_id = delivery.chat_id;
   let listed = match listed(db, roads, chat_id).await {

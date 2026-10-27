@@ -76,6 +76,9 @@ needs its road to perform, so the room's block names the sending entries a room'
 - **Where a turn answers on a road other than the room's own,** the section also names the sending entries the
   room's own road carries instead, and a sending entry takes `via` naming that road. It is the one place a call
   names a road.
+- **A room on the record performs the same entries** a messenger does where they take a room: `react`, `pin` and
+  `sticker` are kept by the record on its own messages, as an edit and a delete the receiver makes are
+  (`docs/messages.md`, 「What an agent can send back」), so a call names no other entry for a record room.
 - **A sending entry called for a road that cannot carry its verb** answers with that road's own one-sentence
   refusal and sends nothing.
 

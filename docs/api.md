@@ -194,8 +194,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `DELETE /avatars/{kind}/{subject}` | | `items`, each `kind` and `id` whose console-set picture went |
 
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
-  `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null)
-  and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+  `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
+  `kind` (`sticker`, or null for any other), `editedAt`, `deletedAt` and `pinnedAt` (epoch milliseconds, or null),
+  `reactions`, each `emoji` with `by`, who put it there (an agent's name or a person's number), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set is refused 400 `unknown-kind` for a
@@ -331,7 +332,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   opened or restarted as `window.opened`, a room's window for an agent closed as `window.closed`, carrying the room,
   the agent and the moment it closed, a verdict the receiver wrote of a round as `judgement.created`, carrying the
   room, the message it stands under or null, the stage, the verdict and its detail, a room whose registration was
-  removed as `room.deleted`, the picture
+  removed as `room.deleted`, an act the record kept on a message, a reaction, a pin, an edit or a delete, as
+  `message.changed`, carrying the room and the message, the picture
   whenever it changes as `live.changed`, and what `POST /events` says: `message.created`, `briefing.created` or
   `avatars.changed`.
 - **A turn's events name whose turn it is.** Every event a conversation tells of its room's turn — `run-started`,

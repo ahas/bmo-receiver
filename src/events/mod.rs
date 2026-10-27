@@ -396,6 +396,11 @@ pub fn room_removed(chat_id: i64) -> Value {
   json!({ "type": "room-removed", "chatId": chat_id, "messageId": null })
 }
 
+/// An act the record kept on a message: a reaction, a pin, an edit or a delete.
+pub fn message_changed(chat_id: i64, message_id: i64) -> Value {
+  json!({ "type": "message-changed", "chatId": chat_id, "messageId": message_id })
+}
+
 /// The profile pictures of the rooms and people moved, taken by a chat service.
 pub fn avatars() -> Value {
   json!({ "type": "avatars-updated", "chatId": 0, "messageId": null })

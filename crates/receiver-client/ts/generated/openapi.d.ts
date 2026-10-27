@@ -1579,10 +1579,38 @@ export interface components {
             album: number | null;
             /** Format: int64 */
             answerSeconds: number | null;
+            /**
+             * Format: int64
+             * @description When the record kept the message's delete, its words cleared, in epoch milliseconds.
+             * @default null
+             */
+            deletedAt: number | null;
+            /**
+             * Format: int64
+             * @description When the record kept an edit of the message, in epoch milliseconds.
+             * @default null
+             */
+            editedAt: number | null;
             files: components["schemas"]["KeptFile"][];
             /** Format: int64 */
             id: number;
             imagePath: string | null;
+            /**
+             * @description `sticker` for a sticker kept on the record, null for any other message.
+             * @default null
+             */
+            kind: string | null;
+            /**
+             * Format: int64
+             * @description When the record kept the message pinned, in epoch milliseconds; null where it stands unpinned.
+             * @default null
+             */
+            pinnedAt: number | null;
+            /**
+             * @description The reactions the record keeps on the message, in the order they were put there.
+             * @default []
+             */
+            reactions: components["schemas"]["Reaction"][];
             /** Format: int64 */
             replyToMessageId: number | null;
             /** Format: int64 */
@@ -1852,6 +1880,11 @@ export interface components {
              * @description Epoch milliseconds.
              */
             since: number;
+        };
+        /** @description A reaction the record keeps on a message: its emoji and who put it there, an agent's name or a person's number. */
+        Reaction: {
+            by: string;
+            emoji: string;
         };
         /** @description How many of a room's messages an agent has marked. */
         ReadMarkCount: {

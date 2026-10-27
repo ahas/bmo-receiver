@@ -1308,6 +1308,24 @@
               "null"
             ]
           },
+          "deletedAt": {
+            "default": null,
+            "description": "When the record kept the message's delete, its words cleared, in epoch milliseconds.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "editedAt": {
+            "default": null,
+            "description": "When the record kept an edit of the message, in epoch milliseconds.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "files": {
             "items": {
               "$ref": "#/components/schemas/KeptFile"
@@ -1323,6 +1341,31 @@
               "string",
               "null"
             ]
+          },
+          "kind": {
+            "default": null,
+            "description": "`sticker` for a sticker kept on the record, null for any other message.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pinnedAt": {
+            "default": null,
+            "description": "When the record kept the message pinned, in epoch milliseconds; null where it stands unpinned.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reactions": {
+            "default": [],
+            "description": "The reactions the record keeps on the message, in the order they were put there.",
+            "items": {
+              "$ref": "#/components/schemas/Reaction"
+            },
+            "type": "array"
           },
           "replyToMessageId": {
             "format": "int64",
@@ -1388,6 +1431,11 @@
           "via",
           "agentName",
           "voice",
+          "kind",
+          "editedAt",
+          "deletedAt",
+          "pinnedAt",
+          "reactions",
           "files"
         ],
         "type": "object"
@@ -2141,6 +2189,22 @@
           "room",
           "messageId",
           "since"
+        ],
+        "type": "object"
+      },
+      "Reaction": {
+        "description": "A reaction the record keeps on a message: its emoji and who put it there, an agent's name or a person's number.",
+        "properties": {
+          "by": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "emoji",
+          "by"
         ],
         "type": "object"
       },
