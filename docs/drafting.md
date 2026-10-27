@@ -203,12 +203,15 @@ leaves.
   A mark counts in any answer of the process, outside a code span or fence, and only for a message of the round,
   its own or one shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
   the last stands. Marks are taken out of an answer before anything else reads it, and never reach the room.
-- **The answer is pinned to the message it answers:** the one a `<<REPLY #<number>>>` mark names among the
-  round's messages it answers; where none is named, the oldest of them that asks something of the agent — one
-  that calls it by a word it answers to, or asks a question; else the newest of them. Owing the owner an answer
-  does not move the pin. Where the road cannot aim at the message, nothing is pinned.
-- **The pin stands on the room's record:** the answer's row there names the message it is pinned to as its
-  `replyToMessageId`, whichever road it went out on, so the console and the chat service show the same reply.
+- **The answer is pinned to the message it answers only where the reader needs it.** A `<<REPLY #<number>>>` mark
+  names the message, and the answer is pinned to it. Where none is named, the message is the oldest of the
+  round's messages it answers that asks something of the agent — one that calls it by a word it answers to, or
+  asks a question; else the newest — and the answer is pinned to that message only when another message has been
+  said in the room since it. An answer to the room's newest line goes unpinned. Owing the owner an answer does not
+  move the pin. Where the road cannot aim at the message, nothing is pinned.
+- **The record keeps the round; the pin is the visible reply.** The answer's row names the message as its
+  `replyToMessageId` only where the pin stands; the round stands as it was, and a turn with no pin shows no reply
+  in the console or on the chat service. The answer is still the round's answer, whatever the visible pin.
 - **Nothing else opens a round for a message shown inside a round.** Words that come after the closing check, or
   while an item or a check works, were shown to nobody and open the next round.
 - **A turn whose run failed showed nothing:** the block it carried goes back to wait, and a process that is

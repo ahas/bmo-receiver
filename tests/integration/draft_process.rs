@@ -978,8 +978,27 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
   assert!(others.iter().all(|row| row == "none"), "{others:?}");
 }
 
+fn pinned(sent: &[String]) -> Option<i64> {
+  sent
+    .first()
+    .and_then(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+    .and_then(|line| line.get("replyToMessageId").and_then(serde_json::Value::as_i64))
+}
+
+async fn kept_pin(round: &Drafting) -> String {
+  round
+    .scratch
+    .texts(
+      r#"SELECT coalesce("reply_to_message_id"::text, 'none') FROM "messages" WHERE "text" = 'the message itself'"#,
+    )
+    .await
+    .into_iter()
+    .next()
+    .unwrap_or_default()
+}
+
 #[tokio::test]
-async fn the_answers_pin_stands_on_the_rooms_record_as_on_the_road() {
+async fn an_answer_to_the_newest_line_goes_unpinned() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message itself"]);
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
 
@@ -989,14 +1008,21 @@ async fn the_answers_pin_stands_on_the_rooms_record_as_on_the_road() {
   let sent = round.sent();
 
   assert_eq!(sent.len(), 1, "{sent:?}");
-  assert!(sent[0].contains("\"replyToMessageId\":1"), "the road pins it: {sent:?}");
+  assert_eq!(pinned(&sent), None, "a direct answer carries no reply pin: {sent:?}");
+  assert_eq!(kept_pin(&round).await, "none", "the record carries no visible pin either");
+}
 
-  let kept = round
-    .scratch
-    .texts(
-      r#"SELECT coalesce("reply_to_message_id"::text, 'none') FROM "messages" WHERE "text" = 'the message itself'"#,
-    )
-    .await;
+#[tokio::test]
+async fn an_explicit_reply_mark_pins_even_the_newest_line() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY #1>> the message itself"]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
 
-  assert_eq!(kept, ["1"], "the record names the message the answer is pinned to");
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert_eq!(pinned(&sent), Some(1), "the mark pins the newest line: {sent:?}");
+  assert_eq!(kept_pin(&round).await, "1", "the record names the pinned message");
 }

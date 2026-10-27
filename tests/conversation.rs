@@ -1,6 +1,6 @@
 //! The conversations' own readings: whose speaker an event a round publishes goes out under.
 
-use bmo_receiver::chat::conversation::told_as;
+use bmo_receiver::chat::conversation::{told_as, visible_pin};
 
 #[test]
 fn an_event_of_a_room_goes_out_under_its_speaker_and_one_naming_its_own_keeps_it() {
@@ -46,6 +46,14 @@ fn said(message_id: i64, sender_id: i64, text: &str) -> bmo_receiver::receiver::
     via_reader: None,
     album: None,
   }
+}
+
+#[test]
+fn an_answer_to_the_newest_line_goes_unpinned_and_an_older_or_named_one_is_pinned() {
+  assert_eq!(visible_pin(Some(1), false, Some(1)), None, "the newest line carries no pin");
+  assert_eq!(visible_pin(Some(1), false, Some(2)), Some(1), "a line another has come after is pinned");
+  assert_eq!(visible_pin(Some(1), true, Some(1)), Some(1), "a named line is pinned even when newest");
+  assert_eq!(visible_pin(None, false, Some(1)), None, "nothing answered carries no pin");
 }
 
 #[test]

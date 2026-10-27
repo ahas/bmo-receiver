@@ -231,6 +231,15 @@ pub struct Made {
   pub reply_to: Option<i64>,
 }
 
+/// The reply pin a turn goes out with (docs/drafting.md, 「The answer is pinned to the message it answers」): the
+/// message the agent named, or one another line has come after; none for the newest line or an unnamed message.
+pub fn visible_pin(target: Option<i64>, explicit: bool, newest: Option<i64>) -> Option<i64> {
+  match target {
+    Some(id) if explicit || newest != Some(id) => Some(id),
+    _ => None,
+  }
+}
+
 /// The message a round's answer is pinned to (docs/drafting.md, 「The answer is pinned to the message it
 /// answers」): the one the agent named among those it answers; else the oldest of them that asks something of the
 /// agent; else the newest.
@@ -1440,15 +1449,35 @@ impl Conversations {
     }
   }
 
-  // The round's answer pinned to the message it answers among those it answers, where a road can aim at it.
+  // The round's answer pinned to the message it answers among those it answers, where a road can aim at it and
+  // the pin tells the reader which line it answers: an explicit mark, or a message another line has come after.
   async fn pin(&self, chat_id: i64, answered: &[Inbound], named: Option<i64>) {
     let agent = designated(&self.receiver(), self.agent()).await;
+    let explicit = named.is_some_and(|id| answered.iter().any(|message| message.message_id == id));
     let Some(message) = pin_target(answered, named, |message| asks_of(&agent, message)) else {
+      self.reply_target(chat_id, None);
+
       return;
     };
     let pins = self.0.receiver.roads().pinnable(&message.via, message.mode.as_deref()).await;
     let target = (!message.via_reader.unwrap_or(false) && pins).then_some(message.message_id);
 
+    let newest = if !explicit && target.is_some() {
+      rows::recent_messages(self.0.receiver.db(), chat_id, 1, "")
+        .await
+        .ok()
+        .and_then(|mut recent| recent.pop())
+        .map(|newest| newest.message_id)
+    } else {
+      None
+    };
+
+    self.reply_target(chat_id, visible_pin(target, explicit, newest));
+  }
+
+  // The message the next answer is pinned to, where one is: none where the answer is to the newest line or no
+  // road can aim at it.
+  fn reply_target(&self, chat_id: i64, target: Option<i64>) {
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.reply_target = target;
     }
