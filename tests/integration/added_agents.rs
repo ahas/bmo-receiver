@@ -127,6 +127,15 @@ async fn an_added_agents_console_room_is_born_on_the_record_and_its_first_answer
   assert_eq!(receiver.roads().answering(room, None).await, Some(Road::Record));
   assert_eq!(receiver.roads().unasked(room).await, Some(Road::Record));
 
+  // The agency now registers the added agent under its label.
+  front.standing.agency.registering(vec![Agent {
+    name: ADDED.to_owned(),
+    label: Some("Agent D".to_owned()),
+    awake: true,
+    brain_folder: None,
+    row: serde_json::Map::new(),
+  }]);
+
   let sent = send_reply(
     receiver,
     &OutgoingReply {
@@ -146,6 +155,24 @@ async fn an_added_agents_console_room_is_born_on_the_record_and_its_first_answer
       .await,
     1,
     "the first answer is kept in the room"
+  );
+
+  // The answer is the added agent's own: its name, its mark and the number the room gave it.
+  let kept = scratch
+    .texts(&format!(
+      r#"SELECT "sender_name" || '|' || COALESCE("agent_name", '') || '|' || COALESCE("sender_id"::text, '') FROM "messages" WHERE "chat_id" = {room}"#
+    ))
+    .await;
+  let given = scratch
+    .texts(&format!(
+      r#"SELECT "sender_id"::text FROM "provider_users" WHERE "provider" = 'record' AND "user_id" = '{ADDED}'"#
+    ))
+    .await;
+
+  assert_eq!(
+    kept,
+    [format!("Agent D|{ADDED}|{}", given[0])],
+    "the answer stands under the agent's own name"
   );
 }
 

@@ -328,7 +328,8 @@ flowchart TD
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
 - **In a room the console made, the chat agent and each agent added there have numbers of the console's own,**
   given as the rooms are stood up (`POST /companions`), and an agent's words are filed under the number it was
-  given and under its name, so one room holds every speaker apart.
+  given and under its own name, the label its registration carries (the chat agent's, the deployment's sender
+  name), each message naming the agent that said it, so one room holds every speaker apart.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice, the rest notice) is
   the owner's private room, kept in its record and carried to the providers its list names.
 - **Every reading of the owner's room is that one room:** the room the system's notices go to where

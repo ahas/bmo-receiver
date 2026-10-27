@@ -153,13 +153,28 @@ impl Speech {
     voice: Option<ChatVoice>,
   ) -> Result<i64, NotSaid> {
     let roads = &self.units.roads;
-    let numbered = match roads.room_road(chat_id).await {
-      Some(road) => record::agent_number(&self.db, &road, &self.deployment.agent).await?,
+    // The words are the speaking agent's: under its own number in the room, the room's road's or else the
+    // record's, and its own name (docs/receiver.md, 「Identity, and reaching the owner」).
+    let speaker = agent.unwrap_or(&self.deployment.agent);
+    let chat_agent = speaker == self.deployment.agent;
+    let mut numbered = match roads.room_road(chat_id).await {
+      Some(road) => record::agent_number(&self.db, &road, speaker).await?,
       None => None,
     };
+
+    if numbered.is_none() && !chat_agent {
+      numbered = record::agent_number(&self.db, Road::Record.key(), speaker).await?;
+    }
+
     let sender_id = match numbered {
       Some(number) => Some(number),
-      None => roads.identity_in(chat_id).await,
+      None if chat_agent => roads.identity_in(chat_id).await,
+      None => None,
+    };
+    let name = if chat_agent {
+      self.deployment.sender_name.clone()
+    } else {
+      self.label_of(speaker).await
     };
     let voice = voice.and_then(added::voice_key);
     let kept = record::Kept {
@@ -168,7 +183,7 @@ impl Speech {
       reply_to,
       via: Road::Record.key(),
       sender_id,
-      name: &self.deployment.sender_name,
+      name: &name,
       agent,
       voice: voice.as_deref(),
     };
@@ -193,6 +208,17 @@ impl Speech {
     providers::deliver(&self.db, roads, &delivery).await;
 
     Ok(message_id)
+  }
+
+  // An agent's own name: the label its registration carries, its registration name where it carries none.
+  async fn label_of(&self, agent: &str) -> String {
+    let listed = self.units.agency.agents().await.ok();
+
+    listed
+      .and_then(|listed| listed.agents.into_iter().find(|one| one.name == agent))
+      .and_then(|registered| registered.label)
+      .filter(|label| !label.trim().is_empty())
+      .unwrap_or_else(|| agent.to_owned())
   }
 
   async fn sent(&self, key: &str, chat_id: i64, text: &str) -> Result<Option<i64>, NotSaid> {
