@@ -1780,12 +1780,28 @@ export interface components {
              */
             situation: components["schemas"]["Situation"] | null;
             text: string;
+            /**
+             * @description The words heard in a voice note; null on any other message and on one whose recording could not be heard.
+             * @default null
+             */
+            transcript: string | null;
             via: string | null;
             /**
              * @description The voice the send went out in (`bot-account`, `human-avatar`, `human-reader`), set beside `agentName` and
              *     null on a message that came in from a provider.
              */
             voice: string | null;
+            /**
+             * Format: double
+             * @description How long a voice note's recording ran, in seconds; null on any other message.
+             * @default null
+             */
+            voiceSeconds: number | null;
+            /**
+             * @description Whether a voice note was heard (`heard`) or could not be (`failed`); null on any other message.
+             * @default null
+             */
+            voiceState: string | null;
         };
         /** @description What a chat service handed over beside a message, opaque to the receiver. */
         MessageMetadata: {

@@ -251,6 +251,15 @@ pub struct Message {
   /// under one.
   #[serde(default)]
   pub situation: Option<Situation>,
+  /// The words heard in a voice note; null on any other message and on one whose recording could not be heard.
+  #[serde(default)]
+  pub transcript: Option<String>,
+  /// How long a voice note's recording ran, in seconds; null on any other message.
+  #[serde(default)]
+  pub voice_seconds: Option<f64>,
+  /// Whether a voice note was heard (`heard`) or could not be (`failed`); null on any other message.
+  #[serde(default)]
+  pub voice_state: Option<String>,
   pub files: Vec<KeptFile>,
 }
 
