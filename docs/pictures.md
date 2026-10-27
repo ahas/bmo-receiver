@@ -89,6 +89,10 @@ receiver keeps the pictures and decides what a session is shown.
   `GET /people/{personId}/avatar`) and in `GET /avatars`, which lists each subject once, `takenAt` the moment its
   standing picture was taken. `DELETE /avatars/{kind}/{subject}` lets the console-set picture go, so the chat
   service's stands where one is kept. Each change tells the console with `avatars.changed`.
+- **Who may set one** is read off the console relay's `Owner-Key`, the signed-in login's user id, and
+  `Owner-Role`, `administrator` or `member`: an agent's and a room's picture are the administrator's to set or
+  let go; a person's is the administrator's, and any user's whose own senders, as the web unit's account model
+  links them to the user, hold that person. Anyone else is refused 403 `picture-forbidden`.
 
 ## Whether an agent looks
 

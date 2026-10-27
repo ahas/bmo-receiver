@@ -6,6 +6,8 @@ use strum::{IntoStaticStr, VariantNames};
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum AvatarRefusal {
+  #[error("the caller may not set or let go this {kind}'s picture")]
+  PictureForbidden { kind: String },
   #[error("{kind} is none of the kinds a picture is set on: room, person and agent")]
   UnknownKind { kind: String },
   #[error("the form holds no picture")]
@@ -21,6 +23,7 @@ pub enum AvatarRefusal {
 impl AvatarRefusal {
   fn answers(&self) -> StatusCode {
     match self {
+      Self::PictureForbidden { .. } => StatusCode::FORBIDDEN,
       Self::UnknownKind { .. } | Self::NoPictureGiven | Self::NotAPicture => StatusCode::BAD_REQUEST,
       Self::PictureTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
       Self::NoNumber { .. } => StatusCode::NOT_FOUND,

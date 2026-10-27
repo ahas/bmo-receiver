@@ -3,6 +3,7 @@
 //! newer of the two standing; let go, the chat service's stands again.
 
 use axum::extract::{Multipart, Path, State};
+use axum::http::HeaderMap;
 use receiver_codes::AvatarRefusal;
 use receiver_policy::files::FILES;
 use receiver_policy::roads::ROADS;
@@ -96,6 +97,41 @@ async fn subjects(
   }
 }
 
+// Whether the console relay's caller may set the subject's picture: an agent's and a room's the administrator's
+// alone, a person's the administrator's and that of any user whose own senders hold the person.
+async fn allowed(
+  receiver: &Receiver,
+  asked: &HeaderMap,
+  kind: &str,
+  numbers: &[i64],
+) -> Result<(), Refusal> {
+  let header =
+    |name: &str| asked.get(name).and_then(|value| value.to_str().ok()).map(str::trim).unwrap_or_default();
+  let forbidden = || {
+    code(&AvatarRefusal::PictureForbidden {
+      kind: kind.to_owned(),
+    })
+  };
+
+  if header("owner-role") == "administrator" {
+    return Ok(());
+  }
+
+  let user = header("owner-key");
+
+  if kind != "person" || user.is_empty() {
+    return Err(forbidden());
+  }
+
+  let own = receiver.units().web.senders_of_user(user).await.unwrap_or_default();
+
+  if numbers.iter().all(|number| own.contains(number)) {
+    Ok(())
+  } else {
+    Err(forbidden())
+  }
+}
+
 // The picture set on one room or person, filed under the data root's avatars/set folder: when it was set.
 async fn keep(receiver: &Receiver, kind: &str, subject: i64, jpeg: &[u8]) -> Result<i64, Fault> {
   let folder = receiver.data_root().avatars().join("set").join(kind);
@@ -119,10 +155,19 @@ async fn keep(receiver: &Receiver, kind: &str, subject: i64, jpeg: &[u8]) -> Res
 pub async fn set(
   State(served): State<Served>,
   Path((kind, subject)): Path<(String, String)>,
+  asked: HeaderMap,
   form: Multipart,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
+
+  // A room's and an agent's picture are refused to anyone but the administrator before the subject is looked up.
+  if kind != "person" {
+    allowed(&receiver, &asked, &kind, &[]).await?;
+  }
+
   let (kept_as, numbers) = subjects(&receiver, &kind, &subject).await?;
+
+  allowed(&receiver, &asked, &kind, &numbers).await?;
   let jpeg = drawn(picture(form).await?).await?;
   let mut items: Vec<Value> = vec![];
 
@@ -140,9 +185,18 @@ pub async fn set(
 pub async fn unset(
   State(served): State<Served>,
   Path((kind, subject)): Path<(String, String)>,
+  asked: HeaderMap,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
+
+  // A room's and an agent's picture are refused to anyone but the administrator before the subject is looked up.
+  if kind != "person" {
+    allowed(&receiver, &asked, &kind, &[]).await?;
+  }
+
   let (kept_as, numbers) = subjects(&receiver, &kind, &subject).await?;
+
+  allowed(&receiver, &asked, &kind, &numbers).await?;
   let mut items: Vec<Value> = vec![];
 
   for number in numbers {

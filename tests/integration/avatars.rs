@@ -37,8 +37,18 @@ fn form(field: &str, bytes: &[u8]) -> Vec<u8> {
 }
 
 async fn put(front: &Front, path: &str, body: Vec<u8>) -> (StatusCode, Value) {
+  put_as(front, path, body, ADMINISTRATOR).await
+}
+
+// The console relay's caller: the signed-in login's user id and its role.
+const ADMINISTRATOR: (&str, &str) = ("user-1", "administrator");
+const MEMBER: (&str, &str) = ("user-2", "member");
+
+async fn put_as(front: &Front, path: &str, body: Vec<u8>, caller: (&str, &str)) -> (StatusCode, Value) {
   let asked = Request::put(path)
     .header("authorization", format!("Bearer {TOKEN}"))
+    .header("owner-key", caller.0)
+    .header("owner-role", caller.1)
     .header("content-type", "multipart/form-data; boundary=own")
     .body(Body::from(body))
     .unwrap();
@@ -63,6 +73,8 @@ async fn bytes_of(front: &Front, path: &str) -> (StatusCode, Vec<u8>) {
 async fn delete(front: &Front, path: &str) -> (StatusCode, Value) {
   let asked = Request::delete(path)
     .header("authorization", format!("Bearer {TOKEN}"))
+    .header("owner-key", ADMINISTRATOR.0)
+    .header("owner-role", ADMINISTRATOR.1)
     .body(Body::empty())
     .unwrap();
   let answer = front.routes.clone().oneshot(asked).await.unwrap();
@@ -169,5 +181,41 @@ async fn a_picture_set_on_a_room_a_person_or_an_agent_stands_beside_the_handed_o
   assert_eq!(
     put(&front, "/avatars/agent/agent-none", form("picture", &png())).await.1["code"],
     "no-number"
+  );
+}
+
+#[tokio::test]
+async fn a_member_sets_his_own_picture_alone_and_the_administrator_every_one() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  // The member's own sender, as the account model links it to his user.
+  front.standing.web.linking(55, MEMBER.0.to_owned());
+
+  assert_eq!(
+    put_as(&front, "/avatars/person/55", form("picture", &png()), MEMBER).await.0,
+    StatusCode::OK
+  );
+
+  for path in ["/avatars/person/56", "/avatars/room/-100", "/avatars/agent/agent-x"] {
+    let (status, answer) = put_as(&front, path, form("picture", &png()), MEMBER).await;
+
+    assert_eq!(
+      (status, answer["code"].as_str()),
+      (StatusCode::FORBIDDEN, Some("picture-forbidden")),
+      "{path}"
+    );
+  }
+
+  let (status, answer) = put_as(&front, "/avatars/room/-100", form("picture", &png()), ("", "")).await;
+
+  assert_eq!(
+    (status, answer["code"].as_str()),
+    (StatusCode::FORBIDDEN, Some("picture-forbidden")),
+    "no caller named"
+  );
+  assert_eq!(
+    put_as(&front, "/avatars/room/-100", form("picture", &png()), ADMINISTRATOR).await.0,
+    StatusCode::OK
   );
 }
