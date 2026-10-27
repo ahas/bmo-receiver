@@ -5,6 +5,8 @@
 
 use sea_orm::{DatabaseConnection, TransactionTrait};
 
+use receiver_policy::roads::ROADS;
+
 use crate::receiver::{Inbound, News, rows};
 use crate::{Fault, now_ms, one, run};
 
@@ -103,24 +105,28 @@ pub const ROOM_MARK: &str = "record_room_mark";
 /// 「A room's number」): below every room number the store holds anywhere and below the lowest the record ever gave,
 /// which it keeps, so a number once given is never given again.
 pub async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
+  let (top, bottom) = (ROADS.record.rooms_from, ROADS.record.rooms_to);
   let least = one(
     db,
     r#"SELECT MIN("least") AS "least" FROM (
-         SELECT MIN("chat_id") AS "least" FROM "provider_rooms"
-         UNION ALL SELECT MIN("chat_id") FROM "messages"
-         UNION ALL SELECT MIN("chat_id") FROM "chat_titles"
-         UNION ALL SELECT MIN("chat_id") FROM "room_providers"
-         UNION ALL SELECT MIN("chat_id") FROM "bmo_rooms"
+         SELECT MIN("chat_id") AS "least" FROM "provider_rooms" WHERE "chat_id" BETWEEN $2 AND $1
+         UNION ALL SELECT MIN("chat_id") FROM "messages" WHERE "chat_id" BETWEEN $2 AND $1
+         UNION ALL SELECT MIN("chat_id") FROM "chat_titles" WHERE "chat_id" BETWEEN $2 AND $1
+         UNION ALL SELECT MIN("chat_id") FROM "room_providers" WHERE "chat_id" BETWEEN $2 AND $1
+         UNION ALL SELECT MIN("chat_id") FROM "bmo_rooms" WHERE "chat_id" BETWEEN $2 AND $1
        ) AS "held""#,
-    vec![],
+    vec![top.into(), bottom.into()],
   )
   .await?
-  .and_then(|row| row.try_get::<Option<i64>>("", "least").ok().flatten())
-  .unwrap_or(0);
+  .and_then(|row| row.try_get::<Option<i64>>("", "least").ok().flatten());
   let mark = crate::store::settings::get(db, ROOM_MARK)
     .await?
     .and_then(|held| held.trim().parse::<i64>().ok());
-  let next = least.min(mark.unwrap_or(0)).min(0) - 1;
+  let next = least.into_iter().chain(mark).fold(top + 1, i64::min) - 1;
+
+  if next < bottom {
+    return Err(Fault::new(format!("the record's room numbers, {top} down to {bottom}, are spent")));
+  }
 
   crate::store::settings::set(db, ROOM_MARK, &next.to_string()).await?;
 

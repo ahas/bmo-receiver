@@ -7,10 +7,22 @@ in `policy/commands.toml`; each command also has a plain form that is the same i
 
 ## A room's number
 
-- **A room number the record gives is never given again,** to a room standing or one gone: the record numbers a
-  room it stands up, an added agent's console room or the owner's own room among them, below every room number
-  the store holds anywhere — a registration, a title, a message, a list of providers — and below the lowest it
-  ever gave, which it keeps (`record_room_mark` in the settings) so a retired room's number stays retired.
+- **The receiver owns the room numbers below the platforms' own, and gives each allocator a range of its own,** so
+  two never hand out one number: the record keeps -9000000000001 down to -9000999999999, and each chat service
+  that numbers rooms of its own is given the next block of a thousand million, named here:
+
+  | Allocator | Range, from the top down |
+  |---|---|
+  | the record | -9000000000001 to -9000999999999 |
+  | the KakaoTalk provider | -9001000000000 to -9001999999999 |
+  | the next chat service that numbers its own rooms | -9002000000000 to -9002999999999 |
+
+- **A room number given is never given again,** to a room standing or one gone: an allocator numbers within its
+  range, below every number of that range the store holds anywhere — a registration, a title, a message, a list
+  of providers — and below the lowest it ever gave, which it keeps, the record's as `record_room_mark` in the
+  settings, so a retired room's number stays retired. A range spent is refused rather than left.
+- **A number already given keeps its room,** wherever in the band it stands: a room an allocator numbered before
+  its range was named keeps that number, and the record numbers below it.
 
 ## The infrastructure room
 

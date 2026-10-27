@@ -2178,7 +2178,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed */
+            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -2210,7 +2210,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, unknown-kind, no-number, failed */
+            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

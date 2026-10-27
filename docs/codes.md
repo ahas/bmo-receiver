@@ -37,6 +37,7 @@ family. No code carries a sentence in a room's language.
 
 | Code | Status | Fields | When |
 |---|---|---|---|
+| `picture-forbidden` | 403 | `kind` | the caller may not set or let go this subject's picture |
 | `unknown-kind` | 400 | `kind` | the subject's kind is none of `room`, `person` and `agent` |
 | `no-picture-given` | 400 | | the form holds no `picture` |
 | `not-a-picture` | 400 | | the picture cannot be read as one |
@@ -207,7 +208,6 @@ session once the setting has changed, one waiting per setting.
 | `going-down-for-update` | `items` | the service stops for a deployment: a system notice |
 | `going-down` | | the service restarts with no deployment behind it: a system notice |
 | `draw` | `label`, `asked`, `result`, `number`, `seed`, `method`, `answered`, `next` | a fair draw's room line (`docs/random-draw.md`) |
-| `still-working` | | a turn of a round's draft process ran past its bound; said once in the round while the turn goes on (`docs/drafting.md`, 「Time」) |
 
 ## Kinds
 

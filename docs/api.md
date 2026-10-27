@@ -199,8 +199,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `reactions`, each `emoji` with `by`, who put it there (an agent's name or a person's number), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
-  or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set is refused 400 `unknown-kind` for a
-  kind other than the three, 400 `no-picture-given`
+  or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`
+  to a caller the relay's `Owner-Key` and `Owner-Role` do not let set it (`docs/pictures.md`), 400 `unknown-kind`
+  for a kind other than the three, 400 `no-picture-given`
   where the form holds no `picture`, 400 `not-a-picture` where it cannot be read as one, 413 `picture-too-large`
   past `files.toml`'s `largest_bytes`, and an agent standing under no number 404 `no-number`.
 - **`agentName` and `voice`** stand on a send the receiver archived itself, naming the agent whose words these are
@@ -422,7 +423,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
   names of the questions an ordinary and a light turn are asked, in order; `sendFrom`, the question of `rounds`
   from whose answer on a send is read, empty for the first; `lightChars`; `ceilingSeconds`; `turnSeconds`, how
-  long one turn runs before the room is told the agent is still at work, 120 where a set names none;
+  long one turn runs before the journal says it ran long, 120 where a set names none;
   `pastCeiling`, `send` or `skip`; and `source`, `set` where the console set the row and `default` where the
   policy's stands (`docs/drafting.md`, 「The process table」). The page holds the policy's rows in their order,
   each replaced by the console's of the same key, then the console's own keys.

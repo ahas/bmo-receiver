@@ -108,4 +108,25 @@ async fn a_room_number_once_given_is_never_given_again_and_stays_below_every_roo
     first - 1,
     "a retired room's number is never given again"
   );
+
+  // A room another chat service numbered in its own range moves nothing of the record's.
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         VALUES (-9001000000000, 1, 5, 'someone', 1, 'hello', 'road-a')"#,
+      vec![],
+    )
+    .await;
+  assert_eq!(
+    next_room(scratch.db()).await.unwrap(),
+    first - 2,
+    "the record numbers within its own range"
+  );
+}
+
+#[tokio::test]
+async fn the_records_first_room_is_the_top_of_its_range() {
+  let scratch = Scratch::new().await;
+
+  assert_eq!(bmo_receiver::roads::record::next_room(scratch.db()).await.unwrap(), -9_000_000_000_001);
 }

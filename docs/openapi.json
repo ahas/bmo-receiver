@@ -2948,7 +2948,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, unknown-kind, no-number, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, failed"
           }
         },
         "summary": "A picture set from the console let go, so the one its chat service handed over stands.",
@@ -2957,6 +2957,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "picture-forbidden",
           "unknown-kind",
           "no-number",
           "failed"
@@ -3007,7 +3008,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed"
           }
         },
         "summary": "A picture set from the console on a room, a person or an agent, as a form with one picture.",
@@ -3016,6 +3017,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "picture-forbidden",
           "unknown-kind",
           "no-picture-given",
           "not-a-picture",

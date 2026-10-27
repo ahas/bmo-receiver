@@ -401,6 +401,7 @@ pub fn openapi() -> Value {
     vec![(200, json_answer::<Value>(&mut generator))],
     vec![
       "unauthorized",
+      "picture-forbidden",
       "unknown-kind",
       "no-picture-given",
       "not-a-picture",
@@ -418,7 +419,7 @@ pub fn openapi() -> Value {
     vec![name_parameter("kind"), name_parameter("subject")],
     None,
     vec![(200, json_answer::<Value>(&mut generator))],
-    vec!["unauthorized", "unknown-kind", "no-number", "failed"]
+    vec!["unauthorized", "picture-forbidden", "unknown-kind", "no-number", "failed"]
   );
   add!(
     "GET",
