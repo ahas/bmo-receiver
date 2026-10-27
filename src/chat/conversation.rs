@@ -1499,12 +1499,15 @@ impl Conversations {
     };
     let (held_words, mut batch, roads, mut instructions, ids, events, room, first_call, mut held) = taken;
 
-    // The round's privilege is its own words', in any room and whatever an earlier round of the conversation read;
-    // a round of no words, a quiet instruction's, is the owner's in his private room alone (docs/unified-bmo.md).
-    held.all_from_owner = if batch.is_empty() {
+    // The round's privilege is its own people's words', in any room and whatever an earlier round of the
+    // conversation read; an agent's line neither grants nor takes it, and a round of no people's words is the
+    // owner's in his private room alone (docs/unified-bmo.md).
+    let peoples = self.peoples_senders(chat_id, &batch, room).await;
+
+    held.all_from_owner = if peoples.is_empty() {
       room.owner_room
     } else {
-      batch.iter().all(|message| message.sender_id == Some(owner))
+      peoples.iter().all(|sender| *sender == owner)
     };
     let mut via = self.road_of(chat_id, &batch, &roads).await;
 
@@ -2408,6 +2411,37 @@ impl Conversations {
       this.state().folding.remove(&chat_id);
       this.0.receiver.news().end_fold(chat_id);
     });
+  }
+
+  // The senders of a batch's people's words: every message but an agent's line, which the record marks with its
+  // agent, which stands under no sender, or under the agent's own number in the room.
+  async fn peoples_senders(&self, chat_id: i64, batch: &[Inbound], room: Room) -> Vec<i64> {
+    let ids: Vec<sea_orm::Value> = batch.iter().map(|message| message.message_id.into()).collect();
+    let agents: HashSet<i64> = if ids.is_empty() {
+      HashSet::new()
+    } else {
+      let placeholders = (2..ids.len() + 2).map(|n| format!("${n}")).collect::<Vec<_>>().join(", ");
+      let values = std::iter::once(chat_id.into()).chain(ids).collect();
+
+      crate::all(
+        self.0.receiver.db(),
+        &format!(
+          r#"SELECT "message_id" FROM "messages" WHERE "chat_id" = $1 AND "agent_name" IS NOT NULL
+             AND "message_id" IN ({placeholders})"#
+        ),
+        values,
+      )
+      .await
+      .map(|rows| rows.iter().filter_map(|row| row.try_get::<i64>("", "message_id").ok()).collect())
+      .unwrap_or_default()
+    };
+
+    batch
+      .iter()
+      .filter(|message| !agents.contains(&message.message_id))
+      .filter_map(|message| message.sender_id)
+      .filter(|sender| Some(*sender) != room.identity)
+      .collect()
   }
 
   /// The keepalive's touch of the quiet rooms' sessions, on the idle stretch the pass names where it shortens

@@ -255,8 +255,10 @@
 - **The run-privilege mark** at the head of the request (the turn's `privileged`) only says whether all new
   messages this turn are the owner's; it is not a lock. It is read off the words each round itself takes, in
   any room, his private room or not, and whatever an earlier round of the same conversation read, and every
-  question of that round's draft process carries it; a round that takes no words, a quiet instruction's, is
-  the owner's in his private room alone.
+  question of that round's draft process carries it. Only people's words count: a line an agent said, the chat
+  agent's, an added agent's or the receiver's own, neither grants it nor takes it away, so a round whose people's
+  words are all the owner's is his. A round that takes no people's words, a quiet instruction's or agents' lines
+  alone, is the owner's in his private room alone.
 - **The same absolute rules also cover:** not carrying room talk elsewhere; refusing questions about privacy and
   about the system itself; and none of those refusals reaching the owner's own request, by the owner's recorded
   sender, in any room.

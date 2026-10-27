@@ -588,3 +588,84 @@ async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet
   );
   assert_eq!(turns[1].privileged, Some(true), "the owner's own words are privileged in any room");
 }
+
+#[tokio::test]
+async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_his() {
+  const LAB: i64 = -9_000_000_000_003;
+  const AGENT_LINE: &str = "an added agent's answer in the room";
+
+  let scratch = Scratch::new().await;
+
+  crate::common::session::no_drafting(scratch.db()).await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").holding(&[LAB]).owners(OWNER));
+
+  documents(data.path());
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, ANSWER));
+  let receiver = standing.receiver.clone();
+  // The queue gathers long enough for the agent's line and the owner's words to go in one round, as they did live.
+  let gathering = Timings {
+    queue: Duration::from_millis(400),
+    ..timings()
+  };
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), gathering, AGENT);
+  let lab = Room {
+    owner_room: false,
+    identity: Some(7),
+    private_to: None,
+  };
+
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+
+  // The owner opens the room's conversation, and its round answers.
+  receiver
+    .message(
+      &owners_words_in(LAB, 1, &format!("{ADDRESS}, are you there?")),
+      &Context::default(),
+      lab,
+    )
+    .await
+    .unwrap();
+  until("the first round", || {
+    session.prompts().len() == 1 && runner.idle() && !session.working()
+  })
+  .await;
+
+  // While it stands, an added agent's answer is filed in the room and the owner speaks again: one round takes both.
+  let line = receiver.speech().kept(LAB, AGENT_LINE, None, Some("agent-b"), None).await.unwrap();
+
+  receiver.filed(LAB, line, "record", lab).await.unwrap();
+  receiver
+    .message(
+      &owners_words_in(LAB, 3, &format!("{ADDRESS}, file this as an item.")),
+      &Context::default(),
+      lab,
+    )
+    .await
+    .unwrap();
+  until("the owner's round", || {
+    session.prompts().iter().any(|prompt| prompt.contains("file this as an item"))
+      && runner.idle()
+      && !session.working()
+  })
+  .await;
+
+  let turns = session.turns.lock().unwrap().clone();
+  let owners = turns.iter().find(|turn| turn.prompt.contains("file this as an item")).unwrap();
+
+  assert!(
+    owners.prompt.contains(AGENT_LINE),
+    "the round took the agent's line with the owner's words"
+  );
+  assert_eq!(
+    owners.privileged,
+    Some(true),
+    "an agent's line neither grants nor takes the owner's privilege"
+  );
+}
