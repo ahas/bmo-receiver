@@ -46,6 +46,10 @@ pub struct MessageQuery {
   #[serde(default)]
   agent_name: Option<String>,
 
+  /// The text the messages' words carry, for a search in the room.
+  #[serde(default)]
+  q: Option<String>,
+
   /// A moment in epoch milliseconds: only messages sent at or after it.
   #[serde(default)]
   since: Option<i64>,
@@ -197,20 +201,23 @@ pub async fn messages(State(served): State<Served>, Path(room): Path<i64>, raw: 
       answered(json!({ "items": listed(kept), "more": more }))
     }
     _ => {
-      let found = match (asked.before, asked.after) {
-        (Some(before), _) => reads::before(receiver.db(), room, before, bound).await,
-        (None, Some(after)) => reads::after(receiver.db(), room, after, bound).await,
-        (None, None) => reads::latest(receiver.db(), room, bound).await,
+      let searched = asked.q.as_deref().map(str::trim).filter(|text| !text.is_empty());
+      let found = match (searched, asked.before, asked.after) {
+        (Some(text), before, _) => reads::matching(receiver.db(), room, text, before, bound).await,
+        (None, Some(before), _) => reads::before(receiver.db(), room, before, bound).await,
+        (None, None, Some(after)) => reads::after(receiver.db(), room, after, bound).await,
+        (None, None, None) => reads::latest(receiver.db(), room, bound).await,
       }
       .map_err(store)?;
       let more = i64::try_from(found.len()).unwrap_or(0) == bound;
-      let mut kept: Vec<reads::Page> = if asked.after.is_some() && asked.before.is_none() {
-        found.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect()
-      } else if more {
-        found.into_iter().skip(1).collect()
-      } else {
-        found
-      };
+      let mut kept: Vec<reads::Page> =
+        if searched.is_none() && asked.after.is_some() && asked.before.is_none() {
+          found.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect()
+        } else if more {
+          found.into_iter().skip(1).collect()
+        } else {
+          found
+        };
       match asked.by.as_deref() {
         Some("any") => {}
         Some("agent") => {

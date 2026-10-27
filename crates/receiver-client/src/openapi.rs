@@ -259,7 +259,7 @@ pub fn openapi() -> Value {
     "/rooms/{roomId}/messages",
     "messages",
     "Messages",
-    "A room's messages, by a cursor and a limit, or an agent's unread or marked ones.",
+    "A room's messages, by a cursor and a limit, those carrying a text, or an agent's unread or marked ones.",
     vec![
       path_parameter("roomId"),
       parameter("before", "integer", false),
@@ -269,7 +269,8 @@ pub fn openapi() -> Value {
       parameter("since", "integer", false),
       parameter("marked", "boolean", false),
       parameter("unread", "boolean", false),
-      parameter("by", "string", false)
+      parameter("by", "string", false),
+      parameter("q", "string", false)
     ],
     None,
     vec![(200, json_answer::<Page<Message>>(&mut generator))],

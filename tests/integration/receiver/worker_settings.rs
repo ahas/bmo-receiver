@@ -272,3 +272,57 @@ async fn a_page_of_a_room_walks_the_line_by_the_cursor_the_reader_holds() {
   assert_eq!(one["sentAt"], 3_000);
   assert_eq!(one["text"], "words");
 }
+
+#[tokio::test]
+async fn a_text_query_finds_the_rooms_messages_that_carry_it_newest_page_first() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  // The Korean words stand in a fixture: the first message's, the fourth's and the text searched for.
+  let korean =
+    std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/search-korean.txt"))
+      .unwrap();
+  let korean: Vec<&str> = korean.lines().collect();
+  let (first_words, fourth_words, searched) = (korean[0], korean[1], korean[2]);
+
+  for (message, text) in [
+    (1, first_words),
+    (2, "something else"),
+    (3, "The Meeting moved"),
+    (4, fourth_words),
+    (5, "50% off"),
+  ] {
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
+           VALUES (7, $1, $2, 'someone', $3, $4)"#,
+        vec![message.into(), OWNER.into(), (1_000 + message).into(), text.into()],
+      )
+      .await;
+  }
+
+  let ids = |page: &serde_json::Value| -> Vec<i64> {
+    page["items"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .filter_map(|item| item["id"].as_i64())
+      .collect()
+  };
+  let (_, korean) = get(&front, &format!("/rooms/7/messages?q={}&limit=10", urlencode(searched))).await;
+  let (_, english) = get(&front, "/rooms/7/messages?q=meeting&limit=10").await;
+  let (_, literal) = get(&front, &format!("/rooms/7/messages?q={}&limit=10", urlencode("%"))).await;
+  let (_, first) = get(&front, &format!("/rooms/7/messages?q={}&limit=1", urlencode(searched))).await;
+  let (_, older) =
+    get(&front, &format!("/rooms/7/messages?q={}&limit=1&before=4", urlencode(searched))).await;
+
+  assert_eq!(ids(&korean), [1, 4], "the words that carry the text, oldest first in the page");
+  assert_eq!(ids(&english), [3], "case set aside");
+  assert_eq!(ids(&literal), [5], "the text read as given, no pattern");
+  assert_eq!((ids(&first), first["more"].as_bool()), (vec![4], Some(true)), "the newest page first");
+  assert_eq!(ids(&older), [1], "walked by before");
+}
+
+fn urlencode(text: &str) -> String {
+  text.bytes().map(|byte| format!("%{byte:02X}")).collect()
+}

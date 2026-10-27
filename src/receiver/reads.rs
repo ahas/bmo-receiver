@@ -392,6 +392,36 @@ pub async fn latest(db: &DatabaseConnection, chat_id: i64, count: i64) -> Result
 }
 
 /// The messages of a room before the cursor message the reader holds, newest first, at most `count` of them.
+/// The room's messages whose words carry a text, case set aside and the text read as given, before a message where
+/// a cursor names one, at most `count` of the newest of them, oldest first.
+pub async fn matching(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  text: &str,
+  cursor: Option<i64>,
+  count: i64,
+) -> Result<Vec<Page>, Fault> {
+  let cursor_clause = if cursor.is_some() { format!("AND {BEFORE_CURSOR}") } else { String::new() };
+  let sql = format!(
+    r#"SELECT * FROM (SELECT * FROM "messages" "m" WHERE "m"."chat_id" = $1 {cursor_clause}
+         AND strpos(lower("m"."text"), lower($3)) > 0
+         ORDER BY "m"."sent_at" DESC, "m"."rowid" DESC LIMIT $4) "l"
+       ORDER BY "l"."sent_at", "l"."rowid""#
+  );
+
+  Ok(
+    all(
+      db,
+      &sql,
+      vec![chat_id.into(), cursor.unwrap_or_default().into(), text.into(), count.into()],
+    )
+    .await?
+    .iter()
+    .map(Page::of)
+    .collect::<Result<_, _>>()?,
+  )
+}
+
 pub async fn before(
   db: &DatabaseConnection,
   chat_id: i64,

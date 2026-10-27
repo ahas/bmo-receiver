@@ -178,7 +178,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `GET /rooms/{roomId}/messages` | `before`, `after`, `limit`, `agentName`, `since`, `marked`, `unread`, `by` | a page of `Message` |
+| `GET /rooms/{roomId}/messages` | `before`, `after`, `limit`, `agentName`, `since`, `marked`, `unread`, `by`, `q` | a page of `Message` |
 | `GET /rooms/{roomId}/messages/{messageId}` | | one `Message` |
 | `GET /rooms/{roomId}/messages/{messageId}/metadata` | | `metadata`, what the chat service handed over beside it, or null |
 | `GET /rooms/{roomId}/messages/{messageId}/sender-is-owner` | | `owner` |
@@ -193,6 +193,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `PUT /avatars/{kind}/{subject}` | a form with one `picture`; `kind` is `room`, `person` or `agent` | `items`, each `kind`, `id` and `takenAt`: the picture set, under every number the agent stands under for an agent |
 | `DELETE /avatars/{kind}/{subject}` | | `items`, each `kind` and `id` whose console-set picture went |
 
+- **`q` searches the room:** the page holds only the messages whose words carry the text, case set aside and
+  read as given (no pattern), newest page first and walked by `before`, each in the one message shape; `by`
+  narrows it as it narrows any page, and a deleted message's cleared words carry nothing.
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
   `kind` (`sticker`, or null for any other), `editedAt`, `deletedAt` and `pinnedAt` (epoch milliseconds, or null),

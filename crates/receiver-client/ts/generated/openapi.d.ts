@@ -665,7 +665,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A room's messages, by a cursor and a limit, or an agent's unread or marked ones. */
+        /** A room's messages, by a cursor and a limit, those carrying a text, or an agent's unread or marked ones. */
         get: operations["messages"];
         put?: never;
         post?: never;
@@ -3585,6 +3585,7 @@ export interface operations {
                 marked?: boolean;
                 unread?: boolean;
                 by?: string;
+                q?: string;
             };
             header?: never;
             path: {
