@@ -31,6 +31,8 @@ struct Head {
   path: String,
   chat: i64,
   version: String,
+  #[serde(default)]
+  holds: Option<String>,
   // Read only so a head naming a person by anything but a number is no head.
   #[serde(default, rename = "person")]
   _person: Option<i64>,
@@ -187,6 +189,14 @@ pub fn states(prompt: &str, loaded: &HashMap<String, String>) -> HashMap<String,
   once_entries(prompt, loaded)
     .into_iter()
     .map(|(head, held)| (head.path, if held { State::Held } else { State::Attached }))
+    .collect()
+}
+
+/// What each wrapped document of a prompt holds, where its head names it: by its path.
+pub fn core_names(prompt: &str) -> HashMap<String, String> {
+  once_entries(prompt, &HashMap::new())
+    .into_iter()
+    .filter_map(|(head, _)| head.holds.map(|holds| (head.path, holds)))
     .collect()
 }
 

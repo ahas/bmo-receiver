@@ -339,6 +339,7 @@ impl Carry {
     let before = super::draft::Before {
       session: Some(session.id.clone()),
       core: marked.clone(),
+      names: super::context::core_names(&asking.prompt),
       loads: loaded,
     };
     // A new session's first turn goes in one order: the handoff, then the room and its words, then the brain, walked

@@ -15,6 +15,7 @@ mod figures;
 mod handoffs;
 mod hooks;
 mod instructions;
+mod message_acts;
 mod message_files;
 mod openings;
 mod owner_words;
@@ -34,7 +35,7 @@ use axum::{
   middleware::{Next, from_fn_with_state},
   response::{IntoResponse, Json, Response},
   routing::MethodRouter,
-  routing::{delete, get, post, put},
+  routing::{delete, get, patch, post, put},
 };
 use headers::authorization::Bearer;
 use headers::{Authorization, HeaderMapExt};
@@ -125,6 +126,18 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/people/{personId}/avatar", get(message_files::person_avatar)),
     ("PUT", "/avatars/{kind}/{subject}", put(avatars::set)),
     ("POST", "/rooms/{roomId}/messages/{messageId}/forwards", post(say::forward)),
+    ("GET", "/rooms/{roomId}/pins", get(message_acts::pins)),
+    ("PUT", "/rooms/{roomId}/messages/{messageId}/reactions/mine", put(message_acts::react)),
+    (
+      "DELETE",
+      "/rooms/{roomId}/messages/{messageId}/reactions/mine",
+      delete(message_acts::unreact),
+    ),
+    ("PUT", "/rooms/{roomId}/messages/{messageId}/pin", put(message_acts::pin)),
+    ("PATCH", "/rooms/{roomId}/messages/{messageId}", patch(message_acts::edit)),
+    ("DELETE", "/rooms/{roomId}/messages/{messageId}", delete(message_acts::delete)),
+    ("GET", "/stickers", get(message_acts::stickers)),
+    ("POST", "/rooms/{roomId}/stickers", post(message_acts::sticker)),
     ("DELETE", "/avatars/{kind}/{subject}", delete(avatars::unset)),
     ("GET", "/rooms/{roomId}/figures", get(figures::figures)),
     ("GET", "/rooms/{roomId}/window", get(console::room_window)),

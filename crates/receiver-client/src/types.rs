@@ -171,6 +171,42 @@ pub struct KeptFile {
 }
 
 /// One message, wherever it is answered.
+/// A reaction the signed-in person puts on a message, by its emoji.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Reacting {
+  pub emoji: String,
+}
+
+/// A pin the signed-in person sets on a message, or takes off.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Pinning {
+  pub on: bool,
+}
+
+/// The new words of the signed-in person's own message.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Editing {
+  pub text: String,
+}
+
+/// A sticker of the record's set, by its emoji: one the set lists, or one the signed-in person sends.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Sticker {
+  pub emoji: String,
+}
+
+/// The stickers the record keeps.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Stickers {
+  pub items: Vec<Sticker>,
+}
+
+/// A room's pinned messages, newest pin first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Pins {
+  pub items: Vec<Message>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
@@ -874,10 +910,14 @@ pub struct DraftRound {
 #[serde(rename_all = "camelCase")]
 pub struct DraftRead {
   pub path: String,
-  /// The index's words for it, where the gate's index lists it.
+  /// What it holds: the index's words for it where the gate's index lists it, else the name it went in with.
   pub holds: Option<String>,
+  /// The brain memory it is, where it is one.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub memory_id: Option<i64>,
   /// `attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session
-  /// holding that version) or `read` (a piece the agent read itself through the index during the round).
+  /// holding that version, or a piece the agent read again through the index at a version the session already
+  /// held) or `read` (a piece the agent read itself through the index during the round at a version new to it).
   pub how: String,
 }
 

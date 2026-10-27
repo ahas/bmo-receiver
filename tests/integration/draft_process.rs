@@ -858,6 +858,7 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
     text: text.to_owned(),
     source,
     fragment: None,
+    holds: None,
   };
   let load = |path: &str, version: &str| Load {
     path: path.to_owned(),
@@ -870,16 +871,38 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
   ];
   round.standing.gate.index.lock().unwrap().insert(
     OWNER,
-    vec![IndexGroup {
-      group: "knowledge".to_owned(),
-      unread: 1,
-      hint: None,
-      entries: vec![IndexEntry {
-        slug: "plans".to_owned(),
-        holds: "the plan for the week".to_owned(),
-        path: "knowledge/plans".to_owned(),
-      }],
-    }],
+    vec![
+      IndexGroup {
+        group: "knowledge".to_owned(),
+        unread: 1,
+        hint: None,
+        entries: vec![
+          IndexEntry {
+            slug: "plans".to_owned(),
+            holds: "the plan for the week".to_owned(),
+            path: "knowledge/plans".to_owned(),
+            memory_id: None,
+          },
+          IndexEntry {
+            slug: "older".to_owned(),
+            holds: "what was planned before".to_owned(),
+            path: "knowledge/older".to_owned(),
+            memory_id: Some(31),
+          },
+        ],
+      },
+      IndexGroup {
+        group: "room-memories".to_owned(),
+        unread: 1,
+        hint: None,
+        entries: vec![IndexEntry {
+          slug: "memory-7".to_owned(),
+          holds: "a promise to keep".to_owned(),
+          path: "memories/42/memory-7".to_owned(),
+          memory_id: None,
+        }],
+      },
+    ],
   );
   // The session already holds the person's sheet head at this version, and an earlier piece it read.
   round.standing.agency.loads.lock().unwrap().insert(
@@ -902,6 +925,29 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
     .get_mut(SESSION)
     .unwrap()
     .push(load("knowledge/plans", "v1"));
+  // It reads again a piece the session held before the round, and reads a memory, both logged by its run.
+  round
+    .standing
+    .agency
+    .loads
+    .lock()
+    .unwrap()
+    .get_mut(SESSION)
+    .unwrap()
+    .push(load("memories/42/memory-7", "v1"));
+
+  for (at, input) in [
+    serde_json::json!({ "group": "knowledge", "slug": "older" }),
+    serde_json::json!({ "group": "room-memories", "slug": "memory-7" }),
+  ]
+  .into_iter()
+  .enumerate()
+  {
+    let line = serde_json::json!({ "id": at, "kind": "tool", "name": "piece", "text": input.to_string() });
+
+    round.session.logged.lock().unwrap().push(line.as_object().unwrap().clone());
+  }
+
   round.session.let_go();
   round.ended(1).await;
 
@@ -911,11 +957,14 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
   assert_eq!(
     reads,
     serde_json::json!([
-      {"path": "memories/42", "holds": null, "how": "attached"},
-      {"path": "rooms/42/people/42/sheet.md", "holds": null, "how": "held"},
+      {"path": "memories/42", "holds": "the room's memories now due", "how": "attached"},
+      {"path": "rooms/42/people/42/sheet.md", "holds": "a person's sheet", "how": "held"},
+      {"path": "knowledge/older", "holds": "what was planned before", "memoryId": 31, "how": "held"},
       {"path": "knowledge/plans", "holds": "the plan for the week", "how": "read"},
+      {"path": "memories/42/memory-7", "holds": "a promise to keep", "memoryId": 7, "how": "read"},
     ]),
-    "the core first, then what the agent read itself, named by the index; what it held before is no read"
+    "the core first, named as it went in, then what the agent read itself, named by the index: a piece it held \
+     before and read again stands held, a piece it held and did not read again stands nowhere"
   );
 
   let others = round

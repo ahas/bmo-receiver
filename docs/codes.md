@@ -33,6 +33,16 @@ family. No code carries a sentence in a room's language.
 | `not-answerer` | 409 | `agent`, `room` | the calling agent does not answer in the consult room |
 | `no-agent` | 400 | | the call was made outside any agent's turn |
 
+### MessageActRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `no-caller` | 403 | | the relay names no user, or the user holds no sender |
+| `message-unknown` | 404 | `room`, `message` | the room keeps no such message |
+| `message-deleted` | 409 | `room`, `message` | the message was deleted |
+| `message-forbidden` | 403 | `room`, `message` | another person's message to edit or delete |
+| `unknown-sticker` | 400 | `emoji` | the record's sticker set holds no such emoji |
+
 ### AvatarRefusal
 
 | Code | Status | Fields | When |

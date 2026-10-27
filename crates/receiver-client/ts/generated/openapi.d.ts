@@ -686,10 +686,12 @@ export interface paths {
         get: operations["message"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** The signed-in person's own message deleted, or any by the administrator. */
+        delete: operations["deleteAsMe"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** The signed-in person's own message edited. */
+        patch: operations["editAsMe"];
         trace?: never;
     };
     "/rooms/{roomId}/messages/{messageId}/files": {
@@ -772,6 +774,41 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/messages/{messageId}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A message pinned or unpinned by the signed-in person. */
+        put: operations["pinAsMe"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/messages/{messageId}/reactions/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** The signed-in person's reaction put on a message. */
+        put: operations["reactAsMe"];
+        post?: never;
+        /** The signed-in person's reaction taken off a message. */
+        delete: operations["unreactAsMe"];
         options?: never;
         head?: never;
         patch?: never;
@@ -897,6 +934,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/pins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A room's pinned messages, newest pin first. */
+        get: operations["pins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/providers": {
         parameters: {
             query?: never;
@@ -979,6 +1033,23 @@ export interface paths {
         get: operations["spokeBetween"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/stickers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A sticker of the record's set sent as the signed-in person. */
+        post: operations["stickerAsMe"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1081,6 +1152,23 @@ export interface paths {
         put?: never;
         /** A send carried as its asker, answered with its lines or its refusal. */
         post: operations["send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stickers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The stickers the record keeps, each by its emoji. */
+        get: operations["stickers"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1383,13 +1471,19 @@ export interface components {
         };
         /** @description One thing a round read from the brain (docs/drafting.md, 「The round log」). */
         DraftRead: {
-            /** @description The index's words for it, where the gate's index lists it. */
+            /** @description What it holds: the index's words for it where the gate's index lists it, else the name it went in with. */
             holds: string | null;
             /**
              * @description `attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session
-             *     holding that version) or `read` (a piece the agent read itself through the index during the round).
+             *     holding that version, or a piece the agent read again through the index at a version the session already
+             *     held) or `read` (a piece the agent read itself through the index during the round at a version new to it).
              */
             how: string;
+            /**
+             * Format: int64
+             * @description The brain memory it is, where it is one.
+             */
+            memoryId?: number | null;
             path: string;
         };
         /** @description One turn of a round's draft process, or its end. */
@@ -1431,6 +1525,10 @@ export interface components {
              * @default []
              */
             reads: components["schemas"]["DraftRead"][];
+        };
+        /** @description The new words of the signed-in person's own message. */
+        Editing: {
+            text: string;
         };
         /** @description A room's figures. */
         Figures: {
@@ -1598,7 +1696,6 @@ export interface components {
             queued: components["schemas"]["QueuedMessage"][];
             turns: unknown[];
         };
-        /** @description One message, wherever it is answered. */
         Message: {
             /**
              * @description The registration name of the agent whose words these are, set on a send the receiver archived itself and
@@ -1867,6 +1964,14 @@ export interface components {
         PinnedRooms: {
             roomIds: number[];
         };
+        /** @description A pin the signed-in person sets on a message, or takes off. */
+        Pinning: {
+            on: boolean;
+        };
+        /** @description A room's pinned messages, newest pin first. */
+        Pins: {
+            items: components["schemas"]["Message"][];
+        };
         /** @description The body `POST /promise-readings` takes. */
         PromiseAsk: {
             text: string;
@@ -1915,6 +2020,13 @@ export interface components {
              * @description Epoch milliseconds.
              */
             since: number;
+        };
+        /**
+         * @description One message, wherever it is answered.
+         *     A reaction the signed-in person puts on a message, by its emoji.
+         */
+        Reacting: {
+            emoji: string;
         };
         /** @description A reaction the record keeps on a message: its emoji and who put it there, an agent's name or a person's number. */
         Reaction: {
@@ -2070,6 +2182,14 @@ export interface components {
             provider: string;
             /** @description The room's title; a group's, which a group needs. */
             title?: string | null;
+        };
+        /** @description A sticker of the record's set, by its emoji: one the set lists, or one the signed-in person sends. */
+        Sticker: {
+            emoji: string;
+        };
+        /** @description The stickers the record keeps. */
+        Stickers: {
+            items: components["schemas"]["Sticker"][];
         };
         /** @description A talk's topic and what the owner says. */
         Talk: {
@@ -3682,6 +3802,74 @@ export interface operations {
             };
         };
     };
+    deleteAsMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, no-caller, message-unknown, message-deleted, message-forbidden, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    editAsMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Editing"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     messageFiles: {
         parameters: {
             query?: never;
@@ -3848,6 +4036,110 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, not-found */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    pinAsMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Pinning"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    reactAsMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reacting"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    unreactAsMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, no-caller, message-unknown, message-deleted, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4132,6 +4424,37 @@ export interface operations {
             };
         };
     };
+    pins: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pins"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     roomProviders: {
         parameters: {
             query?: never;
@@ -4396,6 +4719,41 @@ export interface operations {
             };
         };
     };
+    stickerAsMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Sticker"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, unknown-sticker, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     roomTitle: {
         parameters: {
             query?: never;
@@ -4578,6 +4936,35 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    stickers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stickers"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -785,6 +785,123 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "not-found", "conflict", "upstream-failed", "failed"]
   );
   add!(
+    "GET",
+    "/rooms/{roomId}/pins",
+    "pins",
+    "Messages",
+    "A room's pinned messages, newest pin first.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<Pins>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/messages/{messageId}/reactions/mine",
+    "reactAsMe",
+    "Messages",
+    "The signed-in person's reaction put on a message.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    Some(generator.subschema_for::<Reacting>()),
+    vec![(200, json_answer::<Message>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "no-caller",
+      "message-unknown",
+      "message-deleted",
+      "failed"
+    ]
+  );
+  add!(
+    "DELETE",
+    "/rooms/{roomId}/messages/{messageId}/reactions/mine",
+    "unreactAsMe",
+    "Messages",
+    "The signed-in person's reaction taken off a message.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, json_answer::<Message>(&mut generator))],
+    vec!["unauthorized", "no-caller", "message-unknown", "message-deleted", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/messages/{messageId}/pin",
+    "pinAsMe",
+    "Messages",
+    "A message pinned or unpinned by the signed-in person.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    Some(generator.subschema_for::<Pinning>()),
+    vec![(200, json_answer::<Message>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "no-caller",
+      "message-unknown",
+      "message-deleted",
+      "failed"
+    ]
+  );
+  add!(
+    "PATCH",
+    "/rooms/{roomId}/messages/{messageId}",
+    "editAsMe",
+    "Messages",
+    "The signed-in person's own message edited.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    Some(generator.subschema_for::<Editing>()),
+    vec![(200, json_answer::<Message>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "no-caller",
+      "message-unknown",
+      "message-deleted",
+      "message-forbidden",
+      "failed"
+    ]
+  );
+  add!(
+    "DELETE",
+    "/rooms/{roomId}/messages/{messageId}",
+    "deleteAsMe",
+    "Messages",
+    "The signed-in person's own message deleted, or any by the administrator.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    None,
+    vec![(200, json_answer::<Message>(&mut generator))],
+    vec![
+      "unauthorized",
+      "no-caller",
+      "message-unknown",
+      "message-deleted",
+      "message-forbidden",
+      "failed"
+    ]
+  );
+  add!(
+    "GET",
+    "/stickers",
+    "stickers",
+    "Messages",
+    "The stickers the record keeps, each by its emoji.",
+    vec![],
+    None,
+    vec![(200, json_answer::<Stickers>(&mut generator))],
+    vec!["unauthorized"]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/stickers",
+    "stickerAsMe",
+    "Messages",
+    "A sticker of the record's set sent as the signed-in person.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<Sticker>()),
+    vec![(201, json_answer::<Message>(&mut generator))],
+    vec!["unauthorized", "bad-request", "no-caller", "unknown-sticker", "failed"]
+  );
+  add!(
     "POST",
     "/rooms/{roomId}/messages/{messageId}/forwards",
     "forward",

@@ -27,6 +27,8 @@ pub struct Record {
   /// The range of room numbers the record gives, from the top down.
   pub rooms_from: i64,
   pub rooms_to: i64,
+  /// The stickers the record keeps, each by its emoji.
+  pub stickers: Vec<String>,
   /// What a turn answering into it is told of who reads it.
   pub shows: String,
   pub document_kept: String,

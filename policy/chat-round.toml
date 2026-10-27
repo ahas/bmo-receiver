@@ -142,6 +142,7 @@ lookback = 400
 line_chars = 600
 ceiling_chars = 12000
 path = "threads/user-{user}"
+holds = "this person's thread from the group rooms they are in"
 heading = "What this person and you said to each other in the group rooms they are in, over the last seven days: their own words and your answers to them, and nobody else's. Continue it here, with them; it is said in no other room."
 room = "[room {room}]"
 line = "{at} {who}: {text}"
@@ -244,6 +245,18 @@ lead = "The owner typed this turn's line straight into this program rather than 
 # follows on from, in characters, stands in front of it.
 [reference]
 answered_chars = 300
+
+# What a round's reads name a piece of the turn's core by where neither the gate's index nor the gate names it, by
+# the gate's word for the piece's sort (docs/drafting.md, 「The round log」).
+[reference.holds]
+document = "a reference document"
+person = "a person's sheet"
+rule = "a room rule"
+situation = "a situation rule"
+knowledge = "a piece of knowledge"
+memory = "the room's memories now due"
+room = "the room"
+archive = "the room's archive"
 
 # The agent's own judgement that opens a round whose every message reached it on its open window alone
 # (docs/wake.md, 「The room's queue and the round」): the head and the question, which together are the draft

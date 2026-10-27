@@ -50,6 +50,19 @@ export type DraftProcess = Schemas["DraftProcess"];
 export type DraftProcessSet = Schemas["DraftProcessSet"];
 export type DraftQuestion = Schemas["DraftQuestion"];
 export type DraftQuestionSet = Schemas["DraftQuestionSet"];
+export type Pins = Schemas["Pins"];
+export type Sticker = Schemas["Sticker"];
+export type Stickers = Schemas["Stickers"];
+
+/** Who the console relay names as acting: the login's user id and its role (docs/api.md, 「Messages」). */
+export interface Caller {
+  key: string;
+  role: "administrator" | "member";
+}
+
+function callerHeaders(caller: Caller) {
+  return { "Owner-Key": caller.key, "Owner-Role": caller.role };
+}
 export type Page<T> = { items: T[]; more: boolean };
 
 /** A refusal or failure the receiver answered, in the common error shape. */
@@ -137,6 +150,80 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(
         await client.GET("/rooms/{roomId}/messages/{messageId}", {
           params: { path: { roomId, messageId } },
+        }),
+      );
+    },
+
+    /** `GET /rooms/{roomId}/pins`. */
+    async pins(roomId: number): Promise<Pins> {
+      return answered(await client.GET("/rooms/{roomId}/pins", { params: { path: { roomId } } }));
+    },
+
+    /** `PUT /rooms/{roomId}/messages/{messageId}/reactions/mine`, as the caller. */
+    async react(caller: Caller, roomId: number, messageId: number, emoji: string): Promise<Message> {
+      return answered(
+        await client.PUT("/rooms/{roomId}/messages/{messageId}/reactions/mine", {
+          params: { path: { roomId, messageId } },
+          headers: callerHeaders(caller),
+          body: { emoji },
+        }),
+      );
+    },
+
+    /** `DELETE /rooms/{roomId}/messages/{messageId}/reactions/mine`, as the caller. */
+    async unreact(caller: Caller, roomId: number, messageId: number): Promise<Message> {
+      return answered(
+        await client.DELETE("/rooms/{roomId}/messages/{messageId}/reactions/mine", {
+          params: { path: { roomId, messageId } },
+          headers: callerHeaders(caller),
+        }),
+      );
+    },
+
+    /** `PUT /rooms/{roomId}/messages/{messageId}/pin`, as the caller. */
+    async pin(caller: Caller, roomId: number, messageId: number, on: boolean): Promise<Message> {
+      return answered(
+        await client.PUT("/rooms/{roomId}/messages/{messageId}/pin", {
+          params: { path: { roomId, messageId } },
+          headers: callerHeaders(caller),
+          body: { on },
+        }),
+      );
+    },
+
+    /** `PATCH /rooms/{roomId}/messages/{messageId}`, as the caller. */
+    async editMessage(caller: Caller, roomId: number, messageId: number, text: string): Promise<Message> {
+      return answered(
+        await client.PATCH("/rooms/{roomId}/messages/{messageId}", {
+          params: { path: { roomId, messageId } },
+          headers: callerHeaders(caller),
+          body: { text },
+        }),
+      );
+    },
+
+    /** `DELETE /rooms/{roomId}/messages/{messageId}`, as the caller. */
+    async deleteMessage(caller: Caller, roomId: number, messageId: number): Promise<Message> {
+      return answered(
+        await client.DELETE("/rooms/{roomId}/messages/{messageId}", {
+          params: { path: { roomId, messageId } },
+          headers: callerHeaders(caller),
+        }),
+      );
+    },
+
+    /** `GET /stickers`. */
+    async stickers(): Promise<Stickers> {
+      return answered(await client.GET("/stickers"));
+    },
+
+    /** `POST /rooms/{roomId}/stickers`, as the caller. */
+    async sendSticker(caller: Caller, roomId: number, emoji: string): Promise<Message> {
+      return answered(
+        await client.POST("/rooms/{roomId}/stickers", {
+          params: { path: { roomId } },
+          headers: callerHeaders(caller),
+          body: { emoji },
         }),
       );
     },

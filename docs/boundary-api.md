@@ -191,8 +191,8 @@ receiver hands it the turn's envelope and the words on their way in and out, eve
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `records` | `entries`, each `path`, `text` and `source`: what attaches with no pick, which the gate hands the brain to count; the receiver puts each in the turn whole, as the turn's core |
-| a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`; the receiver reads `group`, `unread` and `hint` into the turn's index and the walk |
+| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `records` | `entries`, each `path`, `text`, `source` and `holds?`: what attaches with no pick, which the gate hands the brain to count; the receiver puts each in the turn whole, as the turn's core |
+| a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`, each `slug`, `holds`, `path` and `memoryId?`; the receiver reads `group`, `unread` and `hint` into the turn's index and the walk, and an entry's `slug`, `holds`, `path` and `memoryId` into a round's reads (`docs/drafting.md`, 「The round log」) |
 | a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |
 | a round's judgements attached | `POST /judgements/attached` | `roomId`, `messageId`, `since` in epoch milliseconds | 204 |
 
@@ -341,6 +341,11 @@ Statements the receiver makes that a sibling's document does not yet match, each
   `POST /rooms/owner-spoke`, `POST /people/names`, `POST /promises/waits`, `POST /rooms/own-number` and
   `POST /owner/notice` answer 404 `no-route`, and the message read carries no snake_case `sent_at`. The gate's
   port asks those routes and reads those fields until it moves onto the ones above.
+- **The gate's reference entries** name no `holds` on a piece of the turn's core and no `memoryId` on an entry of
+  its index. The receiver reads either where the gate gives it; until the gate states them, a core piece the index
+  does not list is named by the receiver's policy word for its `source`, and a piece's memory is read off the two
+  path forms the gate builds for one memory, `memories/<id>` and `memories/<room>/memory-<id>`, so a knowledge
+  piece or a rule filed under a path of its own names no memory (`docs/drafting.md`, 「The round log」).
 - **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
   message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
   the release's `VERSION` file where it does not (「The deployments」).

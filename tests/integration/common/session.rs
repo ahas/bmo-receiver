@@ -49,6 +49,8 @@ pub struct StandInSession {
   // What a turn does beside answering, where a test sets it: a handoff written, as a session with a file tool
   // writes it.
   acting: Mutex<Option<Act>>,
+  // The lines its runs' log holds, where a test writes some.
+  pub logged: Mutex<Vec<RunLine>>,
 }
 
 impl StandInSession {
@@ -68,6 +70,7 @@ impl StandInSession {
       working_for: Mutex::new(Duration::ZERO),
       prefix_change: Mutex::default(),
       generation: Mutex::new(json!(null)),
+      logged: Mutex::default(),
       provider: Mutex::new("provider-a".to_owned()),
       carried: Mutex::new(1000),
       folds_itself: Mutex::new(false),
@@ -264,7 +267,9 @@ impl StandInSession {
   }
 
   pub fn run_log(&self) -> BoxFuture<'_, Answer<Vec<RunLine>>> {
-    Box::pin(async { Ok(vec![]) })
+    let logged = self.logged.lock().unwrap().clone();
+
+    Box::pin(async move { Ok(logged) })
   }
 }
 

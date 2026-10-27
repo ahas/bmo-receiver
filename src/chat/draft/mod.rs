@@ -16,6 +16,7 @@ use std::time::Duration;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
+use receiver_ports::gate::IndexEntry;
 use serde_json::to_string as stringify;
 
 use super::ask::Carry;
@@ -258,6 +259,22 @@ pub struct Before {
   pub session: Option<String>,
   pub loads: HashMap<String, String>,
   pub core: HashMap<String, super::context::State>,
+  /// What each document of the core holds, where it went named.
+  pub names: HashMap<String, String>,
+}
+
+/// The brain memory a piece read is, off the two path forms the gate builds for one memory: `memories/<id>` and
+/// `memories/<room>/memory-<id>`. The room's due list, `memories/<room>`, is none.
+pub fn memory_of(path: &str, chat_id: i64) -> Option<i64> {
+  let rest = path.strip_prefix("memories/")?;
+
+  match rest.split_once('/') {
+    None => rest.parse::<i64>().ok().filter(|id| *id != chat_id),
+    Some((room, slug)) => {
+      room.parse::<i64>().ok()?;
+      slug.strip_prefix("memory-")?.parse::<i64>().ok()
+    }
+  }
 }
 
 /// The process as the conversations hold it: the receiver it runs on.
@@ -293,10 +310,13 @@ struct Run<'a> {
 
 impl Run<'_> {
   // What the round read from the brain (docs/drafting.md, 「The round log」): the core its turn carried, in full or
-  // as a mark, then every piece the session read itself through the index since, by the loads it gained, each
-  // named by the index's words for it where the index lists it.
+  // as a mark, then every piece the session read itself through the index, by the loads it gained or changed and
+  // by the index reads its runs logged, a piece the session already held at that version standing as held. Each
+  // is named by the index's words for it where the index lists it, else by the name it went in with, and carries
+  // the brain memory it is.
   async fn reads(&self) -> Vec<log::Read> {
     let receiver = &self.drafter.receiver;
+    let chat = self.held.chat_id;
     let before = &self.drafted.reply.before;
     let session = self.latest.session.as_deref();
     let after = super::context::loaded_in(receiver, session).await.unwrap_or_default();
@@ -305,22 +325,31 @@ impl Run<'_> {
     } else {
       Default::default()
     };
-    let named: HashMap<String, String> = receiver
+    let index: Vec<(String, IndexEntry)> = receiver
       .units()
       .gate
-      .index(self.held.chat_id, session, Some(self.agent))
+      .index(chat, session, Some(self.agent))
       .await
       .ok()
       .flatten()
       .unwrap_or_default()
       .into_iter()
-      .flat_map(|group| group.entries)
-      .filter(|entry| !entry.path.is_empty())
-      .map(|entry| (entry.path, entry.holds))
+      .flat_map(|group| {
+        let name = group.group;
+
+        group.entries.into_iter().map(move |entry| (name.clone(), entry))
+      })
+      .filter(|(_, entry)| !entry.path.is_empty())
       .collect();
+    let named: HashMap<&str, &IndexEntry> =
+      index.iter().map(|(_, entry)| (entry.path.as_str(), entry)).collect();
     let read = |path: &str, how: &str| log::Read {
       path: path.to_owned(),
-      holds: named.get(path).cloned(),
+      holds: named
+        .get(path)
+        .map(|entry| entry.holds.clone())
+        .or_else(|| before.names.get(path).cloned()),
+      memory_id: named.get(path).and_then(|entry| entry.memory_id).or_else(|| memory_of(path, chat)),
       how: how.to_owned(),
     };
     let mut core: Vec<(&String, &super::context::State)> = before.core.iter().collect();
@@ -333,19 +362,60 @@ impl Run<'_> {
         read(path, if *state == super::context::State::Held { "held" } else { "attached" })
       })
       .collect();
-    let mut pulled: Vec<&String> = after
+    let outside = |path: &str| !before.core.contains_key(path) && !super::context::room_block(path);
+    let mut pulled: BTreeSet<(String, &'static str)> = after
       .iter()
-      .filter(|(path, version)| {
-        !before.core.contains_key(*path)
-          && !super::context::room_block(path)
-          && earlier.get(*path) != Some(*version)
-      })
-      .map(|(path, _)| path)
+      .filter(|(path, version)| outside(path) && earlier.get(*path) != Some(*version))
+      .map(|(path, _)| (path.clone(), "read"))
       .collect();
+    let gained: HashSet<String> = pulled.iter().map(|(path, _)| path.clone()).collect();
 
-    pulled.sort();
-    reads.extend(pulled.into_iter().map(|path| read(path, "read")));
+    for path in self.logged_reads(&index).await {
+      if !outside(&path) || gained.contains(&path) {
+        continue;
+      }
+
+      let held = earlier
+        .get(&path)
+        .is_some_and(|version| after.get(&path).is_none_or(|now| now == version));
+
+      pulled.insert((path, if held { "held" } else { "read" }));
+    }
+
+    reads.extend(pulled.into_iter().map(|(path, how)| read(&path, how)));
     reads
+  }
+
+  // The paths of the index's pieces the round's runs logged a read of: each call whose input names an entry of the
+  // index by its group and slug.
+  async fn logged_reads(&self, index: &[(String, IndexEntry)]) -> Vec<String> {
+    let agency = &self.drafter.receiver.units().agency;
+    let mut paths = vec![];
+
+    for run in &self.spoken {
+      for line in agency.run_log(run, None).await.unwrap_or_default() {
+        if line.get("kind").and_then(serde_json::Value::as_str) != Some("tool") {
+          continue;
+        }
+
+        let Some(input) = line
+          .get("text")
+          .and_then(serde_json::Value::as_str)
+          .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok())
+        else {
+          continue;
+        };
+        let field = |name: &str| input.get(name).and_then(serde_json::Value::as_str).map(str::to_owned);
+        let (Some(group), Some(slug)) = (field("group"), field("slug")) else { continue };
+
+        if let Some((_, entry)) = index.iter().find(|(named, entry)| *named == group && entry.slug == slug)
+        {
+          paths.push(entry.path.clone());
+        }
+      }
+    }
+
+    paths
   }
 
   // One more turn of the same session: its answer where it gave one, as the process reads it with its marks taken

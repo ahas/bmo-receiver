@@ -256,11 +256,20 @@ where it says something: neither empty nor a skip nor a wait.
 - **A round the agent judges first** (`docs/wake.md`, 「The room's queue and the round」) writes that judgement
   as a row before the process's own: number 0, of kind `supervisor`, named `supervisor`, ending `skip` where the
   round ends there and `answered` where it goes on. A round that ended there writes no other row.
-- **The end row names what the round read from the brain,** its `reads`, each a path, the index's words for it
-  where the gate's index lists it (`holds`), and how it was read: `attached`, a piece of the turn's core that went
-  in full; `held`, one that went as a mark because the session already held that version; `read`, a piece the
-  agent read itself through the index during the round, a load the session gained between the round's turn and
-  its end (the agency's `GET /session-loads/{sessionId}`). The console's 브레인 chip and the round's line in the
+- **The end row names what the round read from the brain,** its `reads`, each a `path`, what the piece holds
+  (`holds`), the brain memory it is (`memoryId`) and how it was read (`how`). `holds` is the index's words for the
+  piece where the gate's index lists it, else the name the piece came with: a piece of the turn's core carries the
+  name its maker gives it, the gate's where the gate names one and the policy's word for the gate's sort of piece
+  otherwise (`chat-round.toml`, `[reference.holds]`), and a person's thread the thread's own (`[thread]`, `holds`).
+  `memoryId` stands where the piece is one memory of the brain: the id the gate's index gives the entry, else the
+  one its path names, `memories/<id>` or `memories/<room>/memory-<id>`; the room's due list, `memories/<room>`, and
+  every other piece carry none. `how` is `attached`, a piece of the turn's core that went in full; `held`, a piece
+  of the core that went as a mark because the session already held that version, and a piece the agent read itself
+  through the index at a version the session already held before the round's turn; or `read`, a piece the agent
+  read itself through the index during the round at a version the session did not hold. A read through the index is
+  a load the session gained or changed between the round's turn and its end (the agency's `GET
+  /session-loads/{sessionId}`), or a call the round's runs logged whose input names an entry of the index by its
+  `group` and `slug`, so a piece read again stands once, `held`. The console's 브레인 chip and the round's line in the
   draft log read them.
 - **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
   answer opened on `<<SEND>>` and became the message, `skip` or `failed`.

@@ -202,6 +202,8 @@ struct BlockHead<'a> {
   chat: i64,
   person: Option<i64>,
   version: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  holds: Option<&'a str>,
 }
 
 static PERSON_BOOK: LazyLock<[Regex; 3]> = LazyLock::new(|| {
@@ -228,14 +230,15 @@ pub fn person_book_owner(path: &str) -> Option<i64> {
     .and_then(|found| found[1].parse().ok())
 }
 
-/// A document wrapped to go to a session once per version: its head names it, its room, whose it is and which
-/// version of it this is.
-pub fn once_block(chat: i64, path: &str, text: &str) -> String {
+/// A document wrapped to go to a session once per version: its head names it, its room, whose it is, which
+/// version of it this is and, where it is named, what it holds.
+pub fn once_block(chat: i64, path: &str, text: &str, holds: Option<&str>) -> String {
   let head = BlockHead {
     path,
     chat,
     person: person_book_owner(path),
     version: bun_hash(text).to_string(),
+    holds,
   };
 
   format!(
@@ -406,7 +409,7 @@ fn made(chat_id: i64, entries: Vec<Entry>) -> Selection {
   let mut parts = vec![fill_marks(&blocks.reference, &[("count", &entries.len().to_string())])];
 
   for entry in &entries {
-    parts.push(once_block(chat_id, &entry.path, &entry.text));
+    parts.push(once_block(chat_id, &entry.path, &entry.text, core_holds(entry).as_deref()));
   }
 
   parts.push(blocks.reference_end.clone());
@@ -417,6 +420,15 @@ fn made(chat_id: i64, entries: Vec<Entry>) -> Selection {
     block: parts.join("\n"),
     ..Selection::default()
   }
+}
+
+/// What a piece of the turn's core holds: the name its maker gives it, else the policy's word for its sort
+/// (docs/drafting.md, 「The round log」).
+pub fn core_holds(entry: &Entry) -> Option<String> {
+  entry
+    .holds
+    .clone()
+    .or_else(|| CHAT_ROUND.reference.holds.get(&source_name(entry)).cloned())
 }
 
 /// What the turn's log calls where an entry came from.

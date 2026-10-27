@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use crate::common::Scratch;
-use crate::common::queue::{Front, get, post, put, remove, stood};
+use crate::common::queue::{Front, get, patch, post, put, remove, stood};
 use crate::common::units::OWNER;
 
 use bmo_receiver::routes::served;
@@ -71,6 +71,7 @@ async fn every_route_of_the_table_stands_once() {
       "GET" => get(&front, path).await,
       "POST" => post(&front, path, json!({})).await,
       "PUT" => put(&front, path, json!({})).await,
+      "PATCH" => patch(&front, path, json!({})).await,
       "DELETE" => remove(&front, path).await,
       other => panic!("{name} names a method no route takes: {other}"),
     };
@@ -89,7 +90,7 @@ async fn every_route_of_the_table_stands_once() {
     let (status, body) = match method {
       "GET" => get(&handovers, &path).await,
       "PUT" => put(&handovers, &path, json!({})).await,
-      "PATCH" => crate::common::queue::patch(&handovers, &path, json!({})).await,
+      "PATCH" => patch(&handovers, &path, json!({})).await,
       _ => post(&handovers, &path, json!({})).await,
     };
 

@@ -50,6 +50,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
       text: "a".to_owned(),
       source: Source::Document,
       fragment: None,
+      holds: None,
     }]
   );
 

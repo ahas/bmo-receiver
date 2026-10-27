@@ -89,6 +89,9 @@ pub struct Entry {
   pub source: Source,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub fragment: Option<i64>,
+  /// What the piece holds, where its maker names it.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub holds: Option<String>,
 }
 
 /// A decision written into a room's log: a round's skip, a re-ask, an answer sent.
@@ -155,6 +158,9 @@ pub struct IndexEntry {
   pub holds: String,
   #[serde(default)]
   pub path: String,
+  /// The brain memory the entry is, where the gate names one.
+  #[serde(default, rename = "memoryId")]
+  pub memory_id: Option<i64>,
 }
 
 #[derive(Deserialize)]

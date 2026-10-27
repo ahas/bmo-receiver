@@ -21,6 +21,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{Accepted, Answered, Refusal, Served, answered, code, query, read, refused, store};
+use crate::Fault;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, reads, rows};
 use crate::roads::added::{self, RoomMode};
@@ -102,7 +103,7 @@ pub async fn answerers(State(served): State<Served>, Path(room): Path<i64>) -> A
 /// A message said in a room; nothing found where the receiver does not keep it.
 pub async fn message(State(served): State<Served>, Path((room, message)): Path<(i64, i64)>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let Some(kept) = reads::message_of(receiver.db(), room, message).await.map_err(store)? else {
+  let Some(shaped) = message_shape(&receiver, room, message).await.map_err(store)? else {
     return Err(refused(
       StatusCode::NOT_FOUND,
       "not-found",
@@ -110,9 +111,17 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
     ));
   };
 
+  answered(shaped)
+}
+
+/// One message in the one message shape, its files and reactions beside it; none where the room keeps no such
+/// message.
+pub async fn message_shape(receiver: &Receiver, room: i64, message: i64) -> Result<Option<Value>, Fault> {
+  let Some(kept) = reads::message_of(receiver.db(), room, message).await? else {
+    return Ok(None);
+  };
   let files: Vec<Value> = reads::files(receiver.db(), room, message)
-    .await
-    .map_err(store)?
+    .await?
     .iter()
     .map(|file| {
       json!({
@@ -125,7 +134,7 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
     })
     .collect();
 
-  answered(json!({
+  Ok(Some(json!({
     "id": kept.message_id,
     "room": kept.chat_id,
     "senderId": kept.sender_id,
@@ -144,10 +153,10 @@ pub async fn message(State(served): State<Served>, Path((room, message)): Path<(
     "editedAt": kept.edited_at,
     "deletedAt": kept.deleted_at,
     "pinnedAt": kept.pinned_at,
-    "reactions": reads::reactions(receiver.db(), room, message).await.map_err(store)?,
+    "reactions": reads::reactions(receiver.db(), room, message).await?,
     "forwardedFrom": super::console::forwarded_from(&kept.forwarded),
     "files": files,
-  }))
+  })))
 }
 
 /// Every chat provider a room may be on, each by its key and what it is called (docs/receiver.md, 「A room's chat

@@ -255,7 +255,8 @@ impl Sends {
         .receiver
         .news()
         .publish(&crate::events::message_changed(request.room_id, message_id));
-      providers::carry_act(db, self.receiver.roads(), request.room_id, message_id, &request.send).await;
+      providers::carry_act(db, self.receiver.roads(), request.room_id, message_id, &request.send, None)
+        .await;
 
       return Ok(Sent {
         message_id: Some(message_id),

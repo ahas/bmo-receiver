@@ -123,6 +123,8 @@ pub struct Thread {
   pub line_chars: usize,
   pub ceiling_chars: usize,
   pub path: String,
+  /// What a round's reads name the thread by (docs/drafting.md, 「The round log」).
+  pub holds: String,
   pub heading: String,
   pub room: String,
   pub line: String,
@@ -135,6 +137,9 @@ pub struct Thread {
 pub struct Reference {
   /// How much of the closing words of the message a turn follows on from, in characters.
   pub answered_chars: usize,
+  /// What a round's reads name a piece of the turn's core by where neither the index nor the gate names it, by the
+  /// gate's word for the piece's sort (docs/drafting.md, 「The round log」).
+  pub holds: std::collections::BTreeMap<String, String>,
 }
 
 /// How the conversations keep time.

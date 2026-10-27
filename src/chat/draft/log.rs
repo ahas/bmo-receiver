@@ -107,12 +107,15 @@ impl Ended {
   }
 }
 
-/// One thing a round read from the brain (docs/drafting.md, 「The round log」): its path, the index's words for it
-/// where the index lists it, and how it was read — `attached`, `held` or `read`.
+/// One thing a round read from the brain (docs/drafting.md, 「The round log」): its path, what it holds, the brain
+/// memory it is where it is one, and how it was read — `attached`, `held` or `read`.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Read {
   pub path: String,
   pub holds: Option<String>,
+  /// The brain memory the piece is, where it is one.
+  #[serde(rename = "memoryId", default, skip_serializing_if = "Option::is_none")]
+  pub memory_id: Option<i64>,
   pub how: String,
 }
 

@@ -307,5 +307,6 @@ pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<En
     text: text.join("\n"),
     source: Source::Archive,
     fragment: None,
+    holds: Some(thread.holds.clone()),
   }))
 }

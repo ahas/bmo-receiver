@@ -393,19 +393,16 @@ pub async fn echo(
   )
 }
 
-/// A kept message carried to each provider of its room it does not already stand on. The record holds it by being
-/// the archive; each chat service is handed it through its own sends, in the owner's own voice where the owner
-/// said it and in the voice the room answers in otherwise, each send tagged and the number its copy went out as
-/// kept. A service that reads the room in the owner's account alone is handed the owner's words alone. A provider
-/// that refuses or does not answer is said in the journal and leaves the message as it was kept.
 /// An act on a kept message carried to each of the room's other providers where the message stands under a
-/// number of the provider's own (docs/messages.md, 「What an agent can send back」): the act sent with that number.
+/// number of the provider's own (docs/messages.md, 「What an agent can send back」): the act sent with that number,
+/// in the voice named, the room's own where none is.
 pub async fn carry_act(
   db: &DatabaseConnection,
   roads: &Roads,
   chat_id: i64,
   message_id: i64,
   act: &ChatSend,
+  voice: Option<ChatVoice>,
 ) {
   let Ok(listed) = listed(db, roads, chat_id).await else { return };
 
@@ -434,12 +431,21 @@ pub async fn carry_act(
       _ => continue,
     };
 
-    if let Err(why) = service.send(&ChatSendRequest::new(chat_id, send)).await {
+    let mut request = ChatSendRequest::new(chat_id, send);
+
+    request.mode = voice;
+
+    if let Err(why) = service.send(&request).await {
       eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {why}");
     }
   }
 }
 
+/// A kept message carried to each provider of its room it does not already stand on. The record holds it by being
+/// the archive; each chat service is handed it through its own sends, in the owner's own voice where the owner
+/// said it and in the voice the room answers in otherwise, each send tagged and the number its copy went out as
+/// kept. A service that reads the room in the owner's account alone is handed the owner's words alone. A provider
+/// that refuses or does not answer is said in the journal and leaves the message as it was kept.
 pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery) {
   let chat_id = delivery.chat_id;
   let listed = match listed(db, roads, chat_id).await {

@@ -23,6 +23,9 @@ agent has read) and what an agent can send back and when a room sees it typing.
   writes for it, carrying what a reader could act on, plus the caption when there is one. It is archived and
   routed like any message.
 - **Anything forwarded is prefixed with who it came from,** as the chat service hands it over.
+- **A signed-in person acts on a message from the console** as the agents do on the record: reacts, pins, edits
+  and deletes their own, and sends a sticker of the record's set (`docs/api.md`, 「Messages」); a room's pinned
+  messages are listed newest pin first.
 - **The owner forwards a message from the console** into another room: a copy kept there as his, marked as
   forwarded with where it came from and who said it, carried out on that room's own road and waking nobody
   (`docs/api.md`, 「Sends」).

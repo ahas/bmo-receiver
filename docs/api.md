@@ -180,6 +180,14 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 |---|---|---|
 | `GET /rooms/{roomId}/messages` | `before`, `after`, `limit`, `agentName`, `since`, `marked`, `unread`, `by`, `q` | a page of `Message` |
 | `GET /rooms/{roomId}/messages/{messageId}` | | one `Message` |
+| `GET /rooms/{roomId}/pins` | | `items`, the room's pinned messages, newest pin first, each a `Message` |
+| `PUT /rooms/{roomId}/messages/{messageId}/reactions/mine` | `emoji` | the `Message` as it now stands |
+| `DELETE /rooms/{roomId}/messages/{messageId}/reactions/mine` | | the `Message` as it now stands |
+| `PUT /rooms/{roomId}/messages/{messageId}/pin` | `on` | the `Message` as it now stands |
+| `PATCH /rooms/{roomId}/messages/{messageId}` | `text` | the `Message` as it now stands |
+| `DELETE /rooms/{roomId}/messages/{messageId}` | | the `Message` as it now stands |
+| `GET /stickers` | | `items`, each `emoji`: the stickers the record keeps |
+| `POST /rooms/{roomId}/stickers` | `emoji` | 201, the `Message` the sticker was kept as |
 | `GET /rooms/{roomId}/messages/{messageId}/metadata` | | `metadata`, what the chat service handed over beside it, or null |
 | `GET /rooms/{roomId}/messages/{messageId}/sender-is-owner` | | `owner` |
 | `GET /rooms/{roomId}/messages/{messageId}/files` | | a page of `FileEntry` |
@@ -302,6 +310,24 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
   room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413
   `too-large`; a `replyTo` the archive does not hold is refused 409.
+- **The signed-in person's acts on a message** come through the console relay, which names the caller by
+  `Owner-Key`, the login's user id, and `Owner-Role`, as a picture's setting does (`docs/pictures.md`, 「Profile
+  pictures」); no body names who acts, so a member acts only as themselves. The caller's senders are those the web
+  unit links to the user, and the caller acts under the one of them the room already holds, else the first. The
+  record keeps each act as the agent-side acts are kept (`docs/messages.md`, 「What an agent can send back」) under
+  that number and tells `message.changed`. Where the caller is the owner, the act goes on in his own voice to the
+  room's other providers wherever the message stands under a number of theirs; a member's act stands on the record
+  alone, since no road speaks in a member's account. A reaction is the caller's own, one to a reactor; a pin anyone
+  signed in sets or takes off; an edit is the caller's on a message one of their senders said, and a delete the
+  same or the administrator's on any; a sticker is a message of the caller's own, its kind `sticker`, carried as
+  the owner's words are where the caller is the owner. A caller the relay names no user for, or whose user holds no
+  sender, is refused 403 `no-caller`; a message the room does not keep 404 `message-unknown`; a deleted one 409
+  `message-deleted`; another person's message to edit or delete 403 `message-forbidden`; an emoji the record's set
+  does not hold 400 `unknown-sticker`; a reaction with no emoji or an edit with no words 400 `bad-request`. The
+  record's set is the policy's (`roads.toml`, `[record]`, `stickers`), and a road the sticker goes on picks its own
+  sticker for the emoji.
+- **A room's pinned messages** are the ones whose pin stands on the record, a deleted message none of them, newest
+  pin first.
 - **A forward** copies a message the owner picks into another room: kept there under a console number as the
   owner's, his number and the name that room shows him by, its words the message's own, marked `forwardedFrom`
   with the room, the message and who said it, and carried to that room's providers as every kept message is, so
