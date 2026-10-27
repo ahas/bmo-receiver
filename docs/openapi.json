@@ -1465,6 +1465,18 @@
             "format": "int64",
             "type": "integer"
           },
+          "situation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Situation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The room's situation note as the round that judged this message read it; null on a message no round judged\nunder one."
+          },
           "text": {
             "type": "string"
           },
@@ -1503,6 +1515,7 @@
           "pinnedAt",
           "reactions",
           "forwardedFrom",
+          "situation",
           "files"
         ],
         "type": "object"
@@ -2567,6 +2580,29 @@
         ],
         "type": "object"
       },
+      "RoomSituation": {
+        "description": "A room's situation note as it stands, with when it last changed in epoch milliseconds; both null where the room\nhas no note yet.",
+        "properties": {
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "RoomTitle": {
         "description": "A room's name alone.",
         "properties": {
@@ -2709,6 +2745,22 @@
         },
         "required": [
           "owner"
+        ],
+        "type": "object"
+      },
+      "Situation": {
+        "description": "A room's situation note as one round read it: its text and whether that round wrote it afresh.",
+        "properties": {
+          "changed": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "changed"
         ],
         "type": "object"
       },
@@ -6895,6 +6947,52 @@
         "x-codes": [
           "unauthorized",
           "conflict",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/situation": {
+      "get": {
+        "operationId": "situation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomSituation"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "A room's situation note as it stands, with when it last changed.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
           "failed"
         ]
       }

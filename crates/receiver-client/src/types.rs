@@ -247,7 +247,28 @@ pub struct Message {
   /// Where a copy the owner forwarded came from: the room, the message and who said it; null on any other message.
   #[serde(default)]
   pub forwarded_from: Option<ForwardedFrom>,
+  /// The room's situation note as the round that judged this message read it; null on a message no round judged
+  /// under one.
+  #[serde(default)]
+  pub situation: Option<Situation>,
   pub files: Vec<KeptFile>,
+}
+
+/// A room's situation note as one round read it: its text and whether that round wrote it afresh.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Situation {
+  pub text: String,
+  pub changed: bool,
+}
+
+/// A room's situation note as it stands, with when it last changed in epoch milliseconds; both null where the room
+/// has no note yet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomSituation {
+  pub text: Option<String>,
+  pub updated_at: Option<i64>,
 }
 
 /// The message a forwarded copy stands for.

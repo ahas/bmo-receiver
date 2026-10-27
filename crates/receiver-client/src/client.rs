@@ -264,6 +264,11 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "window"])).await
   }
 
+  /// `GET /rooms/{roomId}/situation`.
+  pub async fn situation(&self, room_id: i64) -> Answer<RoomSituation> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "situation"])).await
+  }
+
   /// `GET /providers`.
   pub async fn providers(&self) -> Answer<Page<Provider>> {
     Self::answered(self.request(Method::GET, &["providers"])).await

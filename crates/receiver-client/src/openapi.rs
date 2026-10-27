@@ -463,6 +463,17 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/rooms/{roomId}/situation",
+    "situation",
+    "Rooms",
+    "A room's situation note as it stands, with when it last changed.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomSituation>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
     "/providers",
     "providers",
     "Rooms",

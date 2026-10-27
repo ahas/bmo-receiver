@@ -1022,6 +1022,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/situation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A room's situation note as it stands, with when it last changed. */
+        get: operations["situation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/spoke-between": {
         parameters: {
             query?: never;
@@ -1756,6 +1773,12 @@ export interface components {
              * @description Epoch milliseconds.
              */
             sentAt: number;
+            /**
+             * @description The room's situation note as the round that judged this message read it; null on a message no round judged
+             *     under one.
+             * @default null
+             */
+            situation: components["schemas"]["Situation"] | null;
             text: string;
             via: string | null;
             /**
@@ -2118,6 +2141,15 @@ export interface components {
              */
             since: number;
         };
+        /**
+         * @description A room's situation note as it stands, with when it last changed in epoch milliseconds; both null where the room
+         *     has no note yet.
+         */
+        RoomSituation: {
+            text: string | null;
+            /** Format: int64 */
+            updatedAt: number | null;
+        };
         /** @description A room's name alone. */
         RoomTitle: {
             title: string | null;
@@ -2159,6 +2191,11 @@ export interface components {
         /** @description Whether a message's sender is the owner in that room. */
         SenderOwner: {
             owner: boolean;
+        };
+        /** @description A room's situation note as one round read it: its text and whether that round wrote it afresh. */
+        Situation: {
+            changed: boolean;
+            text: string;
         };
         /** @description One speaker among the room's most talkative people. */
         Speaker: {
@@ -4674,6 +4711,37 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, conflict, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    situation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomSituation"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
