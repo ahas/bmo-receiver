@@ -46,6 +46,50 @@ pub async fn write(db: &DatabaseConnection, chat_id: i64, text: &str) -> Result<
   Ok(())
 }
 
+/// The room's note and when it last changed, none where the room has none yet.
+pub async fn read_at(db: &DatabaseConnection, chat_id: i64) -> Result<Option<(String, i64)>, Fault> {
+  let Some(row) = one(
+    db,
+    r#"SELECT "text", "updated_at" FROM "room_situations" WHERE "chat_id" = $1"#,
+    vec![chat_id.into()],
+  )
+  .await?
+  else {
+    return Ok(None);
+  };
+
+  let text: String = row.try_get("", "text")?;
+  let updated_at: i64 = row.try_get("", "updated_at")?;
+
+  Ok((!text.trim().is_empty()).then_some((text, updated_at)))
+}
+
+/// The note as it stood when a round judged these messages, kept on each message it judged with whether that round
+/// changed it, so the console's judgement record says what the room's situation was as the round read it.
+pub async fn attach(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  messages: &[i64],
+  note: Option<&str>,
+  changed: bool,
+) -> Result<(), Fault> {
+  for message_id in messages {
+    run(
+      db,
+      r#"UPDATE "messages" SET "situation" = $1, "situation_changed" = $2 WHERE "chat_id" = $3 AND "message_id" = $4"#,
+      vec![
+        note.map(str::to_owned).into(),
+        Some(changed).into(),
+        chat_id.into(),
+        (*message_id).into(),
+      ],
+    )
+    .await?;
+  }
+
+  Ok(())
+}
+
 /// The room's note as a piece of a turn's core, none where the room has none.
 pub async fn entry(receiver: &Receiver, chat_id: i64) -> Result<Option<Entry>, Fault> {
   let Some(text) = read(receiver.db(), chat_id).await? else {

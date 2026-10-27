@@ -155,6 +155,7 @@ pub async fn message_shape(receiver: &Receiver, room: i64, message: i64) -> Resu
     "pinnedAt": kept.pinned_at,
     "reactions": reads::reactions(receiver.db(), room, message).await?,
     "forwardedFrom": super::console::forwarded_from(&kept.forwarded),
+    "situation": super::console::situation_json(kept.situation.as_ref()),
     "files": files,
   })))
 }

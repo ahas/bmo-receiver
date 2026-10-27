@@ -1987,12 +1987,28 @@ impl Conversations {
     held.replaced = update_reply.replaced.clone();
     self.keep_session(chat_id, held);
 
-    let note = super::situation::note_from_answer(&update_reply.text).or(old);
+    let note = super::situation::note_from_answer(&update_reply.text).or(old.clone());
+    // Whether this round changed the note: the row is only taken where its text differs from what stood.
+    let changed = note.is_some() && note != old;
 
     if let Some(note) = &note
       && let Err(why) = super::situation::write(receiver.db(), chat_id, note).await
     {
       eprintln!("chat {chat_id}: the situation note was not kept: {}", why.detail);
+    }
+
+    // The note stands on each message this round judged, with whether the round changed it, so the judgement record
+    // shows the room's situation as it was read for it (docs/drafting.md, 「The situation note」).
+    if let Err(why) = super::situation::attach(
+      receiver.db(),
+      chat_id,
+      &batch.iter().map(|message| message.message_id).collect::<Vec<_>>(),
+      note.as_deref(),
+      changed,
+    )
+    .await
+    {
+      eprintln!("chat {chat_id}: the situation note was not kept on the judged messages: {}", why.detail);
     }
 
     let mut parts = vec![opening, String::new()];

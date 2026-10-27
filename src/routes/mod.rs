@@ -141,6 +141,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("DELETE", "/avatars/{kind}/{subject}", delete(avatars::unset)),
     ("GET", "/rooms/{roomId}/figures", get(figures::figures)),
     ("GET", "/rooms/{roomId}/window", get(console::room_window)),
+    ("GET", "/rooms/{roomId}/situation", get(console::room_situation)),
     ("GET", "/providers", get(rooms::providers)),
     ("GET", "/providers/{key}/rooms", get(rooms::account_rooms)),
     ("GET", "/providers/{key}/contacts", get(rooms::contacts)),

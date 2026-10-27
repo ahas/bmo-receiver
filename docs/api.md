@@ -98,6 +98,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/spoke-between` | `person`, `from`, `to` (epoch milliseconds) | `spoke`, whether the person spoke in that span |
 | `GET /rooms/{roomId}/people` | `ids`, comma-separated | a page of `Person`: those among `ids` who have stood as a sender in the room |
 | `GET /rooms/{roomId}/owner-spoke` | `person`, `before`, `windowMs` | `owner` and `spoke`: whether the person is the owner, and whether the owner spoke in the span |
+| `GET /rooms/{roomId}/situation` | | `text`, the room's situation note as it stands, and `updatedAt`, when it last changed in epoch milliseconds, both null where the room has none |
 | `GET /rooms/{roomId}/window` | | `openForMs`, the chat agent's window left, and `closesAt` in epoch milliseconds, or null |
 | `GET /providers` | | a page of `Provider` (`key`, `label`, `listsRooms`, `listsContacts`, `startsChats`, `startsGroups`, `roomModes`): every chat provider a room may be on |
 | `GET /providers/{key}/rooms` | `after` (a room number), `limit` | a page of `AccountRoom` (`id`, `title`, `kind`, `privateTo`, `held`, `mode`): the rooms the provider's account is in |
@@ -210,7 +211,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `voiceState` (`heard`, `failed`, or null), `kind` (`sticker`, or null for any other), `editedAt`, `deletedAt` and
   `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
-  and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+  `situation` (the room's situation note as the round that judged this message read it — its `text` and whether
+  that round `changed` it — or null on a message no round judged under a note; `docs/drafting.md`, 「The situation
+  note」), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`

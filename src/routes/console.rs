@@ -267,6 +267,7 @@ fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
         "pinnedAt": Value::Null,
         "reactions": [],
         "forwardedFrom": Value::Null,
+        "situation": Value::Null,
         "files": [],
       })
     })
@@ -374,6 +375,18 @@ pub async fn room_window(State(served): State<Served>, Path(room): Path<i64>) ->
   answered(json!({ "openForMs": i64::max(until - now_ms(), 0), "closesAt": closes_at }))
 }
 
+/// A room's situation note as it stands, with when it last changed: the note the round updates before it judges a line
+/// (docs/drafting.md, 「The situation note」). A room with no note answers none and no moment.
+pub async fn room_situation(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
+  let db = served.receiver.db();
+  let held = crate::chat::situation::read_at(db, room).await.map_err(store)?;
+
+  answered(json!(match held {
+    Some((text, updated_at)) => json!({ "text": text, "updatedAt": updated_at }),
+    None => json!({ "text": null, "updatedAt": null }),
+  }))
+}
+
 /// The pinned order set whole, answered as it now stands.
 pub async fn pin(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<Pinning>(&body)?;
@@ -477,11 +490,20 @@ async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result
       "pinnedAt": page.pinned_at,
       "reactions": reads::reactions(receiver.db(), room, page.message_id).await?,
       "forwardedFrom": forwarded_from(&page.forwarded),
+      "situation": situation_json(page.situation.as_ref()),
       "files": files,
     }));
   }
 
   Ok(lines)
+}
+
+/// A message's situation note as the round that judged it read it, none where it read none.
+pub fn situation_json(situation: Option<&reads::Situation>) -> Value {
+  match situation {
+    Some(held) => json!({ "text": held.text, "changed": held.changed }),
+    None => Value::Null,
+  }
 }
 
 /// Whether a screen stands this line: the protocol's opening a client sent for a person is left out.

@@ -419,6 +419,8 @@ async fn a_line_that_asks_the_agent_is_answered_with_the_situation_note() {
   ]))
   .await;
 
+  // The line as the room's record holds it, which is where a judged round keeps the note it read under.
+  round.scratch.message(ROOM, 1, 31).await;
   round.hand(1, "can you send the file?", false).await;
   round.prompts_over(3).await;
 
@@ -440,6 +442,26 @@ async fn a_line_that_asks_the_agent_is_answered_with_the_situation_note() {
       .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = -500"#)
       .await,
     ["They asked you to send the file."]
+  );
+  // The note stands on the line the round judged, marked as the round's own change, so the console's judgement
+  // record shows the situation the round read it under.
+  assert_eq!(
+    round
+      .scratch
+      .texts(r#"SELECT "situation" FROM "messages" WHERE "chat_id" = -500 AND "message_id" = 1"#)
+      .await,
+    ["They asked you to send the file."]
+  );
+  assert_eq!(
+    round
+      .scratch
+      .count(
+        r#"SELECT COUNT(*) FROM "messages" WHERE "chat_id" = -500 AND "message_id" = 1 AND "situation_changed""#,
+        vec![],
+      )
+      .await,
+    1,
+    "the round wrote the note afresh"
   );
 }
 

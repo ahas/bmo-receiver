@@ -91,7 +91,19 @@ pub struct Page {
   pub pinned_at: Option<i64>,
   /// The room, the message and the name of who said it, on a copy the owner forwarded.
   pub forwarded: Option<(i64, i64, String)>,
+  /// The room's situation note as the round that judged this message read it, and whether that round changed it; none
+  /// on a message no round has judged under a note (docs/drafting.md, 「The situation note」).
+  pub situation: Option<Situation>,
   pub files: Vec<KeptFile>,
+}
+
+/// A room's situation note as one round read it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Situation {
+  pub text: String,
+  /// Whether the round that judged the message wrote the note afresh.
+  pub changed: bool,
 }
 
 /// A file a message carried, as the room's store kept it.
@@ -140,6 +152,10 @@ impl Page {
         )),
         _ => None,
       },
+      situation: row.try_get::<Option<String>>("", "situation").unwrap_or(None).map(|text| Situation {
+        text,
+        changed: row.try_get::<Option<bool>>("", "situation_changed").unwrap_or(None).unwrap_or(false),
+      }),
       files: vec![],
     })
   }

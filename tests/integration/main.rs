@@ -34,6 +34,7 @@ mod routes;
 mod scratch_runs;
 mod session_loads;
 mod session_replacement;
+mod situation;
 mod stop_notice;
 mod store;
 mod supervisor;

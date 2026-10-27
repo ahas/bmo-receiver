@@ -163,6 +163,10 @@ leaves.
   about 3,400 characters and the note adds about 600 to the judgement, some 4,000 characters a judged turn, or
   roughly 1,000 tokens at four characters to a token. The fixed room context stands in both turns, so the update
   turn is the larger part of the extra.
+- **The console reads the note beside each judgement.** The note stands on every message the round judged, with
+  whether that round wrote it afresh (`docs/api.md`, the `Message`'s `situation`), so a message's judgement record
+  says what the room's situation was as the round read it; a room answers the note as it stands now, with when it
+  last changed, at `GET /rooms/{roomId}/situation`.
 - **The judgement reads it with the new lines.** The judging turn carries the note under `[supervisor] situation`,
   before the room's recent words and the words judged. The note changes the material the judgement reads, never an
   addressee rule: a conversation between others is left alone, and a line that asks the agent or resumes an earlier
