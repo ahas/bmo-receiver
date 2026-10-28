@@ -430,6 +430,7 @@ async fn tell_chat(
     kind: Some(&kind),
     sort: Some(RELOAD_SORT),
     rides_session: true,
+    agent_only: true,
     ..Queued::default()
   };
 

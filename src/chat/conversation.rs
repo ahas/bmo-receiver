@@ -1500,6 +1500,33 @@ impl Conversations {
     }
   }
 
+  // Whether every instruction this round carries is an agent-only notice: a record the agent reads and no room
+  // hears. A round of such rows alone sends no message (docs/bmo-window.md, 「Quiet instruction」).
+  async fn agent_only_round(receiver: &Receiver, ids: &[i64]) -> bool {
+    if ids.is_empty() {
+      return false;
+    }
+
+    for id in ids {
+      let row = match one(
+        receiver.db(),
+        r#"SELECT "agent_only" FROM "instructions" WHERE "id" = $1"#,
+        vec![(*id).into()],
+      )
+      .await
+      {
+        Ok(Some(row)) => row,
+        _ => return false,
+      };
+
+      if !row.try_get::<bool>("", "agent_only").unwrap_or(false) {
+        return false;
+      }
+    }
+
+    true
+  }
+
   // One round, from what is waiting to whatever it ends in.
   async fn round(
     &self,
@@ -1556,6 +1583,10 @@ impl Conversations {
       )
     };
     let (held_words, mut batch, roads, mut instructions, ids, events, room, first_call, mut held) = taken;
+    // An agent-only notice alone in a round is a quiet turn: the agent reads it, and nothing it answers goes into
+    // the room (docs/bmo-window.md, 「Quiet instruction」).
+    let agent_only =
+      Self::agent_only_round(&receiver, &ids).await && batch.is_empty() && !instructions.is_empty();
 
     // The round's privilege is its own people's words', in any room and whatever an earlier round of the
     // conversation read; an agent's line neither grants nor takes it, and a round of no people's words is the
@@ -1751,6 +1782,10 @@ impl Conversations {
     }
 
     self.keep_session(chat_id, &held);
+
+    if agent_only && batch.is_empty() {
+      return self.silent_end(chat_id, &batch, &held).await;
+    }
 
     if is_wait(&reply.text) {
       return self.waited_round(chat_id, &batch, &held_words, final_round, record).await;

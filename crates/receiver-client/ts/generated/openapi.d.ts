@@ -1634,6 +1634,11 @@ export interface components {
         InstructionRequest: {
             /** @default null */
             agentName: string | null;
+            /**
+             * @description A record the agent reads and no room hears: a round carrying only such rows sends no message.
+             * @default false
+             */
+            agentOnly: boolean;
             /** @default [] */
             events: string[];
             /**

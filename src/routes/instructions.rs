@@ -73,6 +73,8 @@ struct Instruction {
   #[serde(default)]
   events: Vec<String>,
   #[serde(default)]
+  agent_only: bool,
+  #[serde(default)]
   rides_until: Option<i64>,
   #[serde(default)]
   via: Option<String>,
@@ -148,6 +150,7 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     events: asked.events.clone(),
     rides_until_ms: asked.rides_until,
     rides_session: false,
+    agent_only: asked.agent_only,
     sort: Some(&asked.sort),
     summary: asked.summary.as_deref(),
     via: asked.via.as_deref(),

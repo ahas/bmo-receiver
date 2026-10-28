@@ -600,6 +600,9 @@ pub struct InstructionRequest {
   pub expires_at: Option<i64>,
   #[serde(default)]
   pub events: Vec<String>,
+  /// A record the agent reads and no room hears: a round carrying only such rows sends no message.
+  #[serde(default)]
+  pub agent_only: bool,
   #[serde(default)]
   pub rides_until: Option<i64>,
   #[serde(default)]

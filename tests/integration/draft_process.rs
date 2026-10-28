@@ -14,6 +14,7 @@ use std::time::Duration;
 use bmo_chat_client::MessageFile;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
+use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
@@ -326,6 +327,72 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
 }
 
 const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
+
+#[tokio::test]
+async fn an_agent_only_notice_reaches_the_agent_and_leaves_no_room_message() {
+  let session = StandInSession::new(SESSION, "Here.");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let text = "Nothing needs saying in the room: this only tells you what your tools are now.";
+  let id = queue(
+    round.scratch.db(),
+    AGENT,
+    OWNER,
+    text,
+    &Queued {
+      agent_only: true,
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
+
+  round.runner.of(AGENT).instruct(OWNER, text.to_owned(), Some(id), None, vec![]).await;
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(prompts[0].contains(text), "{}", prompts[0]);
+  assert!(round.sent().is_empty(), "{:?}", round.sent());
+  assert_eq!(
+    round.scratch.texts(r#"SELECT "text" FROM "messages" WHERE "chat_id" = 42"#).await,
+    Vec::<String>::new()
+  );
+}
+
+#[tokio::test]
+async fn a_notice_meant_for_the_room_still_goes_there() {
+  let session = StandInSession::new(SESSION, "Here.");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let text = "The room hears this notice.";
+  let id = queue(
+    round.scratch.db(),
+    AGENT,
+    OWNER,
+    text,
+    &Queued {
+      agent_only: false,
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
+
+  round.runner.of(AGENT).instruct(OWNER, text.to_owned(), Some(id), None, vec![]).await;
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(prompts[0].contains(text), "{}", prompts[0]);
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("Here."), "{sent:?}");
+  assert_eq!(
+    round.scratch.texts(r#"SELECT "text" FROM "messages" WHERE "chat_id" = 42"#).await,
+    ["Here."]
+  );
+}
 
 #[tokio::test]
 async fn a_private_chat_round_writes_the_situation_note_and_hands_it_to_the_judgement() {

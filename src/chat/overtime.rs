@@ -120,6 +120,7 @@ pub async fn ask(receiver: &Receiver, asked: &Asked) -> Result<i64, Fault> {
     kind: Some(&kind),
     sort: Some(&OWNER_FACTS.overtime.sort),
     summary: Some(&asked.what),
+    agent_only: true,
     ..Queued::default()
   };
 

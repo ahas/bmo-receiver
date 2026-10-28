@@ -271,13 +271,14 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `expiresAt?`, `events?`, `ridesUntil?`, `via?`, `run?` | 201, `{id}` |
+| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `expiresAt?`, `events?`, `agentOnly?`, `ridesUntil?`, `via?`, `run?` | 201, `{id}` |
 | `GET /instructions/{instructionId}` | | `id`, `state` (`pending`, `handed` or `delivered`) |
 | `DELETE /instructions/{instructionId}` | | 204 |
 | `POST /owner/instructions` | `chatId`, `text` | 204 |
 
 - **An instruction** is queued for the agent's session in the room, and a `kind` replaces the pending instruction
-  of the same kind there. An instruction for a room whose registration is gone goes to the owner's private room
+  of the same kind there. One marked `agentOnly` is a record the agent reads and no room hears: a round carrying
+  only such rows sends no room message (`docs/bmo-window.md`, 「Quiet instruction」). An instruction for a room whose registration is gone goes to the owner's private room
   instead, naming the room, and never into the platform room; one whose agent no longer answers its room goes to
   the room's voice.
 - **A quiet instruction** is one with `kind` `watch` or `reminder` and a `said.order`: it is queued under that

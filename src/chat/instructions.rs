@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use receiver_policy::chat_round::CHAT_ROUND;
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::{DatabaseConnection, TransactionTrait, Value};
 use tokio::sync::Notify;
 
 use super::conversation::{BoxFuture, Conversations, unified_session};
@@ -390,6 +390,9 @@ pub struct Queued<'a> {
   /// Whether it rides a round of any room its session answers rather than its own room's alone: such a row rides
   /// until `rides_until_ms`, and for good where that names no moment.
   pub rides_session: bool,
+  /// Whether this is an agent-only notice: a record the agent reads and no room hears. A round carrying only such
+  /// rows sends no message (docs/bmo-window.md, 「Quiet instruction」).
+  pub agent_only: bool,
   pub sort: Option<&'a str>,
   pub summary: Option<&'a str>,
   /// The road the session it is for was read on, which it is delivered on.
@@ -429,8 +432,8 @@ pub async fn queue(
 
   let written = one(
     &transaction,
-    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "expires_at", "via", "events", "rides", "ride_until", "sort", "summary", "run_id")
-       VALUES ($1, $2, $3, $4, $5, $6, $12, $7, $8, $9, $10, $11, $13)
+    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "expires_at", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING "id""#,
     vec![
       agent.into(),
@@ -439,12 +442,13 @@ pub async fn queue(
       now_ms().into(),
       queued.kind.into(),
       queued.expires_at_ms.into(),
+      queued.via.into(),
       queued.events.join(",").into(),
       rides(queued).into(),
       queued.rides_until_ms.into(),
       queued.sort.into(),
       queued.summary.into(),
-      queued.via.into(),
+      Value::Bool(Some(queued.agent_only)),
       queued.run_id.into(),
     ],
   )

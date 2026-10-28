@@ -72,6 +72,7 @@ pub async fn raise_order(
     events: vec![],
     rides_until_ms: None,
     rides_session: false,
+    agent_only: true,
     sort: None,
     summary: reason,
     via: None,

@@ -90,6 +90,7 @@ pub async fn tell(
       sort: Some(&said.sort),
       summary: Some(&summary),
       rides_session: true,
+      agent_only: true,
       ..Queued::default()
     };
 

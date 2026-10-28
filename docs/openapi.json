@@ -1138,6 +1138,11 @@
               "null"
             ]
           },
+          "agentOnly": {
+            "default": false,
+            "description": "A record the agent reads and no room hears: a round carrying only such rows sends no message.",
+            "type": "boolean"
+          },
           "events": {
             "default": [],
             "items": {
@@ -1214,6 +1219,7 @@
           "summary",
           "expiresAt",
           "events",
+          "agentOnly",
           "ridesUntil",
           "via",
           "run"

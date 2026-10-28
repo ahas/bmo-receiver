@@ -108,6 +108,11 @@ A quiet instruction is a row of the instruction table handed to a chat's own ses
 that session without the room hearing it.
 
 - **Its own block in the prompt,** marked the way the message blocks are; nobody in the room sent it or sees it.
+- **Some are for the agent alone.** A row marked `agent_only` is a record the agent reads and no room hears: a
+  round carrying only such rows is a quiet turn whose reply is dropped, and no room message is sent. The tool
+  list's notes, a failure order of a broken run, a run past its clock and a document reload are marked so; a
+  notice meant for the room is not, and a round carrying one sends its answer as any room notice does. A round
+  that also read a room's words answers those words, with the agent-only record read as part of the turn.
 - **Acted on as the owner's word in that chat.** The session may answer `<<SKIP>>` in any chat, the owner's
   private chat included, when acting on it needs nothing said. The permission covers the instruction and not the
   round it rides in, so where the same round also read the owner's own words in the owner's own chat the silence

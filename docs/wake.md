@@ -264,7 +264,8 @@ written by the wake itself: the deployment briefing, what went live since the ow
   `bmo use <tool> --describe` before it is called; and that nothing needs saying in any room.
 - **It rides and wakes nobody** (`docs/bmo-window.md`, 「Rows that ride」): it is queued in the owner's notices room
   under the kind `tools-changed:<agent>:<tool>`, so a later change of the same tool replaces the agent's one not
-  yet handed over, and rides for good in a round of any room the agent's session answers.
+  yet handed over, and rides for good in a round of any room the agent's session answers. It is marked as an
+  agent-only notice: a round carrying only it sends no room message (`docs/bmo-window.md`, 「Quiet instruction」).
 
 ### A road's change
 
