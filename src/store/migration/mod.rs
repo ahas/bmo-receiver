@@ -28,6 +28,7 @@ pub mod m20261027_000021_forwards;
 pub mod m20261027_000022_room_situations;
 pub mod m20261027_000023_message_situations;
 pub mod m20261027_000023_voice_transcripts;
+pub mod m20261028_000024_message_image_state;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -62,6 +63,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261027_000022_room_situations::Migration),
       Box::new(m20261027_000023_message_situations::Migration),
       Box::new(m20261027_000023_voice_transcripts::Migration),
+      Box::new(m20261028_000024_message_image_state::Migration),
     ]
   }
 }

@@ -57,6 +57,7 @@ fn said(message_id: i64, text: &str) -> Inbound {
     sent_at: (SAID_FROM + message_id) * 1_000,
     text: text.into(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

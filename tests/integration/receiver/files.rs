@@ -100,6 +100,25 @@ async fn voice_line(standing: &Standing, message_id: i64) -> String {
   .remove(0)
 }
 
+async fn line(standing: &Standing, message_id: i64) -> String {
+  let message = rows::message(standing.receiver.db(), ROOM, message_id, "road-a")
+    .await
+    .unwrap()
+    .unwrap();
+  let shown = HashSet::new();
+
+  Reading {
+    receiver: &standing.receiver,
+    owner: 55,
+    fetch_on_demand: false,
+    shown: &shown,
+  }
+  .lines(&[message])
+  .await
+  .unwrap()
+  .remove(0)
+}
+
 fn encoded(picture: image::DynamicImage, format: ImageFormat) -> Vec<u8> {
   let mut out = Cursor::new(Vec::new());
 
@@ -351,4 +370,119 @@ async fn a_voice_note_that_cannot_be_heard_is_one_line_saying_so() {
   let line = voice_line(&standing, 1).await;
 
   assert!(line.contains(&CHAT_ROUND.shape.voice_failed), "{line}");
+}
+
+#[tokio::test]
+async fn a_picture_with_no_caption_carries_its_note_and_path() {
+  let (scratch, _data, standing) = stood().await;
+  let picture = encoded(RgbImage::from_pixel(8, 8, Rgb([10, 200, 30])).into(), ImageFormat::Jpeg);
+
+  scratch
+    .run(r#"INSERT INTO "photo_chats" ("chat_id", "look") VALUES ($1, 1)"#, vec![ROOM.into()])
+    .await;
+  handed_text(&standing, 1, "", &[file("1", "photo.jpg", "image/jpeg", picture)]).await;
+
+  let path = image_path(&scratch, 1).await;
+  let line = line(&standing, 1).await;
+
+  assert!(line.contains(&path), "{line}");
+  assert!(
+    line.contains(&receiver_policy::fill_marks(
+      &CHAT_ROUND.shape.image_attached,
+      &[("path", &path), ("look", &CHAT_ROUND.shape.image_look)]
+    )),
+    "the note stands with the path: {line}"
+  );
+}
+
+#[tokio::test]
+async fn a_picture_that_could_not_be_kept_says_it_was_not_stored() {
+  let (scratch, data, standing) = stood().await;
+  let path = data.path().join(format!("images/{ROOM}/2.jpg"));
+
+  std::fs::create_dir_all(&path).unwrap();
+
+  handed_text(&standing, 2, "", &[file("1", "photo.jpg", "image/jpeg", vec![0xff, 0xd8, 0xff, 0xd9])])
+    .await;
+
+  let line = line(&standing, 2).await;
+
+  assert_eq!(image_path_or_none(&scratch, 2).await, String::new());
+  assert!(line.contains(&CHAT_ROUND.shape.image_not_stored), "{line}");
+  assert!(!line.trim_end().ends_with("):"), "the line is not empty words: {line}");
+}
+
+async fn image_path_or_none(scratch: &Scratch, message_id: i64) -> String {
+  scratch
+    .texts(&format!(
+      r#"SELECT COALESCE("image_path", '') FROM "messages" WHERE "chat_id" = {ROOM} AND "message_id" = {message_id}"#
+    ))
+    .await
+    .into_iter()
+    .next()
+    .unwrap_or_default()
+}
+
+#[tokio::test]
+async fn a_file_and_a_voice_note_with_no_caption_carry_their_notes() {
+  let (_scratch, _data, standing) = stood().await;
+
+  handed_text(&standing, 3, "", &[file("1", "notes.txt", "text/plain", b"notes".to_vec())]).await;
+  standing.hearing.saying("the backup finished", Some(2.5));
+  handed_text(&standing, 4, "", &[voice()]).await;
+
+  let file_line = line(&standing, 3).await;
+  let voice_line = line(&standing, 4).await;
+
+  assert!(file_line.contains("notes.txt") && file_line.contains("saved at"), "{file_line}");
+  assert!(voice_line.contains("heard as: the backup finished"), "{voice_line}");
+  assert!(!file_line.trim_end().ends_with("):") && !voice_line.trim_end().ends_with("):"));
+}
+
+#[tokio::test]
+async fn a_text_message_is_unchanged() {
+  let (_scratch, _data, standing) = stood().await;
+
+  standing
+    .receiver
+    .message(&inbound(ROOM, 5, 55, "hello there"), &Context::default(), Room::default())
+    .await
+    .unwrap();
+
+  let line = line(&standing, 5).await;
+
+  assert!(line.ends_with("): hello there"), "{line}");
+  assert!(!line.contains("[attached"), "{line}");
+}
+
+#[tokio::test]
+async fn a_message_that_carried_nothing_stays_empty() {
+  let (_scratch, _data, standing) = stood().await;
+
+  standing
+    .receiver
+    .message(&inbound(ROOM, 6, 55, ""), &Context::default(), Room::default())
+    .await
+    .unwrap();
+
+  let line = line(&standing, 6).await;
+
+  assert!(line.ends_with("): "), "{line}");
+  assert!(!line.contains("[attached"), "{line}");
+}
+
+#[tokio::test]
+async fn a_file_past_the_cap_says_it_was_not_stored() {
+  let (_scratch, _data, standing) = stood().await;
+  let large = vec![b'x'; (CAP + 1) as usize];
+
+  handed_text(&standing, 7, "", &[file("1", "big.bin", "application/octet-stream", large)]).await;
+
+  let line = line(&standing, 7).await;
+
+  assert!(
+    line.contains(&receiver_policy::fill_marks(&CHAT_ROUND.shape.file_not_stored, &[("name", "big.bin")])),
+    "{line}"
+  );
+  assert!(!line.trim_end().ends_with("):"), "{line}");
 }

@@ -85,6 +85,7 @@ pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> R
     sent_at: now_ms(),
     text: kept.text.to_owned(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

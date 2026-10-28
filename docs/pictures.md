@@ -47,6 +47,11 @@ receiver keeps the pictures and decides what a session is shown.
   transparency is laid on white and stored as JPEG whatever its size.
 - **The message is archived like any other,** with the caption as its text or the picture placeholder when there
   is none, and the archive row keeps the stored path plus the id of the message it replies to.
+- **A picture with no caption still reaches the session with its note.** The line stands its sender's words, empty
+  where there were none, then the note naming the saved path (`[attached image saved at <path>]` where the room
+  looks at pictures, the note that it does not look where it does not). A picture that could not be written says
+  it was not stored rather than leaving a line with nothing in it; the turn reads the message after the file is
+  kept, never the hand-over that came before it.
 - **Several photos sent at once reach the agent as one message.** The archive keeps a row for each picture of an
   album, each naming the album's first message, and every list of a room's messages a session reads (the new
   messages, the archived stretch, the messages waited on, a push mid-turn, the recent lines the gate reads) stands

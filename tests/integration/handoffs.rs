@@ -174,6 +174,7 @@ async fn the_next_fresh_sessions_first_turn_opens_on_the_kept_handoff_then_the_r
     sent_at: 1_760_000_000_100,
     text: "what is new".into(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

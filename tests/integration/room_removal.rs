@@ -359,6 +359,7 @@ async fn a_room_that_speaks_again_afterwards_is_a_new_registration_with_an_empty
     sent_at: 1_760_000_000,
     text: "back again".into(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

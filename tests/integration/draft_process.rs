@@ -6,16 +6,19 @@
 //! next question or the closing check, each answered with the message, marked done or marked separate, and the
 //! code's readings are items of the process rather than askings of their own.
 
+use std::io::Cursor;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bmo_chat_client::MessageFile;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::draft::table::PastCeiling;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
+use image::{ImageFormat, Rgb, RgbImage};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
@@ -52,6 +55,7 @@ fn said(message_id: i64, text: &str) -> Inbound {
     sent_at: 1_760_000_000 + message_id,
     text: text.into(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,
@@ -1015,6 +1019,52 @@ async fn pinned_rows(round: &Drafting) -> Vec<String> {
          WHERE "chat_id" = 42 AND "agent_name" IS NOT NULL AND "reply_to_message_id" IS NOT NULL"#,
     )
     .await
+}
+
+#[tokio::test]
+async fn a_picture_with_no_caption_reaches_the_turn_as_its_saved_path() {
+  let session = StandInSession::new(SESSION, "unscripted");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let mut picture = Cursor::new(Vec::new());
+
+  RgbImage::from_pixel(8, 8, Rgb([10, 200, 30]))
+    .write_to(&mut picture, ImageFormat::Jpeg)
+    .unwrap();
+  round
+    .scratch
+    .run(r#"INSERT INTO "photo_chats" ("chat_id", "look") VALUES ($1, 1)"#, vec![OWNER.into()])
+    .await;
+
+  let file = MessageFile {
+    id: "1".into(),
+    name: "photo.jpg".into(),
+    mime: "image/jpeg".into(),
+    bytes: picture.into_inner(),
+    kind: None,
+  };
+  let context = Context {
+    carries_file: true,
+    spoken_text: Some(String::new()),
+    ..Context::default()
+  };
+
+  round
+    .standing
+    .receiver
+    .attachment(&said(1, ""), &context, owners_room(), &[file])
+    .await
+    .unwrap();
+  round.ended(1).await;
+
+  let prompt = &round.session.prompts()[0];
+  let data = round._data.path().join(format!("images/{OWNER}/1.jpg"));
+
+  assert!(prompt.contains(&data.to_string_lossy().into_owned()), "{prompt}");
+  assert!(prompt.contains("[attached image saved at"), "{prompt}");
+  assert!(
+    !prompt.contains(": \n") && !prompt.contains(": \r\n"),
+    "the line is not empty: {prompt}"
+  );
 }
 
 #[tokio::test]

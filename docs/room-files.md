@@ -71,9 +71,14 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   in their order, so the turn that reads the request reads the files beside it, each with its note. A file still
   being fetched when the request arrives goes in without a note, and a file a turn already read is not read
   again by the same conversation.
-- **The note beside the message.** Whenever a session is shown such a message it carries a note beside it
-  (`[attached file job.wav saved at <path>]`, or `was not stored` when keeping it failed) read from the message's
-  `collected_items` rows, the way a photo carries its stored path.
+- **The note beside the message.** Whenever a session is shown such a message it carries a note beside it for
+  every thing it carried: a file (`[attached file job.wav saved at <path>]`, or `was not stored` when keeping it
+  failed) read from the message's `collected_items` rows, a picture's stored path or its not-stored line, a voice
+  note's transcript or the line saying it could not be heard, and a sticker's picture. A message with no caption
+  is not an empty line: its words stand empty and its notes follow them. The note is written from the message as
+  it stands after the file is kept and heard, never from the hand-over that came before either, so a path or a
+  transcript is always the one the room holds. A message that truly carried nothing stays as it is, with no note
+  invented for it.
 - **What a room rule asks to be done with the file** is the session's to carry out with a tool: the rule is free
   text the owner can revoke, and a revoked rule stops the action with it.
 

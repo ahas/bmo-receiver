@@ -61,6 +61,9 @@ pub struct Inbound {
   pub sent_at: i64,
   pub text: String,
   pub image_path: Option<String>,
+  /// `stored` or `failed` for a picture the message carried, where its keeping was tried; none for no picture.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub image_state: Option<String>,
   /// What bmo-ear heard in a voice note, once the recording stands.
   pub transcript: Option<String>,
   /// How long the recording ran, where bmo-ear heard it.
@@ -793,6 +796,12 @@ impl Receiver {
     files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, inbound, handed).await?;
     hearing::hear(self, inbound, handed).await?;
 
+    // The files and the hearing have written their paths and their transcript onto the row: the turn reads that
+    // row, not the hand-over that came before either.
+    let kept = rows::message(&self.db, inbound.chat_id, inbound.message_id, &inbound.via)
+      .await?
+      .unwrap_or_else(|| inbound.clone());
+
     if context.gathering && handed.is_empty() {
       return Ok(());
     }
@@ -801,7 +810,7 @@ impl Receiver {
 
     self
       .wake
-      .file(self, inbound, room, inbound.sender_id == Some(self.owner_id()), caption)
+      .file(self, &kept, room, kept.sender_id == Some(self.owner_id()), caption)
       .await
   }
 
@@ -833,9 +842,13 @@ impl Receiver {
 
     hearing::hear(self, &inbound, &patch.files).await?;
 
-    let owner = inbound.sender_id == Some(self.owner_id());
+    // The kept file and its hearing stand on the row: the turn reads that row, not the message as it came.
+    let kept = rows::message(&self.db, chat_id, message_id, via)
+      .await?
+      .unwrap_or_else(|| inbound.clone());
+    let owner = kept.sender_id == Some(self.owner_id());
 
-    self.wake.file(self, &inbound, room, owner, &inbound.text).await
+    self.wake.file(self, &kept, room, owner, &kept.text).await
   }
 
   /// An answer a process beside the receiver filed in a room under an agent's own number: it wakes no agent by its

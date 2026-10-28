@@ -322,6 +322,8 @@ impl Reading<'_> {
     for one in std::iter::once(message).chain(send.rest.iter().copied()) {
       if let Some(path) = &one.image_path {
         notes.push(image_attached(look, present(path).then_some(path.as_str())));
+      } else if one.image_state.as_deref() == Some("failed") {
+        notes.push(shape.image_not_stored.clone());
       }
 
       if let Some(state) = &one.voice_state {

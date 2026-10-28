@@ -30,6 +30,7 @@ fn said(text: &str, picture: bool) -> Inbound {
     sent_at: 1,
     text: text.into(),
     image_path: picture.then(|| "a.jpg".to_owned()),
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

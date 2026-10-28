@@ -334,6 +334,7 @@ async fn a_round_the_owner_spoke_in_and_an_agent_with_no_voice_are_never_summari
     sent_at: 1_760_000_000_100,
     text: "what is new".into(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

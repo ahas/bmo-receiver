@@ -77,6 +77,7 @@ fn said(chat_id: i64, message_id: i64, sender_id: i64, text: &str) -> Inbound {
     sent_at: 1_760_000_000,
     text: text.into(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

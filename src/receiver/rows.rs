@@ -119,10 +119,11 @@ pub async fn save_message(
 ) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "image_state", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT ("chat_id", "message_id") DO UPDATE SET "sender_id" = excluded."sender_id", "sender_name" = excluded."sender_name",
          "sent_at" = excluded."sent_at", "text" = excluded."text", "image_path" = excluded."image_path",
+         "image_state" = COALESCE(excluded."image_state", "messages"."image_state"),
          "transcript" = COALESCE(excluded."transcript", "messages"."transcript"),
          "voice_seconds" = COALESCE(excluded."voice_seconds", "messages"."voice_seconds"),
          "voice_state" = COALESCE(excluded."voice_state", "messages"."voice_state"),
@@ -136,6 +137,7 @@ pub async fn save_message(
       message.sent_at.into(),
       message.text.clone().into(),
       message.image_path.clone().into(),
+      message.image_state.clone().into(),
       message.transcript.clone().into(),
       message.voice_seconds.into(),
       message.voice_state.clone().into(),
@@ -180,6 +182,7 @@ fn inbound_of(row: &QueryResult, via: &str) -> Result<Inbound, DbErr> {
     sent_at: row.try_get("", "sent_at")?,
     text: row.try_get("", "text")?,
     image_path: row.try_get("", "image_path")?,
+    image_state: row.try_get("", "image_state")?,
     transcript: row.try_get("", "transcript")?,
     voice_seconds: row.try_get("", "voice_seconds")?,
     voice_state: row.try_get("", "voice_state")?,

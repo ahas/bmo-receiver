@@ -23,6 +23,7 @@ pub fn message(text: &str, room: i64, owner: i64, name: &str, at_ms: i64) -> Inb
     sent_at: at_ms,
     text: text.to_owned(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

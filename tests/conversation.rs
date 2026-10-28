@@ -37,6 +37,7 @@ fn said(message_id: i64, sender_id: i64, text: &str) -> bmo_receiver::receiver::
     sent_at: 1_760_000_000 + message_id,
     text: text.to_owned(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

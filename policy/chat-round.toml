@@ -86,6 +86,7 @@ image_look = "open it with the Read tool to see it, then decide whether it calls
 image_blind = "you do not look at images, so you cannot see it"
 image_attached_blind = "[an image is attached; {blind}]"
 image_attached_gone = "[an attached image is no longer stored]"
+image_not_stored = "[an attached image was not stored]"
 image_attached = "[attached image saved at {path} — {look}]"
 image_replied_blind = "[replies to message {id}, which carries an image; {blind}]"
 image_replied_gone = "[replies to message {id}, whose image is no longer stored]"

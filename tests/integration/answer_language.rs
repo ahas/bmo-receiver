@@ -26,6 +26,7 @@ fn said(message_id: i64, sender: i64, name: &str, text: &str) -> Inbound {
     sent_at: message_id,
     text: text.into(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

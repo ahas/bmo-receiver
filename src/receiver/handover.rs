@@ -30,6 +30,7 @@ pub fn inbound(room_id: i64, message_id: i64, message: &HandedMessage) -> Inboun
     sent_at: message.sent_at,
     text: message.text.clone(),
     image_path: None,
+    image_state: None,
     transcript: None,
     voice_seconds: None,
     voice_state: None,

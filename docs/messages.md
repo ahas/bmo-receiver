@@ -21,7 +21,9 @@ agent has read) and what an agent can send back and when a room sees it typing.
   and for every kind that is not plain words (a location, a contact, a poll, a sticker, a video, a voice note, a
   document, someone joining or leaving, a pin, a title change) the short bracketed placeholder its chat service
   writes for it, carrying what a reader could act on, plus the caption when there is one. It is archived and
-  routed like any message.
+  routed like any message. A message whose only words are a thing it carried reaches the session with that thing's
+  note beside its empty words (`docs/room-files.md`, 「Who a file wakes」; `docs/pictures.md`, 「Pictures
+  received」), never as a line with nothing in it.
 - **Anything forwarded is prefixed with who it came from,** as the chat service hands it over.
 - **A voice note is heard before it reaches the turn.** Once its recording stands, the receiver hands the saved
   file to bmo-ear (`bmo/transcribe`, through the tool host) and keeps what was heard, how long it ran and whether

@@ -74,6 +74,7 @@ pub struct Shape {
   pub image_blind: String,
   pub image_attached_blind: String,
   pub image_attached_gone: String,
+  pub image_not_stored: String,
   pub image_attached: String,
   pub image_replied_blind: String,
   pub image_replied_gone: String,

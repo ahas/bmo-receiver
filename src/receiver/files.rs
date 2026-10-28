@@ -128,19 +128,27 @@ async fn picture(
     quality: filed.kept_quality,
   };
   let bytes = file.bytes.clone();
-  let kept = tokio::task::spawn_blocking(move || pictures::kept(bytes, keeping))
-    .await
-    .map_err(|why| Fault::new(format!("the picture's redrawing stopped: {why}")))?;
+  let kept = match tokio::task::spawn_blocking(move || pictures::kept(bytes, keeping)).await {
+    Ok(kept) => kept,
+    Err(why) => {
+      eprintln!("bmo-receiver: the picture of message {} was not kept: {why}", inbound.message_id);
+      image_state(db, inbound, "failed").await?;
+
+      return Ok(false);
+    }
+  };
 
   if let Err(why) = written(&path, &kept).await {
     eprintln!("bmo-receiver: the picture of message {} was not kept: {why}", inbound.message_id);
+    image_state(db, inbound, "failed").await?;
+
     return Ok(false);
   }
 
   if before == 0 {
     run(
       db,
-      r#"UPDATE "messages" SET "image_path" = $1 WHERE "chat_id" = $2 AND "message_id" = $3"#,
+      r#"UPDATE "messages" SET "image_path" = $1, "image_state" = 'stored' WHERE "chat_id" = $2 AND "message_id" = $3"#,
       vec![
         path.to_string_lossy().into_owned().into(),
         inbound.chat_id.into(),
@@ -151,6 +159,17 @@ async fn picture(
   }
 
   Ok(true)
+}
+
+// What the message's own row says of the picture it carried, where keeping it failed.
+async fn image_state(db: &DatabaseConnection, inbound: &Inbound, state: &str) -> Result<(), Fault> {
+  run(
+    db,
+    r#"UPDATE "messages" SET "image_state" = $1 WHERE "chat_id" = $2 AND "message_id" = $3"#,
+    vec![state.into(), inbound.chat_id.into(), inbound.message_id.into()],
+  )
+  .await
+  .map(drop)
 }
 
 // One file kept with its row: none where the same file already stands kept, and its row alone, without the file,
