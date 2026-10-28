@@ -1,6 +1,5 @@
 //! The language a text is written in, told by the script of its prose outside the spans it quotes: what the
-//! answer language check and the prompt's answer-language note read (docs/answer-checks.md, 「The language a
-//! text is written in」).
+//! prompt's answer-language note reads (docs/answer-checks.md, 「The language a text is written in」).
 
 use std::sync::LazyLock;
 

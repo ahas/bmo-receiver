@@ -12,7 +12,6 @@ later = "Later messages will be delivered in the next turn; do not act on them n
 [errands]
 # A turn that carried {count} of the owner's own messages and answered with silence.
 owed = "Your answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. This turn carried {count} message(s) from the owner, in the owner's own private chat, which is always answered. Write this turn's answer to the owner now. <<SKIP>> and <<WAIT>> are not available."
-# What the language errand names where the caller names no other part.
 # A final text past the longest a message may run: {count} is its length, {limit} the longest, in characters.
 length = "The message you wrote runs to {count} characters, past the {limit} a message here may hold, and nothing went out. Write it again, shorter, keeping what matters. <<WAIT>> is not available."
 # A final text carrying the process's own lines.

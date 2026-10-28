@@ -152,7 +152,7 @@ pub async fn addressees(
   Ok(found)
 }
 
-/// Each person and their language, one clause a person, as the line and the language check's errand name them.
+/// Each person and their language, one clause a person, as the turn's answer language line names them.
 pub fn clauses(addressees: &[Addressee]) -> String {
   let closing = &CHAT_ROUND.closing;
 
