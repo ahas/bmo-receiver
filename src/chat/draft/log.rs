@@ -89,6 +89,7 @@ impl Answered {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ended {
   Message,
+  PastBound,
   Skip,
   Withheld,
 }
@@ -97,6 +98,7 @@ impl Ended {
   pub fn word(self) -> &'static str {
     match self {
       Self::Message => "message",
+      Self::PastBound => "past-bound",
       Self::Skip => "skip",
       Self::Withheld => "withheld",
     }

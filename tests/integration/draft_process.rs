@@ -14,9 +14,10 @@ use std::time::Duration;
 use bmo_chat_client::MessageFile;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
-use bmo_receiver::chat::instructions::{Queued, queue};
+use bmo_receiver::chat::instructions::{Queued, deliver_pending, queue};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
+use bmo_receiver::now_ms;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use image::{ImageFormat, Rgb, RgbImage};
 use receiver_policy::chat_line::CHAT_LINE;
@@ -327,6 +328,120 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
 }
 
 const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
+
+#[tokio::test]
+async fn an_expired_instruction_held_by_a_busy_turn_is_delivered_when_it_ends() {
+  let session = StandInSession::new(SESSION, "here").working_for(Duration::from_millis(300));
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  until("the turn working", || round.session.working()).await;
+
+  let text = "a notice held past its expiry";
+  let id = queue(
+    round.scratch.db(),
+    AGENT,
+    OWNER,
+    text,
+    &Queued {
+      expires_at_ms: Some(now_ms() - 1),
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
+  let mut last = 0;
+  let held = deliver_pending(&round.standing.receiver, &round.runner, &mut last, now_ms(), 0)
+    .await
+    .unwrap();
+
+  assert!(!held);
+  assert_eq!(
+    round
+      .scratch
+      .texts(&format!(
+        r#"SELECT (CASE WHEN "handed_at" IS NOT NULL THEN 'true' ELSE 'false' END) || '|' || (CASE WHEN "delivered_at" IS NOT NULL THEN 'true' ELSE 'false' END) FROM "instructions" WHERE "id" = {id}"#
+      ))
+      .await,
+    ["true|false"],
+    "the expired row is held by the working turn, not dropped"
+  );
+
+  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+    loop {
+      let delivered = round
+        .scratch
+        .texts(&format!(
+          r#"SELECT (CASE WHEN "delivered_at" IS NOT NULL THEN 'true' ELSE 'false' END) FROM "instructions" WHERE "id" = {id}"#
+        ))
+        .await;
+
+      if delivered == ["true"] && round.runner.idle() {
+        break;
+      }
+
+      tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+  })
+  .await;
+
+  assert!(waited.is_ok(), "the held instruction never settled");
+  assert!(!round.sent().is_empty(), "the answer the held turn produced went out");
+}
+
+#[tokio::test]
+async fn an_expired_instruction_with_no_turn_is_dropped() {
+  let session = StandInSession::new(SESSION, "unused");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  let id = queue(
+    round.scratch.db(),
+    AGENT,
+    OWNER,
+    "a notice nobody holds",
+    &Queued {
+      expires_at_ms: Some(now_ms() - 1),
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
+  let mut last = 0;
+  let held = deliver_pending(&round.standing.receiver, &round.runner, &mut last, now_ms(), 0)
+    .await
+    .unwrap();
+
+  assert!(!held);
+  assert_eq!(
+    round
+      .scratch
+      .texts(&format!(r#"SELECT "text" FROM "instructions" WHERE "id" = {id}"#))
+      .await,
+    Vec::<String>::new(),
+    "a row with no turn is let go"
+  );
+}
+
+#[tokio::test]
+async fn a_long_turn_in_a_room_does_not_starve_a_later_message() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["the first answer", "the second answer"])
+    .working_for(Duration::from_millis(400));
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  until("the turn working", || round.session.working()).await;
+  round.hear(2, "a later message").await;
+  round.ended(2).await;
+
+  let sent = round.sent();
+
+  assert!(!sent.is_empty(), "{sent:?}");
+  assert!(
+    sent.iter().any(|send| send.contains("the second answer")),
+    "the later message is answered after the long turn: {sent:?}"
+  );
+}
 
 #[tokio::test]
 async fn an_agent_only_notice_reaches_the_agent_and_leaves_no_room_message() {
@@ -1135,6 +1250,11 @@ async fn a_turn_past_its_bound_tells_the_room_nothing_and_goes_on() {
   // Both turns ran past the bound, and the room heard nothing but the message: no holding line in any room.
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("the message after a long while"), "the turn went on: {sent:?}");
+  assert!(
+    round.log().await.contains(&"end  past-bound".to_owned()),
+    "the round's end names the bound: {:?}",
+    round.log().await
+  );
 }
 
 #[tokio::test]

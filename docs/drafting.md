@@ -240,7 +240,8 @@ leaves.
 - **A turn past its bound is a journal note.** Where one turn of the process is still running once the row's
   `turnSeconds` have passed since it went out, the journal says so once in the round and the turn goes on to its
   end; the console's row of the answering agent already shows it at work, and no holding line goes into any room
-  (`docs/voiced-notices.md`, 「A turn past its clock」). The note cuts nothing and asks no question early.
+  (`docs/voiced-notices.md`, 「A turn past its clock」). The note cuts nothing and asks no question early. The
+  round's end row says `past-bound`, and the message the turn produced still goes out.
 - **Before `final` has run, no message stands:** an answer before the last is notes. A process that already has
   its message, from `final` or from a send marker, goes on to the closing check, the items and the checks below.
 - **A later question whose run failed** is passed over to `final`, asked at once; a `final` whose run failed

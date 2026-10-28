@@ -113,6 +113,10 @@ that session without the room hearing it.
   list's notes, a failure order of a broken run, a run past its clock and a document reload are marked so; a
   notice meant for the room is not, and a round carrying one sends its answer as any room notice does. A round
   that also read a room's words answers those words, with the agent-only record read as part of the turn.
+- **A turn holds a row's expiry back.** A row handed to a round is delivered with that round; one whose
+  `expires_at` comes while a turn of the agent's works in any room is handed once when that turn ends, and its
+  answer goes out even though its expiry has passed. A row no turn holds at its expiry is let go, and the log
+  names the instruction, the room and the row's kind, with whether a turn held it or none did.
 - **Acted on as the owner's word in that chat.** The session may answer `<<SKIP>>` in any chat, the owner's
   private chat included, when acting on it needs nothing said. The permission covers the instruction and not the
   round it rides in, so where the same round also read the owner's own words in the owner's own chat the silence
@@ -187,9 +191,10 @@ round.
 - **Owner-only lines keep to the owner's room.** The restart's back line, the queue at start-up and the deployment
   briefing ride only the owner's own rounds, since a line for the owner said in a group room is said to the
   wrong people.
-- **What stays the same for a rider:** it is still a row of the instruction table, it still expires and is still
-  discarded for a room not served, it carries its events like any row, and it is settled with the round that
-  took it.
+- **What stays the same for a rider:** it is still a row of the instruction table, it still expires, it carries
+  its events like any row, and it is settled with the round that took it. A row whose expiry comes while a turn
+  of the agent's holds it is delivered once when that turn ends, and the log says so; a row no turn holds at its
+  expiry is discarded, with its instruction, room and kind in the log.
 - **A rider is not waiting behind a turn.** The queue line a round is handed counts only the rows that would
   open a turn.
 

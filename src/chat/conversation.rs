@@ -1213,6 +1213,11 @@ impl Conversations {
     }
   }
 
+  /// Whether a round of the agent's stands in any room now.
+  pub fn busy(&self) -> bool {
+    self.state().active.values().any(|conv| conv.in_flight)
+  }
+
   /// Whether a room has fallen silent: the rest closes it and nothing else would answer it.
   pub async fn silenced(&self, chat_id: i64) -> bool {
     self.0.health.silenced(&self.0.receiver, chat_id).await

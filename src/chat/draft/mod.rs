@@ -971,7 +971,11 @@ impl Drafter {
       }
     }
 
-    let ended = Ended::Message;
+    let ended = if run.drafted.plan.told.load(Ordering::SeqCst) {
+      Ended::PastBound
+    } else {
+      Ended::Message
+    };
 
     run.log.end(ended, row, now_ms() - drafted.began, &run.reads().await).await;
 

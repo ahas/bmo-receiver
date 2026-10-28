@@ -42,6 +42,10 @@ pub trait Rooms: Send + Sync {
 
   /// Whether the room has fallen silent for the agent: the rest closes it and nothing else would answer it.
   fn silenced(&self, agent: &str, chat_id: i64) -> BoxFuture<'_, bool>;
+
+  /// Whether a round of the agent's stands in any room now, so an expired row it could still take is held for it
+  /// rather than let go.
+  fn busy(&self, agent: &str) -> bool;
 }
 
 impl Rooms for Runner {
@@ -71,6 +75,10 @@ impl Rooms for Runner {
     let conversations: Conversations = self.of(agent);
 
     Box::pin(async move { conversations.silenced(chat_id).await })
+  }
+
+  fn busy(&self, agent: &str) -> bool {
+    self.of(agent).busy()
   }
 }
 
@@ -111,6 +119,7 @@ struct Row {
   text: String,
   expires_at: Option<i64>,
   restarts: i64,
+  sort: Option<String>,
   via: Option<String>,
   events: Vec<TurnEvent>,
   // None for a row that opens a turn; for a rider, until when in epoch milliseconds where it says, and whether
@@ -131,7 +140,7 @@ impl Row {
 async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
   let rows = all(
     db,
-    r#"SELECT "id", "agent", "chat_id", "text", "expires_at", "restarts", "via", "events", "rides", "ride_until"
+    r#"SELECT "id", "agent", "chat_id", "text", "expires_at", "restarts", "sort", "via", "events", "rides", "ride_until"
        FROM "instructions" WHERE "delivered_at" IS NULL AND "handed_at" IS NULL ORDER BY "id""#,
     vec![],
   )
@@ -149,6 +158,7 @@ async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
       text: row.try_get("", "text")?,
       expires_at: row.try_get("", "expires_at")?,
       restarts: row.try_get("", "restarts")?,
+      sort: row.try_get("", "sort")?,
       via: row.try_get("", "via")?,
       events: events
         .unwrap_or_default()
@@ -188,22 +198,25 @@ async fn deliverable(
   row: &Row,
   now_ms: i64,
 ) -> Result<bool, Fault> {
-  if row.expires_at.is_some_and(|at| at <= now_ms) {
-    println!("instruction {} for chat {} expired undelivered, discarding", row.id, row.chat_id);
-    discard(receiver.db(), row.id).await?;
-
-    return Ok(false);
-  }
+  let kind = row.sort.as_deref().unwrap_or("no sort");
+  let expired = row.expires_at.is_some_and(|at| at <= now_ms);
+  let held = rooms.is_active(&row.agent, row.chat_id) || rooms.busy(&row.agent);
 
   if !rooms.standing(&row.agent) {
-    println!("instruction {} of {} has no conversation to take it, discarding", row.id, row.agent);
+    println!(
+      "instruction {} of {} for chat {} ({kind}) has no conversation to take it, discarding",
+      row.id, row.agent, row.chat_id
+    );
     discard(receiver.db(), row.id).await?;
 
     return Ok(false);
   }
 
   if providers::read_only(receiver.db(), receiver.roads(), row.chat_id).await? {
-    println!("instruction {} for read-only chat {} is never taken, discarding", row.id, row.chat_id);
+    println!(
+      "instruction {} for read-only chat {} ({kind}) is never taken, discarding",
+      row.id, row.chat_id
+    );
     discard(receiver.db(), row.id).await?;
 
     return Ok(false);
@@ -211,12 +224,29 @@ async fn deliverable(
 
   if !wake::agents::answers(receiver, &row.agent, row.chat_id).await.unwrap_or(false) {
     println!(
-      "instruction {} of {} for chat {} has no conversation to take it, discarding",
+      "instruction {} of {} for chat {} ({kind}) has no conversation to take it, discarding",
       row.id, row.agent, row.chat_id
     );
     discard(receiver.db(), row.id).await?;
 
     return Ok(false);
+  }
+
+  if expired && !held {
+    println!(
+      "instruction {} for chat {} ({kind}) expired undelivered, no turn holding it; discarding",
+      row.id, row.chat_id
+    );
+    discard(receiver.db(), row.id).await?;
+
+    return Ok(false);
+  }
+
+  if expired {
+    println!(
+      "instruction {} for chat {} ({kind}) expired while a turn held it; delivering once",
+      row.id, row.chat_id
+    );
   }
 
   Ok(true)
@@ -267,18 +297,20 @@ pub async fn deliver_pending(
     }
 
     let cold = !rooms.is_active(&row.agent, row.chat_id);
+    let expired = row.expires_at.is_some_and(|at| at <= now_ms);
 
-    // A row never wakes a session past its cache lifetime: it waits for a round a room's own words open.
-    if cold && super::cache::expired(db, &row.agent).await {
+    // A row never wakes a session past its cache lifetime: it waits for a round a room's own words open. One a
+    // turn already held, or one whose expiry came while the agent was busy, is handed rather than held again.
+    if cold && !expired && super::cache::expired(db, &row.agent).await {
       continue;
     }
 
-    if cold && now_ms - *last_cold_wake < gap_ms {
+    if cold && !expired && now_ms - *last_cold_wake < gap_ms {
       held = true;
       continue;
     }
 
-    if cold {
+    if cold && !expired {
       *last_cold_wake = now_ms;
     }
 
