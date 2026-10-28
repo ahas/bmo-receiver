@@ -1583,10 +1583,6 @@ impl Conversations {
       )
     };
     let (held_words, mut batch, roads, mut instructions, ids, events, room, first_call, mut held) = taken;
-    // An agent-only notice alone in a round is a quiet turn: the agent reads it, and nothing it answers goes into
-    // the room (docs/bmo-window.md, 「Quiet instruction」).
-    let agent_only =
-      Self::agent_only_round(&receiver, &ids).await && batch.is_empty() && !instructions.is_empty();
 
     // The round's privilege is its own people's words', in any room and whatever an earlier round of the
     // conversation read; an agent's line neither grants nor takes it, and a round of no people's words is the
@@ -1783,7 +1779,13 @@ impl Conversations {
 
     self.keep_session(chat_id, &held);
 
-    if agent_only && batch.is_empty() {
+    // An agent-only notice alone in a round is a quiet turn: the agent reads it, and nothing it answers goes into
+    // the room. A room notice, or a message pushed with it, keeps the round a room's (docs/bmo-window.md, 「Quiet
+    // instruction」).
+    if batch.is_empty()
+      && !instructions.is_empty()
+      && Self::agent_only_round(&receiver, &record.settling).await
+    {
       return self.silent_end(chat_id, &batch, &held).await;
     }
 
