@@ -96,12 +96,10 @@ fn the_rounds_lines_carry_their_marks() {
   );
   assert!(CHAT_ROUND.closing.language_room.contains("{language}"));
   assert!(CHAT_ROUND.language.prose_letters > 0);
-  assert!(SECOND_ASKS.errands.language.contains("{people}"));
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
   assert!(SECOND_ASKS.errands.owed.contains("{count}"));
   assert!(SECOND_ASKS.errands.wake_on.contains("{chat}"));
   assert!(SECOND_ASKS.errands.rule.contains("{chat}"));
-  assert_eq!(SECOND_ASKS.errands.language.matches("{what}").count(), 2);
   assert_eq!(SECOND_ASKS.reading.pledge_final, 8);
   assert!(SECOND_ASKS.errands.length.contains("{count}") && SECOND_ASKS.errands.length.contains("{limit}"));
   assert!(!SECOND_ASKS.errands.format.is_empty());
@@ -284,4 +282,19 @@ fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
     old.process[0].rounds,
     five.iter().map(|name| (*name).to_owned()).collect::<Vec<String>>()
   );
+}
+
+#[test]
+fn a_second_asks_table_that_still_names_a_language_loads_and_ignores_it() {
+  use receiver_policy::second_asks::SecondAsks;
+
+  let policy =
+    std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/second-asks.toml"))
+      .expect("the second-asks policy reads");
+  let with_errand = policy.replace("[errands]\n", "[errands]\nlanguage = \"old language errand\"\n");
+  let text = format!("{with_errand}\n[language]\njudged_from = 4\n");
+  let parsed: SecondAsks = toml::from_str(&text).expect("the old language keys load");
+
+  assert_eq!(parsed.errands.language.as_deref(), Some("old language errand"));
+  assert_eq!(parsed.language.map(|language| language.judged_from), Some(4));
 }

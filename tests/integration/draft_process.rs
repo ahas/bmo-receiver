@@ -647,27 +647,35 @@ async fn a_korean_answer_to_a_korean_speaker_is_never_asked_again() {
 }
 
 #[tokio::test]
-async fn a_second_answer_in_none_of_the_peoples_languages_lets_the_first_go_out() {
-  let first = fixture("answer-korean.txt");
-  let second = fixture("addressing-korean.txt");
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[&first, &second]);
+async fn a_korean_answer_to_a_korean_owner_goes_out_untouched() {
+  let korean = fixture("answer-korean.txt");
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&korean]);
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
 
-  // The owner writes English prose, so an answer in Korean alone holds none of the owner's language.
-  round.hear(1, ASKED).await;
-  round.ended(2).await;
+  round.hear(1, &fixture("addressing-korean.txt")).await;
+  round.ended(1).await;
 
-  let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 2, "the language check is asked once: {prompts:#?}");
-  assert!(prompts[1].contains("tester: en"), "the errand names each person with their language");
-  assert_eq!(sent.len(), 1, "the answer is never withheld for its language");
-  assert!(sent[0].contains(&first) && !sent[0].contains(&second), "{sent:?}");
-  assert_eq!(
-    round.log().await,
-    ["question final answered", "check language answered", "end  message"]
-  );
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(&korean), "{sent:?}");
+  assert_eq!(round.log().await, ["question final answered", "end  message"]);
+}
+
+#[tokio::test]
+async fn an_answer_in_a_language_the_person_does_not_write_also_goes_out() {
+  let answer = fixture("answer-japanese.txt");
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&answer]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(&answer), "{sent:?}");
+  assert_eq!(round.log().await, ["question final answered", "end  message"]);
 }
 
 #[tokio::test]

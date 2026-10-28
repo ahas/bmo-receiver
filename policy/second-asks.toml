@@ -12,11 +12,7 @@ later = "Later messages will be delivered in the next turn; do not act on them n
 [errands]
 # A turn that carried {count} of the owner's own messages and answered with silence.
 owed = "Your answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. This turn carried {count} message(s) from the owner, in the owner's own private chat, which is always answered. Write this turn's answer to the owner now. <<SKIP>> and <<WAIT>> are not available."
-# What came out in none of the languages of the people the turn answers: {what} names what is written again,
-# {people} each person and their language, as the turn's answer language line names them.
-language = "What you wrote for {what} is in none of the languages of the people this turn answers ({people}): each person is answered in the language they write. Nothing went out yet. Write {what} again, answering each person in their own language, whatever language the system lines, the quiet instructions or their results came in. Say the same thing; only the language changes. <<SKIP>> and <<WAIT>> are not available."
 # What the language errand names where the caller names no other part.
-answer = "this turn's answer"
 # A final text past the longest a message may run: {count} is its length, {limit} the longest, in characters.
 length = "The message you wrote runs to {count} characters, past the {limit} a message here may hold, and nothing went out. Write it again, shorter, keeping what matters. <<WAIT>> is not available."
 # A final text carrying the process's own lines.
@@ -65,8 +61,3 @@ told_closing = '[가-힣]라[.!。]?$'
 request = '([가-힣])\s?(줘|주라|주세요|줄래)'
 # The vowels, by their number in a syllable, an imperative closes on with no final consonant.
 imperative_vowels = [0, 1, 4, 5, 6, 9, 14]
-
-# When an answer reads as written in none of the languages of the people it answers: the fewest words of
-# another language its prose must run to, holding no word of theirs, before it is judged.
-[language]
-judged_from = 4

@@ -8,8 +8,9 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct Errands {
   pub owed: String,
-  pub language: String,
-  pub answer: String,
+  /// A language errand a deployment set before the send path stopped reading language: read and ignored.
+  #[serde(default)]
+  pub language: Option<String>,
   pub length: String,
   pub format: String,
   pub record: String,
@@ -52,7 +53,9 @@ pub struct SecondAsks {
   pub later: String,
   pub errands: Errands,
   pub reading: Reading,
-  pub language: Language,
+  /// Language thresholds a deployment set before the send path stopped reading language: read and ignored.
+  #[serde(default)]
+  pub language: Option<Language>,
 }
 
 crate::part!(pub SECOND_ASKS: SecondAsks = "second-asks.toml");

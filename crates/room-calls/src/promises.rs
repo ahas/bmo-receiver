@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::js::{SPACE, chars, is_space, trim};
-use receiver_policy::scripts::{SCRIPTS, Span, holds_any};
+use receiver_policy::scripts::{SCRIPTS, Span};
 use receiver_policy::second_asks::SECOND_ASKS;
 
 // A range as a regular expression character class's body.
@@ -242,62 +242,4 @@ pub fn sets_rule_later(said: &str) -> bool {
       && (reading.later.is_match(sentence)
         || (reading.condition.is_match(sentence) && reading.manner.is_match(sentence)))
   })
-}
-
-// What an answer carries that is no language of anybody's: a code block, an inline code span, an address, a path.
-static NOT_PROSE: LazyLock<Vec<Regex>> = LazyLock::new(|| {
-  [
-    r"(?s)```.*?(?:```|\z)".to_owned(),
-    r"`[^`\n]*`".to_owned(),
-    format!(r"(?-u:\b)https?://[^{SPACE}]+"),
-    r"(?:~|\.{1,2})?(?:/[A-Za-z0-9_.@+-]+){2,}/?".to_owned(),
-  ]
-  .iter()
-  .map(|pattern| Regex::new(pattern).expect("a pattern of what is not prose"))
-  .collect()
-});
-
-static ENGLISH_WORD: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"^[A-Za-z]+(?:['’][A-Za-z]+)?$").expect("an English word"));
-
-/// Whether a piece of text holds any Korean at all.
-pub fn holds_korean(text: &str) -> bool {
-  text.chars().any(is_syllable)
-}
-
-// Whether a character is kana.
-fn is_kana(character: char) -> bool {
-  holds_any(&SCRIPTS.kana_letters, character)
-}
-
-// The language a word of an answer's prose is in, where it can be told: Korean where it holds a Hangul syllable,
-// Japanese where it holds kana, English where it is made of Latin letters alone.
-fn word_language(word: &str) -> Option<&'static str> {
-  if holds_korean(word) {
-    Some("ko")
-  } else if word.chars().any(is_kana) {
-    Some("ja")
-  } else if ENGLISH_WORD.is_match(word) {
-    Some("en")
-  } else {
-    None
-  }
-}
-
-/// Whether an answer came out in none of the languages it is held to, by its prose: enough words of another
-/// language that can be told, and not one word of any of those languages beside them.
-pub fn answered_in_none_of(answer: &str, languages: &[&str]) -> bool {
-  let prose = NOT_PROSE
-    .iter()
-    .fold(answer.to_owned(), |rest, pattern| pattern.replace_all(&rest, " ").into_owned());
-  let letter =
-    |character: char| character.is_ascii_alphabetic() || is_syllable(character) || is_kana(character);
-  let told: Vec<&str> = prose
-    .split(is_space)
-    .filter_map(|word| word_language(word.trim_matches(|character: char| !letter(character))))
-    .collect();
-  let held = told.iter().filter(|word| languages.contains(word)).count();
-  let other = told.len() - held;
-
-  held == 0 && other >= SECOND_ASKS.language.judged_from
 }

@@ -34,7 +34,7 @@ policy's (`docs/drafting.md`, 「The questions」).
 | `owner-facts.toml` | what the owner's session is told of the agency's events that no other part words: a road the agency moved, returned or found closed, the facts and follow-ups of a worker fallen to a lesser model, and the lines of the overtime order | the workers' facts, the overtime order |
 | `commands.toml` | the owner's in-room command phrases (each command's plain form first), the polite endings a command may carry, and the suffix an answer to a job's question may put after an option's number | the receiver's commands, a question's answer |
 | `tool-host.toml` | how long the tool host's stream waits before it is opened again and how long it may stay silent, and the words a chat agent is told a tool placed, updated or removed in: each entry's line, what closes the instruction, its kind, sort and summary | the tool host's changes (`docs/wake.md`, 「Quiet instructions」) |
-| `scripts.toml` | the Hangul and kana blocks, the modern Hangul syllables, and the ranges a label's width counts as a whole em | the wording check, a round's language note, the web addresses a text names, the answer checks, a labelled picture |
+| `scripts.toml` | the Hangul and kana blocks, the modern Hangul syllables, and the ranges a label's width counts as a whole em | the wording check, a round's language note, the web addresses a text names, the labels' width, a labelled picture |
 
 ## Keys the receiver takes from files the agency also holds
 
@@ -69,5 +69,4 @@ written none, and where it names the people a turn answers with theirs, `{people
 「The language an answer goes out in」). So the talks' lines (`talk.toml`, `code-review.toml`), the roster of the
 owner's private chat (`chat-line.toml`, `room.roster`), the lines a transcript is written in (`handover.toml`,
 `transcript`), the language lines of a round (`chat-round.toml`, `closing.language`, `closing.language_person`
-and `closing.language_room`) and the language check's errand (`second-asks.toml`, `errands.language`) carry
-these marks.
+and `closing.language_room`) carry these marks; the old language errand a deployment may still carry is ignored.

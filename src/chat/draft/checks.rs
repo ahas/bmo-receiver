@@ -5,7 +5,6 @@ use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
 
-use super::super::promises::answered_in_none_of;
 use super::super::sentinels::SKIP;
 use crate::form::without_control_markers;
 use crate::receiver::Inbound;
@@ -17,7 +16,6 @@ const HEAD_CHARS: usize = 12;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Check {
   Length,
-  Language,
   Format,
 }
 
@@ -25,19 +23,14 @@ impl Check {
   pub fn word(self) -> &'static str {
     match self {
       Self::Length => "length",
-      Self::Language => "language",
       Self::Format => "format",
     }
   }
 }
 
-/// What the checks read a text against: the languages of the people the turn answers and each person with theirs,
-/// whether the language check still stands, the process's own lines and the longest text let go.
+/// What the checks read a text against: the process's own lines and the longest text let go. The language an
+/// answer is written in is the agent's own rule and no check reads it.
 pub struct Reading<'a> {
-  pub languages: &'a [String],
-  pub people: &'a str,
-  /// Whether the language check is read: it is read until its one asking has been answered.
-  pub language: bool,
   pub own_lines: &'a [String],
   pub max_chars: usize,
 }
@@ -98,12 +91,6 @@ pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
     failed.push(Check::Length);
   }
 
-  let languages: Vec<&str> = reading.languages.iter().map(String::as_str).collect();
-
-  if reading.language && answered_in_none_of(text, &languages) {
-    failed.push(Check::Language);
-  }
-
   if reading.own_lines.iter().any(|line| text.contains(line.as_str())) {
     failed.push(Check::Format);
   }
@@ -120,9 +107,6 @@ pub fn errand(check: Check, text: &str, reading: &Reading) -> String {
       &errands.length,
       &[("count", &text.chars().count().to_string()), ("limit", &reading.max_chars.to_string())],
     ),
-    Check::Language => {
-      fill_marks(&errands.language, &[("what", &errands.answer), ("people", reading.people)])
-    }
     Check::Format => errands.format.clone(),
   }
 }

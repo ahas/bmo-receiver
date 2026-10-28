@@ -1,10 +1,8 @@
 //! The answer language, a person's and never a turn's (`docs/answer-checks.md`, 「The language an answer goes out
 //! in」): each person's language read off their own prose in the room and remembered there, a message with no prose
-//! never changing it, the turn's line naming each person it answers, and an answer held to the languages of the
-//! people it answers.
+//! never changing it, and the turn's line naming each person it answers. No check reads the language of an answer.
 
-use bmo_receiver::chat::draft::checks::{Check, Reading, errand, failing};
-use bmo_receiver::chat::languages::{Addressee, addressees, clauses, held_to, line, people, remembered};
+use bmo_receiver::chat::languages::{Addressee, addressees, clauses, line, people, remembered};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::language::{prose_language, text_language};
 use bmo_receiver::receiver::Inbound;
@@ -117,7 +115,7 @@ async fn a_file_message_does_not_change_a_persons_language() {
 }
 
 #[tokio::test]
-async fn two_people_of_two_languages_get_two_clauses_and_an_answer_to_each_in_their_own_passes() {
+async fn two_people_of_two_languages_get_two_clauses_in_the_answer_language_line() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
@@ -142,55 +140,19 @@ async fn two_people_of_two_languages_get_two_clauses_and_an_answer_to_each_in_th
     "{named}"
   );
   assert_eq!(named.lines().count(), 1);
-
-  let languages = held_to(&receiver, &found);
-  let people = clauses(&found);
-  let reading = Reading {
-    languages: &languages,
-    people: &people,
-    language: true,
-    own_lines: &[],
-    max_chars: 4_000,
-  };
-  let korean_answer = fixture("answer-korean.txt");
-  let english_answer = "The meeting starts at three in the afternoon, in the main hall.";
-  let japanese_answer = &fixture("answer-japanese.txt");
-
-  assert_eq!(failing(&format!("{korean_answer}\n\n{english_answer}"), &reading), vec![]);
-  assert_eq!(
-    failing(&korean_answer, &reading),
-    vec![],
-    "an answer holding one of their languages passes"
-  );
-  assert_eq!(failing(japanese_answer, &reading), vec![Check::Language]);
-  assert!(errand(Check::Language, japanese_answer, &reading).contains("person-a: ko; person-b: en"));
 }
 
 #[tokio::test]
-async fn one_person_is_one_clause_and_a_korean_answer_to_a_korean_speaker_passes() {
+async fn one_person_is_one_clause_in_the_answer_language_line() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let receiver = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment()).receiver;
   let batch = [said(1, 2, "person-a", &fixture("addressing-korean.txt"))];
   let found = addressees(&receiver, ROOM, OWNER, &batch, &[], Some(OWN)).await.unwrap();
-  let languages = held_to(&receiver, &found);
-  let people = clauses(&found);
-  let reading = Reading {
-    languages: &languages,
-    people: &people,
-    language: true,
-    own_lines: &[],
-    max_chars: 4_000,
-  };
+  let named = line(&receiver, &found);
 
-  assert_eq!(people, "person-a: ko");
-  assert_eq!(failing(&fixture("answer-korean.txt"), &reading), vec![]);
-  assert_eq!(
-    failing("The meeting starts at three in the afternoon, in the main hall.", &reading),
-    vec![Check::Language]
-  );
-
-  // A turn answering nobody names the room's language.
+  assert_eq!(clauses(&found), "person-a: ko");
+  assert!(named.ends_with(": person-a: ko."), "{named}");
   assert!(
     line(&receiver, &[])
       .starts_with(&format!("ANSWER LANGUAGE: {} — this room's", receiver.deployment().language))

@@ -1,20 +1,19 @@
 # The checks an answer passes
 
-The readings the code holds a chat answer to before it goes out: the answer language, a promise that stands on a
-record and a rule the owner sets that stands on a row. Each is an item or a check of the draft process
-(`docs/drafting.md`): where it finds something, the same session is asked once more, as one more turn of the
-process.
+The readings the code holds a chat answer to before it goes out: a promise that stands on a record and a rule
+the owner sets that stands on a row. Each is an item or a check of the draft process (`docs/drafting.md`): where
+it finds something, the same session is asked once more, as one more turn of the process. The language an answer
+is written in is the agent's rule, not a check; nothing on the send path reads it.
 
 ## Where the checks stand
 
 - **The process asks them once the message stands, in this order:** an owed answer over a skip
-  (`docs/wake.md`), a promise recorded, a promise set to wake and a rule the owner set, as items; then the length,
-  the language and the format, as the checks on the final text (`docs/drafting.md`, 「The
-  items after the last question」 and 「The checks on the final text」).
+  (`docs/wake.md`), a promise recorded, a promise set to wake and a rule the owner set, as items; then the length
+  and the format, as the checks on the final text (`docs/drafting.md`, 「The items after the last question」 and
+  「The checks on the final text」).
 - **What the checks read stands in the receiver's policy**: the words of time to come, of keeping in mind, of
-  waiting on something, of a condition and of a manner, the volitional and imperative endings, and the
-  language check's thresholds (`policy/second-asks.toml`), and the Hangul syllable block a word is told by
-  (`policy/scripts.toml`). These are words of the room's language the code matches on, and so data. So is
+  waiting on something, of a condition and of a manner, and the volitional and imperative endings
+  (`policy/second-asks.toml`), and the Hangul syllable block a word is told by (`policy/scripts.toml`). These are words of the room's language the code matches on, and so data. So is
   every errand an item or a check sends, in English as every agent's text is.
 - **An item or a check goes back to the same session** with the round's reference, the turn's scope, the
   check's errand and the messages waiting for the next turn. It is a turn of the process: its answer is written
@@ -54,25 +53,9 @@ process.
   letters count for Korean, kana for Japanese, each twice, since one stands for a syllable, and Latin letters
   for English, once; the language whose letters weigh most is the text's, and a text with none of them, or two
   that weigh the same, is in no language that can be told.
-  - **An answer is held to the languages of the people it answers** before it goes out, the same people and
-    languages the line names, read once the round's words stand. A word is Korean where it holds a Hangul
-    syllable, Japanese where it holds kana, and English where it is made of Latin letters alone, and only the
-    answer's prose counts (what is left once code blocks, inline code, addresses and paths are set aside). An
-    answer fails the `language` check only where it holds none of those languages at all and runs to at least
-    the policy's number of words of another (`policy/second-asks.toml`, `[language]`, `judged_from`): a turn
-    answering one person fails where the answer holds none of that person's language, a turn answering several
-    where it holds none of any of theirs. An answer that answers each of several people in their own language
-    passes.
-  - **A failed check asks once and never rewrites:** the same session is asked once more to answer each person
-    in their own language, which the errand names person by person. Where its second answer still holds none of
-    them, the first answer goes out as the session wrote it; the check never holds an answer back and never
-    turns it into one language.
-  - **What is never turned back**: an answer carrying a person's language beside its code, its commands, its
-    paths and its names in another language, since a particle on an English name makes the word Korean; a
-    short answer whose foreign words are only a name or two, and a model name, a version or a hyphenated code,
-    none of which counts as a word of any language; and an answer in no language that can be told.
-  - Where the session is replaced inside the run, which is what the account change and the forced reset do, the
-    prompt has already gone out without the line and the answer is held to the languages on its own.
+  - **Nothing on the send path reads the language.** The answer language line and the room's block carry the rule
+    to the agent; no check, errand or withholding reads the language of the answer, and an answer in a language a
+    person does not write goes out as the agent wrote it.
 
 ## A promise stands on a record
 

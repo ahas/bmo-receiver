@@ -190,11 +190,7 @@ fn a_turn_is_light_for_short_words_with_no_file_or_instructions_alone() {
 fn the_checks_read_length_and_the_process_s_own_lines() {
   let asked = vec!["why was it said?".to_owned()];
   let lines = own_lines(&asked);
-  let languages = vec!["en".to_owned()];
   let reading = Reading {
-    languages: &languages,
-    people: "person-a: en",
-    language: true,
     own_lines: &lines,
     max_chars: 10,
   };

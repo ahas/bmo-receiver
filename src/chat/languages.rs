@@ -1,7 +1,7 @@
 //! The language each person a turn answers writes in (docs/answer-checks.md, 「The language an answer goes out
 //! in」): a person's and never a turn's, read off their own newest prose in the room and remembered for the room
 //! and the person, the deployment's standing in where they have written none; the line that names each, and
-//! what the language check holds an answer to.
+//! and the turns' answer language line.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
@@ -173,22 +173,4 @@ pub fn line(receiver: &Receiver, addressees: &[Addressee]) -> String {
   } else {
     fill_marks(&closing.language, &[("people", &clauses(addressees))])
   }
-}
-
-/// The languages an answer is held to: those of the people it answers, each once, or the deployment's where it
-/// answers nobody.
-pub fn held_to(receiver: &Receiver, addressees: &[Addressee]) -> Vec<String> {
-  let mut languages: Vec<String> = vec![];
-
-  for one in addressees {
-    if !languages.contains(&one.language) {
-      languages.push(one.language.clone());
-    }
-  }
-
-  if languages.is_empty() {
-    languages.push(receiver.deployment().language.clone());
-  }
-
-  languages
 }

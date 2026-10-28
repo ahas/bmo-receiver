@@ -23,7 +23,6 @@ use super::ask::Carry;
 use super::conversation::{
   Asking, BoxFuture, Carrying, Conversations, Drafted, Drafting, Failure, Follower, Held, Made, Reply,
 };
-use super::languages;
 use super::mid_turn::{Push, paragraph};
 use super::promises::{promises_after, promises_later, sets_rule_later};
 use super::prompt::{Scope, scope_line};
@@ -904,40 +903,12 @@ impl Drafter {
       }
     }
 
-    // The checks on the final text, each asked once. The answer is held to the languages of the people it
-    // answers, each person's own, never to one language of the turn's (docs/answer-checks.md).
-    let mut spoken: Vec<Inbound> = drafted.batch.to_vec();
-
-    for said in answered.iter() {
-      if !spoken.iter().any(|word| word.message_id == said.message_id) {
-        spoken.push(said.clone());
-      }
-    }
-
-    let addressees =
-      match languages::addressees(receiver, chat, owner, &spoken, drafted.recent, drafted.room.identity)
-        .await
-      {
-        Ok(addressees) => addressees,
-        Err(why) => {
-          eprintln!("chat {chat}: the people's languages were not read: {why}");
-          vec![]
-        }
-      };
-    let held_to = languages::held_to(receiver, &addressees);
-    let people = languages::clauses(&addressees);
-    let mut asked: BTreeSet<Check> = BTreeSet::new();
-    // The text the language check was asked over, which goes out as it stood where the second answer still
-    // holds none of the people's languages; the check never holds an answer back.
-    let mut before_language: Option<Reply> = None;
-    let mut language_read = true;
-
+    // The checks on the final text, each asked once. The language an answer is written in is the agent's rule,
+    // not a check: nothing on the send path reads it.
+    let mut asked: HashSet<Check> = HashSet::new();
     loop {
       let lines = own_lines(&run.asked);
       let reading = Reading {
-        languages: &held_to,
-        people: &people,
-        language: language_read,
         own_lines: &lines,
         max_chars: DRAFTING.max_chars,
       };
@@ -947,20 +918,7 @@ impl Drafter {
         break;
       }
 
-      if failed.contains(&Check::Language) && asked.contains(&Check::Language) {
-        eprintln!(
-          "chat {chat}: the second answer still held none of the people's languages; the first goes out"
-        );
-
-        if let Some(first) = before_language.take() {
-          message = first;
-        }
-
-        language_read = false;
-        continue;
-      }
-
-      let blocking: Vec<Check> = failed.iter().copied().filter(|check| *check != Check::Language).collect();
+      let blocking: Vec<Check> = failed.to_vec();
 
       if blocking.iter().any(|check| asked.contains(check)) {
         let names: Vec<&str> = blocking.iter().map(|check| check.word()).collect();
@@ -986,10 +944,6 @@ impl Drafter {
         let errand = checks::errand(check, &message.text, &reading);
 
         asked.insert(check);
-
-        if check == Check::Language {
-          before_language = Some(message.clone());
-        }
 
         let answered = run
           .ask(Kind::Check, check.word(), &words(&errand, drafted.scope, &drafted.pending))
