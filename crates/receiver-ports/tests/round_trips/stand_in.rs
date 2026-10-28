@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Duration;
 
 use axum::Router;
 use axum::body::{Body, Bytes};
@@ -33,6 +34,7 @@ pub struct Call {
 struct Fixture {
   status: StatusCode,
   body: Option<(&'static str, String)>,
+  delay: Option<Duration>,
 }
 
 #[derive(Default)]
@@ -74,12 +76,19 @@ async fn take(
     book.fixtures.get(&route).cloned()
   };
 
+  if let Some(delay) = fixture.as_ref().and_then(|fixture| fixture.delay) {
+    tokio::time::sleep(delay).await;
+  }
+
   match fixture {
     Some(Fixture {
       status,
       body: Some((kind, body)),
+      ..
     }) => (status, [(header::CONTENT_TYPE, kind)], Body::from(body)).into_response(),
-    Some(Fixture { status, body: None }) => status.into_response(),
+    Some(Fixture {
+      status, body: None, ..
+    }) => status.into_response(),
     None => {
       let said = json!({ "error": format!("No fixture is set for {route}."), "code": "no-fixture" });
 
@@ -128,15 +137,37 @@ impl StandIn {
     self.set(route, status, None);
   }
 
+  /// Sets `route` to answer after `delay`, for a live but slow unit.
+  pub fn answer_after(&self, route: &str, status: u16, body: Value, delay: Duration) {
+    self.set_after(route, status, Some(("application/json", body.to_string())), Some(delay));
+  }
+
   /// Sets `route` to answer a stream of server-sent events, written out whole.
   pub fn answer_events(&self, route: &str, events: &str) {
     self.set(route, 200, Some(("text/event-stream", events.to_owned())));
   }
 
   fn set(&self, route: &str, status: u16, body: Option<(&'static str, String)>) {
+    self.set_after(route, status, body, None);
+  }
+
+  fn set_after(
+    &self,
+    route: &str,
+    status: u16,
+    body: Option<(&'static str, String)>,
+    delay: Option<Duration>,
+  ) {
     let status = StatusCode::from_u16(status).expect("a fixture's status is a status");
 
-    self.book().fixtures.insert(route.to_owned(), Fixture { status, body });
+    self.book().fixtures.insert(
+      route.to_owned(),
+      Fixture {
+        status,
+        body,
+        delay,
+      },
+    );
   }
 
   /// Every call taken so far, in order.

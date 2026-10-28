@@ -1,15 +1,17 @@
 //! The chat services' port: every provider route of bmo-chat's `docs/protocol.md`, reached through
 //! `bmo-chat-client` (`docs/boundary-api.md`, 「The chat services」). The receiver holds one client for each chat
 //! service its configuration lists, by the road's name, and no code of any one of them: what differs between them
-//! is read from what each declares.
+//! is read from what each declares. A refused connection is offered once and skipped for the turn; a live but slow
+//! service is waited on (docs/receiver.md, 「A room's chat providers」).
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use bmo_chat_client::{
-  AccountRoomsQuery, ChatContact, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatProviderClient,
-  ChatSendRequest, ChatSent, ChatStart, ClientFailure, ContactsQuery, DialectChecked, DialectReading,
-  MessageFile, Page, ProviderRoom, RoomKind,
+  AccountRoomsQuery, ChatContact, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatPatience,
+  ChatProviderClient, ChatSendRequest, ChatSent, ChatStart, ClientFailure, ContactsQuery, DialectChecked,
+  DialectReading, MessageFile, Page, ProviderRoom, RealClock, RoomKind,
 };
 use futures_util::future::BoxFuture;
 
@@ -170,8 +172,17 @@ impl ChatServices {
       roads: peers
         .iter()
         .map(|(road, peer)| {
-          let chat: Arc<dyn Chat> =
-            Arc::new(ChatProviderClient::new(peer.base.clone(), peer.token.clone()));
+          // A chat service whose connection is refused is skipped at once: a turn must not wait its patience
+          // window for a road that is down. A service that answers slowly still waits; only a refusal is not
+          // offered again (docs/receiver.md, 「A room's chat providers」).
+          let patience = ChatPatience {
+            window: Duration::ZERO,
+            every: Duration::ZERO,
+            waiter: Arc::new(RealClock),
+          };
+          let chat: Arc<dyn Chat> = Arc::new(
+            ChatProviderClient::new(peer.base.clone(), peer.token.clone()).with_patience(patience),
+          );
 
           (road.clone(), chat)
         })

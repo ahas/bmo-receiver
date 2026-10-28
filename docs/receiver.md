@@ -99,6 +99,11 @@ flowchart TD
 
 ## A room's chat providers
 
+- **A chat service that refuses the connection is skipped at once for the turn.** Its client offers the request
+  once, the receiver logs the failure once, and the turn goes on to the room's other roads; a service that is
+  live but slow is still waited on. The 120-second patience other units use is not spent per room on a road that
+  is down.
+
 - **A room is on one or more chat providers, and which is one setting of the room's registration.** A provider is
   a road a room's messages come and go on, and the setting says both ways which: whether a messenger's messages
   for the room are taken, and whether what is said in the room goes out to that messenger. Every room stands in

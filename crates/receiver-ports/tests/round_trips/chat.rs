@@ -2,8 +2,10 @@
 //! `docs/protocol.md`), each service reached by its road's name.
 
 use std::collections::BTreeMap;
+use std::time::{Duration, Instant};
 
-use bmo_chat_client::ChatHealth;
+use bmo_chat_client::{ChatHealth, ChatSend, ChatSendRequest, ClientFailure};
+use receiver_ports::Peer;
 use receiver_ports::chat::ChatServices;
 use serde_json::json;
 
@@ -54,4 +56,45 @@ async fn a_road_named_in_the_configuration_is_reached_through_the_chat_client() 
       .iter()
       .all(|call| call.authorization.as_deref() == Some("Bearer chat-token"))
   );
+}
+
+fn text(text: &str) -> ChatSendRequest {
+  ChatSendRequest::new(
+    -7,
+    ChatSend::Text {
+      text: text.to_owned(),
+      silent: false,
+      fold: false,
+    },
+  )
+}
+
+#[tokio::test]
+async fn a_refused_road_is_skipped_at_once_and_a_live_slow_one_still_waits() {
+  let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap();
+  let down = ChatServices::from_peers(&BTreeMap::from([(
+    "road-down".to_owned(),
+    Peer {
+      base: format!("http://{closed}"),
+      token: "t".to_owned(),
+    },
+  )]));
+  let started = Instant::now();
+  let failure = down.road("road-down").unwrap().send(&text("hello")).await.unwrap_err();
+
+  assert!(
+    matches!(failure, ClientFailure::Unreachable { waited, .. } if waited == Duration::ZERO),
+    "{failure:?}"
+  );
+  assert!(started.elapsed() < Duration::from_secs(1), "a refused road is not waited on");
+
+  let unit = StandIn::start().await;
+  unit.answer_after("POST /sends", 200, json!({ "messageId": 7 }), Duration::from_millis(150));
+
+  let slow = ChatServices::from_peers(&BTreeMap::from([("road-slow".to_owned(), unit.peer("t"))]));
+  let started = Instant::now();
+  let sent = slow.road("road-slow").unwrap().send(&text("hello")).await.unwrap();
+
+  assert_eq!(sent.message_id, Some(7));
+  assert!(started.elapsed() >= Duration::from_millis(150), "a live slow road still waits");
 }
