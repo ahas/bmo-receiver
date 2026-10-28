@@ -14,7 +14,7 @@ use std::time::Duration;
 use bmo_chat_client::MessageFile;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
-use bmo_receiver::chat::instructions::{Queued, deliver_pending, queue};
+use bmo_receiver::chat::instructions::{Queued, deliver_pending, queue, requeue_interrupted};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
@@ -328,6 +328,66 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
 }
 
 const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
+
+#[tokio::test]
+async fn an_instruction_a_restart_interrupted_is_delivered_after_the_restart() {
+  let session = StandInSession::new(SESSION, "the recovered answer");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let text = "an instruction a restart cut off";
+  let id = queue(
+    round.scratch.db(),
+    AGENT,
+    OWNER,
+    text,
+    &Queued {
+      expires_at_ms: Some(now_ms() - 1),
+      sort: Some("job"),
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
+
+  // The row a turn was reading when the process stopped: handed, and past its expiry.
+  round
+    .scratch
+    .run(r#"UPDATE "instructions" SET "handed_at" = 1 WHERE "id" = $1"#, vec![id.into()])
+    .await;
+  requeue_interrupted(round.scratch.db()).await.unwrap();
+
+  assert_eq!(
+    round
+      .scratch
+      .texts(&format!(
+        r#"SELECT (CASE WHEN "handed_at" IS NULL THEN 'pending' ELSE 'handed' END) || '|' || "restarts" FROM "instructions" WHERE "id" = {id}"#
+      ))
+      .await,
+    ["pending|1"]
+  );
+
+  let mut last = 0;
+  deliver_pending(&round.standing.receiver, &round.runner, &mut last, now_ms(), 0)
+    .await
+    .unwrap();
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(prompts[0].contains(text), "{}", prompts[0]);
+  assert!(prompts[0].contains(&CHAT_ROUND.instructions.restarted), "{}", prompts[0]);
+  assert!(!sent.is_empty(), "the recovered answer went out");
+  assert_eq!(
+    round
+      .scratch
+      .texts(&format!(
+        r#"SELECT (CASE WHEN "delivered_at" IS NOT NULL THEN 'delivered' ELSE 'open' END) FROM "instructions" WHERE "id" = {id}"#
+      ))
+      .await,
+    ["delivered"]
+  );
+}
 
 #[tokio::test]
 async fn an_expired_instruction_held_by_a_busy_turn_is_delivered_when_it_ends() {

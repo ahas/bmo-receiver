@@ -18,6 +18,8 @@ pub struct Unannounced {
 #[serde(deny_unknown_fields)]
 pub struct Deployed {
   pub back: String,
+  pub unit: String,
+  pub subject: String,
   pub purpose: String,
   pub no_purpose: String,
   pub commit: String,
@@ -25,6 +27,9 @@ pub struct Deployed {
   pub titled_item: String,
   pub no_item: String,
   pub job: String,
+  pub cut_turn: String,
+  pub cut_job: String,
+  pub cut_none: String,
   pub intent: String,
   pub job_follow_up: String,
   pub follow_up: String,

@@ -109,6 +109,41 @@ async fn the_restart_back_notice_goes_to_the_owners_private_room_where_a_notices
   );
 }
 
+#[tokio::test]
+async fn the_back_notice_says_a_turn_was_cut_when_a_handed_row_was_left_behind() {
+  let scratch = Scratch::new().await;
+  let data = TempDir::new().unwrap();
+  let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![]);
+  let now = bmo_receiver::now_ms();
+
+  record(
+    &scratch,
+    json!({
+      "unit": "unit-a", "purpose": "why", "subject": "the subject",
+      "commit": "abc", "at": now,
+    }),
+  )
+  .await;
+  scratch
+    .run(
+      r#"INSERT INTO "instructions" ("chat_id", "agent", "text", "created_at", "handed_at")
+         VALUES ($1, $2, 'a turn was reading this', $3, $3)"#,
+      vec![OWNER.into(), AGENT.into(), now.into()],
+    )
+    .await;
+
+  queue_back_notice(&standing.receiver).await;
+
+  let told = scratch
+    .texts(r#"SELECT "text" FROM "instructions" WHERE "kind" = 'restart-back'"#)
+    .await;
+
+  assert_eq!(told.len(), 1, "{told:?}");
+  assert!(told[0].contains("Unit: unit-a."), "{}", told[0]);
+  assert!(told[0].contains("Subject: the subject."), "{}", told[0]);
+  assert!(told[0].contains("cut a chat turn"), "{}", told[0]);
+}
+
 fn own(at: i64) -> bmo_receiver::chat::relaunch::Deployed {
   bmo_receiver::chat::relaunch::Deployed {
     unit: "unit-a".to_owned(),
@@ -121,6 +156,33 @@ fn own(at: i64) -> bmo_receiver::chat::relaunch::Deployed {
 
 // The back notice a start leaves: the recorded reason where one stands, the receiver's own fresh deployment record
 // where none does, and the unannounced restart where neither speaks.
+#[test]
+fn the_back_notice_names_the_unit_commit_subject_item_and_whether_it_cut_a_turn_or_job() {
+  use bmo_receiver::chat::restart::back_notice;
+
+  let reason = json!({
+    "unit": "unit-a",
+    "commit": "0123456789ab",
+    "subject": "the deploy's subject",
+    "purpose": "why it went live",
+    "job": { "todoId": 7, "title": "the item it served" },
+    "cut": "turn",
+  });
+  let told = back_notice(Some(&reason)).fact;
+
+  assert!(told.contains("Unit: unit-a."), "{told}");
+  assert!(told.contains("Commit: 0123456789ab."), "{told}");
+  assert!(told.contains("Subject: the deploy's subject."), "{told}");
+  assert!(told.contains("TODO #7") && told.contains("the item it served"), "{told}");
+  assert!(told.contains("cut a chat turn"), "{told}");
+
+  let job = json!({ "unit": "unit-a", "commit": "0123456789ab", "subject": "s", "cut": "job" });
+  assert!(back_notice(Some(&job)).fact.contains("cut a job"));
+
+  let none = json!({ "unit": "unit-a", "commit": "0123456789ab", "subject": "s" });
+  assert!(back_notice(Some(&none)).fact.contains("No chat turn or job was cut"));
+}
+
 #[tokio::test]
 async fn a_start_with_no_recorded_reason_tells_its_own_fresh_deployment_and_never_an_unannounced_restart() {
   use bmo_receiver::chat::restart::{back_notice, take_reason};
@@ -133,6 +195,8 @@ async fn a_start_with_no_recorded_reason_tells_its_own_fresh_deployment_and_neve
     .expect("the own record speaks for the start");
 
   assert_eq!(reason["purpose"], "the deploy's message");
+  assert_eq!(reason["unit"], "unit-a");
+  assert_eq!(reason["subject"], "the deploy's message");
   assert_eq!(reason["commit"], "0123456789ab");
 
   let told = back_notice(Some(&reason)).fact;

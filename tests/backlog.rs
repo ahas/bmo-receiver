@@ -1,7 +1,7 @@
 //! The restart's backlog (docs/receiver.md, 「Where it stands」; docs/wake.md, 「The room's queue and the
-//! round」): the rooms the console has open are served one at a time, each room's unread lines as one turn,
-//! marked read so a line is never served twice, and a room whose window closed is left waiting. It stands in a
-//! test target of its own so the windows it opens do not run beside the rounds other integration tests wait on.
+//! round」): every room with unread lines is served one at a time, each room's unread lines as one turn, marked
+//! read so a line is never served twice, and a room with nothing waiting gets no turn. It stands in a test target
+//! of its own so the windows it opens do not run beside the rounds other integration tests wait on.
 
 #[path = "integration/common/mod.rs"]
 mod common;
@@ -89,7 +89,7 @@ impl Group {
 }
 
 #[tokio::test]
-async fn a_restart_serves_each_open_room_once_and_in_order() {
+async fn a_restart_serves_each_room_once_and_in_order() {
   let round = Group::new(
     StandInSession::new(SESSION, "unscripted")
       .answering(&["here", "there"])
@@ -130,12 +130,12 @@ async fn a_restart_serves_each_open_room_once_and_in_order() {
 
   assert_eq!(round.session.prompts().len(), 2, "the read marks hold every line served");
 
-  // A room whose window closed is not served.
+  // A room the console does not watch is served too: the backlog is every room's, not the open windows'.
   round
     .scratch
     .run(
       r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
-         VALUES ($1, 4, $2, 'owner', 1760000004, 'said after the window closed', 'road-a')"#,
+         VALUES ($1, 4, $2, 'owner', 1760000004, 'said with its window closed', 'road-a')"#,
       vec![ROOM_B.into(), OWNER.into()],
     )
     .await;
@@ -143,8 +143,9 @@ async fn a_restart_serves_each_open_room_once_and_in_order() {
 
   resume_backlog(&round.standing.receiver, &conversations).await.unwrap();
 
-  assert_eq!(round.session.prompts().len(), 2, "the closed room waits");
-  assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(3));
+  assert_eq!(round.session.prompts().len(), 3, "the unread room is served");
+  assert!(round.session.prompts()[2].contains("said with its window closed"));
+  assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(4));
 
   conversations.close(ROOM).await;
   conversations.close(ROOM_B).await;

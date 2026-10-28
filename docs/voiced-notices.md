@@ -72,13 +72,15 @@ agent that answers the room says the line.
   1. Before the receiver stops for a deployment, the deployment records its purpose and the items going live,
      and the receiver sends the going-down notice as it stops (「System notices」); no session is woken to say
      it, since a turn spent on going down is a turn the owner's session reads again on every turn after it.
-  2. After starting, the receiver queues one back notice for the owner's chat with the deployment's purpose.
-     The purpose is the one a deployment recorded as the `restart_reason` setting where one stands; where none
-     does, it is the receiver's own deployment record, `deployed.json` under the deploy root its release stands
-     in, where that record went live within the fresh window (`policy/restart.toml`, `fresh_minutes`): its
-     deploy message as the purpose and its commit, the same facts the deployment briefing names, so the two
-     never contradict. When a job is still running or will report, the notice says so, and the session neither
-     summarises the work nor calls it finished: the job's own report does that once.
+  2. After starting, the receiver queues one back notice for the owner's chat naming the unit deployed, its
+     commit and subject, the item it served, and whether it cut a chat turn or a job. The unit, commit and
+     subject are the ones a deployment recorded as the `restart_reason` setting where one stands; where none
+     does, they are the receiver's own deployment record, `deployed.json` under the deploy root its release
+     stands in, where that record went live within the fresh window (`policy/restart.toml`,
+     `fresh_minutes`). The same facts the deployment briefing names, so the two never contradict. When a job
+     is still running or will report, the notice says so, and the session neither summarises the work nor
+     calls it finished: the job's own report does that once. A turn the restart cut is named as cut, and what
+     it had read is handed back after the restart.
   3. The back notice after a deployment rides for three minutes: the deployment's outcome fact (`deployed`, or
      the way it stopped short) follows within seconds and opens the one turn the restart costs, with the back
      notice and the queue standing at start-up in it. A deployment that tells no outcome leaves the back notice

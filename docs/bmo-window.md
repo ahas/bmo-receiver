@@ -54,7 +54,7 @@ is written.
 |---|---|---|---|---|---|
 | A room's words, any chat service | the chat service's hand-over | room queue | `round` | opens | — |
 | The owner's words from the web console | the console's chat service | room queue | `round` | opens | — |
-| Unread words at start-up | backlog | room queue | `round` | opens | — |
+| Unread words at start-up, every room's | backlog | room queue | `round` | opens | — |
 | A quiet instruction arriving while a turn works | instruction pass | instruction table | `push` | joins the working one | the pushed rows' |
 | A room's words arriving while a round runs | room queue | room queue | `question` | under the round's next question or its closing check (`docs/drafting.md`, 「What came in meanwhile」) | — |
 | A job's ending, its report and state facts | bmo-job | instruction table | `round` | opens | `job-ended` |

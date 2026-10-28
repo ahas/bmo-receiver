@@ -200,7 +200,17 @@ async fn deliverable(
 ) -> Result<bool, Fault> {
   let kind = row.sort.as_deref().unwrap_or("no sort");
   let expired = row.expires_at.is_some_and(|at| at <= now_ms);
-  let held = rooms.is_active(&row.agent, row.chat_id) || rooms.busy(&row.agent);
+  let interrupted = row.restarts > 0;
+  let held = interrupted || rooms.is_active(&row.agent, row.chat_id) || rooms.busy(&row.agent);
+
+  if interrupted {
+    println!(
+      "instruction {} for chat {} ({kind}) was cut off by a restart; delivering once",
+      row.id, row.chat_id
+    );
+
+    return Ok(true);
+  }
 
   if !rooms.standing(&row.agent) {
     println!(
@@ -298,19 +308,21 @@ pub async fn deliver_pending(
 
     let cold = !rooms.is_active(&row.agent, row.chat_id);
     let expired = row.expires_at.is_some_and(|at| at <= now_ms);
+    let interrupted = row.restarts > 0;
 
     // A row never wakes a session past its cache lifetime: it waits for a round a room's own words open. One a
-    // turn already held, or one whose expiry came while the agent was busy, is handed rather than held again.
-    if cold && !expired && super::cache::expired(db, &row.agent).await {
+    // turn already held, one a restart cut off, or one whose expiry came while the agent was busy, is handed
+    // rather than held again.
+    if cold && !expired && !interrupted && super::cache::expired(db, &row.agent).await {
       continue;
     }
 
-    if cold && !expired && now_ms - *last_cold_wake < gap_ms {
+    if cold && !expired && !interrupted && now_ms - *last_cold_wake < gap_ms {
       held = true;
       continue;
     }
 
-    if cold && !expired {
+    if cold && !expired && !interrupted {
       *last_cold_wake = now_ms;
     }
 

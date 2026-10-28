@@ -17,10 +17,13 @@ fact = "The service has just started again after a restart that no deployment an
 intent = "tell the owner you are back."
 follow_up = "Nobody said why it restarted; do not guess a reason."
 
-# A deployment's restart: the back line, why it went live ({purpose}) or that nobody said, its {commit}, and the
-# job it ran inside where it did — its TODO item ({item}, its {title} where it has one) or none.
+# A deployment's restart: the back line, the unit deployed, its {commit} and {subject}, why it went live ({purpose})
+# or that nobody said, the job it ran inside where it did — its TODO item ({item}, its {title} where it has one) or
+# none, and whether it cut a turn or a job.
 [deployed]
 back = "The service is back up after the deployment."
+unit = "Unit: {unit}."
+subject = "Subject: {subject}."
 purpose = "Why it goes live now, as the deployer put it: {purpose}"
 no_purpose = "The deployer gave no reason for it."
 commit = "Commit: {commit}."
@@ -28,6 +31,9 @@ item = "the job for TODO #{item}"
 titled_item = "the job for TODO #{item} \"{title}\""
 no_item = "a job with no TODO item"
 job = "The deployment was run by {job}, which is still at work and will send its own report when it ends."
+cut_turn = "It cut a chat turn that was still running; what that turn had read is handed to the agent again after the restart."
+cut_job = "It cut a job that was still running; the job's own report follows when it ends."
+cut_none = "No chat turn or job was cut by it."
 intent = "tell the owner you are back, in the light of why this went live."
 job_follow_up = "The job is not done yet. Do not summarise the work, do not say what changed, and do not call it finished: the job's own report is the one account of it."
 follow_up = "Do not describe the change beyond its reason."

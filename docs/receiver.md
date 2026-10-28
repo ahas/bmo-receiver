@@ -45,9 +45,9 @@ flowchart TD
     unsettled made pending again;
   - the restart (`docs/voiced-notices.md`, 「Deploy and restart」): a rest lifted past its end, every room but the
     owner's read up to its latest message and the owner told where it was a limit's rest; and, as the receiver
-    starts, the owner's back notice with the deployment's purpose, then the words a restart left unread handed to
-    each room whose console window is open, one room at a time and in room order, the room's read mark advancing
-    as its turn goes out; a window that closes before its turn leaves its room waiting, and a line already served
+    starts, the owner's back notice with the deployment's unit, commit, subject, item and what it cut, then the
+    words a restart left unread handed to every room that answers, one room at a time and in room order, the
+    room's read mark advancing as its turn goes out; a room with nothing waiting is not served, and a line already served
     is not served again;
   - the console's talks about an item and a document (`POST /talks`), each turn a round of the owner's chat on the
     chat agent's session;

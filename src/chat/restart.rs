@@ -135,9 +135,15 @@ pub async fn take_reason(db: &DatabaseConnection, own: Option<&Deployed>) -> Opt
     .filter(|reason| reason["at"].as_i64().is_some_and(fresh));
 
   recorded.or_else(|| {
-    own
-      .filter(|deployed| fresh(deployed.at))
-      .map(|deployed| json!({ "purpose": deployed.message, "commit": deployed.commit, "at": deployed.at }))
+    own.filter(|deployed| fresh(deployed.at)).map(|deployed| {
+      json!({
+        "unit": deployed.unit,
+        "subject": deployed.message,
+        "purpose": deployed.message,
+        "commit": deployed.commit,
+        "at": deployed.at,
+      })
+    })
   })
 }
 
@@ -211,15 +217,29 @@ pub fn back_notice(reason: Option<&Value>) -> Voiced {
     };
   };
   let said = &RESTART.deployed;
+  let unit = reason["unit"].as_str().map(str::trim).filter(|held| !held.is_empty());
+  let subject = reason["subject"]
+    .as_str()
+    .or_else(|| reason["purpose"].as_str())
+    .map(str::trim)
+    .filter(|held| !held.is_empty());
   let purpose = match reason["purpose"].as_str().map(str::trim).filter(|held| !held.is_empty()) {
     Some(purpose) => fill_marks(&said.purpose, &[("purpose", purpose)]),
     None => said.no_purpose.clone(),
   };
   let commit: String = reason["commit"].as_str().unwrap_or_default().chars().take(12).collect();
-  let mut facts = vec![
-    said.back.clone(),
-    format!("{purpose}\n{}", fill_marks(&said.commit, &[("commit", &commit)])),
-  ];
+  let mut facts = vec![said.back.clone()];
+
+  if let Some(unit) = unit {
+    facts.push(fill_marks(&said.unit, &[("unit", unit)]));
+  }
+
+  facts.push(format!("{purpose}\n{}", fill_marks(&said.commit, &[("commit", &commit)])));
+
+  if let Some(subject) = subject {
+    facts.push(fill_marks(&said.subject, &[("subject", subject)]));
+  }
+
   let job = reason.get("job").filter(|job| job.is_object());
 
   if let Some(job) = job {
@@ -233,6 +253,16 @@ pub fn back_notice(reason: Option<&Value>) -> Voiced {
 
     facts.push(fill_marks(&said.job, &[("job", &item)]));
   }
+
+  let cut = match reason["cut"].as_str() {
+    Some("turn") => &said.cut_turn,
+    Some("job") => &said.cut_job,
+    _ if reason["turnCut"].as_bool() == Some(true) => &said.cut_turn,
+    _ if reason["jobCut"].as_bool() == Some(true) => &said.cut_job,
+    _ => &said.cut_none,
+  };
+
+  facts.push(cut.clone());
 
   Voiced {
     fact: facts.join("\n"),
@@ -250,7 +280,25 @@ pub fn back_notice(reason: Option<&Value>) -> Voiced {
 pub async fn queue_back_notice(receiver: &Receiver) {
   let db = receiver.db();
   let own = own_deployment();
-  let reason = take_reason(db, own.as_ref()).await;
+  let mut reason = take_reason(db, own.as_ref()).await;
+
+  if let Some(reason) = reason.as_mut() {
+    let cut = one(
+      db,
+      r#"SELECT COUNT(*) AS "cut" FROM "instructions"
+         WHERE "delivered_at" IS NULL AND ("handed_at" IS NOT NULL OR "restarts" > 0)"#,
+      vec![],
+    )
+    .await
+    .ok()
+    .flatten()
+    .and_then(|row| row.try_get::<i64>("", "cut").ok())
+    .unwrap_or(0);
+
+    if cut > 0 && reason["cut"].is_null() {
+      reason["cut"] = json!("turn");
+    }
+  }
 
   if !notice_enabled(db, receiver.owner_room(), "restart").await {
     return;
@@ -280,44 +328,25 @@ async fn answerer_numbers(receiver: &Receiver, chat_id: i64, road: &str) -> Hash
   HashSet::from_iter(rows.iter().filter_map(|row| row.try_get::<i64>("", "sender_id").ok()))
 }
 
-/// The words a restart left unread, handed to the rooms whose console window is open: one room at a time, in
-/// room order, each room's session taking the lines after its read mark as one turn before the next room is
-/// served. A window closed before its turn skips its room; the read mark the conversation writes after the turn
-/// keeps a line from being served twice. The rooms are the web unit's watching route, so a closed window is never
-/// served and the agent never has to ask.
+/// The words a restart left unread, handed to every room that answers, one room at a time in room order, each
+/// room's session taking the lines after its read mark as one turn before the next room is served. The read mark
+/// the conversation writes after the turn keeps a line from being served twice; a room with nothing waiting is
+/// not served and says nothing.
 pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) -> Result<(), Fault> {
-  let web = receiver.units().web.clone();
-  let open = match web.watched_rooms().await {
-    Ok(rooms) => rooms,
-    Err(why) => {
-      eprintln!("restart: the console's open rooms could not be read: {why}");
-
-      return Ok(());
-    }
-  };
-  let mut open = open;
-  open.sort_unstable();
-  open.dedup();
-
-  if open.is_empty() {
-    return Ok(());
-  }
-
   let db = receiver.db();
   let owner = receiver.deployment().owner_id;
   let everyone = standing::hears_everyone(receiver).await.unwrap_or(false);
   let rooms = receiver.roads();
+  let mut open: Vec<i64> = all(db, r#"SELECT DISTINCT "chat_id" FROM "messages""#, vec![])
+    .await?
+    .iter()
+    .filter_map(|row| row.try_get::<i64>("", "chat_id").ok())
+    .collect();
+
+  open.sort_unstable();
+  open.dedup();
 
   for chat_id in open {
-    // The set may have moved while the room before it was served: a window that closed is not served.
-    let still_open = web.watched_rooms().await.unwrap_or_default();
-
-    if !still_open.contains(&chat_id) {
-      println!("restart: chat {chat_id} closed before its turn, so its backlog waits");
-
-      continue;
-    }
-
     if !answers(receiver, chat_id).await || conversations.silenced(chat_id).await {
       continue;
     }
