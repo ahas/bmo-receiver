@@ -212,8 +212,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
   `situation` (the room's situation note as the round that judged this message read it — its `text` and whether
-  that round `changed` it — or null on a message no round judged under a note; `docs/drafting.md`, 「The situation
-  note」), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+  that round `changed` it, the owner's private chat's messages included — or null on a message no round judged
+  under a note; `docs/drafting.md`, 「The situation note」), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`

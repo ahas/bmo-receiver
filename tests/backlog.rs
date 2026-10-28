@@ -90,7 +90,12 @@ impl Group {
 
 #[tokio::test]
 async fn a_restart_serves_each_open_room_once_and_in_order() {
-  let round = Group::new(StandInSession::new(SESSION, "unscripted").answering(&["here", "there"])).await;
+  let round = Group::new(
+    StandInSession::new(SESSION, "unscripted")
+      .answering(&["here", "there"])
+      .hiding_situations(),
+  )
+  .await;
 
   round.standing.web.watching(&[ROOM_B, ROOM]);
   round

@@ -1641,7 +1641,8 @@ pub fn unrun(
   let receiver = Receiver::new(db.clone(), data_root, given, units)
     .keeping_agents_for(Duration::ZERO)
     .with_news(heard.clone())
-    .with_wake(waking.clone());
+    .with_wake(waking.clone())
+    .with_situation_updates(false);
 
   Standing {
     receiver,

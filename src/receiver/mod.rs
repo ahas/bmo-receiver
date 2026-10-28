@@ -364,6 +364,9 @@ pub struct Receiver {
   typing: Arc<OnceLock<Arc<dyn Typing>>>,
   touching: Arc<OnceLock<Arc<dyn Touching>>>,
   place: Arc<OnceLock<Arc<str>>>,
+  // Whether every round with words first updates the room's situation note: on for the service, off where a test
+  // stands the receiver without that turn.
+  situation_updates: bool,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -409,7 +412,19 @@ impl Receiver {
       typing: Arc::default(),
       touching: Arc::default(),
       place: Arc::default(),
+      situation_updates: true,
     }
+  }
+
+  /// The same receiver, with the situation update turn on or off.
+  pub fn with_situation_updates(mut self, on: bool) -> Self {
+    self.situation_updates = on;
+    self
+  }
+
+  /// Whether a round with words first updates the room's situation note.
+  pub fn situation_updates(&self) -> bool {
+    self.situation_updates
   }
 
   /// The conversations that answer a line typed into the chat agent's program, and that take the warmer's touch

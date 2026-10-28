@@ -265,13 +265,14 @@ memory = "the room's memories now due"
 room = "the room"
 archive = "the room's archive"
 
-# The room's situation note, updated by one light turn before the supervisor's judgement (docs/drafting.md,
-# 「The situation note」): the name the note's piece stands under, the most the note may hold, what the update is
-# asked, and the lines the note as it stands, the room's recent words and the new lines stand under.
+# The room's situation note, updated by one light turn in every round with words, before its judgement or its own
+# turn (docs/drafting.md, 「The situation note」), the owner's private chat included: the name the note's piece
+# stands under, the most the note may hold, what the update is asked, and the lines the note as it stands, the
+# room's recent words and the new lines stand under.
 [situation]
 holds = "the room's situation"
 ceiling_chars = 600
-head = "Before you judge whether to answer, update the room's situation note from the new lines. Say what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
+head = "Before this round answers or judges whether to answer, update the room's situation note from the new lines. Say what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
 previous = "The room's situation note as it stands:"
 none = "There is no situation note for this room yet."
 recent = "The room's recent words:"

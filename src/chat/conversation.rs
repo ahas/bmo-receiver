@@ -1569,6 +1569,12 @@ impl Conversations {
     };
     let mut via = self.road_of(chat_id, &batch, &roads).await;
 
+    // Every round with words updates the room's situation note first, the owner's private chat included; the
+    // judgement and the draft then read the note as it now stands.
+    if !batch.is_empty() && receiver.situation_updates() {
+      self.situation_update(chat_id, &batch, &mut held, &via).await?;
+    }
+
     // A round the open window alone let in is the agent's to judge first, before any reference or gate;
     // a skip ends it there with nothing sent.
     if self.judged_first(chat_id, room, &batch, instructions.len())
@@ -1954,6 +1960,82 @@ impl Conversations {
     alone && instructions == 0 && !room.owner_room && chat_id != self.owner_room()
   }
 
+  // The room's situation note updated from the words this round judges, one light turn of the same session
+  // (docs/drafting.md, 「The situation note」): the note as it stands, the room's recent words and the new lines in
+  // the policy's words; its answer is the note, kept and attached to every message judged. Every round with words
+  // takes it, the owner's private chat included.
+  async fn situation_update(
+    &self,
+    chat_id: i64,
+    batch: &[Inbound],
+    held: &mut Held,
+    via: &str,
+  ) -> Result<(), Failure> {
+    let receiver = self.receiver();
+    let judged: HashSet<i64> = batch.iter().map(|message| message.message_id).collect();
+    let recent: Vec<Inbound> =
+      rows::recent_messages(receiver.db(), chat_id, CHAT_ROUND.recent_messages, "")
+        .await
+        .map_err(|why| Failure::Failed(why.detail))?
+        .into_iter()
+        .filter(|message| !judged.contains(&message.message_id))
+        .collect();
+    let shown: HashSet<i64> =
+      recent.iter().map(|message| message.message_id).chain(judged.iter().copied()).collect();
+    let reading = Reading {
+      receiver: &receiver,
+      owner: self.owner(),
+      fetch_on_demand: false,
+      shown: &shown,
+    };
+    let recent_lines = reading.lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
+    let judged_lines = reading.lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
+    let old = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
+    let prompt = super::situation::update_prompt(old.as_deref(), &recent_lines, &judged_lines);
+    let asking = Asking {
+      chat_id,
+      session: held.session.clone().unwrap_or_default(),
+      prompt,
+      via: (!via.is_empty()).then(|| via.to_owned()),
+      privileged: held.all_from_owner,
+      answers: batch.iter().map(|message| message.message_id).collect(),
+      began: now_ms(),
+      context: vec![],
+      thread_mark: None,
+    };
+    let follower = Follower::new(self, chat_id);
+    let reply = self.0.carrying.carry(&asking, held, &follower).await?;
+
+    follower.finish();
+    held.context_tokens = reply.context_tokens.or(held.context_tokens);
+    held.session = reply.session.clone().or(held.session.clone());
+    held.replaced = reply.replaced.clone();
+    self.keep_session(chat_id, held);
+
+    let note = super::situation::note_from_answer(&reply.text).or(old.clone());
+    let changed = note.is_some() && note != old;
+
+    if let Some(note) = &note
+      && let Err(why) = super::situation::write(receiver.db(), chat_id, note).await
+    {
+      eprintln!("chat {chat_id}: the situation note was not kept: {}", why.detail);
+    }
+
+    if let Err(why) = super::situation::attach(
+      receiver.db(),
+      chat_id,
+      &batch.iter().map(|message| message.message_id).collect::<Vec<_>>(),
+      note.as_deref(),
+      changed,
+    )
+    .await
+    {
+      eprintln!("chat {chat_id}: the situation note was not kept on the judged messages: {}", why.detail);
+    }
+
+    Ok(())
+  }
+
   // The agent's own judgement of whether to answer words that did not name it (docs/wake.md, 「The room's queue and
   // the round」): one light turn of the same session carrying the room's recent words and the words judged, in the
   // room shape, and the round policy's question; no reference and no gate. Its row stands in the
@@ -1989,53 +2071,7 @@ impl Conversations {
     let opening = super::draft::table::supervisor_text(receiver.db())
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
-    let old = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
-    let update = super::situation::update_prompt(old.as_deref(), &recent_lines, &judged_lines);
-    let update_started = now_ms();
-    let asking = Asking {
-      chat_id,
-      session: held.session.clone().unwrap_or_default(),
-      prompt: update,
-      via: (!via.is_empty()).then(|| via.to_owned()),
-      privileged: held.all_from_owner,
-      answers: batch.iter().map(|message| message.message_id).collect(),
-      began: update_started,
-      context: vec![],
-      thread_mark: None,
-    };
-    let follower = Follower::new(self, chat_id);
-    let update_reply = self.0.carrying.carry(&asking, held, &follower).await?;
-
-    follower.finish();
-    held.context_tokens = update_reply.context_tokens.or(held.context_tokens);
-    held.session = update_reply.session.clone().or(held.session.clone());
-    held.replaced = update_reply.replaced.clone();
-    self.keep_session(chat_id, held);
-
-    let note = super::situation::note_from_answer(&update_reply.text).or(old.clone());
-    // Whether this round changed the note: the row is only taken where its text differs from what stood.
-    let changed = note.is_some() && note != old;
-
-    if let Some(note) = &note
-      && let Err(why) = super::situation::write(receiver.db(), chat_id, note).await
-    {
-      eprintln!("chat {chat_id}: the situation note was not kept: {}", why.detail);
-    }
-
-    // The note stands on each message this round judged, with whether the round changed it, so the judgement record
-    // shows the room's situation as it was read for it (docs/drafting.md, 「The situation note」).
-    if let Err(why) = super::situation::attach(
-      receiver.db(),
-      chat_id,
-      &batch.iter().map(|message| message.message_id).collect::<Vec<_>>(),
-      note.as_deref(),
-      changed,
-    )
-    .await
-    {
-      eprintln!("chat {chat_id}: the situation note was not kept on the judged messages: {}", why.detail);
-    }
-
+    let note = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
     let mut parts = vec![opening, String::new()];
 
     if let Some(note) = &note {
@@ -2096,7 +2132,7 @@ impl Conversations {
         } else {
           super::draft::log::Answered::Answered
         },
-        now_ms() - update_started,
+        now_ms() - started,
       )
       .await;
 

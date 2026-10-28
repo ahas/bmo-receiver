@@ -6,11 +6,11 @@ leaves.
 
 ## What it is
 
-- **The room's situation is updated first, and then the agent decides whether to answer.** Where the open window
-  alone let the words in, the round's first step is one light turn that updates the room's situation note from the
-  new lines (`docs/wake.md`, 「The room's queue and the round」), and the second is the agent's own judgement of
-  whether to answer them, reading that note with the new lines. Neither step asks a reference, reads an index or
-  runs a gate; a skip ends the round there.
+- **The room's situation is updated first, in every room, and then the round goes on.** Every round with words
+  opens on one light turn that updates the room's situation note from the new lines: the window's words, a direct
+  message to a private chat, a light turn's words, the owner's own chat among them. Where the round is the agent's
+  to judge first, the next step is that judgement, reading the note with the new lines. Neither step asks a
+  reference, reads an index or runs a gate; a skip ends the round there.
 - **The process establishes what the message needs first and writes the message last.** A round's turn goes to
   the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where
   one is asked, and after the window's pregate: the core the gate attaches, the room's situation note and the
@@ -161,20 +161,22 @@ leaves.
   rows are rules for a situation, while this note is written and read by the receiver alone. It is handed as a
   piece of the round's core at `room-situations/<room>`, with the source the gate calls a situation and the holds the
   policy names (`chat-round.toml`, `[situation]`, `holds`).
-- **One light turn before the judgement.** The update turn carries the note as it stands, the room's recent words
-  and the new lines, in the policy's words; its answer is the note. A turn that answers `<<SKIP>>` or `<<WAIT>>`,
-  or nothing, leaves the note as it stood. The note is stored before the judgement, so the judgement and the
-  round's draft read the same note.
+- **One light turn a round, in every room.** The update turn carries the note as it stands, the room's recent
+  words and the new lines, in the policy's words; its answer is the note. It runs for every round with words, the
+  owner's private chat included, before that round's judgement or its own turn. A turn that answers `<<SKIP>>` or
+  `<<WAIT>>`, or nothing, leaves the note as it stood. The note is stored before the judgement and the round's
+  draft, so both read the same note.
 - **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
-  the policy's `cut`; the update prompt names the ceiling. The extra cost of a judged turn is that one light turn
-  and the note the judgement carries: on a short line with the note at the ceiling, the update prompt measures
-  about 3,400 characters and the note adds about 600 to the judgement, some 4,000 characters a judged turn, or
-  roughly 1,000 tokens at four characters to a token. The fixed room context stands in both turns, so the update
-  turn is the larger part of the extra.
+  the policy's `cut`; the update prompt names the ceiling. The extra cost is one light turn a round with words:
+  the owner's private chat, which took no update turn before, now gains one a round, and a group room keeps the one
+  it had. On a short line with the note at the ceiling, the update prompt measures about 3,400 characters and the
+  note adds about 600 to the judgement where one is asked, some 4,000 characters, or roughly 1,000 tokens at four
+  characters to a token. The fixed room context stands in both turns, so the update turn is the larger part of the
+  extra.
 - **The console reads the note beside each judgement.** The note stands on every message the round judged, with
   whether that round wrote it afresh (`docs/api.md`, the `Message`'s `situation`), so a message's judgement record
-  says what the room's situation was as the round read it; a room answers the note as it stands now, with when it
-  last changed, at `GET /rooms/{roomId}/situation`.
+  says what the room's situation was as the round read it; the owner's private chat's messages carry it too. A room
+  answers the note as it stands now, with when it last changed, at `GET /rooms/{roomId}/situation`.
 - **The judgement reads it with the new lines.** The judging turn carries the note under `[supervisor] situation`,
   before the room's recent words and the words judged. The note changes the material the judgement reads, never an
   addressee rule: a conversation between others is left alone, and a line that asks the agent or resumes an earlier

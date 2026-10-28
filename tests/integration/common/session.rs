@@ -9,6 +9,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use futures_util::future::BoxFuture;
+use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::{Delivery, Event, Events, RunLine, Scope, Session, SessionState, Turn};
 use receiver_ports::http::Answer;
 use serde_json::json;
@@ -51,6 +52,8 @@ pub struct StandInSession {
   acting: Mutex<Option<Act>>,
   // The lines its runs' log holds, where a test writes some.
   pub logged: Mutex<Vec<RunLine>>,
+  // Whether the situation update's light turn is answered and kept out of the test's list of prompts.
+  hide_situation: Mutex<bool>,
 }
 
 impl StandInSession {
@@ -75,7 +78,21 @@ impl StandInSession {
       carried: Mutex::new(1000),
       folds_itself: Mutex::new(false),
       acting: Mutex::default(),
+      hide_situation: Mutex::new(true),
     }
+  }
+
+  /// The situation update's light turn answers its default and stays out of `prompts`, so a test about the draft
+  /// process reads the same turns it did.
+  pub fn hiding_situations(self) -> Self {
+    *self.hide_situation.lock().unwrap() = true;
+    self
+  }
+
+  /// The situation update's light turn is shown and answered from the script, for a test about that turn.
+  pub fn showing_situations(self) -> Self {
+    *self.hide_situation.lock().unwrap() = false;
+    self
   }
 
   /// Its state names this reason for a changed prefix from now on.
@@ -217,13 +234,21 @@ impl StandInSession {
 
   pub fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
     Box::pin(async move {
+      let hidden =
+        *self.hide_situation.lock().unwrap() && turn.prompt.contains(&CHAT_ROUND.situation.previous);
       let number = {
         let mut turns = self.turns.lock().unwrap();
 
-        turns.push(turn.clone());
-        turns.len()
+        if hidden {
+          turns.len()
+        } else {
+          turns.push(turn.clone());
+          turns.len()
+        }
       };
-      let holds = {
+      let holds = if hidden {
+        false
+      } else {
         let mut holding = self.holding.lock().unwrap();
         let holds = *holding > 0 || *self.holding_turn.lock().unwrap() == Some(number);
 
@@ -231,7 +256,11 @@ impl StandInSession {
         holds
       };
       let working_for = *self.working_for.lock().unwrap();
-      let answer = self.script.lock().unwrap().pop_front().unwrap_or_else(|| self.answer.clone());
+      let answer = if hidden {
+        bmo_receiver::chat::sentinels::SKIP.to_owned()
+      } else {
+        self.script.lock().unwrap().pop_front().unwrap_or_else(|| self.answer.clone())
+      };
 
       *self.working.lock().unwrap() = true;
       self.told(

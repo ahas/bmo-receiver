@@ -95,8 +95,12 @@ impl Group {
 
     documents(data.path());
 
-    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
-    let session = Arc::new(session);
+    let mut standing =
+      woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+
+    standing.receiver = standing.receiver.with_situation_updates(true);
+
+    let session = Arc::new(session.showing_situations());
     let receiver = standing.receiver.clone();
     let timings = Timings {
       queue: Duration::from_millis(1),
@@ -332,15 +336,17 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
   );
 
   round.hand(1, "agent-a what is due today", true).await;
-  round.rounds_over(1).await;
+  round.rounds_over(2).await;
 
-  let prompt = &round.session.prompts()[0];
+  let prompts = round.session.prompts();
+  let prompt = &prompts[1];
   let index = &CHAT_ROUND.index;
 
-  assert!(prompt.contains("Reference for this message (3):"), "{prompt}");
+  assert!(prompt.contains("Reference for this message (4):"), "{prompt}");
   assert!(
-    prompt.contains(&receiver_policy::chat_line::CHAT_LINE.room.voice),
-    "the room block tells the agent voice arrives as text: {prompt}"
+    prompts[0].contains(&receiver_policy::chat_line::CHAT_LINE.room.voice),
+    "the situation update carries the room block: {}",
+    prompts[0]
   );
   assert!(
     !prompt.contains(&CHAT_ROUND.supervisor.question),
@@ -388,9 +394,9 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
     ],
   );
   round.hand(1, "agent-a what do the rules say", true).await;
-  round.rounds_over(1).await;
+  round.rounds_over(2).await;
 
-  let prompt = &round.session.prompts()[0];
+  let prompt = &round.session.prompts()[1];
   let index = &CHAT_ROUND.index;
 
   assert!(

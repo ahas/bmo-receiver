@@ -121,6 +121,25 @@ struct Drafting {
 
 impl Drafting {
   async fn new(session: StandInSession, rounds: &[&str], light: &[&str], ceiling_seconds: u32) -> Self {
+    Self::with_hiding(session, rounds, light, ceiling_seconds, true).await
+  }
+
+  async fn new_visible(
+    session: StandInSession,
+    rounds: &[&str],
+    light: &[&str],
+    ceiling_seconds: u32,
+  ) -> Self {
+    Self::with_hiding(session, rounds, light, ceiling_seconds, false).await
+  }
+
+  async fn with_hiding(
+    session: StandInSession,
+    rounds: &[&str],
+    light: &[&str],
+    ceiling_seconds: u32,
+    hide: bool,
+  ) -> Self {
     let scratch = Scratch::new().await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER).agent_in(OWNER, IDENTITY));
@@ -128,8 +147,12 @@ impl Drafting {
     documents(data.path());
     drafting(scratch.db(), rounds, light, ceiling_seconds).await;
 
-    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
-    let session = Arc::new(session);
+    let mut standing =
+      woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+
+    standing.receiver = standing.receiver.with_situation_updates(!hide);
+
+    let session = Arc::new(if hide { session.hiding_situations() } else { session.showing_situations() });
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 
@@ -303,6 +326,74 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
 }
 
 const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
+
+#[tokio::test]
+async fn a_private_chat_round_writes_the_situation_note_and_hands_it_to_the_judgement() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the private note", "the message"]);
+  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, "hello").await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 2, "{prompts:#?}");
+  assert!(prompts[0].contains(&CHAT_ROUND.situation.previous), "{}", prompts[0]);
+  assert!(prompts[1].contains(question("final")), "{}", prompts[1]);
+  assert_eq!(
+    round
+      .scratch
+      .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = 42"#)
+      .await,
+    ["the private note"]
+  );
+  assert_eq!(
+    round
+      .scratch
+      .texts(
+        r#"SELECT COALESCE("situation", '') || '|' || COALESCE("situation_changed"::text, '')
+           FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 1"#
+      )
+      .await,
+    ["the private note|true"]
+  );
+  assert!(sent.len() == 1 && sent[0].contains("the message"), "{sent:?}");
+}
+
+#[tokio::test]
+async fn a_private_chat_skip_leaves_the_standing_note_unchanged() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "the message"]);
+  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
+
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at") VALUES ($1, 'standing note', 0)"#,
+      vec![OWNER.into()],
+    )
+    .await;
+  round.hear(1, "hello").await;
+  round.ended(2).await;
+
+  assert_eq!(
+    round
+      .scratch
+      .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = 42"#)
+      .await,
+    ["standing note"]
+  );
+  assert_eq!(
+    round
+      .scratch
+      .texts(
+        r#"SELECT COALESCE("situation", '') || '|' || COALESCE("situation_changed"::text, '')
+           FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 1"#
+      )
+      .await,
+    ["standing note|false"]
+  );
+}
 
 #[tokio::test]
 async fn old_console_rows_fall_to_the_policy_one_row() {
