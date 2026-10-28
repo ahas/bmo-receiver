@@ -28,6 +28,7 @@ use super::sentinels::{Mark, SKIP, is_skip, is_wait, round_marks, sent_now, with
 use super::turnover::note_session;
 use crate::form::strip_prompt_scaffolding;
 use crate::now_ms;
+use crate::one;
 use crate::receiver::{Inbound, Receiver};
 
 use checks::{Check, Reading, failing, has_skip, light, own_lines};
@@ -841,11 +842,27 @@ impl Drafter {
       } else {
         0
       };
+    // An owner's directive is answered only by a message the room's record holds. A note or an earlier draft that
+    // says it was handled is not one, so a skip over such words is asked again (docs/drafting.md, 「The situation
+    // note」 and 「What came in meanwhile」).
+    let mut directed = false;
+
+    for message in drafted.batch.iter().filter(|message| message.sender_id == Some(owner)) {
+      if !answered_after(receiver, chat, receiver.roads().identity_in(chat).await, message.message_id).await
+      {
+        directed = true;
+        break;
+      }
+    }
 
     // The owner's own chat is always answered: a process that ended with no message over the owner's words is
-    // asked once more, whatever the time.
-    if message.is_none() && owed > 0 {
-      let errand = fill_marks(&SECOND_ASKS.errands.owed, &[("count", &owed.to_string())]);
+    // asked once more, whatever the time. So is any round carrying an owner's directive with no sent answer.
+    if message.is_none() && (owed > 0 || directed) {
+      let errand = if owed > 0 {
+        fill_marks(&SECOND_ASKS.errands.owed, &[("count", &owed.to_string())])
+      } else {
+        SECOND_ASKS.errands.owner_directive.clone()
+      };
 
       match run.ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending)).await {
         Ok(Some((answer, read))) if usable(&answer.text) && read != Answered::Skip => {
@@ -1056,6 +1073,29 @@ impl Drafter {
 /// The two words the review answer uses, as the policy names them.
 fn render_verdict(pass: &str, reject: &str) -> String {
   format!("Answer {pass} or {reject}, and nothing else.")
+}
+
+/// Whether a message the agent itself sent follows the owner's directive in the room's record: the only thing that
+/// makes an owner's words answered.
+async fn answered_after(receiver: &Receiver, chat_id: i64, own: Option<i64>, message_id: i64) -> bool {
+  let Some(own) = own else {
+    return false;
+  };
+  let row = match one(
+    receiver.db(),
+    r#"SELECT COUNT(*) AS "sent" FROM "messages" m
+       JOIN "messages" o ON o."chat_id" = m."chat_id" AND o."message_id" = $2
+       WHERE m."chat_id" = $1 AND m."sender_id" = $3
+         AND (m."sent_at", m."rowid") > (o."sent_at", o."rowid")"#,
+    vec![chat_id.into(), message_id.into(), own.into()],
+  )
+  .await
+  {
+    Ok(Some(row)) => row,
+    _ => return false,
+  };
+
+  row.try_get::<i64>("", "sent").unwrap_or(0) > 0
 }
 
 /// The verdict a review's answer gives: PASS, or REJECT with the reason it named; an answer naming neither is a

@@ -8,6 +8,7 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct Errands {
   pub owed: String,
+  pub owner_directive: String,
   /// A language errand a deployment set before the send path stopped reading language: read and ignored.
   #[serde(default)]
   pub language: Option<String>,

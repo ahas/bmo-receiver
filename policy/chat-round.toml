@@ -272,7 +272,7 @@ archive = "the room's archive"
 [situation]
 holds = "the room's situation"
 ceiling_chars = 600
-head = "Before this round answers or judges whether to answer, update the room's situation note from the new lines. Say what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
+head = "Before this round answers or judges whether to answer, update the room's situation note from the new lines. Say what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Say what is still to be done; never write that you replied, sent, attached, fixed or answered anything. This note is written before the round answers, and only a message the room's record holds counts as sent: where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
 previous = "The room's situation note as it stands:"
 none = "There is no situation note for this room yet."
 recent = "The room's recent words:"

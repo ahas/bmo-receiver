@@ -12,6 +12,9 @@ later = "Later messages will be delivered in the next turn; do not act on them n
 [errands]
 # A turn that carried {count} of the owner's own messages and answered with silence.
 owed = "Your answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. This turn carried {count} message(s) from the owner, in the owner's own private chat, which is always answered. Write this turn's answer to the owner now. <<SKIP>> and <<WAIT>> are not available."
+# A turn carrying the owner's words with no message in the room's record answering them: a note or an earlier draft
+# is not a sent answer.
+owner_directive = "The owner's words stand in this turn and no message the room's record holds answers them. A draft, a note or an earlier turn of this session that the record does not hold is not a sent answer, and nothing was sent. Write this turn's answer to the owner's words now. <<SKIP>> and <<WAIT>> are not available."
 # A final text carrying the process's own lines.
 format = "The message you wrote carries the process's own lines: a question you were asked, or the head of a block of messages. Nothing went out. Write the message again as the room is to read it, with none of them. <<WAIT>> is not available."
 # A promise with nothing recorded: the rule, then the form for a turn with its tools off or on.

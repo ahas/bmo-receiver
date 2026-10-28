@@ -155,6 +155,9 @@ leaves.
 
 ## The situation note
 
+- **The note says what is talked about and what is owed, never what went out.** It is written before the round
+  answers, so it never says that a reply was sent, attached, fixed or answered: where it would say something was
+  sent, it says what remains to be done. Only a message the room's record holds counts as sent.
 - **One note a room, the receiver's own.** The note stands in `room_situations` (`docs/store.md`), one row a room,
   replaced when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation`
   rows are rules for a situation, while this note is written and read by the receiver alone. It is handed as a
@@ -176,6 +179,9 @@ leaves.
   whether that round wrote it afresh (`docs/api.md`, the `Message`'s `situation`), so a message's judgement record
   says what the room's situation was as the round read it; the owner's private chat's messages carry it too. A room
   answers the note as it stands now, with when it last changed, at `GET /rooms/{roomId}/situation`.
+- **An owner's directive is not skipped because a note or an earlier draft says it was handled.** The
+  round's answer to the owner's words is asked over once more where no message the room's record holds follows
+  those words; a note, a draft or a turn of this session is not a sent message.
 - **The judgement reads it with the new lines.** The judging turn carries the note under `[supervisor] situation`,
   before the room's recent words and the words judged. The note changes the material the judgement reads, never an
   addressee rule: a conversation between others is left alone, and a line that asks the agent or resumes an earlier

@@ -842,6 +842,40 @@ async fn a_skip_in_the_second_question_sends_nothing() {
   );
 }
 
+#[test]
+fn the_situation_update_says_never_that_a_reply_went_out() {
+  let prompt = bmo_receiver::chat::situation::update_prompt(None, &[], &[]);
+
+  assert!(prompt.contains("never write that you replied, sent, attached"), "{prompt}");
+  assert!(prompt.contains("what remains to be done"), "{prompt}");
+}
+
+#[tokio::test]
+async fn a_note_claiming_a_reply_does_not_skip_the_owners_directive() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[
+    "the correction was attached and sent",
+    "<<SKIP>>",
+    "the corrected answer",
+  ]);
+  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(3).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 3, "{prompts:#?}");
+  assert!(
+    prompts[1].contains("the correction was attached and sent"),
+    "the note the draft read claims the reply: {}",
+    prompts[1]
+  );
+  assert!(prompts[2].contains(&SECOND_ASKS.errands.owed[..40]), "{}", prompts[2]);
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the corrected answer"), "{sent:?}");
+}
+
 #[tokio::test]
 async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
