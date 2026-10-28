@@ -587,3 +587,15 @@ async fn a_reply_mark_in_the_supervisors_answer_pins_the_older_line_it_names() {
     "the record names the older message"
   );
 }
+
+#[tokio::test]
+async fn the_supervisor_prompt_is_the_golden_file() {
+  let round = Group::new(StandInSession::new(SESSION, "Here.")).await;
+
+  round.hand(1, "are you there", false).await;
+  round.prompts_over(2).await;
+
+  let prompt = &round.session.prompts()[1];
+
+  assert_eq!(prompt, include_str!("../fixtures/supervisor-prompt.txt"));
+}

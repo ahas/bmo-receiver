@@ -365,6 +365,15 @@ where it says something: neither empty nor a skip nor a wait.
   a row off the event stream and writes it as a judgement of its `draft` stage; a `start` event is no row, and the
   gate lets it go by its kind (`docs/boundary-api.md`, 「Contract gaps」).
 
+## The supervisor's opening
+
+- **The supervisor prompt opens on the shape of a turn and its rounds.** Before its own head it carries one short
+  line naming a **turn** as one pass over a room's words and a **round** as one question inside it, this round's rule
+  (`<<SKIP>>` or one short line, and no other action), and, for the later rounds, only the rulebook each follows:
+  the room block's draft process, the review's own line and each item's errand. It names them there so the agent
+  knows which rule applies at each round without the prompt repeating texts that stand elsewhere; the judgement
+  head follows, and the draft process's rules stay in the room block.
+
 ## The routes
 
 - **`GET /draft-processes`** answers every row of the table, the policy's and the console's, each with its

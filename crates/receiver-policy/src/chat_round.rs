@@ -296,6 +296,7 @@ pub struct Situation {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Supervisor {
+  pub structure: String,
   pub head: String,
   pub situation: String,
   pub recent: String,

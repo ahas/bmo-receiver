@@ -2116,7 +2116,7 @@ impl Conversations {
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
     let note = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
-    let mut parts = vec![opening, String::new()];
+    let mut parts = vec![said.structure.clone(), String::new(), opening, String::new()];
 
     if let Some(note) = &note {
       parts.push(said.situation.clone());
