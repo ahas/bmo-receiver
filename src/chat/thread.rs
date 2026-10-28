@@ -2,7 +2,8 @@
 //! user and the chat agent said to each other in the group rooms the user is in and the agent answers over the last
 //! days, and nothing anyone else said nor what the user said to another agent there. A session is handed it whole
 //! once, then only the lines added since the last line it was handed; the mark is the session's, so a new session
-//! starts again from the whole thread.
+//! starts again from the whole thread, a session continued across a restart keeps its mark, and the mark is let go
+//! only when its session is replaced or folds.
 
 use sea_orm::DatabaseConnection;
 
@@ -15,7 +16,7 @@ use crate::Fault;
 use crate::receiver::wake::agents::Designated;
 use crate::receiver::{Inbound, Receiver, rows, wake};
 use crate::store::settings;
-use crate::{all, now_ms, run};
+use crate::{all, now_ms};
 use receiver_ports::gate::{Entry, Source};
 
 // The setting a session's thread mark stands under, and the line it names as `room:messageId`.
@@ -50,14 +51,6 @@ pub async fn remember_mark(db: &DatabaseConnection, session: &str, mark: ThreadM
 /// A session's thread mark let go, as its session folds or is replaced: the next turn is handed the whole thread.
 pub async fn forget_mark(db: &DatabaseConnection, session: &str) -> Result<(), Fault> {
   settings::forget(db, &mark_key(session)).await
-}
-
-/// Every session's thread mark let go, as the receiver starts: a session that continues across a restart is handed
-/// the whole thread again.
-pub async fn forget_marks(db: &DatabaseConnection) -> Result<(), Fault> {
-  run(db, r#"DELETE FROM "settings" WHERE "key" LIKE 'thread_mark:%'"#, vec![]).await?;
-
-  Ok(())
 }
 
 /// What one turn is handed of a person's thread: the entry to attach, or the held piece where the session has seen

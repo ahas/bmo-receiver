@@ -247,8 +247,10 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
   room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's. A session is handed
   it whole on its first turn and then only the lines added since the last line it was handed, under the same path
   and a heading saying so; a turn with no new line attaches nothing and the draft record lists the piece as `held`.
-  The mark is the session's, so a new or replaced session is handed the whole thread again, within the days the
-  thread reaches.
+  The mark is the session's: a session continued across a restart keeps it and is handed only the lines added,
+  while a new or replaced session has none and is handed the whole thread again, within the days the thread
+  reaches. It is let go only when that session is replaced or folds; a mark left by a session no longer used
+  changes nothing.
 - **The room's situation** is the receiver's own note, one row a room, handed as a piece of the core at
   `room-situations/<room>` (`docs/drafting.md`, 「The situation note」): the supervisor updates it before its judgement,
   the judgement reads it with the new lines, and the round's draft carries it. It is not a brain memory, and the

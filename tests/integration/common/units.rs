@@ -1066,7 +1066,7 @@ impl Agency for StandInAgency {
     _url: &'a str,
     _token: &'a str,
   ) -> BoxFuture<'a, Answer<()>> {
-    not_asked_agency("a hook")
+    Box::pin(async { Ok(()) })
   }
 
   fn run_log<'a>(&'a self, _run: &'a str, _after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>> {
