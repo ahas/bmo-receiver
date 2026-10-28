@@ -272,12 +272,15 @@ archive = "the room's archive"
 [situation]
 holds = "the room's situation"
 ceiling_chars = 600
-head = "Before this round answers or judges whether to answer, update the room's situation note from the new lines. Say what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Say what is still to be done; never write that you replied, sent, attached, fixed or answered anything. This note is written before the round answers, and only a message the room's record holds counts as sent: where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
+head = "Before this round answers or judges whether to answer, update the room's situation note from the new lines. Summarize what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Never copy a message and never restate your own answer: write a summary in your own words, not a sentence from the room. Say what is still to be done; write no first-person claim that you replied, sent, attached, fixed or answered anything, whether it is fresh in your words or copied from the room. This note is written before the round answers, and only a message the room's record holds counts as sent: where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
 previous = "The room's situation note as it stands:"
 none = "There is no situation note for this room yet."
 recent = "The room's recent words:"
 judged = "The new lines:"
 cut = "…"
+# A first-person claim in the room's language that a reply, fix, attachment or send happened: the note may hold
+# none, fresh or copied.
+claim = "(제가|내가|저는|나는).{0,40}(보냈|답했|첨부했|고쳤|처리했|전달했|수정했|올렸|썼|작성했)"
 
 # The agent's own judgement that opens a round whose every message reached it on its open window alone
 # (docs/wake.md, 「The room's queue and the round」): the head and the question, which together are the draft

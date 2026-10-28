@@ -846,7 +846,9 @@ async fn a_skip_in_the_second_question_sends_nothing() {
 fn the_situation_update_says_never_that_a_reply_went_out() {
   let prompt = bmo_receiver::chat::situation::update_prompt(None, &[], &[]);
 
-  assert!(prompt.contains("never write that you replied, sent, attached"), "{prompt}");
+  assert!(prompt.contains("Never copy a message"), "{prompt}");
+  assert!(prompt.contains("never restate your own answer"), "{prompt}");
+  assert!(prompt.contains("write no first-person claim"), "{prompt}");
   assert!(prompt.contains("what remains to be done"), "{prompt}");
 }
 

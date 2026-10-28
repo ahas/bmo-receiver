@@ -2053,7 +2053,8 @@ impl Conversations {
     held.replaced = reply.replaced.clone();
     self.keep_session(chat_id, held);
 
-    let note = super::situation::note_from_answer(&reply.text).or(old.clone());
+    let shown: Vec<String> = recent_lines.iter().chain(judged_lines.iter()).cloned().collect();
+    let note = super::situation::note_from_answer(&reply.text, &shown).or(old.clone());
     let changed = note.is_some() && note != old;
 
     if let Some(note) = &note

@@ -157,7 +157,10 @@ leaves.
 
 - **The note says what is talked about and what is owed, never what went out.** It is written before the round
   answers, so it never says that a reply was sent, attached, fixed or answered: where it would say something was
-  sent, it says what remains to be done. Only a message the room's record holds counts as sent.
+  sent, it says what remains to be done. It summarizes; it never copies a message or restates the agent's own
+  answer, and it holds no first-person claim that a reply, a fix, an attachment or a send happened, whether the
+  claim is fresh or copied. A note that copies a shown sentence or makes such a claim is refused, and the note as
+  it stood stays. Only a message the room's record holds counts as sent.
 - **One note a room, the receiver's own.** The note stands in `room_situations` (`docs/store.md`), one row a room,
   replaced when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation`
   rows are rules for a situation, while this note is written and read by the receiver alone. It is handed as a

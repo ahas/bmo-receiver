@@ -288,6 +288,8 @@ pub struct Situation {
   pub recent: String,
   pub judged: String,
   pub cut: String,
+  /// A first-person claim in the room's language that a reply, fix, attachment or send happened.
+  pub claim: String,
 }
 
 /// The agent's own judgement that opens a round its every message reached on the open window alone.

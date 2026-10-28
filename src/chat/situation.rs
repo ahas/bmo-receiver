@@ -6,6 +6,11 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 use sea_orm::DatabaseConnection;
 
+use std::sync::LazyLock;
+
+use regex::Regex;
+
+use crate::chat::promises::own_sentences;
 use crate::js;
 use crate::receiver::Receiver;
 use crate::{Fault, now_ms, one, run};
@@ -29,7 +34,7 @@ pub async fn read(db: &DatabaseConnection, chat_id: i64) -> Result<Option<String
 
   let text: String = row.try_get("", "text")?;
 
-  Ok((!text.trim().is_empty()).then_some(text))
+  Ok((!text.trim().is_empty() && !first_person_claim(&text, &CHAT_ROUND.situation.claim)).then_some(text))
 }
 
 /// The room's note replaced by what the update turn wrote, the row taken only where the note changed.
@@ -61,7 +66,10 @@ pub async fn read_at(db: &DatabaseConnection, chat_id: i64) -> Result<Option<(St
   let text: String = row.try_get("", "text")?;
   let updated_at: i64 = row.try_get("", "updated_at")?;
 
-  Ok((!text.trim().is_empty()).then_some((text, updated_at)))
+  Ok(
+    (!text.trim().is_empty() && !first_person_claim(&text, &CHAT_ROUND.situation.claim))
+      .then_some((text, updated_at)),
+  )
 }
 
 /// The note as it stood when a round judged these messages, kept on each message it judged with whether that round
@@ -121,14 +129,56 @@ pub fn update_prompt(old: Option<&str>, recent: &[String], judged: &[String]) ->
   parts.join("\n")
 }
 
+/// A first-person claim that the agent replied, sent, attached or fixed something: the note may not hold one,
+/// whether it wrote it or copied it from the room.
+fn first_person_claim(text: &str, claim: &str) -> bool {
+  static ENGLISH: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+      r"(?i)\b(i|i'm|i've|i have|we|we're|we've|we have)\b.{0,60}\b(replied|answered|sent|attached|fixed|handled|delivered|corrected|updated|wrote|posted|uploaded)\b",
+    )
+    .expect("a first-person claim pattern")
+  });
+  let korean = Regex::new(claim).is_ok_and(|pattern| pattern.is_match(text));
+
+  ENGLISH.is_match(text) || korean
+}
+
+// A sentence flattened for a copy comparison.
+fn flattened(text: &str) -> String {
+  text
+    .to_lowercase()
+    .split_whitespace()
+    .collect::<Vec<_>>()
+    .join(" ")
+    .trim_matches(|one: char| !one.is_alphanumeric())
+    .to_owned()
+}
+
+/// Whether the note repeats a sentence of a line the turn was shown: a message, the agent's own answer, or a
+/// quiet instruction.
+fn copies(answer: &str, shown: &[String]) -> bool {
+  let lines: Vec<String> = shown.iter().map(|line| flattened(line)).collect();
+
+  own_sentences(answer).iter().any(|sentence| {
+    let sentence = flattened(sentence);
+
+    sentence.chars().count() >= 12 && lines.iter().any(|line| line.contains(&sentence))
+  })
+}
+
 /// The note an update turn's answer writes: one line, under the policy's ceiling, none where the turn skipped,
-/// waited or said nothing.
-pub fn note_from_answer(answer: &str) -> Option<String> {
+/// waited or said nothing, and none that copies a shown line or makes a first-person claim of a reply, a fix, an
+/// attachment or a send.
+pub fn note_from_answer(answer: &str, shown: &[String]) -> Option<String> {
   let said = &CHAT_ROUND.situation;
   let text = crate::form::strip_prompt_scaffolding(answer);
   let text = text.trim();
 
   if text.is_empty() || super::sentinels::is_skip(text) || super::sentinels::is_wait(text) {
+    return None;
+  }
+
+  if first_person_claim(text, &said.claim) || copies(text, shown) {
     return None;
   }
 
