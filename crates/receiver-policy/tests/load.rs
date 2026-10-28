@@ -229,3 +229,59 @@ fn a_process_row_that_still_names_a_ceiling_loads_and_ignores_it() {
   assert_eq!(row.ceiling_seconds, Some(150));
   assert_eq!(row.past_ceiling.as_deref(), Some("send"));
 }
+
+#[test]
+fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
+  use receiver_policy::drafting::{Drafting, Process};
+
+  let five = vec!["information", "facts", "memory", "promises", "final"];
+
+  assert_eq!(DRAFTING.process.len(), 1);
+  assert_eq!(DRAFTING.process[0].provider, "*");
+  assert_eq!(DRAFTING.process[0].tier, "*");
+  assert_eq!(DRAFTING.process[0].agent, "*");
+  assert_eq!(DRAFTING.process[0].rounds, five);
+  assert!(DRAFTING.questions.contains_key("intent") && !five.contains(&"intent"));
+  assert!(DRAFTING.questions.contains_key("fit") && !five.contains(&"fit"));
+
+  let policy = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml"))
+    .expect("the drafting policy reads");
+  let mut old: Drafting = toml::from_str(&policy).expect("the policy reads");
+
+  old.process = vec![
+    Process {
+      provider: "*".to_owned(),
+      tier: "*".to_owned(),
+      agent: "*".to_owned(),
+      rounds: vec!["information".to_owned(), "facts".to_owned(), "final".to_owned()],
+      send_from: "facts".to_owned(),
+      light: vec!["final".to_owned()],
+      light_chars: 12,
+      ceiling_seconds: Some(150),
+      past_ceiling: Some("send".to_owned()),
+      turn_seconds: None,
+    },
+    Process {
+      provider: "claude-code".to_owned(),
+      tier: "*".to_owned(),
+      agent: "*".to_owned(),
+      rounds: five.iter().map(|name| (*name).to_owned()).collect(),
+      send_from: "facts".to_owned(),
+      light: vec!["final".to_owned()],
+      light_chars: 12,
+      ceiling_seconds: Some(150),
+      past_ceiling: Some("send".to_owned()),
+      turn_seconds: None,
+    },
+  ];
+  old.normalize();
+
+  assert_eq!(old.process.len(), 1);
+  assert_eq!(old.process[0].provider, "*");
+  assert_eq!(old.process[0].tier, "*");
+  assert_eq!(old.process[0].agent, "*");
+  assert_eq!(
+    old.process[0].rounds,
+    five.iter().map(|name| (*name).to_owned()).collect::<Vec<String>>()
+  );
+}

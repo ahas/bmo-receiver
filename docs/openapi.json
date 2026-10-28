@@ -816,7 +816,7 @@
             "type": "integer"
           },
           "outcome": {
-            "description": "`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or\n`ceiling-skip` for the end.",
+            "description": "`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip` or `withheld` for the end.",
             "type": "string"
           },
           "question": {

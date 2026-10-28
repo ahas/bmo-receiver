@@ -302,6 +302,99 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
   }
 }
 
+const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
+
+#[tokio::test]
+async fn old_console_rows_fall_to_the_policy_one_row() {
+  use bmo_receiver::chat::draft::table::{self, ANY, PastCeiling, Process};
+
+  let scratch = Scratch::new().await;
+  let row = |provider: &str, rounds: &[&str]| Process {
+    provider: provider.to_owned(),
+    tier: ANY.to_owned(),
+    agent: ANY.to_owned(),
+    rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
+    send_from: "facts".to_owned(),
+    light: vec!["final".to_owned()],
+    light_chars: 12,
+    ceiling_seconds: 150,
+    past_ceiling: PastCeiling::Send,
+    turn_seconds: 120,
+    set: true,
+  };
+
+  table::set(scratch.db(), &row("claude-code", FIVE)).await.unwrap();
+  table::set(scratch.db(), &row("small-model", &["information", "facts", "final"]))
+    .await
+    .unwrap();
+
+  let rows = table::rows(scratch.db()).await.unwrap();
+
+  assert_eq!(rows.len(), 1, "{rows:?}");
+  assert_eq!(
+    (rows[0].provider.as_str(), rows[0].tier.as_str(), rows[0].agent.as_str()),
+    (ANY, ANY, ANY)
+  );
+  assert_eq!(rows[0].rounds, FIVE);
+}
+
+#[tokio::test]
+async fn a_small_model_agent_runs_the_five_questions() {
+  let session = StandInSession::new(SESSION, "unscripted").on_provider("small").answering(&[
+    "notes",
+    "more notes",
+    "memories",
+    "promises kept",
+    "the message",
+  ]);
+  let round = Drafting::new(session, FIVE, &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(5).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 5, "{prompts:#?}");
+  assert!(prompts[4].contains(question("final")));
+  assert!(round.sent()[0].contains("the message"));
+}
+
+#[tokio::test]
+async fn a_claude_agent_runs_the_same_five_questions() {
+  let session = StandInSession::new(SESSION, "unscripted").on_provider("claude-code").answering(&[
+    "notes",
+    "more notes",
+    "memories",
+    "promises kept",
+    "the message",
+  ]);
+  let round = Drafting::new(session, FIVE, &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(5).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 5, "{prompts:#?}");
+  assert!(prompts[4].contains(question("final")));
+  assert!(round.sent()[0].contains("the message"));
+}
+
+#[tokio::test]
+async fn a_light_turn_still_runs_final_alone_with_the_one_process() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["hello to you too"]);
+  let round = Drafting::new(session, FIVE, &["final"], 150).await;
+
+  round.hear(1, "hi").await;
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 1, "a light turn asks final alone: {prompts:#?}");
+  assert!(prompts[0].contains(question("final")));
+  assert!(round.sent()[0].contains("hello to you too"));
+}
+
 #[tokio::test]
 async fn a_send_in_the_first_round_is_the_message_and_nothing_more_is_asked() {
   let session = StandInSession::new(SESSION, "unscripted")

@@ -186,19 +186,13 @@ pub async fn rows<C: ConnectionTrait>(db: &C) -> Result<Vec<Process>, Fault> {
     vec![],
   )
   .await?;
-  let mut set = read.iter().map(set_row).collect::<Result<Vec<Process>, Fault>>()?;
-  let mut rows = vec![];
+  let set = read.iter().map(set_row).collect::<Result<Vec<Process>, Fault>>()?;
+  let Some(default) = DRAFTING.process.first().map(Process::of_policy) else {
+    return Ok(vec![]);
+  };
+  let universal = set.into_iter().find(|row| row.key() == default.key());
 
-  for default in DRAFTING.process.iter().map(Process::of_policy) {
-    match set.iter().position(|row| row.key() == default.key()) {
-      Some(at) => rows.push(set.remove(at)),
-      None => rows.push(default),
-    }
-  }
-
-  rows.extend(set);
-
-  Ok(rows)
+  Ok(vec![universal.unwrap_or(default)])
 }
 
 /// The row a turn reads: the most specific that matches its provider, its tier and its agent.

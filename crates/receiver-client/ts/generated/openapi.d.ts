@@ -1531,10 +1531,7 @@ export interface components {
              *     row; 0 for the agent's own judgement before a round its open window alone let in.
              */
             number: number;
-            /**
-             * @description `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
-             *     `ceiling-skip` for the end.
-             */
+            /** @description `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip` or `withheld` for the end. */
             outcome: string;
             question: string;
             /**

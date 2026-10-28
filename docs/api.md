@@ -460,7 +460,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body | Answers |
 |---|---|---|
-| `GET /draft-processes` | | a page of `DraftProcess`, the policy's rows and the console's |
+| `GET /draft-processes` | | a page of `DraftProcess`: the policy's one row, or the console's row of its own key |
 | `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`, `turnSeconds?`; `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
 | `GET /draft-questions` | | a page of `DraftQuestion` |

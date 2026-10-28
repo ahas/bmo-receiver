@@ -108,8 +108,9 @@ leaves.
 
 ## The process table
 
-- **One table says which questions a turn is asked:** rows keyed by a provider, a tier and an agent, each a name
-  or `*` for any. A row holds:
+- **One table says which questions a turn is asked:** one row for every provider, tier and agent, every part `*`.
+  The matching code still reads a provider, a tier and an agent, but the policy's one row matches all of them, and a
+  console row of any other key is ignored. A row holds:
   - `rounds`, the questions of an ordinary turn, in order;
   - `sendFrom`, the question of `rounds` from which the process asks for the message, a send being honored
     wherever it stands; empty for the first;
@@ -129,12 +130,14 @@ leaves.
   runs. The receiver carries no register of its own and names no person's register: that is the persona's. A
   message sent before `sendFrom` is written as the message itself and in that voice, though the line there names
   no voice; an answer that is not sent stays notes.
-- **The policy's rows are the defaults** (`drafting.toml`): any provider, `information`, `facts` and `final`, the
-  small models' process; Claude's provider, `information`, `facts`, `memory`, `promises` and `final`; both read a
-  send from `facts` on; every light turn `final` alone; 150 seconds, past which `final` is asked at once; 120
-  seconds a turn; 12 characters for a light turn.
-- **The console's rows stand over them** (「The routes」 below): a row set for a key the policy also holds takes its
-  place, and a row set for a key of its own adds one, which is how an agent is given a process of its own.
+- **The policy's one row is the default for every agent** (`drafting.toml`): `information`, `facts`, `memory`,
+  `promises` and `final`, in that order; a send is read from `facts` on; every light turn is `final` alone; 120
+  seconds a turn is the journal's note; 12 characters make a light turn. A deployment that still carries the old
+  two rows loads with them ignored in favour of this one. `intent` and `fit` stay in the catalogue and out of the
+  default rounds, so the five are not the whole catalogue.
+- **The console's rows do not make a second process** (「The routes」 below): a row of a key other than the one row's
+  is ignored, and the one row's own key replaces the default where the console sets it. Every agent still reads
+  the same five.
 - **A round reads its row before its turn goes out,** since the turn carries the first question: the provider and
   the tier the agency's state names for the session the round goes on (a session's state answers them from its
   start, before its first turn) and the agent whose turn it is. The most specific row that matches stands, an

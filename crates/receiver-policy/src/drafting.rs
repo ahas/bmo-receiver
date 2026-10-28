@@ -55,4 +55,30 @@ pub struct Drafting {
   pub process: Vec<Process>,
 }
 
-crate::part!(pub DRAFTING: Drafting = "drafting.toml");
+impl Drafting {
+  /// One process for every agent: where a deployment still carries more than one row, the row with the most
+  /// questions is the one and it answers for any provider, tier and agent.
+  pub fn normalize(&mut self) {
+    let Some(row) = self.process.iter().max_by_key(|row| row.rounds.len()).cloned() else {
+      return;
+    };
+
+    let mut row = row;
+
+    row.provider = "*".to_owned();
+    row.tier = "*".to_owned();
+    row.agent = "*".to_owned();
+    self.process = vec![row];
+  }
+}
+
+pub static DRAFTING: std::sync::LazyLock<Drafting> = std::sync::LazyLock::new(|| {
+  let mut drafting: Drafting = crate::read(
+    "drafting.toml",
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml")),
+  );
+
+  drafting.normalize();
+
+  drafting
+});
