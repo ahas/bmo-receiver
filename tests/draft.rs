@@ -53,7 +53,6 @@ fn row(provider: &str, tier: &str, agent: &str, rounds: &[&str]) -> Process {
     light_chars: 12,
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
-    turn_seconds: 120,
     set: false,
   }
 }
@@ -187,18 +186,15 @@ fn a_turn_is_light_for_short_words_with_no_file_or_instructions_alone() {
 }
 
 #[test]
-fn the_checks_read_length_and_the_process_s_own_lines() {
+fn the_check_reads_the_process_s_own_lines_and_no_length() {
   let asked = vec!["why was it said?".to_owned()];
   let lines = own_lines(&asked);
-  let reading = Reading {
-    own_lines: &lines,
-    max_chars: 10,
-  };
+  let reading = Reading { own_lines: &lines };
 
   assert_eq!(failing("short", &reading), vec![]);
-  assert_eq!(failing("far too long a text", &reading), vec![Check::Length]);
-  assert!(failing("why was it said?", &reading).contains(&Check::Format));
-  assert!(errand(Check::Length, "far too long a text", &reading).contains("19 characters, past the 10"));
+  assert_eq!(failing(&"x".repeat(10_000), &reading), vec![], "no length bound");
+  assert_eq!(failing("why was it said?", &reading), vec![Check::Format]);
+  assert!(errand(Check::Format, "anything", &reading).contains("process's own lines"));
 }
 
 #[test]
@@ -243,12 +239,6 @@ fn a_set_names_known_questions_ending_in_the_last_and_bounds_its_numbers() {
     "a send is read from a question of rounds"
   );
 
-  let mut unbounded = row(ANY, ANY, ANY, &["final"]);
-
-  unbounded.turn_seconds = 0;
-  assert!(refusal(&unbounded, &catalogue).is_some(), "a turn's bound is from 1 to 3,600 seconds");
-  unbounded.turn_seconds = 3601;
-  assert!(refusal(&unbounded, &catalogue).is_some());
   assert_eq!(question_refusal("tone-2", "a text"), None);
   assert!(question_refusal("Tone", "a text").is_some());
   assert!(question_refusal("tone", " ").is_some());

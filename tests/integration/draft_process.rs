@@ -123,7 +123,7 @@ struct Drafting {
 
 impl Drafting {
   async fn new(session: StandInSession, rounds: &[&str], light: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, light, ceiling_seconds, true).await
+    Self::with_hiding(session, rounds, light, ceiling_seconds, true, false).await
   }
 
   async fn new_visible(
@@ -132,7 +132,16 @@ impl Drafting {
     light: &[&str],
     ceiling_seconds: u32,
   ) -> Self {
-    Self::with_hiding(session, rounds, light, ceiling_seconds, false).await
+    Self::with_hiding(session, rounds, light, ceiling_seconds, false, false).await
+  }
+
+  async fn new_reviewing(
+    session: StandInSession,
+    rounds: &[&str],
+    light: &[&str],
+    ceiling_seconds: u32,
+  ) -> Self {
+    Self::with_hiding(session, rounds, light, ceiling_seconds, true, true).await
   }
 
   async fn with_hiding(
@@ -141,6 +150,7 @@ impl Drafting {
     light: &[&str],
     ceiling_seconds: u32,
     hide: bool,
+    review: bool,
   ) -> Self {
     let scratch = Scratch::new().await;
     let data = tempfile::tempdir().unwrap();
@@ -152,9 +162,12 @@ impl Drafting {
     let mut standing =
       woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
 
-    standing.receiver = standing.receiver.with_situation_updates(!hide);
+    standing.receiver = standing.receiver.with_situation_updates(!hide).with_review_gate(review);
 
-    let session = Arc::new(if hide { session.hiding_situations() } else { session.showing_situations() });
+    let session = Arc::new(
+      if hide { session.hiding_situations() } else { session.showing_situations() }
+        .hiding_reviews_or(review),
+    );
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 
@@ -652,7 +665,6 @@ async fn old_console_rows_fall_to_the_policy_one_row() {
     light_chars: 12,
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
-    turn_seconds: 120,
     set: true,
   };
 
@@ -831,28 +843,104 @@ async fn a_skip_in_the_second_question_sends_nothing() {
 }
 
 #[tokio::test]
-async fn a_failed_check_is_asked_once_and_the_new_text_goes_out() {
-  let long = "x".repeat(DRAFTING.max_chars + 1);
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[&long, "the short message"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
+  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
+  let log = round.log().await;
 
-  assert_eq!(prompts.len(), 2);
-  assert!(prompts[1].contains(&DRAFTING.max_chars.to_string()), "the errand names the limit");
+  assert_eq!(prompts.len(), 2, "{prompts:#?}");
+  assert!(prompts[1].contains(&DRAFTING.review.head), "{}", prompts[1]);
+  assert!(prompts[1].contains(ASKED), "the room's words: {}", prompts[1]);
+  assert!(prompts[1].contains("the message"), "the draft: {}", prompts[1]);
   assert_eq!(sent.len(), 1);
-  assert!(sent[0].contains("the short message"));
-  assert_eq!(round.log().await, ["question final answered", "check length answered", "end  message"]);
+  assert!(sent[0].contains("the message"), "{sent:?}");
+  assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
+}
+
+#[tokio::test]
+async fn a_rejected_message_is_written_again_with_the_reason() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[
+    "the first message",
+    "REJECT: the date is missing",
+    "the second message",
+    "PASS",
+  ]);
+  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(4).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+  let log = round.log().await;
+
+  assert_eq!(prompts.len(), 4, "{prompts:#?}");
+  assert!(prompts[2].contains("the date is missing"), "{}", prompts[2]);
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the second message"), "{sent:?}");
+  assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 1, "{log:?}");
+  assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
+}
+
+#[tokio::test]
+async fn eight_rejections_send_the_last_draft_and_report_the_reasons() {
+  let mut answers: Vec<String> = vec!["the first draft".to_owned()];
+  let mut drafts = vec!["the first draft".to_owned()];
+
+  for at in 1..=8 {
+    answers.push(format!("REJECT: reason {at}"));
+
+    if at < 8 {
+      let draft = format!("the draft after {at}");
+      answers.push(draft.clone());
+      drafts.push(draft);
+    }
+  }
+
+  let borrowed: Vec<&str> = answers.iter().map(String::as_str).collect();
+  let session = StandInSession::new(SESSION, "unscripted").answering(&borrowed);
+  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(16).await;
+
+  let sent = round.sent();
+  let log = round.log().await;
+  let end = round.scratch.texts(r#"SELECT "detail" FROM "draft_rounds" WHERE "kind" = 'end'"#).await;
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(drafts.last().unwrap()), "{sent:?}");
+  assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 8, "{log:?}");
+  assert!(end[0].contains("review rejected eight times"), "{end:?}");
+  assert!(end[0].contains("reason 1"), "{end:?}");
+  assert!(end[0].contains("reason 8"), "{end:?}");
+}
+
+#[tokio::test]
+async fn a_long_answer_goes_out_with_no_length_check() {
+  let long = "x".repeat(10_000);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&long]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(&long), "the answer goes out whole");
 }
 
 #[tokio::test]
 async fn a_check_that_fails_twice_withholds_the_message() {
-  let long = "x".repeat(DRAFTING.max_chars + 1);
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[&long, &long]);
+  let lines = "The process asks question";
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[lines, lines]);
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
@@ -867,7 +955,7 @@ async fn a_check_that_fails_twice_withholds_the_message() {
     .await;
 
   assert_eq!(end.len(), 1);
-  assert!(end[0].starts_with("withheld ") && end[0].ends_with("length"), "{end:?}");
+  assert!(end[0].starts_with("withheld ") && end[0].ends_with("format"), "{end:?}");
 }
 
 #[tokio::test]
@@ -1288,33 +1376,19 @@ async fn the_live_pair_goes_out_once_as_the_closing_check_wrote_it() {
 }
 
 #[tokio::test]
-async fn a_turn_past_its_bound_tells_the_room_nothing_and_goes_on() {
+async fn a_long_turn_still_sends_what_it_produced() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["notes", "the message after a long while"])
     .working_for(Duration::from_millis(1300));
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
-  crate::common::session::drafting_turn_bounded(
-    round.scratch.db(),
-    &["intent", "final"],
-    &["final"],
-    150,
-    1,
-  )
-  .await;
   round.hear(1, ASKED).await;
   round.ended(2).await;
 
   let sent = round.sent();
 
-  // Both turns ran past the bound, and the room heard nothing but the message: no holding line in any room.
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("the message after a long while"), "the turn went on: {sent:?}");
-  assert!(
-    round.log().await.contains(&"end  past-bound".to_owned()),
-    "the round's end names the bound: {:?}",
-    round.log().await
-  );
 }
 
 #[tokio::test]

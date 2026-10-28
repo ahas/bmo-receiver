@@ -367,6 +367,9 @@ pub struct Receiver {
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
   // stands the receiver without that turn.
   situation_updates: bool,
+  // Whether the draft process's review gate stands: on for the service, off where a test stands the receiver
+  // without that turn.
+  review_gate: bool,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -413,6 +416,7 @@ impl Receiver {
       touching: Arc::default(),
       place: Arc::default(),
       situation_updates: true,
+      review_gate: true,
     }
   }
 
@@ -425,6 +429,17 @@ impl Receiver {
   /// Whether a round with words first updates the room's situation note.
   pub fn situation_updates(&self) -> bool {
     self.situation_updates
+  }
+
+  /// The same receiver, with the draft process's review gate on or off.
+  pub fn with_review_gate(mut self, on: bool) -> Self {
+    self.review_gate = on;
+    self
+  }
+
+  /// Whether the draft process's review gate stands.
+  pub fn review_gate(&self) -> bool {
+    self.review_gate
   }
 
   /// The conversations that answer a line typed into the chat agent's program, and that take the warmer's touch

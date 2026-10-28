@@ -1642,7 +1642,8 @@ pub fn unrun(
     .keeping_agents_for(Duration::ZERO)
     .with_news(heard.clone())
     .with_wake(waking.clone())
-    .with_situation_updates(false);
+    .with_situation_updates(false)
+    .with_review_gate(false);
 
   Standing {
     receiver,

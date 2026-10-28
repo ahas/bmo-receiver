@@ -8,9 +8,9 @@ is written in is the agent's rule, not a check; nothing on the send path reads i
 ## Where the checks stand
 
 - **The process asks them once the message stands, in this order:** an owed answer over a skip
-  (`docs/wake.md`), a promise recorded, a promise set to wake and a rule the owner set, as items; then the length
-  and the format, as the checks on the final text (`docs/drafting.md`, 「The items after the last question」 and
-  「The checks on the final text」).
+  (`docs/wake.md`), a promise recorded, a promise set to wake and a rule the owner set, as items; then the
+  review and the format, as the gate on the final text (`docs/drafting.md`, 「The review」 and 「The checks on the
+  final text」).
 - **What the checks read stands in the receiver's policy**: the words of time to come, of keeping in mind, of
   waiting on something, of a condition and of a manner, and the volitional and imperative endings
   (`policy/second-asks.toml`), and the Hangul syllable block a word is told by (`policy/scripts.toml`). These are words of the room's language the code matches on, and so data. So is

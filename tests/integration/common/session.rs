@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use futures_util::future::BoxFuture;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::drafting::DRAFTING;
 use receiver_ports::agency::{Delivery, Event, Events, RunLine, Scope, Session, SessionState, Turn};
 use receiver_ports::http::Answer;
 use serde_json::json;
@@ -54,6 +55,8 @@ pub struct StandInSession {
   pub logged: Mutex<Vec<RunLine>>,
   // Whether the situation update's light turn is answered and kept out of the test's list of prompts.
   hide_situation: Mutex<bool>,
+  // Whether the review gate's turn is answered with PASS and kept out of the test's list of prompts.
+  hide_review: Mutex<bool>,
 }
 
 impl StandInSession {
@@ -79,6 +82,7 @@ impl StandInSession {
       folds_itself: Mutex::new(false),
       acting: Mutex::default(),
       hide_situation: Mutex::new(true),
+      hide_review: Mutex::new(true),
     }
   }
 
@@ -92,6 +96,18 @@ impl StandInSession {
   /// The situation update's light turn is shown and answered from the script, for a test about that turn.
   pub fn showing_situations(self) -> Self {
     *self.hide_situation.lock().unwrap() = false;
+    self
+  }
+
+  /// The review gate's turn is shown and answered from the script, for a test about that gate.
+  pub fn showing_reviews(self) -> Self {
+    *self.hide_review.lock().unwrap() = false;
+    self
+  }
+
+  /// The review gate's turn is shown when `show`, and answers PASS out of the test's list otherwise.
+  pub fn hiding_reviews_or(self, show: bool) -> Self {
+    *self.hide_review.lock().unwrap() = !show;
     self
   }
 
@@ -234,8 +250,10 @@ impl StandInSession {
 
   pub fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
     Box::pin(async move {
-      let hidden =
+      let hidden_situation =
         *self.hide_situation.lock().unwrap() && turn.prompt.contains(&CHAT_ROUND.situation.previous);
+      let hidden_review = *self.hide_review.lock().unwrap() && turn.prompt.contains(&DRAFTING.review.head);
+      let hidden = hidden_situation || hidden_review;
       let number = {
         let mut turns = self.turns.lock().unwrap();
 
@@ -256,7 +274,9 @@ impl StandInSession {
         holds
       };
       let working_for = *self.working_for.lock().unwrap();
-      let answer = if hidden {
+      let answer = if hidden_review {
+        DRAFTING.review.pass.clone()
+      } else if hidden_situation {
         bmo_receiver::chat::sentinels::SKIP.to_owned()
       } else {
         self.script.lock().unwrap().pop_front().unwrap_or_else(|| self.answer.clone())
@@ -322,7 +342,7 @@ pub async fn drafting_past(
   ceiling_seconds: u32,
   past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
 ) {
-  drafting_row(db, rounds, "", light, ceiling_seconds, past_ceiling, 120).await;
+  drafting_row(db, rounds, "", light, ceiling_seconds, past_ceiling).await;
 }
 
 /// The draft process every turn reads, reading a send from the question named on.
@@ -340,27 +360,6 @@ pub async fn drafting_sending(
     light,
     ceiling_seconds,
     bmo_receiver::chat::draft::table::PastCeiling::Send,
-    120,
-  )
-  .await;
-}
-
-/// The draft process every turn reads, one turn of it bounded to `turn_seconds`.
-pub async fn drafting_turn_bounded(
-  db: &sea_orm::DatabaseConnection,
-  rounds: &[&str],
-  light: &[&str],
-  ceiling_seconds: u32,
-  turn_seconds: u32,
-) {
-  drafting_row(
-    db,
-    rounds,
-    "",
-    light,
-    ceiling_seconds,
-    bmo_receiver::chat::draft::table::PastCeiling::Send,
-    turn_seconds,
   )
   .await;
 }
@@ -372,7 +371,6 @@ async fn drafting_row(
   light: &[&str],
   ceiling_seconds: u32,
   past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
-  turn_seconds: u32,
 ) {
   use bmo_receiver::chat::draft::table::{ANY, Process, set};
 
@@ -390,7 +388,6 @@ async fn drafting_row(
       light_chars: 12,
       ceiling_seconds,
       past_ceiling,
-      turn_seconds,
       set: true,
     },
   )

@@ -10,7 +10,6 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, rounds_of, store};
-use receiver_policy::drafting::DRAFTING;
 
 use crate::chat::draft::log;
 use crate::chat::draft::table::{self, PastCeiling, Process};
@@ -26,7 +25,9 @@ pub struct ProcessSet {
   /// A row set before rounds were left without a ceiling may carry this; it is read and ignored.
   #[serde(default)]
   ceiling_seconds: Option<u32>,
+  /// A turn's bound a row set before the bound was removed: read and ignored.
   #[serde(default)]
+  #[allow(dead_code)]
   turn_seconds: Option<u32>,
   /// What a row set past that ceiling; read and ignored.
   #[serde(default)]
@@ -77,7 +78,6 @@ pub async fn set_process(
     light_chars: asked.light_chars,
     ceiling_seconds: asked.ceiling_seconds.unwrap_or(0),
     past_ceiling,
-    turn_seconds: asked.turn_seconds.unwrap_or(DRAFTING.turn_seconds),
     set: true,
   };
   let catalogue = table::questions(db).await.map_err(store)?;

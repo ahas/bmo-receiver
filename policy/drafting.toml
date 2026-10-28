@@ -2,13 +2,6 @@
 # turn, the table that says which, the lines a question turn is written in and the longest final text. The
 # console's rows and texts stand over these (`GET`/`PUT /draft-processes`, `GET`/`PUT /draft-questions`).
 
-# The longest final text the `length` check lets go, in characters.
-max_chars = 4000
-
-# How long one turn of the process runs before the journal says it ran long, once in the round, in seconds: the
-# bound of a row that names none, the console's set among them. The room hears nothing of it.
-turn_seconds = 120
-
 # The lines a question turn is written in. `opening` opens the first question, which rides the round's own turn,
 # where it is not also the last. `lead` opens every later question but the last, `last_lead` the last; `{number}`
 # is the question's place, `{count}` how many the process asks and `{name}` the question's name. `{send}` in the
@@ -30,6 +23,20 @@ arrived = "Messages arrived after your last answer and before the message went o
 standing = "The message as it stands:"
 voice = "Write what may be the message as the message itself, in the voice your persona sets for the person you answer, its register toward them included, and in their language, never as notes or a report."
 
+# The review the gate asks before a message goes out (docs/drafting.md, 「The review」): it reads the draft against
+# the room's words, what the round asked and established, and the rules and knowledge the round carries, and
+# answers PASS, or REJECT with a reason. A rejection returns the draft to the final question with that reason,
+# eight times at most; the eighth sends the last draft and the end row names the reasons in order.
+[review]
+head = "REVIEW THE MESSAGE BEFORE IT GOES OUT. Read it against the room's words, what this round asked and established, and the rules and knowledge below. Answer PASS alone when it is right to send as it stands. Answer REJECT: <one short reason> when it is not, naming the one thing that must change; do not rewrite the message here."
+draft = "The message as it stands:"
+words = "The room's words:"
+notes = "What this round asked and established:"
+rules = "The rules and knowledge this round carries:"
+pass = "PASS"
+reject = "REJECT: <reason>"
+revise = "The review rejected the message. Reason: {reason}\n\nWrite the message again, changing what that reason names and keeping the rest. Your answer is the message."
+
 # The questions, by name: the seven the owner set. `final` is always the last question of a process.
 [questions]
 intent = "What does the person who said this intend? Whether to answer is already decided: consider why they said it and what they want."
@@ -42,8 +49,7 @@ final = "Looking at what came in meanwhile and at the notes established so far, 
 
 # The process table: one process for every provider, tier and agent. `rounds` are an ordinary turn's questions,
 # `send_from` the question of `rounds` from whose answer on a send is read (empty for the first), `light` a light
-# turn's (quiet instructions alone, or room words of at most `light_chars` characters and no file); `turn_seconds`
-# is how long one turn runs before the journal notes it and it goes on. A deployment that still carries the old
+# turn's (quiet instructions alone, or room words of at most `light_chars` characters and no file). A deployment that still carries the old
 # two rows loads with them ignored in favour of this one, and so do the console's per-key rows. `ceiling_seconds`
 # and `past_ceiling` are read and ignored: no clock ends a round.
 [[process]]

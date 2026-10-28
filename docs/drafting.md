@@ -116,7 +116,6 @@ leaves.
     wherever it stands; empty for the first;
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
-  - `turnSeconds`, the time one turn of it may run before the journal notes it went long (「Time」 below).
 - **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the question from which the process
   asks for the message, and the question's line says that a complete message may be written now; a send before it
   is the message too, and the process ends there. Where the agent does not send, the questions that establish the
@@ -234,14 +233,11 @@ leaves.
 
 ## Time
 
-- **No clock ends a round.** The process asks its questions in order until it has a message or the agent skips
-  deliberately; a round that takes a long time still ends with its message, and a failing check gets the repair
-  round it would get at any other time. Nothing the clock does makes the room hear silence.
-- **A turn past its bound is a journal note.** Where one turn of the process is still running once the row's
-  `turnSeconds` have passed since it went out, the journal says so once in the round and the turn goes on to its
-  end; the console's row of the answering agent already shows it at work, and no holding line goes into any room
-  (`docs/voiced-notices.md`, 「A turn past its clock」). The note cuts nothing and asks no question early. The
-  round's end row says `past-bound`, and the message the turn produced still goes out.
+- **No clock and no count bounds a round.** The process asks its questions in order until it has a message or
+  the agent skips deliberately; no turn has a time bound, no round has a cap, and no tool call is counted. A
+  round that takes a long time still ends with its message, and a failing check gets the repair round it would
+  get at any other time. The review's eight rejections are the one bound, and they send the last draft rather
+  than silence. Nothing else makes the room hear silence but an answer that says so.
 - **Before `final` has run, no message stands:** an answer before the last is notes. A process that already has
   its message, from `final` or from a send marker, goes on to the closing check, the items and the checks below.
 - **A later question whose run failed** is passed over to `final`, asked at once; a `final` whose run failed
@@ -264,18 +260,31 @@ where it says something: neither empty nor a skip nor a wait.
 - **`rule`:** the owner's words of the round set a rule for a situation to come and no turn of the process filed
   one; asked only where the turn's tools are on.
 
+## The review
+
+- **The gate's first turn reviews the message before it goes out.** It reads the draft against the room's words,
+  what the round asked and established, and the rules and knowledge the round carries, and answers `PASS` alone,
+  or `REJECT: <one short reason>` naming the one thing that must change.
+- **A rejection returns to the draft.** The final question is asked again with the reason in its words, and the
+  new draft is reviewed again, eight times at most. At the eighth rejection the last draft is sent, not
+  withheld, and the round's end row reports the reasons in order. A review that gives no verdict is a rejection
+  with its own words as the reason.
+- **Every verdict and reason is written down.** A review question and its verdict are rows of the round log,
+  `PASS` or `REJECT`, with the reason; the console reads them with the rest of the round.
+- **The format check runs after the review passes.** A format failure gets the repair round it had before; a
+  review rejection has already gone back to the draft.
+
 ## The checks on the final text
 
-- **Once the items are done, the text is checked before it is sent,** with no model:
-  - `length`: at most the policy's `max_chars` characters;
+- **Once the review has passed, the text is checked before it is sent,** with no model:
   - `format`: none of the process's own lines stands in the text: no question it was asked, and not the head of
     the block of words that came meanwhile.
-  The language an answer is written in is the agent's own rule, read in the turn's `ANSWER LANGUAGE` line and the
-  room's block; no check on the send path reads it.
+  There is no length check. The language an answer is written in is the agent's own rule, read in the turn's
+  `ANSWER LANGUAGE` line and the room's block; no check on the send path reads it.
 - **A check that fails is asked once:** one more turn of the same session, the check's errand naming what is
-  wrong, its answer the text from then on. The checks then read the new text. A `length` or `format` check that
-  fails again sends nothing, and the end of the process records the checks that failed. A check that fails only
-  after another's asking is asked once in its turn.
+  wrong, its answer the text from then on. The check then reads the new text. A `format` check that fails again
+  sends nothing, and the end of the process records the check that failed. A check that fails only after
+  another's asking is asked once in its turn.
 - **A skip in the answer to an item or a check** ends the process with nothing sent, as a skip in any question
   does.
 
@@ -342,8 +351,8 @@ where it says something: neither empty nor a skip nor a wait.
   answers it as it now stands. A list naming a question the catalogue does not hold, a list that holds questions
   and does not end in `final` or holds it before the end, a `sendFrom` that is not empty and names no question
   of `rounds`, a turn's note outside 1 to 3,600 seconds, or a light bound outside 0 to 1,000 characters is refused
-  `bad-request`, and nothing is written. A set that names no `turnSeconds` takes the policy's 120. A row that still
-  carries `ceilingSeconds` or `pastCeiling` loads with both ignored.
+  `bad-request`, and nothing is written. A row that still carries `turnSeconds`, `ceilingSeconds` or
+  `pastCeiling` loads with them ignored.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes the console's row away; the policy's row of the
   key stands again where it holds one. A key the console set no row for is `not-found`.
 - **`GET /draft-questions`** answers the catalogue, each question with its `source`; **`PUT

@@ -47,6 +47,8 @@ pub enum Kind {
   Item,
   /// A check on the final text asked again.
   Check,
+  /// The review before a message goes out, and its verdict.
+  Review,
   /// The process's end.
   End,
 }
@@ -59,6 +61,7 @@ impl Kind {
       Self::Question => "question",
       Self::Item => "item",
       Self::Check => "check",
+      Self::Review => "review",
       Self::End => "end",
     }
   }
@@ -89,7 +92,6 @@ impl Answered {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ended {
   Message,
-  PastBound,
   Skip,
   Withheld,
 }
@@ -98,7 +100,6 @@ impl Ended {
   pub fn word(self) -> &'static str {
     match self {
       Self::Message => "message",
-      Self::PastBound => "past-bound",
       Self::Skip => "skip",
       Self::Withheld => "withheld",
     }
@@ -177,6 +178,22 @@ impl Log {
     if let Some(answer) = answer {
       self.last = Some(answer.to_owned());
     }
+  }
+
+  /// A review's verdict written down: PASS, or REJECT with the reason it named.
+  pub async fn verdict(&mut self, name: &str, verdict: &str, reason: &str, ms: i64) {
+    let row = Row {
+      kind: Kind::Review,
+      question: name,
+      answer: None,
+      changed: false,
+      outcome: verdict,
+      detail: Some(reason),
+      ms,
+      reads: &[],
+    };
+
+    self.write(&row).await;
   }
 
   /// The process's end written down, with the row of the table it read, why it ended so and what the round read

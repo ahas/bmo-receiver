@@ -2,7 +2,6 @@
 //! light turn」): the skip standing in an answer, whether a turn is light, and the checks a final text passes.
 
 use receiver_policy::drafting::DRAFTING;
-use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
 
 use super::super::sentinels::SKIP;
@@ -15,24 +14,21 @@ const HEAD_CHARS: usize = 12;
 /// A check the final text passes, in the order the process reads them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Check {
-  Length,
   Format,
 }
 
 impl Check {
   pub fn word(self) -> &'static str {
     match self {
-      Self::Length => "length",
       Self::Format => "format",
     }
   }
 }
 
-/// What the checks read a text against: the process's own lines and the longest text let go. The language an
-/// answer is written in is the agent's own rule and no check reads it.
+/// What the check reads a text against: the process's own lines. The language an answer is written in is the
+/// agent's own rule and no check reads it.
 pub struct Reading<'a> {
   pub own_lines: &'a [String],
-  pub max_chars: usize,
 }
 
 /// Whether the skip stands in an answer outside a code span or fence, where it is not being quoted.
@@ -87,10 +83,6 @@ pub fn own_lines(asked: &[String]) -> Vec<String> {
 pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
   let mut failed = vec![];
 
-  if text.chars().count() > reading.max_chars {
-    failed.push(Check::Length);
-  }
-
   if reading.own_lines.iter().any(|line| text.contains(line.as_str())) {
     failed.push(Check::Format);
   }
@@ -99,14 +91,10 @@ pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
 }
 
 /// The errand a failed check asks the session with, naming what is wrong in the text.
-pub fn errand(check: Check, text: &str, reading: &Reading) -> String {
+pub fn errand(check: Check, _text: &str, _reading: &Reading) -> String {
   let errands = &SECOND_ASKS.errands;
 
   match check {
-    Check::Length => fill_marks(
-      &errands.length,
-      &[("count", &text.chars().count().to_string()), ("limit", &reading.max_chars.to_string())],
-    ),
     Check::Format => errands.format.clone(),
   }
 }

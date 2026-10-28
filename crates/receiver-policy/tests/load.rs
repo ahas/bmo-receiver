@@ -101,7 +101,6 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(SECOND_ASKS.errands.wake_on.contains("{chat}"));
   assert!(SECOND_ASKS.errands.rule.contains("{chat}"));
   assert_eq!(SECOND_ASKS.reading.pledge_final, 8);
-  assert!(SECOND_ASKS.errands.length.contains("{count}") && SECOND_ASKS.errands.length.contains("{limit}"));
   assert!(!SECOND_ASKS.errands.format.is_empty());
 }
 
@@ -113,7 +112,7 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.send_closed.contains("{from}") && DRAFTING.send_closed.contains("{name}"));
   assert!(CHAT_ROUND.closing.questioned_owed.contains("{count}"));
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
-  assert!(DRAFTING.questions.contains_key("final") && DRAFTING.max_chars > 0);
+  assert!(DRAFTING.questions.contains_key("final"));
   // Every line whose answer may be the message carries the room's voice; the closed send line, a notes one, does not.
   for line in [&DRAFTING.send_open, &DRAFTING.last_lead, &DRAFTING.arrived] {
     assert!(line.contains("{voice}"), "{line}");

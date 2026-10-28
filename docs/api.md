@@ -454,7 +454,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   judgement before a round), `question`, `kind` (`supervisor`, the agent's own judgement whether to answer words
   its open window alone let in, `turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is
   empty), `answerChars`,
-  `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `message`, `past-bound`, `skip` or `withheld` for
+  `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `PASS` or `REJECT` for a review; `message`, `skip` or `withheld` for
   the end), `detail` (or null), `answer` (or null), `ms`, `at` and `reads`:
   on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
   `read`; `docs/drafting.md`, 「The round log」), and empty on every other row. The rows of a round stand in the
@@ -465,16 +465,16 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body | Answers |
 |---|---|---|
 | `GET /draft-processes` | | a page of `DraftProcess`: the policy's one row, or the console's row of its own key |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`, `turnSeconds?`; `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`; `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
 | `GET /draft-questions` | | a page of `DraftQuestion` |
 | `PUT /draft-questions/{name}` | `text` | the `DraftQuestion` as it now stands |
 
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
   names of the questions an ordinary and a light turn are asked, in order; `sendFrom`, the question of `rounds`
-  from whose answer on a send is read, empty for the first; `lightChars`; `turnSeconds`, how
-  long one turn runs before the journal notes it ran long, 120 where a set names none; and `source`, `set` where
-  the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process table」). A
+  from whose answer on a send is read, empty for the first; `lightChars`; no turn bound stands; and `source`,
+  `set` where the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process
+  table」). A
   row that still carries `ceilingSeconds` or `pastCeiling` is read with both ignored, and both stand in its answer
   as they came. The page holds the policy's rows in their order,
   each replaced by the console's of the same key, then the console's own keys.

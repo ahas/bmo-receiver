@@ -391,8 +391,8 @@ flowchart TD
   judges the answer.
 - **The mechanical checks stay in code,** on every round, as the process's items and checks: an owed answer to
   the owner's words, a promise with nothing recorded, a promise to act once something happens with nothing set
-  to wake the agent when it does, a rule the owner set and nothing filed, and the final text's length, language
-  and format (`docs/answer-checks.md`).
+  to wake the agent when it does, a rule the owner set and nothing filed, then the review and the final text's
+  format (`docs/answer-checks.md`).
 
 ## What keeps the window the only way in
 

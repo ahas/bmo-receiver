@@ -11,7 +11,9 @@ pub struct Errands {
   /// A language errand a deployment set before the send path stopped reading language: read and ignored.
   #[serde(default)]
   pub language: Option<String>,
-  pub length: String,
+  /// A length errand a deployment set before the length bound was removed: read and ignored.
+  #[serde(default)]
+  pub length: Option<String>,
   pub format: String,
   pub record: String,
   pub record_off: String,

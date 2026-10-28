@@ -1,5 +1,5 @@
 //! The draft process (docs/drafting.md): the questions a round's session is asked, the default rows of the table
-//! that says which, the lines a question turn is written in and the longest final text.
+//! that says which, and the lines a question turn is written in.
 
 use std::collections::BTreeMap;
 
@@ -23,18 +23,34 @@ pub struct Process {
   /// What a row set to do past that ceiling: read and ignored.
   #[serde(default)]
   pub past_ceiling: Option<String>,
-  /// How long one turn runs before the journal notes the agent is still at work, where the row names it.
+  /// A turn's time bound a row set before the bound was removed: read and ignored.
   #[serde(default)]
   pub turn_seconds: Option<u32>,
+}
+
+/// The review the gate asks before a message goes out.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Review {
+  pub head: String,
+  pub draft: String,
+  pub words: String,
+  pub notes: String,
+  pub rules: String,
+  pub pass: String,
+  pub reject: String,
+  pub revise: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Drafting {
-  /// The longest final text the length check lets go, in characters.
-  pub max_chars: usize,
-  /// How long one turn runs before the room is told the agent is still at work, for a row that names none.
-  pub turn_seconds: u32,
+  /// A length bound a deployment set before the bound was removed: read and ignored.
+  #[serde(default)]
+  pub max_chars: Option<usize>,
+  /// A turn's time bound a deployment set before the bound was removed: read and ignored.
+  #[serde(default)]
+  pub turn_seconds: Option<u32>,
   /// The opening of the first question, which rides the round's own turn where it is not also the last.
   pub opening: String,
   pub lead: String,
@@ -50,6 +66,8 @@ pub struct Drafting {
   pub standing: String,
   /// What a question whose answer may be the message says of its voice: the room's, never notes.
   pub voice: String,
+  /// The review the gate asks before a message goes out.
+  pub review: Review,
   /// The questions, by name.
   pub questions: BTreeMap<String, String>,
   pub process: Vec<Process>,

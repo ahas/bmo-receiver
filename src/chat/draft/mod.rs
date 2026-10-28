@@ -9,9 +9,6 @@ pub mod log;
 pub mod table;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
@@ -58,31 +55,6 @@ pub struct Plan {
   pub questions: Vec<(String, String)>,
   pub send_from_at: usize,
   pub row: String,
-  pub turn_ms: Option<u64>,
-  pub told: Arc<AtomicBool>,
-}
-
-/// One turn of the process carried to its end; where it runs past the plan's bound, the journal says so once in the
-/// round and the turn goes on, the room hearing nothing of it (docs/drafting.md, 「Time」).
-pub async fn bounded<T>(chat_id: i64, plan: &Plan, turn: impl Future<Output = T>) -> T {
-  let Some(bound) = plan.turn_ms.filter(|_| !plan.told.load(Ordering::SeqCst)) else {
-    return turn.await;
-  };
-  let mut turn = std::pin::pin!(turn);
-
-  tokio::select! {
-    done = &mut turn => return done,
-    _ = tokio::time::sleep(Duration::from_millis(bound)) => {}
-  }
-
-  if !plan.told.swap(true, Ordering::SeqCst) {
-    eprintln!(
-      "chat {chat_id}: a turn of the draft process ran past its {}s bound and goes on",
-      bound / 1000
-    );
-  }
-
-  turn.await
 }
 
 impl Plan {
@@ -423,6 +395,45 @@ impl Run<'_> {
     paths
   }
 
+  // The review prompt (docs/drafting.md, 「The review」): the message as it stands, the room's words, what this
+  // round asked and established as questions and the draft, and the rules and knowledge the round carries.
+  fn review_prompt(&self, message: &str) -> String {
+    let said = &DRAFTING.review;
+    let words: Vec<String> = self
+      .drafted
+      .batch
+      .iter()
+      .map(|message| {
+        format!(
+          "#{} {} (id {:?}): {}",
+          message.message_id, message.sender_name, message.sender_id, message.text
+        )
+      })
+      .collect();
+    let rules: Vec<String> = self
+      .drafted
+      .selection
+      .entries
+      .iter()
+      .map(|entry| format!("[{}]\n{}", entry.path, entry.text))
+      .collect();
+    let asked = self.asked.join("\n");
+
+    format!(
+      "{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}\n\n{}",
+      said.head,
+      said.draft,
+      message,
+      said.words,
+      words.join("\n"),
+      said.notes,
+      asked,
+      said.rules,
+      rules.join("\n\n"),
+      render_verdict(&said.pass, &said.reject),
+    )
+  }
+
   // One more turn of the same session: its answer where it gave one, as the process reads it with its marks taken
   // out, none where its run failed, the stop raised. No room's words are pushed into it while it works.
   async fn ask(
@@ -462,7 +473,7 @@ impl Run<'_> {
     let follower = Follower::new(self.conversations, chat);
     let receiver = &self.drafter.receiver;
     let carrying = Carry::new(receiver.clone());
-    let carried = bounded(chat, drafted.plan, carrying.carry(&asking, &held, &follower)).await;
+    let carried = carrying.carry(&asking, &held, &follower).await;
 
     self.only_marks = false;
 
@@ -672,8 +683,6 @@ impl Drafter {
       questions,
       send_from_at,
       row: format!("{}/{}/{}", process.provider, process.tier, process.agent),
-      turn_ms: Some(u64::from(process.turn_seconds) * 1000),
-      told: Arc::default(),
     }
   }
 
@@ -903,15 +912,74 @@ impl Drafter {
       }
     }
 
+    // The review first in the gate (docs/drafting.md, 「The review」): the message as it stands against the
+    // room's words, what the round established and the rules it carries. A rejection returns it to `final` with
+    // the reason, eight times at most; the eighth sends the last draft and the end row reports the reasons.
+    let mut reasons: Vec<String> = vec![];
+    let mut eight = false;
+    let mut reviews = 0;
+
+    while receiver.review_gate() && reviews < 8 {
+      let started = now_ms();
+      let answered = run.ask(Kind::Review, "review", &run.review_prompt(&message.text)).await?;
+      let Some((answer, read)) = answered else {
+        break;
+      };
+      let (pass, reason) = match read {
+        Answered::Skip => (false, "the review gave no verdict".to_owned()),
+        _ => review_verdict(&answer.text),
+      };
+
+      run
+        .log
+        .verdict("review", if pass { "PASS" } else { "REJECT" }, &reason, now_ms() - started)
+        .await;
+
+      reviews += 1;
+
+      if pass {
+        break;
+      }
+
+      reasons.push(reason.clone());
+
+      if reviews >= 8 {
+        eight = true;
+        break;
+      }
+
+      let final_question = DRAFTING.questions.get("final").cloned().unwrap_or_default();
+      let revise = fill_marks(&DRAFTING.review.revise, &[("reason", &reason)]);
+      let question = format!("{final_question}\n\n{revise}");
+
+      match run
+        .ask(Kind::Question, "final", &words(&question, drafted.scope, &drafted.pending))
+        .await
+      {
+        Ok(Some((answer, read))) => {
+          if read == Answered::Skip {
+            run.log.end(Ended::Skip, row, now_ms() - drafted.began, &run.reads().await).await;
+
+            return Ok(run.made(SKIP));
+          }
+
+          message = answer;
+        }
+        Ok(None) => break,
+        Err(failure) => {
+          run.give_back_shown();
+
+          return Err(failure);
+        }
+      }
+    }
+
     // The checks on the final text, each asked once. The language an answer is written in is the agent's rule,
     // not a check: nothing on the send path reads it.
     let mut asked: HashSet<Check> = HashSet::new();
     loop {
       let lines = own_lines(&run.asked);
-      let reading = Reading {
-        own_lines: &lines,
-        max_chars: DRAFTING.max_chars,
-      };
+      let reading = Reading { own_lines: &lines };
       let failed = failing(&message.text, &reading);
 
       if failed.is_empty() {
@@ -971,16 +1039,42 @@ impl Drafter {
       }
     }
 
-    let ended = if run.drafted.plan.told.load(Ordering::SeqCst) {
-      Ended::PastBound
+    let ended = Ended::Message;
+
+    let detail = if eight {
+      format!("{row}; review rejected eight times: {}", reasons.join(" | "))
     } else {
-      Ended::Message
+      row.to_owned()
     };
 
-    run.log.end(ended, row, now_ms() - drafted.began, &run.reads().await).await;
+    run.log.end(ended, &detail, now_ms() - drafted.began, &run.reads().await).await;
 
     Ok(run.made(&message.text))
   }
+}
+
+/// The two words the review answer uses, as the policy names them.
+fn render_verdict(pass: &str, reject: &str) -> String {
+  format!("Answer {pass} or {reject}, and nothing else.")
+}
+
+/// The verdict a review's answer gives: PASS, or REJECT with the reason it named; an answer naming neither is a
+/// rejection carrying its own words.
+fn review_verdict(text: &str) -> (bool, String) {
+  let text = text.trim();
+
+  if text.eq_ignore_ascii_case(DRAFTING.review.pass.trim()) || text.starts_with(DRAFTING.review.pass.trim())
+  {
+    return (true, String::new());
+  }
+
+  let reason = text
+    .strip_prefix("REJECT")
+    .map(|rest| rest.trim_start_matches(|one: char| one == ':' || one == '-' || one.is_whitespace()))
+    .map(str::to_owned)
+    .unwrap_or_else(|| text.to_owned());
+
+  (false, reason.trim().to_owned())
 }
 
 impl Drafting for Drafter {

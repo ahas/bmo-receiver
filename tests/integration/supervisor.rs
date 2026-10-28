@@ -215,7 +215,6 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
     light_chars: 0,
     ceiling_seconds: 60,
     past_ceiling: table::PastCeiling::Send,
-    turn_seconds: 120,
     set: true,
   };
 

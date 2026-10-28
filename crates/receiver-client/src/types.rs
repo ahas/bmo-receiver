@@ -969,8 +969,6 @@ pub struct DraftProcess {
   pub light: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
-  /// How long one turn of the process runs before the room is told the agent is still at work, in seconds.
-  pub turn_seconds: u32,
   /// `send` or `skip`.
   pub past_ceiling: String,
   /// `set` or `default`.
@@ -988,10 +986,6 @@ pub struct DraftProcessSet {
   pub light: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
-  /// How long one turn of the process runs before the room is told the agent is still at work, in seconds; the
-  /// policy's where left out.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub turn_seconds: Option<u32>,
   /// `send` or `skip`.
   pub past_ceiling: String,
 }
