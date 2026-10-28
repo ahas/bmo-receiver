@@ -36,7 +36,7 @@ use crate::receiver::{Inbound, Receiver};
 
 use checks::{Check, Reading, failing, has_skip, light, own_lines};
 use log::{Answered, Ended, Kind, Log};
-use table::{PastCeiling, resolve, rows};
+use table::{resolve, rows};
 
 /// What an item or a check goes out with beside its errand: the turn's scope, the messages waiting for the next
 /// turn, and that they are not acted on now.
@@ -52,31 +52,15 @@ pub fn words(errand: &str, scope: &Scope, pending: &[i64]) -> String {
 
 /// The process a round opens before its turn goes out (docs/drafting.md, 「The process table」): its questions by
 /// name with their texts, the place of the question a send is read from (from 0), the row of the table it read,
-/// its ceiling and what is done past it, the bound of one turn, and whether the round's room has heard it is still
-/// at work. A round no row matches asks nothing and has neither ceiling nor bound.
-#[derive(Clone, Debug)]
+/// the note one turn's length is kept as, and whether the round's room has heard it is still at work. A round no
+/// row matches asks nothing and has neither note nor bound.
+#[derive(Clone, Debug, Default)]
 pub struct Plan {
   pub questions: Vec<(String, String)>,
   pub send_from_at: usize,
   pub row: String,
-  pub ceiling_ms: Option<i64>,
-  pub past_ceiling: PastCeiling,
   pub turn_ms: Option<u64>,
   pub told: Arc<AtomicBool>,
-}
-
-impl Default for Plan {
-  fn default() -> Self {
-    Plan {
-      questions: vec![],
-      send_from_at: 0,
-      row: String::new(),
-      ceiling_ms: None,
-      past_ceiling: PastCeiling::Send,
-      turn_ms: None,
-      told: Arc::default(),
-    }
-  }
 }
 
 /// One turn of the process carried to its end; where it runs past the plan's bound, the journal says so once in the
@@ -689,8 +673,6 @@ impl Drafter {
       questions,
       send_from_at,
       row: format!("{}/{}/{}", process.provider, process.tier, process.agent),
-      ceiling_ms: Some(i64::from(process.ceiling_seconds) * 1000),
-      past_ceiling: process.past_ceiling,
       turn_ms: Some(u64::from(process.turn_seconds) * 1000),
       told: Arc::default(),
     }
@@ -738,12 +720,8 @@ impl Drafter {
     run.latest = first.clone();
     run.log.turn(kind, name, Some(&first.text), first_read, now_ms() - drafted.began).await;
 
-    // The ceiling counts from the round's turn, which carried the first question.
-    let ceiling_at = drafted.opened + plan.ceiling_ms.unwrap_or(i64::MAX / 2);
-    let past = |ceiling_at: i64| now_ms() >= ceiling_at;
     let mut message: Option<Reply> = None;
     let mut skipped = first_read == Answered::Skip;
-    let mut ceiling = false;
 
     // The first answer is the message where it sent one, or where the first question was the last or the turn
     // asked none; any other is notes.
@@ -754,18 +732,6 @@ impl Drafter {
     let mut at = 1;
 
     while message.is_none() && !skipped && at < count {
-      // Past the ceiling no message stands before `final`: it is asked at once, or nothing goes out.
-      if !ceiling && past(ceiling_at) {
-        ceiling = true;
-
-        if plan.past_ceiling == PastCeiling::Skip {
-          skipped = true;
-          break;
-        }
-
-        at = count - 1;
-      }
-
       let number = at + 1;
       let last = number == count;
       let (name, text) = &plan.questions[at];
@@ -832,7 +798,6 @@ impl Drafter {
 
     // Once the message stands, the room's words that waited since the last answer are shown in one closing check.
     if let Some(standing) = &message
-      && !past(ceiling_at)
       && let Some((block, took)) = run.arrived().await
     {
       let words = closing_words(&standing.text, &block, drafted.scope);
@@ -888,7 +853,7 @@ impl Drafter {
     }
 
     let Some(mut message) = message else {
-      let ended = if ceiling { Ended::CeilingSkip } else { Ended::Skip };
+      let ended = Ended::Skip;
 
       run.log.end(ended, row, now_ms() - drafted.began, &run.reads().await).await;
 
@@ -897,10 +862,6 @@ impl Drafter {
 
     // The items the code's readings call for.
     for item in [Item::Record, Item::Wake, Item::Rule] {
-      if past(ceiling_at) {
-        break;
-      }
-
       let errand = match item {
         Item::Record => (promises_later(&message.text)
           && !recorded(receiver, agent, &run.spoken, None).await)
@@ -1001,11 +962,7 @@ impl Drafter {
 
       let blocking: Vec<Check> = failed.iter().copied().filter(|check| *check != Check::Language).collect();
 
-      if past(ceiling_at) && blocking.is_empty() {
-        break;
-      }
-
-      if past(ceiling_at) || blocking.iter().any(|check| asked.contains(check)) {
+      if blocking.iter().any(|check| asked.contains(check)) {
         let names: Vec<&str> = blocking.iter().map(|check| check.word()).collect();
 
         eprintln!("chat {chat}: the message was withheld: {} failed", names.join(", "));
@@ -1060,7 +1017,7 @@ impl Drafter {
       }
     }
 
-    let ended = if ceiling { Ended::CeilingMessage } else { Ended::Message };
+    let ended = Ended::Message;
 
     run.log.end(ended, row, now_ms() - drafted.began, &run.reads().await).await;
 

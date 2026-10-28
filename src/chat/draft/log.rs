@@ -91,8 +91,6 @@ pub enum Ended {
   Message,
   Skip,
   Withheld,
-  CeilingMessage,
-  CeilingSkip,
 }
 
 impl Ended {
@@ -101,8 +99,6 @@ impl Ended {
       Self::Message => "message",
       Self::Skip => "skip",
       Self::Withheld => "withheld",
-      Self::CeilingMessage => "ceiling-message",
-      Self::CeilingSkip => "ceiling-skip",
     }
   }
 }

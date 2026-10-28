@@ -96,8 +96,8 @@ impl Process {
       send_from: row.send_from.clone(),
       light: row.light.clone(),
       light_chars: row.light_chars,
-      ceiling_seconds: row.ceiling_seconds,
-      past_ceiling: PastCeiling::of(&row.past_ceiling).unwrap_or(PastCeiling::Send),
+      ceiling_seconds: row.ceiling_seconds.unwrap_or(0),
+      past_ceiling: row.past_ceiling.as_deref().and_then(PastCeiling::of).unwrap_or(PastCeiling::Send),
       turn_seconds: row.turn_seconds.unwrap_or(DRAFTING.turn_seconds),
       set: false,
     }
@@ -292,10 +292,6 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
       "sendFrom names the question {}, which rounds does not hold.",
       process.send_from
     ));
-  }
-
-  if process.ceiling_seconds == 0 || process.ceiling_seconds > LONGEST_CEILING {
-    return Some(format!("ceilingSeconds must be from 1 to {LONGEST_CEILING}."));
   }
 
   if process.turn_seconds == 0 || process.turn_seconds > LONGEST_CEILING {

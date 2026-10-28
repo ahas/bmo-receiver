@@ -1,7 +1,7 @@
 //! A round's draft process carried whole (docs/drafting.md): the round's turn carries the first question its row
 //! names, the rest follow on the same session, every answer before the last is notes and the last is what goes
 //! back to the room; a send in the first round is the message at once, a skip in any question sends nothing, a
-//! failed check is asked once, past the ceiling `final` is asked at once or nothing goes out, a light turn is
+//! failed check is asked once and the repaired text goes out, a light turn is
 //! asked the last question alone in its own turn, words that came meanwhile are never pushed and stand under the
 //! next question or the closing check, each answered with the message, marked done or marked separate, and the
 //! code's readings are items of the process rather than askings of their own.
@@ -14,7 +14,6 @@ use std::time::Duration;
 use bmo_chat_client::MessageFile;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
-use bmo_receiver::chat::draft::table::PastCeiling;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
@@ -25,7 +24,7 @@ use receiver_policy::drafting::DRAFTING;
 use receiver_policy::second_asks::SECOND_ASKS;
 
 use crate::common::Scratch;
-use crate::common::session::{StandInSession, drafting, drafting_past, drafting_sending};
+use crate::common::session::{StandInSession, drafting, drafting_sending};
 use crate::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
@@ -488,55 +487,60 @@ async fn a_second_answer_in_none_of_the_peoples_languages_lets_the_first_go_out(
 }
 
 #[tokio::test]
-async fn past_the_ceiling_before_final_final_is_asked_at_once() {
+async fn a_round_past_the_old_ceiling_still_asks_every_question_and_sends() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "more notes", "the message final wrote", "never asked"])
+    .answering(&["notes", "more notes", "facts", "the message final wrote"])
     .working_for(Duration::from_millis(600));
-  let round = Drafting::new(session, &["intent", "information", "facts", "final"], &["final"], 1).await;
+  let rounds = ["intent", "information", "facts", "final"];
+  let round = Drafting::new(session, &rounds, &["final"], 1).await;
 
   round.hear(1, ASKED).await;
-  round.ended(3).await;
+  round.ended(4).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 3, "the questions past the ceiling are passed over to final");
-  assert!(
-    prompts[2].contains(question("final"))
-      && !prompts.iter().any(|prompt| prompt.contains(question("facts")))
-  );
+  assert_eq!(prompts.len(), 4, "no question is passed over by a clock: {prompts:#?}");
+  assert!(prompts.iter().any(|prompt| prompt.contains(question("facts"))));
+  assert!(prompts[3].contains(question("final")));
   assert_eq!(sent.len(), 1);
-  assert!(sent[0].contains("the message final wrote"), "final's answer goes out: {sent:?}");
+  assert!(sent[0].contains("the message final wrote"), "the message goes out: {sent:?}");
   assert_eq!(
     round.log().await,
     [
       "question intent answered",
       "question information answered",
+      "question facts answered",
       "question final answered",
-      "end  ceiling-message"
+      "end  message"
     ]
   );
 }
 
 #[tokio::test]
-async fn past_the_ceiling_before_final_a_skip_row_sends_nothing() {
-  let rounds = ["intent", "information", "final"];
-  // The owner's own chat owes an answer, so the ceiling's silence is asked over once.
+async fn a_failing_answer_after_the_old_ceiling_gets_its_repair_round() {
+  let head = DRAFTING.lead.split('{').next().unwrap_or_default().trim();
+  let first = format!("{head} and then the words");
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "<<SKIP>>", "never asked"])
-    .working_for(Duration::from_millis(1200));
-  let round = Drafting::new(session, &rounds, &["final"], 1).await;
+    .answering(&[&first, "the repaired message"])
+    .working_for(Duration::from_millis(700));
+  let round = Drafting::new(session, &["final"], &["final"], 1).await;
 
-  drafting_past(round.scratch.db(), &rounds, &["final"], 1, PastCeiling::Skip).await;
   round.hear(1, ASKED).await;
   round.ended(2).await;
 
   let prompts = round.session.prompts();
+  let sent = round.sent();
 
-  assert_eq!(prompts.len(), 2, "no question is asked past the ceiling: {prompts:#?}");
-  assert!(!prompts.iter().any(|prompt| prompt.contains(question("final"))));
-  assert!(round.sent().is_empty(), "nothing goes out");
-  assert_eq!(round.log().await, ["question intent answered", "item owed skip", "end  ceiling-skip"]);
+  assert_eq!(prompts.len(), 2, "the check is asked despite the old clock: {prompts:#?}");
+  assert!(
+    prompts[1].contains(&SECOND_ASKS.errands.format),
+    "the format check's errand: {}",
+    prompts[1]
+  );
+  assert_eq!(sent.len(), 1);
+  assert!(sent[0].contains("the repaired message"), "{sent:?}");
+  assert_eq!(round.log().await, ["question final answered", "check format answered", "end  message"]);
 }
 
 #[tokio::test]

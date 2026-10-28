@@ -214,3 +214,18 @@ fn a_mark_is_filled_once_and_a_mark_nothing_names_stays() {
   assert_eq!(fill_marks("{a} and {b}", &[("a", "{b}"), ("b", "two")]), "{b} and two");
   assert_eq!(fill_marks("{missing} {", &[]), "{missing} {");
 }
+
+#[test]
+fn a_process_row_that_still_names_a_ceiling_loads_and_ignores_it() {
+  let policy = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml"))
+    .expect("the drafting policy reads");
+  let text = format!(
+    "{policy}\n[[process]]\nprovider = \"*\"\ntier = \"*\"\nagent = \"*\"\nrounds = [\"final\"]\nsend_from = \"\"\nlight = [\"final\"]\nlight_chars = 12\nceiling_seconds = 150\npast_ceiling = \"send\"\n"
+  );
+  let parsed: receiver_policy::drafting::Drafting = toml::from_str(&text).expect("the old keys load");
+
+  let row = parsed.process.last().expect("the appended row stands");
+
+  assert_eq!(row.ceiling_seconds, Some(150));
+  assert_eq!(row.past_ceiling.as_deref(), Some("send"));
+}

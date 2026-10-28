@@ -922,8 +922,7 @@ pub struct DraftRound {
   pub kind: String,
   pub answer_chars: i64,
   pub changed: bool,
-  /// `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`, `ceiling-message` or
-  /// `ceiling-skip` for the end.
+  /// `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip` or `withheld` for the end.
   pub outcome: String,
   pub detail: Option<String>,
   pub answer: Option<String>,

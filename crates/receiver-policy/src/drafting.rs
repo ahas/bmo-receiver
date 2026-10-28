@@ -17,9 +17,13 @@ pub struct Process {
   pub send_from: String,
   pub light: Vec<String>,
   pub light_chars: u32,
-  pub ceiling_seconds: u32,
-  pub past_ceiling: String,
-  /// How long one turn runs before the room is told the agent is still at work, where the row names it.
+  /// A time ceiling a row set before rounds were left without one: read and ignored.
+  #[serde(default)]
+  pub ceiling_seconds: Option<u32>,
+  /// What a row set to do past that ceiling: read and ignored.
+  #[serde(default)]
+  pub past_ceiling: Option<String>,
+  /// How long one turn runs before the journal notes the agent is still at work, where the row names it.
   #[serde(default)]
   pub turn_seconds: Option<u32>,
 }

@@ -247,11 +247,6 @@ fn a_set_names_known_questions_ending_in_the_last_and_bounds_its_numbers() {
     "a send is read from a question of rounds"
   );
 
-  let mut long = row(ANY, ANY, ANY, &["final"]);
-
-  long.ceiling_seconds = 0;
-  assert!(refusal(&long, &catalogue).is_some());
-
   let mut unbounded = row(ANY, ANY, ANY, &["final"]);
 
   unbounded.turn_seconds = 0;

@@ -115,9 +115,7 @@ leaves.
     wherever it stands; empty for the first;
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
-  - `ceilingSeconds`, the time the whole process may take (「Time」 below);
-  - `turnSeconds`, the time one turn of it may run before the journal says it ran long (「Time」 below);
-  - `pastCeiling`, `send` or `skip`: what becomes of the turn once the ceiling has passed.
+  - `turnSeconds`, the time one turn of it may run before the journal notes it went long (「Time」 below).
 - **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the question from which the process
   asks for the message, and the question's line says that a complete message may be written now; a send before it
   is the message too, and the process ends there. Where the agent does not send, the questions that establish the
@@ -200,8 +198,8 @@ leaves.
   message as it should now go out, answering the words that arrived as well, and it takes the standing message's
   place: nothing is joined to anything, so no part of the message goes out twice. An answer that is nothing but
   marks sends the standing message unchanged, a wait leaves it too, and a skip sends nothing; the marks keep their
-  meaning for the messages shown. The check is not asked past the ceiling, nor where the process came to nothing
-  to send: those words wait for the next round.
+  meaning for the messages shown. The check is not asked where the process came to nothing to send: those words
+  wait for the next round.
 - **The agent decides each message it was shown, by mark:**
   - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, and
     the owner's words among it are owed an answer;
@@ -231,23 +229,17 @@ leaves.
 
 ## Time
 
-- **The process runs inside the room's window,** so a row names a ceiling for the whole of it, counted from the
-  moment the round's own turn, which carries the first question, went out. No later question starts past it; a
-  question under way is let finish.
-- **A turn past its bound is let finish, and the room hears nothing of it.** Where one turn of the process, the
-  round's own turn that carries the first question among them, is still running once the row's `turnSeconds`
-  have passed since it went out, the journal says so once in the round and the turn goes on to its end; the
-  console's row of the answering agent already shows it at work, and no holding line goes into any room
-  (`docs/voiced-notices.md`, 「A turn past its clock」).
-- **Before `final` has run, no message stands:** an answer before the last is notes.
-- **Past the ceiling, `send` asks `final` at once:** one last question, the notes already in the session, its
-  answer the message. `skip` sends nothing. A process that already has its message, from `final` or from a send
-  marker, is not touched by the ceiling but for the closing check, the items and the checks below.
+- **No clock ends a round.** The process asks its questions in order until it has a message or the agent skips
+  deliberately; a round that takes a long time still ends with its message, and a failing check gets the repair
+  round it would get at any other time. Nothing the clock does makes the room hear silence.
+- **A turn past its bound is a journal note.** Where one turn of the process is still running once the row's
+  `turnSeconds` have passed since it went out, the journal says so once in the round and the turn goes on to its
+  end; the console's row of the answering agent already shows it at work, and no holding line goes into any room
+  (`docs/voiced-notices.md`, 「A turn past its clock」). The note cuts nothing and asks no question early.
+- **Before `final` has run, no message stands:** an answer before the last is notes. A process that already has
+  its message, from `final` or from a send marker, goes on to the closing check, the items and the checks below.
 - **A later question whose run failed** is passed over to `final`, asked at once; a `final` whose run failed
   leaves no message, and the round ends as a skip.
-- **Past the ceiling, no item or check is asked again** (below): the checks still read the message, and one that
-  fails withholds it. The owed answer is the one asking that goes out whatever the time, since the owner's own
-  chat is always answered.
 
 ## The items after the message
 
@@ -277,9 +269,8 @@ where it says something: neither empty nor a skip nor a wait.
 - **A check that fails is asked once:** one more turn of the same session, the check's errand naming what is
   wrong, its answer the text from then on. The checks then read the new text. A `length` or `format` check that
   fails again sends nothing, and the end of the process records the checks that failed; the `language` check
-  failing again puts back the text it was asked over, which goes out as it stood, and a `language` check alone
-  failing past the ceiling holds nothing back either. A check that fails only after another's asking is asked
-  once in its turn.
+  failing again puts back the text it was asked over, which goes out as it stood. A check that fails only after
+  another's asking is asked once in its turn.
 - **A skip in the answer to an item or a check** ends the process with nothing sent, as a skip in any question
   does.
 
@@ -325,9 +316,8 @@ where it says something: neither empty nor a skip nor a wait.
 - **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
   answer opened on `<<SEND>>` and became the message, `skip` or `failed`.
 - **The process's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where
-  nothing does, `withheld` where a check failed twice, `ceiling-message` where the ceiling had `final` asked at
-  once and its answer went, `ceiling-skip` where the ceiling ended it with nothing sent, and in its detail the row
-  of the table the turn read and the checks that withheld it.
+  nothing does, `withheld` where a check failed twice, and in its detail the row of the table the turn read and the
+  checks that withheld it.
 - **Each row is told on the event stream as it is written,** a `draft` event (`docs/receiver.md`, 「The event
   stream」), and the log is read by round (`GET /rounds/drafts`).
 - **A question is told as it starts, too,** before its answer: a `draft` event of kind `start` with the `round`,
@@ -346,9 +336,9 @@ where it says something: neither empty nor a skip nor a wait.
 - **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a row, `*` standing for any in each place, and
   answers it as it now stands. A list naming a question the catalogue does not hold, a list that holds questions
   and does not end in `final` or holds it before the end, a `sendFrom` that is not empty and names no question
-  of `rounds`, a ceiling or a turn's bound outside 1 to 3,600 seconds, a light bound outside 0 to 1,000
-  characters or a `pastCeiling` other than `send` and `skip` is refused `bad-request`, and nothing is written. A
-  set that names no `turnSeconds` takes the policy's 120.
+  of `rounds`, a turn's note outside 1 to 3,600 seconds, or a light bound outside 0 to 1,000 characters is refused
+  `bad-request`, and nothing is written. A set that names no `turnSeconds` takes the policy's 120. A row that still
+  carries `ceilingSeconds` or `pastCeiling` loads with both ignored.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes the console's row away; the policy's row of the
   key stands again where it holds one. A key the console set no row for is `not-found`.
 - **`GET /draft-questions`** answers the catalogue, each question with its `source`; **`PUT

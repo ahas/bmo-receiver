@@ -43,9 +43,9 @@ final = "Looking at what came in meanwhile and at the notes established so far, 
 # The process table's default rows, matched most specific first: an agent's row before a provider's, a
 # provider's before a tier's; "*" stands for any. `rounds` are an ordinary turn's questions, `send_from` the
 # question of `rounds` from whose answer on a send is read (empty for the first), `light` a light turn's (quiet
-# instructions alone, or room words of at most `light_chars` characters and no file); `ceiling_seconds` bounds
-# the whole process from the round's turn, past which `past_ceiling` asks `final` at once (`send`) or sends
-# nothing (`skip`); `turn_seconds`, where a row names it, bounds one turn in place of the one above.
+# instructions alone, or room words of at most `light_chars` characters and no file); `turn_seconds`, where a row
+# names it, is how long one turn runs before the journal notes it and it goes on. A row that still carries
+# `ceiling_seconds` or `past_ceiling` loads with both ignored: no clock ends a round.
 
 # The small models' process.
 [[process]]
@@ -56,8 +56,6 @@ rounds = ["information", "facts", "final"]
 send_from = "facts"
 light = ["final"]
 light_chars = 12
-ceiling_seconds = 150
-past_ceiling = "send"
 
 # Claude's process.
 [[process]]
@@ -68,5 +66,3 @@ rounds = ["information", "facts", "memory", "promises", "final"]
 send_from = "facts"
 light = ["final"]
 light_chars = 12
-ceiling_seconds = 150
-past_ceiling = "send"

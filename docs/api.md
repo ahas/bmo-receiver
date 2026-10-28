@@ -450,8 +450,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   judgement before a round), `question`, `kind` (`supervisor`, the agent's own judgement whether to answer words
   its open window alone let in, `turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is
   empty), `answerChars`,
-  `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip`, `withheld`,
-  `ceiling-message` or `ceiling-skip` for the end), `detail` (or null), `answer` (or null), `ms`, `at` and `reads`:
+  `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip` or `withheld` for
+  the end), `detail` (or null), `answer` (or null), `ms`, `at` and `reads`:
   on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
   `read`; `docs/drafting.md`, 「The round log」), and empty on every other row. The rows of a round stand in the
   order they were written.
@@ -461,27 +461,27 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body | Answers |
 |---|---|---|
 | `GET /draft-processes` | | a page of `DraftProcess`, the policy's rows and the console's |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`, `ceilingSeconds`, `turnSeconds?`, `pastCeiling` | the `DraftProcess` as it now stands |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`, `turnSeconds?`; `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
 | `GET /draft-questions` | | a page of `DraftQuestion` |
 | `PUT /draft-questions/{name}` | `text` | the `DraftQuestion` as it now stands |
 
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
   names of the questions an ordinary and a light turn are asked, in order; `sendFrom`, the question of `rounds`
-  from whose answer on a send is read, empty for the first; `lightChars`; `ceilingSeconds`; `turnSeconds`, how
-  long one turn runs before the journal says it ran long, 120 where a set names none;
-  `pastCeiling`, `send` or `skip`; and `source`, `set` where the console set the row and `default` where the
-  policy's stands (`docs/drafting.md`, 「The process table」). The page holds the policy's rows in their order,
+  from whose answer on a send is read, empty for the first; `lightChars`; `turnSeconds`, how
+  long one turn runs before the journal notes it ran long, 120 where a set names none; and `source`, `set` where
+  the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process table」). A
+  row that still carries `ceilingSeconds` or `pastCeiling` is read with both ignored, and both stand in its answer
+  as they came. The page holds the policy's rows in their order,
   each replaced by the console's of the same key, then the console's own keys.
 - **A `DraftQuestion`** is `name`, `text` and `source`. The page opens on `supervisor`, the text the agent's own
   judgement of whether to answer opens on (`docs/drafting.md`, 「The routes」), set like any question; a list that
   names it is refused `bad-request`.
 - **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
   hold, where a list that holds questions does not end in `final` or holds it before its end, where `sendFrom` is
-  not empty and names no question of `rounds`, where the ceiling or a turn's bound is outside 1 to 3,600
-  seconds, the light bound outside 0 to 1,000 characters or `pastCeiling` neither `send` nor `skip`, and where a
-  question's name is not a lowercase word of letters, digits and dashes of at most 40 characters or its text is
-  empty or past 4,000 characters.
+  not empty and names no question of `rounds`, where a turn's note is outside 1 to 3,600 seconds or the light
+  bound is outside 0 to 1,000 characters, and where a question's name is not a lowercase word of letters, digits
+  and dashes of at most 40 characters or its text is empty or past 4,000 characters.
 
 ## Agents added on the console
 

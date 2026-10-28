@@ -23,10 +23,14 @@ pub struct ProcessSet {
   send_from: String,
   light: Vec<String>,
   light_chars: u32,
-  ceiling_seconds: u32,
+  /// A row set before rounds were left without a ceiling may carry this; it is read and ignored.
+  #[serde(default)]
+  ceiling_seconds: Option<u32>,
   #[serde(default)]
   turn_seconds: Option<u32>,
-  past_ceiling: String,
+  /// What a row set past that ceiling; read and ignored.
+  #[serde(default)]
+  past_ceiling: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -62,9 +66,7 @@ pub async fn set_process(
 ) -> Answered {
   let asked = read::<ProcessSet>(&body)?;
   let db = served.receiver.db();
-  let Some(past_ceiling) = PastCeiling::of(&asked.past_ceiling) else {
-    return Err(bad("pastCeiling must be send or skip."));
-  };
+  let past_ceiling = asked.past_ceiling.as_deref().and_then(PastCeiling::of).unwrap_or(PastCeiling::Send);
   let process = Process {
     provider,
     tier,
@@ -73,7 +75,7 @@ pub async fn set_process(
     send_from: asked.send_from,
     light: asked.light,
     light_chars: asked.light_chars,
-    ceiling_seconds: asked.ceiling_seconds,
+    ceiling_seconds: asked.ceiling_seconds.unwrap_or(0),
     past_ceiling,
     turn_seconds: asked.turn_seconds.unwrap_or(DRAFTING.turn_seconds),
     set: true,
