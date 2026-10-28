@@ -892,7 +892,7 @@ async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(prompts[1].contains(&DRAFTING.review.head), "{}", prompts[1]);
-  assert!(prompts[1].contains(ASKED), "the room's words: {}", prompts[1]);
+  assert!(prompts[1].contains("The room's words #1 were handed in this turn"), "{}", prompts[1]);
   assert!(prompts[1].contains("the message"), "the draft: {}", prompts[1]);
   assert_eq!(sent.len(), 1);
   assert!(sent[0].contains("the message"), "{sent:?}");
@@ -922,6 +922,50 @@ async fn a_rejected_message_is_written_again_with_the_reason() {
   assert!(sent[0].contains("the second message"), "{sent:?}");
   assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 1, "{log:?}");
   assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
+}
+
+#[tokio::test]
+async fn a_turn_hands_its_material_once_and_later_rounds_carry_lines() {
+  use receiver_ports::gate::{Entry, Source};
+
+  let body = "BODY OF A LONG RULE ".repeat(120);
+  let room = "A LONG LINE OF THE ROOM ".repeat(80);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
+  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+
+  *round.standing.gate.entries.lock().unwrap() = vec![Entry {
+    path: "docs/long-rule.md".to_owned(),
+    text: body.clone(),
+    source: Source::Knowledge,
+    fragment: None,
+    holds: None,
+  }];
+
+  round.hear(1, &room).await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let main = &prompts[0];
+  let review = &prompts[1];
+  let full = review.replace("[docs/long-rule.md] (handed in this turn)", &body).replace(
+    "The room's words #1 were handed in this turn; only the lines after them are new.",
+    &room,
+  );
+
+  assert!(main.contains(&body) && main.contains(&room), "the main round handed it");
+  assert!(
+    !review.contains(&body) && !review.contains(&room),
+    "the later round carries lines, not the bodies: {review}"
+  );
+  assert!(review.contains("[docs/long-rule.md] (handed in this turn)"), "{review}");
+  assert!(review.contains("The room's words #1 were handed in this turn"), "{review}");
+  eprintln!(
+    "turn mark: main {} chars; later round {} before {} after {}",
+    main.chars().count(),
+    review.chars().count(),
+    full.chars().count(),
+    review.chars().count()
+  );
 }
 
 #[tokio::test]

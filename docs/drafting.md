@@ -269,6 +269,19 @@ where it says something: neither empty nor a skip nor a wait.
 - **`rule`:** the owner's words of the round set a rule for a situation to come and no turn of the process filed
   one; asked only where the turn's tools are on.
 
+## The turn's mark
+
+- **A turn hands its material once.** The main round hands the core's documents and references and the room's
+  words in full. Every later round of the same turn carries each of those documents as a line naming its path and
+  the room's lines as one line naming their numbers; a line or an entry the turn has not handed yet goes in full.
+  A round that arrives with new words carries those words whole and then marks them for the round after.
+- **The mark is the turn's, not the session's.** It is kept under the turn's round name, separate from the
+  session's loads and the session's own marks, and is let go when the turn ends. A later turn starts with no turn
+  mark, so nothing is assumed about what a new turn has read; the session mark still governs what the session
+  holds across turns.
+- **Nothing unread is dropped.** A piece is marked only once it has gone in the main round, and a piece that was
+  not, or a room line that arrived since, is written whole.
+
 ## The review
 
 - **The gate's first turn reviews the message before it goes out.** It reads the draft against the room's words,

@@ -97,6 +97,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `mode` | `owner_only` or `everyone`: whose messages wake the agents (`docs/rooms.md`) | the owner's mode command |
 | `photos_look` | `on` while the agent opens the pictures rooms store; absent otherwise | the photos switch |
 | `private_thread` | `off` turns a person's own thread in a group room off (`chat-round.toml`, its `setting`) | the thread |
+| `turn_mark:<turn>` | what one turn has handed: each document by path and version and the room lines by number; later rounds of the turn carry them as lines, and it is let go when the turn ends (`docs/drafting.md`, 「The turn's mark」) | the turn |
 | `thread_mark:<session>` | the last line of a person's own thread handed to a session, as `room:messageId`; a session continued across a restart keeps it, and a new or replaced session has none (`docs/bmo-window.md`, 「What every turn carries」) | the thread |
 | `voice_briefing` | `off` while voice briefings are switched off | the voice switch |
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |

@@ -1369,10 +1369,12 @@ impl Conversations {
       }
     };
 
-    // A round that ended, however it ended, has dealt with the rows it took.
+    // A round that ended, however it ended, has dealt with the rows it took, and its turn's mark goes with it.
     if !settling.is_empty() {
       settle_instructions(self.0.receiver.db(), now_ms(), &round, settling).await;
     }
+
+    let _ = super::turn_mark::forget(self.0.receiver.db(), &round).await;
 
     self.0.receiver.news().end_turn(turn);
     self.0.hooks.typing(chat_id, false).await;

@@ -25,6 +25,7 @@ use super::promises::{promises_after, promises_later, sets_rule_later};
 use super::prompt::{Scope, scope_line};
 use super::records::run_records;
 use super::sentinels::{Mark, SKIP, is_skip, is_wait, round_marks, sent_now, without_round_marks};
+use super::turn_mark::{self, TurnMark};
 use super::turnover::note_session;
 use crate::form::strip_prompt_scaffolding;
 use crate::now_ms;
@@ -276,6 +277,7 @@ struct Run<'a> {
   holds: HashSet<String>,
   marks: Vec<(Mark, i64)>,
   only_marks: bool,
+  turn_mark: TurnMark,
 }
 
 impl Run<'_> {
@@ -400,23 +402,41 @@ impl Run<'_> {
   // round asked and established as questions and the draft, and the rules and knowledge the round carries.
   fn review_prompt(&self, message: &str) -> String {
     let said = &DRAFTING.review;
-    let words: Vec<String> = self
-      .drafted
-      .batch
-      .iter()
-      .map(|message| {
-        format!(
+    // What the main round handed is a line; what was not handed, or arrived since, is the body.
+    let mut handed: Vec<i64> = vec![];
+    let mut words: Vec<String> = vec![];
+
+    for message in self.drafted.batch.iter().chain(self.shown.iter()) {
+      if self.turn_mark.room(message.message_id) {
+        if !handed.contains(&message.message_id) {
+          handed.push(message.message_id);
+        }
+      } else {
+        words.push(format!(
           "#{} {} (id {:?}): {}",
           message.message_id, message.sender_name, message.sender_id, message.text
-        )
-      })
-      .collect();
+        ));
+      }
+    }
+
+    if !handed.is_empty() {
+      let ids = handed.iter().map(|id| format!("#{id}")).collect::<Vec<_>>().join(", ");
+
+      words.insert(0, fill_marks(&said.room_handed, &[("ids", &ids)]));
+    }
+
     let rules: Vec<String> = self
       .drafted
       .selection
       .entries
       .iter()
-      .map(|entry| format!("[{}]\n{}", entry.path, entry.text))
+      .map(|entry| {
+        if self.turn_mark.holds(&entry.path, &entry.text) {
+          fill_marks(&said.handed, &[("path", &entry.path)])
+        } else {
+          format!("[{}]\n{}", entry.path, entry.text)
+        }
+      })
       .collect();
     let asked = self.asked.join("\n");
 
@@ -714,7 +734,24 @@ impl Drafter {
       holds: drafted.selection.entries.iter().map(|entry| entry.path.clone()).collect(),
       marks: vec![],
       only_marks: false,
+      turn_mark: TurnMark::default(),
     };
+    // The main round handed the core and the room's words; the later rounds of this turn carry them as lines.
+    let mut turn = turn_mark::read(receiver.db(), drafted.round).await;
+
+    for entry in &drafted.selection.entries {
+      turn.hand(&entry.path, &entry.text);
+    }
+
+    for message in drafted.batch {
+      turn.hand_room(message.message_id);
+    }
+
+    if let Err(why) = turn_mark::write(receiver.db(), drafted.round, &turn).await {
+      eprintln!("chat {chat}: the turn's mark was not kept: {}", why.detail);
+    }
+
+    run.turn_mark = turn;
     let first_text = run.marked(&drafted.reply.text);
     let (text, first_read) = read_answer(if first_text.is_empty() { SKIP } else { &first_text });
     let first = Reply {
@@ -951,6 +988,18 @@ impl Drafter {
         .log
         .verdict("review", if pass { "PASS" } else { "REJECT" }, &reason, now_ms() - started)
         .await;
+
+      for message in &run.shown {
+        run.turn_mark.hand_room(message.message_id);
+      }
+
+      for message in drafted.batch {
+        run.turn_mark.hand_room(message.message_id);
+      }
+
+      if let Err(why) = turn_mark::write(receiver.db(), drafted.round, &run.turn_mark).await {
+        eprintln!("chat {chat}: the turn's mark was not kept: {}", why.detail);
+      }
 
       reviews += 1;
 

@@ -251,6 +251,9 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
   while a new or replaced session has none and is handed the whole thread again, within the days the thread
   reaches. It is let go only when that session is replaced or folds; a mark left by a session no longer used
   changes nothing.
+- **A turn's material is handed once.** The round's first turn carries the core's documents and references and
+  the room's words whole; a later round of the same turn carries each as a line and only what is new whole, under
+  the turn's own mark (`docs/drafting.md`, 「The turn's mark」).
 - **The room's situation** is the receiver's own note, one row a room, handed as a piece of the core at
   `room-situations/<room>` (`docs/drafting.md`, 「The situation note」): the supervisor updates it before its judgement,
   the judgement reads it with the new lines, and the round's draft carries it. It is not a brain memory, and the

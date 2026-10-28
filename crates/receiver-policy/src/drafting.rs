@@ -37,6 +37,8 @@ pub struct Review {
   pub words: String,
   pub notes: String,
   pub rules: String,
+  pub handed: String,
+  pub room_handed: String,
   pub pass: String,
   pub reject: String,
   pub revise: String,
