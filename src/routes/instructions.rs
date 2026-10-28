@@ -133,9 +133,38 @@ enum Effect {
   Warns,
 }
 
-/// The instruction queued, answered with its id. One for a room whose registration is gone is queued for the voice
-/// of the owner's private chat, opening with the room's number (docs/receiver.md, 「Removing a room's
-/// registration」). One whose agent no longer answers the room is queued for the room's voice instead.
+// Where a job's status notice goes: the room's answerer, then the requester's private room, then the chat agent.
+// An `agentName` that answers the room is kept, and one that does not is replaced by this order.
+async fn destination(
+  receiver: &Receiver,
+  room: &rows::KeptWorkRoom,
+  asked: Option<&str>,
+) -> Result<(i64, String), NotReceived> {
+  let said = room.chat_id;
+
+  if let Some(agent) = asked
+    && agents::answers(receiver, agent, said).await?
+  {
+    return Ok((said, agent.to_owned()));
+  }
+
+  if agents::answerer(receiver, said).await?.is_some() {
+    return Ok((said, agents::voice_of(receiver, said).await?));
+  }
+
+  let private = receiver.owner_room();
+
+  if private != said && agents::answerer(receiver, private).await?.is_some() {
+    return Ok((private, agents::voice_of(receiver, private).await?));
+  }
+
+  Ok((private, receiver.deployment().agent.clone()))
+}
+
+/// The instruction queued, answered with its id. A job's status notice goes to the room's answerer; where the
+/// room names none, to the requester's private room, and where that names none, to the chat agent. Every other
+/// instruction keeps the room it names. One for a room whose registration is gone goes to the owner's private
+/// room, opening with the room's number (docs/receiver.md, 「Removing a room's registration」).
 pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Instruction>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
@@ -156,25 +185,33 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     via: asked.via.as_deref(),
     run_id: asked.run,
   };
-  let agent = match room.removed {
-    None => match asked.agent_name.clone() {
-      None => receiver.deployment().agent.clone(),
-      Some(asker) if agents::answers(&receiver, &asker, room_id).await.map_err(reached)? => asker,
-      Some(_) => agents::voice_of(&receiver, room_id).await.map_err(reached)?,
-    },
-    Some(removed) => {
-      let told_here = CHAT_ROUND.instructions.room_removed.replace("{room}", &removed.to_string());
 
-      text = format!("{told_here}\n\n{text}");
-      // The removed room's road is not the owner's, and its kind must not replace a pending row of the owner's own.
-      queued.via = None;
-      queued.kind = None;
+  if let Some(removed) = room.removed {
+    let told_here = CHAT_ROUND.instructions.room_removed.replace("{room}", &removed.to_string());
 
-      agents::voice_of(&receiver, room.chat_id).await.map_err(reached)?
-    }
+    text = format!("{told_here}\n\n{text}");
+    // The removed room's road is not the owner's, and its kind must not replace a pending row of the owner's own.
+    queued.via = None;
+    queued.kind = None;
+  }
+
+  // A job's status notice follows the requester; every other instruction keeps the room it names, whose voice is
+  // the room's answerer or the chat agent.
+  let (chat_id, agent) = if asked.sort == "job" && asked.said.order.is_some() {
+    destination(&receiver, &room, asked.agent_name.as_deref()).await.map_err(reached)?
+  } else {
+    let agent = match room.removed {
+      None => match asked.agent_name.clone() {
+        None => agents::voice_of(&receiver, room.chat_id).await.map_err(reached)?,
+        Some(asker) if agents::answers(&receiver, &asker, room.chat_id).await.map_err(reached)? => asker,
+        Some(_) => agents::voice_of(&receiver, room.chat_id).await.map_err(reached)?,
+      },
+      Some(_) => agents::voice_of(&receiver, room.chat_id).await.map_err(reached)?,
+    };
+
+    (room.chat_id, agent)
   };
-
-  let id = queue(receiver.db(), &agent, room.chat_id, &text, &queued).await.map_err(store)?;
+  let id = queue(receiver.db(), &agent, chat_id, &text, &queued).await.map_err(store)?;
 
   // A quiet instruction opens the agent's turn there; an instruction of a job or a notice rides what waits.
   if matches!(asked.sort.as_str(), "watch" | "reminder")

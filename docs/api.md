@@ -277,10 +277,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /owner/instructions` | `chatId`, `text` | 204 |
 
 - **An instruction** is queued for the agent's session in the room, and a `kind` replaces the pending instruction
-  of the same kind there. One marked `agentOnly` is a record the agent reads and no room hears: a round carrying
-  only such rows sends no room message (`docs/bmo-window.md`, 「Quiet instruction」). An instruction for a room whose registration is gone goes to the owner's private room
-  instead, naming the room, and never into the platform room; one whose agent no longer answers its room goes to
-  the room's voice.
+  of the same kind there. **A job's status notice** — an order under the sort `job` — goes to the room's
+  answerer; where the room names no answerer, to the requester's private room; where that names none, to the
+  chat agent. An `agentName` that answers the room is kept; one that does not is replaced by this order. Every
+  other instruction keeps the room it names, and its voice is the room's answerer or the chat agent. One marked
+  `agentOnly` is a record the agent reads and no room hears: a round carrying only such rows sends no room
+  message (`docs/bmo-window.md`, 「Quiet instruction」). An instruction for a room whose registration is gone
+  goes to the owner's private room instead, naming the room, and never into the platform room.
 - **A quiet instruction** is one with `kind` `watch` or `reminder` and a `said.order`: it is queued under that
   kind and opens the agent's turn there.
 - **A withdrawn instruction** that was handed or is gone is no refusal; it is simply no longer pending.

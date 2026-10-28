@@ -211,6 +211,13 @@ pub async fn answers(receiver: &Receiver, agent: &str, chat_id: i64) -> Result<b
   Ok(named.iter().any(|one| one.name == agent))
 }
 
+/// The first agent a room records as its answerer, where it records one; none where it records nobody. The
+/// instruction a job's status notice queues goes to this agent, then to the requester's private room, then to the
+/// chat agent (docs/api.md, 「Instructions」).
+pub async fn answerer(receiver: &Receiver, chat_id: i64) -> Result<Option<String>, NotReceived> {
+  Ok(named_designated(receiver, chat_id).await?.first().map(|agent| agent.name.clone()))
+}
+
 /// The agent that says the system's own lines in a room (docs/voiced-notices.md, 「The rule」).
 pub async fn voice_of(receiver: &Receiver, chat_id: i64) -> Result<String, NotReceived> {
   let default = default_designated(receiver).await?;

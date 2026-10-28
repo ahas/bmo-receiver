@@ -106,6 +106,68 @@ async fn an_order_queued_for_a_room_writes_its_row_and_is_read_back_as_pending()
 }
 
 #[tokio::test]
+async fn a_job_status_goes_to_the_rooms_answerer_then_the_requester_private_room_then_the_chat_agent() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  // The room that answers has its own agent: the status goes there, not to the deployment's default.
+  registered(&scratch, 7).await;
+  answering(&front, &scratch, 7, &["agent-b"], &[]).await;
+
+  let (_, queued) = post(
+    &front,
+    "/instructions",
+    json!({ "room": 7, "said": { "order": "the job ended whole." }, "sort": "job" }),
+  )
+  .await;
+  let id = queued["id"].as_i64().unwrap();
+
+  assert_eq!(
+    texts(
+      &scratch,
+      &format!(
+        r#"SELECT "agent" || '|' || "chat_id" || '|' || "text" FROM "instructions" WHERE "id" = {id}"#
+      )
+    )
+    .await,
+    ["agent-b|7|the job ended whole."]
+  );
+
+  // The owner's own item stays in his private room, and an item with no room answerer falls back there too.
+  registered(&scratch, 8).await;
+  answering(&front, &scratch, OWNER, &[AGENT], &[]).await;
+
+  let (_, own) = post(
+    &front,
+    "/instructions",
+    json!({ "room": OWNER, "said": { "order": "the owner's item ended." }, "sort": "job" }),
+  )
+  .await;
+  let (_, nowhere) = post(
+    &front,
+    "/instructions",
+    json!({ "room": 8, "said": { "order": "an item with no room's voice ended." }, "sort": "job" }),
+  )
+  .await;
+
+  for (queued, text) in [(own, "the owner's item ended."), (nowhere, "an item with no room's voice ended.")]
+  {
+    let id = queued["id"].as_i64().unwrap();
+
+    assert_eq!(
+      texts(
+        &scratch,
+        &format!(
+          r#"SELECT "agent" || '|' || "chat_id" || '|' || "text" FROM "instructions" WHERE "id" = {id}"#
+        )
+      )
+      .await,
+      [format!("{AGENT}|{OWNER}|{text}")]
+    );
+  }
+}
+
+#[tokio::test]
 async fn an_instruction_withdrawn_before_a_took_it_leaves_nothing_and_a_handed_one_is_not_withdrawn() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;

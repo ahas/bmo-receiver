@@ -137,10 +137,12 @@ that session without the room hearing it.
   in flight and prefills nothing, so it goes at once, and a lone wake in a quiet stretch goes at once too. Only a
   burst is spread out, and while wakes are held back the pass comes round at the gap rather than the full tick,
   so the queue drains one wake at a time.
-- **The queue's facts reach the owner's chat this way**: that a job ended, and how; that a worker stands with
-  an empty checkout and work of its own waiting; and the watches that tell of work standing still. None of them
-  says what to do. The session reads the queue and the running state and chooses, as its procedure for the
-  queue says; it runs another item where the owner tells it to.
+- **A job's status notice reaches the item's requester, not the launcher:** it is queued in the requester's
+  room, which is the room's answerer first, the requester's private room where the room names no answerer, and
+  the chat agent where neither does. The report stands whole on the item, and the requester hears its relay in
+  its room. The launcher still gets the queue fact — a worker free, an item's state — in its own room, without
+  the report's relay. None of them says what to do. The session reads the queue and the running state and
+  chooses, as its procedure for the queue says; it runs another item where the owner tells it to.
 - **Each row says what it is, as whoever wrote it puts it.** The producer that queues a row names its sort, a
   short key such as the machine's state, a document update or a watch, which the console words through its
   language pack and shows as the key itself where the pack has no word for it, and may give a one-line summary
@@ -256,8 +258,8 @@ Beside the reference, a turn carries the room's messages since the agent last an
   says in one line how many older ones it left out and that they stand in the room's archive, where the agent's
   own tools read them; the turn's scope names only the messages the block carries.
 - **A job's report is not among them.** It is no message of any room: the agent is handed it with the job's
-  ending and tells the owner in its own words, so what a later turn reads of it is the agent's own answer in its
-  session (`docs/voiced-notices.md`, 「A job's end」).
+  ending and tells the requester in its own words, so what a later turn reads of it is the agent's own answer in
+  its session (`docs/voiced-notices.md`, 「A job's end」).
 
 ## The openings
 
