@@ -9,4 +9,4 @@ Here.
 The room's recent words:
 
 The words to judge:
-[1970-01-21T08:53:20.001Z] #1 member (id 31): are you there
+[01-21 08:53Z] #1 member: are you there

@@ -138,9 +138,9 @@ pub fn unread(entries: &[Entry], loaded: &HashMap<String, String>) -> Vec<(Group
     .collect()
 }
 
-/// The group lines of the index, one a group with its unread count, each with what changed lately where the gate
-/// gives a line of it.
-pub fn group_lines(counts: &[(Group, usize)], hints: &HashMap<Group, String>) -> Vec<String> {
+/// The index line's words for each group, one a group with its unread count, each with what changed lately where
+/// the gate gives a line of it; the words join into one line under the head.
+pub fn group_words(counts: &[(Group, usize)], hints: &HashMap<Group, String>) -> Vec<String> {
   let said = &CHAT_ROUND.index;
 
   counts
@@ -148,7 +148,11 @@ pub fn group_lines(counts: &[(Group, usize)], hints: &HashMap<Group, String>) ->
     .map(|(group, count)| match hints.get(group).filter(|hint| !hint.trim().is_empty()) {
       Some(hint) => fill_marks(
         &said.group_hint,
-        &[("group", group.word()), ("count", &count.to_string()), ("hint", hint.trim())],
+        &[
+          ("group", group.word()),
+          ("count", &count.to_string()),
+          ("hint", hint.trim().trim_end_matches('.')),
+        ],
       ),
       None => fill_marks(&said.group, &[("group", group.word()), ("count", &count.to_string())]),
     })
@@ -189,16 +193,16 @@ pub async fn gate_index(
   Some((counts, hints))
 }
 
-/// The index block a turn carries: its head, a line a group with what changed lately where the gate says, the hint
-/// and its end.
+/// The index a turn carries: one line of the head, a group's words with what changed lately where the gate says,
+/// and the hint; the hint alone where there is no group to count.
 pub fn index_block(counts: &[(Group, usize)], hints: &HashMap<Group, String>) -> String {
   let said = &CHAT_ROUND.index;
-  let mut lines = vec![said.head.clone()];
 
-  lines.extend(group_lines(counts, hints));
-  lines.push(said.hint.clone());
-  lines.push(said.end.clone());
-  lines.join("\n")
+  if counts.is_empty() {
+    return said.hint.clone();
+  }
+
+  format!("{} {}. {}", said.head, group_words(counts, hints).join(" · "), said.hint)
 }
 
 #[derive(Serialize)]
@@ -469,7 +473,7 @@ pub fn composed(selection: &Selection, body: &str) -> String {
 
 /// The index a new session's first turn walks once (docs/unified-bmo.md, 「Replacing the session」): every room the
 /// agent's one session has answered in, the turn's own among them, each by its number and title with its groups'
-/// unread counts where they are known — the turn's own room's, read off the turn's own index block — and the line
+/// unread counts where they are known — the turn's own room's read off the turn's own index line — and the words
 /// for a room whose counts the gate does not give yet; then the index's hint.
 pub async fn walk(
   receiver: &Receiver,
@@ -490,32 +494,34 @@ pub async fn walk(
     rooms.insert(0, own);
   }
 
-  let own_lines: Vec<String> = own_index
-    .into_iter()
-    .flat_map(str::lines)
-    .filter(|line| line.starts_with("- "))
-    .map(str::to_owned)
-    .collect();
+  let own_words: Option<String> = own_index.and_then(|text| {
+    let rest = text.split_once(&said.head)?.1;
+    let words = rest.split_once(&said.hint).map_or(rest, |(words, _)| words).trim();
+    let words = words.trim_end_matches('.');
+
+    (!words.is_empty()).then(|| words.to_owned())
+  });
   let mut lines = vec![said.walk_head.clone()];
 
   for chat in rooms {
     let title = rows::chat_title(receiver.db(), chat).await?.unwrap_or_default();
+    let room = match title.is_empty() {
+      true => fill_marks(&said.walk_untitled, &[("chat", &chat.to_string())]),
+      false => fill_marks(&said.walk_room, &[("chat", &chat.to_string()), ("title", &title)]),
+    };
+    let words = match gate_index(receiver, chat, session, agent).await {
+      Some((counts, hints)) if !counts.is_empty() => Some(group_words(&counts, &hints).join(" · ")),
+      _ if chat == own => own_words.clone(),
+      _ => None,
+    };
 
-    lines.push(
-      fill_marks(&said.walk_room, &[("chat", &chat.to_string()), ("title", &title)])
-        .trim_end()
-        .to_owned(),
-    );
-
-    match gate_index(receiver, chat, session, agent).await {
-      Some((counts, hints)) if !counts.is_empty() => lines.extend(group_lines(&counts, &hints)),
-      _ if chat == own && !own_lines.is_empty() => lines.extend(own_lines.iter().cloned()),
-      _ => lines.push(said.walk_unknown.clone()),
-    }
+    lines.push(match words {
+      Some(words) => format!("{room} {words}"),
+      None => format!("{room} {}", said.walk_unknown),
+    });
   }
 
   lines.push(said.hint.clone());
-  lines.push(said.end.clone());
 
   Ok(lines.join("\n"))
 }
@@ -531,9 +537,11 @@ pub async fn walked(
   agent: &str,
 ) -> Result<String, Fault> {
   let said = &CHAT_ROUND.index;
-  let span = prompt
-    .find(&said.head)
-    .and_then(|start| prompt[start..].find(&said.end).map(|end| (start, start + end + said.end.len())));
+  let span = prompt.find(&said.head).map(|start| {
+    let end = prompt[start..].find('\n').map_or(prompt.len(), |at| start + at);
+
+    (start, end)
+  });
   let own_index = span.map(|(start, end)| &prompt[start..end]);
   let walk = walk(receiver, own, own_index, session, agent).await?;
 

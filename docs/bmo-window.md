@@ -196,7 +196,7 @@ round.
   of the agent's holds it is delivered once when that turn ends, and the log says so; a row no turn holds at its
   expiry is discarded, with its instruction, room and kind in the log.
 - **A rider is not waiting behind a turn.** The queue line a round is handed counts only the rows that would
-  open a turn.
+  open a turn, and it stands in the turn only where something waits behind it.
 
 ## What every turn carries
 
@@ -230,12 +230,12 @@ own thread.
 
 Beside the core, the turn carries the brain's index, and the agent reads anything more it needs itself:
 
-- **One line a group** — the system documents, the room's rules, knowledge, the people the brain knows and the
-  room's memories — with how many entries of it this session has not read yet, and, where the gate gives one, a
-  line of what changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its version, by
+- **One line** — the system documents, the room's rules, knowledge, the people the brain knows and the room's
+  memories, each with how many entries of it this session has not read yet and, where the gate gives one, what
+  changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its version, by
   the agency's record of the session's loads (`GET /session-loads/{sessionId}`), is read and counted out.
-- **Then one hint, never an order:** read the index or search the brain when the answer needs it; otherwise just
-  answer. It stands in the index block every turn carries, the draft process's first question among them, so the
+- **Then one hint, never an order:** look one up only when the answer needs it, and otherwise just
+  answer. It closes the index line every turn carries, the draft process's first question among them, so the
   draft step is where the agent meets it. Whether the agent reads is its own choice, and nothing counts
   or holds it to having read. The only hard rule stands in the draft process's `facts` question: nothing unread is
   spoken of as fact.
@@ -326,8 +326,8 @@ flowchart TD
   run is opened on its way out:
   - the reference selected over the line, each document in full or as a mark as the session holds it, and the
     room's block where the session does not hold it;
-  - the queue line, the turn scope, the line itself as the one new message, the owed-answer note taking
-    `<<SKIP>>` away and the closing line forbidding `<<WAIT>>`;
+  - the queue line where anything waits behind the turn, the turn scope, the line itself as the one new message,
+    the owed-answer note taking `<<SKIP>>` away and the closing line forbidding `<<WAIT>>`;
   - headed by a line saying the owner typed it into the program, that its number `#0` is no message of the
     archive, that the answer is read on that screen and goes to no room, and that a composition the program
     keeps in a file is read whole before answering.

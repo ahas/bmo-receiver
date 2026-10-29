@@ -6,13 +6,10 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Header {
-  pub chat: String,
-  pub chat_titled: String,
-  pub kind: String,
-  pub privilege: String,
+  pub line: String,
+  pub line_untitled: String,
   pub privileged: String,
   pub restricted: String,
-  pub owner: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -150,6 +147,9 @@ pub struct Conversation {
 #[serde(deny_unknown_fields)]
 pub struct QueueLine {
   pub nothing: String,
+  pub words: String,
+  pub instructions: String,
+  pub rooms: String,
   pub waiting: String,
 }
 
@@ -304,7 +304,6 @@ pub struct Index {
   pub group: String,
   pub group_hint: String,
   pub hint: String,
-  pub end: String,
   pub system_documents: String,
   pub room_rules: String,
   pub knowledge: String,
@@ -312,6 +311,7 @@ pub struct Index {
   pub room_memories: String,
   pub walk_head: String,
   pub walk_room: String,
+  pub walk_untitled: String,
   pub walk_unknown: String,
 }
 

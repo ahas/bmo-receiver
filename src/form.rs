@@ -13,11 +13,9 @@ use regex::Regex;
 static SCAFFOLDING: LazyLock<Vec<Regex>> = LazyLock::new(|| {
   [
     r"(?:^|\n)[ \t]*(?:END OF )?BMO ROOM CONTEXT(?:[ \t]|$)",
-    r"(?:^|\n)[ \t]*(?:user[ \t]*\n?[ \t]*)?Chat id: -?[0-9]+[^\n]*\n[ \t]*Chat kind: ",
-    r"(?:^|\n)[ \t]*Chat kind: (?:the owner's private chat|a user's own private chat|a group chat)",
-    r"(?:^|\n)[ \t]*Run privilege: (?:PRIVILEGED|RESTRICTED)[ \t]*(?:\n|$)",
+    r"(?:^|\n)[ \t]*Chat -?[0-9]+[^\n]*· (?:the owner's private chat|a user's own private chat|a group chat)",
     r"(?:^|\n)[ \t]*Archived messages since your last reply(?: \([0-9]+\))?:[ \t]*(?:\n|$)",
-    r"(?:^|\n)[ \t]*New messages(?: \([0-9]+\))?:[ \t]*\n[ \t]*\[[0-9]{4}-[0-9]{2}-[0-9]{2}T",
+    r"(?:^|\n)[ \t]*New messages(?: \([0-9]+\))?:[ \t]*\n[ \t]*\[[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}",
     r"(?:^|\n)[ \t]*Messages you waited on with <<WAIT>>, still unanswered(?: \([0-9]+\))?:[ \t]*(?:\n|$)",
     r"(?:^|\n)[ \t]*END OF (?:NEW|ARCHIVED|WAITED) MESSAGES[ \t]*(?:\n|$)",
     r"(?:^|\n)[ \t]*Reference for this message(?: \([0-9]+\))?:[ \t]*(?:\n|$)",
@@ -26,7 +24,7 @@ static SCAFFOLDING: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     r"(?:^|\n)[ \t]*END OF QUIET INSTRUCTION[ \t]*(?:\n|$)",
     r"(?:^|\n)[ \t]*Documents you rely on were updated(?: \([0-9]+\))?:[ \t]*(?:\n|$)",
     r"(?:^|\n)[ \t]*END OF DOCUMENTS[ \t]*(?:\n|$)",
-    r"(?:^|\n)[ \t]*\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[^\]]*\][^\n]*\(id [0-9]+",
+    r"(?:^|\n)[ \t]*\[[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}[^\]]*\][^\n]*#[0-9]+ ",
     r"(?:^|\n)[ \t]*No further messages arrived\.[ \t]*(?:\n|$)",
     r"(?:^|\n)[ \t]*The waiting window is over\. Give your final answer now",
   ]

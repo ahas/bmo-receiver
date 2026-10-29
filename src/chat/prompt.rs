@@ -234,23 +234,39 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   let scope_at = parts.len();
 
   parts.push(String::new());
-  parts.push(round.queue_line.to_owned());
+
+  if !round.queue_line.is_empty() {
+    parts.push(round.queue_line.to_owned());
+  }
 
   let shown: HashSet<i64> =
     archived.iter().chain(round.batch.iter()).map(|message| message.message_id).collect();
   let title = rows::chat_title(db, chat_id).await?;
+  let kind = chat_kind(receiver, round.room).await?;
+  let privilege = if round.all_from_owner { &header.privileged } else { &header.restricted };
+  let owner = round.owner.to_string();
 
   parts.push(match &title {
-    Some(title) => fill_marks(&header.chat_titled, &[("chat", &chat_id.to_string()), ("title", title)]),
-    None => fill_marks(&header.chat, &[("chat", &chat_id.to_string())]),
+    Some(title) => fill_marks(
+      &header.line,
+      &[
+        ("chat", &chat_id.to_string()),
+        ("title", title),
+        ("kind", kind),
+        ("privilege", privilege),
+        ("owner", &owner),
+      ],
+    ),
+    None => fill_marks(
+      &header.line_untitled,
+      &[
+        ("chat", &chat_id.to_string()),
+        ("kind", kind),
+        ("privilege", privilege),
+        ("owner", &owner),
+      ],
+    ),
   });
-  parts.push(fill_marks(&header.kind, &[("kind", chat_kind(receiver, round.room).await?)]));
-  parts.push(fill_marks(
-    &header.privilege,
-    &[("privilege", if round.all_from_owner { &header.privileged } else { &header.restricted })],
-  ));
-
-  parts.push(fill_marks(&header.owner, &[("owner", &round.owner.to_string())]));
 
   // In a room more than one agent answers, each one's window there.
   if let Some(windows) = room_windows_block(receiver, chat_id, round.agent, now_ms()).await? {

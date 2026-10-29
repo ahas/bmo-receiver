@@ -70,7 +70,7 @@ async fn a_message_carries_the_note_as_the_round_that_judged_it_read_it() {
 
 #[test]
 fn a_note_summarizes_the_room_and_does_not_copy_its_latest_answer() {
-  let latest = "[1970-01-01T00:00:00.000Z] #7 agent-a (id 7): The correction was attached and sent.";
+  let latest = "[01-01 00:00Z] #7 agent-a: The correction was attached and sent.";
   let copied = "The correction was attached and sent.";
 
   assert_eq!(
@@ -100,7 +100,7 @@ fn a_note_summarizing_the_same_exchange_passes() {
   assert_eq!(
     note_from_answer(
       "The owner asked for a correction to the answer; the correction is still to be sent.",
-      &["[1970-01-01T00:00:00.000Z] #7 agent-a (id 7): The correction was attached and sent.".to_owned()]
+      &["[01-01 00:00Z] #7 agent-a: The correction was attached and sent.".to_owned()]
     )
     .as_deref(),
     Some("The owner asked for a correction to the answer; the correction is still to be sent.")

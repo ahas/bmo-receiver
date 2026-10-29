@@ -365,8 +365,8 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
       && prompt.contains("[rooms/-500/people/31/sheet.md] (already loaded)"),
     "an entry the session holds at its version goes as a mark: {prompt}"
   );
-  assert!(prompt.contains(&format!("- {}: 1 not read", index.room_memories)), "{prompt}");
-  assert!(prompt.contains(&format!("- {}: 0 not read", index.knowledge)), "{prompt}");
+  assert!(prompt.contains(&format!("{} 1", index.room_memories)), "{prompt}");
+  assert!(prompt.contains(&format!("{} 0", index.knowledge)), "{prompt}");
   assert!(prompt.contains(&index.hint));
   assert!(
     prompt.find("agent-a what is due today") < prompt.find(&index.head),
@@ -403,13 +403,10 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
   let index = &CHAT_ROUND.index;
 
   assert!(
-    prompt.contains(&format!(
-      "- {}: 4 not read; lately: 2 entries changed in the last three days.",
-      index.room_rules
-    )),
+    prompt.contains(&format!("{} 4 (2 entries changed in the last three days)", index.room_rules)),
     "{prompt}"
   );
-  assert!(prompt.contains(&format!("- {}: 7 not read", index.knowledge)), "{prompt}");
+  assert!(prompt.contains(&format!("{} 7", index.knowledge)), "{prompt}");
   assert!(prompt.contains(&index.hint), "the nudge stands in the turn");
 
   let asked = round.standing.gate.indexed.lock().unwrap().clone();

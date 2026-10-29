@@ -2563,19 +2563,20 @@ impl Conversations {
     .unwrap_or(0) as usize;
     let instructions = held + waiting;
     let lines = &CHAT_ROUND.queue_line;
+    let mut parts: Vec<String> = Vec::new();
 
-    if words + instructions + rooms == 0 {
+    for (count, line) in [(words, &lines.words), (instructions, &lines.instructions), (rooms, &lines.rooms)]
+    {
+      if count > 0 {
+        parts.push(fill_marks(line, &[("count", &count.to_string())]));
+      }
+    }
+
+    if parts.is_empty() {
       return lines.nothing.clone();
     }
 
-    fill_marks(
-      &lines.waiting,
-      &[
-        ("words", &words.to_string()),
-        ("instructions", &instructions.to_string()),
-        ("rooms", &rooms.to_string()),
-      ],
-    )
+    fill_marks(&lines.waiting, &[("parts", &parts.join(" · "))])
   }
 
   // The words a room still has waiting for a round: its buffer and what the queue is gathering.

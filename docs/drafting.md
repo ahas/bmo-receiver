@@ -188,7 +188,7 @@ leaves.
   turn that writes the message carries it first, above the room's words, under the policy's front line; the room's
   words follow and the turn's question closes it. It is no reference piece: a turn that is not writing the message
   is not handed it, and the note never stands among the core's documents.
-- **The note stays under `ceiling_chars`, 1,200 characters.** A longer answer is cut at the ceiling and marked with
+- **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
   the policy's `cut`; the update prompt names the ceiling, and the ceiling leaves room for the state, what came in
   and the course to take together. The extra cost is one light turn a round with words: the
   note it reads, under the ceiling, and the room's messages since the note last read the record, which on a room

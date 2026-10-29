@@ -26,6 +26,14 @@ pub fn iso_instant(milliseconds: i64) -> String {
     .to_string()
 }
 
+/// A message's instant as its line writes one: the month and day, the hour and minute, in UTC.
+pub fn clock(milliseconds: i64) -> String {
+  DateTime::from_timestamp_millis(milliseconds)
+    .unwrap_or_default()
+    .format("%m-%d %H:%MZ")
+    .to_string()
+}
+
 /// One send: the message its line stands under, and the other messages of its album.
 pub struct Send<'a> {
   pub message: &'a Inbound,
@@ -118,7 +126,6 @@ pub struct ShapeLine<'a> {
   pub sent_at: i64,
   pub message_id: i64,
   pub sender_name: &'a str,
-  pub sender_id: Option<i64>,
   pub owner: bool,
   pub text: &'a str,
   pub notes: &'a [String],
@@ -126,17 +133,11 @@ pub struct ShapeLine<'a> {
 
 pub fn shape_line(line: &ShapeLine<'_>) -> String {
   let shape = &CHAT_ROUND.shape;
-  let sender = line.sender_id.map_or_else(|| shape.unknown.clone(), |id| id.to_string());
+  let sender = if line.sender_name.is_empty() { shape.unknown.as_str() } else { line.sender_name };
   let tag = if line.owner { shape.owner_tag.as_str() } else { "" };
   let notes = if line.notes.is_empty() { String::new() } else { format!(" {}", line.notes.join(" ")) };
 
-  format!(
-    "[{}] #{} {} (id {sender}{tag}): {}{notes}",
-    iso_instant(line.sent_at),
-    line.message_id,
-    line.sender_name,
-    line.text,
-  )
+  format!("[{}] #{} {}{tag}: {}{notes}", clock(line.sent_at), line.message_id, sender, line.text)
 }
 
 /// Whether the agent looks at the pictures of a room: the room's own switch, the deployment's otherwise.
@@ -406,7 +407,6 @@ impl Reading<'_> {
       sent_at: message.sent_at,
       message_id: message.message_id,
       sender_name: &message.sender_name,
-      sender_id: message.sender_id,
       owner: message.sender_id == Some(self.owner),
       text: &text,
       notes: &notes,

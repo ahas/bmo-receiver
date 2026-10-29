@@ -8,7 +8,11 @@ use bmo_receiver::form::{
 #[test]
 fn the_harness_s_scaffolding_is_cut_where_it_begins() {
   assert_eq!(
-    strip_prompt_scaffolding("The answer.\n\nNew messages (1):\n[2026-10-09T10:00:00Z] someone"),
+    strip_prompt_scaffolding("The answer.\n\nNew messages (1):\n[10-09 10:00Z] someone"),
+    "The answer.",
+  );
+  assert_eq!(
+    strip_prompt_scaffolding("The answer.\n\nChat -500 (Lab) · a group chat · RESTRICTED · owner 7"),
     "The answer.",
   );
   assert_eq!(strip_prompt_scaffolding("BMO ROOM CONTEXT all of it"), "");

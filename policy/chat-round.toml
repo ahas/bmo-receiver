@@ -12,15 +12,13 @@ archived_messages = 100
 # The turn's scope, one line of JSON after its opening.
 scope = "TURN SCOPE: "
 
-# The header lines.
+# The header line: the room, its title where it has one, the kind of room, the privilege the turn runs under and
+# the owner's account.
 [header]
-chat = "Chat id: {chat}"
-chat_titled = "Chat id: {chat} (title: {title})"
-kind = "Chat kind: {kind}"
-privilege = "Run privilege: {privilege}"
+line = "Chat {chat} ({title}) · {kind} · {privilege} · owner {owner}"
+line_untitled = "Chat {chat} · {kind} · {privilege} · owner {owner}"
 privileged = "PRIVILEGED"
 restricted = "RESTRICTED"
-owner = "Owner account id: {owner}"
 
 # What kind of room the turn is in.
 [kinds]
@@ -75,7 +73,7 @@ quoted = "chat {chat} · quoted {ids}"
 # One message's line in the room shape, and the notes it carries.
 [shape]
 unknown = "unknown"
-owner_tag = ", OWNER"
+owner_tag = " (OWNER)"
 album = "[sent together with {ids} as one album]"
 image_look = "open it with the Read tool to see it, then decide whether it calls for an answer from you — answer when it is addressed to you, asks something, or plainly invites a reaction; otherwise output exactly <<SKIP>>"
 image_blind = "you do not look at images, so you cannot see it"
@@ -103,7 +101,7 @@ quoted_shown = "[replies to message {id}, sent by {name}, shown elsewhere in thi
 
 # The lines that close the prompt.
 [closing]
-owed = "OWED ANSWER: {count} of the new message(s) above are the owner's own words in the owner's own chat — answer them in this reply; <<SKIP>> is not available to this turn."
+owed = "OWED ANSWER: {count} of the new message(s) above are the owner's own words in the owner's own chat — answer them in this reply; <<SKIP>> is not available."
 # What the line calls the owner where the turn answers the owner and the page shows no name of theirs.
 owner = "the owner"
 woken = "Your memory of this conversation was just replaced ({reason}), so what you hold of it is the note your new session opened on rather than the conversation itself, whatever language that note is written in."
@@ -146,10 +144,14 @@ wait_ms = 10000
 window_seconds = 180
 
 # What waits in the agent's queue behind a turn, which the session reads to choose when to answer: nothing, or
-# the room's {words} not yet taken, the quiet {instructions} not yet delivered and the other {rooms} waiting.
+# the parts that do wait — the room's {words} not yet taken, the quiet {instructions} not yet delivered and the
+# other {rooms} waiting — joined into the one line.
 [queue_line]
-nothing = "YOUR QUEUE: nothing waits behind this turn."
-waiting = "YOUR QUEUE: behind this turn wait {words} word(s) of this room not yet taken, {instructions} quiet instruction(s) and {rooms} other room(s). The timing is yours: answer now, or send a line first with the say tool and go on, or take the next words in with these."
+nothing = ""
+words = "{count} word(s) here"
+instructions = "{count} quiet instruction(s)"
+rooms = "{count} other room(s)"
+waiting = "YOUR QUEUE: {parts} — answer now, say a line first with the say tool and go on, or take the next words in with these."
 
 # The answer a room sent back to the room that wrote to it, handed to that room as a quiet instruction: the
 # room that answered ({chat}), the first line of what was sent it ({opening}) and its {answer}.
@@ -252,7 +254,7 @@ archive = "the room's archive"
 # what the update is asked, and the lines the note as it stands and the messages that came in since it last read
 # the room's record stand under.
 [situation]
-ceiling_chars = 1200
+ceiling_chars = 600
 # The most messages that may stand between the note's mark and the newest before the update reads the newest this
 # many alone instead of the whole gap, so a room left long is caught up from its latest words; 0 reads every
 # message since the mark.
@@ -282,22 +284,22 @@ judged = "The words to judge:"
 question = "Are these words said to you, or do they want your answer? Where neither, answer <<SKIP>> alone: nothing is sent and the round ends. Where either, answer one short line saying which; the round then goes on, and the answer is written in it. A draft or a note from this session is not a message unless the room's record holds it: judge the room's words and its record, never a draft."
 name = "supervisor"
 
-# The brain's index a turn carries in place of the pieces (docs/bmo-window.md, 「What every turn carries」): the head,
-# one line a group with how many of its entries the session has not read ({count}) and, where the gate gives one, a
-# line of what changed in it lately ({hint}), the hint the block closes on, and its end. A new session's first turn
-# walks every room the agent answers (docs/unified-bmo.md, 「Replacing the session」): its head, each room by its
-# {chat} and {title}, and the line for a room whose counts the gate does not give yet.
+# The brain's index a turn carries in place of the pieces (docs/bmo-window.md, 「What every turn carries」): the head
+# of its one line, a group with how many of its entries the session has not read ({count}) and, where the gate
+# gives one, what changed in it lately ({hint}), the hint the line closes on, and the walk a new session's first
+# turn carries: its head, each room by its {chat} and {title}, and the words for a room whose counts the gate does
+# not give yet.
 [index]
-head = "WHAT THE BRAIN HOLDS — entries this session has not read yet, by group:"
-group = "- {group}: {count} not read"
-group_hint = "- {group}: {count} not read; lately: {hint}"
-hint = "Read the index or search the brain when your answer needs it; it is never required, and otherwise just answer."
-end = "END OF WHAT THE BRAIN HOLDS"
-system_documents = "system documents"
-room_rules = "room rules"
+head = "BRAIN — entries this session has not read:"
+group = "{group} {count}"
+group_hint = "{group} {count} ({hint})"
+hint = "Look one up only when your answer needs it."
+system_documents = "documents"
+room_rules = "rules"
 knowledge = "knowledge"
-people = "people the brain knows"
-room_memories = "room memories"
+people = "people"
+room_memories = "memories"
 walk_head = "WHAT THE BRAIN HOLDS IN EVERY ROOM YOU ANSWER — this session is new; look it over once, where that is worth it, before you answer:"
-walk_room = "Chat {chat} {title}:"
-walk_unknown = "- its index tells what the brain holds there"
+walk_room = "Chat {chat} ({title}):"
+walk_untitled = "Chat {chat}:"
+walk_unknown = "its index tells what the brain holds there"
