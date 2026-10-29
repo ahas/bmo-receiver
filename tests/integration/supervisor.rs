@@ -341,7 +341,11 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
   let prompt = &prompts[1];
   let index = &CHAT_ROUND.index;
 
-  assert!(prompt.contains("Reference for this message (4):"), "{prompt}");
+  assert!(prompt.contains("Reference for this message (3):"), "{prompt}");
+  assert!(
+    prompt.starts_with(&format!("{}\nHere.", CHAT_ROUND.situation.front)),
+    "the note stands first, as the answer's instruction: {prompt}"
+  );
   assert!(
     prompts[0].contains(&receiver_policy::chat_line::CHAT_LINE.room.voice),
     "the situation update carries the room block: {}",

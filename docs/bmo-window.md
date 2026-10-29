@@ -254,10 +254,10 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
 - **A turn's material is handed once.** The round's first turn carries the core's documents and references and
   the room's words whole; a later round of the same turn carries each as a line and only what is new whole, under
   the turn's own mark (`docs/drafting.md`, 「The turn's mark」).
-- **The room's situation** is the receiver's own note, one row a room, handed as a piece of the core at
-  `room-situations/<room>` (`docs/drafting.md`, 「The situation note」): the supervisor updates it before its judgement,
-  the judgement reads it with the new lines, and the round's draft carries it. It is not a brain memory, and the
-  note's text is the version the session holds.
+- **The room's situation** is the receiver's own note, one row a room (`docs/drafting.md`, 「The situation note」):
+  the supervisor updates it before its judgement, the judgement reads it with the new lines, and the turn that
+  writes the message reads it as that answer's instruction, ahead of the room's words. It is no reference document,
+  it stands nowhere in the core, and it is not a brain memory; the note's text is the version the session holds.
 - **The block stands after the turn's words and instructions,** ahead of its closing lines, so a session reads
   what came in before it decides whether to look anything up.
 

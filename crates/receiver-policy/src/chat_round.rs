@@ -272,7 +272,6 @@ pub struct ChatRound {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Situation {
-  pub holds: String,
   pub ceiling_chars: usize,
   pub head: String,
   pub previous: String,

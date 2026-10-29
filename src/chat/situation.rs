@@ -1,7 +1,8 @@
 //! The room's situation note (docs/drafting.md, 「The situation note」): one light turn before the supervisor's
 //! judgement reads the room's note as it stands and the messages that came in since it last read the room's
 //! record, writes it afresh and keeps it for the room with the row it read to. The note is the receiver's own row,
-//! one a room, and is handed to the judgement and to the round's draft as a piece.
+//! one a room: the judgement reads it before it decides whether to answer, and the turn that writes the message
+//! reads it as that answer's instruction.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
@@ -13,17 +14,7 @@ use regex::Regex;
 
 use crate::chat::promises::own_sentences;
 use crate::js;
-use crate::receiver::Receiver;
 use crate::{Fault, now_ms, one, run};
-use receiver_ports::gate::{Entry, Source};
-
-// The path a room's situation note stands at in the round's record, apart from the gate's own situations.
-const PREFIX: &str = "room-situations/";
-
-/// The path a room's situation note stands at.
-pub fn path(chat_id: i64) -> String {
-  format!("{PREFIX}{chat_id}")
-}
 
 /// The room's note as it stands, none where the room has none yet.
 pub async fn read(db: &DatabaseConnection, chat_id: i64) -> Result<Option<String>, Fault> {
@@ -122,21 +113,6 @@ pub async fn attach(
   }
 
   Ok(())
-}
-
-/// The room's note as a piece of a turn's core, none where the room has none.
-pub async fn entry(receiver: &Receiver, chat_id: i64) -> Result<Option<Entry>, Fault> {
-  let Some(text) = read(receiver.db(), chat_id).await? else {
-    return Ok(None);
-  };
-
-  Ok(Some(Entry {
-    path: path(chat_id),
-    text,
-    source: Source::Situation,
-    fragment: None,
-    holds: Some(CHAT_ROUND.situation.holds.clone()),
-  }))
 }
 
 /// The one turn that updates the note: the note as it stands and the room's messages that came in since the note
