@@ -63,6 +63,18 @@ stay_up_seconds = 5
 # the release just before the flip and waited on (docs/boundary-api.md, 「The service and its commands」, `quiet`).
 quiet = "bin/bmo-receiver --config settings.toml quiet"
 
+# The unit command, linked into the folder holding `bmo`, the first folder `bmo` looks for unit commands in. The
+# link names this repository's deploy tree, whose own link stands across releases; a link made to the release
+# being deployed would dangle once a later deployment prunes that release.
+[[deploy.step]]
+id = "link-unit-command"
+phase = "before-flip"
+command = '''
+set -eu
+bmo_dir="$(dirname "$(command -v bmo)")"
+ln -sfn "$HOME/.local/share/bmo-receiver/deploy/bin/bmo-receiver" "$bmo_dir/bmo-receiver"
+'''
+
 # Where the receiver's tools find it: the data root's env/receiver.env, written from the configuration.
 [[deploy.step]]
 id = "tool-env"
