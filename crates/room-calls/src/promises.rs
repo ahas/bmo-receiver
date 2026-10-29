@@ -1,7 +1,7 @@
 //! What an answer of the chat says, as the checks it passes read it (docs/answer-checks.md): a promise about what
-//! the agent will do from now on, a promise to act once something has happened, the owner's words setting a rule
-//! for later, and an answer that came out in a language other than the turn's answer language. The words each
-//! reads by stand in the receiver's policy; the sentences are cut and the quotations set aside here.
+//! the agent will do from now on, a promise to act once something has happened, and the owner's words setting a rule
+//! for later. The words each reads by stand in the receiver's policy; the sentences are cut and the quotations set
+//! aside here.
 
 use std::sync::LazyLock;
 

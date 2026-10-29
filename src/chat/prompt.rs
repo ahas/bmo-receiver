@@ -10,7 +10,6 @@ use receiver_policy::fill_marks;
 use serde::Serialize;
 
 use super::conversation::unified_session;
-use super::languages;
 use super::shape::Reading;
 use super::window::{self, Material, Selection};
 use crate::chat::consult::{consult_block, room_windows_block, tells_of_queue};
@@ -408,17 +407,12 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     parts.push(fill_marks(owed_line, &[("count", &owed.to_string())]));
   }
 
-  // The answer language is each person's own, named on every turn (docs/answer-checks.md).
-  let addressees =
-    languages::addressees(receiver, chat_id, round.owner, round.batch, &recent, round.room.identity)
-      .await?;
-  let language = languages::line(receiver, &addressees);
-
-  parts.push(String::new());
-  parts.push(match round.woken {
-    Some(reason) => fill_marks(&closing.woken, &[("reason", reason), ("language", &language)]),
-    None => language,
-  });
+  // The language an answer is written in is the agent's own judgement, from the person and the room as the
+  // brain holds them; no line of the turn names one (docs/answer-checks.md).
+  if let Some(reason) = round.woken {
+    parts.push(String::new());
+    parts.push(fill_marks(&closing.woken, &[("reason", reason)]));
+  }
 
   parts.push(String::new());
   parts.push(match (round.questioned, round.force, owed > 0) {
@@ -441,8 +435,27 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     context.push(("archive".to_owned(), quoted_range(chat_id, &quoted)));
   }
 
+  // The round that writes the message reads the room's situation note first (docs/drafting.md, 「The situation
+  // note」): the update turn wrote it before this round, and the message is written with the room's state in front.
+  let front = match round.questioned {
+    true => None,
+    false => match super::situation::read(db, chat_id).await {
+      Ok(Some(note)) => Some(format!("{}\n{note}", CHAT_ROUND.situation.front)),
+      Ok(None) => None,
+      Err(why) => {
+        eprintln!("bmo-receiver: the room's situation note could not be read: {why}");
+
+        None
+      }
+    },
+  };
+  let prompt = match front {
+    Some(front) => format!("{front}\n\n{}", parts.join("\n")),
+    None => parts.join("\n"),
+  };
+
   Ok(Composed {
-    prompt: parts.join("\n"),
+    prompt,
     recent,
     scope,
     context,

@@ -37,9 +37,9 @@
 - **What a turn's scaffolding means is said there once**, not on every turn: that a quiet instruction comes from
   the system, is acted on as the owner's word and may be answered with `<<SKIP>>`; that a reference block outranks
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
-  are English and the answer language line names the language of each person the turn answers; and what the owed-answer line withholds. The turn
-  carries only what changes from turn to turn: the room and its facts, the blocks themselves and the one-line
-  states (answer language, owed answer, the waiting window).
+  are English while the language an answer is written in is the agent's own judgement, never a line of the turn;
+  and what the owed-answer line withholds. The turn carries only what changes from turn to turn: the room and its
+  facts, the blocks themselves and the one-line states (the owed answer, the waiting window).
 - **Kept out of the system prompt:** each room's tone and traits, the group-room rules, the private chat's
   instructions and agent list, and the rules for what can be done in the room (a picture, a file, a reaction, a
   sticker, a voice briefing, pinning, an answer aimed at a message), which the room's chat service declares and

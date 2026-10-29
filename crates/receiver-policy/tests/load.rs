@@ -88,14 +88,7 @@ fn the_rounds_lines_carry_their_marks() {
   );
   assert!(CHAT_ROUND.blocks.archived_left_out.contains("{count}"));
   assert!(CHAT_ROUND.shape.quoted.contains("{quote}"));
-  assert!(CHAT_ROUND.closing.woken.contains("{language}"));
-  assert!(CHAT_ROUND.closing.language.contains("{people}"));
-  assert!(
-    CHAT_ROUND.closing.language_person.contains("{name}")
-      && CHAT_ROUND.closing.language_person.contains("{language}")
-  );
-  assert!(CHAT_ROUND.closing.language_room.contains("{language}"));
-  assert!(CHAT_ROUND.language.prose_letters > 0);
+  assert!(CHAT_ROUND.closing.woken.contains("{reason}"));
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
   assert!(SECOND_ASKS.errands.owed.contains("{count}"));
   assert!(SECOND_ASKS.errands.wake_on.contains("{chat}"));
@@ -141,12 +134,10 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
 }
 
 #[test]
-fn the_talks_name_the_owner_the_agent_and_the_language_by_their_marks() {
+fn the_talks_name_the_owner_and_the_agent_by_their_marks() {
   assert_eq!(TALK.turns_given, 6);
   assert!(TALK.item.head[0].contains("{id}"));
   assert_eq!((TALK.owner.as_str(), TALK.agent.as_str()), ("{owner}", "{agent}"));
-  assert!(TALK.item.head.iter().any(|line| line.contains("{language}")));
-  assert!(TALK.document.head.iter().any(|line| line.contains("{language}")));
   assert!(CHAT_LINE.room.roster.contains("{agent}") && CHAT_LINE.room.roster.contains("{owner}"));
   assert_eq!(fill_marks(&TALK.says_now, &[("owner", "the-owner")]), "the-owner says now:");
 }

@@ -468,7 +468,6 @@ pub async fn room_context(
     fill_marks(&said.head, &[("chat", &chat_id.to_string()), ("kind", kind)]),
     fill_marks(&said.name, &[("title", &title)]),
     said.replaces.clone(),
-    said.languages.clone(),
     said.process.clone(),
     said.voice.clone(),
   ];

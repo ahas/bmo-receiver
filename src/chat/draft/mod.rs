@@ -10,6 +10,7 @@ pub mod table;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
@@ -797,6 +798,11 @@ impl Drafter {
         words = format!("{words}\n{}", waiting_line(&conversations.pending(chat)));
       }
 
+      // The message round reads the room's situation note first (docs/drafting.md, 「The situation note」).
+      if last && let Ok(Some(note)) = super::situation::read(receiver.db(), chat).await {
+        words = format!("{}\n{note}\n\n{words}", CHAT_ROUND.situation.front);
+      }
+
       run.log.start(number, count, name);
 
       let asked = run.ask(Kind::Question, name, &words).await;
@@ -846,7 +852,11 @@ impl Drafter {
     if let Some(standing) = &message
       && let Some((block, took)) = run.arrived().await
     {
-      let words = closing_words(&standing.text, &block, drafted.scope);
+      let mut words = closing_words(&standing.text, &block, drafted.scope);
+
+      if let Ok(Some(note)) = super::situation::read(receiver.db(), chat).await {
+        words = format!("{}\n{note}\n\n{words}", CHAT_ROUND.situation.front);
+      }
 
       match run.ask(Kind::Item, "arrived", &words).await {
         Ok(Some((answer, read))) => {

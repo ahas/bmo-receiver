@@ -25,37 +25,14 @@ is written in is the agent's rule, not a check; nothing on the send path reads i
 
 - Everything the machine itself says to a chat session is English: the turn's system lines, a quiet instruction
   and the result it carries, and the note a replaced session holds of its own past.
-- English is the language this machine talks to its agents in; it is not the language of the room, and a turn
-  with nothing but the machine's language in front of it answers in it.
-- **The answer language is a person's, never a turn's.** The agent answers each person in the language that
-  person writes; a turn that answers two people answers each in their own.
-  - **A person's language in a room is read off their own prose there:** the newest message of theirs on the
-    turn's page or in its words that holds prose names it, and it is remembered for the room and the person in
-    the store (`people_languages`, `docs/store.md`). Prose is what a message keeps once its quoted spans, its
-    code, its addresses and paths and its bracketed spans — the placeholder a chat service writes for a file, a
-    picture or a sticker it carried — are set aside, and only where it still holds at least the number of
-    letters `policy/chat-round.toml` names (`[language]`, `prose_letters`). A message with no prose — a file, a
-    bare link, code, numbers, an emoji — never changes a person's language.
-  - Where a person has written no prose in the room yet, the deployment's language stands for theirs; the
-    receiver keeps no language of a room's own.
-  - **The people a turn answers** are the speakers of its words, the agent's own aside; a turn with no words of
-    anybody's answers the owner in the owner's own chat, and elsewhere the newest speaker on the page who is not
-    the agent.
-- **The prompt names each person's language** in its one `ANSWER LANGUAGE` line on every turn: one clause a
-  person it answers, `<name>: <language>`, so a turn answering one person carries one clause; a turn answering
-  nobody names the deployment's language as the room's. The line says the language is the person's, whatever
-  language the machine's own lines, an instruction or its result came in. The first turn after the session's
-  memory was replaced (folded up, swapped for a fresh one carrying the note, or opened again because the account
-  changed) says it in the note about the replacement.
-- **The room's block carries the rule** (`policy/chat-line.toml`, `[room]`, `languages`): answer each person in
-  the language they write, and where one turn answers several people, each in their own.
-- **The language a text is written in** is told by the letters of its prose, quoted spans set aside: Hangul
-  letters count for Korean, kana for Japanese, each twice, since one stands for a syllable, and Latin letters
-  for English, once; the language whose letters weigh most is the text's, and a text with none of them, or two
-  that weigh the same, is in no language that can be told.
-  - **Nothing on the send path reads the language.** The answer language line and the room's block carry the rule
-    to the agent; no check, errand or withholding reads the language of the answer, and an answer in a language a
-    person does not write goes out as the agent wrote it.
+- English is the language this machine talks to its agents in; it is not the language of the room.
+- **The language an answer is written in is the agent's own judgement.** No turn names a language and nothing
+  reads one off a message: the agent answers each person in the language it knows for that person — what the
+  brain holds of them, their country and the language they usually speak, and how the conversation with them has
+  gone — and the agent's manual states the rule. A message carrying commands, paths or code in another language
+  is still the message of the person who wrote it, and what it quotes never decides the language of the answer.
+- **Nothing on the send path reads the language.** No check, errand or withholding reads the language of the
+  answer, and an answer in a language a person does not write goes out as the agent wrote it.
 
 ## A promise stands on a record
 

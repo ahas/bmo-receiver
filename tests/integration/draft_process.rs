@@ -225,6 +225,13 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
     .holding_turn(3);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
 
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at") VALUES ($1, 'a standing note', 0)"#,
+      vec![OWNER.into()],
+    )
+    .await;
   round.hear(1, ASKED).await;
   until("the last question", || round.session.prompts().len() == 3 && round.session.working()).await;
   assert!(round.sent().is_empty(), "nothing goes out before the last question answered");
@@ -243,7 +250,12 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
     "the turn's closing asks for the question's answer, not the message"
   );
   assert!(prompts[1].contains(question("information")) && prompts[1].contains("2 of 3"));
-  assert!(prompts[2].contains(question("final")) && prompts[2].contains("3 of 3"));
+  assert!(prompts[2].contains(question("final")) && prompts[2].contains("3 of 3"), "{prompts:#?}");
+  assert!(
+    prompts[2].starts_with(&format!("{}\na standing note", CHAT_ROUND.situation.front)),
+    "the message question reads the room's situation note first: {}",
+    prompts[2]
+  );
   assert_eq!(sent.len(), 1, "one message goes out: {sent:?}");
   assert!(sent[0].contains("the message itself") && !sent[0].contains("notes"), "{sent:?}");
   assert_eq!(
@@ -595,6 +607,11 @@ async fn a_private_chat_round_writes_the_situation_note_and_hands_it_to_the_judg
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(prompts[0].contains(&CHAT_ROUND.situation.previous), "{}", prompts[0]);
+  assert!(
+    prompts[1].starts_with(&format!("{}\nthe private note", CHAT_ROUND.situation.front)),
+    "the message turn reads the note it just wrote first: {}",
+    prompts[1]
+  );
   assert!(prompts[1].contains(question("final")), "{}", prompts[1]);
   assert_eq!(
     round
@@ -846,6 +863,8 @@ async fn a_skip_in_the_second_question_sends_nothing() {
 fn the_situation_update_says_never_that_a_reply_went_out() {
   let prompt = bmo_receiver::chat::situation::update_prompt(None, &[], &[]);
 
+  assert!(prompt.contains("nothing written here is sent to the room"), "{prompt}");
+  assert!(prompt.contains("how it is best answered"), "{prompt}");
   assert!(prompt.contains("Never copy a message"), "{prompt}");
   assert!(prompt.contains("never restate your own answer"), "{prompt}");
   assert!(prompt.contains("write no first-person claim"), "{prompt}");
@@ -1050,7 +1069,10 @@ async fn a_korean_answer_to_a_korean_speaker_is_never_asked_again() {
   let prompts = round.session.prompts();
 
   assert_eq!(prompts.len(), 1, "nothing is asked over the answer: {prompts:#?}");
-  assert!(prompts[0].contains("tester: ko"), "the line names the speaker's own language");
+  assert!(
+    !prompts[0].contains("ANSWER LANGUAGE"),
+    "no turn names an answer language: {prompts:#?}"
+  );
   assert_eq!(round.sent().len(), 1);
   assert!(round.sent()[0].contains(&answer));
   assert_eq!(round.log().await, ["question final answered", "end  message"]);

@@ -10,7 +10,6 @@ use bmo_receiver::store::migration::m20261022_000008_news_briefs::TABLES as NEWS
 use bmo_receiver::store::migration::m20261023_000009_room_providers::TABLES as ROOM_PROVIDERS_TABLES;
 use bmo_receiver::store::migration::m20261023_000010_room_modes::TABLE as ROOM_MODES;
 use bmo_receiver::store::migration::m20261023_000012_draft_process::TABLES as DRAFT_PROCESS_TABLES;
-use bmo_receiver::store::migration::m20261026_000016_people_languages::TABLE as PEOPLE_LANGUAGES;
 use bmo_receiver::store::migration::m20261027_000018_avatar_sets::TABLE as AVATAR_SETS;
 use bmo_receiver::store::migration::m20261027_000020_record_acts::TABLE as MESSAGE_REACTIONS;
 use bmo_receiver::store::migration::m20261027_000022_room_situations::TABLE as ROOM_SITUATIONS;
@@ -48,7 +47,6 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
       PEOPLE_READS,
       MESSAGE_METADATA,
       ROOM_MODES,
-      PEOPLE_LANGUAGES,
       AVATAR_SETS,
       MESSAGE_REACTIONS,
       ROOM_SITUATIONS,
@@ -60,7 +58,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 27);
+  assert_eq!(migrate(db).await.unwrap(), 28);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -167,11 +165,9 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
     ]
   );
 
-  // The line's index is made ten migrations before the forwards, the record's acts, the record's numbers, the
-  // console-set pictures, the round log's reads, the people's languages, the draft process's turn bound column, the
-  // draft process's, the message voice's and the send-from column's between them.
+  // The line's index is made eleven migrations before the forwards, every migration since standing between them.
   // Down to the same version as before the note's columns were added, one step further back.
-  Migrator::down(db, Some(17)).await.unwrap();
+  Migrator::down(db, Some(18)).await.unwrap();
 
   let before = stated(database.texts(MESSAGE_INDEXES).await);
 
@@ -182,7 +178,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
   );
 
-  assert_eq!(migrate(db).await.unwrap(), 17);
+  assert_eq!(migrate(db).await.unwrap(), 18);
   assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
 }
 
@@ -291,7 +287,7 @@ async fn the_rows_under_the_consoles_former_key_are_the_records_and_an_agent_kee
     database.run(row, vec![]).await;
   }
 
-  assert_eq!(migrate(db).await.unwrap(), 9);
+  assert_eq!(migrate(db).await.unwrap(), 10);
   assert_eq!(
     database.texts(r#"SELECT "via" FROM "messages""#).await,
     ["record"],

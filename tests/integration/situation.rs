@@ -111,6 +111,9 @@ fn a_note_summarizing_the_same_exchange_passes() {
 fn the_note_prompt_bans_copying_and_first_person_claims() {
   let prompt = update_prompt(None, &[], &[]);
 
+  assert!(prompt.contains("nothing written here is sent to the room"), "{prompt}");
+  assert!(prompt.contains("what this room is about"), "{prompt}");
+  assert!(prompt.contains("how it is best answered"), "{prompt}");
   assert!(prompt.contains("Never copy a message"), "{prompt}");
   assert!(prompt.contains("never restate your own answer"), "{prompt}");
   assert!(prompt.contains("write no first-person claim"), "{prompt}");

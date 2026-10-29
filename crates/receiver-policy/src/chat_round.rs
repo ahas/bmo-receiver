@@ -98,13 +98,6 @@ pub struct Shape {
 #[serde(deny_unknown_fields)]
 pub struct Closing {
   pub owed: String,
-  /// The language line naming each person the turn answers with their language, `{people}`: one
-  /// `language_person` clause a person, `{name}` and `{language}`, joined by `language_joint`.
-  pub language: String,
-  pub language_person: String,
-  pub language_joint: String,
-  /// The language line naming the room's language, `{language}`, where the turn answers nobody.
-  pub language_room: String,
   /// What the line calls the owner where the page shows no name of theirs.
   pub owner: String,
   pub woken: String,
@@ -270,7 +263,6 @@ pub struct ChatRound {
   pub console: Console,
   pub typed: Typed,
   pub reference: Reference,
-  pub language: Language,
   pub situation: Situation,
   pub supervisor: Supervisor,
   pub index: Index,
@@ -284,6 +276,8 @@ pub struct Situation {
   pub ceiling_chars: usize,
   pub head: String,
   pub previous: String,
+  /// The line the message round reads the note under, ahead of the room's words.
+  pub front: String,
   pub none: String,
   pub recent: String,
   pub judged: String,
@@ -322,13 +316,6 @@ pub struct Index {
   pub walk_head: String,
   pub walk_room: String,
   pub walk_unknown: String,
-}
-
-/// How a person's language in a room is read: the least letters a message's prose must hold to name it.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Language {
-  pub prose_letters: usize,
 }
 
 crate::part!(pub CHAT_ROUND: ChatRound = "chat-round.toml");

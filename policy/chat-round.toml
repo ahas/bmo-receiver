@@ -109,16 +109,9 @@ quoted_shown = "[replies to message {id}, sent by {name}, shown elsewhere in thi
 # The lines that close the prompt.
 [closing]
 owed = "OWED ANSWER: {count} of the new message(s) above are the owner's own words in the owner's own chat — answer them in this reply; <<SKIP>> is not available to this turn."
-# The answer language, a person's and never a turn's (docs/answer-checks.md, 「The language an answer goes out
-# in」): {people} is one clause a person the turn answers, each written as language_person with the person's
-# {name} and their {language}, joined by language_joint; a turn answering nobody names the room's, {language}.
-language = "ANSWER LANGUAGE — answer each person in the language they write, whatever language the system lines, an instruction or its result came in: {people}."
-language_person = "{name}: {language}"
-language_joint = "; "
-language_room = "ANSWER LANGUAGE: {language} — this room's language, since no person's words stand before you; answer in it, whatever language the instruction or its result came in."
 # What the line calls the owner where the turn answers the owner and the page shows no name of theirs.
 owner = "the owner"
-woken = "Your memory of this conversation was just replaced ({reason}), so what you hold of it is the note your new session opened on rather than the conversation itself, whatever language that note is written in. {language}"
+woken = "Your memory of this conversation was just replaced ({reason}), so what you hold of it is the note your new session opened on rather than the conversation itself, whatever language that note is written in."
 # The forced close of a turn owing the owner an answer, under the owed line that already takes <<SKIP>> away.
 forced_owed = "The waiting window is over. Give your final answer now; <<WAIT>> is forbidden."
 forced = "The waiting window is over. Give your final answer now; <<WAIT>> is forbidden. <<SKIP>> is still allowed if the messages were not addressed to you."
@@ -129,12 +122,6 @@ waiting = "If the author seems to still be typing more, reply exactly <<WAIT>>; 
 questioned_owed = "OWED ANSWER: {count} of the new message(s) above are the owner's own words in the owner's own chat — the message this round's draft process writes answers them; <<SKIP>> is not available to this round."
 questioned_forced = "The waiting window is over: <<WAIT>> is forbidden. Answer the draft process's question below, which says when the message is written."
 questioned_waiting = "If the author seems to still be typing more, reply exactly <<WAIT>>; otherwise answer the draft process's question below, which says when the message is written."
-
-# How a person's language in a room is read (docs/answer-checks.md, 「The language an answer goes out in」): the
-# least letters a message's prose must hold, once its quoted spans, code, addresses, paths and bracketed
-# placeholders are set aside, to name its writer's language.
-[language]
-prose_letters = 6
 
 # A person's own thread from the group rooms they are in, handed to a turn in their private room
 # (docs/unified-bmo.md, 「Checked on every request」): the setting that turns it off where it reads
@@ -272,8 +259,9 @@ archive = "the room's archive"
 [situation]
 holds = "the room's situation"
 ceiling_chars = 600
-head = "Before this round answers or judges whether to answer, update the room's situation note from the new lines. Summarize what is being talked about, who is talking with whom, who waits on whom, and what you have yourself been asked or promised. Never copy a message and never restate your own answer: write a summary in your own words, not a sentence from the room. Say what is still to be done; write no first-person claim that you replied, sent, attached, fixed or answered anything, whether it is fresh in your words or copied from the room. This note is written before the round answers, and only a message the room's record holds counts as sent: where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
+head = "This round writes the room's situation note and nothing else: nothing written here is sent to the room, nobody is answered and no reply is written. Write an analysis of the room as it stands now, from the new lines and the note as it stood before them: what this room is about, what has been talked about and settled so far, who is talking with whom, who waits on whom, what you have yourself been asked or promised, and what is still to be done. Then judge the new lines against that state: what they change, and how it is best answered — the course to take, never the message itself. Never copy a message and never restate your own answer: write an analysis in your own words, not a sentence from the room, and write no first-person claim that you replied, sent, attached, fixed or answered anything, whether it is fresh in your words or copied from the room. Only a message the room's record holds counts as sent, and where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
 previous = "The room's situation note as it stands:"
+front = "The room's situation note, as this round read it:"
 none = "There is no situation note for this room yet."
 recent = "The room's recent words:"
 judged = "The new lines:"

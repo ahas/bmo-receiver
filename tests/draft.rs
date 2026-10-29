@@ -272,6 +272,29 @@ fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_blo
 }
 
 #[test]
+fn the_message_question_is_named_for_the_message_and_never_for_its_place_in_the_process() {
+  let lead = &DRAFTING.last_lead;
+
+  assert!(lead.contains("The message question"), "{lead}");
+  assert!(!lead.contains("last question"), "{lead}");
+  assert!(lead.contains("reviewed before it goes out"), "{lead}");
+  assert!(!lead.contains("sent to the room as you write it"), "{lead}");
+  assert!(!DRAFTING.send_open.contains("sent to this room as written"), "{}", DRAFTING.send_open);
+  assert!(
+    !DRAFTING.send_closed.contains("sent to this room as written"),
+    "{}",
+    DRAFTING.send_closed
+  );
+  assert!(
+    receiver_policy::chat_line::CHAT_LINE
+      .room
+      .process
+      .contains("returns it to be written again"),
+    "the room's block carries the review's return"
+  );
+}
+
+#[test]
 fn the_closing_check_shows_the_message_as_it_stands_and_asks_for_it_whole() {
   use bmo_receiver::chat::draft::closing_words;
 

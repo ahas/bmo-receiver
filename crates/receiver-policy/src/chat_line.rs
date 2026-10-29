@@ -28,8 +28,6 @@ pub struct Room {
   pub head: String,
   pub name: String,
   pub replaces: String,
-  /// The rule of answering each person in the language they write.
-  pub languages: String,
   /// The draft process's fixed rules.
   pub process: String,
   /// That a voice message arrives as text.

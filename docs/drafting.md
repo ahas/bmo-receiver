@@ -85,6 +85,7 @@ leaves.
 | `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, as this room's agent says it to this person, or send nothing; always the last |
 
 - **The process's fixed rules stand in the room's block, not in a turn:** that the message is written last, that
+  it is reviewed before it goes out and that a review which rejects it returns it to be written again, that
   an answer before the last is notes of what was read, the facts established and engraved in the brain, each with
   its source, and what is still unknown, the confidence rule and the source rule above, that nothing is hedged,
   that `<<SKIP>>` ends the process and is for words that ask nothing and change nothing, so a person's telling the
@@ -101,8 +102,9 @@ leaves.
 - **Every later question goes out as one more turn** opening on the process's lead line, naming the question's
   place and count and whether a send is read at this question; then the question; then the turn's scope; then
   the block of messages that arrived since the last answer, where any did (「What came in meanwhile」 below). Every
-  question but the last closes on the messages still waiting and that they are shown with the next question; the
-  last opens on its own line, that its answer is the message. The lines are the policy's (`drafting.toml`).
+  question but the message question closes on the messages still waiting and that they are shown with the next
+  question; the message question opens on its own line, that its answer is the message and that the message is
+  reviewed before it goes out. The lines are the policy's (`drafting.toml`).
 - **No gate is asked for a later question:** the turn carries no reference of its own, and no judgement is
   written for it.
 
@@ -155,12 +157,17 @@ leaves.
 
 ## The situation note
 
+- **The note is an analysis of the room, and it sends nothing.** Its round writes the note and nothing else: it
+  answers nobody and writes no reply, and nothing of it goes to the room. It says what the room is about, what
+  has been talked about and settled so far, who is talking with whom, who waits on whom, what the agent has
+  itself been asked or promised, and what is still to be done, and then it judges the new lines against that
+  state: what they change and how they are best answered, as the course to take and never as the message.
 - **The note says what is talked about and what is owed, never what went out.** It is written before the round
   answers, so it never says that a reply was sent, attached, fixed or answered: where it would say something was
-  sent, it says what remains to be done. It summarizes; it never copies a message or restates the agent's own
-  answer, and it holds no first-person claim that a reply, a fix, an attachment or a send happened, whether the
-  claim is fresh or copied. A note that copies a shown sentence or makes such a claim is refused, and the note as
-  it stood stays. Only a message the room's record holds counts as sent.
+  sent, it says what remains to be done. It never copies a message or restates the agent's own answer, and it
+  holds no first-person claim that a reply, a fix, an attachment or a send happened, whether the claim is fresh or
+  copied. A note that copies a shown sentence or makes such a claim is refused, and the note as it stood stays.
+  Only a message the room's record holds counts as sent.
 - **One note a room, the receiver's own.** The note stands in `room_situations` (`docs/store.md`), one row a room,
   replaced when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation`
   rows are rules for a situation, while this note is written and read by the receiver alone. It is handed as a
@@ -171,6 +178,10 @@ leaves.
   owner's private chat included, before that round's judgement or its own turn. A turn that answers `<<SKIP>>` or
   `<<WAIT>>`, or nothing, leaves the note as it stood. The note is stored before the judgement and the round's
   draft, so both read the same note.
+- **The message round reads the note first.** The turn that writes the message — the process's last question, or
+  the round's own turn where its answer is the message — carries the note at the front of its prompt, above the
+  room's words, so the message is written with the room's state in front of it. Every other round carries the note
+  as a piece of its core.
 - **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
   the policy's `cut`; the update prompt names the ceiling. The extra cost is one light turn a round with words:
   the owner's private chat, which took no update turn before, now gains one a round, and a group room keeps the one
@@ -301,8 +312,8 @@ where it says something: neither empty nor a skip nor a wait.
 - **Once the review has passed, the text is checked before it is sent,** with no model:
   - `format`: none of the process's own lines stands in the text: no question it was asked, and not the head of
     the block of words that came meanwhile.
-  There is no length check. The language an answer is written in is the agent's own rule, read in the turn's
-  `ANSWER LANGUAGE` line and the room's block; no check on the send path reads it.
+  There is no length check, and no check reads the language an answer is written in: that is the agent's own
+  judgement (`docs/answer-checks.md`, 「The language an answer goes out in」).
 - **A check that fails is asked once:** one more turn of the same session, the check's errand naming what is
   wrong, its answer the text from then on. The check then reads the new text. A `format` check that fails again
   sends nothing, and the end of the process records the check that failed. A check that fails only after

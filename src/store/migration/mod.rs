@@ -31,6 +31,7 @@ pub mod m20261027_000023_voice_transcripts;
 pub mod m20261028_000024_message_image_state;
 pub mod m20261028_000026_instructions_agent_only;
 pub mod m20261028_000027_draft_turn_seconds_removed;
+pub mod m20261029_000028_people_languages_dropped;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -68,6 +69,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261028_000024_message_image_state::Migration),
       Box::new(m20261028_000026_instructions_agent_only::Migration),
       Box::new(m20261028_000027_draft_turn_seconds_removed::Migration),
+      Box::new(m20261029_000028_people_languages_dropped::Migration),
     ]
   }
 }

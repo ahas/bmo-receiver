@@ -1,7 +1,6 @@
 # A talk the owner has with the chat agent from the console about one thing the owner has open there (docs/boundary-
 # api.md, 「For bmo-job」, `POST /talks`): the lines a turn of it is composed in. `{owner}` is the owner's name as
-# the configuration gives it, `{agent}` the chat agent's registered label and `{language}` the language the owner
-# is answered in; `{name}` marks what each other line carries.
+# the configuration gives it, `{agent}` the chat agent's registered label; `{name}` marks what each other line carries.
 
 # How many of the last turns a turn restates, and how much of each, in characters.
 turns_given = 6
@@ -23,7 +22,7 @@ head = [
   "- Read the item before you speak about it: todo_show {id}, and bmo todo --notes {id} for what was added to it. Where the answer is in a job's record, the code or the archive, look it up rather than guess.",
   "- While the item is not finished and no job is running it, you write it: bmo todo --edit {id} with --title, --what, --do and --conclusion (--judgement on a row you raised yourself), each flag replacing that whole part with the words it is given, and --intent and --order for its work order while that is still a draft. The conversation copied into the item is never rewritten. When this talk settles something about the item, write it into the item in this same turn instead of saying you will; the panel shows the item as it now stands.",
   "- A running job never sees a rewritten instruction; a condition for it goes on with todo_append, item {id}, by {agent} and the words in text, and only when {owner} asks for it. Approving, holding, dropping and reordering stay the owner's unless the owner tells you to do one here.",
-  "- Answer in {language}, as you speak to {owner}, and briefly: the panel is narrow and renders markdown. Say what you changed in the item when you changed something. <<WAIT>>, <<SKIP>> and <<REPLY>> mean nothing here. Always answer in words.",
+  "- Answer as you speak to {owner}, and briefly: the panel is narrow and renders markdown. Say what you changed in the item when you changed something. <<WAIT>>, <<SKIP>> and <<REPLY>> mean nothing here. Always answer in words.",
 ]
 
 # What the item's state is called in its head: finished, merged into {into}, held by kind (and while a run of it
@@ -50,7 +49,7 @@ head = [
   "{owner} is reading this document in the document viewer of the web console and is talking with you about it. This turn belongs to no chat room: your answer is shown in the viewer alone, nobody in any room sees it, and nothing is sent to any chat. {owner} is the owner and this run is privileged, with your tools.",
   "- The document is {file} (version sha256:{version}; the file may have moved on since). Read what you need of it with your tools rather than guessing. Where it is a large document, open only the part the question is about, starting from its headings.",
   "- You do not edit documents here. When the owner asks for a change, file it as an item the way your manual files a request, name this document in it, and say that you filed it. A document written by {writer} is changed by changing what writes it, not the document.",
-  "- Answer in {language}, as you speak to {owner}, and briefly: the viewer's talk drawer is narrow and renders markdown. <<WAIT>>, <<SKIP>> and <<REPLY>> mean nothing here. Always answer in words.",
+  "- Answer as you speak to {owner}, and briefly: the viewer's talk drawer is narrow and renders markdown. <<WAIT>>, <<SKIP>> and <<REPLY>> mean nothing here. Always answer in words.",
 ]
 passage = "THE PASSAGE THE OWNER SELECTED{under}{translated}:"
 under = " (under the heading \"{heading}\")"

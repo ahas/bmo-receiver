@@ -17,7 +17,6 @@ pub mod fold;
 pub mod handoff;
 pub mod health;
 pub mod instructions;
-pub mod languages;
 pub mod logins;
 pub mod mid_turn;
 pub mod notices;
