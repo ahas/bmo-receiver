@@ -252,6 +252,10 @@ session once the setting has changed, one waiting per setting.
 | `downgrade-forced` | the model was replaced on its own |
 | `full` | the session filled its window and its provider hands it over by its own note rather than a fold |
 
+Only `expired` and `full` are chosen by this service for a replacement: a road or login that moved, a head that
+moved and a session with no record of its prefix all resume the session (`docs/unified-bmo.md`, 「Replacing the
+session」). The other kinds stay named here for the rows and events an archive holds.
+
 ### TurnOpening
 
 | Kind | Meaning |

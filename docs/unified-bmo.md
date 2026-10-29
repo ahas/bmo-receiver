@@ -164,13 +164,20 @@
 
 ## Replacing the session
 
-- **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
-  effort, or another login), the cache lifetime its provider declares passed (`providers.toml`, `cache_minutes`,
-  else `keepalive_idle_minutes`), or the owner asked for a fresh
-  start. The agency carries the replacement as the session's provider declares.
-  A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
-  folded: the owner's word to start it afresh is written for it, with the reason `full`, and its next turn
-  replaces it.
+- **The session is replaced only when its cache has gone cold or its context has reached its mark.** Two things
+  make a new session, and nothing else does:
+  - **the cache lifetime its provider declares passed** (`providers.toml`, `cache_minutes`, else
+    `keepalive_idle_minutes`), read on the session's own last answer; and
+  - **a full session whose provider hands it over by its own note** (`providers.toml`, `handover = "handoff"`),
+    which is not folded: the owner's word to start it afresh is written for it, with the reason `full`, and its
+    next turn replaces it.
+  A reset the owner asks of an agent's session is agency's own route and stands as the owner's command (its
+  `docs/session-resets.md`); the receiver sees the new session its next turn opens. The agency carries a
+  replacement as the session's provider declares.
+- **Nothing else replaces it.** A road that moved (another provider, model or effort, or another login), a head
+  that moved, a node that moved and a session with no record of its head all resume the one session the agent
+  has: the agency carries the session's record to the road its next turn goes out on, and that turn is appended to
+  what the session remembers. A session whose record is gone is a loss, not a replacement, and is told as one.
 - **A session past its cache lifetime is never woken.** Nothing opens a turn on it: no keepalive touch, no fold,
   no quiet instruction, no push and no spoken script (`docs/bmo-window.md`, 「The touch」; `docs/wake.md`, 「Quiet
   instructions」; `docs/voiced-notices.md`). Waking it would have the provider read its whole prefix again for
@@ -182,16 +189,14 @@
   keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of
   it, so no part of a turn is the head: not the room-switch block or its mark, the brain's index block, the turn's
   scope line, the queue line, the room's facts, the words and instructions it carries or its closing lines, and
-  not a question, an item or a check of the draft process. A turn of any room on an unmoved head resumes the
-  session.
-- **The agency says whether the head moved.** The session's state names why its prefix changed where the
-  agency names it (`prefixChangeReason`, the agency's `docs/api.md`, 「Sessions」); each turn the receiver
-  carries keeps the reason the state named, and a later turn whose state names another replaces the session.
-  Where the agency names none, the receiver's own measure stands in: the fingerprint of the fixed lines every
-  round's turn is written in (the round policy's header, block, closing, queue and push lines), which a
-  deployment that rewrites them moves and nothing a room or a turn fills in does.
-- **A session with no record of its head** is resumed where the agency's state says it was never opened (its
-  generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
+  not a question, an item or a check of the draft process. A turn on a head that moved resumes the session and
+  writes the new head, paying the prefix once.
+- **The agency's reason for a moved prefix is recorded, never acted on.** The session's state names why its
+  prefix changed where the agency names it (`prefixChangeReason`, the agency's `docs/api.md`, 「Sessions」); the
+  receiver keeps it on the session's cache record and the fingerprint of the fixed lines every round's turn is
+  written in, for what they say of the session. Neither replaces a session.
+- **A session with no record of its head** is resumed, the record starting with this turn: the agency's state
+  says whether it was ever opened, and either way the session is the one the agent has.
 - **Before the old session is ended it writes its handoff,** whatever the reason. The receiver asks it one more
   turn, the handover policy's `ask` instruction (`handover.toml`), naming the file it writes with its file tool:
   `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」). The file

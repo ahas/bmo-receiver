@@ -1,8 +1,8 @@
-//! Replacing the chat agent's one session (docs/unified-bmo.md, 「Replacing the session」): a turn on an unmoved
-//! head resumes the session whatever its own composition carries, and a head the agency says moved replaces it.
-//! Before it is ended the old session writes its handoff file, which the new session's first turn carries; where it
-//! writes nothing the receiver's transcript of it stands in, and only where neither stands is nothing recovered and
-//! the owner told so.
+//! Replacing the chat agent's one session (docs/unified-bmo.md, 「Replacing the session」): a turn resumes the
+//! session whatever its own composition carries, and a moved head or a session with no record of its head resumes
+//! it too; only a session past its cache lifetime, or the owner's own word, replaces it. Before it is ended the old
+//! session writes its handoff file, which the new session's first turn carries; where it writes nothing the
+//! receiver's transcript of it stands in, and only where neither stands is nothing recovered and the owner told so.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -171,30 +171,32 @@ async fn two_rounds_of_a_room_on_an_unmoved_head_go_on_the_one_session() {
 }
 
 #[tokio::test]
-async fn a_head_the_agency_says_moved_replaces_the_session() {
+async fn a_head_the_agency_says_moved_resumes_the_session() {
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
 
   unified.round(1, "the first words").await;
   unified.session.prefix_changed("reload: a prompt document");
   unified.round(2, "the second words").await;
 
-  let ended = unified.standing.agency.ended();
+  let prompts = unified.session.prompts();
 
-  assert_eq!(ended, [SESSION], "a reason the last turn did not keep replaces the session once");
-
-  let count = unified.session.prompts().len();
-
-  unified.round(3, "the third words").await;
-  assert_eq!(unified.standing.agency.ended(), ended, "the reason kept moves nothing more");
-  assert!(unified.session.prompts().len() > count);
+  assert_eq!(prompts.len(), 2, "{prompts:?}");
+  assert!(unified.standing.agency.ended().is_empty(), "a moved head never replaces the session");
+  assert!(
+    prompts.iter().all(|prompt| !prompt.contains("previous session was closed")),
+    "no turn is told of a replacement: {prompts:?}"
+  );
 }
 
 #[tokio::test]
-async fn a_session_opened_before_with_no_record_of_its_head_is_replaced_and_one_never_opened_is_not() {
+async fn a_session_with_no_record_of_its_head_is_resumed() {
   let opened = Unified::on(StandInSession::new(SESSION, ANSWER).at_generation(3)).await;
 
   opened.round(1, "the first words").await;
-  assert_eq!(opened.standing.agency.ended(), [SESSION]);
+  assert!(
+    opened.standing.agency.ended().is_empty(),
+    "a session with no record of its head is resumed"
+  );
 
   let fresh = Unified::on(StandInSession::new(SESSION, ANSWER).at_generation(0)).await;
 
@@ -211,7 +213,13 @@ async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_ses
       .await;
 
   unified.round(1, "the first words").await;
-  unified.session.prefix_changed("reload: a prompt document");
+  bmo_receiver::chat::cache::force_reset(
+    unified.scratch.db(),
+    AGENT,
+    receiver_codes::SessionReason::DowngradeForced,
+  )
+  .await
+  .unwrap();
   unified.round(2, "the second words").await;
 
   let prompts = unified.session.prompts();
@@ -245,7 +253,13 @@ async fn a_session_that_writes_no_handoff_leaves_the_transcript_of_what_it_answe
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
 
   unified.round(1, "the first words").await;
-  unified.session.prefix_changed("reload: a prompt document");
+  bmo_receiver::chat::cache::force_reset(
+    unified.scratch.db(),
+    AGENT,
+    receiver_codes::SessionReason::DowngradeForced,
+  )
+  .await
+  .unwrap();
   unified.round(2, "the second words").await;
 
   let prompts = unified.session.prompts();
