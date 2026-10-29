@@ -2004,9 +2004,9 @@ impl Conversations {
   }
 
   // The room's situation note updated from the words this round judges, one light turn of the same session
-  // (docs/drafting.md, 「The situation note」): the note as it stands, the room's recent words and the new lines in
-  // the policy's words; its answer is the note, kept and attached to every message judged. Every round with words
-  // takes it, the owner's private chat included.
+  // (docs/drafting.md, 「The situation note」): the note as it stands and the messages that came in since it last
+  // read the room's record, in the policy's words; its answer is the note, kept with the row it read to and
+  // attached to every message judged. Every round with words takes it, the owner's private chat included.
   async fn situation_update(
     &self,
     chat_id: i64,
@@ -2015,26 +2015,36 @@ impl Conversations {
     via: &str,
   ) -> Result<(), Failure> {
     let receiver = self.receiver();
-    let judged: HashSet<i64> = batch.iter().map(|message| message.message_id).collect();
-    let recent: Vec<Inbound> =
-      rows::recent_messages(receiver.db(), chat_id, CHAT_ROUND.recent_messages, "")
-        .await
-        .map_err(|why| Failure::Failed(why.detail))?
-        .into_iter()
-        .filter(|message| !judged.contains(&message.message_id))
-        .collect();
-    let shown: HashSet<i64> =
-      recent.iter().map(|message| message.message_id).chain(judged.iter().copied()).collect();
+    // What the note has not read yet: the room's record after the row it read to, or, where the room has no note
+    // yet, the latest messages the policy names, so the first note has a room to stand on. The words this round
+    // holds are shown with them, whether or not the room's record carries them yet.
+    let cursor = super::situation::read_through(receiver.db(), chat_id).await.unwrap_or(None);
+    let rows = match cursor {
+      Some(after) => rows::messages_since_row(receiver.db(), chat_id, after, "").await,
+      None => rows::recent_rows(receiver.db(), chat_id, CHAT_ROUND.recent_messages, "").await,
+    }
+    .map_err(|why| Failure::Failed(why.detail))?;
+    let through = rows.iter().map(|(row, _)| *row).max();
+    let mut messages: Vec<Inbound> = rows.into_iter().map(|(_, message)| message).collect();
+
+    for message in batch {
+      if !messages.iter().any(|shown| shown.message_id == message.message_id) {
+        messages.push(message.clone());
+      }
+    }
+
+    messages.sort_by_key(|message| (message.sent_at, message.message_id));
+
+    let shown: HashSet<i64> = messages.iter().map(|message| message.message_id).collect();
     let reading = Reading {
       receiver: &receiver,
       owner: self.owner(),
       fetch_on_demand: false,
       shown: &shown,
     };
-    let recent_lines = reading.lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
-    let judged_lines = reading.lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
+    let lines = reading.lines(&messages).await.map_err(|why| Failure::Failed(why.detail))?;
     let old = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
-    let prompt = super::situation::update_prompt(old.as_deref(), &recent_lines, &judged_lines);
+    let prompt = super::situation::update_prompt(old.as_deref(), &lines);
     let asking = Asking {
       chat_id,
       session: held.session.clone().unwrap_or_default(),
@@ -2055,12 +2065,11 @@ impl Conversations {
     held.replaced = reply.replaced.clone();
     self.keep_session(chat_id, held);
 
-    let shown: Vec<String> = recent_lines.iter().chain(judged_lines.iter()).cloned().collect();
-    let note = super::situation::note_from_answer(&reply.text, &shown).or(old.clone());
+    let note = super::situation::note_from_answer(&reply.text, &lines).or(old.clone());
     let changed = note.is_some() && note != old;
 
     if let Some(note) = &note
-      && let Err(why) = super::situation::write(receiver.db(), chat_id, note).await
+      && let Err(why) = super::situation::write(receiver.db(), chat_id, note, through).await
     {
       eprintln!("chat {chat_id}: the situation note was not kept: {}", why.detail);
     }

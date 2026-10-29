@@ -279,8 +279,8 @@ pub struct Situation {
   /// The line the message round reads the note under, ahead of the room's words.
   pub front: String,
   pub none: String,
-  pub recent: String,
-  pub judged: String,
+  /// The line the messages that came in since the note last read the room's record stand under.
+  pub since: String,
   pub cut: String,
   /// A first-person claim in the room's language that a reply, fix, attachment or send happened.
   pub claim: String,

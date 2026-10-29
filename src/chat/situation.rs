@@ -1,6 +1,7 @@
 //! The room's situation note (docs/drafting.md, 「The situation note」): one light turn before the supervisor's
-//! judgement reads the room's note as it stands and the new lines, writes it afresh and keeps it for the room. The
-//! note is the receiver's own row, one a room, and is handed to the judgement and to the round's draft as a piece.
+//! judgement reads the room's note as it stands and the messages that came in since it last read the room's
+//! record, writes it afresh and keeps it for the room with the row it read to. The note is the receiver's own row,
+//! one a room, and is handed to the judgement and to the round's draft as a piece.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
@@ -37,18 +38,43 @@ pub async fn read(db: &DatabaseConnection, chat_id: i64) -> Result<Option<String
   Ok((!text.trim().is_empty() && !first_person_claim(&text, &CHAT_ROUND.situation.claim)).then_some(text))
 }
 
-/// The room's note replaced by what the update turn wrote, the row taken only where the note changed.
-pub async fn write(db: &DatabaseConnection, chat_id: i64, text: &str) -> Result<(), Fault> {
+/// The room's note replaced by what the update turn wrote, and the row of the room's record it has read to, taken
+/// only where the note changed; the position moves even where the note stands.
+pub async fn write(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  text: &str,
+  read_through: Option<i64>,
+) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at") VALUES ($1, $2, $3)
-       ON CONFLICT ("chat_id") DO UPDATE SET "text" = excluded."text", "updated_at" = excluded."updated_at"
-       WHERE "room_situations"."text" IS DISTINCT FROM excluded."text""#,
-    vec![chat_id.into(), text.into(), now_ms().into()],
+    r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at", "read_through")
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT ("chat_id") DO UPDATE SET
+         "updated_at" = CASE WHEN "room_situations"."text" IS DISTINCT FROM excluded."text"
+           THEN excluded."updated_at" ELSE "room_situations"."updated_at" END,
+         "text" = excluded."text",
+         "read_through" = COALESCE(excluded."read_through", "room_situations"."read_through")"#,
+    vec![chat_id.into(), text.into(), now_ms().into(), read_through.into()],
   )
   .await?;
 
   Ok(())
+}
+
+/// The row of the room's record the note has read to, none where the room has no note yet.
+pub async fn read_through(db: &DatabaseConnection, chat_id: i64) -> Result<Option<i64>, Fault> {
+  let Some(row) = one(
+    db,
+    r#"SELECT "read_through" FROM "room_situations" WHERE "chat_id" = $1"#,
+    vec![chat_id.into()],
+  )
+  .await?
+  else {
+    return Ok(None);
+  };
+
+  Ok(row.try_get::<Option<i64>>("", "read_through")?)
 }
 
 /// The room's note and when it last changed, none where the room has none yet.
@@ -113,19 +139,17 @@ pub async fn entry(receiver: &Receiver, chat_id: i64) -> Result<Option<Entry>, F
   }))
 }
 
-/// The one turn that updates the note: the note as it stands, the room's recent words and the new lines.
-pub fn update_prompt(old: Option<&str>, recent: &[String], judged: &[String]) -> String {
+/// The one turn that updates the note: the note as it stands and the room's messages that came in since the note
+/// last read the room's record.
+pub fn update_prompt(old: Option<&str>, lines: &[String]) -> String {
   let said = &CHAT_ROUND.situation;
   let head = fill_marks(&said.head, &[("ceiling", &said.ceiling_chars.to_string())]);
   let mut parts = vec![head, String::new(), said.previous.clone()];
 
   parts.push(old.map(str::to_owned).unwrap_or_else(|| said.none.clone()));
   parts.push(String::new());
-  parts.push(said.recent.clone());
-  parts.extend(recent.iter().cloned());
-  parts.push(String::new());
-  parts.push(said.judged.clone());
-  parts.extend(judged.iter().cloned());
+  parts.push(said.since.clone());
+  parts.extend(lines.iter().cloned());
   parts.join("\n")
 }
 

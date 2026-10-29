@@ -71,7 +71,7 @@ takes it outright: the table holds no default agent.
 | `draft_processes` | a row of the draft process table the console set, over the policy's (`docs/drafting.md`, 「The process table」): the questions of an ordinary and a light turn, the question a send is read from, the light bound, the ceiling and what is done past it, and when it was set | provider, tier and agent |
 | `draft_questions` | a question's text the console set, over the policy's catalogue, and when | its name |
 | `draft_rounds` | one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」): the round, the room, the agent, its number, the question, its kind, its answer's length, whether it changed, how it ended, a detail, the answer, how long it took and when, and on the end what the round read from the brain | its number |
-| `room_situations` | a room's situation note, the receiver's own (`docs/drafting.md`, 「The situation note」): its text, replaced when it changes, and when it last did | room |
+| `room_situations` | a room's situation note, the receiver's own (`docs/drafting.md`, 「The situation note」): its text, replaced when it changes, when it last did, and the row of the room's record it has read to | room |
 
 A room's situation note is the receiver's own row, one a room: the room's live state, not the agent's memory. The
 brain's `situation` rows stay rules for a situation, and this note is written and read by the receiver alone. Its

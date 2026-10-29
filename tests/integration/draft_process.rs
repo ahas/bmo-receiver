@@ -634,6 +634,37 @@ async fn a_private_chat_round_writes_the_situation_note_and_hands_it_to_the_judg
 }
 
 #[tokio::test]
+async fn a_second_rounds_note_turn_reads_only_what_came_since_the_note() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[
+    "note one",
+    "message one",
+    "note two",
+    "message two",
+  ]);
+  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, "first words").await;
+  round.ended(2).await;
+  round.hear(2, "second words").await;
+  round.ended(4).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 4, "{prompts:#?}");
+  assert!(
+    prompts[0].contains("first words"),
+    "the first note seeds from the room's latest messages: {}",
+    prompts[0]
+  );
+  assert!(prompts[2].contains("second words"), "{}", prompts[2]);
+  assert!(
+    !prompts[2].contains("first words"),
+    "the note turn reads only what came since the note: {}",
+    prompts[2]
+  );
+}
+
+#[tokio::test]
 async fn a_private_chat_skip_leaves_the_standing_note_unchanged() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "the message"]);
   let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
@@ -861,7 +892,7 @@ async fn a_skip_in_the_second_question_sends_nothing() {
 
 #[test]
 fn the_situation_update_says_never_that_a_reply_went_out() {
-  let prompt = bmo_receiver::chat::situation::update_prompt(None, &[], &[]);
+  let prompt = bmo_receiver::chat::situation::update_prompt(None, &[]);
 
   assert!(prompt.contains("nothing written here is sent to the room"), "{prompt}");
   assert!(prompt.contains("how it is best answered"), "{prompt}");

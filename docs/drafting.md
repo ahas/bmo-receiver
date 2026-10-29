@@ -160,8 +160,8 @@ leaves.
 - **The note is an analysis of the room, and it sends nothing.** Its round writes the note and nothing else: it
   answers nobody and writes no reply, and nothing of it goes to the room. It says what the room is about, what
   has been talked about and settled so far, who is talking with whom, who waits on whom, what the agent has
-  itself been asked or promised, and what is still to be done, and then it judges the new lines against that
-  state: what they change and how they are best answered, as the course to take and never as the message.
+  itself been asked or promised, and what is still to be done, and then it judges what came in against that
+  state: what it changes and how the room is best answered, as the course to take and never as the message.
 - **The note says what is talked about and what is owed, never what went out.** It is written before the round
   answers, so it never says that a reply was sent, attached, fixed or answered: where it would say something was
   sent, it says what remains to be done. It never copies a message or restates the agent's own answer, and it
@@ -169,26 +169,27 @@ leaves.
   copied. A note that copies a shown sentence or makes such a claim is refused, and the note as it stood stays.
   Only a message the room's record holds counts as sent.
 - **One note a room, the receiver's own.** The note stands in `room_situations` (`docs/store.md`), one row a room,
-  replaced when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation`
-  rows are rules for a situation, while this note is written and read by the receiver alone. It is handed as a
-  piece of the round's core at `room-situations/<room>`, with the source the gate calls a situation and the holds the
-  policy names (`chat-round.toml`, `[situation]`, `holds`).
-- **One light turn a round, in every room.** The update turn carries the note as it stands, the room's recent
-  words and the new lines, in the policy's words; its answer is the note. It runs for every round with words, the
-  owner's private chat included, before that round's judgement or its own turn. A turn that answers `<<SKIP>>` or
-  `<<WAIT>>`, or nothing, leaves the note as it stood. The note is stored before the judgement and the round's
-  draft, so both read the same note.
+  replaced when it changes, with the row of the room's record it has read to. It is the room's live state, not the
+  agent's long-term memory: the brain's `situation` rows are rules for a situation, while this note is written and
+  read by the receiver alone. It is handed as a piece of the round's core at `room-situations/<room>`, with the
+  source the gate calls a situation and the holds the policy names (`chat-round.toml`, `[situation]`, `holds`).
+- **One light turn a round, in every room, reading only what the note has not.** The update turn carries the note
+  as it stands and the room's messages that came in since the note last read the record, in the policy's words;
+  its answer is the note, and the row of the last message it read to is kept with it. Where the room has no note
+  yet, it carries the latest messages the policy names (`recent_messages`, 30) and takes its first position at the
+  newest of them. It runs for every round with words, the owner's private chat included, before that round's
+  judgement or its own turn. A turn that answers `<<SKIP>>` or `<<WAIT>>`, or nothing, leaves the note's words as
+  it stood but takes its position forward with what it read. The note is stored before the judgement and the
+  round's draft, so both read the same note.
 - **The message round reads the note first.** The turn that writes the message — the process's last question, or
   the round's own turn where its answer is the message — carries the note at the front of its prompt, above the
   room's words, so the message is written with the room's state in front of it. Every other round carries the note
   as a piece of its core.
 - **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
-  the policy's `cut`; the update prompt names the ceiling. The extra cost is one light turn a round with words:
-  the owner's private chat, which took no update turn before, now gains one a round, and a group room keeps the one
-  it had. On a short line with the note at the ceiling, the update prompt measures about 3,400 characters and the
-  note adds about 600 to the judgement where one is asked, some 4,000 characters, or roughly 1,000 tokens at four
-  characters to a token. The fixed room context stands in both turns, so the update turn is the larger part of the
-  extra.
+  the policy's `cut`; the update prompt names the ceiling. The extra cost is one light turn a round with words: the
+  note it reads, under the ceiling, and the room's messages since the note last read the record, which on a room
+  keeping up is the round's own words. A room with no note yet pays the `recent_messages` window once. The fixed
+  room context stands in that turn and the round's, so the update turn is the larger part of the extra.
 - **The console reads the note beside each judgement.** The note stands on every message the round judged, with
   whether that round wrote it afresh (`docs/api.md`, the `Message`'s `situation`), so a message's judgement record
   says what the room's situation was as the round read it; the owner's private chat's messages carry it too. A room

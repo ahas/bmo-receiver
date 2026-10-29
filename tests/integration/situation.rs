@@ -109,7 +109,7 @@ fn a_note_summarizing_the_same_exchange_passes() {
 
 #[test]
 fn the_note_prompt_bans_copying_and_first_person_claims() {
-  let prompt = update_prompt(None, &[], &[]);
+  let prompt = update_prompt(None, &[]);
 
   assert!(prompt.contains("nothing written here is sent to the room"), "{prompt}");
   assert!(prompt.contains("what this room is about"), "{prompt}");

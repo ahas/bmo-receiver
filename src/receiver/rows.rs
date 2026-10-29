@@ -212,6 +212,52 @@ pub async fn message(
 }
 
 /// The room's latest messages, oldest first in the room's line: by when each was sent, and then by when it was
+/// written down, with the row of the room's record each stands at.
+pub async fn recent_rows(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  count: u64,
+  via: &str,
+) -> Result<Vec<(i64, Inbound)>, Fault> {
+  let rows = all(
+    db,
+    r#"SELECT * FROM (SELECT * FROM "messages" WHERE "chat_id" = $1 ORDER BY "sent_at" DESC, "rowid" DESC LIMIT $2) "m"
+       ORDER BY "sent_at", "rowid""#,
+    vec![chat_id.into(), i64::try_from(count).unwrap_or(i64::MAX).into()],
+  )
+  .await?;
+  let mut found = Vec::with_capacity(rows.len());
+
+  for row in &rows {
+    found.push((row.try_get("", "rowid")?, inbound_of(row, via)?));
+  }
+
+  Ok(found)
+}
+
+/// The room's messages written down after one row of the room's record, oldest first, with the row each stands at.
+pub async fn messages_since_row(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  after: i64,
+  via: &str,
+) -> Result<Vec<(i64, Inbound)>, Fault> {
+  let rows = all(
+    db,
+    r#"SELECT * FROM "messages" WHERE "chat_id" = $1 AND "rowid" > $2 ORDER BY "sent_at", "rowid""#,
+    vec![chat_id.into(), after.into()],
+  )
+  .await?;
+  let mut found = Vec::with_capacity(rows.len());
+
+  for row in &rows {
+    found.push((row.try_get("", "rowid")?, inbound_of(row, via)?));
+  }
+
+  Ok(found)
+}
+
+/// The room's latest messages, oldest first in the room's line: by when each was sent, and then by when it was
 /// written down.
 pub async fn recent_messages(
   db: &DatabaseConnection,
