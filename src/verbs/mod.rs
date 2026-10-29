@@ -16,6 +16,7 @@ pub mod room_files;
 pub mod room_rules;
 pub mod room_switches;
 pub mod sends;
+pub mod talk;
 pub mod turn;
 
 use std::path::PathBuf;

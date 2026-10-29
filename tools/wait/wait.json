@@ -1,12 +1,28 @@
 {
   "additionalProperties": false,
   "properties": {
+    "check": {
+      "description": "The shell command run through sh, every few seconds until a run of it exits 0: a watch on a wait. Give this, seconds, or until.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "every": {
+      "description": "Seconds between runs of the check, 60 where not given; a run that outlasts it is ended. With check alone.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
     "note": {
-      "description": "What the answer says once the wait is over: what you are to remember then.",
+      "description": "What the answer says once the wait is over or the check holds: what you are to remember then.",
       "type": "string"
     },
     "seconds": {
-      "description": "How many seconds to wait. Give this or until.",
+      "description": "How many seconds to wait. Give this, until, or check.",
       "format": "uint64",
       "minimum": 0,
       "type": [
@@ -15,9 +31,18 @@
       ]
     },
     "until": {
-      "description": "The moment to wait until, a date and time with its offset from UTC as RFC 3339 writes it, such as 2026-10-24T09:00:00+09:00. Give this or seconds.",
+      "description": "The moment to wait until, a date and time with its offset from UTC as RFC 3339 writes it, such as 2026-10-24T09:00:00+09:00. Give this, seconds, or check.",
       "type": [
         "string",
+        "null"
+      ]
+    },
+    "within": {
+      "description": "Seconds after which a check that has not held ends the wait as lapsed; none where not given. With check alone.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
         "null"
       ]
     }

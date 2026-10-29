@@ -17,9 +17,6 @@ use tool_call::{Answer, Asked, Entry, Handed, MadeSchema, input_schema};
 /// The catalogue's capability every entry is shown by.
 const CATALOGUE: &[&str] = &["room.tools"];
 
-// A wait reads nothing and changes nothing, so it is reached by `call`.
-const READS: &[(&str, bool)] = &[("read_only", true)];
-
 // A watch runs a command of the caller's, which may reach anything.
 const REACHES_OUT: &[(&str, bool)] = &[("open_world", true)];
 
@@ -35,28 +32,22 @@ const CLOCK_READ: Duration = Duration::from_secs(30);
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WaitInput {
-  /// How many seconds to wait. Give this or until.
+  /// How many seconds to wait. Give this, until, or check.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub seconds: Option<u64>,
-  /// The moment to wait until, a date and time with its offset from UTC as RFC 3339 writes it, such as 2026-10-24T09:00:00+09:00. Give this or seconds.
+  /// The moment to wait until, a date and time with its offset from UTC as RFC 3339 writes it, such as 2026-10-24T09:00:00+09:00. Give this, seconds, or check.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub until: Option<String>,
-  /// What the answer says once the wait is over: what you are to remember then.
-  pub note: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct WatchInput {
-  /// The shell command run through sh; the watch answers once a run of it exits 0.
-  pub check: String,
-  /// Seconds between runs of the check, 60 where not given; a run that outlasts it is ended.
+  /// The shell command run through sh, every few seconds until a run of it exits 0: a watch on a wait. Give this, seconds, or until.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub check: Option<String>,
+  /// Seconds between runs of the check, 60 where not given; a run that outlasts it is ended. With check alone.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub every: Option<u64>,
-  /// Seconds after which a check that has not held ends the watch as lapsed; none where not given.
+  /// Seconds after which a check that has not held ends the wait as lapsed; none where not given. With check alone.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub within: Option<u64>,
-  /// What the answer says once the check holds or the watch lapses: what you are to remember then.
+  /// What the answer says once the wait is over or the check holds: what you are to remember then.
   pub note: String,
 }
 
@@ -81,23 +72,15 @@ const fn entry(
   }
 }
 
-/// Every entry the executable answers, as its manifest declares them.
-pub const ENTRIES: &[Entry] = &[
-  entry(
-    "wait",
-    "Wait some seconds, or until a moment, and answer with the note: a reminder, run as bmo use bmo/wait --async so its end wakes you in the room.",
-    "wait.json",
-    input_schema::<WaitInput>,
-    READS,
-  ),
-  entry(
-    "watch",
-    "Run a shell check every few seconds until it exits 0, and answer with the note and what it wrote: a watch, run as bmo use bmo/watch --async so its end wakes you in the room.",
-    "watch.json",
-    input_schema::<WatchInput>,
-    REACHES_OUT,
-  ),
-];
+/// Every entry the executable answers, as its manifest declares them: one wait, which carries a reminder and
+/// a watch on a check alike.
+pub const ENTRIES: &[Entry] = &[entry(
+  "wait",
+  "Wait some seconds or until a moment, or run a shell check every few seconds until it exits 0, and answer with the note: a reminder or a watch, run as bmo use bmo/wait --async so its end wakes you in the room.",
+  "wait.json",
+  input_schema::<WaitInput>,
+  REACHES_OUT,
+)];
 
 fn read<T: serde::de::DeserializeOwned>(name: &str, arguments: Value) -> Result<T, Answer> {
   serde_json::from_value(arguments)
@@ -194,10 +177,10 @@ fn shown(output: &str) -> String {
 }
 
 /// A watch: the check run at once and then every `every` seconds, until a run exits 0 or `within` has passed.
-pub async fn watch(input: WatchInput) -> Answer {
-  if input.check.trim().is_empty() {
+pub async fn watch(input: WaitInput) -> Answer {
+  let Some(check) = input.check.as_deref().map(str::trim).filter(|check| !check.is_empty()) else {
     return Answer::refusal("check names no command");
-  }
+  };
 
   let every = Duration::from_secs(input.every.unwrap_or(EVERY).max(1));
   let within = input.within.map(Duration::from_secs);
@@ -207,7 +190,7 @@ pub async fn watch(input: WatchInput) -> Answer {
   loop {
     runs += 1;
 
-    let run = match run_check(&input.check, every).await {
+    let run = match run_check(check, every).await {
       Ok(run) => run,
       Err(why) => return Answer::failure(why),
     };
@@ -239,12 +222,23 @@ pub async fn watch(input: WatchInput) -> Answer {
   }
 }
 
-/// One call of an entry, by its name, with its arguments.
+/// One call of an entry, by its name, with its arguments: a wait, which runs a check until it holds where the
+/// call names one and otherwise waits for its moment.
 pub async fn call(name: &str, arguments: Value) -> Answer {
   let asked = async {
     Ok::<Answer, Answer>(match name {
-      "wait" => wait(read(name, arguments)?).await,
-      "watch" => watch(read(name, arguments)?).await,
+      "wait" => {
+        let input: WaitInput = read(name, arguments)?;
+
+        match (input.check.is_some(), input.seconds, input.until.as_deref()) {
+          (true, None, None) => watch(input).await,
+          (true, _, _) => Answer::refusal("give check or seconds or until, not both"),
+          (false, _, _) if input.every.is_some() || input.within.is_some() => {
+            Answer::refusal("every and within go with check")
+          }
+          (false, _, _) => wait(input).await,
+        }
+      }
       other => Answer::failure(format!("this executable holds no entry {other}")),
     })
   };

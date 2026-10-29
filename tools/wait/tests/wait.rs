@@ -50,6 +50,9 @@ fn a_wait_ends_seconds_from_now_or_at_the_moment_it_names_and_is_refused_both_or
   let input = |seconds: Option<u64>, until: Option<&str>| WaitInput {
     seconds,
     until: until.map(str::to_owned),
+    check: None,
+    every: None,
+    within: None,
     note: "n".to_owned(),
   };
 
@@ -99,7 +102,7 @@ async fn a_watch_answers_once_its_check_exits_zero_with_what_it_wrote() {
   let scratch = tempdir().unwrap();
   let flag = scratch.path().join("flag");
   let check = format!("if [ -e {0} ]; then echo found; exit 0; fi; touch {0}; exit 1", flag.display());
-  let said = call("watch", json!({ "check": check, "every": 1, "note": "it is there" })).await;
+  let said = call("wait", json!({ "check": check, "every": 1, "note": "it is there" })).await;
 
   assert!(!said.is_error, "{}", said.plain());
   assert_eq!(said.plain(), "it is there\nthe check held on run 2; it wrote:\nfound");
@@ -108,11 +111,8 @@ async fn a_watch_answers_once_its_check_exits_zero_with_what_it_wrote() {
 #[tokio::test]
 async fn a_watch_whose_check_never_holds_lapses_within_its_seconds() {
   let started = Instant::now();
-  let said = call(
-    "watch",
-    json!({ "check": "echo not yet; exit 3", "every": 1, "within": 1, "note": "n" }),
-  )
-  .await;
+  let said =
+    call("wait", json!({ "check": "echo not yet; exit 3", "every": 1, "within": 1, "note": "n" })).await;
 
   assert!(started.elapsed() < Duration::from_secs(5));
   assert!(!said.is_error, "{}", said.plain());
@@ -124,7 +124,7 @@ async fn a_watch_whose_check_never_holds_lapses_within_its_seconds() {
 
 #[tokio::test]
 async fn a_watch_with_no_check_and_an_unknown_entry_are_refused() {
-  let refused = call("watch", json!({ "check": "  ", "note": "n" })).await;
+  let refused = call("wait", json!({ "check": "  ", "note": "n" })).await;
 
   assert!(refused.is_error);
   assert_eq!(refused.plain(), "check names no command");
@@ -133,4 +133,12 @@ async fn a_watch_with_no_check_and_an_unknown_entry_are_refused() {
 
   assert!(unknown.is_error);
   assert_eq!(unknown.plain(), "ERROR: this executable holds no entry bmo/remind");
+}
+
+#[tokio::test]
+async fn a_wait_given_a_check_and_a_moment_is_refused() {
+  let refused = call("wait", json!({ "check": "true", "seconds": 1, "note": "n" })).await;
+
+  assert!(refused.is_error);
+  assert_eq!(refused.plain(), "give check or seconds or until, not both");
 }

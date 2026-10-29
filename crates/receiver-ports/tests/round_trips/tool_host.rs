@@ -132,12 +132,12 @@ async fn transcribe_call(headers: HeaderMap, body: axum::Json<Value>) -> axum::r
 
   let call = &body.0;
 
-  assert_eq!((call["namespace"].as_str(), call["name"].as_str()), (Some("bmo"), Some("transcribe")));
+  assert_eq!((call["namespace"].as_str(), call["name"].as_str()), (Some("ear"), Some("listen")));
   assert_eq!(call["input"]["path"], "/tmp/voice.oga");
 
   axum::Json(json!({
-    "namespace": "bmo",
-    "name": "transcribe",
+    "namespace": "ear",
+    "name": "listen",
     "result": {
       "isError": false,
       "content": [{ "type": "text", "text": "{\"transcript\":\"hello\",\"language\":\"ko\",\"duration\":2.5}" }],

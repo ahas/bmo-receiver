@@ -20,8 +20,9 @@ use crate::verbs::{VerbError, asked_sends, consult, messages, turn};
 
 /// The nouns `bmo` dispatches to this command, each marked `home`: the receiver's rooms, its consult room and
 /// the draws its store keeps are the operations machine's.
-pub const NOUNS: [&str; 7] = [
+pub const NOUNS: [&str; 8] = [
   "room say\thome",
+  "talk\thome",
   "photo\thome",
   "react\thome",
   "pin\thome",
@@ -48,6 +49,17 @@ pub struct SayArgs {
   /// The words; read from standard input where none are given.
   #[arg(long)]
   pub text: Option<String>,
+}
+
+/// The words of `talk`: a line said in a room, or spoken in a voice and sent as a voice note with the words
+/// as its caption. The mouth group's first-class verb.
+#[derive(Args, Debug)]
+pub struct TalkArgs {
+  #[command(flatten)]
+  pub say: SayArgs,
+  /// The trained voice the line is spoken in; the line goes as text where none is named.
+  #[arg(long)]
+  pub voice: Option<String>,
 }
 
 /// The words of `photo`: one picture or an album, each with the word drawn into it.
@@ -170,7 +182,7 @@ pub enum DrawWord {
 }
 
 /// The words given, or those on standard input where none are.
-fn words(text: Option<String>) -> Result<String, VerbError> {
+pub(crate) fn words(text: Option<String>) -> Result<String, VerbError> {
   match text {
     Some(text) => Ok(text),
     None => {
@@ -202,6 +214,11 @@ pub async fn room_say(
   };
 
   asked_sends::ask(&config.data_root, asker, Act::Say(input)).await
+}
+
+/// `talk`: a line into a room as text, or spoken in a voice and sent as a voice note.
+pub async fn talk(config: &Config, via: Option<String>, args: TalkArgs) -> Result<Vec<String>, VerbError> {
+  crate::verbs::talk::talk(config, via, args.say, args.voice).await
 }
 
 /// `photo`: one picture or an album through `POST /sends`.

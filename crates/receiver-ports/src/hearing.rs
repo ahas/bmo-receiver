@@ -1,4 +1,4 @@
-//! The listening tool, bmo-ear (`bmo/transcribe`), as the receiver calls it through the tool host's control
+//! The listening tool, bmo-ear (`ear/listen`), as the receiver calls it through the tool host's control
 //! socket (docs/boundary-api.md, 「The tool host」; bmo-pocket's `docs/api.md`, 「The control socket」): one saved
 //! recording answered with what was heard, how long it ran and the language it was heard in.
 
@@ -100,8 +100,8 @@ impl HttpHearing {
       .post(
         &["tool-calls"],
         &json!({
-          "namespace": "bmo",
-          "name": "transcribe",
+          "namespace": "ear",
+          "name": "listen",
           "input": { "path": path },
         }),
       )

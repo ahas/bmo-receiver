@@ -15,7 +15,7 @@ use std::time::Duration;
 use bmo_receiver::chat::instructions::{Rooms, deliver_pending};
 use bmo_receiver::chat::restart::say_stop;
 use bmo_receiver::command::{
-  self, ConsultArgs, DrawWord, PhotoArgs, PinArgs, ReactArgs, SayArgs, StickerArgs,
+  self, ConsultArgs, DrawWord, PhotoArgs, PinArgs, ReactArgs, SayArgs, StickerArgs, TalkArgs,
 };
 use bmo_receiver::config::{self, Config};
 use bmo_receiver::receiver::handover::routes as handover_routes;
@@ -106,6 +106,9 @@ enum Command {
     #[command(subcommand)]
     word: RoomWord,
   },
+  /// A line into a room, as text or spoken in a voice, through the running receiver: the mouth group's
+  /// first-class verb `bmo talk`.
+  Talk(TalkArgs),
   /// A picture, or several as one album, through the running receiver.
   Photo(PhotoArgs),
   /// An emoji reaction on a message, through the running receiver.
@@ -427,6 +430,7 @@ async fn main() -> ExitCode {
     Command::Room {
       word: RoomWord::Say(args),
     } => Ok(answered(command::room_say(&config, cli.via.clone(), args).await)),
+    Command::Talk(args) => Ok(answered(command::talk(&config, cli.via.clone(), args).await)),
     Command::Photo(args) => Ok(answered(command::photo(&config, cli.via.clone(), args).await)),
     Command::React(args) => Ok(answered(command::react(&config, cli.via.clone(), args).await)),
     Command::Pin(args) => Ok(answered(command::pin(&config, cli.via.clone(), args).await)),

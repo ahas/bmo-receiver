@@ -79,12 +79,13 @@ base address and token.
 ### The unit command
 
 `bmo-receiver` is the unit command bmo-cli finds (bmo-cli's `docs/api.md`, 「The unit command」). Asked `nouns`,
-it declares seven, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
+it declares eight, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
 the operations machine's:
 
 | Noun | Words | What it asks |
 |---|---|---|
 | `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to |
+| `talk` | the words of `room say`, and `[--voice <name>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the words its caption |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
@@ -95,7 +96,7 @@ the operations machine's:
 - **A send is asked as the shell's turn:** the room, the agent whose turn the process works in, the chat that set
   it off and whether a job asks are read from the environment, and the running receiver carries it on its own
   lines. The address and token come from the process's environment, else from the data root's `env/receiver.env`
-  (「Its tools」).
+  (「Its tools」). A spoken `talk` asks the voice engine at the address and token the configuration names.
 - **`--via <road>`** is taken after the noun's words as bmo-cli hands it on, and names the road a send goes out
   on where that road answers in the room.
 - **Every noun ends 0** where it did what it was asked, 1 where it refused, and 2 where its words or the
@@ -230,7 +231,7 @@ read again at every connection. Where no socket can be named, nothing is heard o
   document says.
 - **A voice note is heard through bmo-ear.** The receiver issues a tool session for itself with the issuer token
   (`POST /tool-sessions`; the `bmo` namespace, the `room.tools` capability, `BMO_DATA_DIR`) and calls
-  `bmo/transcribe` with the saved recording's path (`POST /tool-calls`), keeping the session for the next call. The
+  `ear/listen` with the saved recording's path (`POST /tool-calls`), keeping the session for the next call. The
   answer's `structuredContent` carries `transcript`, `language` and `duration`; a tool failure is kept as the
   message's failed hearing, never as silence.
 

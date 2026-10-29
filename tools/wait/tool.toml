@@ -1,7 +1,7 @@
-# The reminders and watches an agent sets, each a call `bmo use` runs on its own so that its end wakes the agent
-# (docs/reminders.md): a wait for a moment, and a shell check run until it holds. Neither reads the turn or calls
-# a unit. Both are unbounded, since the unit the call runs in ends it at its longest run. The crate's own test
-# holds every entry here to the Rust tool answering it.
+# The reminders and watches an agent sets, one entry a call `bmo use` runs on its own so that its end wakes the
+# agent (docs/reminders.md): a wait for a moment, or a shell check run until it holds, named as the wait's own
+# `check`. It reads no turn and calls no unit. It is unbounded, since the unit the call runs in ends it at its
+# longest run. The crate's own test holds the entry here to the Rust tool answering it.
 
 [tool]
 name = "wait"
@@ -15,19 +15,9 @@ timeout = 60
 [[entry]]
 namespace = "bmo"
 name = "wait"
-description = "Wait some seconds, or until a moment, and answer with the note: a reminder, run as bmo use bmo/wait --async so its end wakes you in the room."
+description = "Wait some seconds or until a moment, or run a shell check every few seconds until it exits 0, and answer with the note: a reminder or a watch, run as bmo use bmo/wait --async so its end wakes you in the room."
 manual = "wait.md"
 input = "wait.json"
-hints = { read_only = true }
-capabilities = ["room.tools"]
-unbounded = true
-
-[[entry]]
-namespace = "bmo"
-name = "watch"
-description = "Run a shell check every few seconds until it exits 0, and answer with the note and what it wrote: a watch, run as bmo use bmo/watch --async so its end wakes you in the room."
-manual = "watch.md"
-input = "watch.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
 unbounded = true
