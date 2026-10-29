@@ -1,8 +1,8 @@
 //! The road the room's turns stand on and what each session was opened against (docs/unified-bmo.md, 「Replacing
 //! the session」): kept in the receiver's own settings because the road outlives the session standing on it. A
-//! turn whose session outlived its cache, or that the owner asked to start afresh, goes out on a fresh session
-//! with the old one's note ahead of its words; a road that moved, a login that changed and a head that moved all
-//! resume the session, and what a turn leaves is the road its session now stands on and the head it stood on.
+//! turn whose road moved, whose login is another, whose head moved or outlived its cache, or that the owner
+//! asked to start afresh goes out on a fresh session with the old one's note ahead of its words; what a turn
+//! leaves is the road its session now stands on and the head it stood on.
 
 use std::sync::LazyLock;
 
@@ -15,6 +15,7 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
 use receiver_policy::providers::PROVIDERS;
+use receiver_ports::agency::SessionState;
 
 use super::sentinels::{is_skip, is_wait};
 use crate::store::{Fault, settings};
@@ -104,20 +105,46 @@ async fn forget_setting(db: &DatabaseConnection, key: &str) -> Result<(), Fault>
   run(db, r#"DELETE FROM "settings" WHERE "key" = $1"#, vec![key.into()]).await.map(drop)
 }
 
-/// Why the session this turn would resume may not be resumed: the word a full session hands itself over with, or a
-/// head its cache has let go of. Nothing else replaces it: a road that moved, a login that changed, a head that
-/// moved and a session with no record all resume the one session the agent has (docs/unified-bmo.md, 「Replacing
-/// the session」).
+/// Why the road the room stands on is not one this turn may go on: another provider, model or effort, or another
+/// login.
+pub fn route_reason(
+  held: &Route,
+  provider: &str,
+  model: &str,
+  effort: &str,
+  account: Option<&str>,
+) -> Option<SessionReason> {
+  if held.provider != provider || held.model != model || held.effort != effort {
+    return Some(SessionReason::Route);
+  }
+
+  match account {
+    Some(account) if held.account.as_deref().unwrap_or_default() != account => Some(SessionReason::Account),
+    _ => None,
+  }
+}
+
+/// Why the session this turn would resume may not be resumed: the owner's word, a road moved, a session opened
+/// before with no record of its head, a head moved, or a head its cache has let go of. `standing` is the agency's
+/// state of the session, read before the turn: whether it was ever opened, and why its prefix changed where the
+/// agency names it. Nothing of the turn's own composition is read (docs/unified-bmo.md, 「Replacing the session」).
 pub async fn reset_reason(
   db: &DatabaseConnection,
   agent: &str,
   asked: &Route,
+  standing: &SessionState,
 ) -> Result<Option<SessionReason>, Fault> {
   if let Some(forced) = settings::get(db, &force_key(agent)).await?.filter(|forced| !forced.is_empty()) {
     let reason =
       serde_json::from_value(serde_json::Value::String(forced)).unwrap_or(SessionReason::DowngradeForced);
 
     return Ok(Some(reason));
+  }
+
+  if let Some(moved) = active_route(db, agent).await?.and_then(|held| {
+    route_reason(&held, &asked.provider, &asked.model, &asked.effort, asked.account.as_deref())
+  }) {
+    return Ok(Some(moved));
   }
 
   let Some(session) = asked.session.as_ref() else {
@@ -128,9 +155,14 @@ pub async fn reset_reason(
     .await?
     .and_then(|held| serde_json::from_str::<CacheState>(&held).ok())
   else {
-    // A session with no record of its head is resumed: the record starts with this turn.
-    return Ok(None);
+    let opened = standing.generation.as_i64().is_some_and(|generation| generation > 0);
+
+    return Ok(opened.then_some(SessionReason::NoPrefix));
   };
+
+  if head_moved(&state, standing.prefix_change_reason.as_deref()) {
+    return Ok(Some(SessionReason::Prefix));
+  }
 
   let minutes = PROVIDERS.provider(&asked.provider).and_then(|found| found.lifetime_minutes());
 
@@ -163,6 +195,16 @@ pub async fn expired(db: &DatabaseConnection, agent: &str) -> bool {
     .provider(&route.provider)
     .and_then(|found| found.lifetime_minutes())
     .is_some_and(|lifetime| now_ms() - state.at >= lifetime as i64 * 60_000)
+}
+
+/// Whether the head a session's last turn stood on has moved: the agency naming a reason for a changed prefix
+/// other than the one that turn kept, or, where it names none, the receiver's own head no longer the one kept. A
+/// record that kept no head has nothing to compare.
+pub fn head_moved(state: &CacheState, moved: Option<&str>) -> bool {
+  match moved {
+    Some(why) => state.moved.as_deref() != Some(why),
+    None => !state.head.is_empty() && state.head != composed_head(),
+  }
 }
 
 /// The owner's word to start an agent's one session afresh, with the reason it was asked for.

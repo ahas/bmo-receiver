@@ -295,10 +295,9 @@ impl Carry {
     // "not opened" for is the fresh session's, with no provider or model to resume yet.
     let standing = agency.state(&started_id).await.unwrap_or_default();
 
-    // The one session an agent keeps across its rooms is replaced only where its cache lifetime passed or the
-    // owner asked it, the old one asked for its handoff, let go here and started again, the note it left riding
-    // at the head of the new one's first turn (docs/unified-bmo.md, 「Replacing the session」). A head or a road
-    // that moved, and a session with no record, are resumed. A room's own session is the agency's to resume.
+    // The one session an agent keeps across its rooms, where its head or its road moved, is asked for its
+    // handoff, let go here and started again, the note it left riding at the head of the new one's first turn
+    // (docs/unified-bmo.md, 「Replacing the session」). A room's own session is the agency's to resume.
     let asked = Route {
       provider: standing.provider.as_deref().unwrap_or_default().to_owned(),
       model: standing.model.as_deref().unwrap_or_default().to_owned(),
@@ -308,7 +307,9 @@ impl Carry {
       transcript: None,
     };
     let reason = if unified {
-      reset_reason(db, agent, &asked).await.map_err(|why| Failure::Failed(why.detail))?
+      reset_reason(db, agent, &asked, &standing)
+        .await
+        .map_err(|why| Failure::Failed(why.detail))?
     } else {
       None
     };
