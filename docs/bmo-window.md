@@ -244,13 +244,12 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
   session already loaded is counted out of its group. Where the gate serves no index, the counts are taken over
   the entries the selection answers, by their source, with no hint.
 - **A person's own thread** from the group rooms they share with the agent, handed to a turn in their private
-  room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's. A session is handed
-  it whole on its first turn and then only the lines added since the last line it was handed, under the same path
-  and a heading saying so; a turn with no new line attaches nothing and the draft record lists the piece as `held`.
-  The mark is the session's: a session continued across a restart keeps it and is handed only the lines added,
-  while a new or replaced session has none and is handed the whole thread again, within the days the thread
-  reaches. It is let go only when that session is replaced or folds; a mark left by a session no longer used
-  changes nothing.
+  room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's. It is handed whole
+  the first time and then only the lines added since the last line it handed, under the same path and a heading
+  saying so; a turn with no new line attaches nothing and the draft record lists the piece as `held`. The mark is
+  the thread's own, kept under `thread_mark:<path>` in the settings: a session folded, replaced or started again
+  is handed only what came after it, within the days the thread reaches, so the raw lines a session has already
+  read are never handed to the next one again.
 - **A turn's material is handed once.** The round's first turn carries the core's documents and references and
   the room's words whole; a later round of the same turn carries each as a line and only what is new whole, under
   the turn's own mark (`docs/drafting.md`, 「The turn's mark」).

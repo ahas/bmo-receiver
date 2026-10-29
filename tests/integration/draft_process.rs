@@ -665,6 +665,76 @@ async fn a_second_rounds_note_turn_reads_only_what_came_since_the_note() {
 }
 
 #[tokio::test]
+async fn a_note_far_behind_its_room_reads_the_newest_messages_and_moves_its_mark() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the catch-up note", "the message"]);
+  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
+
+  // One message the note has read, then a gap longer than the policy's bound behind it.
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
+         VALUES (42, 1, 42, 'tester', 1000, 'm-001')"#,
+      vec![],
+    )
+    .await;
+  let read_to: i64 = round
+    .scratch
+    .texts(r#"SELECT "rowid"::text FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 1"#)
+    .await
+    .remove(0)
+    .parse()
+    .unwrap();
+
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at", "read_through")
+         VALUES (42, 'a standing note', 0, $1)"#,
+      vec![read_to.into()],
+    )
+    .await;
+
+  for id in 2..=201i64 {
+    round
+      .scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
+           VALUES (42, $1, 42, 'tester', $2, $3)"#,
+        vec![id.into(), (1000 + id).into(), format!("m-{id:03}").into()],
+      )
+      .await;
+  }
+
+  round.hear(202, "the newest words").await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+
+  assert!(
+    !prompts[0].contains("m-001") && !prompts[0].contains("m-002"),
+    "a gap longer than the bound is not read whole: {}",
+    prompts[0]
+  );
+  assert!(
+    prompts[0].contains("m-201") && prompts[0].contains("the newest words"),
+    "{}",
+    prompts[0]
+  );
+  assert_eq!(
+    round
+      .scratch
+      .texts(r#"SELECT "read_through"::text FROM "room_situations" WHERE "chat_id" = 42"#)
+      .await,
+    round
+      .scratch
+      .texts(r#"SELECT "rowid"::text FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 202"#)
+      .await,
+    "the mark moves to the newest message read"
+  );
+}
+
+#[tokio::test]
 async fn a_private_chat_skip_leaves_the_standing_note_unchanged() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "the message"]);
   let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;

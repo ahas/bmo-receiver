@@ -268,6 +268,9 @@ pub struct ChatRound {
 #[serde(deny_unknown_fields)]
 pub struct Situation {
   pub ceiling_chars: usize,
+  /// The most messages between the note's mark and the newest before the update reads the newest this many alone;
+  /// 0 reads every message since the mark.
+  pub gap_messages: usize,
   pub head: String,
   pub previous: String,
   /// The line the message round reads the note under, ahead of the room's words.

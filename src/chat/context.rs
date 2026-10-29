@@ -15,7 +15,7 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
 use super::room::RoomContext;
-use super::thread::{ThreadMark, forget_mark, remember_mark};
+use super::thread::{ThreadMark, remember_mark};
 use crate::receiver::Receiver;
 use crate::{Fault, one, run};
 
@@ -240,7 +240,6 @@ pub async fn forget_room(db: &DatabaseConnection, session: Option<&str>) -> Resu
 pub async fn forget_documents(receiver: &Receiver, session: Option<&str>) -> Result<(), Fault> {
   if let Some(session) = session {
     receiver.units().agency.forget_loads(session).await.map_err(unrecorded)?;
-    forget_mark(receiver.db(), session).await?;
   }
 
   Ok(())
@@ -262,7 +261,7 @@ pub async fn remember_held(
   let mut loaded: Vec<(String, String)> = vec![];
 
   if let Some(mark) = thread_mark {
-    remember_mark(db, session, mark).await?;
+    remember_mark(db, mark).await?;
   }
 
   if let Some(room) = room.filter(|_| restates) {

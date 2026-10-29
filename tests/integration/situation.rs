@@ -108,6 +108,15 @@ fn a_note_summarizing_the_same_exchange_passes() {
 }
 
 #[test]
+fn a_gap_past_the_policys_bound_is_read_as_its_newest_messages_alone() {
+  use bmo_receiver::chat::situation::catch_up;
+
+  assert!(!catch_up(200, 200), "a gap at the bound is read whole");
+  assert!(catch_up(200, 201), "a gap past the bound is read as its newest messages");
+  assert!(!catch_up(0, 100_000), "0 has no bound");
+}
+
+#[test]
 fn the_note_prompt_bans_copying_and_first_person_claims() {
   let prompt = update_prompt(None, &[]);
 

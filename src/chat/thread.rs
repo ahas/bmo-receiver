@@ -1,9 +1,8 @@
 //! A person's own thread, followed into their private room: in a user's private room, the turn is handed what that
 //! user and the chat agent said to each other in the group rooms the user is in and the agent answers over the last
-//! days, and nothing anyone else said nor what the user said to another agent there. A session is handed it whole
-//! once, then only the lines added since the last line it was handed; the mark is the session's, so a new session
-//! starts again from the whole thread, a session continued across a restart keeps its mark, and the mark is let go
-//! only when its session is replaced or folds.
+//! days, and nothing anyone else said nor what the user said to another agent there. It is handed whole once, and
+//! then only the lines added since the last line it handed; the mark is the thread's own, so a session folded,
+//! replaced or started again is handed only what came after it.
 
 use sea_orm::DatabaseConnection;
 
@@ -19,42 +18,40 @@ use crate::store::settings;
 use crate::{all, now_ms};
 use receiver_ports::gate::{Entry, Source};
 
-// The setting a session's thread mark stands under, and the line it names as `room:messageId`.
+// The setting a thread's mark stands under, and the line it names as `room:messageId`.
 const MARK_PREFIX: &str = "thread_mark:";
 
-/// The last line of the thread a session was handed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// The last line of the thread a turn was handed, and the thread it belongs to.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ThreadMark {
+  pub path: String,
   pub room: i64,
   pub message_id: i64,
 }
 
-fn mark_key(session: &str) -> String {
-  format!("{MARK_PREFIX}{session}")
+fn mark_key(path: &str) -> String {
+  format!("{MARK_PREFIX}{path}")
 }
 
-async fn read_mark(db: &DatabaseConnection, session: &str) -> Option<ThreadMark> {
-  let held = settings::get(db, &mark_key(session)).await.ok().flatten()?;
+async fn read_mark(db: &DatabaseConnection, path: &str) -> Option<ThreadMark> {
+  let held = settings::get(db, &mark_key(path)).await.ok().flatten()?;
   let (room, message) = held.split_once(':')?;
 
   Some(ThreadMark {
+    path: path.to_owned(),
     room: room.parse().ok()?,
     message_id: message.parse().ok()?,
   })
 }
 
-/// The session's mark written once the turn that handed the line was delivered.
-pub async fn remember_mark(db: &DatabaseConnection, session: &str, mark: ThreadMark) -> Result<(), Fault> {
-  settings::set(db, &mark_key(session), &format!("{}:{}", mark.room, mark.message_id)).await
+/// The thread's mark written once the turn that handed the line was delivered: it stands as the thread's, so a
+/// session folded, replaced or started again is handed only what came after it.
+pub async fn remember_mark(db: &DatabaseConnection, mark: ThreadMark) -> Result<(), Fault> {
+  settings::set(db, &mark_key(&mark.path), &format!("{}:{}", mark.room, mark.message_id)).await
 }
 
-/// A session's thread mark let go, as its session folds or is replaced: the next turn is handed the whole thread.
-pub async fn forget_mark(db: &DatabaseConnection, session: &str) -> Result<(), Fault> {
-  settings::forget(db, &mark_key(session)).await
-}
-
-/// What one turn is handed of a person's thread: the entry to attach, or the held piece where the session has seen
-/// every line already; the mark the delivered turn keeps, naming the last line it handed.
+/// What one turn is handed of a person's thread: the entry to attach, or the held piece where the thread has been
+/// handed every line already; the mark the delivered turn keeps, naming the last line it handed.
 #[derive(Clone, Debug)]
 pub struct ThreadPiece {
   pub path: String,
@@ -276,13 +273,9 @@ impl Hearers {
 }
 
 /// The thread for a turn in a room, or none where the room is no user's private room, the model of users is not
-/// in force, the setting turns it off, or the user said nothing in a group room lately. `session` names the session
-/// the turn goes on, whose mark says which line it was last handed.
-pub async fn thread_entry(
-  receiver: &Receiver,
-  chat_id: i64,
-  session: Option<&str>,
-) -> Result<Option<ThreadPiece>, Fault> {
+/// in force, the setting turns it off, or the user said nothing in a group room lately. The thread's own mark says
+/// which line it was last handed.
+pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<ThreadPiece>, Fault> {
   let db = receiver.db();
   let thread = &CHAT_ROUND.thread;
 
@@ -364,17 +357,14 @@ pub async fn thread_entry(
   // Oldest first, and the room and message number break a tie, so a mark names one line on every reading.
   lines.sort_by_key(|line| (line.at, line.room, line.message_id));
 
-  let mark = match session.filter(|session| !session.is_empty()) {
-    Some(session) => read_mark(db, session).await,
-    None => None,
-  };
+  let path = fill_marks(&thread.path, &[("user", &user.to_string())]);
+  let holds = thread.holds.clone();
+  // The mark is the thread's own, so a session that folds or is replaced is handed only what came after it.
+  let mark = read_mark(db, &path).await;
 
   if lines.is_empty() && mark.is_none() {
     return Ok(None);
   }
-
-  let path = fill_marks(&thread.path, &[("user", &user.to_string())]);
-  let holds = thread.holds.clone();
   let (kept, added) = match mark {
     None => (newest_within(&lines, thread.ceiling_chars), false),
     Some(mark) => {
@@ -412,6 +402,7 @@ pub async fn thread_entry(
   }
 
   let mark = kept.last().map(|line| ThreadMark {
+    path: path.clone(),
     room: line.room,
     message_id: line.message_id,
   });

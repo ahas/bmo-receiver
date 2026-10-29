@@ -1694,7 +1694,7 @@ impl Conversations {
       answers: batch.iter().map(|message| message.message_id).collect(),
       began: started,
       context: composed.context.clone(),
-      thread_mark: composed.selection.thread_mark,
+      thread_mark: composed.selection.thread_mark.clone(),
     };
 
     // The first question is told as it starts, as every later one is.
@@ -2004,11 +2004,23 @@ impl Conversations {
   ) -> Result<(), Failure> {
     let receiver = self.receiver();
     // What the note has not read yet: the room's record after the row it read to, or, where the room has no note
-    // yet, the latest messages the policy names, so the first note has a room to stand on. The words this round
-    // holds are shown with them, whether or not the room's record carries them yet.
+    // yet, the latest messages the policy names, so the first note has a room to stand on. A gap longer than the
+    // policy's bound is read as its newest messages alone, so a room left long is caught up from its latest words
+    // and the mark moves to the newest of them. The words this round holds are shown with them, whether or not the
+    // room's record carries them yet.
     let cursor = super::situation::read_through(receiver.db(), chat_id).await.unwrap_or(None);
+    let gap = CHAT_ROUND.situation.gap_messages;
     let rows = match cursor {
-      Some(after) => rows::messages_since_row(receiver.db(), chat_id, after, "").await,
+      Some(after) => {
+        let standing = rows::count_since_row(receiver.db(), chat_id, after).await;
+
+        match standing {
+          Ok(standing) if super::situation::catch_up(gap, standing) => {
+            rows::recent_rows(receiver.db(), chat_id, gap as u64, "").await
+          }
+          _ => rows::messages_since_row(receiver.db(), chat_id, after, "").await,
+        }
+      }
       None => rows::recent_rows(receiver.db(), chat_id, CHAT_ROUND.recent_messages, "").await,
     }
     .map_err(|why| Failure::Failed(why.detail))?;

@@ -393,7 +393,7 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
   let mut held = Vec::new();
   let mut thread_mark = None;
 
-  match thread_entry(receiver, chat_id, material.session).await {
+  match thread_entry(receiver, chat_id).await {
     Ok(Some(thread)) => {
       if let Some(entry) = thread.entry {
         core.push(entry);

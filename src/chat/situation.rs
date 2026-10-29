@@ -115,6 +115,13 @@ pub async fn attach(
   Ok(())
 }
 
+/// Whether a gap as long as `standing` messages is read as its newest `gap` alone: a room the note has not read
+/// for long is caught up from its latest messages, so one turn is never asked to read a whole backlog; a gap of 0
+/// reads every message since the mark.
+pub fn catch_up(gap: usize, standing: i64) -> bool {
+  gap > 0 && standing > i64::try_from(gap).unwrap_or(i64::MAX)
+}
+
 /// The one turn that updates the note: the note as it stands and the room's messages that came in since the note
 /// last read the room's record.
 pub fn update_prompt(old: Option<&str>, lines: &[String]) -> String {

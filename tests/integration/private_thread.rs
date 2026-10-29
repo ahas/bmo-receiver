@@ -97,7 +97,7 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
       .await;
   }
 
-  let thread = thread_entry(&stood.receiver, PRIVATE, Some("session-a")).await.unwrap().unwrap();
+  let thread = thread_entry(&stood.receiver, PRIVATE).await.unwrap().unwrap();
   let carried = thread.entry.unwrap().text;
 
   for kept in [
@@ -125,16 +125,13 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
     assert!(!carried.contains(left), "{left} carried into {carried}");
   }
 
-  // The turn that handed it writes the mark the session keeps.
-  remember_mark(stood.receiver.db(), "session-a", thread.mark.unwrap()).await.unwrap();
+  // The turn that handed it writes the thread's mark.
+  let path = thread.path.clone();
 
-  // A restart keeps the resumed session's mark: the next turn is still handed growth alone.
+  remember_mark(stood.receiver.db(), thread.mark.unwrap()).await.unwrap();
+
+  // A restart keeps the thread's mark: the next turn is still handed growth alone.
   bmo_receiver::service_start::settle(&stood.receiver, "test-consumer", "127.0.0.1:1", "token").await;
-
-  // A stale mark of a session no longer used changes nothing; the live mark stands.
-  bmo_receiver::store::settings::set(stood.receiver.db(), "thread_mark:session-gone", "-1:999999")
-    .await
-    .unwrap();
 
   // A later line is handed as growth alone, not with the thread it follows.
   for (id, sender, name, text) in [(20, OWNER, "tester", "a later word"), (21, 0, SENDER, "a later answer")]
@@ -155,7 +152,7 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
       .await;
   }
 
-  let grown = thread_entry(&stood.receiver, PRIVATE, Some("session-a")).await.unwrap().unwrap();
+  let grown = thread_entry(&stood.receiver, PRIVATE).await.unwrap().unwrap();
   let grown_mark = grown.mark.unwrap();
   let grown = grown.entry.unwrap().text;
 
@@ -163,10 +160,10 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
   assert!(grown.contains("a later word") && grown.contains("a later answer"), "{grown}");
   assert!(!grown.contains("mixed question"), "{grown}");
   assert!(!grown.contains("shared question"), "{grown}");
-  remember_mark(stood.receiver.db(), "session-a", grown_mark).await.unwrap();
+  remember_mark(stood.receiver.db(), grown_mark).await.unwrap();
 
   // With nothing new, no block goes and the piece stands held.
-  let still = thread_entry(&stood.receiver, PRIVATE, Some("session-a")).await.unwrap().unwrap();
+  let still = thread_entry(&stood.receiver, PRIVATE).await.unwrap().unwrap();
 
   assert!(still.entry.is_none());
   assert!(still.path.starts_with("threads/user-"), "{}", still.path);
@@ -212,22 +209,24 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
     "{reads:?}"
   );
 
-  // A new session starts again from the whole thread within its days.
-  let fresh = thread_entry(&stood.receiver, PRIVATE, Some("session-b")).await.unwrap().unwrap();
+  // A session that folds keeps the thread's mark: nothing is handed again to the next session.
+  bmo_receiver::chat::context::forget_documents(&stood.receiver, Some("session-a"))
+    .await
+    .unwrap();
+
+  let folded = thread_entry(&stood.receiver, PRIVATE).await.unwrap().unwrap();
+
+  assert!(folded.entry.is_none(), "the thread's mark stands after a fold: {folded:?}");
+
+  // Only a thread with no mark is handed whole, within its days.
+  bmo_receiver::store::settings::forget(stood.receiver.db(), &format!("thread_mark:{path}"))
+    .await
+    .unwrap();
+
+  let fresh = thread_entry(&stood.receiver, PRIVATE).await.unwrap().unwrap();
   let fresh = fresh.entry.unwrap().text;
 
   assert!(fresh.contains("over the last seven days"), "{fresh}");
   assert!(fresh.contains("mixed question") && fresh.contains("a later word"), "{fresh}");
   assert!(!fresh.contains("since this person's thread was last handed"), "{fresh}");
-
-  // A session that folds loses its mark and starts again from the whole thread.
-  bmo_receiver::chat::context::forget_documents(&stood.receiver, Some("session-a"))
-    .await
-    .unwrap();
-
-  let folded = thread_entry(&stood.receiver, PRIVATE, Some("session-a")).await.unwrap().unwrap();
-  let folded = folded.entry.unwrap().text;
-
-  assert!(folded.contains("over the last seven days"), "{folded}");
-  assert!(!folded.contains("since this person's thread was last handed"), "{folded}");
 }

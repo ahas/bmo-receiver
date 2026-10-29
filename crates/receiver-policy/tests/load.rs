@@ -89,6 +89,7 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(CHAT_ROUND.blocks.archived_left_out.contains("{count}"));
   assert!(CHAT_ROUND.shape.quoted.contains("{quote}"));
   assert!(CHAT_ROUND.closing.woken.contains("{reason}"));
+  assert_eq!(CHAT_ROUND.situation.gap_messages, 200);
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
   assert!(SECOND_ASKS.errands.owed.contains("{count}"));
   assert!(SECOND_ASKS.errands.wake_on.contains("{chat}"));

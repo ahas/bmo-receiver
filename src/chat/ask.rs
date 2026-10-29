@@ -453,7 +453,7 @@ impl Carry {
         Some(&room),
         true,
         &asking.prompt,
-        asking.thread_mark,
+        asking.thread_mark.clone(),
       )
       .await;
 

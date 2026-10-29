@@ -178,7 +178,10 @@ leaves.
   yet, it carries the latest messages the policy names (`recent_messages`, 30) and takes its first position at the
   newest of them. It runs for every round with words, the owner's private chat included, before that round's
   judgement or its own turn. A turn that answers `<<SKIP>>` or `<<WAIT>>`, or nothing, leaves the note's words as
-  it stood but takes its position forward with what it read. The note is stored before the judgement and the
+  it stood but takes its position forward with what it read. Where more messages stand between the note's mark
+  and the newest than `gap_messages` (200), the update reads the newest `gap_messages` alone instead of the whole
+  gap — a room left long is caught up from its latest words, and the mark moves to the newest of them; a
+  `gap_messages` of 0 reads every message since the mark. The note is stored before the judgement and the
   round's draft, so both read the same note.
 - **The note is the message round's instruction.** The note advises how the next answer is to be given, so the
   turn that writes the message carries it first, above the room's words, under the policy's front line; the room's

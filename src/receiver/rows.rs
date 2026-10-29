@@ -234,6 +234,18 @@ pub async fn recent_rows(
   Ok(found)
 }
 
+/// How many of the room's messages were written down after one row of its record.
+pub async fn count_since_row(db: &DatabaseConnection, chat_id: i64, after: i64) -> Result<i64, Fault> {
+  let row = one(
+    db,
+    r#"SELECT COUNT(*) AS "standing" FROM "messages" WHERE "chat_id" = $1 AND "rowid" > $2"#,
+    vec![chat_id.into(), after.into()],
+  )
+  .await?;
+
+  Ok(row.map(|row| row.try_get::<i64>("", "standing")).transpose()?.unwrap_or(0))
+}
+
 /// The room's messages written down after one row of the room's record, oldest first, with the row each stands at.
 pub async fn messages_since_row(
   db: &DatabaseConnection,
