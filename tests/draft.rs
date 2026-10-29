@@ -96,9 +96,10 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
   assert!(first.contains("question 1 of 3 (intent)") && first.ends_with("\n\nwhy?"));
   assert!(!first.contains("TURN SCOPE"), "a later question carries no turn scope: {first}");
   assert!(
-    first.contains("question 2 (facts)") && first.contains("<<SEND>>") && !first.contains(&DRAFTING.voice),
-    "a question before the one a send is read from may still carry a message, without the voice line: {first}"
+    first.contains("writes no message of its own") && !first.contains("<<SEND>>"),
+    "a question before the message question writes no message: {first}"
   );
+  assert!(!first.contains(&DRAFTING.voice), "a notes question asks for no voice: {first}");
   assert!(
     second.contains("begin the answer with <<SEND>>"),
     "a send is read from facts on: {second}"

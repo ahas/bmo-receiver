@@ -891,8 +891,8 @@ async fn a_send_before_the_question_a_send_is_read_from_is_the_message_and_nothi
 
   assert_eq!(prompts.len(), 1, "no later question is asked after an early send: {prompts:#?}");
   assert!(
-    prompts[0].contains("question 2 (facts)") && prompts[0].contains("<<SEND>>"),
-    "the first question says where the message is asked for and may be written now: {}",
+    prompts[0].contains("writes no message of its own"),
+    "the notes question says it writes no message: {}",
     prompts[0]
   );
   assert!(

@@ -103,7 +103,6 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.lead.contains("{number}") && DRAFTING.lead.contains("{count}"));
   assert!(DRAFTING.opening.contains("{number}") && DRAFTING.opening.contains("{send}"));
   assert!(DRAFTING.lead.contains("{send}") && DRAFTING.send_open.contains("<<SEND>>"));
-  assert!(DRAFTING.send_closed.contains("{from}") && DRAFTING.send_closed.contains("{name}"));
   assert!(CHAT_ROUND.closing.questioned_owed.contains("{count}"));
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final"));

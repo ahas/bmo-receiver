@@ -95,7 +95,7 @@ leaves.
 - **The first question rides the round's own turn:** the room's words and the round's closing lines as the window
   composes them, the closing lines saying that the question below is to be answered, then the question's opening
   and the question. The opening is the policy's: the place and count of the question, that it is the first and
-  freest, and whether a send is read at this question (`send_open` or `send_closed`). Where the first question is
+  freest, and whether a send is read at this question (`send_open`) or that it writes no message (`send_closed`). Where the first question is
   the last, as a light turn's `final` is, it opens on the last question's line instead and its answer is the
   message, so the round is one turn.
 - **Every later question goes out as one more turn** opening on the process's lead line, naming the question's
@@ -120,8 +120,9 @@ leaves.
 - **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the question from which the process
   asks for the message, and the question's line says that a complete message may be written now; a send before it
   is the message too, and the process ends there. Where the agent does not send, the questions that establish the
-  facts are asked before anything is written. A light turn's list asks for a send at its first question whatever
-  the row names.
+  facts are asked before anything is written. The default row asks for a send at `final` alone: every question
+  before it says it writes no message of its own, and its answer is notes for the message the last question
+  writes. A light turn's list asks for a send at its first question whatever the row names.
 - **A question whose answer may be the message asks for it in the persona's voice.** At the `sendFrom` question and
   every one after it, `final` among them, and at the closing check, the question's line says that an answer that
   becomes the message is written as the message itself, in the voice the agent's persona sets for the person it
@@ -131,7 +132,7 @@ leaves.
   message sent before `sendFrom` is written as the message itself and in that voice, though the line there names
   no voice; an answer that is not sent stays notes.
 - **The policy's one row is the default for every agent** (`drafting.toml`): `information`, `facts`, `memory`,
-  `promises` and `final`, in that order; a send is read from `facts` on; every light turn is `final` alone; 120
+  `promises` and `final`, in that order; a send is asked for at `final` alone; every light turn is `final` alone; 120
   seconds a turn is the journal's note; 12 characters make a light turn. A deployment that still carries the old
   two rows loads with them ignored in favour of this one. `intent` stays in the catalogue and out of the
   default rounds, so the five are not the whole catalogue.
