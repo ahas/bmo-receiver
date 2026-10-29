@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use serde_json::json;
 
-use tool_call::{Answer, Asked, Session, agency, differences, read_handed};
+use tool_call::{Answer, Asked, Session, agency, differences, read_handed, read_handed_with};
 
 #[test]
 fn a_call_is_read_with_its_record_and_another_protocol_or_shape_is_refused() {
@@ -147,7 +147,8 @@ fn a_manifest_that_names_no_entry_differs_from_the_executable_nowhere() {
 // record's labels the other (docs/chat-mcp.md, 「How a call runs」).
 #[test]
 fn a_tool_host_record_takes_its_data_root_from_the_call_and_its_place_from_its_labels() {
-  let handed = tool_call::read_handed(
+  // The call's data root is handed in, not read from this process's environment, which a runner may set.
+  let handed = read_handed_with(
     serde_json::json!({
       "protocol": 1,
       "kind": "call",
@@ -158,7 +159,6 @@ fn a_tool_host_record_takes_its_data_root_from_the_call_and_its_place_from_its_l
         "namespaces": ["bmo"],
         "capabilities": ["room.tools"],
         "grants": [],
-        "variables": { "BMO_DATA_DIR": "/srv/data" },
         "labels": { "line": "chat", "place": "/srv/data/agent-places/agent-a" },
         "expiresAt": null,
         "createdAt": 1
@@ -166,9 +166,10 @@ fn a_tool_host_record_takes_its_data_root_from_the_call_and_its_place_from_its_l
     })
     .to_string()
     .as_bytes(),
+    Some("/srv/data".to_owned()),
   )
   .unwrap();
-  let session = handed.session.completed(Some("/srv/data".to_owned()));
+  let session = handed.session;
 
   assert_eq!(session.data_root, std::path::PathBuf::from("/srv/data"));
   assert_eq!(session.place, Some(std::path::PathBuf::from("/srv/data/agent-places/agent-a")));

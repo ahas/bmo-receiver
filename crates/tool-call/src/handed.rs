@@ -42,12 +42,19 @@ pub struct Handed {
 }
 
 /// The request read off `input`, or why it does not read: an object that is no request, or one in a protocol
-/// version the receiver's tools do not speak.
+/// version the receiver's tools do not speak. The call's data root is this process's own environment, as the
+/// launcher hands it.
 pub fn read_handed(input: impl std::io::Read) -> Result<Handed, String> {
+  read_handed_with(input, std::env::var(crate::session::DATA_ROOT_VARIABLE).ok())
+}
+
+/// The request read off `input` with the call's data root handed in rather than read from this process's own
+/// environment, so a test says what the call was handed instead of inheriting what its runner had.
+pub fn read_handed_with(input: impl std::io::Read, data_root: Option<String>) -> Result<Handed, String> {
   let mut handed: Handed =
     serde_json::from_reader(input).map_err(|why| format!("the request does not read: {why}"))?;
 
-  handed.session = handed.session.completed(std::env::var(crate::session::DATA_ROOT_VARIABLE).ok());
+  handed.session = handed.session.completed(data_root);
 
   if handed.protocol != PROTOCOL {
     return Err(format!(

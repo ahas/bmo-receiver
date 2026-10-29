@@ -11,7 +11,7 @@ pub mod peers;
 mod session;
 
 pub use answer::{Answer, Content};
-pub use handed::{Asked, Handed, PROTOCOL, answer_standard_io, read_handed};
+pub use handed::{Asked, Handed, PROTOCOL, answer_standard_io, read_handed, read_handed_with};
 pub use manifest::{Entry, MadeSchema, differences, input_schema};
 pub use peers::{AGENCY_ENV_FILE, AGENCY_PORT, AGENCY_PORT_VARIABLE, AGENCY_TOKEN_VARIABLE, agency};
 pub use session::Session;
