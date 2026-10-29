@@ -57,7 +57,8 @@ fn without_context_summary(text: &str) -> &str {
     .map_or("", |separator| &text[separator.end()..])
 }
 
-/// A reply with the scaffolding cut off where it begins, and trimmed.
+/// A reply with the scaffolding cut off where it begins and the markup of a tool call a program wrote as text
+/// taken out, then trimmed.
 pub fn strip_prompt_scaffolding(input: &str) -> String {
   let text = without_context_summary(input);
   let cut = SCAFFOLDING
@@ -66,7 +67,30 @@ pub fn strip_prompt_scaffolding(input: &str) -> String {
     .min()
     .unwrap_or(text.len());
 
-  js::trim(&text[..cut]).to_owned()
+  js::trim(&without_tool_calls(&text[..cut])).to_owned()
+}
+
+// The markup a program writes when it means a call it did not make: the wrapper some models write around a
+// function and its parameters. Everything inside a fenced block is left as written, so a quotation of one stays.
+static TOOL_CALL: LazyLock<Regex> = LazyLock::new(|| {
+  Regex::new(r"(?is)<tool_call\b.*?(?:</tool_call\s*>|\z)|<\|tool_call\|>.*?(?:<\|/tool_call\|>|\z)")
+    .expect("a tool call pattern")
+});
+static FENCED: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r"(?s)```.*?(?:```|\z)").expect("a fenced block"));
+
+fn without_tool_calls(text: &str) -> String {
+  let mut out = String::new();
+  let mut last = 0;
+
+  for fence in FENCED.find_iter(text) {
+    out.push_str(&TOOL_CALL.replace_all(&text[last..fence.start()], ""));
+    out.push_str(fence.as_str());
+    last = fence.end();
+  }
+
+  out.push_str(&TOOL_CALL.replace_all(&text[last..], ""));
+  out
 }
 
 // Every marker a session writes for the service rather than for the room, with the one space before it.

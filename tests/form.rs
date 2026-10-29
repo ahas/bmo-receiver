@@ -16,6 +16,27 @@ fn the_harness_s_scaffolding_is_cut_where_it_begins() {
 }
 
 #[test]
+fn a_tool_call_written_as_text_never_reaches_a_room() {
+  let call = "<tool_call>\n<function=mcp__job__job_reports_probe>\n<parameter=itemId>\n694\n</parameter>\n</function>\n</tool_call>";
+
+  assert_eq!(strip_prompt_scaffolding(call), "", "a call alone is no message");
+  assert_eq!(
+    strip_prompt_scaffolding(&format!("Here is what I found.\n\n{call}\n\nThe rest of the answer.")),
+    "Here is what I found.\n\n\n\nThe rest of the answer."
+  );
+  assert_eq!(
+    strip_prompt_scaffolding(&format!("```\n{call}\n```")),
+    format!("```\n{call}\n```"),
+    "a call quoted in a fenced block stays"
+  );
+  assert_eq!(
+    strip_prompt_scaffolding("<|tool_call|>probe<|/tool_call|>"),
+    "",
+    "the other wrapper a model writes goes too"
+  );
+}
+
+#[test]
 fn the_reply_sentinel_is_taken_off_and_names_its_message() {
   assert_eq!(read_reply_request("  just words "), ("just words".to_owned(), ReplyTarget::Plain));
   assert_eq!(read_reply_request("<<REPLY>> yes"), ("yes".to_owned(), ReplyTarget::Last));
