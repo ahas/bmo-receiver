@@ -89,11 +89,12 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
     send_from_at: 1,
     ..Plan::default()
   };
-  let first = question_words("intent", "why?", 1, 3, &plan.send_line(0), &scope());
-  let second = question_words("facts", "true?", 2, 3, &plan.send_line(1), &scope());
-  let last = question_words("final", "write it", 3, 3, &plan.send_line(2), &scope());
+  let first = question_words("intent", "why?", 1, 3, &plan.send_line(0));
+  let second = question_words("facts", "true?", 2, 3, &plan.send_line(1));
+  let last = question_words("final", "write it", 3, 3, &plan.send_line(2));
 
-  assert!(first.contains("question 1 of 3 (intent)") && first.contains("\n\nwhy?\n"));
+  assert!(first.contains("question 1 of 3 (intent)") && first.ends_with("\n\nwhy?"));
+  assert!(!first.contains("TURN SCOPE"), "a later question carries no turn scope: {first}");
   assert!(
     first.contains("question 2 (facts)") && first.contains("<<SEND>>") && !first.contains(&DRAFTING.voice),
     "a question before the one a send is read from may still carry a message, without the voice line: {first}"
@@ -115,9 +116,9 @@ fn every_question_whose_answer_may_be_the_message_asks_for_the_rooms_voice_and_n
     send_from_at: 1,
     ..Plan::default()
   };
-  let notes = question_words("information", "what?", 1, 3, &plan.send_line(0), &scope());
-  let facts = question_words("facts", &DRAFTING.questions["facts"], 2, 3, &plan.send_line(1), &scope());
-  let last = question_words("final", &DRAFTING.questions["final"], 3, 3, &plan.send_line(2), &scope());
+  let notes = question_words("information", "what?", 1, 3, &plan.send_line(0));
+  let facts = question_words("facts", &DRAFTING.questions["facts"], 2, 3, &plan.send_line(1));
+  let last = question_words("final", &DRAFTING.questions["final"], 3, 3, &plan.send_line(2));
 
   assert!(DRAFTING.voice.contains("voice") && DRAFTING.voice.contains("never as notes"));
   assert!(
@@ -203,7 +204,7 @@ fn the_most_specific_row_is_read() {
     row(ANY, ANY, ANY, &["intent", "final"]),
     row("provider-a", ANY, ANY, &["final"]),
     row(ANY, "Supervisor", ANY, &["facts", "final"]),
-    row(ANY, ANY, "agent-b", &["fit", "final"]),
+    row(ANY, ANY, "agent-b", &["memory", "final"]),
   ];
 
   assert_eq!(resolve(&rows, Some("provider-b"), None, "agent-a").unwrap().rounds, ["intent", "final"]);
@@ -215,7 +216,7 @@ fn the_most_specific_row_is_read() {
     resolve(&rows, Some("provider-b"), Some("Supervisor"), "agent-a").unwrap().rounds,
     ["facts", "final"]
   );
-  assert_eq!(resolve(&rows, Some("provider-a"), None, "agent-b").unwrap().rounds, ["fit", "final"]);
+  assert_eq!(resolve(&rows, Some("provider-a"), None, "agent-b").unwrap().rounds, ["memory", "final"]);
 }
 
 #[test]
@@ -298,7 +299,7 @@ fn the_message_question_is_named_for_the_message_and_never_for_its_place_in_the_
 fn the_closing_check_shows_the_message_as_it_stands_and_asks_for_it_whole() {
   use bmo_receiver::chat::draft::closing_words;
 
-  let turn = closing_words("  the message as it stands  ", "#7: words that came", &scope());
+  let turn = closing_words("  the message as it stands  ", "#7: words that came");
 
   assert!(turn.contains(&format!("{}\nthe message as it stands\n", DRAFTING.standing)), "{turn}");
   assert!(turn.ends_with("#7: words that came"), "{turn}");

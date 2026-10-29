@@ -179,15 +179,12 @@ session once the setting has changed, one waiting per setting.
 | Code | Fields | When |
 |---|---|---|
 | `chat-allowed` | | the owner allowed the room |
-| `tools-switched` | `on` | the owner switched tools in the room |
 | `photos-switched` | `on` | the owner switched opening the room's pictures, for this room alone |
-| `delegation-switched` | `on`, `delegate` (the delegate's registered label, or null) | the owner switched delegation in the room |
 | `rest-notice-switched` | `on` | the owner switched the room's rest notice |
 | `rest-notice-kept` | | the owner asked to switch the rest notice off in the owner's own private chat, where it stays on |
 | `restart-notice-switched` | `on` | the owner switched the room's restart notice |
 | `member-muted` | `muted` | the owner muted or unmuted a member of the room |
 | `mute-target-missing` | | a mute or an unmute named nobody who can be: neither an answered person nor a number, or the owner or the agent |
-| `mode-set` | `everyone` | the owner set whose words wake the agents: everyone's, or the owner's alone |
 
 ### AddedAgentFact
 

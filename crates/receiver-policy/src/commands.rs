@@ -8,8 +8,6 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Phrases {
-  pub delegate_on: Vec<String>,
-  pub delegate_off: Vec<String>,
   pub unmute: Vec<String>,
   pub mute: Vec<String>,
   pub notice_rest_on: Vec<String>,

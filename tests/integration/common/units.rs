@@ -759,7 +759,6 @@ pub fn deployment() -> Deployment {
     agent: AGENT.to_owned(),
     sender_name: SENDER.to_owned(),
     addresses: vec![ADDRESS.to_owned()],
-    delegate: Some("agent-b".to_owned()),
     infra_room: None,
     owner_room: None,
     notices_room: None,

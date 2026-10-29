@@ -4,7 +4,6 @@
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, QueryResult};
 
 use super::Inbound;
-use super::commands::BotMode;
 use crate::room_record::{As, RoomHolding, Rows};
 use crate::{Fault, all, one, run};
 
@@ -444,29 +443,6 @@ pub async fn is_read(db: &DatabaseConnection, chat_id: i64, message_id: i64) -> 
     Some(row) => row.try_get::<i32>("", "earlier")? == 1,
     None => message_id <= last_read,
   })
-}
-
-pub async fn set_mode(db: &DatabaseConnection, mode: BotMode) -> Result<(), Fault> {
-  crate::store::settings::set(db, "mode", mode.key()).await
-}
-
-// A room's membership of one of the tables that hold a room by being there.
-async fn set_listed(db: &DatabaseConnection, table: &str, chat_id: i64, on: bool) -> Result<(), Fault> {
-  let sql = if on {
-    format!(r#"INSERT INTO "{table}" ("chat_id") VALUES ($1) ON CONFLICT DO NOTHING"#)
-  } else {
-    format!(r#"DELETE FROM "{table}" WHERE "chat_id" = $1"#)
-  };
-
-  run(db, &sql, vec![chat_id.into()]).await.map(drop)
-}
-
-pub async fn set_tools_allowed(db: &DatabaseConnection, chat_id: i64, on: bool) -> Result<(), Fault> {
-  set_listed(db, "tool_chats", chat_id, on).await
-}
-
-pub async fn set_delegation(db: &DatabaseConnection, chat_id: i64, on: bool) -> Result<(), Fault> {
-  set_listed(db, "delegate_chats", chat_id, on).await
 }
 
 /// A room's own word on opening pictures.

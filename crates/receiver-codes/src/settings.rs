@@ -11,17 +11,9 @@ use strum::{IntoStaticStr, VariantNames};
 pub enum SettingFact {
   /// The owner allowed the room: it is listened to and its record kept from now on.
   ChatAllowed,
-  ToolsSwitched {
-    on: bool,
-  },
   /// Opening the room's pictures, switched for this room alone.
   PhotosSwitched {
     on: bool,
-  },
-  /// Delegation switched, naming the delegate by its registered label where the deployment names one.
-  DelegationSwitched {
-    on: bool,
-    delegate: Option<String>,
   },
   RestNoticeSwitched {
     on: bool,
@@ -37,10 +29,6 @@ pub enum SettingFact {
   },
   /// A mute or unmute that named nobody who can be.
   MuteTargetMissing,
-  /// The mode the whole deployment listens in: everyone's words, or the owner's alone.
-  ModeSet {
-    everyone: bool,
-  },
 }
 
 coded!(SettingFact);
@@ -51,13 +39,10 @@ impl SettingFact {
   pub fn setting(&self) -> &'static str {
     match self {
       Self::ChatAllowed => "chat-allowed",
-      Self::ToolsSwitched { .. } => "tools",
       Self::PhotosSwitched { .. } => "photos",
-      Self::DelegationSwitched { .. } => "delegate",
       Self::RestNoticeSwitched { .. } | Self::RestNoticeKept => "notice-rest",
       Self::RestartNoticeSwitched { .. } => "notice-restart",
       Self::MemberMuted { .. } | Self::MuteTargetMissing => "mute",
-      Self::ModeSet { .. } => "mode",
     }
   }
 }
@@ -72,12 +57,6 @@ impl std::fmt::Display for SettingFact {
       Self::ChatAllowed => {
         f.write_str("The owner has allowed this chat: from now on you listen to it and keep its record.")
       }
-      Self::ToolsSwitched { on: true } => f.write_str(
-        "The owner switched tools on in this chat: you can now run things and look things up here.",
-      ),
-      Self::ToolsSwitched { on: false } => {
-        f.write_str("The owner switched tools off in this chat: here you now answer in words only.")
-      }
       Self::PhotosSwitched { on: true } => f.write_str(
         "The owner switched photo viewing on for this chat alone: you open the pictures posted here and answer \
          them. Other chats are unchanged.",
@@ -85,22 +64,6 @@ impl std::fmt::Display for SettingFact {
       Self::PhotosSwitched { on: false } => f.write_str(
         "The owner switched photo viewing off for this chat alone: you know when a picture arrives here but do \
          not open it. Other chats are unchanged.",
-      ),
-      Self::DelegationSwitched {
-        on: true,
-        delegate: Some(delegate),
-      } => write!(
-        f,
-        "The owner switched delegation on in this chat: work {delegate} does better is handed to {delegate}."
-      ),
-      Self::DelegationSwitched {
-        on: true,
-        delegate: None,
-      } => f.write_str(
-        "The owner switched delegation on in this chat: work the delegate does better is handed to it.",
-      ),
-      Self::DelegationSwitched { on: false, .. } => f.write_str(
-        "The owner switched delegation off in this chat: you now do all the work here yourself.",
       ),
       Self::RestNoticeKept => f.write_str(
         "The owner asked to switch rest notices off in their own private chat. That cannot be done there, since \
@@ -126,12 +89,6 @@ impl std::fmt::Display for SettingFact {
         "The owner asked to mute or unmute someone, but the command named nobody that can be: it has to reply to \
          that person's message or give their numeric id, and neither the owner nor you can be muted. Nothing \
          changed.",
-      ),
-      Self::ModeSet { everyone: false } => f.write_str(
-        "The owner set the room's mode to owner_only: you now follow the owner's commands alone.",
-      ),
-      Self::ModeSet { everyone: true } => f.write_str(
-        "The owner set the room's mode to everyone: you now listen to everyone and answer them.",
       ),
     }
   }

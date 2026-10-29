@@ -16,16 +16,11 @@ scope = "TURN SCOPE: "
 [header]
 chat = "Chat id: {chat}"
 chat_titled = "Chat id: {chat} (title: {title})"
-mode = "Mode: {mode}"
 kind = "Chat kind: {kind}"
 privilege = "Run privilege: {privilege}"
 privileged = "PRIVILEGED"
 restricted = "RESTRICTED"
 owner = "Owner account id: {owner}"
-tools_on = "Tools: enabled in this chat"
-tools_off = "Tools: disabled in this chat — you have no tools and can only answer in words"
-delegation_on = "Delegation: on in this chat"
-delegation_off = "Delegation: off in this chat"
 
 # What kind of room the turn is in.
 [kinds]

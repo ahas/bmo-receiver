@@ -25,8 +25,7 @@ address and the token that unit takes. A chat service's base address names the r
 the protocol's receiving-side routes stand.
 
 The deployment's names are read from the same file: the owner; the chat agent's registration name, whose label
-and wake words (`GET /agents`) are the words a room calls it by; the delegate's registration name, whose label a
-delegation notice names; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
+and wake words (`GET /agents`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
 one is named in place of the room numbered as the owner's own number, a room `owner-room` below stands up on the
 record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's other notices to the owner go to, never a briefing's, which goes to his private room;
 the owner's private room where none is named; the language the rooms are spoken in, which

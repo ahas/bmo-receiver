@@ -236,33 +236,6 @@ async fn the_owners_setting_command_changes_the_room_and_is_acknowledged_in_its_
 }
 
 #[tokio::test]
-async fn a_delegation_names_the_delegate_by_its_registered_label() {
-  let (scratch, _data, standing) = stood(&[-108]).await;
-
-  standing
-    .receiver
-    .message(&inbound(-108, 1, OWNER, &COMMANDS.phrases.delegate_on[0]), &Context::default(), room())
-    .await
-    .unwrap();
-
-  assert_eq!(
-    scratch
-      .count(r#"SELECT COUNT(*) FROM "delegate_chats" WHERE "chat_id" = -108"#, vec![])
-      .await,
-    1
-  );
-  assert!(
-    text(
-      &scratch,
-      r#"SELECT "text" FROM "instructions" WHERE "chat_id" = -108 AND "kind" = 'setting:delegate'"#
-    )
-    .await
-    .unwrap()
-    .contains("work agent-b does better is handed to agent-b")
-  );
-}
-
-#[tokio::test]
 async fn a_mute_names_the_person_answered_and_never_the_owner_or_the_agent() {
   let (scratch, _data, standing) = stood(&[-105]).await;
   let receiver = &standing.receiver;
@@ -310,7 +283,7 @@ async fn a_mute_names_the_person_answered_and_never_the_owner_or_the_agent() {
 }
 
 #[tokio::test]
-async fn the_mode_is_set_for_the_whole_deployment_and_the_owners_own_chat_keeps_its_rest_notice() {
+async fn the_owners_own_chat_keeps_its_rest_notice() {
   let (scratch, _data, standing) = stood(&[OWNER]).await;
   let receiver = &standing.receiver;
   let own = Room {
@@ -320,10 +293,6 @@ async fn the_mode_is_set_for_the_whole_deployment_and_the_owners_own_chat_keeps_
   };
 
   receiver
-    .message(&inbound(OWNER, 1, OWNER, "mode:everyone"), &Context::default(), own)
-    .await
-    .unwrap();
-  receiver
     .message(
       &inbound(OWNER, 2, OWNER, COMMANDS.phrases.notice_rest_off.last().unwrap()),
       &Context::default(),
@@ -332,12 +301,6 @@ async fn the_mode_is_set_for_the_whole_deployment_and_the_owners_own_chat_keeps_
     .await
     .unwrap();
 
-  assert_eq!(
-    text(&scratch, r#"SELECT "value" FROM "settings" WHERE "key" = 'mode'"#)
-      .await
-      .as_deref(),
-    Some("everyone")
-  );
   assert_eq!(
     scratch
       .count(r#"SELECT COUNT(*) FROM "chat_notices" WHERE "chat_id" = 42"#, vec![])

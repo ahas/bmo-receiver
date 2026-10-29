@@ -36,8 +36,6 @@ takes it outright: the table holds no default agent.
 | `instructions` | a quiet instruction waiting for, handed to or delivered to an agent's session in a room (`docs/bmo-window.md`): its words, kind, sort and summary, whether it is for the agent alone and no room hears it, events, expiry, ride, the round that settled it and the run it carries the result of | its number |
 | `settings` | one setting: a key and its text value (below) | the key |
 | `allowed_chats` | a room the receiver listens to | room |
-| `tool_chats` | a room where the agents' tools are allowed | room |
-| `delegate_chats` | a room in delegate mode (`docs/rooms.md`) | room |
 | `photo_chats` | a room's word on whether its agent opens the pictures it stores (`docs/pictures.md`) | room |
 | `muted_members` | a person muted in a room (`docs/rooms.md`) | room and person |
 | `chat_notices` | a room's rest or restart notice switched on or off (`docs/voiced-notices.md`) | room and kind |
@@ -93,7 +91,6 @@ such a family is kept for; each key is named by the code that writes it, and the
 
 | Key | Value | Kept by |
 |---|---|---|
-| `mode` | `owner_only` or `everyone`: whose messages wake the agents (`docs/rooms.md`) | the owner's mode command |
 | `photos_look` | `on` while the agent opens the pictures rooms store; absent otherwise | the photos switch |
 | `private_thread` | `off` turns a person's own thread in a group room off (`chat-round.toml`, its `setting`) | the thread |
 | `turn_mark:<turn>` | what one turn has handed: each document by path and version and the room lines by number; later rounds of the turn carry them as lines, and it is let go when the turn ends (`docs/drafting.md`, 「The turn's mark」) | the turn |

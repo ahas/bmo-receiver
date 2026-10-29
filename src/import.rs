@@ -175,7 +175,6 @@ const COLLECTED_ITEMS: TableMap = TableMap {
     ],
   )
 };
-const DELEGATE_CHATS: TableMap = same("delegate_chats", "delegate_chats", &["chat_id"]);
 const HOLIDAYS: TableMap = same("holidays", "holidays", &["day", "name"]);
 const INSTRUCTIONS: TableMap = TableMap {
   times: &["created_at", "delivered_at", "expires_at", "handed_at", "ride_until"],
@@ -314,7 +313,6 @@ const SAY_RELAYS: TableMap = TableMap {
 };
 const TELEGRAM_MESSAGES: TableMap =
   same("telegram_messages", "message_metadata", &["chat_id", "message_id", "metadata"]);
-const TOOL_CHATS: TableMap = same("tool_chats", "tool_chats", &["chat_id"]);
 const SETTINGS: TableMap = same("settings", "settings", &["key", "value"]);
 
 /// Every table this import moves, in the order it writes them.
@@ -328,7 +326,6 @@ pub const TABLES: &[TableMap] = &[
   CHAT_READS,
   CHAT_TITLES,
   COLLECTED_ITEMS,
-  DELEGATE_CHATS,
   HOLIDAYS,
   INSTRUCTIONS,
   MESSAGE_NUMBER_MARKS,
@@ -350,7 +347,6 @@ pub const TABLES: &[TableMap] = &[
   RUN_RECORDS,
   SAY_RELAYS,
   TELEGRAM_MESSAGES,
-  TOOL_CHATS,
   SETTINGS,
 ];
 

@@ -808,16 +808,6 @@ impl Conversations {
     }
   }
 
-  // The read mode the deployment listens in, which says whose messages wake the agents.
-  async fn mode(&self) -> String {
-    let mode = crate::store::settings::get(self.0.receiver.db(), "mode").await.ok().flatten();
-
-    match mode.as_deref() {
-      Some(mode @ ("owner_only" | "everyone")) => mode.to_owned(),
-      _ => "owner_only".to_owned(),
-    }
-  }
-
   // The session the room's turns go on: the one the agent's row keeps, resumed where one stands.
   pub async fn held_session(&self, chat_id: i64) -> Held {
     Held {
@@ -1628,7 +1618,6 @@ impl Conversations {
 
     let final_round = force || (batch.is_empty() && !instructions.is_empty());
     let tools_allowed = true;
-    let mode = self.mode().await;
     let waited_on: HashSet<i64> = held_words.iter().map(|message| message.message_id).collect();
     let pending: HashSet<i64> = self.pending(chat_id).into_iter().collect();
     let queue_line = self.queue_line(chat_id).await;
@@ -1647,7 +1636,6 @@ impl Conversations {
         instruction_ids: &ids,
         events: &events,
         force: final_round,
-        mode: &mode,
         tools_allowed,
         waited_on: &waited_on,
         first_call,
@@ -2735,7 +2723,6 @@ impl Conversations {
       .get(&room_id)
       .map(|gathering| gathering.iter().map(|message| message.message_id).collect())
       .unwrap_or_default();
-    let mode = self.mode().await;
     let queue_line = self.queue_line(room_id).await;
     let composed = prompt::compose(
       &receiver,
@@ -2749,7 +2736,6 @@ impl Conversations {
         instruction_ids: &[],
         events: &[],
         force: true,
-        mode: &mode,
         tools_allowed: true,
         waited_on: &HashSet::new(),
         first_call: false,

@@ -335,7 +335,6 @@ async fn answerer_numbers(receiver: &Receiver, chat_id: i64, road: &str) -> Hash
 pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) -> Result<(), Fault> {
   let db = receiver.db();
   let owner = receiver.deployment().owner_id;
-  let everyone = standing::hears_everyone(receiver).await.unwrap_or(false);
   let rooms = receiver.roads();
   let mut open: Vec<i64> = all(db, r#"SELECT DISTINCT "chat_id" FROM "messages""#, vec![])
     .await?
@@ -368,10 +367,6 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
       let sender = message.sender_id;
 
       if sender.is_some_and(|sender| Some(sender) == bmo || others.contains(&sender)) {
-        continue;
-      }
-
-      if !everyone && sender != Some(owner) {
         continue;
       }
 

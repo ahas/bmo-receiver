@@ -13,7 +13,7 @@ use regex::Regex;
 static SCAFFOLDING: LazyLock<Vec<Regex>> = LazyLock::new(|| {
   [
     r"(?:^|\n)[ \t]*(?:END OF )?BMO ROOM CONTEXT(?:[ \t]|$)",
-    r"(?:^|\n)[ \t]*(?:user[ \t]*\n?[ \t]*)?Chat id: -?[0-9]+[^\n]*\n[ \t]*Mode: ",
+    r"(?:^|\n)[ \t]*(?:user[ \t]*\n?[ \t]*)?Chat id: -?[0-9]+[^\n]*\n[ \t]*Chat kind: ",
     r"(?:^|\n)[ \t]*Chat kind: (?:the owner's private chat|a user's own private chat|a group chat)",
     r"(?:^|\n)[ \t]*Run privilege: (?:PRIVILEGED|RESTRICTED)[ \t]*(?:\n|$)",
     r"(?:^|\n)[ \t]*Archived messages since your last reply(?: \([0-9]+\))?:[ \t]*(?:\n|$)",

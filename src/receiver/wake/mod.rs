@@ -125,18 +125,12 @@ pub async fn woken_on(
     return Ok(());
   }
 
-  if !basis.by_agent && !owner {
-    if !standing::hears_everyone(receiver).await?
-      && !standing::holds_rule(receiver, chat_id, inbound.sender_id).await?
-    {
-      return Ok(());
-    }
-
-    if let Some(sender) = inbound.sender_id
-      && standing::is_muted(receiver, chat_id, sender).await?
-    {
-      return Ok(());
-    }
+  if !basis.by_agent
+    && !owner
+    && let Some(sender) = inbound.sender_id
+    && standing::is_muted(receiver, chat_id, sender).await?
+  {
+    return Ok(());
   }
 
   let rest_gated = !room.owner_room && resting(receiver).await?;

@@ -10,10 +10,6 @@ use receiver_policy::commands::COMMANDS;
 pub enum CommandKind {
   Allow,
   Deny,
-  ToolsOn,
-  ToolsOff,
-  DelegateOn,
-  DelegateOff,
   Mute,
   Unmute,
   NoticeRestOn,
@@ -31,35 +27,11 @@ pub struct OwnerCommand {
   pub explicit_target_id: Option<i64>,
 }
 
-/// The mode the whole deployment listens in.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BotMode {
-  OwnerOnly,
-  Everyone,
-}
-
-impl BotMode {
-  /// The mode as the settings row keeps it.
-  pub fn key(self) -> &'static str {
-    match self {
-      Self::OwnerOnly => "owner_only",
-      Self::Everyone => "everyone",
-    }
-  }
-
-  /// Whether everyone's words wake the agents.
-  pub fn everyone(self) -> bool {
-    self == Self::Everyone
-  }
-}
-
 // Each command with the phrases that say it. A kind the policy gives no phrase is never said in words.
-fn phrases() -> [(CommandKind, &'static [String]); 10] {
+fn phrases() -> [(CommandKind, &'static [String]); 8] {
   let said = &COMMANDS.phrases;
 
   [
-    (CommandKind::DelegateOn, &said.delegate_on),
-    (CommandKind::DelegateOff, &said.delegate_off),
     (CommandKind::Unmute, &said.unmute),
     (CommandKind::Mute, &said.mute),
     (CommandKind::NoticeRestOn, &said.notice_rest_on),
@@ -129,13 +101,4 @@ pub fn parse_owner_command(text: &str, addresses: &[String]) -> Option<OwnerComm
     kind,
     explicit_target_id,
   })
-}
-
-/// The mode the words set the whole deployment to, where they are `mode:` and one of the two.
-pub fn parse_mode_command(text: &str) -> Option<BotMode> {
-  match text.trim() {
-    "mode:owner_only" => Some(BotMode::OwnerOnly),
-    "mode:everyone" => Some(BotMode::Everyone),
-    _ => None,
-  }
 }

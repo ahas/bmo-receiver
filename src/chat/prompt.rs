@@ -33,7 +33,6 @@ pub struct Round<'a> {
   pub events: &'a [TurnEvent],
   /// The waiting window is over: the round must answer.
   pub force: bool,
-  pub mode: &'a str,
   pub tools_allowed: bool,
   /// The messages of the batch a wait held over from an earlier round.
   pub waited_on: &'a HashSet<i64>,
@@ -245,7 +244,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     Some(title) => fill_marks(&header.chat_titled, &[("chat", &chat_id.to_string()), ("title", title)]),
     None => fill_marks(&header.chat, &[("chat", &chat_id.to_string())]),
   });
-  parts.push(fill_marks(&header.mode, &[("mode", round.mode)]));
   parts.push(fill_marks(&header.kind, &[("kind", chat_kind(receiver, round.room).await?)]));
   parts.push(fill_marks(
     &header.privilege,
@@ -253,17 +251,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   ));
 
   parts.push(fill_marks(&header.owner, &[("owner", &round.owner.to_string())]));
-  parts.push(if round.tools_allowed { header.tools_on.clone() } else { header.tools_off.clone() });
-
-  let delegating = one(
-    db,
-    r#"SELECT 1 AS "one" FROM "delegate_chats" WHERE "chat_id" = $1"#,
-    vec![chat_id.into()],
-  )
-  .await?
-  .is_some();
-
-  parts.push(if delegating { header.delegation_on.clone() } else { header.delegation_off.clone() });
 
   // In a room more than one agent answers, each one's window there.
   if let Some(windows) = room_windows_block(receiver, chat_id, round.agent, now_ms()).await? {

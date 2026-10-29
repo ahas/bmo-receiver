@@ -50,8 +50,6 @@ pub struct Config {
   pub agent: String,
   pub sender_name: String,
   #[serde(default)]
-  pub delegate: Option<String>,
-  #[serde(default)]
   pub infra_room: Option<i64>,
   #[serde(default)]
   pub owner_room: Option<i64>,
@@ -125,7 +123,6 @@ impl Config {
       agent: self.agent.clone(),
       sender_name: self.sender_name.clone(),
       addresses: call_names,
-      delegate: self.delegate.clone(),
       infra_room: self.infra_room,
       owner_room: self.owner_room,
       notices_room: self.notices_room,

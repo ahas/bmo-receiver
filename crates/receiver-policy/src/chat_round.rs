@@ -8,16 +8,11 @@ use serde::Deserialize;
 pub struct Header {
   pub chat: String,
   pub chat_titled: String,
-  pub mode: String,
   pub kind: String,
   pub privilege: String,
   pub privileged: String,
   pub restricted: String,
   pub owner: String,
-  pub tools_on: String,
-  pub tools_off: String,
-  pub delegation_on: String,
-  pub delegation_off: String,
 }
 
 #[derive(Debug, Deserialize)]

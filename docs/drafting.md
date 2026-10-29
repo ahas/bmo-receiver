@@ -70,7 +70,7 @@ leaves.
 
 ## The questions
 
-- **The questions are a catalogue, by name,** each a text the session is asked. The policy holds seven, in English
+- **The questions are a catalogue, by name,** each a text the session is asked. The policy holds six, in English
   as every line an agent reads, each a rule with no sentence for the agent to copy, and the console changes any
   text or adds a question under a new name (「The routes」 below):
 
@@ -81,7 +81,6 @@ leaves.
 | `facts` | whether what the message rests on is true and where each fact came from: the system's live state read now from the service that owns it, nothing undecided spoken of as known, no variable guessed |
 | `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved |
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
-| `fit` | whether the message fits the room's rules, the persona and the language the other person speaks |
 | `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, as this room's agent says it to this person, or send nothing; always the last |
 
 - **The process's fixed rules stand in the room's block, not in a turn:** that the message is written last, that
@@ -134,7 +133,7 @@ leaves.
 - **The policy's one row is the default for every agent** (`drafting.toml`): `information`, `facts`, `memory`,
   `promises` and `final`, in that order; a send is read from `facts` on; every light turn is `final` alone; 120
   seconds a turn is the journal's note; 12 characters make a light turn. A deployment that still carries the old
-  two rows loads with them ignored in favour of this one. `intent` and `fit` stay in the catalogue and out of the
+  two rows loads with them ignored in favour of this one. `intent` stays in the catalogue and out of the
   default rounds, so the five are not the whole catalogue.
 - **The console's rows do not make a second process** (「The routes」 below): a row of a key other than the one row's
   is ignored, and the one row's own key replaces the default where the console sets it. Every agent still reads

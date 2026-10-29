@@ -17,8 +17,6 @@ polite_tails = ["해줘", "해라", "하자", "해", "줘", ".", "!"]
 option_suffixes = ["번"]
 
 [phrases]
-delegate_on = ["delegate:on", "위임 모드"]
-delegate_off = ["delegate:off", "위임 해제"]
 unmute = ["member:unmute", "뮤트 해제", "뮤트 풀어", "뮤트 풀어줘", "뮤트 풀기"]
 mute = ["member:mute", "뮤트"]
 notice_rest_on = ["notice:rest:on", "한도 알림 켬", "한도 알림 켜"]

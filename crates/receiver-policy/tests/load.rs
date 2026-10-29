@@ -179,8 +179,6 @@ fn the_roads_roles_lines_and_providers_answer_what_the_receiver_asks() {
 fn every_command_has_its_plain_form_first() {
   let phrases = &COMMANDS.phrases;
   let firsts = [
-    (&phrases.delegate_on, "delegate:on"),
-    (&phrases.delegate_off, "delegate:off"),
     (&phrases.unmute, "member:unmute"),
     (&phrases.mute, "member:mute"),
     (&phrases.notice_rest_on, "notice:rest:on"),
@@ -230,7 +228,6 @@ fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
   assert_eq!(DRAFTING.process[0].agent, "*");
   assert_eq!(DRAFTING.process[0].rounds, five);
   assert!(DRAFTING.questions.contains_key("intent") && !five.contains(&"intent"));
-  assert!(DRAFTING.questions.contains_key("fit") && !five.contains(&"fit"));
 
   let policy = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml"))
     .expect("the drafting policy reads");

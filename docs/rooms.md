@@ -1,9 +1,9 @@
 # Room switches
 
-The per-room switches the owner throws from inside a chat (who may wake the agent, delegation, muting), the
-reply budget, and the infrastructure room. Default access, owner-only work and room rules are
-`docs/unified-bmo.md` (「Default access and per-room delegation」). The words each command is matched by are data,
-in `policy/commands.toml`; each command also has a plain form that is the same in every language, given below.
+The per-room switches the owner throws from inside a chat (muting, the notices, pictures), the reply budget, and
+the infrastructure room. Default access, owner-only work and room rules are `docs/unified-bmo.md` (「Default
+access and per-room delegation」). The words each command is matched by are data, in `policy/commands.toml`; each
+command also has a plain form that is the same in every language, given below.
 
 ## A room's number
 
@@ -35,26 +35,6 @@ in `policy/commands.toml`; each command also has a plain form that is the same i
   the rest and restart notices are the owner's.
 - **A person speaking in the room is another matter:** the agent answers there as it answers anywhere.
 
-## Modes
-
-- **Switched by an owner message:** `mode:owner_only` wakes on the owner's messages; `mode:everyone` lets anyone
-  wake the agent.
-- **An active owner delegation also admits its named sender,** who still wakes the agent only on the grounds in
-  `docs/wake.md` (「Who reaches the session」).
-
-## Delegation
-
-- **A per-chat flag, off by default, stored in the receiver's database.** The owner switches it on from inside a
-  chat with `delegate:on` (or the delegation words of the policy) and off with `delegate:off`.
-- **Every prompt states whether delegation is on in the chat,** and the agent keys off that flag alone: it never
-  guesses who is in the room.
-- **Where delegation is on,** a request the room's own context names as somebody else's to handle is pointed to
-  whoever it names, in one short line, instead of being done by the agent; which requests those are and who takes
-  them belongs to that room's layer, never to the fixed prompt. The notice the switch leaves names the delegate
-  by its registered label.
-- **Where delegation is off, or where the room names nobody,** the agent simply answers, searching when the
-  answer needs the web.
-
 ## Delegations
 
 - **A grant is made or taken away on the owner's own message in the room,** through the web unit's grants
@@ -64,6 +44,8 @@ in `policy/commands.toml`; each command also has a plain form that is the same i
 
 ## Mute
 
+- **Anyone's words wake the agent in a room it answers,** the owner's and every member's alike, on the grounds in
+  `docs/wake.md` (「Who reaches the session」); a muted member's do not.
 - **The owner silences a member inside a chat** with `member:mute` and lifts it with `member:unmute` (or the
   mute words of the policy), naming the target either by replying to one of that member's messages or by putting
   the member's numeric user id in the text.

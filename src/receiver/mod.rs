@@ -46,7 +46,7 @@ use crate::kept::Kept;
 use crate::now_ms;
 use crate::roads::{Road, Roads};
 use crate::room_record::{Facing, RoomHolding, Says};
-use commands::{CommandKind, OwnerCommand, parse_mode_command, parse_owner_command};
+use commands::{CommandKind, OwnerCommand, parse_owner_command};
 use speech::{NotSaid, Speech};
 
 /// A message as the receiver keeps it and hands it on: the row the database keeps, the road it came in on and
@@ -312,8 +312,6 @@ pub struct Deployment {
   pub sender_name: String,
   /// The words a room calls the chat agent by, left off the front of an owner's command.
   pub addresses: Vec<String>,
-  /// The delegate's registered label, which a delegation notice names.
-  pub delegate: Option<String>,
   /// The infrastructure room, where the configuration names one.
   pub infra_room: Option<i64>,
   /// The owner's private room, a room on the record alone, where the configuration names one.
@@ -690,23 +688,8 @@ impl Receiver {
       return Ok(());
     }
 
-    if is_owner {
-      if let Some(command) = command {
-        return self.command(inbound, context, room, command).await;
-      }
-
-      if let Some(mode) = parse_mode_command(said) {
-        rows::set_mode(&self.db, mode).await?;
-
-        return self
-          .acknowledge(
-            chat_id,
-            SettingFact::ModeSet {
-              everyone: mode.everyone(),
-            },
-          )
-          .await;
-      }
+    if is_owner && let Some(command) = command {
+      return self.command(inbound, context, room, command).await;
     }
 
     self.wake.words(self, inbound, room, is_owner, How::Words).await
@@ -725,12 +708,6 @@ impl Receiver {
     let db = &self.db;
     let fact = match command.kind {
       CommandKind::Allow | CommandKind::Deny => return Ok(()),
-      CommandKind::ToolsOn | CommandKind::ToolsOff => {
-        let on = command.kind == CommandKind::ToolsOn;
-
-        rows::set_tools_allowed(db, chat_id, on).await?;
-        SettingFact::ToolsSwitched { on }
-      }
       // Looking at pictures is switched on for one room at a time, because what it costs falls on the room that
       // has the pictures.
       CommandKind::PhotosOn | CommandKind::PhotosOff => {
@@ -738,15 +715,6 @@ impl Receiver {
 
         rows::set_photo_look(db, chat_id, on).await?;
         SettingFact::PhotosSwitched { on }
-      }
-      CommandKind::DelegateOn | CommandKind::DelegateOff => {
-        let on = command.kind == CommandKind::DelegateOn;
-
-        rows::set_delegation(db, chat_id, on).await?;
-        SettingFact::DelegationSwitched {
-          on,
-          delegate: self.deployment.delegate.clone(),
-        }
       }
       CommandKind::NoticeRestOn | CommandKind::NoticeRestOff => {
         let on = command.kind == CommandKind::NoticeRestOn;

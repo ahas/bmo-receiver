@@ -121,14 +121,7 @@ pub fn read_answer(text: &str) -> (String, Answered) {
 
 /// The opening of a later question turn: the lead naming its place and what it says of the send marker, then
 /// the question and the turn's scope.
-pub fn question_words(
-  name: &str,
-  text: &str,
-  number: usize,
-  count: usize,
-  send: &str,
-  scope: &Scope,
-) -> String {
+pub fn question_words(name: &str, text: &str, number: usize, count: usize, send: &str) -> String {
   let lead = if number == count { &DRAFTING.last_lead } else { &DRAFTING.lead };
   let lead = fill_marks(
     lead,
@@ -141,7 +134,7 @@ pub fn question_words(
     ],
   );
 
-  format!("{lead}\n\n{text}\n{}", scope_line(scope))
+  format!("{lead}\n\n{text}")
 }
 
 /// The line every question but the last closes on: the messages still waiting, shown with the next question.
@@ -149,13 +142,12 @@ pub fn waiting_line(pending: &[i64]) -> String {
   fill_marks(&DRAFTING.waiting, &[("ids", &stringify(&pending).unwrap_or_default())])
 }
 
-/// The closing check's turn (docs/drafting.md, 「Once the message stands, one closing check」): its line and the
-/// turn's scope, the message as it stands under its head, then the block of what arrived.
-pub fn closing_words(standing: &str, block: &str, scope: &Scope) -> String {
+/// The closing check's turn (docs/drafting.md, 「Once the message stands, one closing check」): its line, the message
+/// as it stands under its head, then the block of what arrived.
+pub fn closing_words(standing: &str, block: &str) -> String {
   format!(
-    "{}\n{}\n\n{}\n{}\n\n{block}",
+    "{}\n\n{}\n{}\n\n{block}",
     fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]),
-    scope_line(scope),
     DRAFTING.standing,
     standing.trim()
   )
@@ -783,7 +775,7 @@ impl Drafter {
       let last = number == count;
       let (name, text) = &plan.questions[at];
       let send = plan.send_line(at);
-      let mut words = question_words(name, text, number, count, &send, drafted.scope);
+      let mut words = question_words(name, text, number, count, &send);
 
       run.asked.push(text.clone());
 
@@ -852,7 +844,7 @@ impl Drafter {
     if let Some(standing) = &message
       && let Some((block, took)) = run.arrived().await
     {
-      let mut words = closing_words(&standing.text, &block, drafted.scope);
+      let mut words = closing_words(&standing.text, &block);
 
       if let Ok(Some(note)) = super::situation::read(receiver.db(), chat).await {
         words = format!("{}\n{note}\n\n{words}", CHAT_ROUND.situation.front);

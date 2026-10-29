@@ -288,7 +288,6 @@
   - When it changes, even in the same room, it is replaced whole with a new block.
   - A delegation left in earlier conversation or a summary is no basis for rights.
 - **Scope:** a rule applies only to its named user, work and project.
-- **Rights, not a wake:** a rule gives its user rights once the agent is awake; it does not wake the agent. That
-  user's text reaches the session only when it calls the agent, replies to the agent or falls in the room's open
-  window, and their file only on those same grounds, read off its caption (`docs/room-files.md`, 「Who a file
-  wakes」).
+- **Rights, not a wake:** a rule gives its user rights once the agent is awake. Every member's words wake the
+  agent in a room it answers, on the grounds in `docs/wake.md` (「Who reaches the session」); a rule neither wakes
+  it nor keeps it asleep, and a muted member's words do not wake it.

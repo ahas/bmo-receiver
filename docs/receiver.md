@@ -23,14 +23,14 @@ flowchart TD
   the owner it stands no receiver and says so on its output.
 - **What it carries:**
   - the judgement of a message: whether the room is listened to; the owner's commands (allow, shut, pictures,
-    delegation, mute, the two notices, the mode) with their acknowledgements queued as voiced notices; the
+    mute, the two notices) with their acknowledgements queued as voiced notices; the
     message kept with the room's title; an agent's own words and a message already read stopped there; an edit
     written in place;
   - the wake: which designated agents of the room a message wakes, by the one rule (`docs/wake.md`), with
     everything that stops a message before it:
     - the owner's answer to a job's open question in the owner's private chat, handed to bmo-job;
     - the rest's gate, read off the agency's rest (`GET /rest`, and `GET /stand-in` for a road the rest closes);
-    - the read mark, the reply mode, a mute, and whether a room rule names the sender;
+    - the read mark and a mute;
     - the window each agent keeps in the room, and the one a call opens for it;
     - the files a person posted just before the words of theirs that woke the chat agent;
   - the conversations (`docs/wake.md`, `docs/bmo-window.md`): each room's queue, rounds, window and waits, the

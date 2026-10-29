@@ -1,9 +1,7 @@
 //! The owner's setting commands read off the words typed (docs/rooms.md): a phrase of the policy's with the agent's
 //! name in front of it and a polite ending after it, a number only after a mute, and the mode its own word.
 
-use bmo_receiver::receiver::commands::{
-  BotMode, CommandKind, OwnerCommand, parse_mode_command, parse_owner_command,
-};
+use bmo_receiver::receiver::commands::{CommandKind, OwnerCommand, parse_owner_command};
 use receiver_policy::commands::COMMANDS;
 
 fn addresses() -> Vec<String> {
@@ -31,10 +29,6 @@ fn a_phrase_is_read_with_the_agents_name_before_it_and_a_polite_ending_after_it(
     read(&format!("agent {}{}!", last(&phrases.unmute), tails[4])),
     Some(CommandKind::Unmute)
   );
-  assert_eq!(
-    read(&format!("  {}  {}", phrases.delegate_on[1].replace(' ', "   "), tails[3])),
-    Some(CommandKind::DelegateOn)
-  );
   assert_eq!(read("notice:restart:off"), Some(CommandKind::NoticeRestartOff));
   assert_eq!(read(&format!("{}.", last(&phrases.photos_off))), Some(CommandKind::PhotosOff));
   assert_eq!(read(&format!("{} story{}", last(&phrases.photos_on), tails[0])), None);
@@ -60,12 +54,4 @@ fn only_a_mute_names_a_person_by_number() {
   );
   assert_eq!(parse_owner_command("photos:on 12345", &addresses()), None);
   assert_eq!(parse_owner_command(mute, &addresses()).unwrap().explicit_target_id, None);
-}
-
-#[test]
-fn the_mode_is_its_own_word_and_nothing_else() {
-  assert_eq!(parse_mode_command(" mode:everyone "), Some(BotMode::Everyone));
-  assert_eq!(parse_mode_command("mode:owner_only"), Some(BotMode::OwnerOnly));
-  assert_eq!(parse_mode_command("mode:somebody"), None);
-  assert_eq!(parse_mode_command("agent-a mode:everyone"), None);
 }

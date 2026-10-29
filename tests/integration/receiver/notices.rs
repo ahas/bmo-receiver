@@ -5,11 +5,12 @@ use receiver_codes::SettingFact;
 
 #[test]
 fn the_frame_carries_the_fact_and_says_the_line_is_to_be_said_in_the_chats_own_language() {
-  let framed = instruction(&SettingFact::ToolsSwitched { on: false }.to_string());
+  let framed = instruction(&SettingFact::PhotosSwitched { on: false }.to_string());
 
   assert!(framed.starts_with("The service has something to tell this chat"));
   assert!(framed.contains(
-    "\nThe owner switched tools off in this chat: here you now answer in words only.\nEND OF FACTS\n"
+    "\nThe owner switched photo viewing off for this chat alone: you know when a picture arrives here but do \
+     not open it. Other chats are unchanged.\nEND OF FACTS\n"
   ));
   assert!(framed.contains("What the line is for: acknowledge the owner's command in this chat."));
   assert!(framed.contains("in this chat's own language"));
@@ -20,8 +21,5 @@ fn the_frame_carries_the_fact_and_says_the_line_is_to_be_said_in_the_chats_own_l
 fn every_acknowledgement_of_one_setting_stands_under_one_kind() {
   assert_eq!(kind(&SettingFact::RestNoticeKept), kind(&SettingFact::RestNoticeSwitched { on: true }));
   assert_eq!(kind(&SettingFact::MuteTargetMissing), "setting:mute");
-  assert_ne!(
-    kind(&SettingFact::ToolsSwitched { on: true }),
-    kind(&SettingFact::PhotosSwitched { on: true })
-  );
+  assert_ne!(kind(&SettingFact::PhotosSwitched { on: true }), kind(&SettingFact::ChatAllowed));
 }

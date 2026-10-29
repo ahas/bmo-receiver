@@ -97,8 +97,6 @@ async fn fill(scratch: &Scratch, data: &std::path::Path, room: i64) {
       vec![room.into()],
     ),
     (r#"INSERT INTO "photo_chats" ("chat_id", "look") VALUES ($1, 1)"#, vec![room.into()]),
-    (r#"INSERT INTO "delegate_chats" ("chat_id") VALUES ($1)"#, vec![room.into()]),
-    (r#"INSERT INTO "tool_chats" ("chat_id") VALUES ($1)"#, vec![room.into()]),
     (
       r#"INSERT INTO "random_draw_rooms" ("chat_id", "next_seed", "next_commitment") VALUES ($1, 's', 'c')"#,
       vec![room.into()],
