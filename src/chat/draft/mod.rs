@@ -19,7 +19,8 @@ use serde_json::to_string as stringify;
 
 use super::ask::Carry;
 use super::conversation::{
-  Asking, BoxFuture, Carrying, Conversations, Drafted, Drafting, Failure, Follower, Held, Made, Reply,
+  Asking, BoxFuture, Carried, Carrying, Conversations, Drafted, Drafting, Failure, Follower, Held, Made,
+  Reply,
 };
 use super::mid_turn::{Push, paragraph};
 use super::promises::{promises_after, promises_later, sets_rule_later};
@@ -458,12 +459,34 @@ impl Run<'_> {
   }
 
   // One more turn of the same session: its answer where it gave one, as the process reads it with its marks taken
-  // out, none where its run failed, the stop raised. No room's words are pushed into it while it works.
+  // out, none where its run failed, the stop raised. Nothing is pushed into it while it works.
   async fn ask(
     &mut self,
     kind: Kind,
     name: &str,
     words: &str,
+  ) -> Result<Option<(Reply, Answered)>, Failure> {
+    self.asked_with(kind, name, words, false).await
+  }
+
+  // One more turn of the same session that takes the room's words pushed into it while it works (docs/drafting.md,
+  // 「What came in meanwhile」): what it took is shown to the round once it answers, and goes back to wait where
+  // its run failed or the stop came.
+  async fn ask_taking_words(
+    &mut self,
+    kind: Kind,
+    name: &str,
+    words: &str,
+  ) -> Result<Option<(Reply, Answered)>, Failure> {
+    self.asked_with(kind, name, words, true).await
+  }
+
+  async fn asked_with(
+    &mut self,
+    kind: Kind,
+    name: &str,
+    words: &str,
+    taking: bool,
   ) -> Result<Option<(Reply, Answered)>, Failure> {
     let drafted = self.drafted;
     let chat = self.held.chat_id;
@@ -496,12 +519,30 @@ impl Run<'_> {
     let follower = Follower::new(self.conversations, chat);
     let receiver = &self.drafter.receiver;
     let carrying = Carry::new(receiver.clone());
+
+    if taking {
+      self.conversations.carry_turn(
+        chat,
+        Carried::open(
+          drafted.round,
+          drafted.tools_allowed,
+          drafted.privileged,
+          false,
+          self.holds.clone(),
+          vec![],
+        ),
+      );
+    }
+
     let carried = carrying.carry(&asking, &held, &follower).await;
+    let pushed = follower.finish().map(Carried::into_shown).unwrap_or_default();
 
     self.only_marks = false;
 
     match carried {
       Ok(answered) => {
+        self.shown.extend(pushed);
+
         let text = self.marked(&strip_prompt_scaffolding(&answered.text));
         // An answer of nothing but marks says nothing more: no skip, and no words.
         let (text, ending) = match (self.only_marks, text.is_empty()) {
@@ -531,6 +572,8 @@ impl Run<'_> {
         Ok(Some((answer, ending)))
       }
       Err(failure) => {
+        // A turn whose run failed showed nothing: what was pushed into it goes back to wait.
+        self.conversations.give_back_words(chat, pushed);
         self.log.turn(kind, name, None, Answered::Failed, now_ms() - started).await;
 
         if matches!(failure, Failure::Stopped) {
@@ -575,7 +618,6 @@ impl Run<'_> {
       agent: self.agent,
       owner: receiver.owner_id(),
       chat_id: chat,
-      room: drafted.room,
       round: drafted.round,
       messages: &took,
       instructions: &[],
@@ -584,6 +626,7 @@ impl Run<'_> {
       consumed: self.held.last_consumed_id,
       tools_allowed: drafted.tools_allowed,
       reader: Some(receiver.roads()),
+      judged: false,
     })
     .await;
 
@@ -732,7 +775,7 @@ impl Drafter {
       asked: plan.questions.first().map(|(_, text)| text.clone()).into_iter().collect(),
       latest: drafted.reply.clone(),
       log: Log::new(conversations, drafted.round, chat, agent),
-      shown: vec![],
+      shown: drafted.pushed.to_vec(),
       holds: drafted.selection.entries.iter().map(|entry| entry.path.clone()).collect(),
       marks: vec![],
       only_marks: false,
@@ -806,12 +849,14 @@ impl Drafter {
 
       run.log.start(number, count, name);
 
-      let asked = run.ask(Kind::Question, name, &words).await;
+      let before = run.shown.len();
+      let asked = run.ask_taking_words(Kind::Question, name, &words).await;
       let block = block.map(|(_, took)| took).unwrap_or_default();
 
       match asked {
         Ok(Some((answer, read))) => {
-          run.shown.extend(block);
+          // The block was shown ahead of what the turn took while it worked.
+          run.shown.splice(before..before, block);
 
           // A wait is no message: the last question answering one sends nothing.
           if read == Answered::Skip || (last && is_wait(&answer.text)) {

@@ -198,6 +198,8 @@ pub struct Drafted<'a> {
   pub scope: &'a RoundScope,
   pub recent: &'a [Inbound],
   pub batch: &'a [Inbound],
+  /// The room's messages pushed into the round's own turn, shown to the process from its start.
+  pub pushed: &'a [Inbound],
   pub instructions: usize,
   pub tools_allowed: bool,
   pub owed: usize,
@@ -404,13 +406,16 @@ struct Conv {
   carried: Option<Carried>,
 }
 
-// The round a conversation is running, as what is pushed into its working turn grows it: every message it
-// carries, the instructions it took with their roads and rows, the paragraphs pushed and the instructions among
-// them as the session read them, what it holds by path, and whether its turn still takes more.
+/// The turn of a round that is working, as what is pushed into it grows it: whether the round is the owner's and
+/// whether this turn takes quiet instructions as well as the room's words, the room's messages pushed into it and
+/// waiting for the round's marks, the instructions it took with their roads and rows, the paragraphs pushed and the
+/// instructions among them as the session read them, what it holds by path, and whether it still takes more.
 pub struct Carried {
   round: String,
   tools_allowed: bool,
-  messages: Vec<Inbound>,
+  privileged: bool,
+  takes_instructions: bool,
+  shown: Vec<Inbound>,
   roads: Vec<String>,
   settling: Vec<i64>,
   pushed: Vec<String>,
@@ -419,6 +424,42 @@ pub struct Carried {
   open: bool,
   shut: bool,
   pushing: bool,
+}
+
+impl Carried {
+  /// A working turn of the round `round` opened to pushes (docs/bmo-window.md, 「The openings」, `push`): the
+  /// room's words where they keep the round's privilege, and the quiet instructions too where `takes_instructions`;
+  /// `holds` is what the round already holds by path, `roads` the roads it was opened with.
+  pub fn open(
+    round: &str,
+    tools_allowed: bool,
+    privileged: bool,
+    takes_instructions: bool,
+    holds: HashSet<String>,
+    roads: Vec<String>,
+  ) -> Self {
+    Carried {
+      round: round.to_owned(),
+      tools_allowed,
+      privileged,
+      takes_instructions,
+      shown: vec![],
+      roads,
+      settling: vec![],
+      pushed: vec![],
+      pushed_instructions: vec![],
+      holds,
+      open: true,
+      shut: false,
+      pushing: false,
+    }
+  }
+
+  /// The room's messages the turn took, shown to the round and settled by its marks (docs/drafting.md, 「What
+  /// came in meanwhile」).
+  pub fn into_shown(self) -> Vec<Inbound> {
+    self.shown
+  }
 }
 
 // The words a push took out of the conversation, held until the turn says what became of them.
@@ -1610,7 +1651,7 @@ impl Conversations {
       return self.silent_end(chat_id, &batch, &held).await;
     }
 
-    let mut owed = if chat_id == self.owner_room() {
+    let owed = if chat_id == self.owner_room() {
       batch.iter().filter(|message| message.sender_id == Some(owner)).count()
     } else {
       0
@@ -1665,21 +1706,17 @@ impl Conversations {
 
     let follower = Follower::new(self, chat_id);
 
-    if let Some(conv) = self.state().active.get_mut(&chat_id) {
-      conv.carried = Some(Carried {
-        round: round.to_owned(),
+    self.carry_turn(
+      chat_id,
+      Carried::open(
+        round,
         tools_allowed,
-        messages: batch.clone(),
-        roads: roads.clone(),
-        settling: vec![],
-        pushed: vec![],
-        pushed_instructions: vec![],
-        holds: composed.selection.entries.iter().map(|entry| entry.path.clone()).collect(),
-        open: true,
-        shut: false,
-        pushing: false,
-      });
-    }
+        held.all_from_owner,
+        true,
+        composed.selection.entries.iter().map(|entry| entry.path.clone()).collect(),
+        roads.clone(),
+      ),
+    );
 
     let started = now_ms();
     let asking = Asking {
@@ -1705,38 +1742,17 @@ impl Conversations {
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
     let carried = follower.finish();
     let mut scope = composed.scope.clone();
-    let mut recent = composed.recent.clone();
+    let recent = composed.recent.clone();
+    let mut pushed: Vec<Inbound> = vec![];
 
-    // What the turn took while it worked is the round's as much as what it froze, so everything decided from here
-    // on reads the grown set: the road the answer goes back on, the answer owed, the wait it ends, the scope.
+    // The instructions the turn took while it worked are the round's as much as those it froze, so the road the
+    // answer goes back on and the scope read the grown set. The room's messages it took are shown to the round,
+    // and the marks the process reads settle them (docs/bmo-window.md, 「The openings」, `push`).
     if let Some(carried) = carried {
-      let grown: Vec<Inbound> = carried.messages[batch.len().min(carried.messages.len())..].to_vec();
-
       record.settling.extend(carried.settling.iter().copied());
 
-      if !grown.is_empty() || carried.roads.len() > roads.len() {
-        via = self.road_of(chat_id, &carried.messages, &carried.roads).await;
-      }
-
-      if !grown.is_empty() {
-        batch = carried.messages.clone();
-        owed = if chat_id == self.owner_room() {
-          batch.iter().filter(|message| message.sender_id == Some(owner)).count()
-        } else {
-          0
-        };
-
-        if let Some(conv) = self.state().active.get_mut(&chat_id) {
-          conv.asked_at = conv.asked_at.or_else(|| grown.iter().map(|message| message.sent_at).min());
-        }
-
-        scope.message_ids = batch.iter().map(|message| message.message_id).collect();
-
-        for message in &grown {
-          if !recent.iter().any(|shown| shown.message_id == message.message_id) {
-            recent.push(message.clone());
-          }
-        }
+      if carried.roads.len() > roads.len() {
+        via = self.road_of(chat_id, &batch, &carried.roads).await;
       }
 
       if !carried.pushed_instructions.is_empty() {
@@ -1745,12 +1761,16 @@ impl Conversations {
           .filter(|text| !text.is_empty())
           .collect::<Vec<_>>()
           .join("\n\n");
-        instructions.extend(carried.pushed_instructions);
+        instructions.extend(carried.pushed_instructions.iter().cloned());
       }
+
+      pushed = carried.into_shown();
     }
 
-    // A push moves what the round has read up to.
-    held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
+    // A turn whose run failed showed nothing: what was pushed into it goes back to wait.
+    if asked.is_err() {
+      self.give_back_words(chat_id, std::mem::take(&mut pushed));
+    }
 
     let reply = asked?;
     let stripped = crate::form::strip_prompt_scaffolding(&reply.text);
@@ -1777,13 +1797,20 @@ impl Conversations {
     // the room. A room notice, or a message pushed with it, keeps the round a room's (docs/bmo-window.md, 「Quiet
     // instruction」).
     if batch.is_empty()
+      && pushed.is_empty()
       && !instructions.is_empty()
       && Self::agent_only_round(&receiver, &record.settling).await
     {
       return self.silent_end(chat_id, &batch, &held).await;
     }
 
+    // A wait holds what was pushed with the rest of the round's words.
     if is_wait(&reply.text) {
+      if !pushed.is_empty() {
+        batch.extend(pushed);
+        self.consume(chat_id, &batch).await;
+      }
+
       return self.waited_round(chat_id, &batch, &held_words, final_round, record).await;
     }
 
@@ -1800,6 +1827,7 @@ impl Conversations {
           scope: &scope,
           recent: &recent,
           batch: &batch,
+          pushed: &pushed,
           instructions: instructions.len(),
           tools_allowed,
           owed,
@@ -2344,6 +2372,14 @@ impl Conversations {
     }
   }
 
+  /// A turn of the room's round about to go out opened to what is pushed into it while it works; its follower's
+  /// finish closes it again.
+  pub fn carry_turn(&self, chat_id: i64, carried: Carried) {
+    if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      conv.carried = Some(carried);
+    }
+  }
+
   // A round that comes to no turn: the room free for the next round, and nothing of it kept.
   pub fn no_turn(&self, chat_id: i64) {
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
@@ -2839,44 +2875,60 @@ impl Follower {
     self.offered.lock().unwrap_or_else(PoisonError::into_inner)
   }
 
-  // The quiet instructions delivered while the turn works, taken where the round's turn still takes them. A room's
-  // words are never pushed: they wait in the room's buffer for the round's next question (docs/drafting.md, 「What
-  // came in meanwhile」).
+  // What came for the room while the turn works, taken where the turn still takes it (docs/bmo-window.md, 「The
+  // openings」, `push`): the room's words where they keep the round's privilege, as a question boundary takes
+  // them, and the quiet instructions delivered meanwhile where the turn takes those too.
   pub async fn offer(&self) -> Option<String> {
     let chat_id = self.chat_id;
     let conversations = &self.conversations;
     let owner = conversations.owner();
-    let (messages, instructions, ids, roads, events, room, holds, round, consumed, tools_allowed) = {
+    let privileged = {
       let mut state = conversations.state();
-      let conv = state.active.get_mut(&chat_id)?;
-      let carried = conv.carried.as_ref()?;
+      let carried = state.active.get_mut(&chat_id)?.carried.as_mut()?;
 
       if !carried.open || carried.shut || carried.pushing {
         return None;
       }
 
-      let messages: Vec<Inbound> = vec![];
-      let instructions = std::mem::take(&mut conv.instructions);
-      let ids = std::mem::take(&mut conv.instruction_ids);
-      let roads = std::mem::take(&mut conv.instruction_roads);
-      let events = std::mem::take(&mut conv.instruction_events);
+      carried.pushing = true;
+      carried.privileged
+    };
+    let messages = conversations.meanwhile(chat_id, privileged).await;
+    let (instructions, ids, roads, events, holds, round, consumed, tools_allowed) = {
+      let mut state = conversations.state();
+      let conv = state.active.get_mut(&chat_id)?;
+      let Some(takes_instructions) = conv.carried.as_ref().map(|carried| carried.takes_instructions) else {
+        conv.give_back(messages, vec![], vec![], vec![], vec![]);
+        return None;
+      };
+      let (instructions, ids, roads, events) = if takes_instructions {
+        (
+          std::mem::take(&mut conv.instructions),
+          std::mem::take(&mut conv.instruction_ids),
+          std::mem::take(&mut conv.instruction_roads),
+          std::mem::take(&mut conv.instruction_events),
+        )
+      } else {
+        Default::default()
+      };
 
       if messages.is_empty() && instructions.is_empty() {
         conv.give_back(messages, instructions, ids, roads, events);
+
+        if let Some(carried) = conv.carried.as_mut() {
+          carried.pushing = false;
+        }
+
         return None;
       }
 
-      let carried = conv.carried.as_mut()?;
-
-      carried.pushing = true;
+      let carried = conv.carried.as_ref()?;
 
       (
-        messages,
         instructions,
         ids,
         roads,
         events,
-        conv.room,
         carried.holds.clone(),
         carried.round.clone(),
         conv.held.last_consumed_id,
@@ -2888,7 +2940,6 @@ impl Follower {
       agent: conversations.agent(),
       owner,
       chat_id,
-      room,
       round: &round,
       messages: &messages,
       instructions: &instructions,
@@ -2897,6 +2948,7 @@ impl Follower {
       consumed,
       tools_allowed,
       reader: Some(conversations.0.receiver.roads()),
+      judged: true,
     })
     .await;
     let mut state = conversations.state();
@@ -2934,7 +2986,8 @@ impl Follower {
     }
   }
 
-  // What the turn took joins the round's carried set; what it refused goes back to the front of what waits, and
+  // What the turn took joins the round: its messages shown to the round, waiting for the marks that settle them,
+  // its instructions among the rows the round settles. What it refused goes back to the front of what waits, and
   // a turn that says it is waiting takes no more.
   pub async fn settle(&self, outcome: AsideOutcome) {
     let chat_id = self.chat_id;
@@ -2960,7 +3013,7 @@ impl Follower {
           } = offered;
           let counts = (messages.len(), instructions.len());
 
-          carried.messages.extend(messages);
+          carried.shown.extend(messages);
           carried.roads.extend(roads);
           carried.settling.extend(ids);
           carried.pushed.push(paragraph.text);
@@ -2970,7 +3023,7 @@ impl Follower {
             carried.pushed_instructions.push(paragraph.instructions);
           }
 
-          Some((carried.messages.clone(), counts))
+          Some(counts)
         }
         (outcome, _) => {
           let Offered {
@@ -2994,16 +3047,14 @@ impl Follower {
         }
       }
     };
-    let Some((all, (messages, pushed))) = taken else { return };
-
-    conversations.consume(chat_id, &all).await;
+    let Some((messages, pushed)) = taken else { return };
 
     println!(
       "chat {chat_id}: {messages} message(s) and {pushed} instruction(s) went into the working turn"
     );
   }
 
-  // The round's turn is over: it takes no more, words offered and never answered for go back, and what the
+  // The working turn is over: it takes no more, words offered and never answered for go back, and what the
   // pushes grew the round by is the round's to decide on.
   pub fn finish(&self) -> Option<Carried> {
     let offered = self.offered().take();

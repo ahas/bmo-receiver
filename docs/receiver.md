@@ -34,8 +34,9 @@ flowchart TD
     - the window each agent keeps in the room, and the one a call opens for it;
     - the files a person posted just before the words of theirs that woke the chat agent;
   - the conversations (`docs/wake.md`, `docs/bmo-window.md`): each room's queue, rounds, window and waits, the
-    round's turn on the agent's session with the quiet instructions pushed into it, the draft process its answer
-    is made in and the room's words that arrived meanwhile shown at its question boundaries
+    round's turn on the agent's session with the room's words and the quiet instructions that arrive while it
+    works pushed into it, the draft process its answer is made in and the room's words no push put in shown at its
+    question boundaries
     (`docs/drafting.md`), the answer sent on the road the turn
     answers on with the room shown typing meanwhile, the fold, the failure orders and the cache warmer's touch;
     each answer sent is handed back to the receiver like any word filed in the room;

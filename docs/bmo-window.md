@@ -43,6 +43,10 @@ flowchart TB
   travel with the row into the turn that takes it.
 - **A room's words** reach the conversation from the chat services through the room queue, from the start-up
   backlog, and from the web console's own chat service.
+- **A room's words do not wait for the round that is working.** Words the room queue hands over while a turn of
+  that room's round works go into that turn at its next look, in one paragraph with any quiet instruction pushed
+  with them (「The openings」, `push`), and the agent judges each itself; what no push puts in waits for the
+  round's next question (`docs/drafting.md`, 「What came in meanwhile」).
 
 ## Every road into the agent
 
@@ -56,7 +60,8 @@ is written.
 | The owner's words from the web console | the console's chat service | room queue | `round` | opens | — |
 | Unread words at start-up, every room's | backlog | room queue | `round` | opens | — |
 | A quiet instruction arriving while a turn works | instruction pass | instruction table | `push` | joins the working one | the pushed rows' |
-| A room's words arriving while a round runs | room queue | room queue | `question` | under the round's next question or its closing check (`docs/drafting.md`, 「What came in meanwhile」) | — |
+| A room's words arriving while a round's turn works | room queue | room queue | `push` | joins the working one, the agent judging each message | — |
+| A room's words no push put in: arriving between the round's turns, refused by the turn, or for a turn that takes no words while it works | room queue | room queue | `question` | under the round's next question or its closing check (`docs/drafting.md`, 「What came in meanwhile」) | — |
 | A job's ending, its report and state facts | bmo-job | instruction table | `round` | opens | `job-ended` |
 | A work order's held, resuming, stalled, stopped and paused stages | bmo-job | instruction table | `round` | opens | — |
 | A job quiet for five minutes | bmo-job | instruction table | `round` | opens | — |
@@ -274,14 +279,49 @@ Beside the reference, a turn carries the room's messages since the agent last an
 
 - **`round`**: a room's words, its quiet instructions, or both. The window selects over the batch and the
   instructions, with the instructions' events.
-- **`push`**: quiet instructions put into a turn that is still working; a room's words are never pushed, and
-  wait for the round's next question instead. A push carries the instructions alone; no piece goes in with
-  it. It joins what the round holds once the agency's session push answers it
-  `delivered`; words it answers otherwise go back to wait (`docs/boundary-api.md`, 「The agency」).
+- **`push`**: what came for the room while a turn of its round works, put into that turn at its next look, where
+  the agent's program takes it between tool calls.
+  - **What it carries.** The room's words the room queue handed over since the turn went out, and the quiet
+    instructions delivered meanwhile, in one paragraph: what arrived, the rule the agent judges each message by,
+    the messages as a round's block renders them, each with its sender, its words and its number, the numbers
+    named as added to the turn's scope, then the instructions in their own block. No piece goes in with it: the
+    round's index went in with its turn.
+  - **Which turns take it.** The round's own turn takes the room's words and the quiet instructions; a later
+    question of the draft process before its message stands takes the room's words alone, the instructions
+    waiting for the round after. The closing check, an item, the review and a check on the final text take no
+    push, and words that come while they work wait (`docs/drafting.md`, 「What came in meanwhile」).
+  - **Only while the turn works.** The round looks at its working turn every `look_ms` (`chat-round.toml`,
+    `[pushing]`), and offers nothing for `refused_gap_ms` after the agency refused a push. The agency decides
+    twice whether the turn still works and puts the words in only where the turn's provider declares that it
+    takes words mid-turn; a provider that does not answers every push refused, and its words wait as the
+    question boundary takes them. A push that went in is waited on, bounded, until the session's record holds it.
+  - **The round's privilege holds.** The room's words go in only where they keep the round's standing, read as
+    the question boundary reads it (`docs/drafting.md`, 「What came in meanwhile」); the others wait and open the
+    round after.
+  - **The judgement is the agent's.** The paragraph says the words arrived while this answer was being made and
+    that each is judged on its own: a message that asks something new or changes what was asked is answered in
+    the reply being made, a cancellation or a correction heeded at once, the work it cancels stopped and the
+    reply saying so; a message that needs an answer of its own that does not fit this reply is held with
+    `<<SEPARATE #<number>>>`; a message that only continues or restates what this reply already answers is set
+    aside with `<<DONE #<number>>>`. It also says that only what is written after it goes out, so the reply is
+    written whole after it whatever the agent decides.
+  - **How the round settles each pushed message.** A pushed message is shown to the round as one under a
+    question is, and the round settles it by the marks its answers set (`docs/drafting.md`, 「What came in
+    meanwhile」): one marked neither way is the round's own, answered or heeded by its message, the read mark
+    moving to it and the owner's words among it owed an answer; one held goes back to the front of what waits
+    once the round's message is made and opens the round after as the room's question; one set aside is read,
+    the read mark moving past it, and nothing is sent for it or owed it. A turn that writes no mark takes every
+    message pushed into it. A turn whose run failed, or a round that is stopped, gives its pushed messages back to
+    wait; a round's own turn that answers `<<WAIT>>` keeps them among the words it waits with.
+  - **How the round settles each pushed instruction.** An instruction pushed into the round's own turn joins the
+    rows the round took and is settled with the round, under its name.
+  - **What the agency answers.** Words it answers `delivered` are the round's from then on; words it answers
+    `waiting` or `refused` go back to the front of what waits, and a `waiting` turn is offered nothing more
+    (`docs/boundary-api.md`, 「The agency」).
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
   the first, which rides the round's own turn, an item or a check. It carries no reference of its own: the core and
   the index went in with the round's turn. A question, or the closing check once the message stands, carries the room's
-  words that came in meanwhile as one block.
+  words that came in meanwhile and no push put in as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It is composed like any turn,
   so a row that has come due while the room was quiet is in front of the agent. Its answer goes to no room: what is due is done with tools, `say` for speaking.

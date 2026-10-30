@@ -1,8 +1,10 @@
 //! Words that arrive while a round's turn is working, put into that turn at its next look rather than held for
-//! the next round (the agency's `docs/agent-control.md`, 「Words that arrive while a turn is working」): the one paragraph they
-//! go in as — what arrived, that this same answer takes them in, the messages and instructions formatted and
-//! cleaned exactly as a round's own are, the answer they are owed — behind whatever the window selects for them
-//! that the round does not already hold.
+//! the next round (the agency's `docs/agent-control.md`, 「Words that arrive while a turn is working」;
+//! docs/bmo-window.md, 「The openings」, `push`): the one paragraph they go in as — what arrived, that only what is
+//! written after it goes out, the rule each message is judged by and how the instructions are taken, the messages
+//! and instructions formatted and cleaned exactly as a round's own are. The same paragraph, without the rule the
+//! room's block already states, stands under a question of the draft process for the words no push put in
+//! (docs/drafting.md, 「What came in meanwhile」).
 
 use std::collections::HashSet;
 
@@ -11,8 +13,8 @@ use receiver_policy::fill_marks;
 
 use super::shape::{Reading, sends};
 use crate::Fault;
+use crate::receiver::Inbound;
 use crate::receiver::Receiver;
-use crate::receiver::{Inbound, Room};
 use crate::roads::Roads;
 use receiver_ports::gate::TurnEvent;
 
@@ -23,7 +25,6 @@ pub struct Push<'a> {
   pub agent: &'a str,
   pub owner: i64,
   pub chat_id: i64,
-  pub room: Room,
   pub round: &'a str,
   pub messages: &'a [Inbound],
   pub instructions: &'a [String],
@@ -34,6 +35,9 @@ pub struct Push<'a> {
   pub consumed: Option<i64>,
   pub tools_allowed: bool,
   pub reader: Option<&'a Roads>,
+  /// Whether the paragraph carries the rule each message is judged by: a push into a working turn does, and a
+  /// block under a question leans on the rules the room's block states.
+  pub judged: bool,
 }
 
 /// The paragraph a push goes in as, the instructions as the session reads them, and the paths of what the
@@ -44,8 +48,9 @@ pub struct Paragraph {
   pub reference: Vec<String>,
 }
 
-// What arrived, as the paragraph's opening says it.
-pub fn note(messages: usize, instructions: usize) -> String {
+/// The paragraph's opening: what arrived and that only what is written after it goes out; then, where messages
+/// came and `judged` asks for it, the rule each is judged by, and where instructions came, how they are taken.
+pub fn note(messages: usize, instructions: usize, judged: bool) -> String {
   let push = &CHAT_ROUND.push;
   let mut what = vec![];
 
@@ -57,7 +62,17 @@ pub fn note(messages: usize, instructions: usize) -> String {
     what.push(fill_marks(&push.instructions, &[("count", &instructions.to_string())]));
   }
 
-  fill_marks(&push.note, &[("what", &what.join(&push.joined))])
+  let mut note = vec![fill_marks(&push.note, &[("what", &what.join(&push.joined))])];
+
+  if judged && messages > 0 {
+    note.push(push.judge.clone());
+  }
+
+  if instructions > 0 {
+    note.push(push.heed.clone());
+  }
+
+  note.join(" ")
 }
 
 /// The paragraph the push's words go into the working turn as.
@@ -71,7 +86,7 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
     fetch_on_demand: fetch,
     shown: &shown,
   };
-  let mut parts = vec![note(sends(push.messages).len(), push.instructions.len())];
+  let mut parts = vec![note(sends(push.messages).len(), push.instructions.len(), push.judged)];
 
   if !push.messages.is_empty() {
     let lines = reading(push.tools_allowed).lines(push.messages).await?;
@@ -95,17 +110,6 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
     parts.push(fill_marks(&blocks.quiet, &[("count", &push.instructions.len().to_string())]));
     parts.push(instructions.clone());
     parts.push(blocks.quiet_end.clone());
-  }
-
-  let owed = if push.room.owner_room {
-    push.messages.iter().filter(|message| message.sender_id == Some(push.owner)).count()
-  } else {
-    0
-  };
-
-  if owed > 0 {
-    parts.push(String::new());
-    parts.push(fill_marks(&CHAT_ROUND.closing.owed, &[("count", &owed.to_string())]));
   }
 
   Ok(Paragraph {

@@ -166,11 +166,14 @@ That is the whole of what comes across from that room; you are not being shown t
 Do not write back to that room over this. A reply for the sake of replying is two rooms talking in a circle; send again only if somebody here has something new to ask them."""
 
 # The one paragraph words pushed into a working turn are wrapped in (docs/bmo-window.md, 「The openings」, `push`):
-# what arrived — its {messages} and {instructions} parts, whichever it carried, joined —
-# that this same answer takes them in, and that only what is written after it goes out. The pushed messages'
-# ids follow their block as the turn's grown {ids}.
+# what arrived — its {messages} and {instructions} parts, whichever it carried, joined — and that only what is
+# written after it goes out; `judge`, the rule each pushed message is judged by, where messages came; `heed`, how
+# the instructions are taken, where instructions came. The pushed messages' ids follow their block as the turn's
+# grown {ids}.
 [push]
-note = "More for the answer you are making now: {what} arrived while you were making it. This same answer takes them in: answer them in the reply you are writing, not in a reply of their own. Only the answer you write after this goes out, and nothing you wrote before it is sent: if you had already written an answer, write the whole reply again with these taken in."
+note = "More for the answer you are making now: {what} arrived while you were making it. Only what you write after this goes out, and nothing you wrote before it is sent: whatever you decide below, write the whole reply after this."
+judge = "Judge each new message on its own, by its number. Where it asks something new or changes what was asked, answer it in this same reply; a cancellation or a correction is heeded at once: stop the work it cancels and say so in the reply. Where it needs an answer of its own that does not fit this reply, hold it with <<SEPARATE #<number>>>: it stays unanswered now and opens the next turn as this room's question. Where it only continues or restates what this reply already answers, set it aside with <<DONE #<number>>>: it is read and gets no answer of its own. A message you mark neither way is one this reply answers."
+heed = "Take the quiet instructions into this same answer, not into a reply of their own."
 messages = "{count} new message(s) from this same room"
 instructions = "{count} quiet instruction(s) from the service you run inside"
 joined = " and "

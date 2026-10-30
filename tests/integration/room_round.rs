@@ -1,7 +1,7 @@
 //! A room's round carried whole (docs/wake.md, 「The room's queue and the round」; docs/bmo-window.md, 「Every
 //! road into the agent」): the owner's words filed in his chat wake the chat agent's conversations, the round
 //! composes its turn and carries it into the agency's session, its answer goes back to the room, and words that
-//! come into the room while the turn works are never pushed into it: they wait, and the round's closing check
+//! come into the room while the turn works and that the turn does not take wait, and the round's closing check
 //! shows them before its message goes out.
 
 use std::path::Path;
@@ -143,7 +143,7 @@ impl Round {
     until("the first turn", || round.session.working()).await;
     round.hear(2, LATER).await;
     until("the words said meanwhile waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
-    // A look at the working turn passes, and still nothing is pushed.
+    // A look at the working turn passes, and the stand-in agency takes nothing pushed into it.
     tokio::time::sleep(Duration::from_millis(50)).await;
     round.session.let_go();
     until("the rounds' end", || round.runner.idle() && !round.session.working()).await;
@@ -171,15 +171,15 @@ impl Round {
 }
 
 // The first turn carried the first words alone, on the session the agency started for the agent; the words said
-// meanwhile were never pushed into it, and the closing check showed them before the message went out.
+// meanwhile did not go into it, and the closing check showed them before the message went out.
 fn shown_in_the_closing_check(round: &Round) {
   let prompts = round.session.prompts();
 
   assert!(prompts[0].contains(FIRST), "the first turn carries the words that woke it");
   assert!(!prompts[0].contains(LATER), "words said after the turn went out are not in its prompt");
   assert!(
-    round.pushes().is_empty(),
-    "no room's words are pushed into a working turn: {:?}",
+    round.pushes().iter().all(|(_, _, words)| words.contains(LATER)),
+    "only the words said meanwhile are offered to the working turn: {:?}",
     round.pushes()
   );
   assert_eq!(prompts.len(), 2, "the closing check is the round's one more turn");

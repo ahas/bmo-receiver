@@ -165,6 +165,8 @@ pub struct Relay {
 #[serde(deny_unknown_fields)]
 pub struct Push {
   pub note: String,
+  pub judge: String,
+  pub heed: String,
   pub messages: String,
   pub instructions: String,
   pub joined: String,

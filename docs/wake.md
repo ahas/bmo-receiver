@@ -160,17 +160,17 @@ its rounds.
   (`docs/answer-checks.md`); the message is sent on the road the turn
   answers on, then handed back to the receiver as filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
   over on the conversations' own clock.
-- **A room's words never go into a working turn.** Words that come into the room while a round runs, from its
-  own turn to the process's end, wait in the room's buffer and reach the agent only at a question boundary of the
-  draft process: under the next question, or in the one closing check before the message is sent, where the
-  agent marks each as answered with the message, needing no answer or answered in a round of its own
-  (`docs/drafting.md`, 「What came in meanwhile」). A message shown inside a round opens no round afterwards
-  unless the agent marked it separate; only words that came after the round showed its last block open the next.
-- **What is no room message is pushed into the working turn**
-  (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at it: a quiet instruction, such
-  as one the owner types on the console. What the agency says was `delivered` joins the round, which answers it
-  with the rest; what is `waiting` or `refused` goes back to wait for the round after, and a `waiting` turn is
-  offered nothing more (`docs/bmo-window.md`, `push`).
+- **A room's words go into the working turn.** Words the room queue hands over while a turn of a round works, from
+  the round's own turn to the question that writes the message, are pushed into that turn
+  (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at it, with the quiet
+  instructions delivered meanwhile where the turn is the round's own (`docs/bmo-window.md`, `push`). The agent
+  judges each message: answered with the message, set aside as needing no answer, or held to be answered in a
+  round of its own (`docs/drafting.md`, 「What came in meanwhile」). What the agency says was `delivered` is the
+  round's; what is `waiting` or `refused` goes back to wait, and a `waiting` turn is offered nothing more.
+- **What no push put in waits for a question boundary:** under the round's next question, or in the one closing
+  check before the message is sent, where the agent marks it the same way. A message pushed or shown inside a
+  round opens no round afterwards unless the agent held it; only words the round neither pushed nor showed open
+  the next.
 - **A round folds its session only past the fold share:** once its answer has gone out, the session is folded as
   work of its own where the context the agency reports it carrying after the round's last turn (its session
   state's `context`, `carried` against `window`) has reached the

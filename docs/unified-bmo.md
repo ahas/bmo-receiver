@@ -150,7 +150,7 @@
   send into that chat that names no road are kept in its record, and go to the chat's other providers from
   there. In a room whose whole line no road's screen shows, such a line goes on the room's own road.
 - **An instruction pushed into a working turn counts with the round's own.** Its road joins the roads the round
-  was opened with, and the answer's road is decided again over all of them, as it is for a message pushed in.
+  was opened with, and the answer's road is decided again over all of them.
 - **The turn is taught its road, not the room's.** Its room context carries the dialect and the capabilities of
   the road it answers on and names that road's key, and every send and launch it makes is given that key as
   `via`.

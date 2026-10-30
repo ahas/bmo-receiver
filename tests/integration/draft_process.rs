@@ -2,9 +2,10 @@
 //! names, the rest follow on the same session, every answer before the last is notes and the last is what goes
 //! back to the room; a send in the first round is the message at once, a skip in any question sends nothing, a
 //! failed check is asked once and the repaired text goes out, a light turn is
-//! asked the last question alone in its own turn, words that came meanwhile are never pushed and stand under the
-//! next question or the closing check, each answered with the message, marked done or marked separate, and the
-//! code's readings are items of the process rather than askings of their own.
+//! asked the last question alone in its own turn, words that came meanwhile are pushed into the working turn where
+//! it takes them and otherwise stand under the next question or the closing check, each answered with the message,
+//! marked done or marked separate, and the code's readings are items of the process rather than askings of their
+//! own.
 
 use std::io::Cursor;
 use std::path::Path;
@@ -15,6 +16,7 @@ use bmo_chat_client::MessageFile;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::instructions::{Queued, deliver_pending, queue, requeue_interrupted};
+use bmo_receiver::chat::mid_turn::{Push, paragraph};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
@@ -23,7 +25,9 @@ use image::{ImageFormat, Rgb, RgbImage};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
+use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
+use receiver_ports::agency::Said;
 
 use crate::common::Scratch;
 use crate::common::session::{StandInSession, drafting, drafting_sending};
@@ -1306,10 +1310,6 @@ async fn words_that_came_while_the_second_question_worked_stand_under_the_third(
 
   let prompts = round.session.prompts();
 
-  assert!(
-    round.standing.agency.pushes.lock().unwrap().is_empty(),
-    "no words are pushed into a later question"
-  );
   assert!(!prompts[1].contains(BETWEEN), "the second question does not carry them");
   assert!(prompts[2].contains(BETWEEN), "the third question carries them: {}", prompts[2]);
   assert_eq!(prompts.len(), 3, "the words call no round of their own");
@@ -1386,28 +1386,93 @@ async fn said_during_the_first(round: &Drafting) {
   round.hear(2, SHORT).await;
   // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
   until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
-  // The working turn is looked at meanwhile, and nothing is pushed into it.
+  // The working turn is looked at meanwhile, and the stand-in agency takes nothing pushed into it.
   tokio::time::sleep(Duration::from_millis(50)).await;
   round.session.let_go();
 }
 
+// The round's own turn held working while `SHORT` comes into the room and is pushed into it, the agency taking
+// it, then let go.
+async fn pushed_during_the_first(round: &Drafting) {
+  *round.standing.agency.saying.lock().unwrap() = Some(Said::Delivered);
+  round.hear(1, ASKED).await;
+  until("the round's turn", || round.session.prompts().len() == 1 && round.session.working()).await;
+  round.hear(2, SHORT).await;
+  until("the push", || !round.standing.agency.pushes.lock().unwrap().is_empty()).await;
+  round.session.let_go();
+}
+
+// The message the room's read mark stands at.
+async fn read_mark(round: &Drafting) -> Vec<String> {
+  round
+    .scratch
+    .texts(&format!(
+      r#"SELECT CAST("last_read_message_id" AS TEXT) FROM "chat_reads" WHERE "chat_id" = {OWNER}"#
+    ))
+    .await
+}
+
 #[tokio::test]
-async fn words_said_during_the_first_question_are_not_pushed_and_stand_under_the_second() {
+async fn a_push_carries_the_room_s_words_and_the_instructions_in_one_paragraph() {
+  const INSTRUCTION: &str = "a quiet instruction from the service";
+
+  let session = StandInSession::new(SESSION, "unscripted");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let receiver = &round.standing.receiver;
+  let built = paragraph(&Push {
+    receiver,
+    agent: AGENT,
+    owner: OWNER,
+    chat_id: OWNER,
+    round: "round-a",
+    messages: &[said(2, SHORT)],
+    instructions: &[INSTRUCTION.to_owned()],
+    events: &[],
+    holds: &Default::default(),
+    consumed: Some(1),
+    tools_allowed: true,
+    reader: None,
+    judged: true,
+  })
+  .await
+  .unwrap();
+  let text = &built.text;
+  let push = &CHAT_ROUND.push;
+  let at = |part: &str| text.find(part).unwrap_or_else(|| panic!("{part:?} stands in {text}"));
+
+  assert!(text.contains(&push.judge), "the rule each message is judged by: {text}");
+  assert!(text.contains(&push.heed), "how the instructions are taken: {text}");
+  assert!(text.contains("<<SEPARATE #<number>>>") && text.contains("<<DONE #<number>>>"), "{text}");
+  assert!(text.contains(SHORT) && text.contains("tester"), "the message with its sender: {text}");
+  assert!(
+    text.contains(&fill_marks(&push.scope, &[("ids", "[2]")])),
+    "its number joins the scope: {text}"
+  );
+  assert!(at(&push.judge) < at(SHORT), "the rule stands before the words");
+  assert!(at(SHORT) < at(INSTRUCTION), "the messages stand before the instructions");
+  assert_eq!(built.instructions, INSTRUCTION);
+}
+
+#[tokio::test]
+async fn words_a_turn_does_not_take_while_it_works_stand_under_the_next_question() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["notes", "more notes", "the message that takes both"])
     .holding_turn(1);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
 
-  said_during_the_first(&round).await;
+  // A provider that takes no words mid-turn: the agency refuses every push.
+  *round.standing.agency.saying.lock().unwrap() = Some(Said::Refused);
+  round.hear(1, ASKED).await;
+  until("the round's turn", || round.session.prompts().len() == 1 && round.session.working()).await;
+  round.hear(2, SHORT).await;
+  until("the refused push", || !round.standing.agency.pushes.lock().unwrap().is_empty()).await;
+  until("the words waiting again", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
+  round.session.let_go();
   round.ended(3).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert!(
-    round.standing.agency.pushes.lock().unwrap().is_empty(),
-    "no room's words go into a working turn"
-  );
   assert!(!prompts[0].contains(SHORT), "the round's own turn does not carry them");
   assert!(prompts[1].contains(SHORT), "the second question carries them: {}", prompts[1]);
   assert!(
@@ -1472,6 +1537,104 @@ async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
     "{sent:?}"
   );
   assert!(sent[1].contains("the answer to the second"), "{sent:?}");
+}
+
+#[tokio::test]
+async fn words_pushed_with_no_mark_are_the_round_s_own_and_shown_no_more() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["notes", "the message that takes both"])
+    .holding_turn(1);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  pushed_during_the_first(&round).await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+  let pushes = round.standing.agency.pushes.lock().unwrap().clone();
+
+  assert_eq!(pushes.len(), 1, "{pushes:?}");
+  assert!(
+    pushes[0].2.contains(SHORT) && pushes[0].2.contains(&CHAT_ROUND.push.judge),
+    "{}",
+    pushes[0].2
+  );
+  assert!(!prompts[1].contains(SHORT), "a pushed message stands under no question: {}", prompts[1]);
+  assert_eq!(prompts.len(), 2, "the pushed words call no round of their own");
+  assert!(sent.len() == 1 && sent[0].contains("the message that takes both"), "{sent:?}");
+  assert!(round.runner.of(AGENT).pending(OWNER).is_empty(), "nothing waits after the round");
+  assert_eq!(read_mark(&round).await, ["2"], "the round settled the pushed message");
+}
+
+#[tokio::test]
+async fn a_pushed_message_held_stays_unsettled_and_opens_the_round_after() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["<<SEPARATE #2>> notes", "the message for the first words", "the answer to the second"])
+    .holding_turn(1);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  pushed_during_the_first(&round).await;
+  round.ended(3).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert!(!prompts[1].contains(SHORT), "the held message stands under no question: {}", prompts[1]);
+  assert_eq!(prompts.len(), 3, "the held message opens one round of its own");
+  assert!(prompts[2].contains(SHORT), "the round after asks it: {}", prompts[2]);
+  assert_eq!(sent.len(), 2, "{sent:?}");
+  assert!(
+    sent[0].contains("the message for the first words") && !sent[0].contains("SEPARATE"),
+    "{sent:?}"
+  );
+  assert!(sent[1].contains("the answer to the second"), "{sent:?}");
+}
+
+#[tokio::test]
+async fn a_pushed_message_set_aside_is_read_and_answered_by_nothing() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["<<DONE #2>> notes", "the message for the first words"])
+    .holding_turn(1);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  pushed_during_the_first(&round).await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 2, "a message set aside calls no round of its own");
+  assert!(sent.len() == 1 && !sent[0].contains("DONE"), "{sent:?}");
+  assert!(round.runner.of(AGENT).pending(OWNER).is_empty(), "nothing waits after the round");
+  assert_eq!(read_mark(&round).await, ["2"], "the read mark moved past the message set aside");
+}
+
+#[tokio::test]
+async fn words_pushed_into_a_later_question_are_the_round_s_and_stand_under_no_question() {
+  const BETWEEN: &str = "and one more thing said between the questions";
+
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["notes", "more notes", "the message that takes both"])
+    .holding_turn(2);
+  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+
+  *round.standing.agency.saying.lock().unwrap() = Some(Said::Delivered);
+  round.hear(1, ASKED).await;
+  until("the second question", || round.session.prompts().len() == 2 && round.session.working()).await;
+  round.hear(2, BETWEEN).await;
+  until("the push", || !round.standing.agency.pushes.lock().unwrap().is_empty()).await;
+  round.session.let_go();
+  round.ended(3).await;
+
+  let prompts = round.session.prompts();
+  let pushes = round.standing.agency.pushes.lock().unwrap().clone();
+
+  assert!(pushes[0].2.contains(BETWEEN), "{}", pushes[0].2);
+  assert!(!pushes[0].2.contains(&CHAT_ROUND.push.heed), "a later question takes no instruction");
+  assert!(!prompts[2].contains(BETWEEN), "the third question does not carry them again");
+  assert_eq!(prompts.len(), 3, "the words call no round of their own");
+  assert_eq!(round.sent().len(), 1);
+  assert_eq!(read_mark(&round).await, ["2"]);
 }
 
 #[tokio::test]

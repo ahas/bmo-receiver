@@ -208,19 +208,21 @@ leaves.
 
 ## What came in meanwhile
 
-- **No room message goes into a turn of the process while it works.** From the round's own turn to the process's
-  end, words that come into the room wait in the room's buffer. The push into a working turn
-  (`docs/bmo-window.md`, `push`) carries only what is no room message, a quiet instruction such as one the owner
-  types on the console; a room's words pushed in would reach the session after whatever tool call is running and
-  mix into the answer of the question under way.
-- **The words reach the agent at a question boundary alone.** Each time an answer of the process comes back, the
-  receiver takes what waited since its last look and puts it under the next question as one block, composed the
-  way a push's words are: the window selects for what the round does not already hold, and each message stands
-  with its number. The block takes the waiting words only where they carry the round's privilege, read by people's
-  words alone as the round's own is (`docs/unified-bmo.md`, the run-privilege mark): a round that is the owner's
-  takes them where every person's words among them are his, an agent's line neither keeping them out nor letting
-  them in; a round that is not his never takes words that are his alone. The others wait and open the round after,
-  where the owner's own words carry his privilege.
+- **Words that come while a question works go into that turn.** From the round's own turn to the question that
+  writes the message, words the room queue hands over while a turn of the process works are pushed into it at its
+  next look (`docs/bmo-window.md`, `push`): the agent's program takes them between tool calls, and the agent judges
+  each against the answer it is making. The round's own turn takes the quiet instructions delivered meanwhile in
+  the same paragraph; a later question takes the room's words alone.
+- **What no push put in reaches the agent at a question boundary.** Words that came between two turns, words a
+  turn refused or whose provider takes no words while it works, and words that came while the push was held back
+  wait in the room's buffer. Each time an answer of the process comes back, the receiver takes what waited since
+  its last look and puts it under the next question as one block, composed as a push's paragraph is but for the
+  rule each message is judged by, which the room's block states: each message stands with its number.
+- **Pushed or shown under a question, the words keep the round's privilege,** read by people's words alone as the
+  round's own is (`docs/unified-bmo.md`, the run-privilege mark): a round that is the owner's takes them where every
+  person's words among them are his, an agent's line neither keeping them out nor letting them in; a round that is
+  not his never takes words that are his alone. The others wait and open the round after, where the owner's own
+  words carry his privilege.
 - **Once the message stands, one closing check.** Where words waited when the message came to stand — the answer
   to `final`, or one a send marker opened — the session is asked once more before the items and the checks: the
   policy's `arrived` line, the message as it stands, then the block. The answer, marks taken out, is the whole
@@ -229,7 +231,8 @@ leaves.
   marks sends the standing message unchanged, a wait leaves it too, and a skip sends nothing; the marks keep their
   meaning for the messages shown. The check is not asked where the process came to nothing to send: those words
   wait for the next round.
-- **The agent decides each message it was shown, by mark:**
+- **The agent decides each message it was shown, by mark,** a message pushed into a turn of the process being shown
+  to the round as one under a question is:
   - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, and
     the owner's words among it are owed an answer;
   - `<<DONE #<number>>>`: it needs no answer: the read mark moves past it, nothing is sent for it and nothing is
@@ -252,9 +255,10 @@ leaves.
   `replyToMessageId` only where the pin stands; the round stands as it was, and a turn with no pin shows no reply
   in the console or on the chat service. The answer is still the round's answer, whatever the visible pin.
 - **Nothing else opens a round for a message shown inside a round.** Words that come after the closing check, or
-  while an item or a check works, were shown to nobody and open the next round.
-- **A turn whose run failed showed nothing:** the block it carried goes back to wait, and a process that is
-  stopped gives back every block it showed.
+  while the closing check, an item, the review or a check works, are pushed into no turn, were shown to nobody and
+  open the next round.
+- **A turn whose run failed showed nothing:** the block it carried and the words pushed into it go back to wait,
+  and a process that is stopped gives back every block it showed and every word pushed into it.
 
 ## Time
 
