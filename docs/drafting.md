@@ -365,6 +365,13 @@ where it says something: neither empty nor a skip nor a wait.
   /session-loads/{sessionId}`), or a call the round's runs logged whose input names an entry of the index by its
   `group` and `slug`, so a piece read again stands once, `held`. The console's 브레인 chip and the round's line in the
   draft log read them.
+- **The end row names the session the round's turn ran on and what that session had read in this room before
+  it,** its `session` (null where the turn ran on none) and its `loaded`: the pieces the room's earlier rounds of the
+  same session read in full. `loaded` is the `loaded` of the end row of the same room and the same session written
+  last before it, plus that row's reads whose `how` is `attached` or `read`; a `held` read counts nothing, and where
+  no such row stands, or the turn ran on no session, it is 0. So no count carries across sessions, a new session starting
+  at 0, and the console's 브레인 figure reads as the running count, `loaded` and then `+` this round's full reads.
+  Every row but the end carries neither.
 - **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
   answer opened on `<<SEND>>` and became the message, `skip` or `failed`.
 - **The process's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where

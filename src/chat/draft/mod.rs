@@ -274,6 +274,15 @@ struct Run<'a> {
 }
 
 impl Run<'_> {
+  // The process's end written down with what the round read and the session its turn ran on (docs/drafting.md,
+  // 「The round log」).
+  async fn end(&mut self, ended: Ended, detail: &str, ms: i64) {
+    let reads = self.reads().await;
+    let session = self.latest.session.clone();
+
+    self.log.end(ended, detail, ms, &reads, session.as_deref()).await;
+  }
+
   // What the round read from the brain (docs/drafting.md, 「The round log」): the core its turn carried, in full or
   // as a mark, then every piece the session read itself through the index, by the loads it gained or changed and
   // by the index reads its runs logged, a piece the session already held at that version standing as held. Each
@@ -919,7 +928,7 @@ impl Drafter {
     let Some(mut message) = message else {
       let ended = Ended::Skip;
 
-      run.log.end(ended, row, now_ms() - drafted.began, &run.reads().await).await;
+      run.end(ended, row, now_ms() - drafted.began).await;
 
       return Ok(run.made(SKIP));
     };
@@ -950,7 +959,7 @@ impl Drafter {
       match asked {
         Ok(Some((answer, read))) => {
           if read == Answered::Skip {
-            run.log.end(Ended::Skip, row, now_ms() - drafted.began, &run.reads().await).await;
+            run.end(Ended::Skip, row, now_ms() - drafted.began).await;
 
             return Ok(run.made(SKIP));
           }
@@ -1026,7 +1035,7 @@ impl Drafter {
       {
         Ok(Some((answer, read))) => {
           if read == Answered::Skip {
-            run.log.end(Ended::Skip, row, now_ms() - drafted.began, &run.reads().await).await;
+            run.end(Ended::Skip, row, now_ms() - drafted.began).await;
 
             return Ok(run.made(SKIP));
           }
@@ -1061,16 +1070,8 @@ impl Drafter {
 
         eprintln!("chat {chat}: the message was withheld: {} failed", names.join(", "));
 
-        let reads = run.reads().await;
-
         run
-          .log
-          .end(
-            Ended::Withheld,
-            &format!("{row}; {}", names.join(", ")),
-            now_ms() - drafted.began,
-            &reads,
-          )
+          .end(Ended::Withheld, &format!("{row}; {}", names.join(", ")), now_ms() - drafted.began)
           .await;
 
         return Ok(run.made(SKIP));
@@ -1088,7 +1089,7 @@ impl Drafter {
         match answered {
           Ok(Some((answer, read))) => {
             if read == Answered::Skip {
-              run.log.end(Ended::Skip, row, now_ms() - drafted.began, &run.reads().await).await;
+              run.end(Ended::Skip, row, now_ms() - drafted.began).await;
 
               return Ok(run.made(SKIP));
             }
@@ -1115,7 +1116,7 @@ impl Drafter {
       row.to_owned()
     };
 
-    run.log.end(ended, &detail, now_ms() - drafted.began, &run.reads().await).await;
+    run.end(ended, &detail, now_ms() - drafted.began).await;
 
     Ok(run.made(&message.text))
   }

@@ -935,6 +935,13 @@ pub struct DraftRound {
   /// On the end, what the round read from the brain; empty on every other row.
   #[serde(default)]
   pub reads: Vec<DraftRead>,
+  /// On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.
+  #[serde(default)]
+  pub session: Option<String>,
+  /// On the end, how many pieces the room's earlier rounds of the same session read in full (`attached` or
+  /// `read`), 0 for a session's first round in the room or a round on no session; null on every other row.
+  #[serde(default)]
+  pub loaded: Option<i64>,
 }
 
 /// One thing a round read from the brain (docs/drafting.md, 「The round log」).

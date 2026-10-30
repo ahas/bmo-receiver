@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use crate::chat::conversation::Conversations;
 use crate::receiver::Receiver;
 use crate::store::Fault;
-use crate::{all, now_ms, run};
+use crate::{all, now_ms, one, run};
 
 /// A question of the process told as it starts, before its answer (docs/drafting.md, 「The round log」): its
 /// place, how many questions the process asks and its name, told as the agent's own. It is no row of the log.
@@ -118,6 +118,13 @@ pub struct Read {
   pub how: String,
 }
 
+impl Read {
+  /// Whether the piece went in full, attached or read, rather than as a mark of what the session held.
+  pub fn full(&self) -> bool {
+    self.how == "attached" || self.how == "read"
+  }
+}
+
 /// The log of one round's process as it is written: the round, the room and the agent, whose conversations tell
 /// each row, the number the next row takes, counted from 1, and the answer the last turn gave, which the next is
 /// compared with.
@@ -171,6 +178,7 @@ impl Log {
       detail: None,
       ms,
       reads: &[],
+      session: None,
     };
 
     self.write(&row).await;
@@ -191,14 +199,15 @@ impl Log {
       detail: Some(reason),
       ms,
       reads: &[],
+      session: None,
     };
 
     self.write(&row).await;
   }
 
-  /// The process's end written down, with the row of the table it read, why it ended so and what the round read
-  /// from the brain.
-  pub async fn end(&mut self, ended: Ended, detail: &str, ms: i64, reads: &[Read]) {
+  /// The process's end written down, with the row of the table it read, why it ended so, what the round read
+  /// from the brain and the session its turn ran on.
+  pub async fn end(&mut self, ended: Ended, detail: &str, ms: i64, reads: &[Read], session: Option<&str>) {
     let row = Row {
       kind: Kind::End,
       question: "",
@@ -208,6 +217,7 @@ impl Log {
       detail: Some(detail),
       ms,
       reads,
+      session,
     };
 
     self.write(&row).await;
@@ -216,11 +226,24 @@ impl Log {
   async fn write(&mut self, row: &Row<'_>) {
     let at = now_ms();
     let number = self.number;
+    let loaded = if row.kind == Kind::End {
+      loaded(self.receiver.db(), self.chat_id, row.session)
+        .await
+        .inspect_err(|why| {
+          eprintln!(
+            "chat {}: what the session read before the round could not be counted: {}",
+            self.chat_id, why.detail
+          )
+        })
+        .ok()
+    } else {
+      None
+    };
     let written = run(
       self.receiver.db(),
       r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
-           "changed", "outcome", "detail", "answer", "ms", "at", "reads")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)"#,
+           "changed", "outcome", "detail", "answer", "ms", "at", "reads", "session", "loaded")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)"#,
       vec![
         self.round.clone().into(),
         self.chat_id.into(),
@@ -236,6 +259,8 @@ impl Log {
         row.ms.into(),
         at.into(),
         (!row.reads.is_empty()).then(|| serde_json::to_string(row.reads).unwrap_or_default()).into(),
+        row.session.map(str::to_owned).into(),
+        loaded.into(),
       ],
     )
     .await;
@@ -259,6 +284,8 @@ impl Log {
       "ms": row.ms,
       "at": at,
       "reads": row.reads,
+      "session": row.session,
+      "loaded": loaded,
     });
 
     self.conversations.publish(crate::events::draft(self.chat_id, &member));
@@ -274,12 +301,42 @@ struct Row<'a> {
   detail: Option<&'a str>,
   ms: i64,
   reads: &'a [Read],
+  session: Option<&'a str>,
 }
 
 impl Row<'_> {
   fn chars(&self) -> i64 {
     self.answer.map_or(0, |answer| answer.chars().count() as i64)
   }
+}
+
+/// How many pieces the room's earlier rounds of the session read in full before a round (docs/drafting.md, 「The
+/// round log」): the latest earlier end's own count and its reads that went in full, a held one counting nothing; 0
+/// where no end of the room and session stands or the round ran on no session.
+pub async fn loaded<C: ConnectionTrait>(db: &C, chat_id: i64, session: Option<&str>) -> Result<i64, Fault> {
+  let Some(session) = session else {
+    return Ok(0);
+  };
+  let latest = one(
+    db,
+    r#"SELECT "loaded", "reads" FROM "draft_rounds"
+         WHERE "chat_id" = $1 AND "session" = $2 AND "kind" = 'end' ORDER BY "id" DESC LIMIT 1"#,
+    vec![chat_id.into(), session.into()],
+  )
+  .await?;
+  let Some(latest) = latest else {
+    return Ok(0);
+  };
+  let before = latest.try_get::<Option<i64>>("", "loaded")?.unwrap_or_default();
+  let full = latest
+    .try_get::<Option<String>>("", "reads")?
+    .and_then(|reads| serde_json::from_str::<Vec<Read>>(&reads).ok())
+    .unwrap_or_default()
+    .iter()
+    .filter(|read| read.full())
+    .count() as i64;
+
+  Ok(before + full)
 }
 
 /// A row of the log as the routes answer it.
@@ -301,6 +358,8 @@ pub fn member(row: &QueryResult) -> Result<Value, Fault> {
       .try_get::<Option<String>>("", "reads")?
       .and_then(|reads| serde_json::from_str::<Vec<Read>>(&reads).ok())
       .unwrap_or_default(),
+    "session": row.try_get::<Option<String>>("", "session")?,
+    "loaded": row.try_get::<Option<i64>>("", "loaded")?,
   }))
 }
 
@@ -316,7 +375,7 @@ pub async fn read<C: ConnectionTrait>(
     let rows = all(
       db,
       r#"SELECT "id", "agent", "number", "question", "kind", "answer_chars", "changed", "outcome", "detail",
-                "answer", "ms", "at", "reads"
+                "answer", "ms", "at", "reads", "session", "loaded"
            FROM "draft_rounds" WHERE "chat_id" = $1 AND "round" = $2 ORDER BY "id""#,
       vec![chat_id.into(), round.clone().into()],
     )

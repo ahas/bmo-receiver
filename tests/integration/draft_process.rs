@@ -337,6 +337,7 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
         "chatId",
         "detail",
         "kind",
+        "loaded",
         "messageId",
         "ms",
         "number",
@@ -344,6 +345,7 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
         "question",
         "reads",
         "round",
+        "session",
         "type",
       ]
     };
@@ -1722,6 +1724,127 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
     .await;
 
   assert!(others.iter().all(|row| row == "none"), "{others:?}");
+}
+
+/// An end row of an earlier round written straight into the round log: its round, room, session, count and reads.
+async fn earlier_end(
+  round: &Drafting,
+  name: &str,
+  chat_id: i64,
+  session: &str,
+  loaded: i64,
+  reads: serde_json::Value,
+) {
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
+           "changed", "outcome", "detail", "answer", "ms", "at", "reads", "session", "loaded")
+         VALUES ($1, $2, $3, 2, '', 'end', 0, false, 'message', '', NULL, 1, 1, $4, $5, $6)"#,
+      vec![
+        name.into(),
+        chat_id.into(),
+        AGENT.into(),
+        reads.to_string().into(),
+        session.into(),
+        loaded.into(),
+      ],
+    )
+    .await;
+}
+
+/// The rows of this round's log as the route answers them: the end and every other row.
+async fn answered_rows(round: &Drafting) -> (serde_json::Value, Vec<serde_json::Value>) {
+  let name = round
+    .scratch
+    .texts(r#"SELECT "round" FROM "draft_rounds" WHERE "kind" = 'end' AND "at" > 1 ORDER BY "id""#)
+    .await;
+
+  assert_eq!(name.len(), 1, "one round ran: {name:?}");
+
+  let read = bmo_receiver::chat::draft::log::read(round.scratch.db(), OWNER, &name).await.unwrap();
+  let rows = read[0]["rows"].as_array().unwrap().clone();
+  let (ends, others): (Vec<_>, Vec<_>) = rows.into_iter().partition(|row| row["kind"] == "end");
+
+  (ends[0].clone(), others)
+}
+
+#[tokio::test]
+async fn a_sessions_first_round_in_a_room_has_read_nothing_before_it() {
+  let session = StandInSession::new(SESSION, "the message");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let full = serde_json::json!([{"path": "knowledge/plans", "holds": null, "how": "read"}]);
+
+  // What the same session read in another room, and what another session read in this one, carry nothing over.
+  earlier_end(&round, "elsewhere", OWNER + 1, SESSION, 5, full.clone()).await;
+  earlier_end(&round, "another session", OWNER, "agent-a@other", 9, full).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let (end, others) = answered_rows(&round).await;
+
+  assert_eq!(
+    (&end["session"], &end["loaded"]),
+    (&serde_json::json!(SESSION), &serde_json::json!(0)),
+    "{end}"
+  );
+  assert!(!others.is_empty());
+  assert!(
+    others.iter().all(|row| row["session"].is_null() && row["loaded"].is_null()),
+    "only the end carries the session and its count: {others:?}"
+  );
+  assert_eq!(
+    bmo_receiver::chat::draft::log::loaded(round.scratch.db(), OWNER, None).await.unwrap(),
+    0,
+    "a round on no session counts nothing"
+  );
+}
+
+#[tokio::test]
+async fn the_end_row_counts_what_its_session_read_in_full_in_the_room_before_it() {
+  let session = StandInSession::new(SESSION, "the message");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  earlier_end(&round, "long ago", OWNER, SESSION, 40, serde_json::json!([])).await;
+  earlier_end(
+    &round,
+    "the round before",
+    OWNER,
+    SESSION,
+    2,
+    serde_json::json!([
+      {"path": "memories/42", "holds": "the room's memories now due", "how": "attached"},
+      {"path": "knowledge/plans", "holds": "the plan for the week", "how": "read"},
+      {"path": "rooms/42/people/42/sheet.md", "holds": "a person's sheet", "how": "held"},
+    ]),
+  )
+  .await;
+  earlier_end(&round, "elsewhere", OWNER + 1, SESSION, 70, serde_json::json!([])).await;
+  earlier_end(&round, "another session", OWNER, "agent-a@other", 90, serde_json::json!([])).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let (end, _) = answered_rows(&round).await;
+
+  assert_eq!(
+    (&end["session"], &end["loaded"]),
+    (&serde_json::json!(SESSION), &serde_json::json!(4)),
+    "the latest earlier end of the room and session, its count and its attached and read pieces, a held one \
+     counting nothing: {end}"
+  );
+
+  let told: Vec<serde_json::Value> = round
+    .standing
+    .heard
+    .events("draft")
+    .into_iter()
+    .filter(|event| event["kind"] == "end")
+    .collect();
+
+  assert_eq!(told.len(), 1, "{told:?}");
+  assert_eq!((&told[0]["session"], &told[0]["loaded"]), (&end["session"], &end["loaded"]), "{told:?}");
 }
 
 fn pinned(sent: &[String]) -> Option<i64> {

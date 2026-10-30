@@ -1512,6 +1512,13 @@ export interface components {
              *     asks no question), `question`, `item`, `check` or `end`.
              */
             kind: string;
+            /**
+             * Format: int64
+             * @description On the end, how many pieces the room's earlier rounds of the same session read in full (`attached` or
+             *     `read`), 0 for a session's first round in the room or a round on no session; null on every other row.
+             * @default null
+             */
+            loaded: number | null;
             /** Format: int64 */
             ms: number;
             /**
@@ -1528,6 +1535,11 @@ export interface components {
              * @default []
              */
             reads: components["schemas"]["DraftRead"][];
+            /**
+             * @description On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.
+             * @default null
+             */
+            session: string | null;
         };
         /** @description The new words of the signed-in person's own message. */
         Editing: {

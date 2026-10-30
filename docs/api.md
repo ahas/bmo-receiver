@@ -457,7 +457,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `PASS` or `REJECT` for a review; `message`, `skip` or `withheld` for
   the end), `detail` (or null), `answer` (or null), `ms`, `at` and `reads`:
   on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
-  `read`; `docs/drafting.md`, 「The round log」), and empty on every other row. The rows of a round stand in the
+  `read`; `docs/drafting.md`, 「The round log」), and empty on every other row; `session` and `loaded`: on the end,
+  the agency session the round's turn ran on (or null) and how many pieces that session's earlier rounds in the room
+  read in full (`docs/drafting.md`, 「The round log」), and null on every other row. The rows of a round stand in the
   order they were written.
 
 ## The draft process

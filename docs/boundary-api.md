@@ -329,8 +329,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The gate's `draft` stage** reads the receiver's event stream (`GET /events`) and takes every frame whose
   data's `type` is `draft` as one row of a round's draft process, with the fields the receiver's
   `docs/receiver.md`, 「The event stream」, names: `chatId`, `round`, `agentName`, `number` (from 1), `question`,
-  `kind`, `answerChars`, `changed`, `outcome`, `detail`, `ms`, `at` and `reads`, the last of which the gate
-  does not read. A `draft` event of kind `start` is no row:
+  `kind`, `answerChars`, `changed`, `outcome`, `detail`, `ms`, `at`, `reads`, `session` and `loaded`, the last
+  three of which the gate does not read. A `draft` event of kind `start` is no row:
   it tells a question as it starts, with its `number`, the process's `count` and the question's name, for the
   console's running line, and carries no `answerChars`, `changed`, `outcome` or `ms`. The gate is to let a
   `start` frame go by its `kind` before it reads a row's fields; its port reads every `draft` frame as a row and

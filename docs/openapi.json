@@ -790,6 +790,15 @@
             "description": "`supervisor` (the agent's own judgement whether to answer, before the round), `turn` (only where the process\nasks no question), `question`, `item`, `check` or `end`.",
             "type": "string"
           },
+          "loaded": {
+            "default": null,
+            "description": "On the end, how many pieces the room's earlier rounds of the same session read in full (`attached` or\n`read`), 0 for a session's first round in the room or a round on no session; null on every other row.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "ms": {
             "format": "int64",
             "type": "integer"
@@ -813,6 +822,14 @@
               "$ref": "#/components/schemas/DraftRead"
             },
             "type": "array"
+          },
+          "session": {
+            "default": null,
+            "description": "On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -828,7 +845,9 @@
           "answer",
           "ms",
           "at",
-          "reads"
+          "reads",
+          "session",
+          "loaded"
         ],
         "type": "object"
       },
