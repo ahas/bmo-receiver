@@ -585,6 +585,8 @@ struct State {
   folds_itself: HashSet<String>,
   // The speaker each room's turns are shown as: the agent's name and the number its words are filed under there.
   speakers: HashMap<i64, Value>,
+  // The turn each room's round stands as in the live picture while it runs, which the words it takes move on.
+  pictured: HashMap<i64, u64>,
   // The agent's own runs going now, by name with the room each runs for, which a reset or a room's removal
   // stands its cancellation over.
   going: HashMap<String, i64>,
@@ -1362,6 +1364,8 @@ impl Conversations {
 
     let turn = self.0.receiver.news().begin_turn(&picture);
 
+    self.state().pictured.insert(chat_id, turn);
+
     self.publish(json!({
       "type": "run-started",
       "chatId": chat_id,
@@ -1407,6 +1411,7 @@ impl Conversations {
 
     let _ = super::turn_mark::forget(self.0.receiver.db(), &round).await;
 
+    self.state().pictured.remove(&chat_id);
     self.0.receiver.news().end_turn(turn);
     self.0.hooks.typing(chat_id, false).await;
 
@@ -1844,6 +1849,9 @@ impl Conversations {
       .await?;
 
     reply = made.reply;
+
+    // Each message shown to the round carries what its mark made of it, naming where the round's own verdict stands.
+    self.judge_shown(chat_id, held.last_consumed_id, &made.took, &made.done).await;
 
     // A message marked to be answered on its own goes back to wait, and opens the round after this one.
     self.give_back_words(chat_id, made.separate);
@@ -2365,6 +2373,17 @@ impl Conversations {
     took
   }
 
+  /// The room's turn in the live picture moved on to messages its round took while it works, pushed into a turn or
+  /// shown under a question (docs/receiver.md, 「The event stream」).
+  pub fn took_meanwhile(&self, chat_id: i64, messages: &[Inbound]) {
+    let Some(turn) = self.state().pictured.get(&chat_id).copied() else {
+      return;
+    };
+    let ids: Vec<i64> = messages.iter().map(|message| message.message_id).collect();
+
+    self.0.receiver.news().move_turn(turn, &ids);
+  }
+
   /// Words the process showed and did not answer for, back at the front of what waits.
   pub fn give_back_words(&self, chat_id: i64, words: Vec<Inbound>) {
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
@@ -2501,6 +2520,30 @@ impl Conversations {
     self.publish(waited(chat_id, message, Some("WAIT")));
 
     Ok(())
+  }
+
+  // The messages shown to the round written down under themselves (docs/drafting.md, 「What came in meanwhile」):
+  // those that became the round's own as read with the message its verdict stands under, those marked done as
+  // skipped beside it.
+  async fn judge_shown(&self, chat_id: i64, under: Option<i64>, took: &[Inbound], done: &[Inbound]) {
+    let named = under.map(|id| format!(": #{id}")).unwrap_or_default();
+
+    for (messages, word) in [(took, "READ"), (done, "SKIP")] {
+      for message in messages {
+        let verdict = format!("{word}{named}");
+
+        super::turnover::judge(
+          &self.0.receiver,
+          chat_id,
+          Some(message.message_id),
+          "read-with",
+          &verdict,
+          None,
+          None,
+        )
+        .await;
+      }
+    }
   }
 
   // A round that ended in silence is written down as the ending it was, on the message it read.
@@ -3011,7 +3054,7 @@ impl Follower {
             paragraph,
             ..
           } = offered;
-          let counts = (messages.len(), instructions.len());
+          let took = (messages.len(), instructions.len(), messages.clone());
 
           carried.shown.extend(messages);
           carried.roads.extend(roads);
@@ -3023,7 +3066,7 @@ impl Follower {
             carried.pushed_instructions.push(paragraph.instructions);
           }
 
-          Some(counts)
+          Some(took)
         }
         (outcome, _) => {
           let Offered {
@@ -3047,8 +3090,9 @@ impl Follower {
         }
       }
     };
-    let Some((messages, pushed)) = taken else { return };
+    let Some((messages, pushed, took)) = taken else { return };
 
+    conversations.took_meanwhile(chat_id, &took);
     println!(
       "chat {chat_id}: {messages} message(s) and {pushed} instruction(s) went into the working turn"
     );

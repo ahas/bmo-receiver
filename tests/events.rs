@@ -118,6 +118,41 @@ fn a_turn_whose_batch_carries_the_queued_message_takes_it() {
 }
 
 #[test]
+fn a_turn_moved_on_to_words_it_took_while_it_works_reads_them_and_takes_the_queued_one() {
+  let events = Events::new();
+  let turn = events.begin_turn(json!({ "chatId": -5, "messageId": 10, "messageIds": [10], "messages": 1 }));
+
+  events.queue_message(-5, 11);
+  events.move_turn(turn, &[11]);
+
+  let picture = events.picture();
+
+  assert_eq!(picture["queued"], json!([]), "the turn read the queued message");
+  assert_eq!(picture["turns"][0]["messageId"], 11, "it reads the newest it took last");
+  assert_eq!(picture["turns"][0]["messageIds"], json!([10, 11]));
+  assert_eq!(picture["turns"][0]["messages"], 2);
+  assert_eq!(
+    events.held().last().map(|event| event["type"].clone()),
+    Some(json!("live")),
+    "the picture went out again"
+  );
+
+  // A message that came after the words it took stands queued until the turn takes it too; a turn no longer in
+  // the picture moves nothing.
+  events.queue_message(-5, 13);
+  events.move_turn(turn, &[12]);
+
+  assert_eq!(events.picture()["queued"][0]["messageId"], 13);
+  assert_eq!(events.picture()["turns"][0]["messageIds"], json!([10, 11, 12]));
+
+  events.end_turn(turn);
+  events.move_turn(turn, &[13]);
+
+  assert_eq!(events.picture()["turns"], json!([]));
+  assert_eq!(events.picture()["queued"][0]["messageId"], 13);
+}
+
+#[test]
 fn a_room_whose_registration_is_removed_leaves_its_fold_and_its_queued_message() {
   let events = Events::new();
 

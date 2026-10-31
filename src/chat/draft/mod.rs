@@ -633,6 +633,7 @@ impl Run<'_> {
     match built {
       Ok(built) => {
         self.holds.extend(built.reference);
+        self.conversations.took_meanwhile(chat, &took);
 
         Some((built.text, took))
       }

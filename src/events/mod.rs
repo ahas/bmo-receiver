@@ -160,6 +160,33 @@ impl Events {
     id
   }
 
+  /// A turn of this process's own moved on to messages of its room it read while it works, pushed into it or shown
+  /// under a question: it reads the newest of them last, among the rest it read, and a queued one among them is
+  /// taken (docs/receiver.md, 「The event stream」). The picture goes out again with it.
+  pub fn move_turn(&self, id: u64, message_ids: &[i64]) {
+    let mut hub = self.hub();
+    let Some(turn) = hub.turns.get_mut(&id) else {
+      return;
+    };
+    let Some(newest) = message_ids.last() else {
+      return;
+    };
+    let mut read: Vec<i64> =
+      turn["messageIds"].as_array().into_iter().flatten().filter_map(Value::as_i64).collect();
+    let fresh: Vec<i64> = message_ids.iter().copied().filter(|id| !read.contains(id)).collect();
+    let messages = turn["messages"].as_u64().unwrap_or_default() + fresh.len() as u64;
+
+    read.extend(fresh);
+    turn["messageId"] = json!(newest);
+    turn["messageIds"] = json!(read);
+    turn["messages"] = json!(messages);
+
+    let turn = turn.clone();
+
+    hub.take_queued(&turn);
+    hub.redraw();
+  }
+
   /// A turn of this process's own over.
   pub fn end_turn(&self, id: u64) {
     let mut hub = self.hub();
@@ -461,6 +488,10 @@ impl News for Events {
 
   fn begin_turn(&self, turn: &Value) -> u64 {
     self.begin_turn(turn.clone())
+  }
+
+  fn move_turn(&self, id: u64, message_ids: &[i64]) {
+    self.move_turn(id, message_ids)
   }
 
   fn end_turn(&self, id: u64) {

@@ -244,6 +244,12 @@ leaves.
   A mark counts in any answer of the process, outside a code span or fence, and only for a message of the round,
   its own or one shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
   the last stands. Marks are taken out of an answer before anything else reads it, and never reach the room.
+- **Each message shown to the round carries a verdict of what its mark made of it.** Once the round's message is
+  made, every message pushed into a turn of the process or shown under a question is written down under itself as
+  a verdict of the stage `read-with`, naming the message the round's own verdict stands under: `READ: #<number>`
+  where it became the round's own, `SKIP: #<number>` where it was marked done, the number left out where that
+  verdict stands under no message. A message marked separate is written down by the round that takes it, as its
+  own words are.
 - **The answer is pinned to the message it answers only where the reader needs it.** A `<<REPLY #<number>>>` mark
   names the message, including one older than the round's own, and the answer is pinned to it. Where none is named,
   the message is the oldest of the

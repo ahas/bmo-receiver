@@ -156,6 +156,8 @@ pub trait News: Send + Sync {
     0
   }
 
+  fn move_turn(&self, _id: u64, _message_ids: &[i64]) {}
+
   fn end_turn(&self, _id: u64) {}
 
   fn picture(&self) -> Value {

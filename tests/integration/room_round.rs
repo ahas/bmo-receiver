@@ -2,7 +2,8 @@
 //! road into the agent」): the owner's words filed in his chat wake the chat agent's conversations, the round
 //! composes its turn and carries it into the agency's session, its answer goes back to the room, and words that
 //! come into the room while the turn works and that the turn does not take wait, and the round's closing check
-//! shows them before its message goes out.
+//! shows them before its message goes out. Words a turn takes while it works move its turn in the live picture on
+//! and out of the queue, and each carries a verdict of what the round's marks made of it.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -12,10 +13,13 @@ use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
+use bmo_receiver::events::Events;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
+use receiver_ports::agency::Said;
+use serde_json::{Value, json};
 
 use crate::common::Scratch;
 use crate::common::session::StandInSession;
@@ -112,32 +116,7 @@ impl Round {
   }
 
   async fn timed(timings: Timings) -> Self {
-    let scratch = Scratch::new().await;
-    crate::common::session::no_drafting(scratch.db()).await;
-    let data = tempfile::tempdir().unwrap();
-    let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
-
-    documents(data.path());
-
-    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
-    let session = Arc::new(StandInSession::new(SESSION, ANSWER).holding_the_first());
-    let receiver = standing.receiver.clone();
-    let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings, AGENT);
-
-    standing
-      .agency
-      .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
-    standing.agency.carrying_on(session.clone());
-    receiver.hold_runner(Arc::new(runner.clone()));
-
-    let round = Round {
-      _scratch: scratch,
-      _data: data,
-      standing,
-      chat,
-      session,
-      runner,
-    };
+    let round = Round::stood(timings, StandInSession::new(SESSION, ANSWER), None).await;
 
     round.hear(1, FIRST).await;
     until("the first turn", || round.session.working()).await;
@@ -149,6 +128,43 @@ impl Round {
     until("the rounds' end", || round.runner.idle() && !round.session.working()).await;
 
     round
+  }
+
+  // The round's standing before a word is heard, its session holding the first turn working: its news the
+  // receiver's own stream where `news` stands, else the recording hearer.
+  async fn stood(timings: Timings, session: StandInSession, news: Option<Arc<Events>>) -> Self {
+    let scratch = Scratch::new().await;
+    crate::common::session::no_drafting(scratch.db()).await;
+    let data = tempfile::tempdir().unwrap();
+    let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+
+    documents(data.path());
+
+    let mut standing =
+      woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+
+    if let Some(news) = news {
+      standing.receiver = standing.receiver.with_news(news);
+    }
+
+    let session = Arc::new(session.holding_the_first());
+    let receiver = standing.receiver.clone();
+    let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings, AGENT);
+
+    standing
+      .agency
+      .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+    standing.agency.carrying_on(session.clone());
+    receiver.hold_runner(Arc::new(runner.clone()));
+
+    Round {
+      _scratch: scratch,
+      _data: data,
+      standing,
+      chat,
+      session,
+      runner,
+    }
   }
 
   async fn hear(&self, message_id: i64, text: &str) {
@@ -205,6 +221,113 @@ async fn words_said_while_the_turn_works_wait_and_the_closing_check_shows_them()
     "the round answers the room once, and the words it showed call no round of their own"
   );
   assert!(sent[0].contains(ANSWER), "the closing check's answer is what goes back to the room");
+}
+
+// A round whose working turn takes the words said meanwhile as they are pushed, its session answering `answer`, on
+// the receiver's own stream: the stream, and the picture as it stood once the push went in.
+async fn pushed_into(answer: &str) -> (Round, Arc<Events>, Value) {
+  let events = Arc::new(Events::new());
+  let round = Round::stood(timings(), StandInSession::new(SESSION, answer), Some(events.clone())).await;
+
+  *round.standing.agency.saying.lock().unwrap() = Some(Said::Delivered);
+  round.hear(1, FIRST).await;
+  until("the first turn", || round.session.working()).await;
+  round.hear(2, LATER).await;
+  until("the words said meanwhile pushed into the turn", || {
+    events.picture()["turns"][0]["messageId"] == 2
+  })
+  .await;
+
+  let during = events.picture();
+
+  round.session.let_go();
+  until("the rounds' end", || round.runner.idle() && !round.session.working()).await;
+
+  (round, events, during)
+}
+
+// The verdicts the stream heard of a message's stage.
+fn verdicts(events: &Events, message_id: i64, stage: &str) -> Vec<Value> {
+  events
+    .held()
+    .into_iter()
+    .filter(|event| {
+      event["type"] == "judgement" && event["messageId"] == message_id && event["stage"] == stage
+    })
+    .map(|event| event["verdict"].clone())
+    .collect()
+}
+
+#[tokio::test]
+async fn words_pushed_into_the_working_turn_leave_the_queue_and_move_the_turn_on_to_them() {
+  let (round, events, during) = pushed_into(ANSWER).await;
+
+  assert_eq!(round.pushes().len(), 1, "the words said meanwhile went into the working turn");
+  assert_eq!(during["queued"], json!([]), "the turn read the pushed message: {during}");
+  assert_eq!(during["turns"][0]["messageIds"], json!([1, 2]), "{during}");
+
+  let after = events.picture();
+
+  assert_eq!((after["turns"].clone(), after["queued"].clone()), (json!([]), json!([])), "{after}");
+  assert_eq!(
+    round.sent().len(),
+    1,
+    "the round answers both at once, and the pushed words open no round"
+  );
+}
+
+#[tokio::test]
+async fn a_message_pushed_into_the_round_carries_what_its_mark_made_of_it() {
+  let (_, events, _) = pushed_into(ANSWER).await;
+
+  assert_eq!(verdicts(&events, 2, "read-with"), [json!("READ: #1")], "the round's message answers it");
+  assert!(
+    verdicts(&events, 1, "chat")
+      .iter()
+      .any(|verdict| verdict.as_str().is_some_and(|said| said.starts_with("REPLY"))),
+    "the round's own verdict stands under the message it woke on"
+  );
+
+  let (_, events, _) = pushed_into(&format!("<<DONE #2>> {ANSWER}")).await;
+
+  assert_eq!(
+    verdicts(&events, 2, "read-with"),
+    [json!("SKIP: #1")],
+    "marked done, it needs no answer"
+  );
+
+  let (_, events, _) = pushed_into(&format!("<<SEPARATE #2>> {ANSWER}")).await;
+
+  assert_eq!(
+    verdicts(&events, 2, "read-with"),
+    Vec::<Value>::new(),
+    "marked separate, it is its own round's"
+  );
+}
+
+#[tokio::test]
+async fn words_the_closing_check_shows_leave_the_queue_and_carry_their_verdict() {
+  let events = Arc::new(Events::new());
+  let round = Round::stood(timings(), StandInSession::new(SESSION, ANSWER), Some(events.clone())).await;
+
+  round.hear(1, FIRST).await;
+  until("the first turn", || round.session.working()).await;
+  round.hear(2, LATER).await;
+  until("the words said meanwhile waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
+  assert_eq!(events.picture()["queued"][0]["messageId"], 2, "the words wait for a turn to read them");
+  round.session.let_go();
+  until("the rounds' end", || round.runner.idle() && !round.session.working()).await;
+
+  shown_in_the_closing_check(&round);
+  assert_eq!(events.picture()["queued"], json!([]), "the closing check's turn read them");
+  assert_eq!(verdicts(&events, 2, "read-with"), [json!("READ: #1")]);
+  assert!(
+    events
+      .held()
+      .iter()
+      .any(|event| event["type"] == "live" && event["live"]["turns"][0]["messageId"] == 2),
+    "the turn moved on to the words its closing check shows"
+  );
 }
 
 #[tokio::test]
