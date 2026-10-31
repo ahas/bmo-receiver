@@ -62,6 +62,9 @@ pub struct StandInChat {
   pub room_modes: BTreeMap<i64, Vec<ChatVoice>>,
   /// How often it was asked what it says of a room.
   pub rooms_asked: AtomicUsize,
+  /// Whether nothing listens at its address, and how often it was offered a request while nothing did.
+  pub down: bool,
+  pub refused: AtomicUsize,
   pub cans: Mutex<BTreeSet<ChatCapability>>,
   /// The read modes it declares, each by its voice and where it stands.
   pub modes: Mutex<Vec<(ChatVoice, ChatModeStanding)>>,
@@ -82,6 +85,13 @@ impl StandInChat {
       key: key.to_owned(),
       ..Self::default()
     }
+  }
+
+  /// A service nothing listens for: every question of its declaration, a room or the owner's room is refused as
+  /// a connection is, and counted.
+  pub fn down(mut self) -> Self {
+    self.down = true;
+    self
   }
 
   pub fn holding(mut self, rooms: &[i64]) -> Self {
@@ -190,8 +200,33 @@ fn not_asked<T>(what: &str) -> BoxFuture<'_, ChatAnswer<T>> {
   panic!("a stand-in chat service was asked {what}, which no test sets")
 }
 
+impl StandInChat {
+  // What a service nothing listens for answers, where it is down; nothing where it stands.
+  fn refusing<T: Send + 'static>(&self, path: &str) -> Option<BoxFuture<'static, ChatAnswer<T>>> {
+    if !self.down {
+      return None;
+    }
+
+    self.refused.fetch_add(1, Ordering::SeqCst);
+
+    let url = format!("http://{}.invalid/{path}", self.key);
+
+    Some(Box::pin(async move {
+      Err(ClientFailure::Unreachable {
+        url,
+        waited: Duration::ZERO,
+        why: "connection refused".to_owned(),
+      })
+    }))
+  }
+}
+
 impl Chat for StandInChat {
   fn declaration(&self) -> BoxFuture<'_, ChatAnswer<ChatDeclaration>> {
+    if let Some(refused) = self.refusing("declaration") {
+      return refused;
+    }
+
     let mut can = BTreeSet::from([ChatCapability::Text, ChatCapability::Delete, ChatCapability::Pin]);
 
     can.extend(self.cans.lock().unwrap().iter().copied());
@@ -280,6 +315,10 @@ impl Chat for StandInChat {
 
   fn room(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ProviderRoom>> {
     self.rooms_asked.fetch_add(1, Ordering::SeqCst);
+
+    if let Some(refused) = self.refusing(&format!("rooms/{chat_id}")) {
+      return refused;
+    }
 
     let owns = self.owns.contains(&chat_id);
     let identity = self.identities.get(&chat_id).copied();
@@ -453,6 +492,10 @@ impl Chat for StandInChat {
   }
 
   fn owner_room(&self) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
+    if let Some(refused) = self.refusing("owner") {
+      return refused;
+    }
+
     let reaches = self.reaches_owner;
 
     Box::pin(async move { Ok(reaches) })

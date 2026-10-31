@@ -16,6 +16,7 @@ mod owner_sends;
 mod owner_words;
 mod read_only_rooms;
 mod read_requests;
+mod record_alone_rooms;
 mod room_addition;
 mod room_figures;
 mod room_pictures;

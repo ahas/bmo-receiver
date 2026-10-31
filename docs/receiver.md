@@ -144,6 +144,13 @@ flowchart TD
   whether or not a chat service holds the room. A room whose list names the record alone is such a room; so is a
   room no chat service holds and whose list was never chosen, where the receiver numbered it on the record or
   keeps messages of it: an agent's console room is born with the record as its one provider.
+- **No chat service is asked of a room the record holds alone by its own rows:** one whose chosen list names no
+  chat service the configuration lists, or one whose list was never chosen and whose number the record gave. What
+  such a room is comes from its record, whether every chat service is up or down: it is the owner's private chat
+  only where it is the owner's private room the configuration names, it is no one-to-one, the agent's words there
+  stand under no number of a road's, no road reads it in the owner's account, and its own road is the record. Its
+  words are kept and wake its answerers by the one rule every room's words are judged by (`docs/wake.md`). Every
+  other room's facts are asked of the chat services that may hold it.
 - **Detaching a messenger is taking it off the list,** and attaching it again is putting it back, from the
   console's provider setting: from then on its messages for the room are taken again and every message kept is
   carried to it. Nothing else of the room changes, its record and its registration among them.
@@ -369,9 +376,10 @@ flowchart TD
   again for every room a request walks, every page of a room's line and every step of a round. The spans are the
   policy's (`kept.toml`): a minute for a room's facts, ten seconds for the agents, whose standing a wake turns on.
 - **A room's facts are kept by road and room:** the answer of each chat service asked, a room the service does not
-  hold kept as not held, and an answer that did not come kept not at all, so the next read asks again. Within the
-  span every reader of the facts reads the kept answer: the room list and one room, the message page's `by`, the
-  wake, the roads a line goes out on.
+  hold kept as not held, a room the record holds alone read off the record each time and never asked of a service
+  (「A room's chat providers」), and an answer that did not come kept not at all, so the next read asks again.
+  Within the span every reader of the facts reads the kept answer: the room list and one room, the message page's
+  `by`, the wake, the roads a line goes out on.
 - **The agents are kept as the agency's one list,** awake or not, and every reader of an agent's registration reads
   it: the wake, the answerers of a room, the room list, a page asked by an agent, the labels a room is told. The
   room list reads it once for all its rooms.

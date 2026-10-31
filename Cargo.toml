@@ -136,7 +136,8 @@ serde_json.workspace = true
 # The fixed lines' codes listed by their enum.
 strum.workspace = true
 tempfile.workspace = true
-tokio.workspace = true
+# The clock paused and moved on by the test, so a wait of minutes passes at once.
+tokio = { workspace = true, features = ["test-util"] }
 toml.workspace = true
 # The chat services' routes asked one request at a time, with no listener.
 tower.workspace = true

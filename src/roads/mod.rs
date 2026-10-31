@@ -175,6 +175,27 @@ impl Roads {
     .is_some()
   }
 
+  /// Whether the record holds a room alone by its own rows (docs/receiver.md, 「A room's chat providers」): its
+  /// chosen list names no chat service the configuration lists, or, where none was chosen, the record gave its
+  /// number. No chat service is asked of such a room: what it is, the record says.
+  pub async fn record_alone(&self, chat_id: i64) -> bool {
+    let Some(db) = self.store.get() else { return false };
+
+    if let Some(chosen) = self.chosen(chat_id).await {
+      return !chosen.iter().any(|key| self.service(key).is_some());
+    }
+
+    one(
+      db,
+      r#"SELECT 1 AS "numbered" FROM "provider_rooms" WHERE "provider" = $1 AND "chat_id" = $2"#,
+      vec![Road::Record.key().into(), chat_id.into()],
+    )
+    .await
+    .ok()
+    .flatten()
+    .is_some()
+  }
+
   /// The providers a room's list names, in order, where its list was chosen; none where it was never set
   /// (docs/receiver.md, 「A room's chat providers」).
   pub async fn chosen(&self, chat_id: i64) -> Option<Vec<String>> {
@@ -276,8 +297,13 @@ impl Roads {
   }
 
   /// What a chat service says of a room, kept for the span: the room as it answers it, none where it does not
-  /// hold the room, and nothing where it is not listed or did not answer, which is kept not at all.
+  /// hold the room, and nothing where it is not listed or did not answer, which is kept not at all. A room the
+  /// record holds alone is held by no service, and no service is asked of it.
   async fn room_of(&self, key: &str, chat_id: i64) -> Option<Option<ProviderRoom>> {
+    if self.record_alone(chat_id).await {
+      return Some(None);
+    }
+
     let held = (key.to_owned(), chat_id);
 
     if let Some(kept) = self.rooms.get(&held) {
@@ -344,8 +370,12 @@ impl Roads {
   /// answer for the room states the room's modes and they hold `human-reader` alone. Where the answer states none,
   /// the service declares the `human-reader` mode, and either that is the one voice it has active or it holds the
   /// room under no identity of its own. A service that declares nothing, or does not answer for the room, speaks
-  /// there as it always has.
+  /// there as it always has; a room the record holds alone no service reads.
   pub async fn reads_only(&self, key: &str, chat_id: i64) -> bool {
+    if self.record_alone(chat_id).await {
+      return false;
+    }
+
     let room = self.room_of(key, chat_id).await;
 
     if let Some(Some(ProviderRoom {
@@ -389,13 +419,22 @@ impl Roads {
   async fn reaches(&self, key: &str, chat_id: i64) -> bool {
     let Some(service) = self.service(key) else { return false };
 
+    if self.record_alone(chat_id).await {
+      return false;
+    }
+
     self.holds(key, chat_id).await
       || heard(key, "the owner's room", service.owner_room().await).flatten() == Some(chat_id)
   }
 
   /// Whether the record is where a line nobody asked for goes in a room: a road reaching the room shows its whole
-  /// line, so whatever the record keeps is read there. Where none does, the room's own road carries it.
+  /// line, so whatever the record keeps is read there. Where none does, the room's own road carries it; no road
+  /// reaches a room the record holds alone.
   pub async fn shown(&self, chat_id: i64) -> bool {
+    if self.record_alone(chat_id).await {
+      return false;
+    }
+
     for key in self.chats.names() {
       let shows = self.declaration(key).await.is_some_and(|declared| declared.shows.is_some());
 

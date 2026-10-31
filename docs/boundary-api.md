@@ -97,6 +97,10 @@ the operations machine's:
   it off and whether a job asks are read from the environment, and the running receiver carries it on its own
   lines. The address and token come from the process's environment, else from the data root's `env/receiver.env`
   (「Its tools」). A spoken `talk` asks the voice engine at the address and token the configuration names.
+- **A spoken `talk` follows its synthesis until it is `done` or `failed`,** however long the synthesis waits in
+  the line for a card: nothing on the verb's side ends the wait or bounds a request to the engine. While it waits,
+  each `waitingOn` sentence the engine gives is said once on standard error as it changes, under the synthesis's
+  number. A synthesis that failed is a refusal; one done is sent as the room's voice note.
 - **`--via <road>`** is taken after the noun's words as bmo-cli hands it on, and names the road a send goes out
   on where that road answers in the room.
 - **Every noun ends 0** where it did what it was asked, 1 where it refused, and 2 where its words or the
@@ -274,8 +278,9 @@ its contacts, `POST /rooms` to start a conversation on it, and `GET /owner`. The
 receiver holds no per-provider code: what differs between providers is read from what each declares. The
 declaration is asked once and kept, except where a room is added: there it is asked afresh, since a mode's
 standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road
-and room for a short span (`docs/receiver.md`, 「What is kept for a moment」); a room added reads its title there
-afresh. Whether a service reads a room in the owner's account alone is read off that answer's `modes`, and where
+and room for a short span (`docs/receiver.md`, 「What is kept for a moment」), except a room the record holds
+alone, of which no service is asked (`docs/receiver.md`, 「A room's chat providers」); a room added reads its
+title there afresh. Whether a service reads a room in the owner's account alone is read off that answer's `modes`, and where
 the answer states none, off the service's declared modes and the answer's `identity` (`docs/receiver.md`,
 「A read-only room」).
 
