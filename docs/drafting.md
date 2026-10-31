@@ -241,8 +241,9 @@ leaves.
     to the front of what waits, and the round after takes it with a pregate of its own;
   - `<<REPLY #<number>>>`: it is the message the answer answers, and the answer is pinned to it.
 
-  A mark counts in any answer of the process, outside a code span or fence, and only for a message of the round,
-  its own or one shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
+  The number is the message's own as the round showed it, its minus sign kept where it is negative. A mark counts
+  in any answer of the process, outside a code span or fence, and only for a message of the round, its own or one
+  shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
   the last stands. Marks are taken out of an answer before anything else reads it, and never reach the room.
 - **Each message shown to the round carries a verdict of what its mark made of it.** Once the round's message is
   made, every message pushed into a turn of the process or shown under a question is written down under itself as

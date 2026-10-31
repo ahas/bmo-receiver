@@ -242,6 +242,8 @@ async fn pushed_into(answer: &str) -> (Round, Arc<Events>, Value) {
 
   round.session.let_go();
   until("the rounds' end", || round.runner.idle() && !round.session.working()).await;
+  // The conversation stands idle a moment before its round's turn leaves the picture.
+  until("the turn's end in the picture", || events.picture()["turns"] == json!([])).await;
 
   (round, events, during)
 }
@@ -317,6 +319,7 @@ async fn words_the_closing_check_shows_leave_the_queue_and_carry_their_verdict()
   assert_eq!(events.picture()["queued"][0]["messageId"], 2, "the words wait for a turn to read them");
   round.session.let_go();
   until("the rounds' end", || round.runner.idle() && !round.session.working()).await;
+  until("the turn's end in the picture", || events.picture()["turns"] == json!([])).await;
 
   shown_in_the_closing_check(&round);
   assert_eq!(events.picture()["queued"], json!([]), "the closing check's turn read them");

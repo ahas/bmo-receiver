@@ -93,8 +93,10 @@ fn without_tool_calls(text: &str) -> String {
 
 // Every marker a session writes for the service rather than for the room, with the one space before it.
 static CONTROL_MARKER: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(r"[ \t]?<<(?:REPLY(?::[0-9]+| #[0-9]+)?|SKIP|WAIT|SEND|DONE #[0-9]+|SEPARATE #[0-9]+)>>")
-    .expect("a control marker")
+  Regex::new(
+    r"[ \t]?<<(?:REPLY(?::-?[0-9]+| #-?[0-9]+)?|SKIP|WAIT|SEND|DONE #-?[0-9]+|SEPARATE #-?[0-9]+)>>",
+  )
+  .expect("a control marker")
 });
 static FENCE_LINE: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^ {0,3}(`{3,}|~{3,})").expect("a fence"));
@@ -199,23 +201,24 @@ pub enum ReplyTarget {
 
 // The reply sentinel an answer may open with, bare or naming a message.
 static REPLY_SENTINEL: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"^<<REPLY(?::([0-9]+))?>>").expect("the reply sentinel"));
+  LazyLock::new(|| Regex::new(r"^<<REPLY(?::(-?[0-9]+))?>>").expect("the reply sentinel"));
 
-// The largest number a message may be named by: a JavaScript number stays whole up to it.
+// The largest number a message may be named by, either side of zero: a JavaScript number stays whole up to it.
 const LARGEST_NAMED: u64 = (1 << 53) - 1;
 
 /// An answer's words with the reply sentinel taken off, and the message it pins them to. The sentinel is the
 /// session's instruction to the send and never words, so it is taken off once, before anything reads them. A
-/// named number of zero, or one too large to be a message's, falls back to the message the turn read.
+/// message's number may be negative; a named number of zero, or one too large to be a message's either side of
+/// zero, falls back to the message the turn read.
 pub fn read_reply_request(written: &str) -> (String, ReplyTarget) {
   let text = js::trim(written);
   let Some(found) = REPLY_SENTINEL.captures(text) else {
     return (text.to_owned(), ReplyTarget::Plain);
   };
   let rest = js::trim(&text[found[0].len()..]).to_owned();
-  let target = match found.get(1).map(|named| named.as_str().parse::<u64>()) {
+  let target = match found.get(1).map(|named| named.as_str().parse::<i64>()) {
     None => ReplyTarget::Last,
-    Some(Ok(number)) if (1..=LARGEST_NAMED).contains(&number) => ReplyTarget::Named(number as i64),
+    Some(Ok(number)) if number != 0 && number.unsigned_abs() <= LARGEST_NAMED => ReplyTarget::Named(number),
     Some(_) => ReplyTarget::Last,
   };
 

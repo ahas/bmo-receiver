@@ -71,6 +71,31 @@ fn a_round_mark_counts_outside_code_and_never_reaches_the_room() {
 }
 
 #[test]
+fn a_mark_names_a_message_whose_number_is_negative() {
+  use bmo_receiver::chat::sentinels::{Mark, round_marks, without_round_marks};
+
+  let answer = "<<DONE #-998966603>> The message. <<SEPARATE #-998966604>> <<REPLY #-998966605>>";
+
+  assert_eq!(
+    round_marks(answer),
+    [(Mark::Done, -998966603), (Mark::Separate, -998966604), (Mark::Reply, -998966605)]
+  );
+  assert_eq!(round_marks("<<REPLY:-998966605>>"), [(Mark::Reply, -998966605)]);
+  assert_eq!(round_marks("Quoted: `<<DONE #-998966603>>`"), []);
+  assert_eq!(without_round_marks(answer), "The message.");
+  assert_eq!(
+    without_control_markers("<<REPLY:-12>> Hello <<DONE #-13>> <<SEPARATE #-14>> <<REPLY #-15>>"),
+    "Hello"
+  );
+  assert_eq!(
+    read_reply_request("<<REPLY:-998966603>> yes"),
+    ("yes".to_owned(), ReplyTarget::Named(-998966603))
+  );
+  assert_eq!(read_reply_request("<<REPLY:-99999999999999999999>> yes").1, ReplyTarget::Last);
+  assert_eq!(read_reply_request("<<REPLY:-0>> yes").1, ReplyTarget::Last);
+}
+
+#[test]
 fn a_verdict_carries_the_words_without_their_markers() {
   use bmo_receiver::chat::turnover::verdict_of;
 

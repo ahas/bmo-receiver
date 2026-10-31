@@ -108,7 +108,9 @@ its rounds.
   being answered instead, in a room whose chat service declares it can point an answer at a message; where it
   cannot, the words simply land in the room.
 - **`<<REPLY:<message number>>` pins it to the message that number names,** however far back it is, for when the
-  room has already moved past it: the agent's own judgement, never used in the owner's private chat.
+  room has already moved past it: the agent's own judgement, never used in the owner's private chat. The number is
+  the message's own, negative where the message's is; zero, or a number too large to name a message either side of
+  zero, pins it to the message being answered instead.
 - **The sentinel is stripped either way,** and every send to a chat removes any `<<REPLY>>`, `<<SKIP>>` or
   `<<WAIT>>` still standing in the text as its last step, leaving one alone only inside a code span or fence,
   where it is being quoted.
