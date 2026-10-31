@@ -1,6 +1,7 @@
 //! `bmo talk`: a line into a room, said as text or spoken in a voice (docs/boundary-api.md, 「The unit
 //! command」). A spoke line is synthesised by the voice engine the configuration names, its sound written to
-//! this machine and sent as the room's voice note, with the words as the caption. The synthesis is followed until
+//! this machine and sent as the room's voice note, with the words as what the note says, which a road that folds a
+//! long reading shows folded under the note. The synthesis is followed until
 //! it is done or failed, however long it waits for its card.
 
 use std::time::Duration;
@@ -67,8 +68,8 @@ pub async fn talk(
     chat: None,
     via: None,
     path: path.to_string_lossy().into_owned(),
-    caption: Some(text),
-    said: None,
+    caption: None,
+    said: Some(text),
     reply_to: args.reply_to,
     transcript: None,
   };
