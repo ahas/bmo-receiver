@@ -15,6 +15,7 @@ use receiver_policy::roads::ROADS;
 
 use crate::Fault;
 use crate::receiver::{Inbound, Receiver, files, rows};
+use crate::secrets;
 use crate::store::settings::get;
 use crate::{all, one};
 
@@ -319,6 +320,7 @@ impl Reading<'_> {
     let message = send.message;
     let mut notes = Vec::new();
     let look = looks_in(self.receiver, message.chat_id).await?;
+    let mut secret_noted = false;
 
     for one in std::iter::once(message).chain(send.rest.iter().copied()) {
       if let Some(path) = &one.image_path {
@@ -345,6 +347,16 @@ impl Reading<'_> {
           "heard" => fill_marks(&shape.voice, &[("seconds", &seconds), ("transcript", &transcript)]),
           _ => shape.voice_failed.clone(),
         });
+      }
+
+      // An owner's message a secret was taken out of tells the agent so, once to a send, and never the secret
+      // (docs/messages.md, 「Secrets taken out」).
+      let secret_taken =
+        secrets::marked(&one.text) || one.transcript.as_deref().is_some_and(secrets::marked);
+
+      if !secret_noted && one.sender_id == Some(self.owner) && secret_taken {
+        notes.push(fill_marks(&shape.secret_taken, &[("marker", secrets::marker())]));
+        secret_noted = true;
       }
 
       let kept = all(

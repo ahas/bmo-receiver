@@ -14,6 +14,7 @@ use super::{Accepted, Served, read, refused, store};
 use crate::chat::instructions::{Queued, queue};
 use crate::receiver::{Receiver, rows, wake};
 use crate::routes::say::known;
+use crate::secrets;
 
 // The instruction the words go in as.
 fn instruction(text: &str) -> String {
@@ -36,7 +37,8 @@ struct InstructBody {
 pub async fn instruct(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<InstructBody>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let text = asked.text.trim();
+  let text = secrets::redacted(asked.text.trim());
+  let text = text.as_str();
 
   if text.is_empty() {
     return Err(refused(

@@ -7,6 +7,10 @@ at run time is read from its environment or its settings, never written into the
 A person's name, handle and account id are personal data too. A tracked file holds none of them either; the
 names check holds it to the names a list kept outside the checkout gives (`docs/checks.md`).
 
+The receiver holds the same line at run time over what people say: a secret pasted into a room is taken out
+of the words before anything keeps or forwards them, so the archive, the providers a room is carried to and every
+turn see a marker where it stood (`docs/messages.md`, 「Secrets taken out」).
+
 ## What is prohibited
 
 - **A mail address** at a real domain, in a test fixture, a document or a string alike.

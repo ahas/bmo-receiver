@@ -22,6 +22,7 @@ use crate::all;
 use crate::receiver::{Receiver, reads, rows};
 use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, record};
+use crate::secrets;
 
 /// Who the console relay names: the number the person acts under in the room, every sender the web unit links to
 /// them, whether they are the owner and whether they are the administrator.
@@ -244,12 +245,15 @@ pub async fn edit(
     return Err(code(&MessageActRefusal::MessageForbidden { room, message }));
   }
 
+  // The new words are read for secret-shaped runs before the record keeps them or a provider is handed them
+  // (docs/messages.md, 「Secrets taken out」).
+  let text = secrets::redacted(&wanted.text);
   let send = ChatSend::Edit {
     message_id: message,
-    text: wanted.text.clone(),
+    text: text.clone(),
   };
 
-  acted(&receiver, &by, (room, message), record::Act::Edit { text: &wanted.text }, send).await
+  acted(&receiver, &by, (room, message), record::Act::Edit { text: &text }, send).await
 }
 
 /// The caller's own message deleted, or any by the administrator.

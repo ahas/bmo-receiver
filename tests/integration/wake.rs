@@ -483,6 +483,54 @@ async fn a_picture_wakes_the_agent_inside_the_rooms_open_window_and_in_the_owner
 }
 
 #[tokio::test]
+async fn words_that_are_nothing_but_the_secret_marker_wake_nobody_and_no_name_is_found_in_it() {
+  let (scratch, _data, standing) = stood(&[-142, OWNER]).await;
+  let marker = bmo_receiver::secrets::marker();
+
+  // An agent whose wake word stands inside the marker is not called by it.
+  standing
+    .agency
+    .registering([registration(AGENT, "Agent A", vec!["secret"], None, true)].to_vec());
+  everyone_heard(&scratch).await;
+
+  standing
+    .receiver
+    .message(
+      &inbound(OWNER, 1, OWNER, &format!(" {marker}\n{marker} ")),
+      &Context::default(),
+      owners_room(),
+    )
+    .await
+    .unwrap();
+  standing
+    .receiver
+    .message(&inbound(-142, 1, 56, &format!("look {marker}")), &Context::default(), room())
+    .await
+    .unwrap();
+  assert!(standing.taken.handed().is_empty(), "{:?}", standing.taken.handed());
+
+  // The owner's words beside the marker are words, and his own chat needs no name.
+  standing
+    .receiver
+    .message(
+      &inbound(OWNER, 2, OWNER, &format!("use this: {marker}")),
+      &Context::default(),
+      owners_room(),
+    )
+    .await
+    .unwrap();
+
+  let woken = standing
+    .taken
+    .handed()
+    .into_iter()
+    .map(|one| (one.chat_id, one.message_id))
+    .collect::<Vec<_>>();
+
+  assert_eq!(woken, [(OWNER, 2)]);
+}
+
+#[tokio::test]
 async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_chat_is_never_closed() {
   let (_scratch, _data, standing) = stood(&[-125, OWNER]).await;
 

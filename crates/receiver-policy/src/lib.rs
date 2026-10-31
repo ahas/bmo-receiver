@@ -26,6 +26,7 @@ pub mod roles;
 pub mod run_lines;
 pub mod scripts;
 pub mod second_asks;
+pub mod secret_shapes;
 pub mod talk;
 pub mod tool_host;
 pub mod wake;

@@ -8,6 +8,7 @@ use sea_orm::{DatabaseConnection, TransactionTrait};
 use receiver_policy::roads::ROADS;
 
 use crate::receiver::{Inbound, News, rows};
+use crate::secrets;
 use crate::{Fault, now_ms, one, run};
 
 /// The number the next word kept in a room takes: one below every number the room has held, so a number whose
@@ -205,7 +206,7 @@ pub async fn act(
     ),
     Act::Edit { text } => (
       r#"UPDATE "messages" SET "text" = $3, "edited_at" = $4 WHERE "chat_id" = $1 AND "message_id" = $2"#,
-      vec![chat_id.into(), message_id.into(), text.into(), at.into()],
+      vec![chat_id.into(), message_id.into(), secrets::redacted(text).into(), at.into()],
     ),
     Act::Delete => (
       r#"UPDATE "messages" SET "text" = '', "deleted_at" = $3 WHERE "chat_id" = $1 AND "message_id" = $2"#,

@@ -67,6 +67,13 @@ enum Command {
   ToolEnv,
   /// Whether the service the configuration names answers ready: exit code 0 where it does, 1 where it does not.
   Health,
+  /// The rows the store already holds read for secret-shaped runs and each run replaced in place; counts and the
+  /// messages changed are printed, never a word of a row.
+  RedactKept {
+    /// Counts and lists what would change, and writes nothing.
+    #[arg(long)]
+    dry_run: bool,
+  },
   /// The nouns `bmo` dispatches to this command, one a line.
   Nouns,
   /// Whether work stands under way that a restart would cut: 0 where none does, 1 where some does or the agency
@@ -165,6 +172,9 @@ struct Up {
 /// receiver's own table carries — until the process is told to stop, when the streams are told first and the
 /// going-down line said after.
 async fn serve(config: &Config) -> Result<(), String> {
+  // A secret shape that does not compile stops the start, not the first message it would have read.
+  bmo_receiver::secrets::ready();
+
   let db = config.connect().await?;
 
   let migrated = migrate(&db).await;
@@ -282,6 +292,36 @@ async fn owner_room(config: &Config, title: &str) -> Result<u8, String> {
     println!("{room}");
     eprintln!("bmo-receiver: the owner's private room already stands as {room}");
   }
+
+  Ok(0)
+}
+
+/// The store's rows read for secret-shaped runs, each replaced unless this is a dry run: each place's counts, then
+/// each message and room changed by number. No word of a row is printed.
+async fn redact_kept(config: &Config, dry_run: bool) -> Result<u8, String> {
+  let db = config.connect().await?;
+  let report = bmo_receiver::secrets::kept::redact_kept(&db, !dry_run)
+    .await
+    .map_err(|why| why.detail.to_owned())?;
+
+  for column in &report.columns {
+    println!("{}.{}: {} rows, {} runs", column.table, column.column, column.rows, column.runs);
+  }
+
+  for (room, message) in &report.messages {
+    println!("message {message} in room {room}");
+  }
+
+  for room in &report.rooms {
+    println!("the situation note of room {room}");
+  }
+
+  println!(
+    "{}: {} messages and {} rooms' notes",
+    if dry_run { "dry run, nothing written" } else { "redacted" },
+    report.messages.len(),
+    report.rooms.len()
+  );
 
   Ok(0)
 }
@@ -419,6 +459,7 @@ async fn main() -> ExitCode {
     Command::OwnerRoom { ref title } => owner_room(&config, title).await,
     Command::Quiet { with_jobs } => Ok(quiet(&config, with_jobs).await),
     Command::Health => ask_health(&config).await.map(|()| 0),
+    Command::RedactKept { dry_run } => redact_kept(&config, dry_run).await,
     Command::ToolEnv => write_env(&config).map(|written| {
       match written {
         Written::Written(path) => println!("bmo-receiver: wrote {}", path.display()),

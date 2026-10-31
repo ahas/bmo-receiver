@@ -88,6 +88,8 @@ image_no_reader = "[replies to message {id}; if it holds an image, it cannot be 
 voice = "[voice message, {seconds}s — heard as: {transcript}]"
 voice_empty = "[voice message, {seconds}s — no speech was heard]"
 voice_failed = "[voice message — could not be transcribed]"
+# The note beside an owner's message that holds the secret marker (docs/messages.md, 「Secrets taken out」).
+secret_taken = "[a secret the sender pasted was taken out of this message before it was kept or passed on, and stands as {marker}; you are never shown its value and must not ask for it in the room. Tell the sender in your own words that the secret was taken out, and that a secret is kept with `bmo-secret put <name>` on the operations machine, which reads the value from a hidden prompt, or on the console's secret store screen, 「비밀 보관함」]"
 
 image_fetch_failed = "[replies to message {id}; fetching its image failed, so you cannot see it]"
 file_saved = "[attached file {name} saved at {path}]"

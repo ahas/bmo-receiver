@@ -24,6 +24,7 @@ use receiver_policy::roles::ROLES;
 use receiver_policy::run_lines::RUN_LINES;
 use receiver_policy::scripts::SCRIPTS;
 use receiver_policy::second_asks::SECOND_ASKS;
+use receiver_policy::secret_shapes::SECRET_SHAPES;
 use receiver_policy::talk::TALK;
 use receiver_policy::tool_host::TOOL_HOST;
 use receiver_policy::wake::WAKE;
@@ -36,7 +37,7 @@ fn parts() -> Vec<&'static str> {
   let _ = (&*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
   let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING, &*QUIET);
-  let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST);
+  let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES);
 
   vec![
     "chat-health.toml",
@@ -62,6 +63,7 @@ fn parts() -> Vec<&'static str> {
     "run-lines.toml",
     "scripts.toml",
     "second-asks.toml",
+    "secret-shapes.toml",
     "talk.toml",
     "tool-host.toml",
     "wake.toml",

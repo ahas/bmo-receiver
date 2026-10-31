@@ -5,6 +5,7 @@ use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, QueryResult};
 
 use super::Inbound;
 use crate::room_record::{As, RoomHolding, Rows};
+use crate::secrets;
 use crate::{Fault, all, one, run};
 
 // A room's picture is a row of the pictures naming the room as its subject, and its file.
@@ -109,7 +110,8 @@ pub async fn set_chat_title<C: ConnectionTrait>(db: &C, chat_id: i64, title: &st
 /// A message written down, or written over where the room already holds its number: what was measured of an
 /// earlier answer under that number goes with it. The agent whose words these are and the voice they went out in
 /// are the receiver's own, set on a send the receiver archives itself and none on a message a provider handed
-/// over (docs/store.md, 「The tables」).
+/// over (docs/store.md, 「The tables」). Its words and transcript are written as the secret shapes leave them
+/// (docs/messages.md, 「Secrets taken out」), whichever way they came.
 pub async fn save_message(
   db: &DatabaseConnection,
   message: &Inbound,
@@ -134,10 +136,10 @@ pub async fn save_message(
       message.sender_id.into(),
       message.sender_name.clone().into(),
       message.sent_at.into(),
-      message.text.clone().into(),
+      secrets::redacted(&message.text).into(),
       message.image_path.clone().into(),
       message.image_state.clone().into(),
-      message.transcript.clone().into(),
+      message.transcript.as_deref().map(secrets::redacted).into(),
       message.voice_seconds.into(),
       message.voice_state.clone().into(),
       message.reply_to_message_id.into(),
@@ -164,7 +166,13 @@ pub async fn set_voice(
     db,
     r#"UPDATE "messages" SET "transcript" = $1, "voice_seconds" = $2, "voice_state" = $3
        WHERE "chat_id" = $4 AND "message_id" = $5"#,
-    vec![transcript.into(), seconds.into(), state.into(), chat_id.into(), message_id.into()],
+    vec![
+      transcript.map(secrets::redacted).into(),
+      seconds.into(),
+      state.into(),
+      chat_id.into(),
+      message_id.into(),
+    ],
   )
   .await
   .map(drop)
@@ -507,7 +515,7 @@ pub async fn update_message_text(
     run(
       db,
       r#"UPDATE "messages" SET "text" = $1 WHERE "chat_id" = $2 AND "message_id" = $3"#,
-      vec![text.into(), chat_id.into(), message_id.into()],
+      vec![secrets::redacted(text).into(), chat_id.into(), message_id.into()],
     )
     .await?
       > 0,

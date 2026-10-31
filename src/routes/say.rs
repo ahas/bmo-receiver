@@ -19,6 +19,7 @@ use crate::receiver::{Context, Inbound, NotReceived, Receiver, rows};
 use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, record};
 use crate::routes::as_owner::{OwnerFile, refusal};
+use crate::secrets;
 use crate::{now_ms, one};
 
 #[derive(Deserialize)]
@@ -110,7 +111,8 @@ fn failed(why: NotReceived) -> Refusal {
 pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<SayBody>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let text = asked.text.trim();
+  let text = secrets::redacted(asked.text.trim());
+  let text = text.as_str();
 
   if text.is_empty() {
     return Err(refused(
@@ -251,6 +253,9 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
   let Some(chat_id) = chat_id else {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "chatId (number) and file are required"));
   };
+  // The caption is read for secret-shaped runs before anything keeps or carries it (docs/messages.md, 「Secrets
+  // taken out」).
+  let caption = secrets::redacted(&caption);
 
   if given.is_empty() {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "chatId (number) and file are required"));

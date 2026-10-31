@@ -17,6 +17,7 @@ use receiver_policy::wake::WAKE;
 use super::{How, Inbound, NotReceived, Receiver, Room, Wake, rows};
 use crate::roads::added::{self, RoomMode};
 use crate::roads::providers;
+use crate::secrets;
 use agents::{Designated, default_designated, own_number, room_designated, window_until};
 use rest::{resting, stand_in};
 
@@ -62,6 +63,12 @@ impl Wake for Waking {
     how: How,
   ) -> BoxFuture<'a, Result<(), NotReceived>> {
     Box::pin(async move {
+      // Words that are nothing but the secret marker are no words, and wake nobody (docs/wake.md, 「The names and
+      // the window」).
+      if secrets::only_marked(&inbound.text) {
+        return Ok(());
+      }
+
       woken_on(
         receiver,
         inbound,
@@ -193,7 +200,7 @@ pub async fn wakes(
   inbound: &Inbound,
   room: Room,
 ) -> Result<bool, NotReceived> {
-  if wakes_nobody(receiver, inbound.chat_id).await? {
+  if secrets::only_marked(&inbound.text) || wakes_nobody(receiver, inbound.chat_id).await? {
     return Ok(false);
   }
 

@@ -23,6 +23,7 @@ pub mod room_record;
 pub mod rounds;
 pub mod routes;
 pub mod run_lines;
+pub mod secrets;
 pub mod service_start;
 pub mod store;
 pub mod text;

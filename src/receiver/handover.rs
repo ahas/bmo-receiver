@@ -19,6 +19,7 @@ use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
 use crate::all;
 use crate::receiver::reads;
 use crate::roads::providers::{self, Carried, Delivery};
+use crate::secrets;
 
 /// The message as the receiver keeps it, its moment in epoch milliseconds as the record keeps it.
 pub fn inbound(room_id: i64, message_id: i64, message: &HandedMessage) -> Inbound {
@@ -63,6 +64,35 @@ pub fn file_item(file: &bmo_chat_client::MessageFile) -> FileItem {
     mime: file.mime.clone(),
     bytes: file.bytes.clone(),
   }
+}
+
+/// The message with its words, its caption and every string of the payload beside it read for secret-shaped runs
+/// (docs/messages.md, 「Secrets taken out」), before anything keeps or forwards any of them. The journal says how
+/// many runs it lost, and nothing of its words.
+pub fn without_secrets(room_id: i64, message_id: i64, mut message: HandedMessage) -> HandedMessage {
+  let words = secrets::redact(&message.text);
+  let mut runs = words.runs;
+
+  message.text = words.text;
+
+  if let Some(spoken) = message.context.spoken_text.as_mut() {
+    let caption = secrets::redact(spoken);
+
+    runs += caption.runs;
+    *spoken = caption.text;
+  }
+
+  if let Some(metadata) = message.context.metadata.as_mut() {
+    runs += secrets::redact_value(metadata);
+  }
+
+  if runs > 0 {
+    println!(
+      "bmo-receiver: {runs} secret-shaped run(s) taken out of message {message_id} in room {room_id} before it was kept"
+    );
+  }
+
+  message
 }
 
 /// The message as the receiving side hands it back once kept.
@@ -132,6 +162,7 @@ impl ChatReceiver for Receiver {
     message_id: i64,
     message: HandedMessage,
   ) -> Result<HeldMessage, WireError> {
+    let message = without_secrets(room_id, message_id, message);
     // A provider's copy of a message the room already keeps, carried to it from the room, is that message.
     let copy = !matches!(message.origin, MessageOrigin::Edit)
       && providers::echo(self.db(), room_id, &message.via, message_id, message.context.tag.as_deref())

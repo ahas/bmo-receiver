@@ -22,6 +22,8 @@ flowchart TD
 - **One receiver.** It stands where its configuration names its database, the owner and the chat agent; without
   the owner it stands no receiver and says so on its output.
 - **What it carries:**
+  - the secret-shaped runs taken out of a message's words before anything keeps or forwards them
+    (`docs/messages.md`, 「Secrets taken out」);
   - the judgement of a message: whether the room is listened to; the owner's commands (allow, shut, pictures,
     mute, the two notices) with their acknowledgements queued as voiced notices; the
     message kept with the room's title; an agent's own words and a message already read stopped there; an edit
@@ -221,6 +223,9 @@ flowchart TD
 ## The owner's words
 
 - **`POST /owner/messages` and `POST /owner/message-files` put the owner's words into a room from the console.**
+  - The words, and the caption a file or a voice note carries, are read for secret-shaped runs before anything
+    is kept (`docs/messages.md`, 「Secrets taken out」); words that are nothing but markers are kept and wake no
+    agent.
   - The words are archived in the room under a console number (`docs/unified-bmo.md`, 「The cases」), under the
     owner's number and the owner's own name, and handed to the room's conversations as any of the owner's words
     are; then they go to the room's other providers as every kept message does, in the owner's own voice.
@@ -236,7 +241,7 @@ flowchart TD
     console records it; no reading of it is made, so what it says stands only in the recording. A call with
     no file, more than one, or one that is no sound is refused 400, and a file past the ceiling 413.
 - **`POST /owner/instructions` says the owner's words to a room's session**, framed as the owner speaking from the console,
-  delivered as a quiet instruction, so the room sees nothing but the answer it leads to; a chat the archive has
+  read for secret-shaped runs first (`docs/messages.md`, 「Secrets taken out」) and delivered as a quiet instruction, so the room sees nothing but the answer it leads to; a chat the archive has
   never seen is refused.
 
 ## The event stream

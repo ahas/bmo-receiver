@@ -234,7 +234,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **The bytes** answer as a file does over HTTP: `Content-Type`, `Content-Length`, `Accept-Ranges`, and `Range`
   answered 206 or 416. `download=true` adds `Content-Disposition: attachment`. Only bytes inside the room's own
   folder are served; anything else is 404 `not-found`.
-- **The metadata is opaque:** it is kept and handed back unread, so what it holds is the chat service's to state.
+- **The metadata is opaque:** it is kept and handed back unread, so what it holds is the chat service's to state;
+  only its strings are read, each for secret-shaped runs as a message's words are (`docs/messages.md`, 「Secrets
+  taken out」).
 - **A `Picture`** is `id`, `album`, `senderName`, `sentAt`, `text` and `file` (`name`, `bytes`, `type`), null where
   the stored picture is gone. `at` answers that picture alone, `before` the stretch ending before it, `after` the
   stretch past it, and none the newest.

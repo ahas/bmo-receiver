@@ -12,6 +12,7 @@ use sea_orm::DatabaseConnection;
 
 use super::asked;
 use crate::receiver::{NotReceived, Receiver, Room};
+use crate::secrets;
 use crate::{all, now_ms, one, run};
 
 /// One designated agent of a room: its registration name, the words a room calls it by, how long a room it
@@ -48,9 +49,10 @@ impl Designated {
     !self.default_answerer
   }
 
-  /// Whether the words call it: its label or one of its words stands in them, in either case.
+  /// Whether the words call it: its label or one of its words stands in them, in either case. The secret marker is
+  /// no word, so no name is found in it.
   pub fn called_by(&self, text: &str) -> bool {
-    let lowered = text.to_lowercase();
+    let lowered = secrets::unmarked(text).to_lowercase();
 
     self.call_names.iter().any(|name| lowered.contains(&name.to_lowercase()))
   }

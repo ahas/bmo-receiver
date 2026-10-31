@@ -76,6 +76,8 @@ pub struct Shape {
   pub voice: String,
   pub voice_empty: String,
   pub voice_failed: String,
+  /// The note beside an owner's message that holds the secret marker.
+  pub secret_taken: String,
   pub file_saved: String,
   pub file_not_stored: String,
   pub quote_limit: usize,

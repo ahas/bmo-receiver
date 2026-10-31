@@ -63,6 +63,13 @@ base address and token.
   of the console's own. Run again, it prints the room it stood up before and stands up nothing. It writes the
   store and never the configuration, and the room is the owner's private room once the configuration names it
   and the service starts on it.
+- **`redact-kept`** reads the secret shapes (`docs/messages.md`, 「Secrets taken out」) over the rows the store
+  the configuration names already holds and replaces each run in place: a message's words, what was heard in its
+  voice note and the room's situation note its round read, every string of the payload kept beside it, and each
+  room's own situation note. It prints, for each of those, how many rows changed and how many runs they lost, then each changed message as its
+  room and number, and never a word of a row; `--dry-run` counts and lists the same and writes nothing. Run again,
+  it finds nothing, since the marker is no secret's shape. It needs no running receiver, and the operator runs it
+  once a receiver that reads the shapes is deployed.
 - **`health`** asks the service the configuration names whether it is ready and ends.
 - **`nouns`** prints the nouns `bmo` dispatches to this command, one a line (「The unit command」).
 - **`import`** moves the old archive's exported rows into this store. It reads one export directory — a manifest

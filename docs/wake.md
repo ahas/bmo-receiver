@@ -42,6 +42,9 @@ its rounds.
 
 - **The names matched** are the agent's registered label and wake words, as the agency's registrations give
   them, matched without regard to case where they are written in Latin letters.
+- **The secret marker is no word** (`docs/messages.md`, 「Secrets taken out」): no name is matched in it, and
+  words that are nothing but markers wake no agent at all, in a user's own private chat too. A file whose caption
+  is nothing but markers is judged as a file with no caption.
 - **The window is the length the agent's row keeps,** and the policy's three minutes wherever the row names none,
   one length for every room; each room holds its own for each agent that keeps one, stored in the receiver's
   database.
