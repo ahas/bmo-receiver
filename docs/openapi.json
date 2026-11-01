@@ -290,6 +290,13 @@
               "null"
             ]
           },
+          "from": {
+            "description": "The command or unit the words come through, which words handed to the room's supervisor name.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "job": {
             "default": false,
             "type": "boolean"
@@ -520,6 +527,24 @@
           "agent": {
             "type": "string"
           },
+          "by": {
+            "description": "The chat that set the line off, `chat:<room>`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from": {
+            "description": "The command or unit the words come through.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "job": {
+            "default": false,
+            "type": "boolean"
+          },
           "replyTo": {
             "default": null,
             "format": "int64",
@@ -535,16 +560,27 @@
         "required": [
           "agent",
           "text",
-          "replyTo"
+          "replyTo",
+          "job"
         ],
         "type": "object"
       },
       "ConsultSaid": {
-        "description": "What a consult line came to.",
+        "description": "What a consult line came to: said, or handed to the agent as the order `handed` numbers, with no message.",
         "properties": {
+          "handed": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "id": {
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "lines": {
             "items": {
@@ -2714,13 +2750,27 @@
         "type": "object"
       },
       "SendAnswer": {
-        "description": "What a send came to.",
+        "description": "What a send came to: carried, or handed to the room's supervisor as the order `handed` numbers.",
         "properties": {
+          "handed": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "lines": {
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "own": {
+            "description": "A spoken talk asked in the asker's own round, which the asker makes and sends as a voice note.",
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "refusal": {
             "type": [
@@ -2743,7 +2793,7 @@
           },
           "input": true,
           "tool": {
-            "description": "The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`.",
+            "description": "The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`,\nor `speak`, a spoken talk asked by its words.",
             "type": "string"
           }
         },
@@ -3430,7 +3480,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
           }
         },
-        "summary": "A line said in the consult room under an agent's own name.",
+        "summary": "A line said in the consult room under an agent's own name, or handed to that agent outside its own round.",
         "tags": [
           "Consult"
         ],
@@ -7453,7 +7503,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, failed"
           }
         },
-        "summary": "A send carried as its asker, answered with its lines or its refusal.",
+        "summary": "A send carried as its asker in its own round, or handed to the room's supervisor, answered with its lines or its refusal.",
         "tags": [
           "Sends"
         ],

@@ -39,10 +39,14 @@ needs its road to perform, so the room's block names the sending entries a room'
   where the tool host's record carries it; the turn's variables are then read off that place's `run.json`.
 - **Every entry but one asks the receiver for the send:** `POST /sends` with the entry's name as `tool`, its
   arguments as `input`, and the asker (the room, the road the turn names for it, the turn's agent, the chat that
-  set it off as `by`, and whether a job asks). The receiver carries the act as that agent, on its own lines, and
-  answers the lines it said, or those lines with the refusal it ended in.
-- **`consult`** asks `POST /consult-lines` with the turn's agent, the words and the consult room's message it
-  answers; a call made outside any agent's turn is refused here, since there is no agent to speak as.
+  set it off as `by`, and whether a job asks). Where that agent's round is working in the room that set it off,
+  the receiver carries the act as that agent, on its own lines, and answers the lines it said, or those lines with
+  the refusal it ended in; anywhere else (a job's call, a worker's, a call made outside any round) it hands the act
+  to the room's supervisor and answers the line saying so (`docs/messages.md`, 「Words handed to the room's
+  supervisor」).
+- **`consult`** asks `POST /consult-lines` with the turn's agent, the words, the consult room's message it
+  answers, the chat that set it off and whether a job asks, which the receiver says or hands over the same way; a
+  call made outside any agent's turn is refused here, since there is no agent to speak as.
 - **Where each unit is found:** the receiver's address and token from the call's environment
   (`RECEIVER_ADDRESS`, `RECEIVER_TOKEN`), else from `env/receiver.env` under the data root, which the receiver's
   `tool-env` verb writes as it is deployed. The data root is the record's `dataRoot` where it names one, else the
@@ -88,7 +92,9 @@ needs its road to perform, so the room's block names the sending entries a room'
 
 ## The verbs beside it
 
-The receiver's command line carries the same sends for a person, a job and a turn whose tool call failed:
-`bmo room say`, `bmo photo`, `bmo react`, `bmo pin`, `bmo sticker`, `bmo consult say` and
-`bmo draw draw` (docs/boundary-api.md, 「The unit command」). Each asks the receiver the same way, from its own
-shell's turn, so a tool and a command cannot send differently.
+The receiver's command line carries the same sends: `bmo room say`, `bmo talk`, `bmo photo`, `bmo react`,
+`bmo pin`, `bmo sticker`, `bmo consult say` and `bmo draw draw` (docs/boundary-api.md, 「The unit command」).
+Each asks the receiver the same way, from its own shell's turn, so a tool and a command cannot send differently:
+in a shell of the supervisor's own working round a command sends as that supervisor, and for a person, a job, a
+script or a turn whose tool call failed it hands the words to the room's supervisor, who says them in its own
+turn.

@@ -208,7 +208,7 @@ pub async fn room_say(
   args: SayArgs,
 ) -> Result<Vec<String>, VerbError> {
   let chat = args.chat.unwrap_or(config.owner);
-  let asker = asked_sends::shell_asker(chat, via, args.by);
+  let asker = asked_sends::shell_asker(chat, via, args.by, "room say");
   let input = SayInput {
     chat: None,
     via: None,
@@ -249,7 +249,8 @@ pub async fn photo(
     reply_to: None,
   };
 
-  asked_sends::ask(&config.data_root, asked_sends::shell_asker(chat, via, None), Act::Photo(input)).await
+  asked_sends::ask(&config.data_root, asked_sends::shell_asker(chat, via, None, "photo"), Act::Photo(input))
+    .await
 }
 
 /// `react`: an emoji put on a message, or cleared, through `POST /sends`.
@@ -265,8 +266,12 @@ pub async fn react(
     emoji: args.emoji,
   };
 
-  asked_sends::ask(&config.data_root, asked_sends::shell_asker(args.chat, via, None), Act::React(input))
-    .await
+  asked_sends::ask(
+    &config.data_root,
+    asked_sends::shell_asker(args.chat, via, None, "react"),
+    Act::React(input),
+  )
+  .await
 }
 
 /// `pin`: a message pinned, or unpinned, through `POST /sends`.
@@ -278,7 +283,12 @@ pub async fn pin(config: &Config, via: Option<String>, args: PinArgs) -> Result<
     unpin: args.unpin,
   };
 
-  asked_sends::ask(&config.data_root, asked_sends::shell_asker(args.chat, via, None), Act::Pin(input)).await
+  asked_sends::ask(
+    &config.data_root,
+    asked_sends::shell_asker(args.chat, via, None, "pin"),
+    Act::Pin(input),
+  )
+  .await
 }
 
 /// `sticker`: one of the deployment's stickers through `POST /sends`, or the set listed.
@@ -297,7 +307,12 @@ pub async fn sticker(
     reply_to: None,
   };
 
-  asked_sends::ask(&config.data_root, asked_sends::shell_asker(chat, via, None), Act::Sticker(input)).await
+  asked_sends::ask(
+    &config.data_root,
+    asked_sends::shell_asker(chat, via, None, "sticker"),
+    Act::Sticker(input),
+  )
+  .await
 }
 
 /// `consult`: the consult room read or set and the block an agent is shown from the store, and a line said
@@ -330,9 +345,10 @@ pub async fn consult(config: &Config, args: ConsultArgs) -> Result<Vec<String>, 
         ));
       };
       let input = ConsultInput { text, reply };
+      let asker = asked_sends::shell_turn("consult say");
 
       asked_sends::said(
-        room_calls::sends::ask_consult(&Service::of(&config.data_root), Some(&agent), &input).await,
+        room_calls::sends::ask_consult(&Service::of(&config.data_root), Some(&agent), &asker, &input).await,
       )
     }
   }
@@ -353,7 +369,7 @@ async fn draw_made(config: &Config, via: Option<String>, args: DrawArgs) -> Resu
   let fields: Map<String, Value> = draws::spec_argument(args.spec.as_deref())?;
   let input: RandomDrawInput = serde_json::from_value(Value::Object(fields))
     .map_err(|why| VerbError::Refused(format!("--spec does not name a draw: {why}")))?;
-  let asker = asked_sends::shell_asker(chat, via, None);
+  let asker = asked_sends::shell_asker(chat, via, None, "draw draw");
 
   asked_sends::ask(&config.data_root, asker, Act::RandomDraw(input)).await
 }

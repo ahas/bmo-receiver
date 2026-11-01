@@ -70,8 +70,10 @@ its rounds.
 - **A round that ends in silence leaves the time it already had to run out** (a `<<SKIP>>`) because passing over
   what a room said is not answering it, and a window that grew every time the agent stayed quiet would hold a
   session open through a conversation it is not in.
-- **A line put in the room from outside a session** (a `say` through `POST /sends`) opens one as an answer does:
-  the room has been spoken to, so what anyone there says back needs no name to reach the session.
+- **A line the agent's own send puts in the room** (a `say` through `POST /sends` in its round, or the line it
+  says for words handed to it, `docs/messages.md`, 「Words handed to the room's supervisor」) opens one as an answer
+  does: the room has been spoken to, so what anyone there says back needs no name to reach the session. Words
+  handed to the agent and not yet said open nothing, since nothing reached the room.
 - **The open window is stored in the receiver's database,** and a turn of the room's own that ends while such a
   window is running leaves it alone rather than closing the room behind it. A restart in the middle of a
   conversation does not close it either.
@@ -338,6 +340,12 @@ opens a round there like any instruction:
 - **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency
   words it; neither wakes anyone.
 - **A road's change:** `road.changed`, told to the owner as 「Quiet instructions」 above states.
+
+## Words handed over
+
+- **Words anything but the room's supervisor wants said wake that supervisor as an order** in the room they are
+  for (`docs/messages.md`, 「Words handed to the room's supervisor」): one instruction of the sort `handed` each,
+  which opens a round there like any instruction and never rides, since somebody is waiting on it to be said.
 
 ## A job's end
 

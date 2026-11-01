@@ -152,7 +152,7 @@ async fn consulted(receiver: &Service, agency: &HttpAgency, turn: &Turn, input: 
     return Answer::refusal(refused);
   }
 
-  said(ask_consult(receiver, turn.agent.as_deref(), &input).await)
+  said(ask_consult(receiver, turn.agent.as_deref(), &Asker::of_turn(turn, None), &input).await)
 }
 
 fn read<T: serde::de::DeserializeOwned>(name: &str, arguments: Value) -> Result<T, Answer> {

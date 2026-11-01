@@ -3,11 +3,14 @@
 //! synthesises, given or else derived by the voice engine the configuration names. Its sound is written to this
 //! machine and sent as the room's voice note, with the words as what the note says, which a road that folds a long
 //! reading shows folded under the note. The synthesis is followed until it is done or failed, however long it
-//! waits for its card.
+//! waits for its card. A spoken line is asked of the receiver by its words first: outside its agent's own round it
+//! is handed to the room's supervisor as those words, and nothing is synthesised (docs/messages.md, 「Words handed
+//! to the room's supervisor」).
 
 use std::time::Duration;
 
-use room_calls::sends::{Act, SayInput, VoiceInput};
+use room_calls::bot::Service;
+use room_calls::sends::{Act, SayInput, SpeakInput, VoiceInput};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -36,7 +39,8 @@ struct Spoken {
 }
 
 /// `talk`: the words said in the room, or spoken in `voice` and sent as a voice note with them as what it says;
-/// `spoken`, where given, is what the voice synthesises in their place.
+/// `spoken`, where given, is what the voice synthesises in their place. A spoken line outside its agent's own
+/// round is handed over as its words, before anything is synthesised.
 pub async fn talk(
   config: &Config,
   via: Option<String>,
@@ -45,7 +49,7 @@ pub async fn talk(
   spoken: Option<String>,
 ) -> Result<Vec<String>, VerbError> {
   let chat = args.chat.unwrap_or(config.owner);
-  let asker = asked_sends::shell_asker(chat, via, args.by);
+  let asker = asked_sends::shell_asker(chat, via, args.by, "talk");
   let text = words(args.text)?;
 
   let Some(voice) = voice else {
@@ -59,6 +63,24 @@ pub async fn talk(
 
     return asked_sends::ask(&config.data_root, asker, Act::Say(input)).await;
   };
+
+  let speaking = SpeakInput {
+    chat: None,
+    via: None,
+    voice: voice.clone(),
+    text: text.clone(),
+    spoken: spoken.clone(),
+    reply_to: args.reply_to,
+  };
+
+  // None where the round is the asker's own: the note is made here and sent.
+  let handed = room_calls::sends::ask_speaking(&Service::of(&config.data_root), asker.clone(), speaking)
+    .await
+    .transpose();
+
+  if let Some(handed) = handed {
+    return asked_sends::said(handed);
+  }
 
   let Some(engine) = config.voice.as_ref() else {
     return Err(VerbError::Refused(

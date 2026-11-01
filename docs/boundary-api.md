@@ -91,24 +91,31 @@ the operations machine's:
 
 | Noun | Words | What it asks |
 |---|---|---|
-| `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to |
-| `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it; `--spoken`, taken only with `--voice`, names the spoken words the voice synthesises in their place |
+| `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to; `--by` names the chat that set it off, the turn's own room where none is named |
+| `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is first asked as the act `speak`: outside the agent's own round that hands the voice note over as its words, and inside it the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the act `voice`, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it; `--spoken`, taken only with `--voice`, names the spoken words the voice synthesises in their place |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
 | `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
-| `consult` | `room [<room>]`, `state`, or `say <words> [--reply <id>]`, each with `[--agent <name>]` | `room` and `state` read the store; `say` asks `POST /consult-lines` under the agent's own name |
+| `consult` | `room [<room>]`, `state`, or `say <words> [--reply <id>]`, each with `[--agent <name>]` | `room` and `state` read the store; `say` asks `POST /consult-lines` under the agent's own name, which hands the line to that agent outside its own round |
 | `draw` | `draw --chat <id> --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
 
 - **A send is asked as the shell's turn:** the room, the agent whose turn the process works in, the chat that set
-  it off and whether a job asks are read from the environment, and the running receiver carries it on its own
-  lines. The address and token come from the process's environment, else from the data root's `env/receiver.env`
+  it off (the turn's own room where `--by` names none), whether a job asks and the noun it came through are read
+  from the environment and the words, and the running receiver carries it on its own lines.
+- **A noun sends only inside its agent's own round.** Run in a shell of the room's supervisor's working round, a
+  noun sends as that supervisor; run anywhere else (the operator's shell, a job, a worker, a script, a turn whose
+  tool call failed over to the shell) it hands its words to the room's supervisor and sends nothing
+  (`docs/messages.md`, 「Words handed to the room's supervisor」). It prints the line the receiver answered with,
+  naming the agent it was handed to, and ends 0. The address and token come from the process's environment, else from the data root's `env/receiver.env`
   (「Its tools」). A spoken `talk` asks the voice engine at the address and token the configuration names.
 - **A spoken `talk` is two texts.** The words are the written words, what the room reads: the voice note's
   `said`, and the synthesis's `text`, which the engine keeps as its transcript; nothing changes them. The
   spoken words are what the voice says, the same words as a Korean reader says them aloud. `--spoken` hands
   them to the engine as the synthesis's `spoken`; with none given the synthesis carries the words alone and
   the engine derives the spoken words itself. Either way the engine checks them before it speaks.
+- **A spoken `talk` is handed before it is made** where the shell is not in its agent's own round: the voice, the
+  written words and the spoken words go to the room's supervisor as they were given, and nothing is synthesised.
 - **A refusal of the engine is carried back with its sentence.** A synthesis the engine does not take in, a
   422 `unconverted-run` among them for spoken words that still hold a Latin letter, a digit, an address, a
   path or markup, is the verb's refusal, naming the status, the engine's code and its sentence; nothing is

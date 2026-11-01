@@ -4,7 +4,7 @@
 use room_calls::bot::Service;
 use room_calls::sends::{
   Act, Asked, Asker, CONSULT_PATH, ConsultInput, FileInput, FileToSend, FixedLineInput, RandomDrawInput,
-  SENDS_PATH, StickerInput, Unsent, VoiceInput, answered, ask_consult,
+  SENDS_PATH, SpeakInput, StickerInput, Unsent, VoiceInput, answered, ask_consult,
 };
 use room_calls::turn::{Room, Turn};
 use serde_json::{Map, Value, json};
@@ -196,6 +196,7 @@ fn the_asker_of_a_turn_sets_the_send_off_from_the_turns_own_chat() {
       agent_name: Some("agent-a".to_owned()),
       by: Some(format!("chat:{ROOM}")),
       job: true,
+      from: None,
     },
   );
   assert_eq!(turn.room(None).unwrap().via.as_deref(), Some("road-a"));
@@ -238,7 +239,36 @@ async fn a_consult_line_outside_any_agents_turn_is_refused_before_the_receiver_i
   };
 
   assert!(matches!(
-    ask_consult(&Service::default(), None, &input).await,
+    ask_consult(&Service::default(), None, &Asker::default(), &input).await,
     Err(Unsent::Refused { .. })
   ));
+}
+
+#[test]
+fn a_spoken_talk_is_asked_by_its_words_under_the_speak_act() {
+  let asked = Asked {
+    asker: Asker {
+      room: Some(ROOM),
+      from: Some("bmo talk".to_owned()),
+      ..Asker::default()
+    },
+    act: Act::Speak(SpeakInput {
+      chat: None,
+      via: None,
+      voice: "voice-a".to_owned(),
+      text: "Written words.".to_owned(),
+      spoken: Some("Spoken words.".to_owned()),
+      reply_to: None,
+    }),
+  };
+
+  assert_eq!(asked.act.tool(), "speak");
+  assert_eq!(
+    serde_json::to_value(&asked).unwrap(),
+    json!({
+      "asker": { "room": ROOM, "from": "bmo talk" },
+      "tool": "speak",
+      "input": { "voice": "voice-a", "text": "Written words.", "spoken": "Spoken words." },
+    }),
+  );
 }

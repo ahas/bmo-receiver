@@ -6,6 +6,9 @@
 //!
 //! A line asked to be said is said in a run of its own, whose launcher the receiver's binary fills; asked of a
 //! service that stands without one, it is turned away before the words are put on the disk.
+//!
+//! Only a send asked in its agent's own round is carried; every other is handed to the room's supervisor as an
+//! order, and nothing goes out on that call (docs/messages.md, 「Words handed to the room's supervisor」).
 
 use axum::{
   body::Bytes,
@@ -19,6 +22,7 @@ use room_calls::sends::{Act, Asked};
 use room_calls::turn::NO_ROOM;
 
 use super::{Answered, Served, answered, query, read, refused};
+use crate::chat::handed;
 use crate::receiver::Receiver;
 use crate::verbs::sends::Sends;
 use crate::verbs::{VerbError, draws, messages};
@@ -98,12 +102,38 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
     Act::Sticker(input) => messages::sticker(&sends, chat, &input.emoji, input.reply_to).await,
     Act::RandomDraw(input) => draws::draw(&sends, chat, &input.request(), asker.via.as_deref()).await,
     Act::FixedLine(input) => messages::fixed_line(&sends, chat, &input.code, &input.fields).await,
+    // A spoken talk in its own round is made and sent by the command that asked it, as a voice note.
+    Act::Speak(_) => Ok(Vec::new()),
   }
+}
+
+// One send handed to the room's supervisor, answering the line saying so and the order's number.
+async fn handed(receiver: &Receiver, asked: &Asked) -> Result<serde_json::Value, VerbError> {
+  let Asked { asker, act } = asked;
+  let chat = asker.room.ok_or_else(|| VerbError::Refused(NO_ROOM.to_owned()))?;
+  let refused = |why: crate::receiver::NotReceived| VerbError::Refused(why.to_string());
+  let agent = handed::supervisor(receiver, asker, chat).await.map_err(refused)?;
+  let handing = handed::hand(receiver, asker, &agent, chat, &handed::asked(asker, act))
+    .await
+    .map_err(refused)?;
+
+  Ok(json!({ "lines": [handing.line()], "handed": handing.id }))
 }
 
 pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<Asked>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
+
+  if !handed::own_round(&receiver, &asked.asker) {
+    return answered(match handed(&receiver, &asked).await {
+      Ok(said) => said,
+      Err(why) => json!({ "lines": [], "refusal": why.to_string() }),
+    });
+  }
+
+  if matches!(asked.act, Act::Speak(_)) {
+    return answered(json!({ "lines": [], "own": true }));
+  }
 
   let said = match carried(&receiver, &asked).await {
     Ok(lines) => json!({ "lines": lines }),

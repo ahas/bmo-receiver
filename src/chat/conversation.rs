@@ -1224,6 +1224,11 @@ impl Conversations {
     self.state().active.values().any(|conv| conv.in_flight)
   }
 
+  /// Whether a round of the agent's is working in the room now, from its first turn to the send of its answer.
+  pub fn in_round(&self, chat_id: i64) -> bool {
+    self.state().active.get(&chat_id).is_some_and(|conv| conv.in_flight)
+  }
+
   /// Whether a room has fallen silent: the rest closes it and nothing else would answer it.
   pub async fn silenced(&self, chat_id: i64) -> bool {
     self.0.health.silenced(&self.0.receiver, chat_id).await

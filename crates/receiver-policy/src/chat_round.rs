@@ -162,6 +162,28 @@ pub struct Relay {
   pub answer: String,
 }
 
+/// A send asked outside its agent's own round, handed to the room's supervisor as an order: who handed it, each
+/// act's words, the order around them and what the asker is answered with.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Handed {
+  pub sort: String,
+  pub job: String,
+  pub agent: String,
+  pub nobody: String,
+  pub through: String,
+  pub said: String,
+  pub spoken: String,
+  pub spoken_words: String,
+  pub consulted: String,
+  pub act: String,
+  pub reply_to: String,
+  pub answer_wanted: String,
+  pub via: String,
+  pub instruction: String,
+  pub answered: String,
+}
+
 /// The paragraph words pushed into a working turn are wrapped in.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -253,6 +275,7 @@ pub struct ChatRound {
   pub conversation: Conversation,
   pub queue_line: QueueLine,
   pub relay: Relay,
+  pub handed: Handed,
   pub push: Push,
   pub pushing: Pushing,
   pub progress: Progress,

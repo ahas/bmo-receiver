@@ -115,6 +115,10 @@ impl crate::receiver::Runner for Runner {
 
     Box::pin(async move { conversations.spoken(chat_id, line).await })
   }
+
+  fn in_round(&self, agent: &str, chat_id: i64) -> bool {
+    self.standing(agent).is_some_and(|conversations| conversations.in_round(chat_id))
+  }
 }
 
 // Every agent's conversations forget a room whose registration is removed.

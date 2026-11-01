@@ -3,7 +3,9 @@
 //! a reaction, a pin, a sticker, a fair draw, a file or an album of files, a voice note and a fixed line, each
 //! the arguments its tool takes, asked with who asks it — the room, the road the turn names for it, the agent
 //! whose turn it is, the chat that set it off and whether a job asks — since only the running receiver carries
-//! a send on its own lines (docs/messages.md, 「What an agent can send back」).
+//! a send on its own lines (docs/messages.md, 「What an agent can send back」), and only in the asking agent's own
+//! round: every other send it hands to the room's supervisor (docs/messages.md, 「Words handed to the room's
+//! supervisor」).
 
 use std::time::Duration;
 
@@ -136,6 +138,29 @@ pub struct VoiceInput {
   /// What was actually read out, where that differs from the caption.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub transcript: Option<String>,
+  /// The message this send replies to, by its number in the room.
+  #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
+  pub reply_to: Option<i64>,
+}
+
+/// A spoken talk asked of a room by its words, ahead of any synthesis: the voice it is spoken in, the written words
+/// the room reads and the spoken words the voice says, where they are given.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpeakInput {
+  /// The room, by chat id, where it is not this turn's own.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub chat: Option<i64>,
+  /// The road to send on, where the room block names the room's own road for this.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub via: Option<String>,
+  /// The trained voice the line is spoken in.
+  pub voice: String,
+  /// The written words: what the room reads of the note.
+  pub text: String,
+  /// The spoken words the voice says in their place, where they are given.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub spoken: Option<String>,
   /// The message this send replies to, by its number in the room.
   #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
   pub reply_to: Option<i64>,
@@ -282,10 +307,32 @@ pub enum Act {
   Sticker(StickerInput),
   RandomDraw(RandomDrawInput),
   FixedLine(FixedLineInput),
+  /// A spoken talk asked by its words, which no tool entry asks: handed over outside the asker's own round, and
+  /// answered `own` inside it, where the command makes the note and sends it as `Voice`.
+  Speak(SpeakInput),
+}
+
+impl Act {
+  /// The tool's name the act is asked under.
+  pub fn tool(&self) -> &'static str {
+    match self {
+      Self::Say(_) => "say",
+      Self::Photo(_) => "photo",
+      Self::File(_) => "file",
+      Self::Voice(_) => "voice",
+      Self::React(_) => "react",
+      Self::Pin(_) => "pin",
+      Self::Sticker(_) => "sticker",
+      Self::RandomDraw(_) => "random_draw",
+      Self::FixedLine(_) => "fixed_line",
+      Self::Speak(_) => "speak",
+    }
+  }
 }
 
 /// Who asks a send: the room it goes into and the road the turn names for it, the agent whose turn asks — none
-/// for a send no agent's turn makes — the chat that set it off, and whether a job asks.
+/// for a send no agent's turn makes — the chat that set it off, whether a job asks, and the command or unit the
+/// words come through, which words handed to the room's supervisor name.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Asker {
@@ -299,6 +346,8 @@ pub struct Asker {
   pub by: Option<String>,
   #[serde(default, skip_serializing_if = "off")]
   pub job: bool,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub from: Option<String>,
 }
 
 impl Asker {
@@ -311,6 +360,7 @@ impl Asker {
       agent_name: turn.agent.clone(),
       by: turn.chat.or(room.map(|room| room.chat)).map(|chat| format!("chat:{chat}")),
       job: turn.job,
+      from: None,
     }
   }
 }
@@ -359,11 +409,39 @@ pub async fn ask(receiver: &Service, asked: &Asked) -> Result<Vec<String>, Unsen
   answered(SENDS_PATH, status, &said)
 }
 
+/// A spoken talk asked of the running receiver ahead of its synthesis: none where the asker's own round speaks it,
+/// so the caller makes the note and sends it as a voice note, or the lines the receiver said of handing it to the
+/// room's supervisor; or why it did not go.
+pub async fn ask_speaking(
+  receiver: &Service,
+  asker: Asker,
+  input: SpeakInput,
+) -> Result<Option<Vec<String>>, Unsent> {
+  let asked = Asked {
+    asker,
+    act: Act::Speak(input),
+  };
+  let body = serde_json::to_value(&asked)
+    .map_err(|why| Unsent::Unreached(format!("the send could not be written: {why}")))?;
+  let (status, said) =
+    receiver.post_within(SENDS_PATH, &body, SEND_WAIT).await.map_err(Unsent::Unreached)?;
+  let own = (200..300).contains(&status) && said.get("own").and_then(Value::as_bool) == Some(true);
+
+  if own {
+    return Ok(None);
+  }
+
+  answered(SENDS_PATH, status, &said).map(Some)
+}
+
 /// One line said in the consult room under the agent's own name, answering the lines the receiver said of it — each
-/// agent's window there — or why it did not go; a line no agent's turn asks for is refused here.
+/// agent's window there, or its handing to that agent outside its own round — or why it did not go; a line no
+/// agent's turn asks for is refused here. The asker names the chat that set it off, whether a job asks and the
+/// command the words came through.
 pub async fn ask_consult(
   receiver: &Service,
   agent: Option<&str>,
+  asker: &Asker,
   input: &ConsultInput,
 ) -> Result<Vec<String>, Unsent> {
   let Some(agent) = agent else {
@@ -372,7 +450,20 @@ pub async fn ask_consult(
       refusal: "this call was made outside any agent's turn, so there is no agent to speak as".to_owned(),
     });
   };
-  let body = json!({ "agent": agent, "text": input.text, "replyTo": input.reply });
+  let mut body = json!({ "agent": agent, "text": input.text, "replyTo": input.reply });
+
+  if let Some(by) = &asker.by {
+    body["by"] = json!(by);
+  }
+
+  if asker.job {
+    body["job"] = json!(true);
+  }
+
+  if let Some(from) = &asker.from {
+    body["from"] = json!(from);
+  }
+
   let (status, said) =
     receiver.post_within(CONSULT_PATH, &body, SEND_WAIT).await.map_err(Unsent::Unreached)?;
 

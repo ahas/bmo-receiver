@@ -273,6 +273,13 @@ pub trait Runner: Send + Sync {
   fn spoken<'a>(&'a self, _agent: &'a str, _chat_id: i64, _line: &'a str) -> BoxFuture<'a, Option<String>> {
     Box::pin(async { None })
   }
+
+  /// Whether a round of the agent's is working in the room now, which is the one place a send of the agent's is
+  /// carried rather than handed to the room's supervisor (docs/messages.md, 「Words handed to the room's
+  /// supervisor」); none works where no conversations stand.
+  fn in_round(&self, _agent: &str, _chat_id: i64) -> bool {
+    false
+  }
 }
 
 /// The conversations where none stand: no turn is taken.

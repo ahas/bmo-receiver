@@ -25,7 +25,7 @@ flowchart TD
   writes the setting only where it holds nothing, so a room set by hand stays.
 - **`bmo consult room`** prints the room set; **`bmo consult room <room>`** sets it, by number or title, to a
   room at least two designated agents answer, and refuses any other. `bmo consult state` prints the block an
-  agent would be shown now, and `bmo consult say` says a line under its name through the running service; each
+  agent would be shown now, and `bmo consult say` asks for a line under its name through the running service; each
   takes the agent with `--agent` where no agent's run names one.
 - **An agent that does not answer in the consult room is not offered it:** its turns carry no consult block and
   its consult calls are refused.
@@ -58,11 +58,15 @@ flowchart TD
 
 - **`consult` puts one line in the consult room under the calling agent's own name,** whatever room its turn
   answers. It takes the words, and the number of a message in the consult room to answer, where it answers one.
-- **It is carried out by the receiver,** through `POST /consult/say`: the line goes out on the consult room's
+- **It is carried out by the receiver,** through `POST /consult-lines`: the line goes out on the consult room's
   own road in the words' form, is filed under the agent's number, opens the
   agent's own window where its row keeps one, and reaches the receiver like any word filed in the room.
 - **So the other agent is woken by the receiver's one rule:** its name in the line, the line answering one of its
   messages, or its window there still open.
+- **Only the agent's own round says it.** The line goes out where the agent's round is working in the room that
+  set the call off and no job asks; a line asked anywhere else, `bmo consult say` at the operator's shell or in a
+  job among them, is handed to that agent as a quiet instruction in the consult room, and the agent says it in its
+  own turn or lets it go (`docs/messages.md`, 「Words handed to the room's supervisor」).
 - **It is refused** where no consult room is set, where the calling agent does not answer there, where the words
   are empty, and where no receiver is there to carry it.
 

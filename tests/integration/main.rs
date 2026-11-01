@@ -18,6 +18,7 @@ mod contracts;
 mod data_root;
 mod draft_process;
 mod expiry;
+mod handed_sends;
 mod handoffs;
 mod import;
 mod kept;

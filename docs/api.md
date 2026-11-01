@@ -294,15 +294,20 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `by?`, `job`), `tool`, `input`; the `say`, `photo`, `file`, `voice` and `sticker` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one |
+| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor; `own` true for a `speak` asked in the asker's own round |
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs the road a room is answered on performs |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into | 201, `room` and `id`, the copy kept there |
 
 - **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` and
-  `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`). The act goes out as the asker's agent, on
-  the road the turn names.
+  `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`), and `speak`, a spoken talk asked by its
+  `voice`, its written `text` and its `spoken?` words. The act goes out as the asker's agent, on the road the turn
+  names, only where that agent's round is working in the room `by` names and no job asks; every other send is
+  handed to the room's supervisor as a quiet instruction and nothing goes out (`docs/messages.md`, 「Words handed
+  to the room's supervisor」). `from` names the command or unit the words came through, which the handed words
+  carry. A `speak` sends nothing either way: in the asker's own round it answers `own` true and no lines, and the
+  command sends the note it makes as `voice`.
 - **A `say`** answers once the line is on its way: the receiver puts the words through the room's gates and into
   the room apart from the call, opens the room's window for the agent that said it, and tells the chat that set
   it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.
@@ -354,7 +359,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /consult-lines` | `agent`, `text`, `replyTo?` | `room`, `id`, `lines`: each agent's window in the consult room |
+| `POST /consult-lines` | `agent`, `text`, `replyTo?`, `by?`, `job?`, `from?` | `room`, `id`, `lines`: each agent's window in the consult room; where the agent's round is not working in the room `by` names, or a job asks, the line is handed to that agent in the consult room instead, answered `lines` and `handed`, the instruction's number |
 | `GET /consult-lines` | `agentName` | `block`, what the agent is shown of the other agents' work, or null |
 
 ## Talks

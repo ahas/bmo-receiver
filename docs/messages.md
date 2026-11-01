@@ -1,7 +1,8 @@
 # Messages in and out
 
 What becomes of a message a chat service hands in (how it is archived, what each kind turns into, how far an
-agent has read) and what an agent can send back and when a room sees it typing.
+agent has read), what an agent can send back, how words anything else wants said reach the room's supervisor,
+and when a room sees it typing.
 
 ## The archive
 
@@ -75,7 +76,8 @@ agent has read) and what an agent can send back and when a room sees it typing.
 ## What an agent can send back
 
 - **Each send is an entry of the send tool** (`docs/chat-mcp.md`), and some are a noun of the receiver's command
-  line (docs/boundary-api.md, 「The unit command」):
+  line (docs/boundary-api.md, 「The unit command」), which sends only inside the agent's own round and hands its
+  words over everywhere else (「Words handed to the room's supervisor」):
   - text (`say`; `bmo room say`, whose words are said by a run of their own);
   - a photo, or several as one album (`photo`; `bmo photo`);
   - a file from this machine, or several as one album (`file`);
@@ -114,6 +116,41 @@ agent has read) and what an agent can send back and when a room sees it typing.
 - **Everyday conversation is answered with a sticker** (a greeting, a joke, small talk, a remark that only wants a
   nod) when one of the set fits, sending it and then answering `<<SKIP>>` so no words follow; words are for
   questions, errands and reports.
+
+## Words handed to the room's supervisor
+
+Every message a room receives comes from that room's supervisor, the chat agent that answers it. Anything else
+that wants something said there hands the words to that supervisor, and the supervisor says it in its own turn.
+
+- **A send is carried only in its supervisor's own round.** `POST /sends` carries an act as asked where its asker
+  names an agent, no job asks it, and that agent has a round working at that moment in the room that set the send
+  off (the asker's `by`, `chat:<room>`): the round's own turn and every later question of its draft process, in
+  which the send tool's entries and the shell verbs of that turn run. The room it sends into may be another room
+  the agent answers. A round's own answer is the other way a supervisor speaks, and asks nothing of this.
+- **Every other send is handed over, and nothing reaches the room on that call.** A command at a shell, a job's
+  run, a worker, a runner, a unit's own process, a script or a turn's tool call that failed over to the shell asks
+  the same route, and the receiver queues a quiet instruction carrying what was asked: who handed it, the command
+  or unit it came through where the asker names one (`from`), the room, the act and its arguments (the words,
+  the pictures, the files, the voice note, the reaction, the pin, the sticker, the draw or the fixed line) and the
+  road it named. The asker is answered with one line naming the agent it was handed to, and the instruction's
+  number as `handed`.
+- **Who it is handed to:** the asker's own agent where that agent answers the room (a supervisor's shell outside
+  its round, a process of its own past its turn), and the room's voice otherwise (`docs/voiced-notices.md`,
+  「The rule」).
+- **The supervisor decides in its own turn.** The instruction is an order of the sort `handed`, queued for the room
+  the words are for and on the road the asker named; it opens a turn there and never rides. The supervisor says
+  it in its own words and voice, as its rule for handed lines says (the agency's chat manual): it relays it as it
+  stands, rephrases it, folds it, pins it as a reply, speaks it as a voice note, or judges it not worth saying and
+  answers `<<SKIP>>`. Whatever it sends is its own send, through every gate its turn goes through.
+- **A voice note is handed as its words.** A spoken talk asks the act `speak` (the voice named, the written words,
+  and the spoken words where given) before anything is synthesised. Outside the asker's own round it is handed
+  like any other act, so the supervisor speaks it in its own voice; in the asker's own round the receiver answers
+  `own` and sends nothing, and the command makes the note and sends it as `voice`.
+- **A line in the consult room is handed the same way** to the agent it would be said under, in the consult room
+  (`docs/consult.md`, 「The consult tool」).
+- **A person's own words are not handed:** what the owner puts in a room from the console, forwards there or does
+  to a message is his own (`docs/receiver.md`, 「The owner's words」), and a line the receiver says as the service
+  is the system's own (`docs/voiced-notices.md`, 「System notices」 and 「Lines that stay fixed」).
 
 ## Typing
 

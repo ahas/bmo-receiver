@@ -10,10 +10,16 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::{Answered, Refusal, Served, answered, code, query, read, refused, store, unit};
+use receiver_codes::ConsultRefusal;
+use receiver_policy::consult::CONSULT;
+use room_calls::sends::Asker;
+
 use crate::chat::consult::consult_block;
 use crate::chat::consult_say::say;
+use crate::chat::handed;
 use crate::now_ms;
 use crate::receiver::{NotReceived, Receiver};
+use crate::store::settings;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +28,12 @@ struct SayBody {
   text: String,
   #[serde(default)]
   reply_to: Option<i64>,
+  #[serde(default)]
+  by: Option<String>,
+  #[serde(default)]
+  job: bool,
+  #[serde(default)]
+  from: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -43,9 +55,33 @@ fn failed(why: NotReceived) -> Refusal {
   }
 }
 
+// A line asked outside the agent's own round, handed to that agent in the consult room.
+async fn handed_line(receiver: &Receiver, asker: &Asker, asked: &SayBody) -> Answered {
+  let set = settings::get(receiver.db(), &CONSULT.room_setting)
+    .await
+    .map_err(store)?
+    .and_then(|stored| stored.trim().parse::<i64>().ok());
+  let Some(room) = set else { return Err(code(&ConsultRefusal::NoRoom)) };
+  let lines = handed::consulted(asked.text.trim(), asked.reply_to);
+  let handing = handed::hand(receiver, asker, asked.agent.trim(), room, &lines).await.map_err(failed)?;
+
+  answered(json!({ "room": room, "id": null, "lines": [handing.line()], "handed": handing.id }))
+}
+
 pub async fn consult_say(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<SayBody>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
+  let asker = Asker {
+    agent_name: Some(asked.agent.trim().to_owned()),
+    by: asked.by.clone(),
+    job: asked.job,
+    from: asked.from.clone(),
+    ..Asker::default()
+  };
+
+  if !asked.text.trim().is_empty() && !handed::own_round(&receiver, &asker) {
+    return handed_line(&receiver, &asker, &asked).await;
+  }
 
   match say(receiver, asked.agent.trim(), &asked.text, asked.reply_to).await {
     Ok(Ok(said)) => answered(json!({

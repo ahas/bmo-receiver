@@ -1367,9 +1367,12 @@ pub struct Handed {
 
 /// The conversations, keeping every turn they were handed and opening the room's window where asked, as the
 /// conversations of a room do.
+/// Every agent's round stands as working in every room, so a send asked as an agent's turn is carried as its
+/// own, unless the test lets the rounds stand idle.
 pub struct Taken {
   db: DatabaseConnection,
   handed: Mutex<Vec<Handed>>,
+  idle: std::sync::atomic::AtomicBool,
 }
 
 impl Taken {
@@ -1377,11 +1380,17 @@ impl Taken {
     Taken {
       db,
       handed: Mutex::default(),
+      idle: std::sync::atomic::AtomicBool::new(false),
     }
   }
 
   pub fn handed(&self) -> Vec<Handed> {
     self.handed.lock().unwrap().clone()
+  }
+
+  /// No agent's round works anywhere from now on.
+  pub fn standing_idle(&self) {
+    self.idle.store(true, std::sync::atomic::Ordering::SeqCst);
   }
 }
 
@@ -1419,6 +1428,10 @@ impl Runner for Taken {
 
   fn forget(&self, _chat_id: i64) -> BoxFuture<'_, ()> {
     Box::pin(async {})
+  }
+
+  fn in_round(&self, _agent: &str, _chat_id: i64) -> bool {
+    !self.idle.load(std::sync::atomic::Ordering::SeqCst)
   }
 }
 

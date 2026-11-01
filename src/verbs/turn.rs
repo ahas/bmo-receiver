@@ -13,6 +13,9 @@ const PLACE_VARIABLE: &str = "BMO_AGENT_PLACE";
 // The variable naming the agent whose turn this process works in.
 const TURN_AGENT: &str = "BMO_TURN_AGENT";
 
+// The variable naming the room whose turn this process works in.
+const TURN_CHAT: &str = "BMO_TURN_CHAT";
+
 // The job runner's own marker, set by the runner once it holds its checkout's lock.
 const JOB_RUNNER_MARKER: &str = "BMO_TASK_LOCKED";
 
@@ -65,6 +68,11 @@ pub fn agent() -> Option<String> {
     .get(TURN_AGENT)
     .map(|named| named.trim().to_owned())
     .filter(|named| !named.is_empty())
+}
+
+/// The room whose turn this process works in, or none for a process no room's turn started.
+pub fn chat() -> Option<i64> {
+  process_environment().get(TURN_CHAT).and_then(|chat| chat.trim().parse().ok())
 }
 
 /// Whether a job is the one running this: a Claude Code session the job runner holds.

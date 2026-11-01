@@ -100,7 +100,7 @@ export interface paths {
         /** The block an agent is shown of the other agents' work. */
         get: operations["consultBlock"];
         put?: never;
-        /** A line said in the consult room under an agent's own name. */
+        /** A line said in the consult room under an agent's own name, or handed to that agent outside its own round. */
         post: operations["consultLine"];
         delete?: never;
         options?: never;
@@ -1167,7 +1167,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** A send carried as its asker, answered with its lines or its refusal. */
+        /** A send carried as its asker in its own round, or handed to the room's supervisor, answered with its lines or its refusal. */
         post: operations["send"];
         delete?: never;
         options?: never;
@@ -1326,6 +1326,8 @@ export interface components {
             agentName: string | null;
             /** @default null */
             by: string | null;
+            /** @description The command or unit the words come through, which words handed to the room's supervisor name. */
+            from?: string | null;
             /** @default false */
             job: boolean;
             /**
@@ -1407,6 +1409,12 @@ export interface components {
         /** @description A line said in the consult room. */
         ConsultLine: {
             agent: string;
+            /** @description The chat that set the line off, `chat:<room>`. */
+            by?: string | null;
+            /** @description The command or unit the words come through. */
+            from?: string | null;
+            /** @default false */
+            job: boolean;
             /**
              * Format: int64
              * @default null
@@ -1414,10 +1422,12 @@ export interface components {
             replyTo: number | null;
             text: string;
         };
-        /** @description What a consult line came to. */
+        /** @description What a consult line came to: said, or handed to the agent as the order `handed` numbers, with no message. */
         ConsultSaid: {
             /** Format: int64 */
-            id: number;
+            handed?: number | null;
+            /** Format: int64 */
+            id: number | null;
             lines: string[];
             /** Format: int64 */
             room: number;
@@ -2190,16 +2200,23 @@ export interface components {
             /** @default null */
             order: string | null;
         };
-        /** @description What a send came to. */
+        /** @description What a send came to: carried, or handed to the room's supervisor as the order `handed` numbers. */
         SendAnswer: {
+            /** Format: int64 */
+            handed?: number | null;
             lines: string[];
+            /** @description A spoken talk asked in the asker's own round, which the asker makes and sends as a voice note. */
+            own?: boolean | null;
             refusal: string | null;
         };
         /** @description A send asked of the receiver. */
         SendRequest: {
             asker: components["schemas"]["Asker"];
             input: unknown;
-            /** @description The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`. */
+            /**
+             * @description The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`,
+             *     or `speak`, a spoken talk asked by its words.
+             */
             tool: string;
         };
         /** @description The verbs the road a room is answered on performs. */
