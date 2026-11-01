@@ -176,6 +176,16 @@ fn performs(facts: &Facts, verb: &str) -> bool {
   facts.can.iter().any(|one| one == verb)
 }
 
+// The name a capability section stands under where it is about the fold rather than a verb: the protocol's name
+// for a dialect that folds.
+const FOLDABLE: &str = "foldable";
+
+// Whether a road offers what a capability section is about: the verb it names, or the fold where the road's
+// dialect folds.
+fn offers(facts: &Facts, name: &str) -> bool {
+  performs(facts, name) || (name == FOLDABLE && facts.foldable)
+}
+
 /// What a turn is told about what it can send: the sections the road performs, the rest named in one line,
 /// and where the turn answers on another road than the room's own, what that road sends instead.
 pub fn capability_context(
@@ -188,9 +198,10 @@ pub fn capability_context(
   let (opening, sections) = capability_document(trees)?;
   let named =
     |list: &[&Section]| list.iter().map(|section| section.name.as_str()).collect::<Vec<_>>().join("; ");
-  let given: Vec<&Section> = sections.iter().filter(|section| performs(road, &section.verb)).collect();
-  let missing: Vec<&Section> = sections.iter().filter(|section| !performs(road, &section.verb)).collect();
+  let given: Vec<&Section> = sections.iter().filter(|section| offers(road, &section.verb)).collect();
+  let missing: Vec<&Section> = sections.iter().filter(|section| !offers(road, &section.verb)).collect();
   let handed: Vec<&Section> = match home {
+    // The fold is no verb another road carries for this one, so only a verb is handed.
     Some(home) => missing.iter().copied().filter(|section| performs(home, &section.verb)).collect(),
     None => vec![],
   };

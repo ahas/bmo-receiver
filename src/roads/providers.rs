@@ -208,12 +208,13 @@ pub enum Carried {
 }
 
 impl Carried {
-  /// Words, as a person or an agent said them, folded where the provider's dialect can.
+  /// Words, as a person or an agent said them, unfolded: a fold is asked by the send that carries one
+  /// (docs/wake.md, 「Folds」).
   pub fn words(text: &str) -> Self {
     Self::Send(ChatSend::Text {
       text: text.to_owned(),
       silent: false,
-      fold: true,
+      fold: false,
     })
   }
 }

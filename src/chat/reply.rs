@@ -1,17 +1,20 @@
 //! A round's answer sent into its room (docs/receiver.md, 「The answer goes out」): the session's scaffolding and
 //! the send's own markers taken off, the dashes replaced, and sent on the road the turn
-//! answers on — the one its words came in on where that road reaches the room — in the one send that road folds
-//! into its parts, the first pinned to the message it answers. What went out names the round that wrote it, is
-//! attached to the run the round's turn opened at the agency, and the send's own verdict is written beside the
-//! round's.
+//! answers on — the one its words came in on where that road reaches the room — in the one send that road divides
+//! into its parts, the first pinned to the message it answers, folded only where the answer's own mark asks it
+//! (docs/wake.md, 「Folds」). What went out names the round that wrote it, is attached to the run the round's turn
+//! opened at the agency, and the send's own verdict is written beside the round's.
 
 use bmo_chat_client::{ChatSend, ChatSendRequest};
 
 use super::conversation::{BoxFuture, Reply, ReplyRoad, Sent};
+use super::sentinels::asks_fold;
 use super::turnover::judge;
 use crate::form::{outgoing, strip_prompt_scaffolding, without_control_markers};
 use crate::now_ms;
+use crate::receiver::speech::KeptLine;
 use crate::receiver::{Receiver, rows};
+use crate::roads::providers::Carried;
 use crate::roads::{Road, added};
 
 /// An answer bound for a room: the agent whose answer it is, its words, the message it answers, the road its words
@@ -103,7 +106,9 @@ pub async fn speaker_label(receiver: &Receiver, agent: &str) -> String {
 /// reached the room.
 pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Sent> {
   let chat_id = reply.chat_id;
-  let stripped = without_control_markers(&strip_prompt_scaffolding(&reply.text));
+  let written = strip_prompt_scaffolding(&reply.text);
+  let fold = asks_fold(&written);
+  let stripped = without_control_markers(&written);
 
   if stripped.is_empty() {
     eprintln!("refused to send prompt scaffolding to chat {chat_id}");
@@ -121,32 +126,44 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
 
       None
     }
-    Some(road) => carry(receiver, road, reply, &text, started).await,
+    Some(road) => carry(receiver, road, reply, &text, fold, started).await,
   }
 }
 
-// One answer carried on its road, under the agent that says it where that is not the road's own voice.
+// One answer carried on its road, under the agent that says it where that is not the road's own voice, folded
+// where the agent asked it.
 async fn carry(
   receiver: &Receiver,
   road: Road,
   reply: &OutgoingReply,
   text: &str,
+  fold: bool,
   started: i64,
 ) -> Option<Sent> {
   let chat_id = reply.chat_id;
   let send = ChatSend::Text {
     text: text.to_owned(),
     silent: false,
-    fold: true,
+    fold,
   };
-  let mut request = ChatSendRequest::new(chat_id, send);
+  let mut request = ChatSendRequest::new(chat_id, send.clone());
   request.reply_to_message_id = reply.reply_to;
   let agent = reply.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone());
+  // The answer as the room keeps it, which goes on to the room's other providers as the same send, its fold
+  // with it.
+  let line = KeptLine {
+    chat_id,
+    text,
+    reply_to: reply.reply_to,
+    sent: None,
+    agent: Some(&agent),
+    voice: None,
+  };
   // The number the answer went out as, and the number the room keeps it under.
   let numbers = match road {
     Road::Record => receiver
       .speech()
-      .kept_replying(chat_id, text, reply.reply_to, None, Some(&agent), None)
+      .kept_carrying(&line, Carried::Send(send.clone()))
       .await
       .ok()
       .map(|kept| (kept, kept)),
@@ -158,13 +175,14 @@ async fn carry(
       // the voice the send went out in, the room's avatar voice where it has one.
       Some(id) => {
         let voice = added::voice_in(receiver.db(), chat_id).await;
+        let line = KeptLine {
+          sent: Some((&key, Some(id))),
+          voice,
+          ..line
+        };
         Some((
           id,
-          receiver
-            .speech()
-            .kept_replying(chat_id, text, reply.reply_to, Some((&key, Some(id))), Some(&agent), voice)
-            .await
-            .unwrap_or(id),
+          receiver.speech().kept_carrying(&line, Carried::Send(send.clone())).await.unwrap_or(id),
         ))
       }
       None => None,

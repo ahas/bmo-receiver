@@ -83,6 +83,7 @@ agent has read) and what an agent can send back and when a room sees it typing.
   - a fixed line, a code and its fields the web unit renders, said without the output gate or any session
     (`fixed_line`);
   - a reply pinned to a message (`<<REPLY>>`);
+  - an answer folded where its road's dialect folds (`<<FOLD>>`, `docs/wake.md` 「Folds」);
   - an emoji reaction (`react`; `bmo react`, allowed in restricted runs too);
   - one of its own stickers (`sticker`; `bmo sticker`, from the sticker set the deployment names, picked by
     feeling emoji, allowed in restricted runs too, archived like a received sticker);

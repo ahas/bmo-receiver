@@ -26,7 +26,9 @@ use super::mid_turn::{Push, paragraph};
 use super::promises::{promises_after, promises_later, sets_rule_later};
 use super::prompt::{Scope, scope_line};
 use super::records::run_records;
-use super::sentinels::{Mark, SKIP, is_skip, is_wait, round_marks, sent_now, without_round_marks};
+use super::sentinels::{
+  FOLD, Mark, SKIP, asks_fold, is_skip, is_wait, round_marks, sent_now, without_round_marks,
+};
 use super::turn_mark::{self, TurnMark};
 use super::turnover::note_session;
 use crate::form::strip_prompt_scaffolding;
@@ -589,12 +591,19 @@ impl Run<'_> {
 }
 
 impl Run<'_> {
-  // An answer with the marks it sets on the messages shown to the round kept and taken out of it.
+  // An answer with the marks it sets on the messages shown to the round kept and taken out of it. The fold mark is
+  // the message's own and stays in its words, but a fold asked of no words makes an answer of marks alone.
   fn marked(&mut self, text: &str) -> String {
     let marks = round_marks(text);
     let bare = without_round_marks(text);
+    let folded = asks_fold(&bare);
+    let bare = if folded && crate::js::trim(&bare.replace(FOLD, "")).is_empty() {
+      String::new()
+    } else {
+      bare
+    };
 
-    self.only_marks = !marks.is_empty() && bare.is_empty();
+    self.only_marks = (!marks.is_empty() || folded) && bare.is_empty();
     self.marks.extend(marks);
 
     bare

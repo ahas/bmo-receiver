@@ -109,6 +109,26 @@ fn a_reply_mark_naming_no_message_names_the_newest_the_round_answers() {
 }
 
 #[test]
+fn the_fold_mark_asks_a_fold_outside_code_and_never_reaches_the_room() {
+  use bmo_receiver::chat::sentinels::{asks_fold, is_skip, is_wait, round_marks, without_round_marks};
+
+  assert!(asks_fold("The lead.\n\n- one\n- two\n\n<<FOLD>>"));
+  assert!(!asks_fold("A short answer."), "an unmarked message never asks a fold");
+  assert!(!asks_fold("Quoted: `<<FOLD>>`"));
+  assert!(!asks_fold("```\n<<FOLD>>\n```"));
+  assert_eq!(without_control_markers("The lead. <<FOLD>>"), "The lead.");
+  assert_eq!(without_control_markers("say `<<FOLD>>` there"), "say `<<FOLD>>` there");
+  assert_eq!(round_marks("<<FOLD>> The message."), [], "the fold is no mark on a message shown");
+  assert_eq!(
+    without_round_marks("<<REPLY #4>> The message. <<FOLD>>"),
+    "The message. <<FOLD>>",
+    "the fold stays with the message's words"
+  );
+  assert!(is_wait("<<WAIT>> <<FOLD>>"), "a fold of no words is nothing beside a wait");
+  assert!(is_skip("<<FOLD>><<SKIP>>"));
+}
+
+#[test]
 fn a_verdict_carries_the_words_without_their_markers() {
   use bmo_receiver::chat::turnover::verdict_of;
 

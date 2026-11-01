@@ -131,9 +131,9 @@ its rounds.
   however far back it is. The number is the message's own as the transcript shows it: the road's where a road
   numbered it, negative where the record did. A bare `<<REPLY>>`, zero, or a number too large to name a message either side of zero pins it to
   the newest message the round answers, and a number the room's record does not hold pins it to nothing.
-- **The sentinel is stripped either way,** and every send to a chat removes any `<<REPLY>>`, `<<SKIP>>` or
-  `<<WAIT>>` still standing in the text as its last step, leaving one alone only inside a code span or fence,
-  where it is being quoted.
+- **The sentinel is stripped either way,** and every send to a chat removes any `<<REPLY>>`, `<<FOLD>>`,
+  `<<SKIP>>` or `<<WAIT>>` still standing in the text as its last step, leaving one alone only inside a code span
+  or fence, where it is being quoted.
 - **Nothing checks the number beyond the room's record:** the chat service refuses a message it cannot reach, the
   answer goes out pinned to nothing and reaches the room either way, and the room and the number it was pointing
   at go to the log, which is how a session aiming at another room's numbers or at messages that are gone is ever
@@ -142,6 +142,25 @@ its rounds.
   number, who sent it, when, and its words clipped to a couple of lines. A target the same prompt already shows
   is pointed at by number and sender alone, since its words are on the page anyway, and a target the archive
   does not hold is named as absent rather than left as a bare number.
+
+## Folds
+
+- **Answers go out unfolded, and folding one is the agent's own judgement.** An answer folds only where the agent
+  marks it so, on a road whose dialect declares it folds (its declaration's `foldable`); the room's block carries
+  the rule for folding only on such a road. The receiver never folds an answer the agent left unmarked, whatever
+  its length, and never drops a fold the agent asked for: the send carries the decision to the chat service as its
+  `fold`, and where the fold falls in the words is the dialect's.
+- **The rule the agent is given:** an unfolded message is the default. A fold is for an answer whose body runs
+  long and stands apart from a short lead the room reads first: a lead, then a long list, quotation, code or
+  detail block that a reader opens only if they want it. A conversational answer, a short answer and an answer
+  that is all one piece are never folded.
+- **`<<FOLD>>` in the message asks its fold.** It is the message's own mark, so it travels with the message's
+  words: whichever answer of the draft process becomes the message carries it or not, and an answer of nothing
+  but the mark is no words. It counts outside a code span or fence, where it is not being quoted, and every send
+  to a chat removes it with the other markers.
+- **The copy the room's record keeps carries the same decision** to the room's other providers, and every other
+  line the receiver carries to a provider (a person's words, a forwarded copy, a line the record keeps) goes
+  unfolded.
 
 ## The room's queue and the round
 

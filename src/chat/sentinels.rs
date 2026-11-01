@@ -12,15 +12,22 @@ use crate::js::trim;
 pub const WAIT: &str = "<<WAIT>>";
 pub const SKIP: &str = "<<SKIP>>";
 pub const SEND: &str = "<<SEND>>";
+pub const FOLD: &str = "<<FOLD>>";
 
-/// Whether an answer is nothing but waits, or nothing at all.
+/// Whether an answer is nothing but waits, or nothing at all; a fold asked of no words is nothing.
 pub fn is_wait(text: &str) -> bool {
-  trim(&text.replace(WAIT, "")).is_empty()
+  trim(&text.replace(FOLD, "").replace(WAIT, "")).is_empty()
 }
 
-/// Whether an answer is nothing but skips, or nothing at all.
+/// Whether an answer is nothing but skips, or nothing at all; a fold asked of no words is nothing.
 pub fn is_skip(text: &str) -> bool {
-  trim(&text.replace(SKIP, "")).is_empty()
+  trim(&text.replace(FOLD, "").replace(SKIP, "")).is_empty()
+}
+
+/// Whether a message asks to be folded (docs/wake.md, 「Folds」): the fold mark stands in it outside a code span
+/// or fence, where it is not being quoted.
+pub fn asks_fold(text: &str) -> bool {
+  text.matches(FOLD).count() > without_control_markers(text).matches(FOLD).count()
 }
 
 /// The words after the send marker, where an answer opens on it: the message the answer makes now

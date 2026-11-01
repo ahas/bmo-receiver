@@ -277,7 +277,8 @@ impl Roads {
     Some(declared)
   }
 
-  /// What a road declares; a chat service that has declared nothing is named by its key alone and performs nothing.
+  /// What a road declares; a chat service that has declared nothing is named by its key alone, performs nothing and
+  /// folds nothing.
   pub async fn facts(&self, road: &Road) -> Facts {
     match road {
       Road::Record => Facts::record(),
@@ -289,6 +290,7 @@ impl Roads {
           can: vec![],
           unpinned: vec![],
           writing: String::new(),
+          foldable: false,
           shows: None,
           speakers: false,
         },

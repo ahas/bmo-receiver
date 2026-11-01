@@ -94,7 +94,7 @@ fn without_tool_calls(text: &str) -> String {
 // Every marker a session writes for the service rather than for the room, with the one space before it.
 static CONTROL_MARKER: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new(
-    r"[ \t]?<<(?:REPLY(?::-?[0-9]+| #-?[0-9]+)?|SKIP|WAIT|SEND|DONE #-?[0-9]+|SEPARATE #-?[0-9]+)>>",
+    r"[ \t]?<<(?:REPLY(?::-?[0-9]+| #-?[0-9]+)?|FOLD|SKIP|WAIT|SEND|DONE #-?[0-9]+|SEPARATE #-?[0-9]+)>>",
   )
   .expect("a control marker")
 });

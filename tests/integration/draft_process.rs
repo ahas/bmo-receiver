@@ -1144,6 +1144,37 @@ async fn a_long_answer_goes_out_with_no_length_check() {
 }
 
 #[tokio::test]
+async fn an_answer_folds_only_where_the_message_itself_carries_the_fold_mark() {
+  let body = "The lead.\n\n- the first point of a long body\n- the second point\n- the third point";
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["notes <<FOLD>>", body]);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(
+    !sent[0].contains("\"fold\":true"),
+    "a mark in the notes folds no message, and a long message goes out unfolded: {sent:?}"
+  );
+
+  let marked = format!("{body}\n\n<<FOLD>>");
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["notes", &marked]);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("\"fold\":true"), "the message's own mark folds it: {sent:?}");
+  assert!(!sent[0].contains("<<FOLD>>"), "the mark never reaches the room: {sent:?}");
+}
+
+#[tokio::test]
 async fn a_check_that_fails_twice_withholds_the_message() {
   let lines = "The process asks question";
   let session = StandInSession::new(SESSION, "unscripted").answering(&[lines, lines]);
@@ -1674,6 +1705,28 @@ async fn words_said_during_the_last_question_stand_in_the_closing_check_before_t
       "item arrived answered",
       "end  message"
     ]
+  );
+}
+
+#[tokio::test]
+async fn a_closing_check_answered_with_the_fold_mark_alone_sends_the_message_as_it_stands() {
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["notes", "the first message", "<<FOLD>>"])
+    .holding_turn(2);
+  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
+  round.hear(2, SHORT).await;
+  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
+  round.session.let_go();
+  round.ended(3).await;
+
+  let sent = round.sent();
+
+  assert!(
+    sent.len() == 1 && sent[0].contains("the first message") && !sent[0].contains("\"fold\":true"),
+    "an answer of the fold mark alone is marks alone, and keeps the message as it stood: {sent:?}"
   );
 }
 

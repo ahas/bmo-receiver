@@ -122,7 +122,7 @@ async fn a_kept_message_goes_to_every_provider_of_its_room_but_the_ones_it_stand
     ChatSend::Text {
       text: "kept in the record".to_owned(),
       silent: false,
-      fold: true
+      fold: false
     }
   );
   assert!(sent[0].tag.is_some(), "the send names its delivery");
@@ -415,5 +415,60 @@ async fn a_reply_to_the_services_copy_of_a_line_the_record_numbered_answers_that
       .await,
     ["-1"],
     "the reply names the line under the number the room keeps it under"
+  );
+}
+
+#[tokio::test]
+async fn an_answer_folds_only_where_its_own_mark_asks_it() {
+  use bmo_receiver::chat::reply::{OutgoingReply, send_reply};
+
+  let scratch = Scratch::new().await;
+  let (front, road) = front(&scratch).await;
+  let receiver = front.receiver();
+  let answer = |text: &str| OutgoingReply {
+    chat_id: ROOM,
+    text: text.to_owned(),
+    via: Some("road-a".to_owned()),
+    ..OutgoingReply::default()
+  };
+  let long =
+    "A short lead.\n\n- the first long point of the body\n- the second long point of the body\n- the third";
+
+  assert!(send_reply(&receiver, &answer(long)).await.is_some());
+  assert!(send_reply(&receiver, &answer(&format!("{long}\n\n<<FOLD>>"))).await.is_some());
+  assert!(send_reply(&receiver, &answer("Quoted: `<<FOLD>>`")).await.is_some());
+
+  let sent: Vec<ChatSend> = road.sent().iter().map(|held| held.send.clone()).collect();
+
+  assert_eq!(
+    sent,
+    [
+      ChatSend::Text {
+        text: long.to_owned(),
+        silent: false,
+        fold: false,
+      },
+      ChatSend::Text {
+        text: long.to_owned(),
+        silent: false,
+        fold: true,
+      },
+      ChatSend::Text {
+        text: "Quoted: `<<FOLD>>`".to_owned(),
+        silent: false,
+        fold: false,
+      },
+    ],
+    "an unmarked answer goes out unfolded however long it runs, and the mark never reaches the room"
+  );
+  assert_eq!(
+    scratch
+      .count(
+        r#"SELECT COUNT(*) FROM "messages" WHERE "chat_id" = $1 AND "text" LIKE '%<<FOLD>>%'"#,
+        vec![ROOM.into()]
+      )
+      .await,
+    1,
+    "the room's record keeps the words without the mark, a quoted one aside"
   );
 }

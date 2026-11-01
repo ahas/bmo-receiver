@@ -18,6 +18,8 @@ pub struct Facts {
   pub unpinned: Vec<String>,
   /// What a writer in its rooms is told its marks become.
   pub writing: String,
+  /// Whether its dialect folds an answer the agent asks folded.
+  pub foldable: bool,
   /// What its screen shows beyond its own sends, where it says.
   pub shows: Option<String>,
   /// Whether a send in an agent's own name goes out under that agent.
@@ -30,8 +32,8 @@ impl Facts {
     self.can.iter().any(|one| one == verb)
   }
 
-  /// The room's own record: what it keeps, its markdown standing as written, and who reads what it keeps. It files
-  /// a send in an agent's own name under that agent.
+  /// The room's own record: what it keeps, its markdown standing as written and never folded, and who reads what it
+  /// keeps. It files a send in an agent's own name under that agent.
   pub fn record() -> Self {
     let record = &ROADS.record;
 
@@ -41,6 +43,7 @@ impl Facts {
       can: record.can.clone(),
       unpinned: vec![],
       writing: record.dialect.writing.clone(),
+      foldable: false,
       shows: Some(record.shows.clone()),
       speakers: true,
     }
@@ -65,6 +68,7 @@ impl Facts {
         .filter_map(|mode| serde_json::to_value(mode.voice).ok().and_then(named))
         .collect(),
       writing: declaration.dialect.writing.clone(),
+      foldable: declaration.dialect.foldable,
       shows: declaration.shows.clone(),
       speakers: declaration.speakers,
     }

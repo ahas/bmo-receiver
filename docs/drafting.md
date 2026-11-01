@@ -258,6 +258,11 @@ leaves.
   set stands where the process's answers set none. With no mark the answer goes out plain, whatever the round held,
   whoever spoke since and whatever the owner is owed: the process never picks a message to pin by itself. Where
   the road cannot aim at the message, or the room's record does not hold it, nothing is pinned.
+- **The fold is asked by the message itself.** `<<FOLD>>` is no mark on a message shown to the round: it stands in
+  the message's words, so the answer that becomes the message folds where it carries the mark and goes out
+  unfolded where it does not, whatever an earlier answer of the process carried; the agent sets it by the rule
+  `docs/wake.md` 「Folds」 states. An answer whose words are nothing but marks, the fold among them, is an answer
+  of marks alone: to the closing check it sends the standing message as it stands.
 - **The record keeps the round; the pin is the visible reply.** The answer's row names the message as its
   `replyToMessageId` only where the pin stands; the round stands as it was, and a turn with no pin shows no reply
   in the console or on the chat service. The answer is still the round's answer, whatever the visible pin.

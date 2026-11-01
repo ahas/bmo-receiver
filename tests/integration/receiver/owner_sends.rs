@@ -109,7 +109,7 @@ async fn a_line_the_owner_typed_in_his_own_chat_is_kept_under_a_console_number_a
       ChatSend::Text {
         text: "Later, please.".to_owned(),
         silent: false,
-        fold: true
+        fold: false
       },
       Some(ChatVoice::HumanReader)
     )],
@@ -230,7 +230,7 @@ async fn a_line_the_owner_typed_in_another_room_is_kept_as_his_and_carried_to_it
     [ChatSend::Text {
       text: "The game begins.".to_owned(),
       silent: false,
-      fold: true
+      fold: false
     }]
     .to_vec(),
   );
@@ -290,7 +290,7 @@ async fn a_reply_to_a_message_the_room_does_not_hold_is_refused_and_one_it_holds
     [ChatSend::Text {
       text: "words".to_owned(),
       silent: false,
-      fold: true
+      fold: false
     }]
     .to_vec(),
   );
