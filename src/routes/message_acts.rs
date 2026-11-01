@@ -318,6 +318,7 @@ pub async fn sticker(
   };
   let kept = record::Kept {
     chat_id: room,
+    number: None,
     text: &emoji,
     reply_to: None,
     via: Road::Record.key(),

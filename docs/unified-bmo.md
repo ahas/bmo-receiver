@@ -119,13 +119,20 @@
   - A long answer stands as the same run of messages it would have stood as on the other road: the room's line
     holds the rows of both roads together, so one answer is one shape wherever it is read.
   - What the owner types there is read for what the machine keeps, whichever road it was typed on.
-- **Numbering console messages:**
-  - Words from the console have no number of another service, so the archive gives them its own number
-    (negative), unique within that room.
+- **One number for each message:**
+  - A message stands in the archive under the one number the road it came in or went out on gave it: a chat
+    service's own number for the words it handed over and for every line the receiver sent there, an agent's
+    answer, a line of its tools or `bmo talk` and a line the receiver says itself alike. A sent line is kept once
+    the send has answered, under the number the answer names, so the transcript shows it under that number,
+    `<<REPLY:n>>` pins by it and a reply on that service names it.
+  - Only a message no road numbered takes the archive's own number (negative), unique within that room: words
+    from the console, every message of a room on the record alone, and a send on a road that gave no number.
   - A number once given is never given again in that room, even after the message holding it is taken out of the
     record.
   - A message with such a number does not exist on another service under it, and is never sent to one as a reply
     target; where the message went to that service, the number the service gave it there is the target.
+  - A reply that service hands over to the number it gave the message answers the message under the archive's own
+    number.
   - Places that read a room's messages in order (the conversation window, the console screen, the brain's
     readers) order them by send time and arrival order, not message number, so words from both places stand in
     one line by their own time.

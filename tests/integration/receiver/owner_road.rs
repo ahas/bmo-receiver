@@ -69,9 +69,10 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
 
   // The owner's line stands in the record, under the agent's number in the owner's chat and its name, below every
   // number a platform gave, and the screens are told; the service holding the chat is handed it from the record
-  // as one of the chat's providers, and a screen that only shows the chat is not.
+  // as one of the chat's providers, and a screen that only shows the chat is not. The room's lines, said on the
+  // platform, stand under the numbers it gave them.
   assert!(kept < 0);
-  assert_eq!(standing.heard.told(), [(OWNER, kept)]);
+  assert_eq!(standing.heard.told(), [(OWNER, kept), (ROOM, 901), (ROOM, 902)]);
   assert_eq!(
     scratch
       .texts(&format!(
@@ -93,7 +94,16 @@ async fn a_line_nobody_asked_for_is_kept_in_the_owners_record_and_goes_on_the_ro
     })
     .collect();
 
-  assert_eq!(sent, Some(900));
+  assert_eq!(sent, Some(901));
   assert_eq!(texts, ["the job is done", "the game begins", "chat-denied in en"]);
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "message_id" || ' ' || "via" || ' ' || "text" FROM "messages" WHERE "chat_id" = {ROOM} ORDER BY "message_id""#
+      ))
+      .await,
+    ["901 road-a the game begins", "902 road-a chat-denied in en"],
+    "a line said on the platform is kept under the number it gave it"
+  );
   assert_eq!(platform.sent()[0].room_id, OWNER);
 }

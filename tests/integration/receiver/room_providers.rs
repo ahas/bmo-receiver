@@ -381,3 +381,39 @@ async fn a_message_the_owner_forwards_is_kept_as_his_in_the_room_it_goes_into_ma
     StatusCode::NOT_FOUND
   );
 }
+
+#[tokio::test]
+async fn a_reply_to_the_services_copy_of_a_line_the_record_numbered_answers_that_line() {
+  let scratch = Scratch::new().await;
+  let (front, _road) = front(&scratch).await;
+  let routes = handovers(&front);
+
+  // A line the record numbered, carried to the service, which gave its copy the number 900.
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via", "agent_name")
+         VALUES (-100, -1, 7, 'Agent A', 1760000000, 'the answer', 'record', 'agent-a')"#,
+      vec![],
+    )
+    .await;
+  scratch
+    .run(
+      r#"INSERT INTO "room_deliveries" ("chat_id", "message_id", "provider", "provider_message_id", "delivered_at")
+         VALUES (-100, -1, 'road-a', 900, 1760000001)"#,
+      vec![],
+    )
+    .await;
+
+  let mut reply = handed("about that", None);
+
+  reply["replyToMessageId"] = json!(900);
+
+  assert!(hand(&routes, 901, reply).await.is_success());
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "reply_to_message_id"::text FROM "messages" WHERE "chat_id" = -100 AND "message_id" = 901"#)
+      .await,
+    ["-1"],
+    "the reply names the line under the number the room keeps it under"
+  );
+}

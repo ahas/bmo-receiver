@@ -184,10 +184,9 @@ and is opened again when it drops: `turn.created`, `turn.ended`, `companion-rese
 
 A turn of a round names the round in its body, and the agency opens the turn's run in its ledger under that name.
 Once the round's answer is filed in the room, the receiver asks for the round's runs and attaches the answer, as
-the room keeps it (on the record its number there, on a chat service the copy the record keeps beside that
-service's own send), to the newest of them, so the message reads back the run that wrote it. A round that opened
-no run is attached to nothing, and one whose runs cannot be read or whose attach is refused says so in the
-journal.
+the room keeps it (under the number its road gave it, the record's own where the road gave none), to the newest
+of them, so the message reads back the run that wrote it. A round that opened no run is attached to nothing, and
+one whose runs cannot be read or whose attach is refused says so in the journal.
 
 A session's loads are the documents it was handed in full, each the `path` and the `version` it read. A keep
 replaces the whole list, so the receiver writes the session's loads it reads back with the turn's new ones laid

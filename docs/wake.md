@@ -16,6 +16,9 @@ its rounds.
     links them.
   - The turn tells the agent which of the three a room is (the owner's chat, another user's own chat or a group)
     since in a group most words are not for it.
+- **A private chat needs no name for a person's words alone.** An agent's words filed there, another agent's
+  answer in the owner's private chat among them, wake an agent on the three grounds below and not because the chat
+  is private, so two agents answering one private chat do not wake each other on every answer.
 - **A room that names only other agents never reaches the chat agent at all.**
 - **A room added `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
   kept and carried to its providers, and nothing past that is decided for them. The owner's answer to a job's
@@ -27,6 +30,13 @@ its rounds.
 - **Three grounds, decided before any gate or session.** In any other chat the receiver itself decides, and a
   message reaches the agent's session on exactly three grounds: it calls the agent by name, it replies to a
   message of the agent's own, or that room's window is open.
+- **A message of the agent's own is one the room's record holds as its words:** kept as a send of the agent's,
+  its answers and every line its tools and `bmo talk` put in the room alike (`docs/messages.md`, 「What an agent
+  can send back」), or filed under the number its words stand under. A line sent on a messenger is kept under the
+  number the messenger gave it, which is the number a reply there names (`docs/unified-bmo.md`, 「The cases」), and
+  a reply a messenger hands over to its copy of a message the record numbered answers that message
+  (`docs/receiver.md`, 「A room's chat providers」). So a reply on a messenger to an agent's line, a voice note
+  among them, is a reply to that agent's words and wakes it, in a room with several answerers too.
 - **A file is held to the same grounds as words,** read off its caption (`docs/room-files.md`, 「Who a file
   wakes」): its caption calls the agent, it replies to a message of the agent's own, the room's window is open,
   or it stands in a private chat that needs no name, the owner's file in the owner's own chat among them. A
@@ -118,8 +128,8 @@ its rounds.
   actually answers, named by the number the transcript shows for it, never a message the answer does not
   address, and an answer carries one reply at most.
 - **`<<REPLY:<message number>>` or `<<REPLY #<message number>>>` pins it to the message that number names,**
-  however far back it is. The number is the message's own as the transcript shows it, negative where the
-  message's is. A bare `<<REPLY>>`, zero, or a number too large to name a message either side of zero pins it to
+  however far back it is. The number is the message's own as the transcript shows it: the road's where a road
+  numbered it, negative where the record did. A bare `<<REPLY>>`, zero, or a number too large to name a message either side of zero pins it to
   the newest message the round answers, and a number the room's record does not hold pins it to nothing.
 - **The sentinel is stripped either way,** and every send to a chat removes any `<<REPLY>>`, `<<SKIP>>` or
   `<<WAIT>>` still standing in the text as its last step, leaving one alone only inside a code span or fence,

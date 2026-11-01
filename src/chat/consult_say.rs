@@ -76,6 +76,7 @@ pub async fn say(
       let numbered = record::agent_number(db, &via, agent).await.map_err(NotReceived::Store)?;
       let kept = record::Kept {
         chat_id,
+        number: None,
         text: words.as_ref(),
         reply_to,
         via: Road::Record.key(),
@@ -108,7 +109,22 @@ pub async fn say(
       let mut request = ChatSendRequest::new(chat_id, send);
       request.reply_to_message_id = reply_to;
 
-      receiver.speech().act(&key, &request).await.map_err(NotReceived::Said)?
+      let number = receiver.speech().act(&key, &request).await.map_err(NotReceived::Said)?;
+
+      // The line is kept as the agent's under the number the road gave it (docs/unified-bmo.md, 「The cases」);
+      // it is in the room either way, and a record that could not keep it is said in the journal.
+      match receiver
+        .speech()
+        .kept_replying(chat_id, &words, reply_to, Some((&key, number)), Some(agent), None)
+        .await
+      {
+        Ok(kept) => Some(kept),
+        Err(why) => {
+          eprintln!("chat {chat_id}: a consult line said on {key} was not kept: {why}");
+
+          number
+        }
+      }
     }
     None => return Ok(Err(ConsultRefusal::NoRoom)),
   };

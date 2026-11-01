@@ -494,6 +494,7 @@ pub async fn forward(
   let name = receiver.owner_name(asked.to).await;
   let kept = record::Kept {
     chat_id: asked.to,
+    number: None,
     text: &source.text,
     reply_to: None,
     via: Road::Record.key(),

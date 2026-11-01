@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -72,8 +72,10 @@ pub struct StandInChat {
   /// The contacts of its account, and every conversation it was asked to start.
   pub contacts: Vec<ChatContact>,
   pub starts: Mutex<Vec<ChatStart>>,
-  /// What each send is answered with; sent as message 900 where none is set.
+  /// What each send is answered with; where none is set, each send is numbered anew, the first 900, as a
+  /// platform numbers the messages of a room.
   pub answer: Mutex<Option<ChatSent>>,
+  numbered: AtomicI64,
   // The next send, held until the test lets it go, and whether one stands held now.
   held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
   holding_send: Mutex<bool>,
@@ -280,8 +282,8 @@ impl Chat for StandInChat {
 
   fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSent>> {
     let held = self.held_send.lock().unwrap().take();
-    let answer = self.answer.lock().unwrap().clone().unwrap_or(ChatSent {
-      message_id: Some(900),
+    let answer = self.answer.lock().unwrap().clone().unwrap_or_else(|| ChatSent {
+      message_id: Some(900 + self.numbered.fetch_add(1, Ordering::SeqCst)),
       missed: vec![],
     });
 

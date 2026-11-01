@@ -36,6 +36,18 @@ pub enum NotSaid {
   Store(#[from] Fault),
 }
 
+/// A line the room's record keeps as an agent's: its room and words, the message it answers, the road it was
+/// already sent on with the number that road gave it, the agent whose words it holds, and the voice it went out in.
+#[derive(Clone, Copy)]
+pub struct KeptLine<'a> {
+  pub chat_id: i64,
+  pub text: &'a str,
+  pub reply_to: Option<i64>,
+  pub sent: Option<(&'a str, Option<i64>)>,
+  pub agent: Option<&'a str>,
+  pub voice: Option<ChatVoice>,
+}
+
 /// What saying a line stands on: the database a record keeps it in, the deployment it speaks for, the units its
 /// words go through, and where a room's screen hears of a line kept.
 #[derive(Clone)]
@@ -126,10 +138,11 @@ impl Speech {
     }
   }
 
-  /// The line kept in the room's record as the chat agent's own: under the number the room's road gave the agent
-  /// where it numbered it, and under who the agent is in the room otherwise. It goes on to the room's other
-  /// providers (docs/receiver.md, 「A room's chat providers」), but for the road it was already `sent` on, under
-  /// the number that road gave it.
+  /// The line kept in the room's record as the chat agent's own: filed under the number the room's road gave the
+  /// agent where it numbered it, and under who the agent is in the room otherwise. A line already `sent` on a road
+  /// is kept under the number that road gave it, the record's own where it gave none (docs/unified-bmo.md, 「The
+  /// cases」), and goes on to the room's other providers but that road (docs/receiver.md, 「A room's chat
+  /// providers」).
   pub async fn kept(
     &self,
     chat_id: i64,
@@ -152,6 +165,30 @@ impl Speech {
     agent: Option<&str>,
     voice: Option<ChatVoice>,
   ) -> Result<i64, NotSaid> {
+    let said = KeptLine {
+      chat_id,
+      text,
+      reply_to,
+      sent,
+      agent,
+      voice,
+    };
+
+    self.kept_carrying(&said, Carried::words(text)).await
+  }
+
+  /// The line kept as `kept_replying` keeps it, `carried` being what goes on to the room's other providers: the
+  /// send itself, where a send that is more than words put it in the room (docs/messages.md, 「What an agent can
+  /// send back」).
+  pub async fn kept_carrying(&self, said: &KeptLine<'_>, carried: Carried) -> Result<i64, NotSaid> {
+    let KeptLine {
+      chat_id,
+      text,
+      reply_to,
+      sent,
+      agent,
+      voice,
+    } = *said;
     let roads = &self.units.roads;
     // The words are the speaking agent's: under its own number in the room, the room's road's or else the
     // record's, and its own name (docs/receiver.md, 「Identity, and reaching the owner」).
@@ -177,11 +214,17 @@ impl Speech {
       self.label_of(speaker).await
     };
     let voice = voice.and_then(added::voice_key);
+    // The one number the message stands under: the road's, where the road it went out on gave one.
+    let (number, via) = match sent {
+      Some((road, Some(number))) => (Some(number), road),
+      _ => (None, Road::Record.key()),
+    };
     let kept = record::Kept {
       chat_id,
+      number,
       text,
       reply_to,
-      via: Road::Record.key(),
+      via,
       sender_id,
       name: &name,
       agent,
@@ -202,7 +245,7 @@ impl Speech {
       reply_to,
       owner: false,
       standing,
-      carried: Carried::words(text),
+      carried,
     };
 
     providers::deliver(&self.db, roads, &delivery).await;
@@ -221,14 +264,22 @@ impl Speech {
       .unwrap_or_else(|| agent.to_owned())
   }
 
+  // A line nobody asked for sent on a chat service's road, kept in the room's record under the number the road
+  // gave it, in the road's own voice.
   async fn sent(&self, key: &str, chat_id: i64, text: &str) -> Result<Option<i64>, NotSaid> {
     let send = ChatSend::Text {
       text: text.to_owned(),
       silent: false,
       fold: false,
     };
+    let number = self.act(key, &ChatSendRequest::new(chat_id, send)).await?;
 
-    self.act(key, &ChatSendRequest::new(chat_id, send)).await
+    // The line is in the room either way; a record that could not keep it is said in the journal.
+    if let Err(why) = self.kept(chat_id, text, Some((key, number)), None, None).await {
+      eprintln!("chat {chat_id}: a line said on {key} was not kept: {why}");
+    }
+
+    Ok(number)
   }
 
   /// One send carried on a road: the number of the message it went out as, where the road gives one.

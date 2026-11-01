@@ -93,6 +93,15 @@ agent has read) and what an agent can send back and when a room sees it typing.
   declare. A refusal is the road's one sentence, and nothing is sent.
 - **Every send goes through bmo-chat-client** to the chat service the room's road names (`POST /send`,
   `POST /media`), in the words' form the dialect of that chat service reads (`POST /dialect/read`).
+- **A send that puts a message in the room is kept in the room's record as the words of the agent it went out
+  as,** whichever road carried it, the road's own voice where no agent's turn asked it. It is kept once the road
+  has answered, under the number the road gave the message (`docs/unified-bmo.md`, 「The cases」), the record's
+  own number where the road is the record or gave none, filed under the number the room's road gave the agent
+  where it numbered it and under who the agent is in the room otherwise, with the agent named. Its words are what
+  the record keeps of a send: a line as it stands, a picture under its caption, a file, a sound and a voice note
+  under the marks the policy keeps them with. It goes on to the room's other providers as every kept message
+  does. A reaction, a pin, an edit or a delete puts no message in the room, and a send of which nothing went out
+  keeps nothing.
 - **On the record, a room's road of its own, the record keeps every act on its messages,** and the console is the
   reader: a reaction stands in the message's reactions under who put it there, one to a reactor, an empty emoji
   taking that reactor's off; a pin stands as the moment it was pinned, taken off by an unpin; an edit stands as the
