@@ -1,8 +1,9 @@
 //! `bmo talk`: a line into a room, said as text or spoken in a voice (docs/boundary-api.md, 「The unit
-//! command」). A spoke line is synthesised by the voice engine the configuration names, its sound written to
-//! this machine and sent as the room's voice note, with the words as what the note says, which a road that folds a
-//! long reading shows folded under the note. The synthesis is followed until
-//! it is done or failed, however long it waits for its card.
+//! command」). A spoken line is two texts: the words, what the room reads, and the spoken words the voice
+//! synthesises, given or else derived by the voice engine the configuration names. Its sound is written to this
+//! machine and sent as the room's voice note, with the words as what the note says, which a road that folds a long
+//! reading shows folded under the note. The synthesis is followed until it is done or failed, however long it
+//! waits for its card.
 
 use std::time::Duration;
 
@@ -13,6 +14,13 @@ use serde_json::json;
 use crate::command::{SayArgs, words};
 use crate::config::Config;
 use crate::verbs::{VerbError, asked_sends};
+
+/// A refusal as the voice engine answers it: its code, and the sentence saying why.
+#[derive(Deserialize)]
+struct Refusal {
+  code: String,
+  error: String,
+}
 
 /// How often a synthesis still being spoken is looked at again.
 const LOOK_AGAIN: Duration = Duration::from_millis(500);
@@ -27,12 +35,14 @@ struct Spoken {
   waiting_on: Option<String>,
 }
 
-/// `talk`: the words said in the room, or spoken in `voice` and sent as a voice note with them as its caption.
+/// `talk`: the words said in the room, or spoken in `voice` and sent as a voice note with them as what it says;
+/// `spoken`, where given, is what the voice synthesises in their place.
 pub async fn talk(
   config: &Config,
   via: Option<String>,
   args: SayArgs,
   voice: Option<String>,
+  spoken: Option<String>,
 ) -> Result<Vec<String>, VerbError> {
   let chat = args.chat.unwrap_or(config.owner);
   let asker = asked_sends::shell_asker(chat, via, args.by);
@@ -55,7 +65,7 @@ pub async fn talk(
       "talk: a spoken line needs the voice engine's address and token in the configuration".to_owned(),
     ));
   };
-  let sound = speak(engine, &voice, &text, |id, waiting_on| {
+  let sound = speak(engine, &voice, &text, spoken.as_deref(), |id, waiting_on| {
     eprintln!("talk: synthesis {id} waits: {waiting_on}")
   })
   .await?;
@@ -78,32 +88,40 @@ pub async fn talk(
 }
 
 /// The sound of one text spoken in a voice, waited for until the engine has spoken it or says it failed, with no
-/// bound on the wait; `told` hears the synthesis's number and each `waitingOn` sentence once, as it changes.
+/// bound on the wait; `spoken`, where given, is what the engine synthesises, `text` staying the transcript, and
+/// where absent the engine derives it. `told` hears the synthesis's number and each `waitingOn` sentence once, as
+/// it changes. A refusal carries the engine's code and sentence.
 pub async fn speak(
   engine: &receiver_ports::http::Peer,
   voice: &str,
   text: &str,
+  spoken: Option<&str>,
   mut told: impl FnMut(i64, &str),
 ) -> Result<Vec<u8>, VerbError> {
   let base = engine.base.trim_end_matches('/');
   let client = reqwest::Client::builder()
     .build()
     .map_err(|why| VerbError::Refused(format!("talk: the voice engine's client did not stand: {why}")))?;
-  let answer = send(
-    client
-      .post(format!("{base}/syntheses"))
-      .json(&json!({ "voiceName": voice, "text": text })),
-    engine,
-  )
-  .await
-  .map_err(|why| VerbError::Refused(format!("talk: the voice engine was not reached: {why}")))?;
+  let mut synthesis = json!({ "voiceName": voice, "text": text });
+
+  if let Some(spoken) = spoken {
+    synthesis["spoken"] = json!(spoken);
+  }
+
+  let answer = send(client.post(format!("{base}/syntheses")).json(&synthesis), engine)
+    .await
+    .map_err(|why| VerbError::Refused(format!("talk: the voice engine was not reached: {why}")))?;
   let status = answer.status();
 
   if !status.is_success() {
     let body = answer.text().await.unwrap_or_default();
+    let (code, why) = match serde_json::from_str::<Refusal>(&body) {
+      Ok(refusal) => (format!(" {}", refusal.code), refusal.error),
+      Err(_) => (String::new(), body),
+    };
 
     return Err(VerbError::Refused(format!(
-      "talk: the voice engine refused the line ({status}): {body}"
+      "talk: the voice engine refused the line ({status}{code}): {why}"
     )));
   }
 

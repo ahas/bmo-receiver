@@ -92,7 +92,7 @@ the operations machine's:
 | Noun | Words | What it asks |
 |---|---|---|
 | `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to |
-| `talk` | the words of `room say`, and `[--voice <name>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it |
+| `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it; `--spoken`, taken only with `--voice`, names the spoken words the voice synthesises in their place |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
@@ -104,6 +104,15 @@ the operations machine's:
   it off and whether a job asks are read from the environment, and the running receiver carries it on its own
   lines. The address and token come from the process's environment, else from the data root's `env/receiver.env`
   (「Its tools」). A spoken `talk` asks the voice engine at the address and token the configuration names.
+- **A spoken `talk` is two texts.** The words are the written words, what the room reads: the voice note's
+  `said`, and the synthesis's `text`, which the engine keeps as its transcript; nothing changes them. The
+  spoken words are what the voice says, the same words as a Korean reader says them aloud. `--spoken` hands
+  them to the engine as the synthesis's `spoken`; with none given the synthesis carries the words alone and
+  the engine derives the spoken words itself. Either way the engine checks them before it speaks.
+- **A refusal of the engine is carried back with its sentence.** A synthesis the engine does not take in, a
+  422 `unconverted-run` among them for spoken words that still hold a Latin letter, a digit, an address, a
+  path or markup, is the verb's refusal, naming the status, the engine's code and its sentence; nothing is
+  sent to the room.
 - **A spoken `talk` follows its synthesis until it is `done` or `failed`,** however long the synthesis waits in
   the line for a card: nothing on the verb's side ends the wait or bounds a request to the engine. While it waits,
   each `waitingOn` sentence the engine gives is said once on standard error as it changes, under the synthesis's
@@ -265,7 +274,9 @@ it serves an open room. The port reads the model as
 
 Its `docs/boundary-api.md` and `docs/openapi.json`, in camelCase and behind its token, at the `voice` the
 configuration names: `POST /briefings` with `voiceName`, `text`, `chatId`, `messageId`, `kind`, `title?`,
-`emotion?` and `plays`, a notice turn's summary or a line's full reading; and `GET /briefings` with `chatId`,
+`emotion?` and `plays`, a notice turn's summary or a line's full reading, its `text` the written words and no
+`spoken`, so the engine derives the spoken words; `POST /syntheses` with `voiceName`, `text` and `spoken?`,
+then `GET /syntheses/{id}` and its `sound`, a spoken `talk`; and `GET /briefings` with `chatId`,
 `messageId` and `kind`, the page a line's full reading is looked up in. The voice an agent speaks in is the
 `voice` its agency registration names. The receiver reads `id`, `state` and `kind` of a briefing, and nothing of
 its sound: listeners read that, and the briefing's events, from the engine.

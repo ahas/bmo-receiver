@@ -52,7 +52,7 @@ pub struct SayArgs {
 }
 
 /// The words of `talk`: a line said in a room, or spoken in a voice and sent as a voice note with the words
-/// as its caption. The mouth group's first-class verb.
+/// as what it says. The mouth group's first-class verb.
 #[derive(Args, Debug)]
 pub struct TalkArgs {
   #[command(flatten)]
@@ -60,6 +60,10 @@ pub struct TalkArgs {
   /// The trained voice the line is spoken in; the line goes as text where none is named.
   #[arg(long)]
   pub voice: Option<String>,
+  /// The spoken words the voice synthesises, the line as a Korean reader says it aloud; the voice engine
+  /// derives them from the words where none are given. The words stay what the note says either way.
+  #[arg(long, requires = "voice")]
+  pub spoken: Option<String>,
 }
 
 /// The words of `photo`: one picture or an album, each with the word drawn into it.
@@ -218,7 +222,7 @@ pub async fn room_say(
 
 /// `talk`: a line into a room as text, or spoken in a voice and sent as a voice note.
 pub async fn talk(config: &Config, via: Option<String>, args: TalkArgs) -> Result<Vec<String>, VerbError> {
-  crate::verbs::talk::talk(config, via, args.say, args.voice).await
+  crate::verbs::talk::talk(config, via, args.say, args.voice, args.spoken).await
 }
 
 /// `photo`: one picture or an album through `POST /sends`.

@@ -163,12 +163,14 @@ summary, and any agent's line can be read out whole from its chip. The voice eng
 briefing with its room and its line (its `docs/boundary-api.md`, 「Briefings」); the receiver decides when one is
 spoken, and the session writes what is said.
 
-- **The session writes the script the voice speaks.** Both the summary and the full reading are asked of the
-  agent's own session as a spoken script already polished for the voice: sentences a person would say aloud,
-  numbers, dates, times and units written out as they are read, foreign words, names and acronyms written as
-  they sound in the line's language, and no markup, symbol, list or quotation. No gate stands between the
-  session and the engine: the receiver hands the engine exactly the text the session wrote, and the engine
-  applies only its own script rules.
+- **The session writes the script the voice speaks, as written words.** Both the summary and the full reading
+  are asked of the agent's own session as a spoken script: sentences a person would say aloud, with no markup,
+  symbol, list or quotation, and names, acronyms, numbers, dates, times and units written as the line writes
+  them. No gate stands between the session and the engine: the receiver hands the engine exactly the text the
+  session wrote, as the briefing's `text`, which the engine keeps as its transcript.
+- **The engine derives the spoken words.** A briefing carries no spoken words of its own: the engine makes them
+  from the text, the same words as a Korean reader says them aloud, and checks them before it speaks. Spoken
+  words it cannot clear are a refusal of the briefing (`unconverted-run`), handled as every refusal of it is.
 
 ### The switches
 
