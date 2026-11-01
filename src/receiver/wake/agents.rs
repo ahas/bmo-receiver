@@ -278,6 +278,26 @@ pub async fn archived_number(
   Ok(row.map(|row| row.try_get("", "sender_id")).transpose()?)
 }
 
+/// Whether a message of a room's record holds an agent's own words (docs/wake.md, 「Who reaches the session」): one
+/// kept as a send of the agent's, or one filed under `own`, the number its words stand under.
+pub async fn holds_own(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+  agent: &str,
+  own: Option<i64>,
+) -> Result<bool, NotReceived> {
+  let row = one(
+    db,
+    r#"SELECT 1 AS "one" FROM "messages" WHERE "chat_id" = $1 AND "message_id" = $2
+       AND ("agent_name" = $3 OR "sender_id" = $4)"#,
+    vec![chat_id.into(), message_id.into(), agent.into(), own.into()],
+  )
+  .await?;
+
+  Ok(row.is_some())
+}
+
 /// When an agent's window in a room closes, in epoch milliseconds; zero where none was opened.
 pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) -> Result<i64, NotReceived> {
   let row = one(

@@ -365,6 +365,25 @@ pub async fn stood(
   Ok(row.map(|row| row.try_get::<i64>("", "id")).transpose()?.unwrap_or_default())
 }
 
+/// The kept message a provider's number names in a room, where it is the number that provider gave its copy of one:
+/// a reply the provider hands over to its copy answers the kept message.
+pub async fn copied(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  key: &str,
+  number: i64,
+) -> Result<Option<i64>, Fault> {
+  let row = one(
+    db,
+    r#"SELECT "message_id" FROM "room_deliveries" WHERE "chat_id" = $1 AND "provider" = $2
+       AND "provider_message_id" = $3 ORDER BY "id" LIMIT 1"#,
+    vec![chat_id.into(), key.into(), number.into()],
+  )
+  .await?;
+
+  Ok(row.map(|row| row.try_get::<i64>("", "message_id")).transpose()?)
+}
+
 /// Whether a message a provider hands over is its copy of a message the room already keeps: one whose tag names a
 /// send carried to that provider in that room, or one under the number that provider gave such a send.
 pub async fn echo(

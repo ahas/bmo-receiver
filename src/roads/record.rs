@@ -1,7 +1,7 @@
-//! The room's own record (docs/unified-bmo.md, 「The cases」): what an agent says in a room kept in the receiver's
-//! database as the room's, carried to no platform, with every screen that reads the room told. It is no chat
-//! service's road; it stands among the roads so a turn and a send can name it. Its numbers count down from minus
-//! one, the convention for a word that never reached a platform, so they never meet a number a platform gave.
+//! The room's own record (docs/unified-bmo.md, 「The cases」): what is said in a room kept in the receiver's
+//! database as the room's, with every screen that reads the room told. It is no chat service's road; it stands
+//! among the roads so a turn and a send can name it. A word a road numbered is kept under the road's number; one no
+//! road numbered takes the record's own, counting down from minus one, so it never meets a number a platform gave.
 
 use sea_orm::{DatabaseConnection, TransactionTrait};
 
@@ -62,11 +62,13 @@ pub async fn agent_number(db: &DatabaseConnection, road: &str, agent: &str) -> R
   .map_err(Fault::from)
 }
 
-/// What a word kept in the record is: its room, its words and what it answers, the road it is kept under, and who
-/// said it, by number and name. A send the receiver makes itself also names the agent whose words these are and
-/// the voice it went out in; a word that is nobody's send leaves both unset.
+/// What a word kept in the record is: its room, the number the road it went out on gave it where one did, its words
+/// and what it answers, the road it is kept under, and who said it, by number and name. A send the receiver makes
+/// itself also names the agent whose words these are and the voice it went out in; a word that is nobody's send
+/// leaves both unset.
 pub struct Kept<'a> {
   pub chat_id: i64,
+  pub number: Option<i64>,
   pub text: &'a str,
   pub reply_to: Option<i64>,
   pub via: &'a str,
@@ -76,11 +78,16 @@ pub struct Kept<'a> {
   pub voice: Option<&'a str>,
 }
 
-/// Words kept in a room's record under the next number, and the room's screen told: the number they were kept as.
+/// Words kept in a room's record under the number their road gave them, else under the record's next number, and
+/// the room's screen told: the number they were kept as.
 pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> Result<i64, Fault> {
+  let message_id = match kept.number {
+    Some(number) => number,
+    None => next_number(db, kept.chat_id).await?,
+  };
   let message = Inbound {
     chat_id: kept.chat_id,
-    message_id: next_number(db, kept.chat_id).await?,
+    message_id,
     sender_id: kept.sender_id,
     sender_name: kept.name.to_owned(),
     sent_at: now_ms(),

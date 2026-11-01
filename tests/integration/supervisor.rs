@@ -581,7 +581,7 @@ async fn a_reply_mark_in_the_supervisors_answer_pins_the_older_line_it_names() {
     round
       .scratch
       .texts(
-        r#"SELECT coalesce("reply_to_message_id"::text, 'none') FROM "messages" WHERE "message_id" = -1"#
+        r#"SELECT coalesce("reply_to_message_id"::text, 'none') FROM "messages" WHERE "agent_name" IS NOT NULL"#
       )
       .await,
     ["1"],

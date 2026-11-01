@@ -401,13 +401,17 @@ async fn a_rounds_judgements_are_attached_from_its_start_under_the_answer_as_the
   let attached = round.standing.gate.attached.lock().unwrap().clone();
   let kept: Vec<i64> = round
     ._scratch
-    .texts(r#"SELECT "message_id"::text FROM "messages" WHERE "chat_id" = 42 AND "via" = 'record'"#)
+    .texts(r#"SELECT "message_id"::text FROM "messages" WHERE "chat_id" = 42 AND "agent_name" IS NOT NULL"#)
     .await
     .iter()
     .map(|number| number.parse().unwrap())
     .collect();
 
-  assert_eq!(kept.len(), 1, "the record keeps a copy of the answer the road carried");
+  assert_eq!(
+    kept,
+    [900],
+    "the record keeps the answer the road carried under the number the road gave it"
+  );
   assert_eq!(
     attached.len(),
     1,

@@ -121,9 +121,9 @@ flowchart TD
 - **Every message kept in a room goes to each of the room's providers,** whoever said it and whichever road it
   came in on: a person's words a chat service handed over, the owner's words from the console, an agent's
   answer, a line the receiver says itself. The rule is the same in every room and turns on nothing but the list.
-  - A provider the message already stands on is not handed it again: the road it came in on, and the road an
-    answer was sent on beside the copy the record keeps. The record holds every kept message by being the
-    archive, so it is never sent anything.
+  - A provider the message already stands on is not handed it again: the road it came in on, and the road a
+    line of the receiver's went out on, under whose number the record keeps it. The record holds every kept
+    message by being the archive, so it is never sent anything.
   - Every other provider on the list is handed the message through its own `POST /sends`, as the words or the
     files the message carried, the caption with the first file, answering the message it answers where that
     message stands on that provider under a number of the provider's own.
@@ -132,6 +132,9 @@ flowchart TD
   - Each send carries a `tag`, and the number the provider gave it is kept beside the message. A message a
     provider hands over that is the echo of such a send, by its tag or by that number, is the message already
     kept: it is answered as held, kept no second time and wakes nobody.
+  - A message a provider hands over that answers its copy of a message kept under another number, by the number
+    the provider gave the copy, answers the kept message: it is kept naming the number the room keeps that message
+    under, and is read, woken on and carried on as a reply to it.
   - A provider that refuses or does not answer is said in the journal and leaves the message kept as it is.
 - **A chosen list rules both directions.** A message a chat service hands over for a room whose chosen list does
   not name that service is not taken: it is not kept, wakes nobody and is not answered, and the journal says so

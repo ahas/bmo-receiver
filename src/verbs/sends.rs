@@ -21,6 +21,7 @@ use sea_orm::DatabaseConnection;
 use crate::Fault;
 use std::sync::Arc;
 
+use crate::receiver::speech::KeptLine;
 use crate::receiver::{Receiver, speech, wake};
 use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, added, record};
@@ -163,11 +164,60 @@ impl Sends {
     Ok(self.receiver.roads().facts(&road).await.can.clone())
   }
 
-  /// One send carried on its road: a chat service's own lines, or kept in the room's record.
+  /// One send carried on its road: a chat service's own lines, or kept in the room's record. A send that puts a
+  /// message in the room on a chat service's road is kept in the record too, once the road has answered.
   pub async fn send(&self, going: &Going, request: &ChatSendRequest) -> Result<Sent, NotSent> {
     match going.road {
       Road::Record => self.kept(going, request).await,
-      Road::Service(ref key) => self.carried(key, going, request).await,
+      Road::Service(ref key) => {
+        let sent = self.carried(key, going, request).await?;
+
+        self.filed(key, going, request, &sent).await;
+
+        Ok(sent)
+      }
+    }
+  }
+
+  // The message a send put in the room on a chat service's road, kept in the room's record as the words of the
+  // agent it went out as, under the number the road gave it (docs/messages.md, 「What an agent can send back」), and
+  // carried on to the room's other providers. An act on a message already standing puts none there, and a send of
+  // which nothing went out keeps nothing. The message is in the room either way, so a record that could not keep it
+  // is said in the journal.
+  async fn filed(&self, key: &str, going: &Going, request: &ChatSendRequest, sent: &Sent) {
+    if !puts_message(&request.send) || (sent.message_id.is_none() && !sent.missed.is_empty()) {
+      return;
+    }
+
+    let chat_id = request.room_id;
+    let agent = going
+      .speaker
+      .as_ref()
+      .map(|speaker| speaker.agent.clone())
+      .unwrap_or_else(|| self.receiver.deployment().agent.clone());
+    let voice = match request.mode {
+      Some(mode) => Some(mode),
+      None => added::voice_in(self.receiver.db(), chat_id).await,
+    };
+    let text = kept_line(&request.send);
+    let line = KeptLine {
+      chat_id,
+      text: &text,
+      reply_to: request.reply_to_message_id,
+      sent: Some((key, sent.message_id)),
+      agent: Some(&agent),
+      voice,
+    };
+    let kept = self.receiver.speech().kept_carrying(&line, Carried::Send(request.send.clone())).await;
+
+    match kept {
+      Ok(message_id) if matches!(request.send, ChatSend::Sticker { .. }) => {
+        if let Err(why) = record::mark_sticker(self.receiver.db(), chat_id, message_id).await {
+          eprintln!("chat {chat_id}: the sticker sent on {key} was not marked: {}", why.detail);
+        }
+      }
+      Ok(_) => {}
+      Err(why) => eprintln!("chat {chat_id}: a send on {key} was not kept: {why}"),
     }
   }
 
@@ -283,6 +333,7 @@ impl Sends {
       .unwrap_or_else(|| self.receiver.deployment().agent.clone());
     let line = record::Kept {
       chat_id: request.room_id,
+      number: None,
       text: &text,
       reply_to: request.reply_to_message_id,
       via: Road::Record.key(),
@@ -420,6 +471,18 @@ pub fn pictures_refusal(label: &str, missed: &[MissedPicture]) -> String {
 /// A verb as the chat protocol names it, for the sentence refusing one a road does not perform.
 fn capability(verb: &str) -> ChatCapability {
   serde_json::from_value(serde_json::json!(verb)).unwrap_or(ChatCapability::Text)
+}
+
+/// Whether a send puts a message of its own in the room, rather than acting on one already there.
+fn puts_message(send: &ChatSend) -> bool {
+  !matches!(
+    send,
+    ChatSend::Reaction { .. }
+      | ChatSend::Pin { .. }
+      | ChatSend::Typing { .. }
+      | ChatSend::Edit { .. }
+      | ChatSend::Delete { .. }
+  )
 }
 
 /// What a send's words are, as the room's record keeps them: a line as it stands, a picture or an album under

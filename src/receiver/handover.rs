@@ -45,6 +45,18 @@ pub fn inbound(room_id: i64, message_id: i64, message: &HandedMessage) -> Inboun
   }
 }
 
+/// The message answering what the room keeps: a reply to the provider's copy of a kept message names the kept
+/// message, by the number the room keeps it under (docs/receiver.md, 「A room's chat providers」).
+async fn answering_the_kept(receiver: &Receiver, mut said: Inbound) -> Result<Inbound, NotReceived> {
+  if let Some(target) = said.reply_to_message_id
+    && let Some(kept) = providers::copied(receiver.db(), said.chat_id, &said.via, target).await?
+  {
+    said.reply_to_message_id = Some(kept);
+  }
+
+  Ok(said)
+}
+
 /// What the platform said beside the message, as the receiver reads it.
 pub fn context(context: &InboundChatContext) -> Context {
   Context {
@@ -189,7 +201,7 @@ impl ChatReceiver for Receiver {
 
     let held = rows_holds(self, room_id, message_id, &message.via).await.map_err(failed)?;
     let room = self.room_of(room_id, message.room).await;
-    let said = inbound(room_id, message_id, &message);
+    let said = answering_the_kept(self, inbound(room_id, message_id, &message)).await.map_err(failed)?;
     let mut seen = context(&message.context);
     seen.gathering = message.gathering;
 

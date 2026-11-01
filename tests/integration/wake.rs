@@ -5,6 +5,7 @@
 
 mod question;
 mod rest;
+mod sent_lines;
 
 use std::sync::Arc;
 

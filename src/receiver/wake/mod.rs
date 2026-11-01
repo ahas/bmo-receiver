@@ -18,7 +18,7 @@ use super::{How, Inbound, NotReceived, Receiver, Room, Wake, rows};
 use crate::roads::added::{self, RoomMode};
 use crate::roads::providers;
 use crate::secrets;
-use agents::{Designated, default_designated, own_number, room_designated, window_until};
+use agents::{Designated, default_designated, holds_own, own_number, room_designated, window_until};
 use rest::{resting, stand_in};
 
 /// How a message is woken on: the words its call is read from, a file's caption where it carries one, and
@@ -251,7 +251,10 @@ async fn ground(
   let archive = receiver.db();
   let own = own_number(receiver, agent, &inbound.via, room.identity).await?;
 
-  if inbound.sender_id.is_some() && inbound.sender_id == own {
+  // Its own words are those filed under its number, and those the record keeps as its send.
+  if (inbound.sender_id.is_some() && inbound.sender_id == own)
+    || holds_own(archive, inbound.chat_id, inbound.message_id, &agent.name, None).await?
+  {
     return Ok(None);
   }
 
@@ -259,15 +262,15 @@ async fn ground(
     return Ok(Some(Ground::Called));
   }
 
-  if let (Some(replied), Some(own)) = (inbound.reply_to_message_id, own)
-    && rows::message(archive, inbound.chat_id, replied, &inbound.via)
-      .await?
-      .is_some_and(|replied| replied.sender_id == Some(own))
+  if let Some(replied) = inbound.reply_to_message_id
+    && holds_own(archive, inbound.chat_id, replied, &agent.name, own).await?
   {
     return Ok(Some(Ground::Answered));
   }
 
-  if alone {
+  // A private chat needs no name for a person's words alone, so two agents answering it do not wake each other on
+  // every answer.
+  if alone && !basis.by_agent {
     return Ok(Some(Ground::Alone));
   }
 
