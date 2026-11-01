@@ -119,9 +119,8 @@ its rounds.
   address, and an answer carries one reply at most.
 - **`<<REPLY:<message number>>` or `<<REPLY #<message number>>>` pins it to the message that number names,**
   however far back it is. The number is the message's own as the transcript shows it, negative where the
-  message's is. A bare
-  `<<REPLY>>`, zero, or a number too large to name a message either side of zero pins it to the newest message the
-  round answers, and a number the room's record does not hold pins it to nothing.
+  message's is. A bare `<<REPLY>>`, zero, or a number too large to name a message either side of zero pins it to
+  the newest message the round answers, and a number the room's record does not hold pins it to nothing.
 - **The sentinel is stripped either way,** and every send to a chat removes any `<<REPLY>>`, `<<SKIP>>` or
   `<<WAIT>>` still standing in the text as its last step, leaving one alone only inside a code span or fence,
   where it is being quoted.
