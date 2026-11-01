@@ -96,6 +96,19 @@ fn a_mark_names_a_message_whose_number_is_negative() {
 }
 
 #[test]
+fn a_reply_mark_naming_no_message_names_the_newest_the_round_answers() {
+  use bmo_receiver::chat::sentinels::{Mark, round_marks, without_round_marks};
+
+  assert_eq!(round_marks("<<REPLY>> The message."), [(Mark::Reply, 0)]);
+  assert_eq!(round_marks("<<REPLY:0>> The message."), [(Mark::Reply, 0)]);
+  assert_eq!(round_marks("<<REPLY #99999999999999999999>> The message."), [(Mark::Reply, 0)]);
+  assert_eq!(round_marks("<<REPLY:-9007199254740992>> The message."), [(Mark::Reply, 0)]);
+  assert_eq!(round_marks("<<DONE #99999999999999999999>> The message."), []);
+  assert_eq!(round_marks("Quoted: `<<REPLY>>`"), []);
+  assert_eq!(without_round_marks("<<REPLY>> The message."), "The message.");
+}
+
+#[test]
 fn a_verdict_carries_the_words_without_their_markers() {
   use bmo_receiver::chat::turnover::verdict_of;
 

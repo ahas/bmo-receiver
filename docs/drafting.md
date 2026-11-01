@@ -239,7 +239,8 @@ leaves.
     owed it;
   - `<<SEPARATE #<number>>>`: it is answered in a round of its own: once the round's message is made it goes back
     to the front of what waits, and the round after takes it with a pregate of its own;
-  - `<<REPLY #<number>>>`: it is the message the answer answers, and the answer is pinned to it.
+  - `<<REPLY #<number>>>`: it is the message the answer answers, and the answer goes out as a reply to it; the
+    agent sets it by the rule `docs/wake.md` 「Replies」 states, which the process's lines restate.
 
   The number is the message's own as the round showed it, its minus sign kept where it is negative. A mark counts
   in any answer of the process, outside a code span or fence, and only for a message of the round, its own or one
@@ -251,13 +252,12 @@ leaves.
   where it became the round's own, `SKIP: #<number>` where it was marked done, the number left out where that
   verdict stands under no message. A message marked separate is written down by the round that takes it, as its
   own words are.
-- **The answer is pinned to the message it answers only where the reader needs it.** A `<<REPLY #<number>>>` mark
-  names the message, including one older than the round's own, and the answer is pinned to it. Where none is named,
-  the message is the oldest of the
-  round's messages it answers that asks something of the agent — one that calls it by a word it answers to, or
-  asks a question; else the newest — and the answer is pinned to that message only when another message has been
-  said in the room since it. An answer to the room's newest line goes unpinned. Owing the owner an answer does not
-  move the pin. Where the road cannot aim at the message, nothing is pinned.
+- **The answer is pinned only to the message the agent marks.** A `<<REPLY #<number>>>` or `<<REPLY:<number>>>`
+  mark names the message, the round's own or one older than it, and the answer is pinned to it; a bare
+  `<<REPLY>>`, or the number zero, names the newest message the round answers; a mark the supervisor's first answer
+  set stands where the process's answers set none. With no mark the answer goes out plain, whatever the round held,
+  whoever spoke since and whatever the owner is owed: the process never picks a message to pin by itself. Where
+  the road cannot aim at the message, or the room's record does not hold it, nothing is pinned.
 - **The record keeps the round; the pin is the visible reply.** The answer's row names the message as its
   `replyToMessageId` only where the pin stands; the round stands as it was, and a turn with no pin shows no reply
   in the console or on the chat service. The answer is still the round's answer, whatever the visible pin.

@@ -107,19 +107,27 @@ its rounds.
 
 ## Replies
 
-- **Answers go out as ordinary messages.** One prefixed with `<<REPLY>>` is sent as a reply to the message
-  being answered instead, in a room whose chat service declares it can point an answer at a message; where it
-  cannot, the words simply land in the room.
-- **`<<REPLY:<message number>>` pins it to the message that number names,** however far back it is, for when the
-  room has already moved past it: the agent's own judgement, never used in the owner's private chat. The number is
-  the message's own, negative where the message's is; zero, or a number too large to name a message either side of
-  zero, pins it to the message being answered instead.
+- **Answers go out as plain messages, and pinning one to a message is the agent's own judgement.** An answer is
+  sent as a reply only where the agent marks it so, in a room whose chat service declares it can point an answer
+  at a message; where it cannot, the words simply land in the room. The receiver never pins an answer the agent
+  left unmarked and never withholds or moves a pin the agent set: when an answer is pinned, and to what, is a rule
+  the agent is given, which the round's draft process restates where it names the mark (`docs/drafting.md`).
+- **The rule the agent is given:** a plain message is the default. A reply is for when the room has moved past the
+  message being answered, other people's words standing between them, or when the answer takes one of several
+  open questions and has to say which; never in the owner's private chat. Its target is the message the answer
+  actually answers, named by the number the transcript shows for it, never a message the answer does not
+  address, and an answer carries one reply at most.
+- **`<<REPLY:<message number>>` or `<<REPLY #<message number>>>` pins it to the message that number names,**
+  however far back it is. The number is the message's own as the transcript shows it, negative where the
+  message's is. A bare
+  `<<REPLY>>`, zero, or a number too large to name a message either side of zero pins it to the newest message the
+  round answers, and a number the room's record does not hold pins it to nothing.
 - **The sentinel is stripped either way,** and every send to a chat removes any `<<REPLY>>`, `<<SKIP>>` or
   `<<WAIT>>` still standing in the text as its last step, leaving one alone only inside a code span or fence,
   where it is being quoted.
-- **Nothing checks the number a session names:** the chat service refuses a message it cannot reach, the answer
-  goes out pinned to nothing and reaches the room either way, and the room and the number it was pointing at go
-  to the log, which is how a session aiming at another room's numbers or at messages that are gone is ever
+- **Nothing checks the number beyond the room's record:** the chat service refuses a message it cannot reach, the
+  answer goes out pinned to nothing and reaches the room either way, and the room and the number it was pointing
+  at go to the log, which is how a session aiming at another room's numbers or at messages that are gone is ever
   noticed.
 - **A message that replies to another carries that message into the transcript** on its own line: the target's
   number, who sent it, when, and its words clipped to a couple of lines. A target the same prompt already shows

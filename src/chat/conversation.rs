@@ -229,36 +229,9 @@ pub struct Made {
   pub done: Vec<Inbound>,
   /// The messages shown to the round that the agent marked to be answered in a round of their own.
   pub separate: Vec<Inbound>,
-  /// The message the agent marked as the one its answer answers, by its number, where it marked one.
+  /// The message the agent marked as the one its answer answers, by its number, where it marked one: zero for a
+  /// mark naming none, which is the newest message the round answers.
   pub reply_to: Option<i64>,
-}
-
-/// The reply pin a turn goes out with (docs/drafting.md, 「The answer is pinned to the message it answers」): the
-/// message the agent named, or one another line has come after; none for the newest line or an unnamed message.
-pub fn visible_pin(target: Option<i64>, explicit: bool, newest: Option<i64>) -> Option<i64> {
-  match target {
-    Some(id) if explicit || newest != Some(id) => Some(id),
-    _ => None,
-  }
-}
-
-/// The message a round's answer is pinned to (docs/drafting.md, 「The answer is pinned to the message it
-/// answers」): the one the agent named among those it answers; else the oldest of them that asks something of the
-/// agent; else the newest.
-pub fn pin_target(
-  answered: &[Inbound],
-  named: Option<i64>,
-  asks: impl Fn(&Inbound) -> bool,
-) -> Option<&Inbound> {
-  named
-    .and_then(|id| answered.iter().find(|message| message.message_id == id))
-    .or_else(|| answered.iter().find(|message| asks(message)))
-    .or_else(|| answered.last())
-}
-
-/// Whether a message asks something of an agent: it calls the agent by a word it answers to, or asks a question.
-pub fn asks_of(agent: &wake::agents::Designated, message: &Inbound) -> bool {
-  agent.called_by(&message.text) || message.text.contains('?') || message.text.contains('\u{ff1f}')
 }
 
 /// What makes a round's message (docs/drafting.md): the process a round opens before its turn goes out, whose
@@ -1494,25 +1467,17 @@ impl Conversations {
     }
   }
 
-  // The round's answer pinned to the message it answers among those it answers, where a road can aim at it and
-  // the pin tells the reader which line it answers: an explicit mark, or a message another line has come after.
+  // The round's answer pinned to the message the agent marked (docs/drafting.md, 「The answer is pinned only to
+  // the message the agent marks」): the one its number names, the newest it answers where the mark names none, and
+  // nothing where it set no mark, where the room's record does not hold the message or no road can aim at it.
   async fn pin(&self, chat_id: i64, answered: &[Inbound], named: Option<i64>) {
-    let db = self.0.receiver.db();
-    let named_message = match named {
+    let message = match named {
+      Some(0) => answered.last().cloned(),
       Some(id) => match answered.iter().find(|message| message.message_id == id) {
         Some(message) => Some(message.clone()),
-        None => rows::message(db, chat_id, id, "").await.ok().flatten(),
+        None => rows::message(self.0.receiver.db(), chat_id, id, "").await.ok().flatten(),
       },
       None => None,
-    };
-    let explicit = named_message.is_some();
-    let message = match named_message {
-      Some(message) => Some(message),
-      None => {
-        let agent = designated(&self.receiver(), self.agent()).await;
-
-        pin_target(answered, None, |message| asks_of(&agent, message)).cloned()
-      }
     };
     let Some(message) = message else {
       self.reply_target(chat_id, None);
@@ -1520,23 +1485,13 @@ impl Conversations {
       return;
     };
     let pins = self.0.receiver.roads().pinnable(&message.via, message.mode.as_deref()).await;
-    let target = (!message.via_reader.unwrap_or(false) && pins).then_some(message.message_id);
 
-    let newest = if !explicit && target.is_some() {
-      rows::recent_messages(self.0.receiver.db(), chat_id, 1, "")
-        .await
-        .ok()
-        .and_then(|mut recent| recent.pop())
-        .map(|newest| newest.message_id)
-    } else {
-      None
-    };
-
-    self.reply_target(chat_id, visible_pin(target, explicit, newest));
+    self
+      .reply_target(chat_id, (!message.via_reader.unwrap_or(false) && pins).then_some(message.message_id));
   }
 
-  // The message the next answer is pinned to, where one is: none where the answer is to the newest line or no
-  // road can aim at it.
+  // The message the next answer is pinned to, where one is: none where the agent marked none or no road can aim
+  // at it.
   fn reply_target(&self, chat_id: i64, target: Option<i64>) {
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.reply_target = target;
@@ -1857,7 +1812,7 @@ impl Conversations {
     self.give_back_words(chat_id, made.separate);
 
     // The words shown to the process are the round's own: the read mark moves past those marked done and to those
-    // the message answers, and the answer is pinned to the newest of them.
+    // the message answers, and they join the messages a bare reply mark names the newest of.
     if !made.took.is_empty() || !made.done.is_empty() {
       let read: Vec<Inbound> =
         made.done.into_iter().chain(batch.iter().cloned()).chain(made.took.clone()).collect();
@@ -1867,7 +1822,7 @@ impl Conversations {
       held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
     }
 
-    // The answer is pinned to the message it answers, whatever the owner is owed; a mark the supervisor's
+    // The answer is pinned to the message the agent marked, whatever the owner is owed; a mark the supervisor's
     // first answer set stands in where this answer names none.
     let named = made
       .reply_to

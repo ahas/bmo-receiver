@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use crate::form::without_control_markers;
+use crate::form::{LARGEST_NAMED, without_control_markers};
 use crate::js::trim;
 
 pub const WAIT: &str = "<<WAIT>>";
@@ -31,7 +31,8 @@ pub fn sent_now(text: &str) -> Option<&str> {
 
 /// What an answer of the draft process says of a message of its round (docs/drafting.md, 「What came in
 /// meanwhile」): that it needs no answer, that it is answered in a round of its own, or that it is the one the
-/// answer answers.
+/// answer answers. A reply mark that names no message, or names it by zero or by a number too large to be one,
+/// carries the number zero: the newest message the round answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mark {
   Done,
@@ -40,7 +41,7 @@ pub enum Mark {
 }
 
 static ROUND_MARK: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(r"<<(?:(DONE|SEPARATE|REPLY) #(-?[0-9]+)|REPLY:(-?[0-9]+))>>").expect("a round mark")
+  Regex::new(r"<<(?:(DONE|SEPARATE|REPLY) #(-?[0-9]+)|REPLY:(-?[0-9]+)|(REPLY))>>").expect("a round mark")
 });
 
 fn marks_in(text: &str) -> Vec<(Mark, i64)> {
@@ -48,6 +49,7 @@ fn marks_in(text: &str) -> Vec<(Mark, i64)> {
     .captures_iter(text)
     .filter_map(|found| {
       let (mark, id) = match (found.get(1), found.get(2), found.get(3)) {
+        _ if found.get(4).is_some() => return Some((Mark::Reply, 0)),
         (Some(mark), Some(id), _) => {
           let mark = match mark.as_str() {
             "DONE" => Mark::Done,
@@ -61,7 +63,12 @@ fn marks_in(text: &str) -> Vec<(Mark, i64)> {
         _ => return None,
       };
 
-      id.parse().ok().map(|id| (mark, id))
+      match (mark, id.parse::<i64>()) {
+        (Mark::Reply, Ok(id)) if id == 0 || id.unsigned_abs() > LARGEST_NAMED => Some((mark, 0)),
+        (_, Ok(id)) => Some((mark, id)),
+        (Mark::Reply, Err(_)) => Some((mark, 0)),
+        (_, Err(_)) => None,
+      }
     })
     .collect()
 }
@@ -84,7 +91,7 @@ pub fn round_marks(text: &str) -> Vec<(Mark, i64)> {
 }
 
 static ROUND_MARK_SPACED: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(r"[ \t]?<<(?:(?:DONE|SEPARATE|REPLY) #-?[0-9]+|REPLY:-?[0-9]+)>>").expect("a round mark")
+  Regex::new(r"[ \t]?<<(?:(?:DONE|SEPARATE|REPLY) #-?[0-9]+|REPLY(?::-?[0-9]+)?)>>").expect("a round mark")
 });
 
 /// An answer with every round mark taken out, so nothing after reads them as words.

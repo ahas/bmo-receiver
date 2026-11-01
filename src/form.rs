@@ -203,8 +203,8 @@ pub enum ReplyTarget {
 static REPLY_SENTINEL: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^<<REPLY(?::(-?[0-9]+))?>>").expect("the reply sentinel"));
 
-// The largest number a message may be named by, either side of zero: a JavaScript number stays whole up to it.
-const LARGEST_NAMED: u64 = (1 << 53) - 1;
+/// The largest number a message may be named by, either side of zero: a JavaScript number stays whole up to it.
+pub const LARGEST_NAMED: u64 = (1 << 53) - 1;
 
 /// An answer's words with the reply sentinel taken off, and the message it pins them to. The sentinel is the
 /// session's instruction to the send and never words, so it is taken off once, before anything reads them. A

@@ -2105,6 +2105,43 @@ async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
 }
 
 #[tokio::test]
+async fn an_unmarked_answer_goes_out_plain_though_an_older_line_asked() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message itself"]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, "what does the plan for this week hold?").await;
+  round.hear(2, "noted").await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert_eq!(pinned(&sent), None, "nothing pins a message the agent left unmarked: {sent:?}");
+  assert!(pinned_rows(&round).await.is_empty(), "the record carries no visible pin either");
+}
+
+#[tokio::test]
+async fn a_bare_reply_mark_pins_the_newest_line_the_round_answers() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY>> the message itself"]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.hear(2, "and this?").await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert_eq!(
+    pinned(&sent),
+    Some(2),
+    "a mark naming no message pins the newest the round answers: {sent:?}"
+  );
+  assert_eq!(pinned_rows(&round).await, ["2"], "the record names the pinned message");
+  assert!(!sent[0].contains("<<REPLY"), "the mark never reaches the room: {sent:?}");
+}
+
+#[tokio::test]
 async fn an_explicit_reply_mark_pins_even_the_newest_line() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY #1>> the message itself"]);
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
