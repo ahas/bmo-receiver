@@ -139,10 +139,10 @@ leaves.
 - **The console's rows do not make a second process** (「The routes」 below): a row of a key other than the one row's
   is ignored, and the one row's own key replaces the default where the console sets it. Every agent still reads
   the same five.
-- **A round reads its row before its turn goes out,** since the turn carries the first question: the provider and
-  the tier the agency's state names for the session the round goes on (a session's state answers them from its
-  start, before its first turn) and the agent whose turn it is. The most specific row that matches stands, an
-  agent's row before a provider's and a provider's before a tier's. A session whose state names no tier matches
+- **A round reads its row before its turn goes out,** since the turn carries the first question: the provider the
+  agency's state names for the session the round goes on (a session's state answers it from its start, before its
+  first turn) and the agent whose turn it is. The most specific row that matches stands, an agent's row before a
+  provider's. The agency names no tier for a session, which runs for a supervisor or a role, so a round matches
   only rows of any tier.
 - **A list that holds questions ends in `final` and holds it nowhere else.** An empty list asks nothing: the
   round's turn goes out as the window composed it and its answer is the message, held to the items and checks

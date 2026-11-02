@@ -1,7 +1,7 @@
 //! The send tool as the tool host calls it (docs/chat-mcp.md, 「How a call runs」): the manifest held to the
-//! executable and every entry's schema file, each entry asked of the route it goes out on with the turn it is
-//! made in, a turn its agent's reset overtook refused before anything is asked, and the executable answering one
-//! request on its standard streams.
+//! executable and every entry's schema file, each entry asked of the route it goes out on with the turn it
+//! is made in and the moment it began, the receiver's refusal of a turn its agent's reset overtook passed
+//! back, and the executable answering one request on its standard streams.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -41,7 +41,7 @@ struct Book {
   answers: Arc<Mutex<BTreeMap<String, Value>>>,
 }
 
-async fn stood(book: Book) -> (String, u16) {
+async fn stood(book: Book) -> String {
   async fn answered(State(book): State<Book>, uri: Uri, body: Bytes) -> Json<Value> {
     let path = uri.path().to_owned();
     let said: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
@@ -60,25 +60,22 @@ async fn stood(book: Book) -> (String, u16) {
 
   let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
   let base = format!("http://{}", listener.local_addr().unwrap());
-  let port = base.split(':').next_back().unwrap().parse().unwrap();
 
   tokio::spawn(async move {
     axum::serve(listener, Router::new().fallback(answered).with_state(book)).await.unwrap();
   });
 
-  (base, port)
+  base
 }
 
-// Where a placed call finds each unit, as the units' `tool-env` verbs write them under the data root.
-fn write_env(root: &Path, base: String, port: u16) {
+// Where a placed call finds the receiver, as its `tool-env` verb writes it under the data root.
+fn write_env(root: &Path, base: String) {
   std::fs::create_dir_all(root.join("env")).unwrap();
-
-  for (file, body) in [
-    ("env/receiver.env", format!("RECEIVER_ADDRESS={base}\nRECEIVER_TOKEN={TOKEN}\n")),
-    ("env/agency.env", format!("AGENCY_CONTROL_PORT={port}\nAGENCY_CONTROL_TOKEN={TOKEN}\n")),
-  ] {
-    std::fs::write(root.join(file), body).unwrap();
-  }
+  std::fs::write(
+    root.join("env/receiver.env"),
+    format!("RECEIVER_ADDRESS={base}\nRECEIVER_TOKEN={TOKEN}\n"),
+  )
+  .unwrap();
 }
 
 // The variables of a turn made in a room, on a road, begun at a moment.
@@ -132,9 +129,9 @@ fn the_manifest_declares_each_entry_and_its_schema_as_the_executable_answers_it(
 #[tokio::test]
 async fn say_is_asked_of_the_receivers_sends_route_with_the_turn_as_its_asker() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(&session, "say", json!({ "text": "hello there" })).await;
@@ -147,7 +144,7 @@ async fn say_is_asked_of_the_receivers_sends_route_with_the_turn_as_its_asker() 
   assert_eq!(
     body,
     json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "say",
       "input": { "text": "hello there" },
     }),
@@ -157,9 +154,9 @@ async fn say_is_asked_of_the_receivers_sends_route_with_the_turn_as_its_asker() 
 #[tokio::test]
 async fn a_send_carries_the_reply_target_the_tool_names() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(&session, "say", json!({ "text": "hello there", "replyTo": 20620 })).await;
@@ -173,9 +170,9 @@ async fn a_send_carries_the_reply_target_the_tool_names() {
 #[tokio::test]
 async fn consult_is_asked_of_the_receivers_consult_route_under_the_turns_agent() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(&session, "consult", json!({ "text": "we take the second one", "reply": 12 })).await;
@@ -187,7 +184,10 @@ async fn consult_is_asked_of_the_receivers_consult_route_under_the_turns_agent()
   assert_eq!(route.as_str(), "/consult-lines");
   assert_eq!(
     body,
-    json!({ "agent": "agent-a", "text": "we take the second one", "replyTo": 12, "by": format!("chat:{ROOM}") }),
+    json!({
+      "agent": "agent-a", "text": "we take the second one", "replyTo": 12, "began": 1_000,
+      "by": format!("chat:{ROOM}"),
+    }),
     "the turn's room goes with the line, so the receiver can tell the agent's own round",
   );
 }
@@ -195,9 +195,9 @@ async fn consult_is_asked_of_the_receivers_consult_route_under_the_turns_agent()
 #[tokio::test]
 async fn photo_is_asked_as_its_pictures_and_caption_with_the_room_the_call_names() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(
@@ -219,7 +219,7 @@ async fn photo_is_asked_as_its_pictures_and_caption_with_the_room_the_call_names
   assert_eq!(
     body,
     json!({
-      "asker": { "room": -700, "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": -700, "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "photo",
       "input": {
         "chat": -700,
@@ -233,9 +233,9 @@ async fn photo_is_asked_as_its_pictures_and_caption_with_the_room_the_call_names
 #[tokio::test]
 async fn file_is_asked_as_its_files_and_caption_with_the_room_the_call_names() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(
@@ -257,7 +257,7 @@ async fn file_is_asked_as_its_files_and_caption_with_the_room_the_call_names() {
   assert_eq!(
     body,
     json!({
-      "asker": { "room": -700, "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": -700, "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "file",
       "input": {
         "chat": -700,
@@ -271,9 +271,9 @@ async fn file_is_asked_as_its_files_and_caption_with_the_room_the_call_names() {
 #[tokio::test]
 async fn voice_is_asked_with_its_path_its_caption_and_what_it_says() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(
@@ -296,7 +296,7 @@ async fn voice_is_asked_with_its_path_its_caption_and_what_it_says() {
   assert_eq!(
     body,
     json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "voice",
       "input": {
         "path": "/tmp/note.ogg",
@@ -311,9 +311,9 @@ async fn voice_is_asked_with_its_path_its_caption_and_what_it_says() {
 #[tokio::test]
 async fn a_fixed_line_is_asked_by_its_code_and_fields() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(
@@ -331,7 +331,7 @@ async fn a_fixed_line_is_asked_by_its_code_and_fields() {
   assert_eq!(
     body,
     json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "fixed_line",
       "input": { "code": "draw", "fields": { "label": "the word chain", "result": "apple" } },
     }),
@@ -341,9 +341,9 @@ async fn a_fixed_line_is_asked_by_its_code_and_fields() {
 #[tokio::test]
 async fn react_is_asked_on_the_message_it_acts_on_with_the_emoji_it_clears_with() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(&session, "react", json!({ "message": 900, "emoji": "" })).await;
@@ -356,7 +356,7 @@ async fn react_is_asked_on_the_message_it_acts_on_with_the_emoji_it_clears_with(
   assert_eq!(
     body,
     json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "react",
       "input": { "message": 900, "emoji": "" },
     }),
@@ -366,9 +366,9 @@ async fn react_is_asked_on_the_message_it_acts_on_with_the_emoji_it_clears_with(
 #[tokio::test]
 async fn pin_is_asked_on_its_message_or_unpinned_there() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(&session, "pin", json!({ "message": 900, "unpin": true })).await;
@@ -381,7 +381,7 @@ async fn pin_is_asked_on_its_message_or_unpinned_there() {
   assert_eq!(
     body,
     json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "pin",
       "input": { "message": 900, "unpin": true },
     }),
@@ -391,9 +391,9 @@ async fn pin_is_asked_on_its_message_or_unpinned_there() {
 #[tokio::test]
 async fn sticker_is_asked_by_its_emoji_alone() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(&session, "sticker", json!({ "emoji": ":+1:" })).await;
@@ -406,7 +406,7 @@ async fn sticker_is_asked_by_its_emoji_alone() {
   assert_eq!(
     body,
     json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "sticker",
       "input": { "emoji": ":+1:" },
     }),
@@ -416,9 +416,9 @@ async fn sticker_is_asked_by_its_emoji_alone() {
 #[tokio::test]
 async fn a_draw_is_asked_with_its_shape_and_its_label() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
   let answered = call(
@@ -442,7 +442,7 @@ async fn a_draw_is_asked_with_its_shape_and_its_label() {
   assert_eq!(
     body,
     json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "by": format!("chat:{ROOM}") },
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
       "tool": "random_draw",
       "input": {
         "shape": "dice",
@@ -456,32 +456,33 @@ async fn a_draw_is_asked_with_its_shape_and_its_label() {
 }
 
 #[tokio::test]
-async fn a_turn_its_agent_reset_after_it_began_is_refused_before_anything_is_asked() {
+async fn a_turn_its_agent_reset_after_it_began_comes_back_refused_by_the_receiver() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
 
-  book
-    .answers
-    .lock()
-    .unwrap()
-    .insert("/agents/agent-a".to_string(), json!({ "resetAt": 2_000 }));
+  book.answers.lock().unwrap().insert(
+    "/sends".to_string(),
+    json!({ "lines": [], "refusal": "agent-a was reset after this turn began, so nothing the turn does is kept any more" }),
+  );
 
   let answered = call(&session, "say", json!({ "text": "late" })).await;
+  let (_, body) = asked_of(&book);
 
   assert!(answered.is_error);
   assert!(answered.plain().contains("reset after this turn began"));
-  assert_eq!(routes_of(&book), Vec::from(["/agents/agent-a"]));
+  assert_eq!(body["asker"]["began"], 1_000, "the turn's moment goes with the send");
+  assert_eq!(routes_of(&book), Vec::from(["/sends"]), "no other unit is asked");
 }
 
 #[tokio::test]
 async fn a_call_outside_any_room_or_any_agents_turn_is_refused_without_asking() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
   let session = bare_record(data.path());
 
   let nowhere = call(&session, "say", json!({ "text": "hello" })).await;
@@ -497,9 +498,9 @@ async fn a_call_outside_any_room_or_any_agents_turn_is_refused_without_asking() 
 #[tokio::test]
 async fn the_executable_answers_one_request_on_its_standard_streams() {
   let book = Book::default();
-  let (base, port) = stood(book.clone()).await;
+  let base = stood(book.clone()).await;
   let data = tempdir().unwrap();
-  write_env(data.path(), base, port);
+  write_env(data.path(), base);
 
   let request = json!({
     "protocol": 1,
@@ -514,8 +515,6 @@ async fn the_executable_answers_one_request_on_its_standard_streams() {
   let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_send-tool"))
     .env_remove("RECEIVER_ADDRESS")
     .env_remove("RECEIVER_TOKEN")
-    .env_remove("AGENCY_CONTROL_PORT")
-    .env_remove("AGENCY_CONTROL_TOKEN")
     .stdin(std::process::Stdio::piped())
     .stdout(std::process::Stdio::piped())
     .spawn()
@@ -536,5 +535,5 @@ async fn the_executable_answers_one_request_on_its_standard_streams() {
     serde_json::from_slice::<Value>(&done.stdout).unwrap(),
     json!({ "content": [{ "type": "text", "text": "sent" }], "isError": false }),
   );
-  assert_eq!(routes_of(&book), Vec::from(["/agents/agent-a", "/sends"]));
+  assert_eq!(routes_of(&book), Vec::from(["/sends"]));
 }

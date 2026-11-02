@@ -2441,7 +2441,6 @@ name = "send-tool"
 version = "0.1.0-rev.1"
 dependencies = [
  "axum",
- "receiver-ports",
  "room-calls",
  "schemars",
  "serde",

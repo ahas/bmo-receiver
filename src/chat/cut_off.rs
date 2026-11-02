@@ -1,14 +1,55 @@
-//! The cut-off of an agent's reset (docs/wake.md, 「An agent's reset」): each move of an agent's reset point heard on
-//! the agency's event stream, and everything waiting for its turns let go unread.
+//! The cut-off of an agent's reset (docs/wake.md, 「An agent's reset」): each move of an agent's reset point
+//! heard on the agency's event stream, kept as the agent's point, and everything waiting for its turns let
+//! go unread; and the refusal of a send asked in a turn the point overtook (docs/chat-mcp.md, 「How a call
+//! runs」).
 
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::Event;
+use room_calls::sends::Asker;
+use room_calls::turn::{overtaken_refusal, overtakes, reset_point_key};
+use sea_orm::ConnectionTrait;
 use serde_json::Value;
 
 use crate::chat::runner::Runner;
 use crate::hearing::Hearer;
 use crate::receiver::Receiver;
 use crate::run;
+use crate::store::{Fault, settings};
+
+/// The agent's reset point as the receiver keeps it, in epoch milliseconds; none where no cut-off was
+/// heard.
+pub async fn point(db: &impl ConnectionTrait, agent: &str) -> Result<Option<i64>, Fault> {
+  Ok(
+    settings::get(db, &reset_point_key(agent))
+      .await?
+      .and_then(|kept| kept.trim().parse().ok()),
+  )
+}
+
+/// The agent's reset point kept at `at`, where no later one is kept already.
+pub async fn keep_point(db: &impl ConnectionTrait, agent: &str, at: i64) -> Result<(), Fault> {
+  if point(db, agent).await?.is_some_and(|kept| kept >= at) {
+    return Ok(());
+  }
+
+  settings::set(db, &reset_point_key(agent), &at.to_string()).await
+}
+
+/// The refusal of a send whose asking turn its agent's reset overtook; none for an asker naming no agent or
+/// no moment, or an agent no cut-off was heard for.
+pub async fn overtaken(receiver: &Receiver, asker: &Asker) -> Option<String> {
+  let agent = asker.agent_name.as_deref().map(str::trim).filter(|agent| !agent.is_empty())?;
+  let began = asker.began?;
+  let point = match point(receiver.db(), agent).await {
+    Ok(point) => point,
+    Err(why) => {
+      eprintln!("agent {agent}: its reset point was not read: {}", why.detail);
+      None
+    }
+  };
+
+  overtakes(point, began).then(|| overtaken_refusal(agent))
+}
 
 /// The kind a reset's move of the point is published under, the agency's own name for it.
 pub const CUT_OFF: &str = "companion-reset.created";
@@ -36,9 +77,10 @@ impl Hearer for CutOffs {
   }
 }
 
-/// What one cut-off lets go: the words the agent's rooms' queues are gathering and those its conversations hold or
-/// wait on, unread, and its quiet instructions, whose rows are settled as delivered at the point. An agent whose
-/// conversations do not stand here has nothing waiting.
+/// What one cut-off keeps and lets go: the agent's reset point, kept; the words the agent's rooms' queues
+/// are gathering and those its conversations hold or wait on, let go unread; and its quiet instructions,
+/// whose rows are settled as delivered at the point. An agent whose conversations do not stand here has
+/// nothing waiting.
 pub async fn cut_off(receiver: &Receiver, runner: &Runner, event: &Value) {
   let Some(agent) = event.get("agent").and_then(Value::as_str) else {
     return;
@@ -47,6 +89,11 @@ pub async fn cut_off(receiver: &Receiver, runner: &Runner, event: &Value) {
   let Some(at) = event.get("point").and_then(Value::as_i64) else {
     return;
   };
+
+  if let Err(why) = keep_point(receiver.db(), agent, at).await {
+    eprintln!("agent {agent}: its reset point was not kept: {}", why.detail);
+  }
+
   let Some(conversations) = runner.standing(agent) else {
     return;
   };

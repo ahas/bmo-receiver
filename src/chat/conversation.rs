@@ -113,12 +113,11 @@ pub struct Reply {
   pub session: Option<String>,
   pub context_tokens: Option<i64>,
   pub context_window: Option<i64>,
-  /// The share of the window the session folds at, as the agency gives it for its provider and tier.
+  /// The share of the window the session folds at, its supervisor's compaction threshold as the agency
+  /// gives it.
   pub fold_ratio: Option<f64>,
   /// Whether the session's program carries its own fold, as the agency says.
   pub folds_itself: bool,
-  /// The tier the agency names for the session, where it names one.
-  pub tier: Option<String>,
   pub replaced: Vec<SessionReason>,
   pub run: Option<String>,
   /// What the session held as the turn went out, which what a round read is counted from.
@@ -3205,7 +3204,6 @@ async fn designated(receiver: &Receiver, agent: &str) -> wake::agents::Designate
       call_names: Vec::new(),
       window_seconds: None,
       default_answerer: agent == receiver.deployment().agent,
-      kind: None,
     },
   }
 }

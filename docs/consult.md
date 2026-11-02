@@ -32,11 +32,10 @@ flowchart TD
 
 ## Whose an item is
 
-- **An item belongs to the agent whose declared worker takes it.** An agent's row names the worker its items go
-  to; an item assigned to such a worker is that agent's, and every other item is the chat agent's, whose row
-  declares none.
-- **Nothing lists the agents.** The owner of an item is read from the agents' registrations for every turn
-  (`GET /agents` on the agency), so an agent added as a row owns its items from its first one.
+- **An item belongs to the agent whose repository takes it.** A supervisor's row names the repository its items
+  go to; an item assigned to that repository is that agent's, and every other item is the chat agent's.
+- **Nothing lists the agents.** The owner of an item is read from the supervisors' rows for every turn
+  (`GET /supervisors` on the agency), so an agent added as a row owns its items from its first one.
 
 ## What an agent is shown
 

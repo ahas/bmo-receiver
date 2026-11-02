@@ -21,8 +21,8 @@ use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
   Agency, Agent, Agents, ConsoleAgentRow, Delivery, Event, Events, FieldRefusal, Forgotten, KeptEvents,
-  Load, OpenRun, Passed, Rest, RestKind, Resting, Run, RunLine, RunningJob, Said, Scope, Session,
-  SessionState, Turn, Written,
+  Load, OpenRun, Passed, Repository, Rest, RestKind, Resting, Role, Run, RunLine, RunningJob, Said, Scope,
+  Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
@@ -867,8 +867,10 @@ pub struct StandInAgency {
   pub passed: Mutex<Option<RestKind>>,
   // The rooms it was asked to forget, each with whether the asking was a preview.
   pub forgotten: Mutex<Vec<(i64, bool)>>,
-  // Every agent's reset point, in epoch milliseconds, where a test moved it.
-  pub point: Mutex<Option<i64>>,
+  /// The roles it lists.
+  pub roles: Mutex<Vec<Role>>,
+  /// The repositories it lists.
+  pub repositories: Mutex<Vec<Repository>>,
   // The runs it holds, each its id and the moment it began, in epoch seconds.
   pub runs: Mutex<BTreeMap<i64, i64>>,
   // Every round whose runs it was asked for, and every message attached to a run, as the run and the message.
@@ -911,7 +913,8 @@ impl StandInAgency {
       written: Mutex::default(),
       passed: Mutex::default(),
       forgotten: Mutex::default(),
-      point: Mutex::default(),
+      roles: Mutex::default(),
+      repositories: Mutex::default(),
       runs: Mutex::default(),
       rounds_asked: Mutex::default(),
       folds: Mutex::default(),
@@ -1000,20 +1003,31 @@ fn agency_down<T: Send + 'static>(path: &str) -> BoxFuture<'static, Answer<T>> {
 }
 
 impl Agency for StandInAgency {
-  fn agents(&self) -> BoxFuture<'_, Answer<Agents>> {
+  fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {
     self.agents_asked.fetch_add(1, Ordering::SeqCst);
 
     if self.is_down() {
-      return agency_down("agents");
+      return agency_down("supervisors");
     }
 
     Box::pin(async move {
       Ok(Agents {
         agents: self.agents.lock().unwrap().clone(),
-        roles: vec![],
         more: false,
       })
     })
+  }
+
+  fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>> {
+    let roles = self.roles.lock().unwrap().clone();
+
+    Box::pin(async move { Ok(roles) })
+  }
+
+  fn repositories(&self) -> BoxFuture<'_, Answer<Vec<Repository>>> {
+    let repositories = self.repositories.lock().unwrap().clone();
+
+    Box::pin(async move { Ok(repositories) })
   }
 
   fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>> {
@@ -1128,12 +1142,6 @@ impl Agency for StandInAgency {
     };
 
     Box::pin(async move { session.run_log().await })
-  }
-
-  fn reset_point<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
-    let point = *self.point.lock().unwrap();
-
-    Box::pin(async move { Ok(point) })
   }
 
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>> {

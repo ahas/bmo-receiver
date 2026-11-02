@@ -204,7 +204,7 @@ speaks through the sends.
 
 | What stood in the old tree | How it stands | Carried by |
 |---|---|---|
-| the handle of the service's own account, and the Korean name variants in `BOT_ADDRESSES` | the agent's registered label and wake words, read from the agency's `GET /agents`, with the chat service's declared handle | build-2, build-6 |
+| the handle of the service's own account, and the Korean name variants in `BOT_ADDRESSES` | the agent's registered label and wake words, read from the agency's `GET /supervisors`, with the chat service's declared handle | build-2, build-6 |
 | the agent's name written into a notice and into the delegate's words | the delegate's registered label as a parameter, from the configuration | build-2, build-14 |
 | machine names, account names, domain names and private network addresses | none stands: the configuration names addresses, and the tests use neutral names such as `agent-a`, `road-a` and `room-a` | build-0's names check, each copy task as it copied |
 | real chat ids in test fixtures | the test's own fixed ids | build-6 onward |

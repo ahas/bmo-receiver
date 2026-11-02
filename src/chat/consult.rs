@@ -153,7 +153,7 @@ pub async fn consult_block(receiver: &Receiver, own: &str, now_ms: i64) -> Resul
         agents
           .iter()
           .find(|one| {
-            one.row.get("itemWorker").and_then(Value::as_str).map(str::to_owned).unwrap_or_default()
+            one.row.get("repository").and_then(Value::as_str).map(str::to_owned).unwrap_or_default()
               == worker.as_str()
           })
           .map(|one| one.name.clone())

@@ -218,7 +218,7 @@ its rounds.
   work of its own where the context the agency reports it carrying after the round's last turn (its session
   state's `context`, `carried` against `window`) has reached the
   session's fold ratio, and not otherwise. The ratio is the agency's, read with the session's state
-  (`foldRatio`, the value its fold-ratio table holds for the session's provider and tier); where the state
+  (`foldRatio`, the compaction threshold of the supervisor the session runs for); where the state
   names none, the resident turn policy's `fold_ratio` stands in.
 - **A session whose program carries its own fold is never folded by the receiver:** where the session's state
   says so (`foldsItself`), no fold is judged or asked for it and no `fold-failed` is told, whatever its context;
@@ -235,8 +235,10 @@ agent's reset point, publishes the cut-off, and then tells each unit holding the
 Both go under the kind `companion-reset.created`, which is the agency's name for it, and are told apart by their
 fields: a cut-off names the `point` alone, a reset names its `ranges`.
 
-- **The cut-off** is heard for as long as the service runs. Everything waiting for the agent's turns in every
-  room is let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on,
+- **The cut-off** is heard for as long as the service runs. Its point is kept as the agent's reset point
+  (`docs/store.md`, 「The settings」), a later point in place of an earlier one, and a send or a consult line asked
+  in a turn that began at or before it is refused (`docs/chat-mcp.md`, 「Turn context」). Everything waiting for the
+  agent's turns in every room is let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on,
   and its quiet instructions, whose rows are settled as delivered so no turn takes them again. An agent whose
   conversations do not stand in this process has nothing waiting. A turn under way is the agency's to stop, and
   a stopped round ends as any stopped round does.
@@ -331,9 +333,11 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
 
 - **The agency's `road.changed` is told to the owner once,** through the chat agent's session in his private
   chat, as the deployment briefing is (the agency's `docs/api.md`, 「Events」): one instruction an event, in the
-  owner facts' words (`policy/owner-facts.toml`, `[road]`), under the kind `road-changed:<key>`, so a newer fact of the same
-  work key replaces one still waiting and none is said twice.
-- **What it carries:** for `road-moved`, the work key, the road it moved from and the road it moved to, each its
+  owner facts' words (`policy/owner-facts.toml`, `[road]`), under the kind `road-changed:supervisor:<name>` or
+  `road-changed:role:<name>`, so a newer fact of the same supervisor or role replaces one still waiting and none
+  is said twice.
+- **What it carries:** the supervisor or the role whose work it is, named as such; for `road-moved`, the road it
+  moved from and the road it moved to, each its
   provider, model and account, and every provider's reason it passed; for `road-returned`, the road it is back on
   and the one it left; for `road-closed`, every provider's reason, the command the agency names for reopening a
   road, set on a line of its own exactly as the agency wrote it, and the moment the first road reopens by itself.
@@ -350,8 +354,8 @@ Each event the receiver reads (`docs/boundary-api.md`, 「The agency」) is hear
 to, and those that tell the chat agent something wake it as an instruction in the owner's private chat, which
 opens a round there like any instruction:
 
-- **A voiced notice:** a stand-in answering or ended, and a worker fallen to a lesser model
-  (`docs/voiced-notices.md`, 「Rest and fallback」).
+- **A voiced notice:** a stand-in answering or ended, and a job's run fallen to a lesser model, named by its role
+  and its checkout (`docs/voiced-notices.md`, 「Rest and fallback」).
 - **An order:** a run past its clock, withdrawn where its ask closes first (`docs/voiced-notices.md`, 「A turn
   past its clock」).
 - **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency
@@ -368,16 +372,16 @@ The stream is heard from where the receiver left it:
   live stream is opened first and then the events the agency still keeps are read as a page
   (`docs/boundary-api.md`, 「The agency」): where the page holds the last event heard under the same number and
   moment, every event after it is handed in order; where it does not, the agency numbered its events afresh or
-  let the mark go, and every event it keeps is handed as new. A live event numbered at or below the last one
-  handed is not handed twice.
+  let the mark go, and every event it keeps is handed as new. The agency's numbers only rise, across its own
+  restarts too, so a page that does not hold the mark holds only events after it. A live event numbered at or
+  below the last one handed is not handed twice.
 - **Then the receiver reconciles its rows with what the agency still holds.** Every row it marked handed whose
   room's conversation no longer stands in this process, and which rides no round of another room, is made
   pending again, and the instruction pass runs at once over every pending row. A round whose turn the agency
   lost meanwhile ends failed on its own (`docs/bmo-window.md`, 「Quiet instruction」), giving its replies back.
 - **What the receiver cannot recover** is an event the agency no longer keeps: one published while the receiver
-  was away past the agency's retention, or before an agency restart whose kept history starts empty
-  (`docs/boundary-api.md`, 「Contract gaps」). The reconcile and the pass's own rescan stand for those, so no reply
-  owed is lost with them.
+  was away past the newest events the agency keeps in its store. The reconcile and the pass's own rescan stand for
+  those, so no reply owed is lost with them.
 
 ## Words handed over
 

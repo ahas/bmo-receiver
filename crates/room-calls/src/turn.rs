@@ -1,12 +1,11 @@
-//! The turn a call of the receiver's tool is made in, read afresh from the call's session record (docs/chat-mcp.md,
-//! 「Turn context」), and the refusal of a turn its agent's reset overtook (the agency's `docs/companions.md`, 「What the reset
-//! cuts off」): a turn begun at or before the agent's reset point does nothing more, whichever tool it calls.
-//! The tool host hands the turn's variables whole — its own run's, overlaid by the run a resident program's
-//! place names — and the agency, which owns the resets, answers the point.
+//! The turn a call of the receiver's tool is made in, read afresh from the call's session record
+//! (docs/chat-mcp.md, 「Turn context」), and the refusal of a turn its agent's reset overtook (docs/wake.md,
+//! 「An agent's reset」): a turn begun at or before the agent's reset point does nothing more, whichever tool
+//! it calls. The tool host hands the turn's variables whole — its own run's, overlaid by the run a resident
+//! program's place names — and the receiver, which keeps each agent's point as the agency's cut-off names
+//! it, judges the turn by the moment it began.
 
 use std::collections::BTreeMap;
-
-use receiver_ports::agency::Agency;
 
 /// The turn variable naming the agent the turn is.
 pub const AGENT_VARIABLE: &str = "BMO_TURN_AGENT";
@@ -33,8 +32,8 @@ pub const JOB_VARIABLE: &str = "BMO_TASK_LOCKED";
 pub const NO_ROOM: &str =
   "this call was made outside any room's turn, so it has no room to act in: name one with chat";
 
-/// Where an agent's reset point is kept among the archive's settings: the moment its last reset cut it off at,
-/// in unix milliseconds.
+/// Where an agent's reset point is kept among the receiver's settings: the moment its last reset cut it off
+/// at, in unix milliseconds.
 pub fn reset_point_key(agent: &str) -> String {
   format!("reset_point:{agent}")
 }
@@ -108,19 +107,4 @@ impl Turn {
       via: if own { self.via.clone() } else { None },
     })
   }
-
-  /// The refusal of this turn where its agent's reset overtook it, the point read from the agency; none for
-  /// a turn naming no agent or no moment, or where no reset point can be read.
-  pub async fn overtaken(&self, agency: &dyn Agency) -> Option<String> {
-    let (Some(agent), Some(began)) = (&self.agent, self.began) else {
-      return None;
-    };
-
-    overtakes(reset_point(agency, agent).await, began).then(|| overtaken_refusal(agent))
-  }
-}
-
-// The agent's reset point, where it was ever reset and the agency answers.
-async fn reset_point(agency: &dyn Agency, agent: &str) -> Option<i64> {
-  agency.reset_point(agent).await.ok().flatten()
 }

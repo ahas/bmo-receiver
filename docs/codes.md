@@ -32,6 +32,7 @@ family. No code carries a sentence in a room's language.
 | `no-room` | 409 | | no consult room is set |
 | `not-answerer` | 409 | `agent`, `room` | the calling agent does not answer in the consult room |
 | `no-agent` | 400 | | the call was made outside any agent's turn |
+| `overtaken` | 409 | `agent` | the calling turn began at or before its agent's reset point |
 
 ### MessageActRefusal
 

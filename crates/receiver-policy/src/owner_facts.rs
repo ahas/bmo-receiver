@@ -1,9 +1,11 @@
-//! What the owner's session is told of the agency's events that no other part words (docs/policy.md): a worker
-//! fallen to a lesser model, the overtime order, and a road the agency moved, returned or found closed.
+//! What the owner's session is told of the agency's events that no other part words (docs/policy.md): a
+//! job's run fallen to a lesser model, the overtime order, and a road the agency moved, returned or found
+//! closed.
 
 use serde::Deserialize;
 
-/// A worker fallen to a lesser model: the notice's fact, what it is for, what follows, its kind and lifetime.
+/// A job's run fallen to a lesser model: the notice's fact, what it is for, what follows, the word for a
+/// role the agency does not name, and its kind.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WorkerDowngraded {
@@ -12,6 +14,7 @@ pub struct WorkerDowngraded {
   pub intent: String,
   pub dropped: String,
   pub kept: String,
+  pub role_none: String,
   pub kind: String,
 }
 
@@ -35,12 +38,15 @@ pub struct Overtime {
   pub sort: String,
 }
 
-/// A work key's road the agency moved, returned or found closed, as the owner is told it.
+/// A supervisor's or a role's road the agency moved, returned or found closed, as the owner is told it.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Road {
   pub kind: String,
   pub sort: String,
+  pub supervisor: String,
+  pub role: String,
+  pub row_none: String,
   pub road: String,
   pub road_account: String,
   pub road_none: String,

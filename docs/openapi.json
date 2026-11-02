@@ -283,6 +283,14 @@
               "null"
             ]
           },
+          "began": {
+            "description": "The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its\nagent's reset point is refused.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "by": {
             "default": null,
             "type": [
@@ -526,6 +534,14 @@
         "properties": {
           "agent": {
             "type": "string"
+          },
+          "began": {
+            "description": "The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its\nagent's reset point is refused.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "by": {
             "description": "The chat that set the line off, `chat:<room>`.",

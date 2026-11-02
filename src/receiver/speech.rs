@@ -255,7 +255,7 @@ impl Speech {
 
   // An agent's own name: the label its registration carries, its registration name where it carries none.
   async fn label_of(&self, agent: &str) -> String {
-    let listed = self.units.agency.agents().await.ok();
+    let listed = self.units.agency.supervisors().await.ok();
 
     listed
       .and_then(|listed| listed.agents.into_iter().find(|one| one.name == agent))

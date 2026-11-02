@@ -14,7 +14,7 @@ use bmo_receiver::chat::reset::{RESET, Reset, Resets, take};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::hearing::{Hearer, Hearing};
 use bmo_receiver::receiver::wake::rest::{RESTING, Rests};
-use bmo_receiver::road_facts::{ROAD_CHANGED, RoadChanges};
+use bmo_receiver::road_facts::{ROAD_CHANGED, RoadChanges, RoadFact};
 use bmo_receiver::store::settings;
 use bmo_receiver::verbs::reload::{DOCUMENTS_MOVED, Places, Reloads};
 use bmo_receiver::workers::{DOWNGRADED, Workers};
@@ -358,18 +358,26 @@ async fn a_reset_of_the_person_range_alone_keeps_the_agents_conversation() {
 }
 
 #[tokio::test]
-async fn a_worker_fallen_to_a_lesser_model_is_voiced_to_the_owner() {
+async fn a_jobs_run_fallen_to_a_lesser_model_is_voiced_to_the_owner_by_its_role_and_checkout() {
   let heard = Heard::on().await;
 
   heard.session.told(
     DOWNGRADED,
-    json!({ "worker": "worker-a", "launched": "model-a", "answeredOn": ["model-b"], "dropped": true, "job": 9 }),
+    json!({
+      "worker": "repo-a-w2", "role": "builder", "launched": "model-a", "answeredOn": ["model-b"],
+      "dropped": true, "job": 9,
+    }),
   );
 
-  let rows = heard.kept("worker-downgrade:worker-a", 1).await;
+  let rows = heard.kept("worker-downgrade:repo-a-w2:builder", 1).await;
 
   assert_eq!((rows[0].chat_id, rows[0].sort.as_deref()), (OWNER, Some("notice")));
   assert!(rows[0].text.contains("came off model-b instead of model-a"), "{}", rows[0].text);
+  assert!(
+    rows[0].text.contains("the role \"builder\" in the repository checkout \"repo-a-w2\""),
+    "{}",
+    rows[0].text
+  );
   assert!(rows[0].text.contains("It happened on job #9."));
   assert!(rows[0].text.contains("That session has been dropped"));
 }
@@ -382,13 +390,13 @@ async fn a_closed_road_is_told_to_the_owner_once_its_command_set_apart_exactly_a
   heard.session.told(
     ROAD_CHANGED,
     json!({
-      "fact": "road-closed", "key": "bmo",
+      "fact": "road-closed", "supervisor": null, "role": "builder",
       "reasons": [{ "provider": "claude-code", "reason": "the login is gone" }, { "provider": "deepseek", "reason": "the balance is spent" }],
       "command": command, "reopensAt": 1_900_000_000,
     }),
   );
 
-  let rows = heard.kept("road-changed:bmo", 1).await;
+  let rows = heard.kept("road-changed:role:builder", 1).await;
 
   assert_eq!(
     (rows[0].agent.as_str(), rows[0].chat_id, rows[0].rides),
@@ -404,11 +412,11 @@ async fn a_closed_road_is_told_to_the_owner_once_its_command_set_apart_exactly_a
   assert!(rows[0].text.contains("2030-03-17T17:46:40Z"), "{}", rows[0].text);
   assert!(rows[0].text.contains("character for character"));
 
-  // A newer fact of the same key takes the place of one not yet told, so none is said twice.
+  // A newer fact of the same role takes the place of one not yet told, so none is said twice.
   heard.session.told(
     ROAD_CHANGED,
     json!({
-      "fact": "road-moved", "key": "bmo",
+      "fact": "road-moved", "supervisor": null, "role": "builder",
       "from": { "provider": "claude-code", "model": "model-a", "account": "account-a" },
       "to": { "provider": "deepseek", "model": "model-b", "account": null },
       "reasons": [{ "provider": "claude-code", "reason": "the login is gone" }],
@@ -417,20 +425,22 @@ async fn a_closed_road_is_told_to_the_owner_once_its_command_set_apart_exactly_a
 
   until("the moved fact", || async {
     heard
-      .of_kind("road-changed:bmo")
+      .of_kind("road-changed:role:builder")
       .await
       .iter()
-      .any(|row| row.text.contains("The work of bmo moved from"))
+      .any(|row| row.text.contains("The work of the role builder moved from"))
   })
   .await;
 
-  let rows = heard.of_kind("road-changed:bmo").await;
-  let moved: Vec<&Row> =
-    rows.iter().filter(|row| row.text.contains("The work of bmo moved from")).collect();
+  let rows = heard.of_kind("road-changed:role:builder").await;
+  let moved: Vec<&Row> = rows
+    .iter()
+    .filter(|row| row.text.contains("The work of the role builder moved from"))
+    .collect();
 
   assert_eq!(moved.len(), 1);
   assert!(
-    rows.iter().filter(|row| row.text.contains("No road of bmo")).count() <= 1,
+    rows.iter().filter(|row| row.text.contains("No road of the role builder")).count() <= 1,
     "none is said twice"
   );
   assert!(
@@ -446,6 +456,25 @@ async fn a_closed_road_is_told_to_the_owner_once_its_command_set_apart_exactly_a
       .await,
     0,
     "no other room hears of it"
+  );
+}
+
+#[test]
+fn a_supervisors_road_is_named_as_the_supervisor_and_keyed_by_it() {
+  let fact: RoadFact = serde_json::from_value(json!({
+    "fact": "road-returned", "supervisor": "agent-a", "role": null,
+    "from": { "provider": "deepseek", "model": "model-b", "account": null },
+    "to": { "provider": "claude-code", "model": "model-a", "account": null },
+  }))
+  .unwrap();
+
+  assert_eq!(fact.row().key(), "supervisor:agent-a");
+  assert!(
+    fact
+      .fact()
+      .starts_with("The work of the chat agent agent-a is back on claude-code · model-a"),
+    "{}",
+    fact.fact()
   );
 }
 

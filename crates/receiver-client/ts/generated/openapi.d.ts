@@ -1324,6 +1324,12 @@ export interface components {
         Asker: {
             /** @default null */
             agentName: string | null;
+            /**
+             * Format: int64
+             * @description The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its
+             *     agent's reset point is refused.
+             */
+            began?: number | null;
             /** @default null */
             by: string | null;
             /** @description The command or unit the words come through, which words handed to the room's supervisor name. */
@@ -1409,6 +1415,12 @@ export interface components {
         /** @description A line said in the consult room. */
         ConsultLine: {
             agent: string;
+            /**
+             * Format: int64
+             * @description The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its
+             *     agent's reset point is refused.
+             */
+            began?: number | null;
             /** @description The chat that set the line off, `chat:<room>`. */
             by?: string | null;
             /** @description The command or unit the words come through. */

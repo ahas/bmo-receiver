@@ -391,7 +391,7 @@ pub fn name_order(left: &str, right: &str) -> std::cmp::Ordering {
 }
 
 /// The roster the owner's own chat is given: the one shared chat agent with the rooms it is connected to, then
-/// each kind of agent with every agent of it under the names the owner calls it by.
+/// the other chat agents under the names the owner calls them by, and the roles work is handed off as.
 pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
   let db = receiver.db();
   let owners = receiver.owner_room();
@@ -422,37 +422,34 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
     fill_marks(&words.roster, &[("agent", &receiver.deployment().agent), ("rooms", &named.join(", "))],)
   )];
 
-  let kinds: [(&str, String); 5] = [
-    ("chat", words.kinds.chat.clone()),
-    ("gate", words.kinds.gate.clone()),
-    ("runner", words.kinds.runner.clone()),
-    ("recollector", words.kinds.recollector.clone()),
-    ("worker", words.kinds.worker.clone()),
-  ];
+  let mut supervisors: Vec<(String, String)> = agents
+    .iter()
+    .filter(|one| one.name != receiver.deployment().agent)
+    .map(|one| {
+      let aliases = one.row.get("aliases").and_then(Value::as_str).unwrap_or_default();
 
-  for (kind, line) in &kinds {
-    let mut members: Vec<(bool, String, String)> = agents
-      .iter()
-      .filter(|one| {
-        one.row.get("kind").and_then(Value::as_str).map(str::to_owned).unwrap_or_default() == *kind
-          && one.name != receiver.deployment().agent
-      })
-      .map(|one| {
-        let aliases = one.row.get("aliases").and_then(Value::as_str).unwrap_or_default();
-        let builtin = one.row.get("builtin").and_then(Value::as_i64).unwrap_or(0) == 1;
-        let names = names_of(&one.name, one.label.as_deref(), Some(aliases));
+      (one.name.clone(), names_of(&one.name, one.label.as_deref(), Some(aliases)))
+    })
+    .collect();
 
-        (builtin, one.name.clone(), names)
-      })
-      .collect();
+  if !supervisors.is_empty() {
+    supervisors.sort_by(|left, right| name_order(&left.0, &right.0));
+    lines.push(format!("- {}", words.kinds.supervisor));
+    lines.extend(supervisors.iter().map(|(name, names)| format!("  - {name}: {names}.")));
+  }
 
-    if members.is_empty() {
-      continue;
-    }
+  let roles = receiver.units().agency.roles().await.unwrap_or_default();
 
-    members.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| name_order(&left.1, &right.1)));
-    lines.push(format!("- {line}"));
-    lines.extend(members.iter().map(|(_, name, names)| format!("  - {name}: {names}.")));
+  if !roles.is_empty() {
+    lines.push(format!("- {}", words.kinds.role));
+    lines.extend(roles.iter().map(|role| {
+      let label = names_of(&role.name, role.label.as_deref(), None);
+
+      match role.description.as_deref().map(str::trim).filter(|said| !said.is_empty()) {
+        Some(said) => format!("  - {}: {label} — {said}", role.name),
+        None => format!("  - {}: {label}.", role.name),
+      }
+    }));
   }
 
   Ok(lines.join("\n"))

@@ -23,7 +23,7 @@ pub enum AddedAgentRefusal {
   Provider { provider: String },
   #[error("the model is chosen among the registered models that have an address")]
   Model,
-  #[error("the worker is chosen among the workers: {worker}")]
+  #[error("the repository is chosen among the agency's repositories: {worker}")]
   Worker { worker: String },
   #[error("the room needs a title")]
   Room,

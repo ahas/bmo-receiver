@@ -718,16 +718,16 @@ impl Item {
 }
 
 impl Drafter {
-  // The process a round opens: the row its session's provider and tier and its agent match, and the questions
-  // that row asks of a turn that took what this one took.
+  // The process a round opens: the row its session's provider, any tier and its agent match, and the
+  // questions that row asks of a turn that took what this one took.
   async fn plan(&self, agent: &str, chat: i64, batch: &[Inbound], instructions: usize) -> Plan {
     let receiver = &self.receiver;
-    let (provider, tier) = Carry::new(receiver.clone()).standing(agent, chat).await;
+    let provider = Carry::new(receiver.clone()).standing(agent, chat).await;
     let table = rows(receiver.db()).await.unwrap_or_else(|why| {
       eprintln!("chat {chat}: the draft process table could not be read: {}", why.detail);
       vec![]
     });
-    let Some(process) = resolve(&table, provider.as_deref(), tier.as_deref(), agent) else {
+    let Some(process) = resolve(&table, provider.as_deref(), None, agent) else {
       return Plan {
         row: "none".to_owned(),
         ..Plan::default()

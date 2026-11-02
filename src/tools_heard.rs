@@ -7,22 +7,18 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::chat::instructions::{Queued, queue};
+use crate::receiver::Receiver;
 use futures_util::StreamExt;
 use receiver_policy::fill_marks;
 use receiver_policy::tool_host::TOOL_HOST;
 use receiver_ports::agency::Agent;
 use receiver_ports::tool_host::{StandingSession, ToolEvent, ToolHost};
-use serde_json::Value;
-
-use crate::chat::instructions::{Queued, queue};
-use crate::receiver::Receiver;
 
 // The kind of an event that takes a tool away.
 const REMOVED: &str = "tool.removed";
 // The status the host answers a cursor it holds no event after.
 const GONE: u16 = 410;
-// The kind of a chat agent, as the agency registers one.
-const CHAT: &str = "chat";
 
 /// The fact a chat agent is told of a change: what became of the tool and each entry with how it is reached and
 /// its summary, then the reading rule and that nothing needs saying.
@@ -52,12 +48,11 @@ pub fn instruction(event: &ToolEvent) -> String {
   format!("{fact}\n\n{}\n{}", said.read_first, said.nothing_said)
 }
 
-/// The chat agents a change concerns: each one the agency registers as a chat agent whose standing tool session
-/// holds one of the change's namespaces.
+/// The chat agents a change concerns: each supervisor of the agency's whose standing tool session holds one
+/// of the change's namespaces.
 pub fn concerned(agents: &[Agent], sessions: &[StandingSession], namespaces: &[String]) -> Vec<String> {
   agents
     .iter()
-    .filter(|agent| agent.row.get("kind").and_then(Value::as_str) == Some(CHAT))
     .filter(|agent| {
       sessions
         .iter()

@@ -607,7 +607,7 @@ impl Receiver {
       return Ok(kept);
     }
 
-    let listed = self.units.agency.agents().await?;
+    let listed = self.units.agency.supervisors().await?;
 
     self.agents.keep((), listed.clone());
 

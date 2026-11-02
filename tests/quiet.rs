@@ -45,12 +45,14 @@ fn every_job_starting_or_running_counts_however_long_it_has_run() {
   let jobs = [
     RunningJob {
       id: 906_425,
-      worker_name: Some("worker-a".to_owned()),
+      role_name: Some("worker".to_owned()),
+      worker_name: Some("repo-a".to_owned()),
       item_id: Some(2283),
       started_at: Some(NOW - 600 * MINUTE),
     },
     RunningJob {
       id: 906_426,
+      role_name: None,
       worker_name: None,
       item_id: None,
       started_at: None,
@@ -59,6 +61,6 @@ fn every_job_starting_or_running_counts_however_long_it_has_run() {
   let named = jobs_under_way(&jobs);
 
   assert_eq!(named.len(), 2, "{named:?}");
-  assert!(named[0].starts_with("job 906425 of worker-a on item 2283"));
+  assert!(named[0].starts_with("job 906425 as worker in repo-a on item 2283"));
   assert!(jobs_under_way(&[]).is_empty());
 }

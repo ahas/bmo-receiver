@@ -1,7 +1,7 @@
-//! The agency port: the agents and their roads, the sessions a turn is carried in and the words pushed into a
-//! working one, the documents a session was handed in full, a room forgotten, the agent half of an agent added on the console, the hooks
-//! the receiver answers, a run's log and the event stream (`docs/boundary-api.md`, 「The agency」; the agency's
-//! `docs/api.md`). Bodies are camelCase.
+//! The agency port: the supervisors, the roles and the repositories, the sessions a turn is carried in and
+//! the words pushed into a working one, the documents a session was handed in full, a room forgotten, the
+//! agent half of an agent added on the console, the hooks the receiver answers, a run's log and the event
+//! stream (`docs/boundary-api.md`, 「The agency」; the agency's `docs/api.md`). Bodies are camelCase.
 
 use futures_util::StreamExt;
 use futures_util::future::BoxFuture;
@@ -13,15 +13,16 @@ use sse_stream::SseStream;
 
 use crate::http::{Answer, Caller, Done, Nothing, Peer, PortFailure};
 
-/// One agent as the agency lists it: its registration name, whether it is awake, the brain folder its long-term
-/// memory is in, and every other field of its row and roads as the agency gives them.
+/// One agent the receiver wakes, as the agency lists it among its supervisors: its name, whether it is
+/// awake, the brain folder its long-term memory is in, and every other field of its row as the agency gives
+/// them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Agent {
   pub name: String,
   #[serde(default)]
   pub label: Option<String>,
-  /// An agent listed without saying is taken as awake: the agency lists the agents it stands.
+  /// An agent listed without saying is taken as awake: the agency lists the supervisors it stands.
   #[serde(default = "listed_awake")]
   pub awake: bool,
   #[serde(default)]
@@ -34,16 +35,58 @@ fn listed_awake() -> bool {
   true
 }
 
-/// Every agent, every role an agent may hold, and whether more stand beyond the page (the agency's page of
-/// agents).
+/// Every supervisor, and whether more stand beyond the page (the agency's page of supervisors).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Agents {
   #[serde(rename = "items")]
   pub agents: Vec<Agent>,
   #[serde(default)]
-  pub roles: Vec<Value>,
-  #[serde(default)]
   pub more: bool,
+}
+
+/// A bundle of functions a role gives, by its name.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Bundle {
+  pub name: String,
+}
+
+/// One role a piece of work runs as: its name, its label, what it is for and the bundles it gives.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Role {
+  pub name: String,
+  #[serde(default)]
+  pub label: Option<String>,
+  #[serde(default)]
+  pub description: Option<String>,
+  #[serde(default)]
+  pub bundles: Vec<Bundle>,
+}
+
+impl Role {
+  /// Whether the role gives the bundle named.
+  pub fn gives(&self, bundle: &str) -> bool {
+    self.bundles.iter().any(|given| given.name == bundle)
+  }
+}
+
+#[derive(Deserialize)]
+struct RoleList {
+  #[serde(default)]
+  roles: Vec<Role>,
+}
+
+/// One repository a job runs in, by its name and its label.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Repository {
+  pub name: String,
+  #[serde(default)]
+  pub label: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct RepositoryList {
+  #[serde(default)]
+  items: Vec<Repository>,
 }
 
 /// The scope a session is kept for.
@@ -133,7 +176,9 @@ struct SessionMember {
   #[serde(default)]
   folds_itself: bool,
   #[serde(default)]
-  tier: Option<String>,
+  supervisor: Option<String>,
+  #[serde(default)]
+  role: Option<String>,
   #[serde(default)]
   prefix_change_reason: Option<String>,
 }
@@ -157,7 +202,8 @@ impl SessionMember {
       context: self.context,
       fold_ratio: self.fold_ratio,
       folds_itself: self.folds_itself,
-      tier: self.tier.filter(|tier| !tier.is_empty()),
+      supervisor: self.supervisor.filter(|supervisor| !supervisor.is_empty()),
+      role: self.role.filter(|role| !role.is_empty()),
       prefix_change_reason: self.prefix_change_reason.filter(|why| !why.trim().is_empty()),
     }
   }
@@ -232,23 +278,28 @@ pub struct SessionState {
   pub generation: Value,
   #[serde(default)]
   pub context: Value,
-  /// The share of its window at which the session folds, as the agency's fold-ratio table gives it.
+  /// The share of its window at which the session folds, its supervisor's or its role's compaction
+  /// threshold.
   #[serde(default, rename = "foldRatio")]
   pub fold_ratio: Option<f64>,
   /// Whether the session's program carries its own fold, so the receiver folds it never.
   #[serde(default, rename = "foldsItself")]
   pub folds_itself: bool,
-  /// The tier the agency names for the session, where it names one: the draft process table is matched by it.
+  /// The supervisor the session runs for, where it is a supervisor's.
   #[serde(default)]
-  pub tier: Option<String>,
+  pub supervisor: Option<String>,
+  /// The role the session runs for, where it is a role's run.
+  #[serde(default)]
+  pub role: Option<String>,
   /// Why the session's prefix changed, where the agency names it: a reason another than the one the session's last
   /// turn stood on says its head moved.
   #[serde(default, rename = "prefixChangeReason")]
   pub prefix_change_reason: Option<String>,
 }
 
-/// The row of an agent the console stands up: the name it is registered by, what it is called in the room, the
-/// provider and model it is pinned to, and the worker its items go to. The room it answers is the receiver's.
+/// The row of an agent the console stands up: the name it is registered by, what it is called in the room,
+/// the provider and model its order names, and the repository its items go to, under the agency's field
+/// `worker`. The room it answers is the receiver's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConsoleAgentRow {
   pub name: String,
@@ -431,11 +482,14 @@ struct OpenRuns {
   items: Vec<OpenRun>,
 }
 
-/// A job starting or running, as the list of jobs answers it: its id, its worker, its item and when it started.
+/// A job starting or running, as the list of jobs answers it: its id, the role it runs as, the checkout it
+/// runs in, its item and when it started.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunningJob {
   pub id: i64,
+  #[serde(default)]
+  pub role_name: Option<String>,
   #[serde(default)]
   pub worker_name: Option<String>,
   #[serde(default)]
@@ -451,8 +505,14 @@ struct RunningJobs {
 
 /// Every call the receiver makes on the agency.
 pub trait Agency: Send + Sync {
-  /// Every agent with its row and roads, and the roles.
-  fn agents(&self) -> BoxFuture<'_, Answer<Agents>>;
+  /// Every supervisor with its row.
+  fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>>;
+
+  /// Every role a piece of work runs as.
+  fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>>;
+
+  /// Every repository a job runs in.
+  fn repositories(&self) -> BoxFuture<'_, Answer<Vec<Repository>>>;
 
   /// Whether a stand-in answers an agent while the rest closes its road.
   fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>>;
@@ -494,10 +554,6 @@ pub trait Agency: Send + Sync {
 
   /// A run's log lines after the one given, five hundred at most.
   fn run_log<'a>(&'a self, run: &'a str, after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>>;
-
-  /// The moment an agent's last reset cut it off at, in epoch milliseconds; none where it was never reset. A
-  /// turn begun at or before it is overtaken (the agency's `docs/companions.md`, 「What the reset cuts off」).
-  fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
 
   /// A run's row by its id; none where the agency holds none.
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>>;
@@ -678,26 +734,39 @@ fn run_line(line: RunLine) -> RunLine {
   read
 }
 
-/// The fields an agent's own route answers that the rest of its row does not carry.
+/// Whether a stand-in answers the agent asked about.
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AgentFields {
+struct StandIn {
   #[serde(default)]
-  reset_at: Option<i64>,
-  #[serde(default)]
-  stand_in_available: bool,
+  answers: bool,
 }
 
 impl Agency for HttpAgency {
-  fn agents(&self) -> BoxFuture<'_, Answer<Agents>> {
-    Box::pin(self.caller.get(&["agents"], &[]))
+  fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {
+    Box::pin(self.caller.get(&["supervisors"], &[]))
+  }
+
+  fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>> {
+    Box::pin(async move {
+      let list: RoleList = self.caller.get(&["roles"], &[]).await?;
+
+      Ok(list.roles)
+    })
+  }
+
+  fn repositories(&self) -> BoxFuture<'_, Answer<Vec<Repository>>> {
+    Box::pin(async move {
+      let list: RepositoryList = self.caller.get(&["repositories"], &[]).await?;
+
+      Ok(list.items)
+    })
   }
 
   fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>> {
     Box::pin(async move {
-      let read: AgentFields = self.caller.get(&["agents", agent], &[]).await?;
+      let read: StandIn = self.caller.get(&["stand-in"], &[("agent", agent.to_owned())]).await?;
 
-      Ok(read.stand_in_available)
+      Ok(read.answers)
     })
   }
 
@@ -835,14 +904,6 @@ impl Agency for HttpAgency {
       let lines: Lines = self.caller.get(&["log-lines"], &query).await?;
 
       Ok(lines.items.into_iter().map(run_line).collect())
-    })
-  }
-
-  fn reset_point<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
-    Box::pin(async move {
-      let read: AgentFields = self.caller.get(&["agents", agent], &[]).await?;
-
-      Ok(read.reset_at)
     })
   }
 

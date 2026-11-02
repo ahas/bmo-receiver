@@ -1,5 +1,6 @@
-//! What the agency tells of its job workers (docs/wake.md, 「What the agency's events wake」): a worker's session
-//! that answered on a lesser model, voiced to the owner by the chat agent.
+//! What the agency tells of its jobs' runs (docs/wake.md, 「What the agency's events wake」): a job's run
+//! that answered on a lesser model, named by its role and the repository checkout it ran in, voiced to the
+//! owner by the chat agent.
 
 use futures_util::future::BoxFuture;
 use receiver_policy::fill_marks;
@@ -13,15 +14,19 @@ use crate::chat::restart::kick;
 use crate::hearing::Hearer;
 use crate::receiver::{NotReceived, Receiver};
 
-/// The kind a worker's fall to a lesser model is published under.
+/// The kind a job's run falling to a lesser model is published under.
 pub const DOWNGRADED: &str = "worker.changed";
 
-/// A worker's session that answered on a lesser model: the worker, the model it was launched on, the models it
-/// answered on, whether its session was dropped, and the job it ran for.
+/// A job's run that answered on a lesser model: the checkout it ran in, the role it ran as, the model it
+/// was launched on, the models it answered on, whether its role's session there was dropped, and the job it
+/// ran for.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Downgraded {
+  /// The repository checkout the run ran in, as the agency names it.
   pub worker: String,
+  #[serde(default)]
+  pub role: Option<String>,
   pub launched: String,
   #[serde(default)]
   pub answered_on: Vec<String>,
@@ -39,8 +44,21 @@ impl Downgraded {
     let job = self
       .job
       .map_or_else(String::new, |job| fill_marks(&said.job, &[("job", &job.to_string())]));
-    let fact =
-      fill_marks(&said.fact, &[("worker", &self.worker), ("model", model), ("launched", &self.launched)]);
+    let role = self
+      .role
+      .as_deref()
+      .map(str::trim)
+      .filter(|role| !role.is_empty())
+      .unwrap_or(&said.role_none);
+    let fact = fill_marks(
+      &said.fact,
+      &[
+        ("role", role),
+        ("checkout", &self.worker),
+        ("model", model),
+        ("launched", &self.launched),
+      ],
+    );
     let follow_up = if self.dropped {
       said.dropped.clone()
     } else {
@@ -52,14 +70,14 @@ impl Downgraded {
       intent: said.intent.clone(),
       follow_up: Some(follow_up),
       optional: false,
-      kind: Some(format!("{}:{}", said.kind, self.worker)),
+      kind: Some(format!("{}:{}:{role}", said.kind, self.worker)),
       events: vec![],
       rides_ms: None,
     })
   }
 }
 
-/// The workers' facts as the service hears them on the agency's stream.
+/// The jobs' runs' facts as the service hears them on the agency's stream.
 pub struct Workers {
   receiver: Receiver,
 }

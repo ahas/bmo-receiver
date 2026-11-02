@@ -19,8 +19,6 @@ test = false
 room-calls.workspace = true
 # The call protocol, the answer and the manifest held to the executable.
 tool-call.workspace = true
-# The agency whose reset point overtakes a turn.
-receiver-ports.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true

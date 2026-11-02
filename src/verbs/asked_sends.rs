@@ -32,6 +32,7 @@ pub fn shell_turn(noun: &str) -> Asker {
     room: None,
     via: None,
     agent_name: turn::agent(),
+    began: turn::began(),
     by: turn::chat().map(|chat| format!("chat:{chat}")),
     job: turn::inside_job(),
     from: Some(format!("bmo {noun}")),

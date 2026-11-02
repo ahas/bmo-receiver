@@ -300,7 +300,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor; `own` true for a `speak` asked in the asker's own round |
+| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `began?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor; `own` true for a `speak` asked in the asker's own round |
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs the road a room is answered on performs |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
@@ -314,6 +314,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   to the room's supervisor」). `from` names the command or unit the words came through, which the handed words
   carry. A `speak` sends nothing either way: in the asker's own round it answers `own` true and no lines, and the
   command sends the note it makes as `voice`.
+- **`began`** is the moment the asking turn took its words, in epoch milliseconds. A send, or a consult line, whose
+  `began` is at or before the reset point the receiver keeps for its agent is refused before anything else, its
+  `refusal` (a consult line's code `overtaken`, 409) telling the turn to end (`docs/wake.md`, 「An agent's reset」).
 - **A `say`** answers once the line is on its way: the receiver puts the words through the room's gates and into
   the room apart from the call, opens the room's window for the agent that said it, and tells the chat that set
   it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.
@@ -365,7 +368,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /consult-lines` | `agent`, `text`, `replyTo?`, `by?`, `job?`, `from?` | `room`, `id`, `lines`: each agent's window in the consult room; where the agent's round is not working in the room `by` names, or a job asks, the line is handed to that agent in the consult room instead, answered `lines` and `handed`, the instruction's number |
+| `POST /consult-lines` | `agent`, `text`, `replyTo?`, `began?`, `by?`, `job?`, `from?` | `room`, `id`, `lines`: each agent's window in the consult room; where the agent's round is not working in the room `by` names, or a job asks, the line is handed to that agent in the consult room instead, answered `lines` and `handed`, the instruction's number |
 | `GET /consult-lines` | `agentName` | `block`, what the agent is shown of the other agents' work, or null |
 
 ## Talks
@@ -520,6 +523,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the agency's, and its gate options the gate's. What a name may be is the agency's to say. A field the agency
   refuses comes back as the refusal of that field (`name`, `label`, `provider`, `model`, `worker`; `agent` as
   `not-companion`; any other as `upstream-failed`).
+- **`worker` names the repository** the agent's items go to, under the field name the agency's resource and the
+  console's dialog carry: a repository the agency does not hold (`GET /repositories`) is refused as `worker`
+  before anything is written.
 
 ## The chat services
 
@@ -547,7 +553,7 @@ and in this repository's delivery report.
 
 | Unit | What the receiver reaches it for |
 |---|---|
-| the agency | agents, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, the agents added on the console, a run's log and reset point, a room forgotten, a session's loaded documents, the deployment's documents |
+| the agency | supervisors, roles and repositories, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, the agents added on the console, a run's log, a room forgotten, a session's loaded documents, the deployment's documents |
 | bmo-job | a room's holdings, the questions the owner answers in his chat, the items a turn filed, the queue moved |
 | the gate | a turn's reference, the brain's index, a room's judgements, an added agent's gate options |
 | the web unit | the account model: a sender's user, the checks, the grants, a fixed line rendered |

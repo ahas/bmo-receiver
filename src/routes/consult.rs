@@ -16,6 +16,7 @@ use room_calls::sends::Asker;
 
 use crate::chat::consult::consult_block;
 use crate::chat::consult_say::say;
+use crate::chat::cut_off;
 use crate::chat::handed;
 use crate::now_ms;
 use crate::receiver::{NotReceived, Receiver};
@@ -28,6 +29,8 @@ struct SayBody {
   text: String,
   #[serde(default)]
   reply_to: Option<i64>,
+  #[serde(default)]
+  began: Option<i64>,
   #[serde(default)]
   by: Option<String>,
   #[serde(default)]
@@ -73,11 +76,18 @@ pub async fn consult_say(State(served): State<Served>, body: Bytes) -> Answered 
   let receiver: Receiver = (*served.receiver).clone();
   let asker = Asker {
     agent_name: Some(asked.agent.trim().to_owned()),
+    began: asked.began,
     by: asked.by.clone(),
     job: asked.job,
     from: asked.from.clone(),
     ..Asker::default()
   };
+
+  if cut_off::overtaken(&receiver, &asker).await.is_some() {
+    return Err(code(&ConsultRefusal::Overtaken {
+      agent: asked.agent.trim().to_owned(),
+    }));
+  }
 
   if !asked.text.trim().is_empty() && !handed::own_round(&receiver, &asker) {
     return handed_line(&receiver, &asker, &asked).await;

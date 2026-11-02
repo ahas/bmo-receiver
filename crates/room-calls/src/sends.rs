@@ -337,6 +337,10 @@ pub struct Asker {
   pub via: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub agent_name: Option<String>,
+  /// The moment the asking turn took its words, in epoch milliseconds, which an agent's reset point is
+  /// judged by.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub began: Option<i64>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub by: Option<String>,
   #[serde(default, skip_serializing_if = "off")]
@@ -346,13 +350,14 @@ pub struct Asker {
 }
 
 impl Asker {
-  /// The asker of a call made in a turn, in the room it acts in: the turn's agent, the chat it answers as the
-  /// one that set the send off, and whether a job runs it.
+  /// The asker of a call made in a turn, in the room it acts in: the turn's agent and the moment it began,
+  /// the chat it answers as the one that set the send off, and whether a job runs it.
   pub fn of_turn(turn: &Turn, room: Option<&Room>) -> Self {
     Self {
       room: room.map(|room| room.chat),
       via: room.and_then(|room| room.via.clone()),
       agent_name: turn.agent.clone(),
+      began: turn.began,
       by: turn.chat.or(room.map(|room| room.chat)).map(|chat| format!("chat:{chat}")),
       job: turn.job,
       from: None,
@@ -444,6 +449,10 @@ pub async fn ask_consult(
     });
   };
   let mut body = json!({ "agent": agent, "text": input.text, "replyTo": input.reply });
+
+  if let Some(began) = asker.began {
+    body["began"] = json!(began);
+  }
 
   if let Some(by) = &asker.by {
     body["by"] = json!(by);

@@ -2,11 +2,11 @@
 
 ## One agent, one session
 
-- **One row.** The chat agent is the agency's registration whose settings make the one session: the `agent`
-  scope, the `window` shape and the default answerer. The receiver reads it from `GET /agents` like every
-  conversational agent; nothing of this document is read off its name.
+- **One row.** The chat agent is the agency's supervisor whose row makes the one session: the `agent` scope, the
+  `window` shape and the default answerer. The receiver reads it from `GET /supervisors` like every other
+  supervisor; nothing of this document is read off its name.
   - The chat agent in the owner's private chat and in the group rooms is the same agent.
-  - The job, search, editor and gate agents are separate.
+  - The work it hands off runs as the agency's roles — a job, a search, a delegation — each apart from it.
 - **Who carries it:** the agency, on the one session its row keeps across rooms (`POST /sessions` with the
   `agent` scope), as the resident program standing in the agent's one pane. Every round, fold and touch of every
   room is a turn put into it (`POST /sessions/{sessionId}/turns`), and a person watching the pane sees it working

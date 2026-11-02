@@ -77,11 +77,6 @@ fn added_shape(agent: &Agent) -> bool {
   agent.row.get("turnShape").is_some_and(|shape| shape.as_str() == Some("pieces"))
 }
 
-/// Whether an agent is a worker, which is what an added agent is asked to run its items on.
-fn worker_kind(agent: &Agent) -> bool {
-  agent.row.get("kind").is_some_and(|kind| kind.as_str() == Some("worker"))
-}
-
 /// The added agents as the console's screen shows them: the agents the agency registers with the added agent's
 /// shape of turn, each with the room the receiver stood up for it where it did.
 async fn listed(receiver: &Receiver) -> Result<Vec<Value>, Refusal> {
@@ -139,7 +134,10 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
     return Err(code(&AddedAgentRefusal::NameTaken { name: asked.name }));
   }
 
-  if !agents.agents.iter().any(|one| one.name == asked.worker && worker_kind(one)) {
+  // The field `worker` names the repository the agent's items go to, one the agency holds.
+  let repositories = receiver.units().agency.repositories().await.map_err(unit)?;
+
+  if !repositories.iter().any(|one| one.name == asked.worker) {
     return Err(code(&AddedAgentRefusal::Worker {
       worker: asked.worker,
     }));
@@ -254,12 +252,6 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
 
   if !added_shape(agent) {
     return Err(code(&AddedAgentRefusal::NotAdded { agent: asked.name }));
-  }
-
-  if agent.row.get("builtin").is_some_and(|held| held.as_i64().unwrap_or(0) == 1) {
-    let label = agent.label.clone().unwrap_or_else(|| agent.name.clone());
-
-    return Err(code(&AddedAgentRefusal::Seeded { label }));
   }
 
   let removed = receiver.units().agency.remove_console_agent(&asked.name).await.map_err(unit)?;

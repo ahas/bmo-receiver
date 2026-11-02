@@ -25,9 +25,10 @@ pub fn jobs_under_way(jobs: &[RunningJob]) -> Vec<String> {
     .iter()
     .map(|job| {
       format!(
-        "job {} of {} on item {} under way since {}",
+        "job {} as {} in {} on item {} under way since {}",
         job.id,
-        job.worker_name.as_deref().unwrap_or("a worker"),
+        job.role_name.as_deref().unwrap_or("a role"),
+        job.worker_name.as_deref().unwrap_or("a checkout"),
         job.item_id.map_or_else(|| "none".to_owned(), |item| item.to_string()),
         job.started_at.unwrap_or_default()
       )

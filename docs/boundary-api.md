@@ -25,7 +25,7 @@ address and the token that unit takes. A chat service's base address names the r
 the protocol's receiving-side routes stand.
 
 The deployment's names are read from the same file: the owner; the chat agent's registration name, whose label
-and wake words (`GET /agents`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
+and wake words (`GET /supervisors`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
 one is named in place of the room numbered as the owner's own number, a room `owner-room` below stands up on the
 record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's other notices to the owner go to, never a briefing's, which goes to his private room;
 the owner's private room where none is named; the language the rooms are spoken in, which
@@ -55,8 +55,9 @@ base address and token.
   that counts, a run whose name carries one of the long-work words of `quiet.toml` however long it has run, and
   a chat turn's run, named as the receiver names its turns' runs, however long it has run too. A job counts
   only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
-  agency answers as starting or running counts, however long it has run. It ends 0 where none counts and 1 where
-  some does or the agency did not answer, each one named on its own line.
+  agency answers as starting or running counts, however long it has run, each named by its role and the checkout
+  it runs in. It ends 0 where none counts and 1 where some does or the agency did not answer, each one named on its
+  own line.
 - **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
   title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
   the record as its one provider, the owner and the chat agent its members and the chat agent's number there one
@@ -159,14 +160,16 @@ room's matter.
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| the agents | `GET /agents` | | `items`, the agents each with its row's fields, its roads and whether it is awake, `roles` and `more`; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
-| a stand-in | `GET /agents/{agent}` | | `standInAvailable`, whether a stand-in answers the agent while the rest closes its road |
+| the supervisors | `GET /supervisors` | | `items`, every supervisor with its row's fields — its `label`, `aliases`, `sessionScope`, `turnShape`, `defaultAnswerer`, `repository`, `voice`, and the `provider`, `model` and `effort` its last turn went out on — and `more`; every supervisor listed stands, and is read as awake; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
+| the roles | `GET /roles` | | `roles`, each its `name`, `label`, `description` and `bundles` (each its `name`), which the owner's roster and a role's send read |
+| the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which an agent added on the console is checked against |
+| a stand-in | `GET /stand-in?agent=` | | `answers`, whether a stand-in answers the agent while the rest closes its road |
 | the rest | `GET /rest` | | `resting`, `until`, `kind` |
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
 | start a session | `POST /sessions` | `agentName`, `scope`, `roomId` | the session's `id`, `agentName`, `scope`, `roomId` |
 | send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to; no base persona, which the agency takes from the agent's brain | `id`, `delivery` |
-| read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation`, `context` (what the session carries: `carried` against its `window`, which the fold is judged from, and the turn's token counts), `foldRatio`, `foldsItself`, whether the session's program carries its own fold, in which case the receiver folds it never (`docs/wake.md`), `tier` where the agency names one, which the draft process table is matched by (`docs/drafting.md`), and `prefixChangeReason` where it names why the session's prefix changed, which tells the receiver whether the session's head moved (`docs/unified-bmo.md`, 「Replacing the session」) |
+| read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation`, `context` (what the session carries: `carried` against its `window`, which the fold is judged from, and the turn's token counts), `foldRatio`, `foldsItself`, whether the session's program carries its own fold, in which case the receiver folds it never (`docs/wake.md`), `supervisor` or `role`, the row the session runs for, the other null, and `prefixChangeReason` where it names why the session's prefix changed, which tells the receiver whether the session's head moved (`docs/unified-bmo.md`, 「Replacing the session」) |
 | push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
 | fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
@@ -176,13 +179,12 @@ room's matter.
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
 | an agent added on the console registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the agent's fields; nothing | `ok`; nothing |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
-| an agent's reset point | `GET /agents/{agent}` | | `resetAt` |
 | a session's loads | `GET /session-loads/{sessionId}` | | `sessionId`, `documents`, each `path` and `version` |
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
 | the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, newest first, each its `id`, `name` and `startedAt`, which `quiet` reads |
-| the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `workerName`, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
+| the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `roleName`, the role it runs as, `workerName`, the checkout it runs in, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
 | a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, newest first; the round's last run is the one with the highest id, whatever the order |
 | an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |
 | the events | `GET /events?kinds=` | | a stream of the kinds named, each event its number (`id`), `kind`, the moment it was published (`at`) and its `data` |
@@ -194,7 +196,18 @@ and is opened again when it drops: `turn.created`, `turn.ended`, `companion-rese
 `document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
 `overtime-request.created`, `overtime-request.changed`, `road.changed` and `session.deleted`. Each time it opens
 the receiver reads the events kept since the last one it heard and hands those it has not (`docs/wake.md`, 「What
-the agency's events wake」); a round whose own stream ended before its turn did reads the turn instead.
+the agency's events wake」); a round whose own stream ended before its turn did reads the turn instead. The
+agency's numbers only rise, across its restarts too, and it keeps its newest events in its store; a page asked
+after a number it no longer keeps answers `missed`, and the receiver then hands every event it keeps as new.
+
+Of the events whose shape the receiver reads:
+
+- **`road.changed`** names its row as `supervisor` or `role`, the other null, beside its `fact` and what the fact
+  carries.
+- **`worker.changed`** names `worker`, the checkout the job's run ran in, and `role`, the role it ran as, beside
+  the models and the job.
+- **`companion-reset.created`** names `agent` and either `point`, the moment the reset cut the agent off, which the
+  receiver keeps as the agent's reset point (`docs/store.md`, 「The settings」), or the ranges the reset took.
 
 A turn of a round names the round in its body, and the agency opens the turn's run in its ledger under that name.
 Once the round's answer is filed in the room, the receiver asks for the round's runs and attaches the answer, as
@@ -268,8 +281,8 @@ read again at every connection. Where no socket can be named, nothing is heard o
   answer's `structuredContent` carries `transcript`, `language` and `duration`; a tool failure is kept as the
   message's failed hearing, never as silence.
 
-- **Whose tools an event changes** is read off the tool sessions standing when it is heard: a chat agent of the
-  agency's registration (`GET /agents`, its `kind` `chat`) is told of an event whose namespaces meet those of a
+- **Whose tools an event changes** is read off the tool sessions standing when it is heard: a supervisor of the
+  agency's (`GET /supervisors`) is told of an event whose namespaces meet those of a
   session the host holds for it (`docs/wake.md`, 「Quiet instructions」). An agent with no session standing is told
   nothing; its next session's record shows it the host's tools as they are.
 
@@ -331,10 +344,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
   what the console reads of the receiver, the same two paths, their schemas, the fields `companion` of an
   `Answerer` and `companions` of a `Room`, and the codes `not-companion` and `seeded-companion`. Each keeps its
   name until the agency and the web unit rename theirs, and the receiver renames its own in the same change.
-- **The agency's `Agent`** carries no registration field for the receiver's roster: the receiver reads `awake`,
-  `kind`, `wake_words`, `window_seconds` and `default_answerer` from an agent's row, and the agency's fixed `Agent`
-  states only `name`, `label`, `role`, `gates`, `reasoning`, `voice`, `resetAt` and `standInAvailable`. Until the
-  agency states the roster fields, the receiver's agent port keeps its own shape.
+- **The agency's `worker.changed` and its job** name the checkout a job ran in (`worker`, `workerName`) and no
+  repository: the receiver names the checkout, whose base the agency names after its repository, until the agency
+  names the repository itself.
 - **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
   and `version` and reads back only those, until the agency states the item.
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
@@ -345,17 +357,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
   answer for a short span, until the protocol offers the facts without the title.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
-- **The agency's event numbers and kept events** do not outlive its process: it numbers its events afresh from 1
-  each time it starts and keeps the last 1,000 in memory alone, and its stream read with `after` or
-  `Last-Event-ID` only leaves out the live events at or below that number rather than sending the kept ones
-  after it first. So an event published while the agency restarts, or before a restart the receiver had not yet
-  heard, cannot be resumed, and a resuming stream reader is told nothing of a gap. For the receiver's resume to
-  be whole the agency must keep its event numbers rising across its restarts (or name the run of numbers each
-  event belongs to, so a reader can tell a fresh numbering), keep its events across a restart for at least the
-  span it keeps them now, send the kept events after `after` or `Last-Event-ID` before the live ones, and say
-  when the number asked is older than the oldest it keeps. Until then the receiver reads the kept page after
-  each opening, tells a fresh numbering by the number and moment of the last event it heard, and stands its
-  reconcile and the instruction pass's rescan for what was lost.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver
   learns a message was taken as a move: until one does, a move is woken on as any message is.
 - **bmo-chat's `POST /sends`** carries no word of who said a message the receiver carries to another provider
@@ -370,9 +371,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver keeps
   what was recorded as its `restart_reason` setting, and where none was, reads its own deployment record
   (「The deployments」) at start-up for the purpose and the commit.
-- **The agency's session state** names no `tier`. The receiver reads one where the state carries it and matches
-  the draft process table by it (`docs/drafting.md`, 「The process table」); until the agency states it, every
-  session reads as no tier and matches only rows of any tier.
+- **The draft process table** is keyed by provider, tier and agent, and the agency names no tier: a session
+  runs for a supervisor or a role. A turn matches only rows of any tier (`docs/drafting.md`, 「The process
+  table」), and the console's routes keep the tier in the key until the web unit takes it out with the receiver.
 - **The gate's `draft` stage** reads the receiver's event stream (`GET /events`) and takes every frame whose
   data's `type` is `draft` as one row of a round's draft process, with the fields the receiver's
   `docs/receiver.md`, 「The event stream」, names: `chatId`, `round`, `agentName`, `number` (from 1), `question`,

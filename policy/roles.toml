@@ -1,26 +1,9 @@
-# The roles an agent may hold, as far as the receiver reads them (docs/chat-mcp.md, 「How a call runs」): the
-# function bundles each gives, and the bundle that opens sending into a room. The roles' labels, the bundles'
-# labels and the role a co-worker holds are the agency's, which keeps the whole of this file.
+# What sending into a room asks of an agent, as far as the receiver reads it (docs/chat-mcp.md, 「How a call
+# runs」): the bundle that opens sending, and the bundles every supervisor's session holds, which the agency's roles
+# policy lists as `supervisor`. A role's bundles are the agency's, read with its roles (`GET /roles`).
 
 # The bundle that opens sending into a room.
 send = "room.send"
 
-[[roles]]
-name = "chat"
-bundles = ["room.chat", "room.send"]
-
-[[roles]]
-name = "worker"
-bundles = ["graph.read", "queue.read", "web.read"]
-
-[[roles]]
-name = "searcher"
-bundles = ["web.read", "web.sites", "web.images", "web.branches", "web.rulebooks"]
-
-[[roles]]
-name = "gate"
-bundles = []
-
-[[roles]]
-name = "recollector"
-bundles = []
+# The bundles every supervisor's session holds.
+supervisor = ["room.chat", "room.send", "web.read"]

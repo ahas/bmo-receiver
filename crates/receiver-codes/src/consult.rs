@@ -14,13 +14,17 @@ pub enum ConsultRefusal {
   NotAnswerer { agent: String, room: String },
   #[error("this call was made outside any agent's turn, so there is no agent to speak as")]
   NoAgent,
+  #[error(
+    "{agent} was reset after this turn began, so nothing the turn does is kept any more: end the turn without another call"
+  )]
+  Overtaken { agent: String },
 }
 
 impl ConsultRefusal {
   fn answers(&self) -> StatusCode {
     match self {
       Self::Empty | Self::NoAgent => StatusCode::BAD_REQUEST,
-      Self::NoRoom | Self::NotAnswerer { .. } => StatusCode::CONFLICT,
+      Self::NoRoom | Self::NotAnswerer { .. } | Self::Overtaken { .. } => StatusCode::CONFLICT,
     }
   }
 }

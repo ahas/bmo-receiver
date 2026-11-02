@@ -24,8 +24,6 @@ pub struct Designated {
   pub call_names: Vec<String>,
   pub window_seconds: Option<i64>,
   pub default_answerer: bool,
-  /// How the room's roster groups and names it, as its registration says: `chat`, `worker` or another kind.
-  pub kind: Option<String>,
 }
 
 impl Designated {
@@ -40,7 +38,6 @@ impl Designated {
       call_names: named.map(trim).filter(|word| !word.is_empty()).collect(),
       window_seconds: count(&agent.row, "windowSeconds"),
       default_answerer: flag(&agent.row, "defaultAnswerer"),
-      kind: text(&agent.row, "kind"),
     }
   }
 
@@ -136,7 +133,6 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
         call_names: Vec::new(),
         window_seconds: None,
         default_answerer: true,
-        kind: None,
       }),
   )
 }

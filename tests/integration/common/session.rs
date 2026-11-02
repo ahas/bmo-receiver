@@ -227,7 +227,8 @@ impl StandInSession {
       context: json!({ "carried": *self.carried.lock().unwrap(), "window": 200000 }),
       fold_ratio: None,
       folds_itself: *self.folds_itself.lock().unwrap(),
-      tier: None,
+      supervisor: None,
+      role: None,
       prefix_change_reason: self.prefix_change.lock().unwrap().clone(),
     };
 

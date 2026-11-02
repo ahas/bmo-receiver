@@ -34,26 +34,27 @@ needs its road to perform, so the room's block names the sending entries a room'
 ## How a call runs
 
 - **The tool runs its own executable,** as every placed tool does. It reads the turn from the call's session
-  record (the run its place names, or the run's own variables) and refuses an overtaken turn there before it
-  reads anything else. The record's place is its `place` where it names one, else its `labels.place`, which is
+  record (the run its place names, or the run's own variables). The record's place is its `place` where it names one, else its `labels.place`, which is
   where the tool host's record carries it; the turn's variables are then read off that place's `run.json`.
 - **Every entry but one asks the receiver for the send:** `POST /sends` with the entry's name as `tool`, its
-  arguments as `input`, and the asker (the room, the road the turn names for it, the turn's agent, the chat that
-  set it off as `by`, and whether a job asks). Where that agent's round is working in the room that set it off,
+  arguments as `input`, and the asker (the room, the road the turn names for it, the turn's agent, the moment the
+  turn took its words as `began`, the chat that set it off as `by`, and whether a job asks). Where that agent's round is working in the room that set it off,
   the receiver carries the act as that agent, on its own lines, and answers the lines it said, or those lines with
   the refusal it ended in; anywhere else (a job's call, a worker's, a call made outside any round) it hands the act
   to the room's supervisor and answers the line saying so (`docs/messages.md`, 「Words handed to the room's
   supervisor」).
 - **`consult`** asks `POST /consult-lines` with the turn's agent, the words, the consult room's message it
-  answers, the chat that set it off and whether a job asks, which the receiver says or hands over the same way; a
-  call made outside any agent's turn is refused here, since there is no agent to speak as.
+  answers, the moment the turn took its words, the chat that set it off and whether a job asks, which the
+  receiver says or hands over the same way; a call made outside any agent's turn is refused here, since there is
+  no agent to speak as.
+- **An overtaken turn sends nothing.** The receiver keeps each agent's reset point as the agency's cut-off names
+  it (`docs/wake.md`, 「An agent's reset」), and refuses a send or a consult line whose `began` is at or before that
+  point, before anything else is read, the refusal telling the turn to end without another call.
 - **Where each unit is found:** the receiver's address and token from the call's environment
   (`RECEIVER_ADDRESS`, `RECEIVER_TOKEN`), else from `env/receiver.env` under the data root, which the receiver's
   `tool-env` verb writes as it is deployed. The data root is the record's `dataRoot` where it names one, else the
   call's `BMO_DATA_DIR`, the variable every session the agency issues carries; the receiver's token is never a
-  session variable. Agency's server, which answers the reset point a turn is refused on,
-  from `AGENCY_CONTROL_PORT` and `AGENCY_CONTROL_TOKEN`, else from `env/agency.env`, the file agency's server takes
-  its own environment from, at the port it answers on where none is named.
+  session variable. The tool reaches no other unit.
 - **A send's room is the one the call names or the turn's own,** its road the turn's own for the turn's own room
   alone (a call addressed to another room goes out on that room's own road), and its sender the turn's agent, who
   sends only where it answers the room and its role gives sending.

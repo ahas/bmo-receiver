@@ -22,6 +22,7 @@ use room_calls::sends::{Act, Asked};
 use room_calls::turn::NO_ROOM;
 
 use super::{Answered, Served, answered, query, read, refused};
+use crate::chat::cut_off;
 use crate::chat::handed;
 use crate::receiver::Receiver;
 use crate::verbs::sends::Sends;
@@ -123,6 +124,10 @@ async fn handed(receiver: &Receiver, asked: &Asked) -> Result<serde_json::Value,
 pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<Asked>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
+
+  if let Some(refusal) = cut_off::overtaken(&receiver, &asked.asker).await {
+    return answered(json!({ "lines": [], "refusal": refusal }));
+  }
 
   if !handed::own_round(&receiver, &asked.asker) {
     return answered(match handed(&receiver, &asked).await {

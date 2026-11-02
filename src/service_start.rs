@@ -48,9 +48,8 @@ pub fn hook_url(base: &str, point: &str) -> String {
 /// The words a room calls the chat agent by, read off its registration: its label and the words its row names,
 /// each once. Where the agency does not answer, the agent's own registration name is what a room calls it by.
 pub async fn call_names(agency: Arc<dyn Agency>, agent: &str) -> Vec<String> {
-  let listed = agency.agents().await.unwrap_or(Agents {
+  let listed = agency.supervisors().await.unwrap_or(Agents {
     agents: vec![],
-    roles: vec![],
     more: false,
   });
 

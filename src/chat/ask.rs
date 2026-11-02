@@ -159,17 +159,14 @@ impl Carry {
     Carry { receiver, look }
   }
 
-  /// The provider and the tier the agency's state names for the session a room's turn goes on, read before the
-  /// turn: a session's state answers them from its start. Neither where the agency does not say.
-  pub async fn standing(&self, agent: &str, chat_id: i64) -> (Option<String>, Option<String>) {
+  /// The provider the agency's state names for the session a room's turn goes on, read before the turn: a
+  /// session's state answers it from its start. None where the agency does not say.
+  pub async fn standing(&self, agent: &str, chat_id: i64) -> Option<String> {
     let agency = self.receiver.units().agency.clone();
     let scope = scope_of(unified_session(&self.receiver, agent).await, chat_id);
-    let Ok(started) = agency.start(agent, scope).await else {
-      return (None, None);
-    };
-    let state = agency.state(&started.id).await.unwrap_or_default();
+    let started = agency.start(agent, scope).await.ok()?;
 
-    (state.provider, state.tier)
+    agency.state(&started.id).await.unwrap_or_default().provider
   }
 
   /// The agent's one session replaced: asked one more turn for its handoff file, ended with what it held, the
@@ -528,7 +525,6 @@ impl Carry {
         context_window: standing.context.get("window").and_then(Value::as_i64),
         fold_ratio: standing.fold_ratio,
         folds_itself: standing.folds_itself,
-        tier: standing.tier,
         replaced: replaced.clone(),
         run: run.clone(),
         before,

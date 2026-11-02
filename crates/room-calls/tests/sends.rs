@@ -182,6 +182,7 @@ fn a_draw_naming_a_mode_does_not_read() {
 fn the_asker_of_a_turn_sets_the_send_off_from_the_turns_own_chat() {
   let turn = Turn {
     agent: Some("agent-a".to_owned()),
+    began: Some(1_000),
     chat: Some(ROOM),
     via: Some("road-a".to_owned()),
     job: true,
@@ -194,6 +195,7 @@ fn the_asker_of_a_turn_sets_the_send_off_from_the_turns_own_chat() {
       room: Some(-200),
       via: None,
       agent_name: Some("agent-a".to_owned()),
+      began: Some(1_000),
       by: Some(format!("chat:{ROOM}")),
       job: true,
       from: None,

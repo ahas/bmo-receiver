@@ -11,7 +11,7 @@ agent that answers the room says the line.
   going-down and back lines are briefings; the configuration's `notices_room` never moves one.
 - **Every other system notice to the owner stands in his notices room:** the room the configuration's
   `notices_room` names (`docs/boundary-api.md`, 「Configuration」), his private chat where it names none. The tool
-  host's changes, a rest's and a fallback's notices, a worker's fall, a lost handoff and a run past its time go
+  host's changes, a rest's and a fallback's notices, a job's run's fall, a lost handoff and a run past its time go
   there; a notice below said to go to the owner's private chat goes to his notices room where one is named.
 
 - **Every line the system says in a chat on its own account is a voiced notice.** The receiver does not send a
@@ -102,11 +102,11 @@ agent that answers the room says the line.
 - **Rest and fallback.** Going to rest is a fixed line (see below), said in the owner's notices room as the agency's
   `rest.changed` comes: `rest-begins` with its end for a limit, `provider-down` for an outage. Coming back
   (the rest lifted, the outage over, the compaction done, the provider answering again, a stand-in taking over
-  or stepping down, a downgraded answer) is voiced. The agency publishes the stand-in's moves and a worker's
+  or stepping down, a downgraded answer) is voiced. The agency publishes the stand-in's moves and a job's run's
   fall as events (`fallback.changed`, `worker.changed`) and the receiver queues each notice for the owner's
   notices room: the stand-in's provider and model, with the one before it where one stood, or the stand-in done; and
-  the worker, the model it fell to and the one it was launched on, its job, and whether its session was dropped
-  or kept.
+  the role the run ran as and the repository checkout it ran in, the model it fell to and the one it was launched
+  on, its job, and whether the session its role keeps there was dropped or kept.
 - **A login's end.** The agency's `account.changed` carries its `notice`, the words its policy composes
   with the one command the owner runs; the receiver says it in the owner's chat as it stands, pass-through
   content no session rewords.

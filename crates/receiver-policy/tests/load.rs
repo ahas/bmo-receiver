@@ -163,7 +163,7 @@ fn the_other_lines_carry_their_marks_and_numbers() {
 fn the_roads_roles_lines_and_providers_answer_what_the_receiver_asks() {
   assert_eq!(ROADS.record.key, "record");
   assert!(!ROADS.marks.picture.is_empty() && !ROADS.marks.voice.is_empty());
-  assert!(ROLES.sends("chat") && !ROLES.sends("worker"));
+  assert!(ROLES.supervisor_sends() && !ROLES.sends(&["graph.read", "queue.read"]));
   assert!(RUN_LINES.composes_typed_lines("chat") && !RUN_LINES.composes_typed_lines("worker"));
   let claude = PROVIDERS.provider("claude-code").expect("claude-code is declared");
   assert_eq!((claude.turns, claude.handover), (Turns::Transcript, Handover::Fold));

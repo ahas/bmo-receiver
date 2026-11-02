@@ -70,6 +70,14 @@ pub fn agent() -> Option<String> {
     .filter(|named| !named.is_empty())
 }
 
+/// The moment the turn this process works in took its words, in epoch milliseconds, or none for a process
+/// no agent's turn started.
+pub fn began() -> Option<i64> {
+  process_environment()
+    .get(room_calls::turn::BEGAN_VARIABLE)
+    .and_then(|at| at.trim().parse().ok())
+}
+
 /// The room whose turn this process works in, or none for a process no room's turn started.
 pub fn chat() -> Option<i64> {
   process_environment().get(TURN_CHAT).and_then(|chat| chat.trim().parse().ok())

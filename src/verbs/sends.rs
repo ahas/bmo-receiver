@@ -266,7 +266,7 @@ impl Sends {
       return Err(VerbError::Refused(SendRefusal::AnotherAgentsRoom { agent: name }.to_string()));
     }
 
-    if self.turn_agent.is_some() && !ROLES.sends(&self.role(&agent).await) {
+    if self.turn_agent.is_some() && !self.sends(&agent).await {
       return Err(VerbError::Refused(SendRefusal::RoleWithoutSends { agent: name }.to_string()));
     }
 
@@ -416,20 +416,18 @@ impl Sends {
       .unwrap_or(agent.to_string())
   }
 
-  // The role an agent's registration names, empty where it names none.
-  async fn role(&self, agent: &str) -> String {
+  // Whether the agent gives sending into a room: every supervisor does, and a role's run where its role's
+  // bundles open it; an agent that is neither sends nothing.
+  async fn sends(&self, agent: &str) -> bool {
     let listed = self.receiver.agents().await.ok();
 
-    listed
-      .as_ref()
-      .and_then(|listed| {
-        listed
-          .agents
-          .iter()
-          .find(|one| one.name == agent)
-          .and_then(|one| one.row.get("role").and_then(|held| held.as_str().map(str::to_owned)))
-      })
-      .unwrap_or_default()
+    if listed.as_ref().is_some_and(|listed| listed.agents.iter().any(|one| one.name == agent)) {
+      return ROLES.supervisor_sends();
+    }
+
+    let roles = self.receiver.units().agency.roles().await.unwrap_or_default();
+
+    roles.iter().find(|role| role.name == agent).is_some_and(|role| role.gives(&ROLES.send))
   }
 }
 

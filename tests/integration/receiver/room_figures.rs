@@ -76,7 +76,8 @@ fn session(
       context: json!({ "carried": carried, "window": 200_000 }),
       fold_ratio: None,
       folds_itself: false,
-      tier: None,
+      supervisor: None,
+      role: None,
       prefix_change_reason: None,
     },
   )
@@ -120,7 +121,7 @@ async fn bench() -> (Scratch, Front) {
     agent(
       AGENT,
       "Agent A",
-      json!({ "lastMode": "provider-a", "lastModel": "model-a", "lastEffort": "high" }),
+      json!({ "provider": "provider-a", "model": "model-a", "effort": "high" }),
     ),
     agent(OTHER, "Agent B", json!({})),
   ]);

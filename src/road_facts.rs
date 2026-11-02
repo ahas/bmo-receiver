@@ -1,7 +1,8 @@
-//! A work key's road the agency moved, returned or found closed, told to the owner (docs/wake.md, 「Quiet
-//! instructions」, 「A road's change」): each `road.changed` one instruction for the chat agent's session in the
-//! owner's private chat, a newer fact of the same key in place of one still waiting, asking for one sentence in
-//! the owner's language, a reopening command set apart exactly as the agency wrote it.
+//! A supervisor's or a role's road the agency moved, returned or found closed, told to the owner
+//! (docs/wake.md, 「Quiet instructions」, 「A road's change」): each `road.changed` one instruction for the
+//! chat agent's session in the owner's private chat, a newer fact of the same supervisor or role in place
+//! of one still waiting, asking for one sentence in the owner's language, a reopening command set apart
+//! exactly as the agency wrote it.
 
 use futures_util::future::BoxFuture;
 use receiver_policy::fill_marks;
@@ -34,13 +35,49 @@ pub struct Reason {
   pub reason: String,
 }
 
-/// One fact of a work key's road, as the agency publishes it.
+/// The row whose road a fact is of: a supervisor or a role, each by its name, the other none.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+pub struct Row {
+  #[serde(default)]
+  pub supervisor: Option<String>,
+  #[serde(default)]
+  pub role: Option<String>,
+}
+
+impl Row {
+  /// The row as the kind of its instruction names it: `supervisor:<name>` or `role:<name>`.
+  pub fn key(&self) -> String {
+    match (named(&self.supervisor), named(&self.role)) {
+      (Some(supervisor), _) => format!("supervisor:{supervisor}"),
+      (None, Some(role)) => format!("role:{role}"),
+      (None, None) => "unnamed".to_owned(),
+    }
+  }
+
+  /// The row in the policy's words.
+  pub fn words(&self) -> String {
+    let said = &OWNER_FACTS.road;
+
+    match (named(&self.supervisor), named(&self.role)) {
+      (Some(supervisor), _) => fill_marks(&said.supervisor, &[("name", supervisor)]),
+      (None, Some(role)) => fill_marks(&said.role, &[("name", role)]),
+      (None, None) => said.row_none.clone(),
+    }
+  }
+}
+
+fn named(name: &Option<String>) -> Option<&str> {
+  name.as_deref().map(str::trim).filter(|name| !name.is_empty())
+}
+
+/// One fact of a supervisor's or a role's road, as the agency publishes it.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(tag = "fact", rename_all = "kebab-case")]
 pub enum RoadFact {
   #[serde(rename_all = "camelCase")]
   RoadMoved {
-    key: String,
+    #[serde(flatten)]
+    row: Row,
     #[serde(default)]
     from: Option<Road>,
     to: Road,
@@ -49,14 +86,16 @@ pub enum RoadFact {
   },
   #[serde(rename_all = "camelCase")]
   RoadReturned {
-    key: String,
+    #[serde(flatten)]
+    row: Row,
     #[serde(default)]
     from: Option<Road>,
     to: Road,
   },
   #[serde(rename_all = "camelCase")]
   RoadClosed {
-    key: String,
+    #[serde(flatten)]
+    row: Row,
     #[serde(default)]
     reasons: Vec<Reason>,
     #[serde(default)]
@@ -104,10 +143,10 @@ fn moment_text(at: i64) -> String {
 }
 
 impl RoadFact {
-  /// The work key the fact is of.
-  pub fn key(&self) -> &str {
+  /// The supervisor or the role the fact is of.
+  pub fn row(&self) -> &Row {
     match self {
-      Self::RoadMoved { key, .. } | Self::RoadReturned { key, .. } | Self::RoadClosed { key, .. } => key,
+      Self::RoadMoved { row, .. } | Self::RoadReturned { row, .. } | Self::RoadClosed { row, .. } => row,
     }
   }
 
@@ -117,31 +156,35 @@ impl RoadFact {
 
     match self {
       Self::RoadMoved {
-        key,
+        row,
         from,
         to,
         reasons,
       } => fill_marks(
         &said.moved,
         &[
-          ("key", key),
+          ("row", &row.words()),
           ("from", &road_words(from.as_ref())),
           ("to", &road_words(Some(to))),
           ("reasons", &reasons_words(reasons)),
         ],
       ),
-      Self::RoadReturned { key, from, to } => fill_marks(
+      Self::RoadReturned { row, from, to } => fill_marks(
         &said.returned,
-        &[("key", key), ("from", &road_words(from.as_ref())), ("to", &road_words(Some(to)))],
+        &[
+          ("row", &row.words()),
+          ("from", &road_words(from.as_ref())),
+          ("to", &road_words(Some(to))),
+        ],
       ),
       Self::RoadClosed {
-        key,
+        row,
         reasons,
         command,
         reopens_at,
       } => {
         let mut parts =
-          vec![fill_marks(&said.closed, &[("key", key), ("reasons", &reasons_words(reasons))])];
+          vec![fill_marks(&said.closed, &[("row", &row.words()), ("reasons", &reasons_words(reasons))])];
 
         parts.push(match command.as_deref().filter(|command| !command.trim().is_empty()) {
           Some(command) => fill_marks(&said.command, &[("command", command)]),
@@ -178,12 +221,12 @@ impl RoadChanges {
     RoadChanges { receiver }
   }
 
-  /// One fact queued for the chat agent's session in the owner's private chat, in place of one of the same key
-  /// still waiting; its instruction's id.
+  /// One fact queued for the chat agent's session in the owner's private chat, in place of one of the same
+  /// supervisor or role still waiting; its instruction's id.
   pub async fn told(&self, data: &Value) -> Result<i64, String> {
     let fact = serde_json::from_value::<RoadFact>(data.clone()).map_err(|why| why.to_string())?;
     let said = &OWNER_FACTS.road;
-    let kind = format!("{}:{}", said.kind, fact.key());
+    let kind = format!("{}:{}", said.kind, fact.row().key());
     let queued = Queued {
       kind: Some(&kind),
       sort: Some(&said.sort),

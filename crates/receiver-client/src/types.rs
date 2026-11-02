@@ -686,6 +686,10 @@ pub struct Asker {
   pub via: Option<String>,
   #[serde(default)]
   pub agent_name: Option<String>,
+  /// The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its
+  /// agent's reset point is refused.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub began: Option<i64>,
   #[serde(default)]
   pub by: Option<String>,
   #[serde(default)]
@@ -743,6 +747,10 @@ pub struct ConsultLine {
   pub text: String,
   #[serde(default)]
   pub reply_to: Option<i64>,
+  /// The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its
+  /// agent's reset point is refused.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub began: Option<i64>,
   /// The chat that set the line off, `chat:<room>`.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub by: Option<String>,

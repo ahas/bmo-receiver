@@ -24,17 +24,35 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     "generation": 2,
     "context": { "carried": 90_000, "window": 1_000_000 },
     "foldRatio": 0.15,
+    "supervisor": "agent-a",
+    "role": null,
   });
 
   unit.answer(
-    "GET /agents",
+    "GET /supervisors",
     200,
     json!({
-      "items": [{ "name": "agent-a", "awake": false, "brainFolder": "", "roads": ["chat"] }],
-      "roles": ["chat"],
+      "items": [{ "name": "agent-a", "awake": false, "brainFolder": "", "repository": "repo-a" }],
       "more": false,
     }),
   );
+  unit.answer(
+    "GET /roles",
+    200,
+    json!({
+      "roles": [{ "name": "video", "label": "Video", "description": null, "bundles": [
+        { "name": "room.send", "code": "room-send", "label": "Send" },
+      ] }],
+      "bundles": [],
+      "lines": [],
+    }),
+  );
+  unit.answer(
+    "GET /repositories",
+    200,
+    json!({ "items": [{ "name": "repo-a", "label": "Repo A", "checkouts": [] }], "more": false }),
+  );
+  unit.answer("GET /stand-in", 200, json!({ "answers": true }));
   unit.answer("POST /sessions", 201, session.clone());
   unit.answer("POST /sessions/agent-a@-7/turns", 201, json!({ "delivery": "blocked" }));
   unit.answer("GET /sessions/agent-a@-7", 200, session.clone());
@@ -47,11 +65,6 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     200,
     json!({ "items": [{ "id": 4, "text": "a line" }], "more": false }),
   );
-  unit.answer(
-    "GET /agents/agent-a",
-    200,
-    json!({ "name": "agent-a", "resetAt": 2_000, "standInAvailable": true }),
-  );
   unit.answer("GET /runs/7", 200, json!({ "id": 7, "startedAt": 1_700_000 }));
   unit.answer(
     "GET /runs",
@@ -60,12 +73,19 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   );
   unit.answer("PATCH /runs/9", 200, json!({ "id": 9, "messageId": 12 }));
 
-  let agents = agency.agents().await.unwrap();
+  let agents = agency.supervisors().await.unwrap();
 
   assert_eq!(agents.agents[0].name, "agent-a");
   assert!(!agents.agents[0].awake);
   assert_eq!(agents.agents[0].brain_folder.as_deref(), Some(""));
-  assert_eq!(agents.agents[0].row["roads"], json!(["chat"]), "the rest of the row is kept as it came");
+  assert_eq!(agents.agents[0].row["repository"], "repo-a", "the rest of the row is kept as it came");
+
+  let roles = agency.roles().await.unwrap();
+
+  assert_eq!((roles[0].name.as_str(), roles[0].label.as_deref()), ("video", Some("Video")));
+  assert!(roles[0].gives("room.send") && !roles[0].gives("graph.read"));
+  assert_eq!(agency.repositories().await.unwrap()[0].name, "repo-a");
+  assert!(agency.stand_in("agent-a").await.unwrap());
 
   let started = agency.start("agent-a", Scope::Room { room: -7 }).await.unwrap();
 
@@ -90,6 +110,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   let state = agency.state("agent-a@-7").await.unwrap();
 
   assert_eq!(state.provider.as_deref(), Some("claude-code"));
+  assert_eq!((state.supervisor.as_deref(), state.role.as_deref()), (Some("agent-a"), None));
   assert_eq!(
     (state.context["carried"].as_i64(), state.context["window"].as_i64(), state.fold_ratio),
     (Some(90_000), Some(1_000_000), Some(0.15)),
@@ -113,7 +134,6 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     .await
     .unwrap();
   assert_eq!(agency.run_log("run-1", Some(3)).await.unwrap()[0]["id"], 4);
-  assert_eq!(agency.reset_point("agent-a").await.unwrap(), Some(2_000));
   assert_eq!(
     agency.run(7).await.unwrap(),
     Some(Run {
@@ -130,7 +150,10 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   assert_eq!(
     unit.took(),
     [
-      call("GET /agents", "", None),
+      call("GET /supervisors", "", None),
+      call("GET /roles", "", None),
+      call("GET /repositories", "", None),
+      call("GET /stand-in", "agent=agent-a", None),
       call(
         "POST /sessions",
         "",
@@ -159,7 +182,6 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
         Some(json!({ "url": "http://receiver/agency/hooks/room-title", "token": "t" }))
       ),
       call("GET /log-lines", "run=run-1&after=3", None),
-      call("GET /agents/agent-a", "", None),
       call("GET /runs/7", "", None),
       call("GET /runs", "round=round%3A-7%3A1%3A1", None),
       call("PATCH /runs/9", "", Some(json!({ "messageId": 12 }))),
@@ -322,20 +344,18 @@ async fn words_pushed_into_a_working_turn_read_each_answer_the_agency_gives() {
 }
 
 #[tokio::test]
-async fn a_reset_point_and_a_passed_rest_read_their_empty_answers_and_a_missing_agent_is_refused() {
+async fn a_passed_rest_reads_its_empty_answer_and_a_stand_in_for_no_agent_is_refused() {
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
 
   let cleared = json!({ "clearPassed": true, "until": null, "kind": null, "account": null });
 
-  unit.answer("GET /agents/agent-a", 200, json!({ "resetAt": null }));
   unit.answer(
     "PATCH /rest",
     200,
     json!({ "resting": false, "until": null, "kind": "limit", "accountId": null }),
   );
 
-  assert_eq!(agency.reset_point("agent-a").await.unwrap(), None);
   assert_eq!(agency.passed_rest().await.unwrap().kind, Some(RestKind::Limit));
 
   unit.answer(
@@ -347,19 +367,18 @@ async fn a_reset_point_and_a_passed_rest_read_their_empty_answers_and_a_missing_
   assert_eq!(agency.passed_rest().await.unwrap().kind, None);
 
   unit.answer(
-    "GET /agents/no-agent",
+    "GET /stand-in",
     404,
     json!({ "code": "not-found", "error": "No agent is named no-agent." }),
   );
 
-  assert_eq!(agency.reset_point("no-agent").await.unwrap_err().status(), Some(404));
+  assert_eq!(agency.stand_in("no-agent").await.unwrap_err().status(), Some(404));
   assert_eq!(
     unit.took(),
     [
-      call("GET /agents/agent-a", "", None),
       call("PATCH /rest", "", Some(cleared.clone())),
       call("PATCH /rest", "", Some(cleared)),
-      call("GET /agents/no-agent", "", None),
+      call("GET /stand-in", "agent=no-agent", None),
     ]
   );
 }
@@ -462,7 +481,7 @@ async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_f
     "GET /jobs",
     200,
     json!({ "items": [
-      { "id": 906_425, "workerName": "worker-a", "itemId": 2283, "startedAt": 3_000, "state": "running" },
+      { "id": 906_425, "roleName": "worker", "workerName": "repo-a-w2", "itemId": 2283, "startedAt": 3_000, "state": "running" },
     ], "more": false }),
   );
 
@@ -487,7 +506,8 @@ async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_f
     agency.running_jobs().await.unwrap(),
     [RunningJob {
       id: 906_425,
-      worker_name: Some("worker-a".to_owned()),
+      role_name: Some("worker".to_owned()),
+      worker_name: Some("repo-a-w2".to_owned()),
       item_id: Some(2283),
       started_at: Some(3_000)
     }]

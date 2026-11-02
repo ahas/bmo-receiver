@@ -13,7 +13,6 @@ use futures_util::future::BoxFuture;
 use futures_util::{StreamExt, stream};
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::tool_host::{Change, Entry, StandingSession, ToolEvent, ToolEvents, ToolHost};
-use serde_json::json;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::units::{OWNER, registration, standing};
@@ -64,20 +63,16 @@ fn a_change_reads_its_entries_and_a_replacing_placement_reads_as_updated() {
 }
 
 #[test]
-fn a_change_concerns_each_chat_agent_whose_standing_session_holds_one_of_its_namespaces() {
-  let mut chat = registration("agent-a", "Agent A", vec![], None, true);
-  let mut other = registration("agent-b", "Agent B", vec![], None, false);
-  let mut worker = registration("worker-a", "Worker A", vec![], None, false);
+fn a_change_concerns_each_supervisor_whose_standing_session_holds_one_of_its_namespaces() {
+  let chat = registration("agent-a", "Agent A", vec![], None, true);
+  let other = registration("agent-b", "Agent B", vec![], None, false);
 
-  chat.row.insert("kind".to_owned(), json!("chat"));
-  other.row.insert("kind".to_owned(), json!("chat"));
-  worker.row.insert("kind".to_owned(), json!("worker"));
-
-  let agents = [chat, other, worker];
+  // A role's run holds a tool session too, and is told nothing: only the supervisors are listed.
+  let agents = [chat, other];
   let sessions = [
     session("agent-a", &["bmo", "web"]),
     session("agent-b", &["gate"]),
-    session("worker-a", &["web"]),
+    session("worker", &["web"]),
   ];
 
   assert_eq!(concerned(&agents, &sessions, &["web".to_owned()]), ["agent-a"]);
@@ -116,11 +111,9 @@ async fn each_event_is_one_riding_fact_per_agent_and_a_stale_cursor_hears_the_st
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![]);
-  let mut chat = registration("agent-a", "Agent A", vec![], None, true);
-  let mut other = registration("agent-b", "Agent B", vec![], None, false);
+  let chat = registration("agent-a", "Agent A", vec![], None, true);
+  let other = registration("agent-b", "Agent B", vec![], None, false);
 
-  chat.row.insert("kind".to_owned(), json!("chat"));
-  other.row.insert("kind".to_owned(), json!("chat"));
   standing.agency.registering(vec![chat, other]);
 
   let gone = PortFailure::Answered {

@@ -7,7 +7,6 @@
 
 use serde_json::{Value, json};
 
-use receiver_ports::agency::HttpAgency;
 use room_calls::{
   bot::Service,
   sends::{
@@ -16,7 +15,7 @@ use room_calls::{
   },
   turn::{NO_ROOM, Turn},
 };
-use tool_call::{Answer, Asked, Entry, Handed, MadeSchema, Session, input_schema, peers};
+use tool_call::{Answer, Asked, Entry, Handed, MadeSchema, Session, input_schema};
 
 /// The catalogue's capability every entry is shown by.
 const CATALOGUE: &[&str] = &["room.tools"];
@@ -124,17 +123,7 @@ fn said(answered: Result<Vec<String>, Unsent>) -> Answer {
 
 /// One send asked of the running receiver as the call's turn, in the room the call names or the turn's own, on
 /// the road the turn names for that room alone.
-async fn send(
-  receiver: &Service,
-  agency: &HttpAgency,
-  turn: &Turn,
-  chat: Option<i64>,
-  via: Option<String>,
-  act: Act,
-) -> Answer {
-  if let Some(refused) = turn.overtaken(agency).await {
-    return Answer::refusal(refused);
-  }
+async fn send(receiver: &Service, turn: &Turn, chat: Option<i64>, via: Option<String>, act: Act) -> Answer {
   let Some(room) = turn.room(chat) else { return Answer::refusal(NO_ROOM) };
   let mut asker = Asker::of_turn(turn, Some(&room));
 
@@ -147,11 +136,7 @@ async fn send(
 
 /// A line said in the consult room under the calling agent's own name; a call outside any agent's turn has no
 /// agent to speak as and is refused before the receiver is asked.
-async fn consulted(receiver: &Service, agency: &HttpAgency, turn: &Turn, input: ConsultInput) -> Answer {
-  if let Some(refused) = turn.overtaken(agency).await {
-    return Answer::refusal(refused);
-  }
-
+async fn consulted(receiver: &Service, turn: &Turn, input: ConsultInput) -> Answer {
   said(ask_consult(receiver, turn.agent.as_deref(), &Asker::of_turn(turn, None), &input).await)
 }
 
@@ -164,7 +149,6 @@ fn read<T: serde::de::DeserializeOwned>(name: &str, arguments: Value) -> Result<
 /// reaches.
 pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
   let receiver = Service::of(&session.data_root);
-  let agency = HttpAgency::new(&peers::agency(&session.data_root));
   let turn = Turn::of(&session.turn_variables());
 
   let asked = async {
@@ -172,52 +156,52 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
       "say" => {
         let input: SayInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Say(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::Say(input)).await
       }
       "consult" => {
         let input: ConsultInput = read(name, arguments)?;
 
-        consulted(&receiver, &agency, &turn, input).await
+        consulted(&receiver, &turn, input).await
       }
       "photo" => {
         let input: PhotoInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Photo(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::Photo(input)).await
       }
       "file" => {
         let input: FileInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::File(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::File(input)).await
       }
       "voice" => {
         let input: VoiceInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Voice(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::Voice(input)).await
       }
       "react" => {
         let input: ReactInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::React(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::React(input)).await
       }
       "pin" => {
         let input: PinInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Pin(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::Pin(input)).await
       }
       "sticker" => {
         let input: StickerInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::Sticker(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::Sticker(input)).await
       }
       "random_draw" => {
         let input: RandomDrawInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::RandomDraw(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::RandomDraw(input)).await
       }
       "fixed_line" => {
         let input: FixedLineInput = read(name, arguments)?;
 
-        send(&receiver, &agency, &turn, input.chat, input.via.clone(), Act::FixedLine(input)).await
+        send(&receiver, &turn, input.chat, input.via.clone(), Act::FixedLine(input)).await
       }
       other => Answer::failure(format!("this executable holds no entry {other}")),
     })

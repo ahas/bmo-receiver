@@ -29,16 +29,13 @@ end = "END OF ROOM CONTEXT"
 # The one line that restates a room to a session holding this version of its block from earlier.
 mark = "ROOM CONTEXT — chat {chat} ({kind}) · Room name: {title} — the last ROOM CONTEXT block given for this chat earlier in this session, in this same version, is in force again; read it from there. Every other room's context given since no longer applies."
 # Who is who in the owner's private chat ({owner} the owner's name, {agent} the chat agent's label, {rooms} the
-# rooms it answers), and the line for each kind of agent the roster names.
+# rooms it answers), the line over the other chat agents and the line over the roles.
 roster = "{agent}: one shared chat agent. In the owner's private chat ({owner}'s) you are the same agent as in every other room, not another one. Connected rooms: {rooms}."
 roster_owner_room = "{owner}'s private chat (you, the owner's private chat)"
 
 [room.kinds]
-chat = "chat agents: you and the other chat agents below, each answering in the rooms that name it, in a persona of its own. A room that names only other chat agents is never yours to speak in; in a room you share with one, the receiver wakes each of you by the same rule, and each of you judges first whether the words are for it."
-gate = "gate agents: the judgement runs with no tools of their own."
-runner = "runners: the research runs you launch and that hand their result back to you."
-recollector = "recollectors: the runs that decide what of a conversation becomes an agent's long-term memory and write it from that agent's own view: the room digest and the person-book writer with Read, Write, Edit, Glob and Grep only, the session summariser with no tools."
-worker = "workers: the jobs you launch with the task tool. Each has a name of its own and a checkout of its own."
+supervisor = "chat agents: you and the other chat agents below, each answering in the rooms that name it, in a persona of its own. A room that names only other chat agents is never yours to speak in; in a room you share with one, the receiver wakes each of you by the same rule, and each of you judges first whether the words are for it."
+role = "roles: what a piece of work you hand off runs as — a delegation, a job filed to a repository, a worker ask — each run on its role's own provider order. A run is named by its role and, for a job, its repository; none of them is a chat agent."
 
 # What a turn is told about what it can send: the capabilities' names the road does not perform ({names}), those
 # the room's own road {key} does, and the sending entries of the send tool the road carries ({tools}).

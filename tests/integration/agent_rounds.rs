@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::{Conversations, Timings};
-use bmo_receiver::chat::cut_off::{CUT_OFF, CutOffs};
+use bmo_receiver::chat::cut_off::{self, CUT_OFF, CutOffs};
 use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
@@ -167,11 +167,6 @@ impl Rounds {
     id
   }
 
-  // The added agent's reset point moved to `point`, in epoch milliseconds.
-  fn reset_at(&self, point: i64) {
-    *self.standing.agency.point.lock().unwrap() = Some(point);
-  }
-
   async fn settled(&self) {
     until("the rounds' end", || self.runner.idle() && !self.session.working()).await;
   }
@@ -229,7 +224,6 @@ async fn a_cut_off_lets_go_unread_what_waited_for_the_agents_turns() {
   let waiting = rounds.instruct("an instruction that waited", None).await;
   let point = now_ms();
 
-  rounds.reset_at(point);
   rounds.session.told(CUT_OFF, json!({ "agent": ADDED, "point": point }));
 
   let waited = tokio::time::timeout(Duration::from_secs(20), async {
@@ -240,6 +234,11 @@ async fn a_cut_off_lets_go_unread_what_waited_for_the_agents_turns() {
   .await;
 
   assert!(waited.is_ok(), "the instruction that waited is settled by the cut-off");
+  assert_eq!(
+    cut_off::point(rounds.standing.receiver.db(), ADDED).await.unwrap(),
+    Some(point),
+    "the cut-off's point is kept as the agent's reset point"
+  );
 
   rounds.session.let_go();
   rounds.settled().await;

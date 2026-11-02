@@ -1,16 +1,19 @@
 # What the owner's session is told of the agency's events that no other part words (docs/wake.md, 「What the
-# agency's events wake」): a worker fallen to a lesser model, and the overtime order. `{name}` marks what each
+# agency's events wake」): a job's run fallen to a lesser model, the overtime order and a road's change. `{name}` marks what each
 # line carries.
 
-# A worker's session that answered on a lesser model than its job was launched on: the {worker}, the {model} it fell
-# to and the one it was {launched} on, the {job} it ran for where it names one, and what became of the session.
+# A job's run that answered on a lesser model than it was launched on: the {role} it ran as, the {checkout} of the
+# repository it ran in, the {model} it fell to and the one it was {launched} on, the {job} it ran for where it names
+# one, and what became of the session its role keeps there.
 [worker_downgraded]
-fact = "A run of the job worker \"{worker}\" came off {model} instead of {launched}: the account's safeguard balked at that session's context."
+fact = "A job run as the role \"{role}\" in the repository checkout \"{checkout}\" came off {model} instead of {launched}: the account's safeguard balked at that session's context."
 job = " It happened on job #{job}."
-intent = "tell the owner which worker fell to which model."
-dropped = "That session has been dropped; the next job on this worker and model opens a fresh one. No room is waiting on it."
-kept = "The owner turned the downgrade heal off for this worker, so that session is kept: the next job on this worker goes on in the same session, launched on {model} rather than on the model its tier names, until a fresh session is opened. No room is waiting on it."
-# One line of it stands at a time for each worker: the kind is this and the worker's name.
+intent = "tell the owner which role, in which repository, fell to which model."
+dropped = "That session has been dropped; the next job of this role in this checkout opens a fresh one. No room is waiting on it."
+kept = "The owner turned the downgrade heal off for this repository, so that session is kept: the next job of this role in this checkout goes on in the same session, launched on {model} rather than on the model the role's order names, until a fresh session is opened. No room is waiting on it."
+# The role a run names where the agency names none.
+role_none = "unnamed"
+# One line of it stands at a time for each checkout and role: the kind is this, the checkout and the role.
 kind = "worker-downgrade"
 
 # The order a run past its clock hands the chat agent in the owner's chat: the {ask} number, {what} it does, its
@@ -40,22 +43,26 @@ steps = [
 kind = "overtime"
 sort = "overtime"
 
-# A work key's road the agency moved, returned or found closed (docs/wake.md, 「Quiet instructions」, 「A road's
-# change」): the {key}, a road as its {provider}, {model} and {account}, each provider's {reason}, the {command}
-# a person reopens a road with, set apart exactly as the agency wrote it, and the moment ({at}) the first road
-# reopens. One line stands at a time for each key: the kind is this and the key.
+# A supervisor's or a role's road the agency moved, returned or found closed (docs/wake.md, 「Quiet instructions」,
+# 「A road's change」): the {row}, a supervisor or a role by its {name}, a road as its {provider}, {model} and
+# {account}, each provider's {reason}, the {command} a person reopens a road with, set apart exactly as the agency
+# wrote it, and the moment ({at}) the first road reopens. One line stands at a time for each supervisor and each
+# role: the kind is this, `supervisor:<name>` or `role:<name>`.
 [road]
 kind = "road-changed"
 sort = "road"
+supervisor = "the chat agent {name}"
+role = "the role {name}"
+row_none = "a row the agency did not name"
 road = "{provider} · {model}"
 road_account = "{provider} · {model} (account {account})"
 road_none = "the head of its order"
 reason = "{provider}: {reason}"
 reasons_joint = "; "
 reasons_none = "the agency named no reason"
-moved = "The work of {key} moved from {from} to {to}. The roads passed, and why: {reasons}."
-returned = "The work of {key} is back on {to}, from {from}."
-closed = "No road of {key} can answer now. Why each road could not: {reasons}."
+moved = "The work of {row} moved from {from} to {to}. The roads passed, and why: {reasons}."
+returned = "The work of {row} is back on {to}, from {from}."
+closed = "No road of {row} can answer now. Why each road could not: {reasons}."
 command = "The owner reopens it with this command, written here exactly as the agency gave it, on a line of its own:\n{command}"
 no_command = "Nothing waits on the owner: each road reopens by itself."
 reopens = "The first road reopens by itself at {at}."

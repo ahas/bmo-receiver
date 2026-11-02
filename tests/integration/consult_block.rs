@@ -13,9 +13,9 @@ use tempfile::tempdir;
 
 const ROOM: i64 = -121;
 const OTHER: &str = "agent-d";
-const WORKER: &str = "agent-d-worker";
+const WORKER: &str = "agent-d-repo";
 
-// Another agent that declares a worker of its own, beside the chat agent that declares none.
+// Another agent that declares a repository of its own, beside the chat agent that declares none.
 fn registered() -> Vec<Agent> {
   let row = |worker: &str| {
     let mut held = serde_json::Map::<String, Value>::new();
@@ -23,7 +23,7 @@ fn registered() -> Vec<Agent> {
     held.insert("defaultAnswerer".to_owned(), json!(false));
     held.insert("windowSeconds".to_owned(), json!(60));
     held.insert(
-      "itemWorker".to_owned(),
+      "repository".to_owned(),
       worker.is_empty().then_some(json!(null)).unwrap_or(json!(worker)),
     );
 

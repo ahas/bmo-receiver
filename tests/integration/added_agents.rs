@@ -6,28 +6,23 @@
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 
-use receiver_ports::agency::{Agent, FieldRefusal};
+use receiver_ports::agency::{Agent, FieldRefusal, Repository};
 
 use crate::integration::common::Scratch;
 use crate::integration::common::queue::{Front, post, remove, stood};
 use crate::integration::common::units::{AGENT, OWNER};
 
 const ADDED: &str = "agent-d";
-const WORKER: &str = "worker-a";
+const WORKER: &str = "repo-a";
 
-// The front, with the agency registering one worker an added agent's items may go to.
+// The front, with the agency holding one repository an added agent's items may go to.
 async fn bench(scratch: &Scratch) -> Front {
   let front = stood(scratch, OWNER).await;
-  let mut row = serde_json::Map::<String, Value>::new();
 
-  row.insert("kind".to_owned(), json!("worker"));
-  front.standing.agency.registering(vec![Agent {
+  *front.standing.agency.repositories.lock().unwrap() = vec![Repository {
     name: WORKER.to_owned(),
-    label: Some("Worker A".to_owned()),
-    awake: true,
-    brain_folder: None,
-    row,
-  }]);
+    label: Some("Repo A".to_owned()),
+  }];
 
   front
 }
