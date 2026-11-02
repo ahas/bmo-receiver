@@ -273,7 +273,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `events?`, `agentOnly?`, `ridesUntil?`, `via?`, `run?` | 201, `{id}` |
+| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `cause?` (`reply` or `housekeeping`), `events?`, `agentOnly?`, `ridesUntil?`, `via?`, `run?` | 201, `{id}` |
 | `GET /instructions/{instructionId}` | | `id`, `state` (`pending`, `handed` or `delivered`) |
 | `DELETE /instructions/{instructionId}` | | 204 |
 | `POST /owner/instructions` | `chatId`, `text` | 204 |
@@ -286,6 +286,12 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `agentOnly` is a record the agent reads and no room hears: a round carrying only such rows sends no room
   message (`docs/bmo-window.md`, 「Quiet instruction」). An instruction for a room whose registration is gone
   goes to the owner's private room instead, naming the room, and never into the platform room.
+- **Its `cause`** says whether somebody waits on it (`docs/wake.md`, 「Quiet instructions」). `reply`, the default,
+  is a room reply: it answers something a room or the owner asked or set going — a research run's result, a
+  delegate's or a worker's answer, a job's ending and report, a reminder or a watch come due — and opens the
+  agent's turn as soon as it is queued, on a session past its cache lifetime too, which that turn replaces.
+  `housekeeping` is a record for the agent alone that nobody waits on, and waits for a round something else opens
+  where the session is past its cache lifetime; one marked `agentOnly` is housekeeping whatever it names.
 - **A quiet instruction** is one with `kind` `watch` or `reminder` and a `said.order`: it is queued under that
   kind and opens the agent's turn there.
 - **A withdrawn instruction** that was handed or is gone is no refusal; it is simply no longer pending.

@@ -1167,6 +1167,21 @@
         ],
         "type": "object"
       },
+      "InstructionCause": {
+        "description": "Whether somebody waits on an instruction (docs/wake.md, 「Quiet instructions」).",
+        "oneOf": [
+          {
+            "const": "reply",
+            "description": "It answers something a room or the owner asked or set going, and opens the agent's turn by itself, on a\nsession past its cache lifetime too.",
+            "type": "string"
+          },
+          {
+            "const": "housekeeping",
+            "description": "A record for the agent alone that nobody waits on, which waits for a round something else opens where the\nsession is past its cache lifetime.",
+            "type": "string"
+          }
+        ]
+      },
       "InstructionRequest": {
         "description": "An instruction queued for an agent's session.",
         "properties": {
@@ -1181,6 +1196,18 @@
             "default": false,
             "description": "A record the agent reads and no room hears: a round carrying only such rows sends no message.",
             "type": "boolean"
+          },
+          "cause": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstructionCause"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whether somebody waits on it: a room reply, the default, or housekeeping."
           },
           "events": {
             "default": [],
@@ -1248,6 +1275,7 @@
           "kind",
           "sort",
           "summary",
+          "cause",
           "events",
           "agentOnly",
           "ridesUntil",

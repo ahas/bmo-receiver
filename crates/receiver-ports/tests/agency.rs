@@ -3,7 +3,7 @@
 use futures_util::StreamExt;
 use receiver_ports::agency::{
   Agency, ConsoleAgentRow, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, RestKind, Resting,
-  Run, Said, Scope, Turn, TurnRoom,
+  Run, Said, Scope, Turn, TurnRead, TurnRoom,
 };
 use serde_json::json;
 
@@ -210,10 +210,14 @@ async fn the_event_stream_reads_each_event_by_its_kind_and_ends_with_the_stream(
       Event {
         kind: "turn.created".to_owned(),
         data: json!({ "session": "s", "run": "r", "turnId": 2, "at": 5 }),
+        id: Some(1),
+        at: Some(7),
       },
       Event {
         kind: "turn.ended".to_owned(),
         data: json!({ "session": "s", "run": "r", "outcome": "answered", "answer": "hi" }),
+        id: Some(2),
+        at: Some(9),
       },
     ]
   );
@@ -493,6 +497,56 @@ async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_f
     [
       call("GET /runs", "live=true&limit=500", None),
       call("GET /jobs", "running=true&limit=500", None)
+    ]
+  );
+}
+
+#[tokio::test]
+async fn the_kept_events_are_read_after_a_number_and_a_turn_is_read_by_its_id() {
+  let unit = StandIn::start().await;
+
+  unit.answer(
+    "GET /events",
+    200,
+    json!({
+      "items": [{ "id": 5, "kind": "rest.changed", "at": 500, "data": { "resting": false } }],
+      "more": false,
+    }),
+  );
+  unit.answer(
+    "GET /sessions/agent-a@agent/turns/3",
+    200,
+    json!({ "id": 3, "state": "ended", "outcome": "answered", "answer": "hi", "text": "hi" }),
+  );
+
+  let agency = HttpAgency::new(&unit.peer("t"));
+  let kept = agency.kept_events(Some(4)).await.unwrap();
+  let read = agency.turn_read("agent-a@agent", 3).await.unwrap();
+
+  assert_eq!(
+    kept.items,
+    [Event {
+      kind: "rest.changed".to_owned(),
+      data: json!({ "resting": false }),
+      id: Some(5),
+      at: Some(500),
+    }]
+  );
+  assert!(!kept.more);
+  assert_eq!(
+    read,
+    TurnRead {
+      state: "ended".to_owned(),
+      outcome: Some("answered".to_owned()),
+      answer: Some("hi".to_owned()),
+    }
+  );
+  assert!(read.ended());
+  assert_eq!(
+    unit.took(),
+    [
+      call("GET /events", "limit=1000&after=4", None),
+      call("GET /sessions/agent-a@agent/turns/3", "", None)
     ]
   );
 }

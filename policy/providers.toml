@@ -1,7 +1,8 @@
 # What each harness provider declares, as far as the receiver reads it to compose a conversation's turns: how a
 # turn of its standing program goes in and is read back, how a full session is handed over, how long a session
 # stands idle before the cache warmer's touch is due on it, how long its cache keeps a session's prefix
-# (`cache_minutes`; a session idle longer is expired, never touched or woken, and replaced by its next round), and
+# (`cache_minutes`; a session idle longer is expired, never touched or woken for housekeeping, and replaced by
+# the next round a room's words or a room reply open), and
 # the words its program writes into a turn that are its own rather than the agent's. One table to a provider, by its key. The rest of each declaration is the
 # agency's, which keeps the whole of it.
 

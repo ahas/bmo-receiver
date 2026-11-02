@@ -263,13 +263,30 @@ fields: a cut-off names the `point` alone, a reset names its `ranges`.
 
 A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet instruction」, states.
 
-- **No instruction wakes a session past its cache lifetime.** Where the agent's one session last answered longer
-  ago than the lifetime its provider declares (`providers.toml`, `cache_minutes`, else `keepalive_idle_minutes`), a row that would open a
-  turn of its own stays pending — a briefing past its ride, a fact, an order alike — and waits for a round a room's
-  own words open, which carries it; that round replaces the session through the handoff, as an expired session
-  always is (`docs/unified-bmo.md`, 「Replacing the session」). Waking it would pay its whole prefix again for
-  nothing. One is
-written by the wake itself: the deployment briefing, what went live since the owner was last briefed.
+- **Every instruction carries its cause, and the cause decides whether it waits.** A row is a room reply or
+  housekeeping, as its producer declares it (`docs/api.md`, 「Instructions」, `cause`):
+  - **A room reply** answers something a room or the owner asked or set going: a research run's result
+    (`research-ended`), a delegate's or a worker's answer, a job's ending and report, a reminder or a watch come
+    due (`use-ended`), words handed to the room's supervisor, a say run's report, a relayed answer, an
+    instruction typed on the console. It starts the agent's turn by itself the moment the pass finds it, on a
+    session past its cache lifetime too: that turn replaces the session through the handoff and the transcript
+    exactly as a room's own round does (`docs/unified-bmo.md`, 「Replacing the session」), and no person's words
+    are waited for. A row whose producer names no cause is a room reply.
+  - **Housekeeping** is a record for the agent alone that nobody is waiting on: every row marked `agent_only`
+    (the tool host's changes, a document reload, a failure order, a run past its clock) and the deployment
+    briefing. On a session past its cache lifetime (`providers.toml`, `cache_minutes`, else
+    `keepalive_idle_minutes`) a housekeeping row that would open a turn of its own stays pending and waits for
+    the next round anything else opens, which carries it; waking a cold session for it would pay its whole
+    prefix again for nothing. The keepalive touch is no row and never wakes such a session either
+    (`docs/bmo-window.md`, 「The touch」).
+- **A pending room reply is an obligation the receiver keeps until a round has taken it.** It carries no age and
+  nothing lets it go for having waited. The pass looks at every pending row on each tick, at every opening of
+  the agency's event stream (「What the agency's events wake」 below) and as the receiver starts, and hands each
+  reply it finds. A row handed into a round that fails goes back to pending with the round's failure counted on
+  it (`docs/bmo-window.md`, 「Quiet instruction」), so the next pass hands it again. A session the agency ended is
+  no reason to wait: the reply's turn asks the agency for the agent's session, which starts a fresh one where
+  none stands, and the agency's `session.deleted` brings the pass forward at once.
+- **The deployment briefing is written by the wake itself:** what went live since the owner was last briefed.
 
 - **A deployment is no session event.** The agency relays a turn into the session that stands, opening one only
   where none does, so a deployment of any unit, the agency's included, neither reopens nor relaunches the
@@ -340,6 +357,27 @@ opens a round there like any instruction:
 - **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency
   words it; neither wakes anyone.
 - **A road's change:** `road.changed`, told to the owner as 「Quiet instructions」 above states.
+- **A session ended:** `session.deleted` wakes nobody by itself; it brings the instruction pass forward, so a room
+  reply owed to the agent starts its turn on a fresh session at once.
+
+The stream is heard from where the receiver left it:
+
+- **The last event heard is kept** (`docs/store.md`, 「The settings」, `agency_events_heard`): its number and the
+  moment the agency published it, written as each event is handed to its hearers.
+- **A stream opened again resumes after it.** Each time the stream opens, the receiver's start among them, the
+  live stream is opened first and then the events the agency still keeps are read as a page
+  (`docs/boundary-api.md`, 「The agency」): where the page holds the last event heard under the same number and
+  moment, every event after it is handed in order; where it does not, the agency numbered its events afresh or
+  let the mark go, and every event it keeps is handed as new. A live event numbered at or below the last one
+  handed is not handed twice.
+- **Then the receiver reconciles its rows with what the agency still holds.** Every row it marked handed whose
+  room's conversation no longer stands in this process, and which rides no round of another room, is made
+  pending again, and the instruction pass runs at once over every pending row. A round whose turn the agency
+  lost meanwhile ends failed on its own (`docs/bmo-window.md`, 「Quiet instruction」), giving its replies back.
+- **What the receiver cannot recover** is an event the agency no longer keeps: one published while the receiver
+  was away past the agency's retention, or before an agency restart whose kept history starts empty
+  (`docs/boundary-api.md`, 「Contract gaps」). The reconcile and the pass's own rescan stand for those, so no reply
+  owed is lost with them.
 
 ## Words handed over
 

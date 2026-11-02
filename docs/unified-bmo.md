@@ -179,13 +179,15 @@
   A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
   folded: the owner's word to start it afresh is written for it, with the reason `full`, and its next turn
   replaces it.
-- **A session past its cache lifetime is never woken.** Nothing opens a turn on it: no keepalive touch, no fold,
-  no quiet instruction, no push and no spoken script (`docs/bmo-window.md`, 「The touch」; `docs/wake.md`, 「Quiet
-  instructions」; `docs/voiced-notices.md`). Waking it would have the provider read its whole prefix again for
-  nothing. The next round a room's own words open replaces it, and the fresh session reads the handoff document,
-  the unread messages and the brain's index in that order. The lifetime is the
-  one the agency's warm and cold criterion reads (its `docs/sessions.md`, 「A worker's session per model」), the
-  same minutes in `providers.toml` here.
+- **A session past its cache lifetime is woken only by what someone waits on.** A room's own words and a room
+  reply (`docs/wake.md`, 「Quiet instructions」: a research result, a delegate's or a worker's answer, a job's
+  report, a reminder come due) open a round on it at once, and that round replaces it: the fresh session reads
+  the handoff document, the unread messages and the brain's index in that order. Nothing else opens a turn on
+  it: no keepalive touch, no fold, no housekeeping instruction, no push and no spoken script
+  (`docs/bmo-window.md`, 「The touch」; `docs/voiced-notices.md`), since waking it for those would have the
+  provider read its whole prefix again for nothing. The lifetime is the one the agency's warm and cold
+  criterion reads (its `docs/sessions.md`, 「A worker's session per model」), the same minutes in
+  `providers.toml` here.
 - **The head is what the session's cache stands on:** the common system prompt, which the agency composes and
   keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of
   it, so no part of a turn is the head: not the room-switch block or its mark, the brain's index block, the turn's

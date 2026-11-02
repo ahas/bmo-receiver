@@ -185,12 +185,16 @@ room's matter.
 | the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `workerName`, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
 | a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, newest first; the round's last run is the one with the highest id, whatever the order |
 | an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |
-| the events | `GET /events?kinds=` | | a stream of the kinds named |
+| the events | `GET /events?kinds=` | | a stream of the kinds named, each event its number (`id`), `kind`, the moment it was published (`at`) and its `data` |
+| the events kept | `GET /events?after=&limit=1000` with `Accept: application/json` | | `items`, the events the agency still keeps after that number, each as the stream carries it, oldest first, and `more` |
+| a turn read | `GET /sessions/{sessionId}/turns/{turnId}` | | `state` (`running` or `ended`), `outcome`, `answer`; `unknown-turn` where the session holds no such turn |
 
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
 and is opened again when it drops: `turn.created`, `turn.ended`, `companion-reset.created`,
 `document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
-`overtime-request.created`, `overtime-request.changed` and `road.changed`.
+`overtime-request.created`, `overtime-request.changed`, `road.changed` and `session.deleted`. Each time it opens
+the receiver reads the events kept since the last one it heard and hands those it has not (`docs/wake.md`, 「What
+the agency's events wake」); a round whose own stream ended before its turn did reads the turn instead.
 
 A turn of a round names the round in its body, and the agency opens the turn's run in its ledger under that name.
 Once the round's answer is filed in the room, the receiver asks for the round's runs and attaches the answer, as
@@ -341,6 +345,17 @@ Statements the receiver makes that a sibling's document does not yet match, each
   answer for a short span, until the protocol offers the facts without the title.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
+- **The agency's event numbers and kept events** do not outlive its process: it numbers its events afresh from 1
+  each time it starts and keeps the last 1,000 in memory alone, and its stream read with `after` or
+  `Last-Event-ID` only leaves out the live events at or below that number rather than sending the kept ones
+  after it first. So an event published while the agency restarts, or before a restart the receiver had not yet
+  heard, cannot be resumed, and a resuming stream reader is told nothing of a gap. For the receiver's resume to
+  be whole the agency must keep its event numbers rising across its restarts (or name the run of numbers each
+  event belongs to, so a reader can tell a fresh numbering), keep its events across a restart for at least the
+  span it keeps them now, send the kept events after `after` or `Last-Event-ID` before the live ones, and say
+  when the number asked is older than the oldest it keeps. Until then the receiver reads the kept page after
+  each opening, tells a fresh numbering by the number and moment of the last event it heard, and stands its
+  reconcile and the instruction pass's rescan for what was lost.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver
   learns a message was taken as a move: until one does, a move is woken on as any message is.
 - **bmo-chat's `POST /sends`** carries no word of who said a message the receiver carries to another provider

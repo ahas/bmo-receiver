@@ -1641,6 +1641,8 @@ export interface components {
             id: number;
             state: components["schemas"]["InstructionState"];
         };
+        /** @description Whether somebody waits on an instruction (docs/wake.md, 「Quiet instructions」). */
+        InstructionCause: "reply" | "housekeeping";
         /** @description An instruction queued for an agent's session. */
         InstructionRequest: {
             /** @default null */
@@ -1650,6 +1652,11 @@ export interface components {
              * @default false
              */
             agentOnly: boolean;
+            /**
+             * @description Whether somebody waits on it: a room reply, the default, or housekeeping.
+             * @default null
+             */
+            cause: components["schemas"]["InstructionCause"] | null;
             /** @default [] */
             events: string[];
             /** @default null */

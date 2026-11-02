@@ -10,7 +10,7 @@ use receiver_policy::restart::RESTART;
 use serde_json::Value;
 
 use super::conversation::unified_session;
-use super::instructions::{Queued, queue};
+use super::instructions::{Cause, Queued, queue};
 use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::store::settings;
@@ -192,6 +192,7 @@ impl Briefings {
       kind: Some(&said.kind),
       sort: Some(&said.sort),
       rides_until_ms: Some(now + RESTART.ride_minutes * 60_000),
+      cause: Cause::Housekeeping,
       ..Queued::default()
     };
 

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::future::BoxFuture;
-use reqwest::header::CONTENT_TYPE;
+use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::{Client, Method, Url};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -284,6 +284,18 @@ impl Caller {
     decoded(url, answer).await
   }
 
+  /// A GET with the query's fields asking the answer as JSON, for a route that answers a stream otherwise, its
+  /// successful answer decoded as the call's.
+  pub async fn get_json<T: DeserializeOwned>(
+    &self,
+    segments: &[&str],
+    query: &[(&str, String)],
+  ) -> Answer<T> {
+    let (url, answer) = self.sent_as::<()>(Method::GET, segments, None, query, true).await?;
+
+    decoded(url, answer).await
+  }
+
   /// A DELETE with the query's fields, its successful answer decoded as the call's.
   pub async fn delete<T: DeserializeOwned>(
     &self,
@@ -330,6 +342,18 @@ impl Caller {
     body: Option<&B>,
     query: &[(&str, String)],
   ) -> Answer<(String, reqwest::Response)> {
+    self.sent_as(method, segments, body, query, false).await
+  }
+
+  // The request sent, asking its answer as JSON where `json` says so.
+  async fn sent_as<B: Serialize>(
+    &self,
+    method: Method,
+    segments: &[&str],
+    body: Option<&B>,
+    query: &[(&str, String)],
+    json: bool,
+  ) -> Answer<(String, reqwest::Response)> {
     let url = self.url(segments)?;
     let shown = url.to_string();
     let body = body.map(serde_json::to_vec).transpose().map_err(|error| PortFailure::Transport {
@@ -345,6 +369,10 @@ impl Caller {
 
       if !query.is_empty() {
         request = request.query(query);
+      }
+
+      if json {
+        request = request.header(ACCEPT, "application/json");
       }
 
       match &body {

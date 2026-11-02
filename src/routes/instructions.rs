@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 use receiver_policy::chat_round::CHAT_ROUND;
 
 use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, store};
-use crate::chat::instructions::{Queued, queue};
+use crate::chat::instructions::{Cause, Queued, queue};
 use crate::receiver::notices::frame;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, rows};
@@ -68,6 +68,8 @@ struct Instruction {
   sort: String,
   #[serde(default)]
   summary: Option<String>,
+  #[serde(default)]
+  cause: Option<String>,
   #[serde(default)]
   events: Vec<String>,
   #[serde(default)]
@@ -175,6 +177,7 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     rides_until_ms: asked.rides_until,
     rides_session: false,
     agent_only: asked.agent_only,
+    cause: Cause::of_word(asked.cause.as_deref().unwrap_or_default()),
     sort: Some(&asked.sort),
     summary: asked.summary.as_deref(),
     via: asked.via.as_deref(),
@@ -208,8 +211,11 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
   };
   let id = queue(receiver.db(), &agent, chat_id, &text, &queued).await.map_err(store)?;
 
-  // A quiet instruction opens the agent's turn there; an instruction of a job or a notice rides what waits.
-  if matches!(asked.sort.as_str(), "watch" | "reminder")
+  // A room reply, or a quiet instruction, opens the agent's turn there at once; housekeeping and a row that rides
+  // wait for the pass.
+  let replies = queued.cause == Cause::Reply && !queued.agent_only && queued.rides_until_ms.is_none();
+
+  if (replies || matches!(asked.sort.as_str(), "watch" | "reminder"))
     && let Some(pass) = receiver.pass()
   {
     pass.kick();

@@ -20,8 +20,9 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, ConsoleAgentRow, Delivery, Events, FieldRefusal, Forgotten, Load, OpenRun, Passed,
-  Rest, RestKind, Resting, Run, RunLine, RunningJob, Said, Scope, Session, SessionState, Turn, Written,
+  Agency, Agent, Agents, ConsoleAgentRow, Delivery, Event, Events, FieldRefusal, Forgotten, KeptEvents,
+  Load, OpenRun, Passed, Rest, RestKind, Resting, Run, RunLine, RunningJob, Said, Scope, Session,
+  SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
@@ -887,6 +888,8 @@ pub struct StandInAgency {
   pub loads: Mutex<BTreeMap<String, Vec<Load>>>,
   // Every session it was asked to end, in order.
   pub ends: Mutex<Vec<String>>,
+  /// The events it keeps, as its page of kept events answers them.
+  pub kept: Mutex<Vec<Event>>,
 }
 
 impl StandInAgency {
@@ -919,7 +922,13 @@ impl StandInAgency {
       down: Mutex::default(),
       loads: Mutex::default(),
       ends: Mutex::default(),
+      kept: Mutex::default(),
     }
+  }
+
+  /// The events it keeps from now on, oldest first.
+  pub fn keeping(&self, events: Vec<Event>) {
+    *self.kept.lock().unwrap() = events;
   }
 
   /// Every session it was asked to end, in order.
@@ -1184,6 +1193,19 @@ impl Agency for StandInAgency {
     self.loads.lock().unwrap().remove(session);
 
     Box::pin(async { Ok(()) })
+  }
+
+  fn kept_events(&self, after: Option<i64>) -> BoxFuture<'_, Answer<KeptEvents>> {
+    let items = self
+      .kept
+      .lock()
+      .unwrap()
+      .iter()
+      .filter(|event| after.is_none_or(|after| event.id.is_some_and(|id| id > after)))
+      .cloned()
+      .collect();
+
+    Box::pin(async move { Ok(KeptEvents { items, more: false }) })
   }
 
   fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {

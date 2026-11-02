@@ -27,7 +27,7 @@ use crate::chat::runner::Runner;
 use crate::config::Config;
 use crate::data_root::DataRoot;
 use crate::events::Events;
-use crate::hearing::{Hearer, Hearing};
+use crate::hearing::{HeardSetting, Hearer, Hearing};
 use crate::receiver::wake::Waking;
 use crate::receiver::wake::agents::{Designated, default_designated};
 use crate::receiver::wake::rest::Rests;
@@ -197,9 +197,12 @@ pub fn hearing(standing: &Standing) -> Hearing {
     Arc::new(Workers::new(receiver.clone())),
     Arc::new(Overtime::new(receiver.clone())),
     Arc::new(crate::road_facts::RoadChanges::new(receiver.clone())),
+    standing.pass.clone(),
   ];
 
   Hearing::new(hearers)
+    .marking(Arc::new(HeardSetting(receiver.db().clone())))
+    .telling(standing.pass.clone())
 }
 
 /// The clocks of a running service: the window ends still to come, the instruction pass over every agent's rows,

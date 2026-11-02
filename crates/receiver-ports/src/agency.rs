@@ -285,12 +285,63 @@ pub struct Forgotten {
 /// One line of a run's log, as the agency gives it.
 pub type RunLine = Map<String, Value>;
 
-/// One event off the agency's stream: its kind and its data.
-#[derive(Debug, Clone, PartialEq)]
+/// One event off the agency's stream: its kind and its data, and the number the agency gave it and the moment it
+/// published it where its envelope names them.
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Event {
   pub kind: String,
   pub data: Value,
+  pub id: Option<i64>,
+  pub at: Option<i64>,
 }
+
+/// The events the agency still keeps after a number, oldest first, and whether more wait past the page.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct KeptEvents {
+  pub items: Vec<Event>,
+  pub more: bool,
+}
+
+/// A turn as the agency's progress read answers it: whether it still runs, and how it ended and what it answered
+/// once it has.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+pub struct TurnRead {
+  #[serde(default)]
+  pub state: String,
+  #[serde(default)]
+  pub outcome: Option<String>,
+  #[serde(default)]
+  pub answer: Option<String>,
+}
+
+impl TurnRead {
+  /// Whether the turn has ended.
+  pub fn ended(&self) -> bool {
+    self.state == "ended"
+  }
+}
+
+// One kept event as the agency's page answers it: its envelope.
+#[derive(Deserialize)]
+struct Envelope {
+  id: i64,
+  kind: String,
+  #[serde(default)]
+  at: Option<i64>,
+  #[serde(default)]
+  data: Value,
+}
+
+#[derive(Deserialize)]
+struct EnvelopePage {
+  #[serde(default)]
+  items: Vec<Envelope>,
+  #[serde(default)]
+  more: bool,
+}
+
+// How many kept events one page asks for, the most the agency answers.
+const KEPT_PAGE: usize = 1000;
 
 /// The events of the kinds asked, as they come; a stream that drops ends, and is opened again by its reader.
 pub type Events = BoxStream<'static, Answer<Event>>;
@@ -485,6 +536,23 @@ pub trait Agency: Send + Sync {
 
   /// The stream of the events of the kinds named, from the moment it is opened.
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>>;
+
+  /// The events of every kind the agency still keeps after the number given, from its oldest where none is given.
+  /// An agency that keeps none answers none.
+  fn kept_events(&self, _after: Option<i64>) -> BoxFuture<'_, Answer<KeptEvents>> {
+    Box::pin(async { Ok(KeptEvents::default()) })
+  }
+
+  /// A turn of a session as the agency's progress read answers it; `unknown-turn` where the session holds no such
+  /// turn.
+  fn turn_read<'a>(&'a self, session: &'a str, turn: i64) -> BoxFuture<'a, Answer<TurnRead>> {
+    Box::pin(async move {
+      Err(PortFailure::Transport {
+        url: format!("agency/sessions/{session}/turns/{turn}"),
+        why: "this agency reads no turn".to_owned(),
+      })
+    })
+  }
 }
 
 /// The agency over HTTP.
@@ -895,9 +963,18 @@ impl Agency for HttpAgency {
             })),
             Ok(sse) => {
               let kind = sse.event?;
+              let mut id = sse.id.as_deref().and_then(|id| id.trim().parse::<i64>().ok());
+              let mut at = None;
               let data = match sse.data.as_deref() {
                 Some(data) => match serde_json::from_str::<Value>(data) {
-                  Ok(data) => body_of(data, &kind),
+                  Ok(data) => {
+                    if data.get("kind").and_then(Value::as_str) == Some(kind.as_str()) {
+                      id = data.get("id").and_then(Value::as_i64).or(id);
+                      at = data.get("at").and_then(Value::as_i64);
+                    }
+
+                    body_of(data, &kind)
+                  }
                   Err(why) => {
                     return Some(Err(PortFailure::Undecodable {
                       url,
@@ -908,7 +985,7 @@ impl Agency for HttpAgency {
                 None => Value::Null,
               };
 
-              Some(Ok(Event { kind, data }))
+              Some(Ok(Event { kind, data, id, at }))
             }
           }
         }
@@ -916,5 +993,35 @@ impl Agency for HttpAgency {
 
       Ok(events.boxed())
     })
+  }
+
+  fn kept_events(&self, after: Option<i64>) -> BoxFuture<'_, Answer<KeptEvents>> {
+    Box::pin(async move {
+      let mut query = vec![("limit", KEPT_PAGE.to_string())];
+
+      if let Some(after) = after {
+        query.push(("after", after.to_string()));
+      }
+
+      let page: EnvelopePage = self.caller.get_json(&["events"], &query).await?;
+
+      Ok(KeptEvents {
+        items: page
+          .items
+          .into_iter()
+          .map(|kept| Event {
+            data: kept.data,
+            kind: kept.kind,
+            id: Some(kept.id),
+            at: kept.at,
+          })
+          .collect(),
+        more: page.more,
+      })
+    })
+  }
+
+  fn turn_read<'a>(&'a self, session: &'a str, turn: i64) -> BoxFuture<'a, Answer<TurnRead>> {
+    Box::pin(async move { self.caller.get(&["sessions", session, "turns", &turn.to_string()], &[]).await })
   }
 }

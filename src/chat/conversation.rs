@@ -1370,6 +1370,9 @@ impl Conversations {
     // A round's future holds the whole of its asking: it stands on the heap, not on a worker's stack.
     let ended =
       rounds::within(round.clone(), Box::pin(self.round(chat_id, force, &round, &mut record))).await;
+    // A round that failed for anything but a stop asked of it gives its room replies back to wait for the next pass
+    // (docs/bmo-window.md, 「Quiet instruction」).
+    let failed = matches!(&ended, Err(failure) if !matches!(failure, Failure::Stopped));
 
     if let Err(failure) = ended {
       self.fail_round(chat_id, failure).await;
@@ -1392,8 +1395,22 @@ impl Conversations {
       }
     };
 
-    // A round that ended, however it ended, has dealt with the rows it took, and its turn's mark goes with it.
-    if !settling.is_empty() {
+    // A round that ended has dealt with the rows it took, but for the room replies of one that failed, and its
+    // turn's mark goes with it.
+    if failed && !settling.is_empty() {
+      match super::instructions::give_back(self.0.receiver.db(), &round, &settling).await {
+        Ok(given) if !given.is_empty() => {
+          if let Some(pass) = self.0.receiver.pass() {
+            pass.kick();
+          }
+        }
+        Ok(_) => {}
+        Err(why) => {
+          eprintln!("chat {chat_id}: the rows of a failed round were not given back: {}", why.detail);
+          settle_instructions(self.0.receiver.db(), now_ms(), &round, settling).await;
+        }
+      }
+    } else if !settling.is_empty() {
       settle_instructions(self.0.receiver.db(), now_ms(), &round, settling).await;
     }
 

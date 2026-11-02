@@ -96,6 +96,7 @@ CREATE TABLE "instructions" (
   "sort" text,
   "summary" text,
   "agent_only" boolean NOT NULL DEFAULT FALSE,
+  "cause" text NOT NULL DEFAULT 'reply',
   "round" text,
   "run_id" bigint,
   rowid bigint GENERATED ALWAYS AS ("id") STORED,

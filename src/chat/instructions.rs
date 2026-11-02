@@ -3,7 +3,10 @@
 //! queued one itself, and within a moment of a row another process wrote — a cold wake held until the gap since
 //! the last has passed, a row no turn could ever take let go, a rider left for the next round its room opens and
 //! handed to it as that round starts, and, as the process starts, every row a stopped round left handed and
-//! unsettled made pending again.
+//! unsettled made pending again. A room reply opens its turn on a session past its cache lifetime too; only
+//! housekeeping waits there for a round something else opens (docs/wake.md, 「Quiet instructions」). Each opening of
+//! the agency's event stream reconciles the rows handed with the conversations standing and brings the pass
+//! forward, and so does the agency ending a session.
 
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
@@ -111,6 +114,30 @@ fn read_event(text: &str) -> Option<TurnEvent> {
   }
 }
 
+/// Whether somebody waits on a row (docs/wake.md, 「Quiet instructions」): a room reply opens its turn by itself,
+/// on a session past its cache lifetime too; housekeeping waits there for a round something else opens.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Cause {
+  #[default]
+  Reply,
+  Housekeeping,
+}
+
+impl Cause {
+  /// The word the row's column keeps it by.
+  pub fn word(self) -> &'static str {
+    match self {
+      Cause::Reply => "reply",
+      Cause::Housekeeping => "housekeeping",
+    }
+  }
+
+  /// The cause a column's word names; any word but housekeeping's is a room reply.
+  pub fn of_word(word: &str) -> Self {
+    if word == Cause::Housekeeping.word() { Cause::Housekeeping } else { Cause::Reply }
+  }
+}
+
 // One pending row of an agent's, as the pass reads it.
 struct Row {
   id: i64,
@@ -121,6 +148,7 @@ struct Row {
   sort: Option<String>,
   via: Option<String>,
   events: Vec<TurnEvent>,
+  cause: Cause,
   // None for a row that opens a turn; for a rider, until when in epoch milliseconds where it says, and whether
   // any room its session answers may carry it.
   rides: Option<(Option<i64>, bool)>,
@@ -139,7 +167,7 @@ impl Row {
 async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
   let rows = all(
     db,
-    r#"SELECT "id", "agent", "chat_id", "text", "restarts", "sort", "via", "events", "rides", "ride_until"
+    r#"SELECT "id", "agent", "chat_id", "text", "restarts", "sort", "via", "events", "rides", "ride_until", "cause"
        FROM "instructions" WHERE "delivered_at" IS NULL AND "handed_at" IS NULL ORDER BY "id""#,
     vec![],
   )
@@ -149,6 +177,7 @@ async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
   for row in rows {
     let rides: i64 = row.try_get("", "rides")?;
     let events: Option<String> = row.try_get("", "events")?;
+    let cause: String = row.try_get("", "cause")?;
 
     read.push(Row {
       id: row.try_get("", "id")?,
@@ -164,6 +193,7 @@ async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
         .filter(|one| !one.trim().is_empty())
         .filter_map(read_event)
         .collect(),
+      cause: Cause::of_word(&cause),
       rides: (rides != 0).then(|| (row.try_get("", "ride_until").ok().flatten(), rides == 2)),
     });
   }
@@ -196,7 +226,7 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
 
   if interrupted {
     println!(
-      "instruction {} for chat {} ({kind}) was cut off by a restart; delivering once",
+      "instruction {} for chat {} ({kind}) was cut off by a restart or a failed round; delivering it again",
       row.id, row.chat_id
     );
 
@@ -283,9 +313,14 @@ pub async fn deliver_pending(
     let cold = !rooms.is_active(&row.agent, row.chat_id);
     let interrupted = row.restarts > 0;
 
-    // A row never wakes a session past its cache lifetime: it waits for a round a room's own words open. One a
-    // turn already held or one a restart cut off is handed rather than held again.
-    if cold && !interrupted && super::cache::expired(db, &row.agent).await {
+    // Housekeeping never wakes a session past its cache lifetime: it waits for a round something else opens. A
+    // room reply opens its turn there all the same, the turn replacing the session; one a turn already held or
+    // one a restart cut off is handed rather than held again.
+    if cold
+      && !interrupted
+      && row.cause == Cause::Housekeeping
+      && super::cache::expired(db, &row.agent).await
+    {
       continue;
     }
 
@@ -335,6 +370,102 @@ pub async fn deliver_riders(
   }
 
   Ok(handed)
+}
+
+/// The room replies of a round that failed given back to pending, each with the failure counted on it as a restart
+/// is counted, so the next pass hands it again; one already given back the policy's times is settled under the
+/// round instead, and so is every row that is not a room reply (docs/bmo-window.md, 「Quiet instruction」). The
+/// rows given back.
+pub async fn give_back(db: &DatabaseConnection, round: &str, ids: &[i64]) -> Result<Vec<i64>, Fault> {
+  if ids.is_empty() {
+    return Ok(vec![]);
+  }
+
+  let numbered = (1..=ids.len()).map(|at| format!("${}", at + 1)).collect::<Vec<_>>().join(", ");
+  let mut values: Vec<Value> = vec![CHAT_ROUND.instructions.restart_limit.into()];
+
+  values.extend(ids.iter().map(|id| (*id).into()));
+
+  let given = all(
+    db,
+    &format!(
+      r#"UPDATE "instructions" SET "handed_at" = NULL, "restarts" = "restarts" + 1
+         WHERE "id" IN ({numbered}) AND "delivered_at" IS NULL AND "cause" = 'reply' AND "restarts" < $1
+         RETURNING "id""#
+    ),
+    values,
+  )
+  .await?;
+  let given: Vec<i64> = given.iter().filter_map(|row| row.try_get::<i64>("", "id").ok()).collect();
+  let settled: Vec<i64> = ids.iter().copied().filter(|id| !given.contains(id)).collect();
+
+  if !settled.is_empty() {
+    let numbered = (1..=settled.len()).map(|at| format!("${}", at + 2)).collect::<Vec<_>>().join(", ");
+    let mut values: Vec<Value> = vec![now_ms().into(), round.into()];
+
+    values.extend(settled.iter().map(|id| (*id).into()));
+    run(
+      db,
+      &format!(
+        r#"UPDATE "instructions" SET "delivered_at" = $1, "round" = $2 WHERE "id" IN ({numbered}) AND "delivered_at" IS NULL"#
+      ),
+      values,
+    )
+    .await?;
+  }
+
+  if !given.is_empty() {
+    let named: Vec<String> = given.iter().map(i64::to_string).collect();
+
+    println!(
+      "instructions {} were room replies of a round that failed and are pending again",
+      named.join(", ")
+    );
+  }
+
+  Ok(given)
+}
+
+/// Every row handed whose room's conversation no longer stands for its agent in this process, and which rides no
+/// round of another room, made pending again (docs/wake.md, 「What the agency's events wake」); the rows given back.
+pub async fn reconcile(db: &DatabaseConnection, rooms: &dyn Rooms) -> Result<Vec<i64>, Fault> {
+  let rows = all(
+    db,
+    r#"SELECT "id", "agent", "chat_id" FROM "instructions"
+       WHERE "handed_at" IS NOT NULL AND "delivered_at" IS NULL AND "rides" <> 2 ORDER BY "id""#,
+    vec![],
+  )
+  .await?;
+  let mut given = Vec::new();
+
+  for row in rows {
+    let id: i64 = row.try_get("", "id")?;
+    let agent: String = row.try_get("", "agent")?;
+    let chat_id: i64 = row.try_get("", "chat_id")?;
+
+    if rooms.is_active(&agent, chat_id) {
+      continue;
+    }
+
+    run(
+      db,
+      r#"UPDATE "instructions" SET "handed_at" = NULL WHERE "id" = $1 AND "delivered_at" IS NULL"#,
+      vec![id.into()],
+    )
+    .await?;
+    given.push(id);
+  }
+
+  if !given.is_empty() {
+    let named: Vec<String> = given.iter().map(i64::to_string).collect();
+
+    println!(
+      "instructions {} were handed to no conversation that stands and are pending again",
+      named.join(", ")
+    );
+  }
+
+  Ok(given)
 }
 
 /// What a stopped process left handed and unsettled goes back to pending before anything is delivered, each
@@ -406,6 +537,8 @@ pub struct Queued<'a> {
   /// Whether this is an agent-only notice: a record the agent reads and no room hears. A round carrying only such
   /// rows sends no message (docs/bmo-window.md, 「Quiet instruction」).
   pub agent_only: bool,
+  /// Whether somebody waits on it; a row for the agent alone is housekeeping whatever this says.
+  pub cause: Cause,
   pub sort: Option<&'a str>,
   pub summary: Option<&'a str>,
   /// The road the session it is for was read on, which it is delivered on.
@@ -421,6 +554,11 @@ fn rides(queued: &Queued<'_>) -> i64 {
     (false, Some(_)) => 1,
     (false, None) => 0,
   }
+}
+
+// The cause a row is written with: housekeeping for a row the agent alone reads, else what the producer named.
+fn cause_of(queued: &Queued<'_>) -> Cause {
+  if queued.agent_only { Cause::Housekeeping } else { queued.cause }
 }
 
 /// The instruction written for one agent's session in the chat with everything it carries, a pending row of the
@@ -445,8 +583,8 @@ pub async fn queue(
 
   let written = one(
     &transaction,
-    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id", "cause")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING "id""#,
     vec![
       agent.into(),
@@ -462,6 +600,7 @@ pub async fn queue(
       queued.summary.into(),
       Value::Bool(Some(queued.agent_only)),
       queued.run_id.into(),
+      cause_of(queued).word().into(),
     ],
   )
     .await?;
@@ -496,6 +635,16 @@ impl Pass {
   /// The next pass brought forward to now, for a row the receiver queued that should not wait for the tick.
   pub fn kick(&self) {
     self.kicked.notify_one();
+  }
+
+  /// The rows handed to no conversation that stands made pending again, and the pass brought forward over every
+  /// pending row, as the agency's event stream opens.
+  pub async fn reconcile(&self) {
+    if let Err(why) = reconcile(self.receiver.db(), self.rooms.as_ref()).await {
+      eprintln!("instructions: {}", why.detail);
+    }
+
+    self.kick();
   }
 
   /// The rows of an agent's riding a round handed to it as the round starts.
@@ -576,5 +725,27 @@ impl crate::receiver::Pass for Pass {
 
   fn riders<'a>(&'a self, agent: &'a str, chat_id: i64) -> BoxFuture<'a, ()> {
     Box::pin(async move { self.riders(agent, chat_id).await })
+  }
+}
+
+// The agency's kind for a session it ended.
+const SESSION_ENDED: &str = "session.deleted";
+
+/// A session the agency ended brings the pass forward, so a room reply owed to its agent starts a fresh session's
+/// turn at once (docs/wake.md, 「What the agency's events wake」).
+impl crate::hearing::Hearer for Pass {
+  fn kinds(&self) -> &'static [&'static str] {
+    &[SESSION_ENDED]
+  }
+
+  fn hear<'a>(&'a self, _event: &'a receiver_ports::agency::Event) -> BoxFuture<'a, ()> {
+    Box::pin(async move { self.kick() })
+  }
+}
+
+/// Each opening of the agency's event stream reconciles the rows handed and runs the pass.
+impl crate::hearing::Opened for Pass {
+  fn opened(&self) -> BoxFuture<'_, ()> {
+    Box::pin(self.reconcile())
   }
 }

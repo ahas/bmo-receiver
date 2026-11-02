@@ -595,6 +595,9 @@ pub struct InstructionRequest {
   pub sort: String,
   #[serde(default)]
   pub summary: Option<String>,
+  /// Whether somebody waits on it: a room reply, the default, or housekeeping.
+  #[serde(default)]
+  pub cause: Option<InstructionCause>,
   #[serde(default)]
   pub events: Vec<String>,
   /// A record the agent reads and no room hears: a round carrying only such rows sends no message.
@@ -606,6 +609,18 @@ pub struct InstructionRequest {
   pub via: Option<String>,
   #[serde(default)]
   pub run: Option<i64>,
+}
+
+/// Whether somebody waits on an instruction (docs/wake.md, 「Quiet instructions」).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InstructionCause {
+  /// It answers something a room or the owner asked or set going, and opens the agent's turn by itself, on a
+  /// session past its cache lifetime too.
+  Reply,
+  /// A record for the agent alone that nobody waits on, which waits for a round something else opens where the
+  /// session is past its cache lifetime.
+  Housekeeping,
 }
 
 /// How far an instruction has gone.

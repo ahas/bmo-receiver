@@ -37,8 +37,10 @@ flowchart TB
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
   conversation; it is the only caller of the conversation's instruct. The console's instruct writes a row and
   brings the pass forward like any other producer.
-- **When the pass runs.** On a regular tick of fifteen seconds, and at once when a row is queued through a route
-  or by the receiver itself.
+- **When the pass runs.** On a regular tick of fifteen seconds, at once when a row is queued through a route or
+  by the receiver itself, at once each time the agency's event stream opens and when the agency ends a session
+  (`docs/wake.md`, 「What the agency's events wake」), and as the receiver starts. Each pass reads every pending
+  row afresh.
 - **A row may carry events**: what happened, in a form the memories can wait on (「Events」 below). The events
   travel with the row into the turn that takes it.
 - **A room's words** reach the conversation from the chat services through the room queue, from the start-up
@@ -121,6 +123,16 @@ that session without the room hearing it.
   that also read a room's words answers those words, with the agent-only record read as part of the turn.
 - **A row waits for a turn to take it.** A row carries no expiry: it is delivered with the round it is handed
   to, however long it waited, and a newer row of the same kind in the chat replaces one not yet handed.
+- **A row carries its cause:** a room reply, which answers something a room or the owner asked and opens its
+  turn on a session past its cache lifetime too, or housekeeping, a record for the agent alone that waits there
+  for a round something else opens (`docs/wake.md`, 「Quiet instructions」). The producer names it on the row; a
+  row marked `agent_only` is housekeeping whatever it names, and a row that names none is a room reply.
+- **A round settles the rows it took however it ended, except a room reply in a round that failed.** A round
+  that failed for any reason but a stop asked of it gives its room replies back to pending, counting the failure
+  on the row as a restart is counted, so the next pass hands them again; a reply given back the policy's
+  `restart_limit` times is settled with the round that failed last, whose failure notice and order still stand.
+  A round whose turn's end never reached it, because the agency's event stream ended first, reads the turn's
+  end from the agency; where the agency no longer holds the turn the round has failed.
 - **Acted on as the owner's word in that chat.** The session may answer `<<SKIP>>` in any chat, the owner's
   private chat included, when acting on it needs nothing said. The permission covers the instruction and not the
   round it rides in, so where the same round also read the owner's own words in the owner's own chat the silence
@@ -136,8 +148,8 @@ that session without the room hearing it.
 - **It never holds a room open.** A `<<SKIP>>` to an instruction opens no window, and a conversation opened for
   an instruction closes as soon as it is done, so a room is never listened to on an instruction's account; an
   answer to the room's own messages is the one thing that keeps the room open.
-- **The pass skips rows for a chat the usage rest has silenced** until the rest lifts, and a row is marked
-  delivered the moment it is handed over.
+- **The pass skips rows for a chat the usage rest has silenced** until the rest lifts. A row is marked handed
+  the moment it is handed over and delivered when the round that took it settles it.
 - **Cold wakes are paced.** Handing an instruction to a chat that is not talking resumes its session and
   prefills its whole context again, so a reload that queues one row per room would re-prefill every room at
   once. So the pass lets a cold wake through only when the launch gap has passed since the last one, the same
@@ -145,6 +157,10 @@ that session without the room hearing it.
   in flight and prefills nothing, so it goes at once, and a lone wake in a quiet stretch goes at once too. Only a
   burst is spread out, and while wakes are held back the pass comes round at the gap rather than the full tick,
   so the queue drains one wake at a time.
+- **A chat's first run since the receiver started is spaced from every other chat's first run** by the same
+  launch gap: each first launch takes the next free moment on one schedule, the gap after the last moment taken,
+  and waits for that moment alone. Nothing else waits on the schedule: a run of a chat already launched goes at
+  once, and a first launch never holds back another chat's turn while it waits.
 - **A job's status notice reaches the item's requester, not the launcher:** it is queued in the requester's
   room, which is the room's answerer first, the requester's private room where the room names no answerer, and
   the chat agent where neither does. The report stands whole on the item, and the requester hears its relay in
@@ -335,9 +351,9 @@ Beside the reference, a turn carries the room's messages since the agent last an
 - **Every turn of the session reports its use** to the warmer, so a session in use is never pinged.
 - **A session past its cache lifetime is not touched:** once its last turn is older than the lifetime its provider
   declares (`providers.toml`, `cache_minutes`, else `keepalive_idle_minutes`), waking it would pay its whole prefix again for nothing, so
-  the touch answers `skipped` with `expired`, no fold is started for it, and no quiet instruction opens a turn of
-  its own on it (`docs/wake.md`, 「Quiet instructions」). It stays as it stands; the next round a room's own words
-  open replaces it through the handoff (`docs/unified-bmo.md`, 「Replacing the session」).
+  the touch answers `skipped` with `expired`, no fold is started for it, and no housekeeping instruction opens a
+  turn of its own on it (`docs/wake.md`, 「Quiet instructions」). It stays as it stands; the next round a room's own
+  words or a room reply open replaces it through the handoff (`docs/unified-bmo.md`, 「Replacing the session」).
 
 ## A line typed into the program
 

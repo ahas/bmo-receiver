@@ -201,6 +201,7 @@ impl StandInSession {
     let _ = self.events.send(Event {
       kind: kind.to_owned(),
       data,
+      ..Event::default()
     });
   }
 

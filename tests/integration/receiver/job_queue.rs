@@ -102,7 +102,7 @@ async fn an_order_queued_for_a_room_writes_its_row_and_is_read_back_as_pending()
     texts(&scratch, &format!(r#"SELECT "text" FROM "instructions" WHERE "id" = {id}"#)).await,
     ["check the queue and say nothing."],
   );
-  assert_eq!(front.kicked.times(), 0);
+  assert_eq!(front.kicked.times(), 1, "a room reply brings the pass forward as it lands");
 }
 
 #[tokio::test]

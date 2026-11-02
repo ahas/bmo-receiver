@@ -42,8 +42,9 @@ send tool's (`docs/chat-mcp.md`). A session reaches it through the toolbook and 
 ## Its end wakes the agent in its room
 
 - **The end is an instruction,** `POST /instructions` with the sort `use-ended` and the call's answer as a fact,
-  for the agent in the room `bmo use` names. Queued with no kind, it opens the agent's turn there at the
-  instruction pass's next tick (`docs/bmo-window.md`, 「Quiet instruction」). The agent looks at how things stand
+  for the agent in the room `bmo use` names. Queued with no kind and as a room reply, it opens the agent's turn there
+  at once, on a session past its cache lifetime too, which that turn replaces (`docs/wake.md`, 「Quiet
+  instructions」), and at the instruction pass's next tick at the latest (`docs/bmo-window.md`, 「Quiet instruction」). The agent looks at how things stand
   and writes what the room hears then, in that room's manner, or says nothing where nothing needs saying.
 - **The wake is kept until it is taken:** once the instruction stands in the receiver's instruction table it
   survives a restart until the room's session takes it.

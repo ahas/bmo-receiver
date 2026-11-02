@@ -1,6 +1,7 @@
-//! A session past its cache lifetime is never woken (docs/unified-bmo.md, 「Replacing the session」): the touch
-//! answers it expired, no quiet instruction and no spoken script opens a turn on it, and the next round a room's own
-//! words open replaces it through the handoff.
+//! A session past its cache lifetime is woken only by what someone waits on (docs/unified-bmo.md, 「Replacing the
+//! session」; docs/wake.md, 「Quiet instructions」): the touch answers it expired, no housekeeping instruction and no
+//! spoken script opens a turn on it, and a room's own words or a room reply open a round that replaces it through
+//! the handoff.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -8,7 +9,7 @@ use std::time::Duration;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::cache::{CacheState, Route, expired, set_active_route, state_key};
 use bmo_receiver::chat::conversation::Timings;
-use bmo_receiver::chat::instructions::{Queued, Rooms, deliver_pending, queue};
+use bmo_receiver::chat::instructions::{Cause, Queued, Rooms, deliver_pending, queue};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::chat::touch::{TouchOutcome, touch};
 use bmo_receiver::data_root::DataRoot;
@@ -113,7 +114,7 @@ impl Rooms for Recorded {
 }
 
 #[tokio::test]
-async fn an_expired_session_is_not_touched_and_no_instruction_wakes_it() {
+async fn an_expired_session_is_not_touched_and_no_housekeeping_wakes_it() {
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let session = Arc::new(StandInSession::new(SESSION, "unused"));
@@ -137,18 +138,134 @@ async fn an_expired_session_is_not_touched_and_no_instruction_wakes_it() {
   );
   assert!(session.prompts().is_empty(), "nothing went into the session for a script either");
 
-  let id = queue(scratch.db(), AGENT, OWNER, "a fact that opens a turn", &Queued::default())
+  let housekeeping = Queued {
+    cause: Cause::Housekeeping,
+    ..Queued::default()
+  };
+  let id = queue(scratch.db(), AGENT, OWNER, "a record for the agent alone", &housekeeping)
     .await
     .unwrap();
+  let only = queue(
+    scratch.db(),
+    AGENT,
+    OWNER,
+    "a tool list's change",
+    &Queued {
+      agent_only: true,
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
 
   deliver_pending(&receiver, &rooms, &mut last, now_ms(), 0).await.unwrap();
-  assert!(rooms.0.lock().unwrap().is_empty(), "the row waits for a round a room's words open");
+  assert!(
+    rooms.0.lock().unwrap().is_empty(),
+    "housekeeping waits for a round something else opens"
+  );
 
   // Inside its lifetime the same row is handed over, and the session is not expired, past its touch's due time.
   kept(&scratch, 45).await;
   assert!(!expired(scratch.db(), AGENT).await);
   deliver_pending(&receiver, &rooms, &mut last, now_ms(), 0).await.unwrap();
-  assert_eq!(*rooms.0.lock().unwrap(), [id]);
+  assert_eq!(*rooms.0.lock().unwrap(), [id, only]);
+}
+
+#[tokio::test]
+async fn a_room_reply_landing_on_an_expired_session_is_handed_at_once() {
+  let scratch = Scratch::new().await;
+  let data = tempfile::tempdir().unwrap();
+  let session = Arc::new(StandInSession::new(SESSION, "unused"));
+  let standing = agent_standing(&scratch, data.path(), &session);
+  let rooms = Recorded::default();
+  let mut last = 0;
+
+  kept(&scratch, 600).await;
+  assert!(expired(scratch.db(), AGENT).await);
+
+  let id = queue(
+    scratch.db(),
+    AGENT,
+    OWNER,
+    "the research run asked in this room has ended",
+    &Queued {
+      kind: Some("research-ended:218"),
+      sort: Some("notice"),
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
+
+  deliver_pending(&standing.receiver, &rooms, &mut last, now_ms(), 0).await.unwrap();
+  assert_eq!(*rooms.0.lock().unwrap(), [id], "nobody's words are waited for");
+}
+
+#[tokio::test]
+async fn a_room_reply_on_an_expired_session_starts_a_turn_that_replaces_it_through_the_handoff() {
+  let scratch = Scratch::new().await;
+
+  crate::integration::common::session::no_drafting(scratch.db()).await;
+
+  let data = tempfile::tempdir().unwrap();
+  let session = Arc::new(
+    StandInSession::new(SESSION, "The research is back.")
+      .on_provider("claude-code")
+      .at_generation(2)
+      .acting(writing_handoff(NOTE)),
+  );
+  let standing = agent_standing(&scratch, data.path(), &session);
+  let receiver = standing.receiver.clone();
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+  let mut last = 0;
+
+  receiver.hold_runner(Arc::new(runner.clone()));
+  kept(&scratch, 600).await;
+
+  let id = queue(
+    scratch.db(),
+    AGENT,
+    OWNER,
+    "the research run asked in this room has ended",
+    &Queued {
+      sort: Some("notice"),
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
+
+  deliver_pending(&receiver, &runner, &mut last, now_ms(), 0).await.unwrap();
+
+  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+    while session.prompts().len() < 2 || !runner.idle() || session.working() {
+      tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+  })
+  .await;
+
+  assert!(waited.is_ok(), "the reply's round never ended: {:#?}", session.prompts());
+
+  let prompts = session.prompts();
+
+  assert!(
+    prompts[0].contains("/handoffs/"),
+    "the expired session is asked for its handoff first: {}",
+    prompts[0]
+  );
+  assert!(prompts[1].contains(NOTE), "the new session opens on it: {}", prompts[1]);
+  assert!(prompts[1].contains("the research run asked in this room has ended"), "{}", prompts[1]);
+
+  let settled = tokio::time::timeout(Duration::from_secs(5), async {
+    let sql = r#"SELECT count(*) FROM "instructions" WHERE "id" = $1 AND "delivered_at" IS NOT NULL"#;
+
+    while scratch.count(sql, vec![id.into()]).await == 0 {
+      tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+  })
+  .await;
+
+  assert!(settled.is_ok(), "the reply's row is settled by the round that took it");
 }
 
 #[tokio::test]

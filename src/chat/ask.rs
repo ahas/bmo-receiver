@@ -63,21 +63,27 @@ crate::room_forget!(RoomForget {
   forget: forget_room,
 });
 
-/// The first run of each room since this process started, spaced from the first run of any other room.
+/// The first run of each room since this process started, spaced from the first run of any other room: each first
+/// launch takes the next free moment on one schedule and waits for it alone, so a room already launched, and every
+/// other room's launch, never waits behind it (docs/bmo-window.md, 「Quiet instruction」).
 async fn pace_first_launch(chat_id: i64) {
-  let mut pacing = PACING.lock().await;
+  let wait = {
+    let mut pacing = PACING.lock().await;
 
-  if !pacing.0.insert(chat_id) {
-    return;
-  }
+    if !pacing.0.insert(chat_id) {
+      return;
+    }
 
-  let wait = pacing.1 + LAUNCH_GAP.as_millis() as i64 - now_ms();
+    let now = now_ms();
+    let slot = (pacing.1 + LAUNCH_GAP.as_millis() as i64).max(now);
+
+    pacing.1 = slot;
+    slot - now
+  };
 
   if wait > 0 {
     tokio::time::sleep(Duration::from_millis(wait as u64)).await;
   }
-
-  pacing.1 = now_ms();
 }
 
 /// What a turn was handed, by where it came from, what it is and how it went in: the stretch of the room where it
@@ -371,6 +377,7 @@ impl Carry {
     let mut ended: Option<Value> = None;
     let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
     let mut quiet_until: Option<tokio::time::Instant> = None;
+    let mut dropped = false;
 
     look.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
@@ -389,8 +396,11 @@ impl Carry {
       };
 
       match read {
-        None => break,
-        Some(Ok(Event { kind, data })) => {
+        None => {
+          dropped = true;
+          break;
+        }
+        Some(Ok(Event { kind, data, .. })) => {
           let body = &data;
           let mine = body.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
 
@@ -430,6 +440,23 @@ impl Carry {
     let delivered =
       sending.await.map_err(|_| Failure::Failed("the turn's carrying went away".to_owned()))?;
     let delivered = delivered.map_err(fault_of)?;
+
+    // A turn whose end the stream never brought, because the stream ended first, is read from the agency; a turn
+    // it no longer holds has failed, and the round with it (docs/bmo-window.md, 「Quiet instruction」).
+    if ended.is_none() && dropped {
+      let lost = "the agency's event stream ended before the turn did";
+      let Some(turning) = turning else {
+        return Err(Failure::Failed(format!("{lost}, and the turn was never named")));
+      };
+
+      match agency.turn_read(&session.id, turning).await {
+        Ok(read) if read.ended() => {
+          ended = Some(serde_json::json!({ "outcome": read.outcome, "answer": read.answer }));
+        }
+        Ok(_) => return Err(Failure::Failed(format!("{lost}, and the agency says it has not ended"))),
+        Err(why) => return Err(Failure::Failed(format!("{lost}, and the agency does not hold it: {why}"))),
+      }
+    }
 
     // A session's first turn opens it as the agency carries the turn; a state it has not answered for
     // yet is read as the fresh session's, with nothing of a request behind it.

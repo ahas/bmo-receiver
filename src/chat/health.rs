@@ -71,6 +71,7 @@ pub async fn raise_order(
     rides_until_ms: None,
     rides_session: false,
     agent_only: true,
+    cause: super::instructions::Cause::Housekeeping,
     sort: None,
     summary: reason,
     via: None,
