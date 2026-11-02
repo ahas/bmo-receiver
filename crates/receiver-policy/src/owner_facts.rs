@@ -4,12 +4,14 @@
 
 use serde::Deserialize;
 
-/// A job's run fallen to a lesser model: the notice's fact, what it is for, what follows, the word for a
-/// role the agency does not name, and its kind.
+/// A job's run fallen to a lesser model: the notice's fact, where the run ran with its repository and
+/// without one, what it is for, what follows, the word for a role the agency does not name, and its kind.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WorkerDowngraded {
   pub fact: String,
+  pub place: String,
+  pub place_none: String,
   pub job: String,
   pub intent: String,
   pub dropped: String,

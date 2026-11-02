@@ -315,8 +315,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   carry. A `speak` sends nothing either way: in the asker's own round it answers `own` true and no lines, and the
   command sends the note it makes as `voice`.
 - **`began`** is the moment the asking turn took its words, in epoch milliseconds. A send, or a consult line, whose
-  `began` is at or before the reset point the receiver keeps for its agent is refused before anything else, its
-  `refusal` (a consult line's code `overtaken`, 409) telling the turn to end (`docs/wake.md`, 「An agent's reset」).
+  `began` is at or before its agent's reset point, the agency's as the receiver reads it then, is refused before
+  anything else, its `refusal` (a consult line's code `overtaken`, 409) telling the turn to end (`docs/wake.md`,
+  「An agent's reset」).
 - **A `say`** answers once the line is on its way: the receiver puts the words through the room's gates and into
   the room apart from the call, opens the room's window for the agent that said it, and tells the chat that set
   it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.
@@ -512,7 +513,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `POST /companions` | `name`, `label`, `provider`, `model`, `worker`, `room` | a page of the agents added on the console, and `room` (`id`, `takenBack`, `said`) |
-| `DELETE /companions/{companionName}` | `by` | a page of the agents added on the console |
+| `DELETE /companions/{companionName}` | `by` | a page of the agents added on the console; `not-companion` (404), `seeded-companion` (409), `action` (400) |
 
 - **An agent added on the console is a chat agent like any other,** with a room of the console's own: its rounds
   are the same rounds, its judgement of window words first and its draft process among them (`docs/wake.md`). The
@@ -523,6 +524,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the agency's, and its gate options the gate's. What a name may be is the agency's to say. A field the agency
   refuses comes back as the refusal of that field (`name`, `label`, `provider`, `model`, `worker`; `agent` as
   `not-companion`; any other as `upstream-failed`).
+- **A seeded agent is never taken out.** Before it asks the agency anything, the receiver reads the agent's
+  supervisor (`GET /supervisors/{supervisorName}`): one the deployment seeds, or the default answerer, is refused
+  `seeded-companion` with its `label`, and nothing is asked of the agency or written. An agent the agency does not
+  list, or one not added on the console, is refused `not-companion`.
 - **`worker` names the repository** the agent's items go to, under the field name the agency's resource and the
   console's dialog carry: a repository the agency does not hold (`GET /repositories`) is refused as `worker`
   before anything is written.

@@ -3413,16 +3413,19 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, forbidden, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, upstream-failed, failed"
           }
         },
-        "summary": "An agent added on the console taken out, its room half given up.",
+        "summary": "An agent added on the console taken out, its room half given up; a seeded one is refused.",
         "tags": [
           "Agents added on the console"
         ],
         "x-codes": [
           "unauthorized",
           "forbidden",
+          "bad-request",
+          "not-found",
+          "conflict",
           "upstream-failed",
           "failed"
         ]

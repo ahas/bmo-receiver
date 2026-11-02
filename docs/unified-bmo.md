@@ -186,7 +186,7 @@
   it: no keepalive touch, no fold, no housekeeping instruction, no push and no spoken script
   (`docs/bmo-window.md`, 「The touch」; `docs/voiced-notices.md`), since waking it for those would have the
   provider read its whole prefix again for nothing. The lifetime is the one the agency's warm and cold
-  criterion reads (its `docs/sessions.md`, 「A worker's session per model」), the same minutes in
+  criterion reads (its `docs/sessions.md`, 「The warm/cold criterion」), the same minutes in
   `providers.toml` here.
 - **The head is what the session's cache stands on:** the common system prompt, which the agency composes and
   keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of

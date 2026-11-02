@@ -358,14 +358,14 @@ async fn a_reset_of_the_person_range_alone_keeps_the_agents_conversation() {
 }
 
 #[tokio::test]
-async fn a_jobs_run_fallen_to_a_lesser_model_is_voiced_to_the_owner_by_its_role_and_checkout() {
+async fn a_jobs_run_fallen_to_a_lesser_model_is_voiced_to_the_owner_by_its_role_repository_and_checkout() {
   let heard = Heard::on().await;
 
   heard.session.told(
     DOWNGRADED,
     json!({
-      "worker": "repo-a-w2", "role": "builder", "launched": "model-a", "answeredOn": ["model-b"],
-      "dropped": true, "job": 9,
+      "worker": "repo-a-w2", "repository": "repo-a", "role": "builder", "launched": "model-a",
+      "answeredOn": ["model-b"], "dropped": true, "job": 9,
     }),
   );
 
@@ -374,12 +374,38 @@ async fn a_jobs_run_fallen_to_a_lesser_model_is_voiced_to_the_owner_by_its_role_
   assert_eq!((rows[0].chat_id, rows[0].sort.as_deref()), (OWNER, Some("notice")));
   assert!(rows[0].text.contains("came off model-b instead of model-a"), "{}", rows[0].text);
   assert!(
-    rows[0].text.contains("the role \"builder\" in the repository checkout \"repo-a-w2\""),
+    rows[0]
+      .text
+      .contains("the role \"builder\" in the repository \"repo-a\" (checkout \"repo-a-w2\")"),
     "{}",
     rows[0].text
   );
   assert!(rows[0].text.contains("It happened on job #9."));
   assert!(rows[0].text.contains("That session has been dropped"));
+}
+
+#[tokio::test]
+async fn a_jobs_run_in_a_checkout_no_repository_holds_is_voiced_by_its_checkout_alone() {
+  let heard = Heard::on().await;
+
+  heard.session.told(
+    DOWNGRADED,
+    json!({
+      "worker": "gone-w1", "repository": null, "role": "builder", "launched": "model-a",
+      "answeredOn": ["model-b"], "dropped": false, "job": null,
+    }),
+  );
+
+  let rows = heard.kept("worker-downgrade:gone-w1:builder", 1).await;
+
+  assert!(
+    rows[0]
+      .text
+      .contains("in the checkout \"gone-w1\", which no repository holds any longer"),
+    "{}",
+    rows[0].text
+  );
+  assert!(!rows[0].text.contains("the repository \""), "{}", rows[0].text);
 }
 
 #[tokio::test]

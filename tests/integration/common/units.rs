@@ -861,6 +861,8 @@ pub struct StandInAgency {
   pub agents: Mutex<Vec<Agent>>,
   /// How often it was asked for its agents.
   pub agents_asked: AtomicUsize,
+  /// Every supervisor it was asked for by its name, in order.
+  pub supervisors_read: Mutex<Vec<String>>,
   pub stand_ins: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
   pub written: Mutex<Vec<Resting>>,
@@ -904,6 +906,7 @@ impl StandInAgency {
       saying: Mutex::default(),
       agents: Mutex::default(),
       agents_asked: AtomicUsize::new(0),
+      supervisors_read: Mutex::default(),
       stand_ins: Mutex::default(),
       rest: Mutex::new(Rest {
         resting: false,
@@ -1016,6 +1019,18 @@ impl Agency for StandInAgency {
         more: false,
       })
     })
+  }
+
+  fn supervisor<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<Agent>>> {
+    self.supervisors_read.lock().unwrap().push(name.to_owned());
+
+    if self.is_down() {
+      return agency_down("supervisors");
+    }
+
+    let found = self.agents.lock().unwrap().iter().find(|agent| agent.name == name).cloned();
+
+    Box::pin(async move { Ok(found) })
   }
 
   fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>> {

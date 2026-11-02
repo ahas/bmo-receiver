@@ -235,9 +235,15 @@ agent's reset point, publishes the cut-off, and then tells each unit holding the
 Both go under the kind `companion-reset.created`, which is the agency's name for it, and are told apart by their
 fields: a cut-off names the `point` alone, a reset names its `ranges`.
 
-- **The cut-off** is heard for as long as the service runs. Its point is kept as the agent's reset point
-  (`docs/store.md`, 「The settings」), a later point in place of an earlier one, and a send or a consult line asked
-  in a turn that began at or before it is refused (`docs/chat-mcp.md`, 「Turn context」). Everything waiting for the
+- **The reset point is the agency's.** The agency answers it on the supervisor's row as `resetPoint`
+  (`docs/boundary-api.md`, 「The agency」), and a send or a consult line asked in a turn that began at or before
+  it is refused (`docs/chat-mcp.md`, 「Turn context」). Each such ask reads the agent's supervisor afresh and
+  judges the turn by the later of that point and the one the receiver keeps (`docs/store.md`, 「The settings」),
+  keeping the point it read; the kept point alone stands where the agency does not answer or holds no supervisor
+  of the name. A reset the receiver did not hear, published while its stream was down and no longer kept by the
+  agency, still overtakes the turns it cut off.
+- **The cut-off is the live signal,** heard for as long as the service runs. Its point is kept as the agent's
+  reset point, a later point in place of an earlier one. Everything waiting for the
   agent's turns in every room is let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on,
   and its quiet instructions, whose rows are settled as delivered so no turn takes them again. An agent whose
   conversations do not stand in this process has nothing waiting. A turn under way is the agency's to stop, and
@@ -355,7 +361,7 @@ to, and those that tell the chat agent something wake it as an instruction in th
 opens a round there like any instruction:
 
 - **A voiced notice:** a stand-in answering or ended, and a job's run fallen to a lesser model, named by its role
-  and its checkout (`docs/voiced-notices.md`, 「Rest and fallback」).
+  and its repository with the checkout it ran in beside it (`docs/voiced-notices.md`, 「Rest and fallback」).
 - **An order:** a run past its clock, withdrawn where its ask closes first (`docs/voiced-notices.md`, 「A turn
   past its clock」).
 - **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency

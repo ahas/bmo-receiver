@@ -41,19 +41,21 @@ fn a_long_run_and_a_chat_turn_count_however_long_they_have_run() {
 }
 
 #[test]
-fn every_job_starting_or_running_counts_however_long_it_has_run() {
+fn every_job_starting_or_running_counts_however_long_it_has_run_named_by_its_repository_and_checkout() {
   let jobs = [
     RunningJob {
       id: 906_425,
       role_name: Some("worker".to_owned()),
-      worker_name: Some("repo-a".to_owned()),
+      repository_name: Some("repo-a".to_owned()),
+      worker_name: Some("repo-a-w2".to_owned()),
       item_id: Some(2283),
       started_at: Some(NOW - 600 * MINUTE),
     },
     RunningJob {
       id: 906_426,
       role_name: None,
-      worker_name: None,
+      repository_name: None,
+      worker_name: Some("gone-w1".to_owned()),
       item_id: None,
       started_at: None,
     },
@@ -61,6 +63,13 @@ fn every_job_starting_or_running_counts_however_long_it_has_run() {
   let named = jobs_under_way(&jobs);
 
   assert_eq!(named.len(), 2, "{named:?}");
-  assert!(named[0].starts_with("job 906425 as worker in repo-a on item 2283"));
+  assert!(
+    named[0].starts_with("job 906425 as worker in repo-a (checkout repo-a-w2) on item 2283"),
+    "{named:?}"
+  );
+  assert!(
+    named[1].starts_with("job 906426 as a role in checkout gone-w1 on item none"),
+    "a checkout no repository holds is named alone: {named:?}"
+  );
   assert!(jobs_under_way(&[]).is_empty());
 }

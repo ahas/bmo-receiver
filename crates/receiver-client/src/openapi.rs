@@ -1186,11 +1186,19 @@ pub fn openapi() -> Value {
     "/companions/{companionName}",
     "removeCompanion",
     "Agents added on the console",
-    "An agent added on the console taken out, its room half given up.",
+    "An agent added on the console taken out, its room half given up; a seeded one is refused.",
     vec![name_parameter("companionName"), parameter("by", "string", false)],
     None,
     vec![(200, json_answer::<Companions>(&mut generator))],
-    vec!["unauthorized", "forbidden", "upstream-failed", "failed"]
+    vec![
+      "unauthorized",
+      "forbidden",
+      "bad-request",
+      "not-found",
+      "conflict",
+      "upstream-failed",
+      "failed"
+    ]
   );
   add!(
     "PUT",

@@ -1,7 +1,7 @@
 //! An agent added on the console and removed there (docs/api.md, 「Agents added on the console」): the agency
-//! writes the agent's half and the gate copies the chat agent's options before the receiver writes the room half;
-//! the agent's name goes to the agency's removal; and a field the agency refuses comes
-//! back as the receiver's code with nothing written.
+//! writes the agent's half and the gate copies the chat agent's options before the receiver writes the room
+//! half; the agent's name goes to the agency's removal, a seeded one's never; and a field the agency
+//! refuses comes back as the receiver's code with nothing written.
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
@@ -68,6 +68,41 @@ async fn an_added_agent_stands_with_its_gate_options_copied_and_its_name_goes_to
     "the agent is removed by the name the agency registers it under"
   );
   assert_eq!(answerers(&scratch).await, 0);
+}
+
+#[tokio::test]
+async fn a_seeded_agent_is_refused_as_seeded_and_the_agency_is_asked_no_removal() {
+  let scratch = Scratch::new().await;
+  let front = bench(&scratch).await;
+  let (status, answer) = post(&front, "/companions", added()).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+
+  for agent in front.standing.agency.agents.lock().unwrap().iter_mut() {
+    agent.row.insert("seeded".to_owned(), json!(true));
+  }
+
+  let (status, answer) = remove(&front, &format!("/companions/{ADDED}?by=tester")).await;
+
+  assert_eq!(
+    (status, answer["code"].clone(), answer["error"].clone()),
+    (
+      StatusCode::CONFLICT,
+      json!("seeded-companion"),
+      json!("Agent D is a seeded agent, so it cannot be removed")
+    ),
+    "{answer}"
+  );
+  assert!(
+    front.standing.agency.removals.lock().unwrap().is_empty(),
+    "the agency is never asked to take out a seeded agent"
+  );
+  assert_eq!(
+    *front.standing.agency.supervisors_read.lock().unwrap(),
+    [ADDED],
+    "the agent's supervisor is read afresh before anything is asked"
+  );
+  assert_eq!(answerers(&scratch).await, 1, "its room half stays");
 }
 
 #[tokio::test]

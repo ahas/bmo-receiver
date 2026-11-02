@@ -83,7 +83,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** An agent added on the console taken out, its room half given up. */
+        /** An agent added on the console taken out, its room half given up; a seeded one is refused. */
         delete: operations["removeCompanion"];
         options?: never;
         head?: never;
@@ -2516,7 +2516,7 @@ export interface operations {
                     "application/json": components["schemas"]["Companions"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, forbidden, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

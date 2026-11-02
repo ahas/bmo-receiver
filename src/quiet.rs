@@ -18,17 +18,22 @@ pub fn under_way(open: &[OpenRun]) -> Vec<String> {
     .collect()
 }
 
-/// What stands under way as the agency answers now; the agency's failure where it did not answer.
-/// Every job starting or running, each named as a line.
+/// Every job starting or running, each named as a line: its role, and its repository with the checkout of
+/// it beside it, or the checkout alone where no repository holds it any longer.
 pub fn jobs_under_way(jobs: &[RunningJob]) -> Vec<String> {
   jobs
     .iter()
     .map(|job| {
+      let checkout = job.worker_name.as_deref().unwrap_or("a checkout");
+      let place = match job.repository_name.as_deref() {
+        Some(repository) => format!("{repository} (checkout {checkout})"),
+        None => format!("checkout {checkout}"),
+      };
+
       format!(
-        "job {} as {} in {} on item {} under way since {}",
+        "job {} as {} in {place} on item {} under way since {}",
         job.id,
         job.role_name.as_deref().unwrap_or("a role"),
-        job.worker_name.as_deref().unwrap_or("a checkout"),
         job.item_id.map_or_else(|| "none".to_owned(), |item| item.to_string()),
         job.started_at.unwrap_or_default()
       )

@@ -105,8 +105,9 @@ agent that answers the room says the line.
   or stepping down, a downgraded answer) is voiced. The agency publishes the stand-in's moves and a job's run's
   fall as events (`fallback.changed`, `worker.changed`) and the receiver queues each notice for the owner's
   notices room: the stand-in's provider and model, with the one before it where one stood, or the stand-in done; and
-  the role the run ran as and the repository checkout it ran in, the model it fell to and the one it was launched
-  on, its job, and whether the session its role keeps there was dropped or kept.
+  the role the run ran as and the repository it ran in, with the checkout of it beside it, the model it fell to
+  and the one it was launched on, its job, and whether the session its role keeps there was dropped or kept. A
+  checkout no repository holds any longer is named by the checkout alone.
 - **A login's end.** The agency's `account.changed` carries its `notice`, the words its policy composes
   with the one command the owner runs; the receiver says it in the owner's chat as it stands, pass-through
   content no session rewords.

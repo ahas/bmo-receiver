@@ -1,6 +1,6 @@
 //! What the agency tells of its jobs' runs (docs/wake.md, 「What the agency's events wake」): a job's run
-//! that answered on a lesser model, named by its role and the repository checkout it ran in, voiced to the
-//! owner by the chat agent.
+//! that answered on a lesser model, named by its role and its repository with the checkout it ran in beside
+//! it, voiced to the owner by the chat agent.
 
 use futures_util::future::BoxFuture;
 use receiver_policy::fill_marks;
@@ -17,13 +17,16 @@ use crate::receiver::{NotReceived, Receiver};
 /// The kind a job's run falling to a lesser model is published under.
 pub const DOWNGRADED: &str = "worker.changed";
 
-/// A job's run that answered on a lesser model: the checkout it ran in, the role it ran as, the model it
-/// was launched on, the models it answered on, whether its role's session there was dropped, and the job it
-/// ran for.
+/// A job's run that answered on a lesser model: the repository and the checkout of it it ran in, the role
+/// it ran as, the model it was launched on, the models it answered on, whether its role's session there was
+/// dropped, and the job it ran for.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Downgraded {
-  /// The repository checkout the run ran in, as the agency names it.
+  /// The repository the run ran in; none for a checkout no repository holds any longer.
+  #[serde(default)]
+  pub repository: Option<String>,
+  /// The checkout the run ran in, as the agency names it.
   pub worker: String,
   #[serde(default)]
   pub role: Option<String>,
@@ -50,14 +53,16 @@ impl Downgraded {
       .map(str::trim)
       .filter(|role| !role.is_empty())
       .unwrap_or(&said.role_none);
+    let repository = self.repository.as_deref().map(str::trim).filter(|repository| !repository.is_empty());
+    let place = match repository {
+      Some(repository) => {
+        fill_marks(&said.place, &[("repository", repository), ("checkout", &self.worker)])
+      }
+      None => fill_marks(&said.place_none, &[("checkout", &self.worker)]),
+    };
     let fact = fill_marks(
       &said.fact,
-      &[
-        ("role", role),
-        ("checkout", &self.worker),
-        ("model", model),
-        ("launched", &self.launched),
-      ],
+      &[("role", role), ("place", &place), ("model", model), ("launched", &self.launched)],
     );
     let follow_up = if self.dropped {
       said.dropped.clone()

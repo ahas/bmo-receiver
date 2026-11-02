@@ -1,7 +1,7 @@
 //! The cut-off of an agent's reset (docs/wake.md, 「An agent's reset」): each move of an agent's reset point
 //! heard on the agency's event stream, kept as the agent's point, and everything waiting for its turns let
-//! go unread; and the refusal of a send asked in a turn the point overtook (docs/chat-mcp.md, 「How a call
-//! runs」).
+//! go unread; and the refusal of a send asked in a turn the point overtook, judged by the agency's point
+//! read afresh beside the kept one (docs/chat-mcp.md, 「How a call runs」).
 
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::Event;
@@ -35,18 +35,40 @@ pub async fn keep_point(db: &impl ConnectionTrait, agent: &str, at: i64) -> Resu
   settings::set(db, &reset_point_key(agent), &at.to_string()).await
 }
 
-/// The refusal of a send whose asking turn its agent's reset overtook; none for an asker naming no agent or
-/// no moment, or an agent no cut-off was heard for.
-pub async fn overtaken(receiver: &Receiver, asker: &Asker) -> Option<String> {
-  let agent = asker.agent_name.as_deref().map(str::trim).filter(|agent| !agent.is_empty())?;
-  let began = asker.began?;
-  let point = match point(receiver.db(), agent).await {
+/// The agent's reset point as a turn is judged by it: the agency's, read afresh off the agent's supervisor
+/// and kept, and the kept one where that is later or the agency does not answer; none where neither names
+/// one.
+pub async fn reset_point(receiver: &Receiver, agent: &str) -> Option<i64> {
+  let kept = match point(receiver.db(), agent).await {
     Ok(point) => point,
     Err(why) => {
       eprintln!("agent {agent}: its reset point was not read: {}", why.detail);
       None
     }
   };
+  let read = match receiver.units().agency.supervisor(agent).await {
+    Ok(supervisor) => supervisor.and_then(|supervisor| supervisor.reset_point()),
+    Err(why) => {
+      eprintln!("agent {agent}: the agency's reset point was not read, so the kept one stands: {why}");
+      None
+    }
+  };
+
+  if let Some(at) = read
+    && let Err(why) = keep_point(receiver.db(), agent, at).await
+  {
+    eprintln!("agent {agent}: its reset point was not kept: {}", why.detail);
+  }
+
+  kept.max(read)
+}
+
+/// The refusal of a send whose asking turn its agent's reset overtook; none for an asker naming no agent or
+/// no moment, or an agent no reset is known of.
+pub async fn overtaken(receiver: &Receiver, asker: &Asker) -> Option<String> {
+  let agent = asker.agent_name.as_deref().map(str::trim).filter(|agent| !agent.is_empty())?;
+  let began = asker.began?;
+  let point = reset_point(receiver, agent).await;
 
   overtakes(point, began).then(|| overtaken_refusal(agent))
 }

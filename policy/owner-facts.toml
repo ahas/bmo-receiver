@@ -2,11 +2,15 @@
 # agency's events wake」): a job's run fallen to a lesser model, the overtime order and a road's change. `{name}` marks what each
 # line carries.
 
-# A job's run that answered on a lesser model than it was launched on: the {role} it ran as, the {checkout} of the
-# repository it ran in, the {model} it fell to and the one it was {launched} on, the {job} it ran for where it names
-# one, and what became of the session its role keeps there.
+# A job's run that answered on a lesser model than it was launched on: the {role} it ran as, the {place} it ran
+# in, the {model} it fell to and the one it was {launched} on, the {job} it ran for where it names one, and what
+# became of the session its role keeps there.
 [worker_downgraded]
-fact = "A job run as the role \"{role}\" in the repository checkout \"{checkout}\" came off {model} instead of {launched}: the account's safeguard balked at that session's context."
+fact = "A job run as the role \"{role}\" in {place} came off {model} instead of {launched}: the account's safeguard balked at that session's context."
+# Where the run ran: its repository with the checkout of it beside it, or the checkout alone where no
+# repository holds it any longer.
+place = "the repository \"{repository}\" (checkout \"{checkout}\")"
+place_none = "the checkout \"{checkout}\", which no repository holds any longer"
 job = " It happened on job #{job}."
 intent = "tell the owner which role, in which repository, fell to which model."
 dropped = "That session has been dropped; the next job of this role in this checkout opens a fresh one. No room is waiting on it."

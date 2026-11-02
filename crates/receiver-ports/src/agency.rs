@@ -35,6 +35,20 @@ fn listed_awake() -> bool {
   true
 }
 
+impl Agent {
+  /// Whether the deployment seeds the supervisor or it is the default answerer, which the agency never
+  /// takes out.
+  pub fn seeded(&self) -> bool {
+    self.row.get("seeded").and_then(Value::as_bool).unwrap_or(false)
+  }
+
+  /// The moment in epoch milliseconds the supervisor's last reset cut its turns off at; none where it was
+  /// never reset.
+  pub fn reset_point(&self) -> Option<i64> {
+    self.row.get("resetPoint").and_then(Value::as_i64)
+  }
+}
+
 /// Every supervisor, and whether more stand beyond the page (the agency's page of supervisors).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Agents {
@@ -96,13 +110,9 @@ pub enum Scope {
   /// One session across rooms.
   Agent,
   /// A session of one room.
-  Room {
-    room: i64,
-  },
-  Worker,
-  Editor,
-  /// A session thrown away after its one use.
-  Apart,
+  Room { room: i64 },
+  /// The session of one run of a role.
+  Role,
   /// A conversation the caller keeps for itself.
   Conversation,
 }
@@ -113,9 +123,7 @@ impl Scope {
     match self {
       Self::Agent => "agent",
       Self::Room { .. } => "room",
-      Self::Worker => "worker",
-      Self::Editor => "editor",
-      Self::Apart => "apart",
+      Self::Role => "role",
       Self::Conversation => "conversation",
     }
   }
@@ -135,9 +143,7 @@ fn scope_of(word: &str, room: Option<i64>) -> Scope {
     "room" => Scope::Room {
       room: room.unwrap_or_default(),
     },
-    "worker" => Scope::Worker,
-    "editor" => Scope::Editor,
-    "apart" => Scope::Apart,
+    "role" => Scope::Role,
     "conversation" => Scope::Conversation,
     _ => Scope::Agent,
   }
@@ -482,14 +488,17 @@ struct OpenRuns {
   items: Vec<OpenRun>,
 }
 
-/// A job starting or running, as the list of jobs answers it: its id, the role it runs as, the checkout it
-/// runs in, its item and when it started.
+/// A job starting or running, as the list of jobs answers it: its id, the role it runs as, the repository
+/// it runs in and the checkout of it, its item and when it started.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunningJob {
   pub id: i64,
   #[serde(default)]
   pub role_name: Option<String>,
+  /// None for a checkout no repository holds any longer.
+  #[serde(default)]
+  pub repository_name: Option<String>,
   #[serde(default)]
   pub worker_name: Option<String>,
   #[serde(default)]
@@ -507,6 +516,9 @@ struct RunningJobs {
 pub trait Agency: Send + Sync {
   /// Every supervisor with its row.
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>>;
+
+  /// One supervisor with its row, read afresh; none where no supervisor has the name.
+  fn supervisor<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<Agent>>>;
 
   /// Every role a piece of work runs as.
   fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>>;
@@ -744,6 +756,10 @@ struct StandIn {
 impl Agency for HttpAgency {
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {
     Box::pin(self.caller.get(&["supervisors"], &[]))
+  }
+
+  fn supervisor<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<Agent>>> {
+    Box::pin(async move { self.caller.found(&["supervisors", name], &[]).await })
   }
 
   fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>> {

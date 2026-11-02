@@ -481,7 +481,8 @@ async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_f
     "GET /jobs",
     200,
     json!({ "items": [
-      { "id": 906_425, "roleName": "worker", "workerName": "repo-a-w2", "itemId": 2283, "startedAt": 3_000, "state": "running" },
+      { "id": 906_425, "roleName": "worker", "repositoryName": "repo-a", "workerName": "repo-a-w2", "itemId": 2283, "startedAt": 3_000, "state": "running" },
+      { "id": 906_426, "roleName": "builder", "repositoryName": null, "workerName": "gone-w1", "itemId": null, "startedAt": 3_100, "state": "starting" },
     ], "more": false }),
   );
 
@@ -504,13 +505,25 @@ async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_f
   );
   assert_eq!(
     agency.running_jobs().await.unwrap(),
-    [RunningJob {
-      id: 906_425,
-      role_name: Some("worker".to_owned()),
-      worker_name: Some("repo-a-w2".to_owned()),
-      item_id: Some(2283),
-      started_at: Some(3_000)
-    }]
+    [
+      RunningJob {
+        id: 906_425,
+        role_name: Some("worker".to_owned()),
+        repository_name: Some("repo-a".to_owned()),
+        worker_name: Some("repo-a-w2".to_owned()),
+        item_id: Some(2283),
+        started_at: Some(3_000)
+      },
+      RunningJob {
+        id: 906_426,
+        role_name: Some("builder".to_owned()),
+        repository_name: None,
+        worker_name: Some("gone-w1".to_owned()),
+        item_id: None,
+        started_at: Some(3_100)
+      }
+    ],
+    "each job names its repository beside its checkout, none for a checkout no repository holds"
   );
   assert_eq!(
     unit.took(),
@@ -568,5 +581,84 @@ async fn the_kept_events_are_read_after_a_number_and_a_turn_is_read_by_its_id() 
       call("GET /events", "limit=1000&after=4", None),
       call("GET /sessions/agent-a@agent/turns/3", "", None)
     ]
+  );
+}
+
+#[tokio::test]
+async fn one_supervisor_is_read_by_its_name_with_its_seeding_and_its_reset_point_and_none_where_none_is() {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+
+  unit.answer(
+    "GET /supervisors/agent-a",
+    200,
+    json!({ "name": "agent-a", "label": "Agent A", "seeded": true, "resetPoint": 1_700_000_000_123_i64 }),
+  );
+  unit.answer(
+    "GET /supervisors/agent-b",
+    200,
+    json!({ "name": "agent-b", "label": "Agent B", "seeded": false, "resetPoint": null }),
+  );
+  unit.answer(
+    "GET /supervisors/agent-c",
+    404,
+    json!({ "code": "not-found", "error": "no such supervisor" }),
+  );
+
+  let seeded = agency.supervisor("agent-a").await.unwrap().expect("agent-a stands");
+  let added = agency.supervisor("agent-b").await.unwrap().expect("agent-b stands");
+
+  assert!(seeded.seeded());
+  assert_eq!(seeded.reset_point(), Some(1_700_000_000_123));
+  assert!(!added.seeded());
+  assert_eq!(added.reset_point(), None, "a supervisor never reset names no point");
+  assert_eq!(
+    agency.supervisor("agent-c").await.unwrap(),
+    None,
+    "no supervisor of the name reads as none"
+  );
+  assert_eq!(
+    unit.took(),
+    [
+      call("GET /supervisors/agent-a", "", None),
+      call("GET /supervisors/agent-b", "", None),
+      call("GET /supervisors/agent-c", "", None),
+    ]
+  );
+}
+
+#[tokio::test]
+async fn the_sessions_listed_read_each_scope_the_agency_names() {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+  let member = |id: &str, agent: &str, scope: &str, room: Option<i64>| {
+    let mut member = json!({ "id": id, "agentName": agent, "scope": scope });
+
+    member["roomId"] = json!(room);
+    member
+  };
+
+  unit.answer(
+    "GET /sessions",
+    200,
+    json!({ "items": [
+      member("agent-a", "agent-a", "agent", None),
+      member("agent-a@-7", "agent-a", "room", Some(-7)),
+      member("builder@run:4", "builder", "role", None),
+      member("agent-a@conversation:2", "agent-a", "conversation", None),
+    ], "more": false }),
+  );
+
+  let scopes: Vec<Scope> =
+    agency.sessions().await.unwrap().into_iter().map(|session| session.scope).collect();
+
+  assert_eq!(
+    scopes,
+    [Scope::Agent, Scope::Room { room: -7 }, Scope::Role, Scope::Conversation],
+    "a role's run is listed as a role's session, never as an agent's"
+  );
+  assert_eq!(
+    [Scope::Agent, Scope::Room { room: -7 }, Scope::Role, Scope::Conversation].map(|scope| scope.word()),
+    ["agent", "room", "role", "conversation"]
   );
 }

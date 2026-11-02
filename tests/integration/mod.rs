@@ -27,6 +27,7 @@ mod owner_room;
 mod private_thread;
 mod receiver;
 mod relaunch;
+mod reset_point;
 mod room_record;
 mod room_removal;
 mod room_round;

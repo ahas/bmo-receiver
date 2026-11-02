@@ -1,8 +1,8 @@
-//! An agent added on the console and removed there (docs/api.md, 「Agents added on the console」): its room of
-//! the console's own, its number there and the room's answerers, written in one go once every field has passed;
-//! and an agent taken out again, its room half given up. The agent's row, its settings and
-//! its place are the agency's, and go through it; its gate options are the gate's, copied from the chat agent's
-//! as it stands.
+//! An agent added on the console and removed there (docs/api.md, 「Agents added on the console」): its room
+//! of the console's own, its number there and the room's answerers, written in one go once every field has
+//! passed; and an agent taken out again, its room half given up, never a seeded one. The agent's row, its
+//! settings and its place are the agency's, and go through it; its gate options are the gate's, copied from
+//! the chat agent's as it stands.
 
 use axum::{
   body::Bytes,
@@ -235,7 +235,8 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   }))
 }
 
-/// An agent the console added taken out, answered with every added agent as it then stands.
+/// An agent the console added taken out, answered with every added agent as it then stands. A seeded one is
+/// refused before the agency is asked anything, as the agency's own supervisor read says it is.
 pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw: RawQuery) -> Answered {
   let mut asked = super::query::<Removed>(raw)?;
   asked.name = name;
@@ -245,12 +246,17 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
     return Err(code(&AddedAgentRefusal::Action));
   }
 
-  let agents = receiver.agents().await.map_err(unit)?;
-  let Some(agent) = agents.agents.iter().find(|one| one.name == asked.name) else {
+  let Some(agent) = receiver.units().agency.supervisor(&asked.name).await.map_err(unit)? else {
     return Err(code(&AddedAgentRefusal::NotAdded { agent: asked.name }));
   };
 
-  if !added_shape(agent) {
+  if agent.seeded() {
+    return Err(code(&AddedAgentRefusal::Seeded {
+      label: agent.label.clone().unwrap_or_else(|| agent.name.clone()),
+    }));
+  }
+
+  if !added_shape(&agent) {
     return Err(code(&AddedAgentRefusal::NotAdded { agent: asked.name }));
   }
 

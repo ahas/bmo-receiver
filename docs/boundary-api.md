@@ -55,9 +55,9 @@ base address and token.
   that counts, a run whose name carries one of the long-work words of `quiet.toml` however long it has run, and
   a chat turn's run, named as the receiver names its turns' runs, however long it has run too. A job counts
   only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
-  agency answers as starting or running counts, however long it has run, each named by its role and the checkout
-  it runs in. It ends 0 where none counts and 1 where some does or the agency did not answer, each one named on its
-  own line.
+  agency answers as starting or running counts, however long it has run, each named by its role and its
+  repository, with the checkout it runs in beside it. It ends 0 where none counts and 1 where some does or the
+  agency did not answer, each one named on its own line.
 - **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
   title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
   the record as its one provider, the owner and the chat agent its members and the chat agent's number there one
@@ -161,30 +161,31 @@ room's matter.
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | the supervisors | `GET /supervisors` | | `items`, every supervisor with its row's fields — its `label`, `aliases`, `sessionScope`, `turnShape`, `defaultAnswerer`, `repository`, `voice`, and the `provider`, `model` and `effort` its last turn went out on — and `more`; every supervisor listed stands, and is read as awake; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
+| a supervisor | `GET /supervisors/{supervisorName}` | | the supervisor's row as the list answers it, of which the receiver reads `seeded`, whether the deployment seeds it or it is the default answerer, and `resetPoint`, the moment in epoch milliseconds its last reset cut its turns off at, or null; 404 where no supervisor has the name, read as none. Asked afresh, never kept: by a send or a consult line for its agent's reset point (`docs/wake.md`, 「An agent's reset」), and before an agent added on the console is taken out (`docs/api.md`, 「Agents added on the console」) |
 | the roles | `GET /roles` | | `roles`, each its `name`, `label`, `description` and `bundles` (each its `name`), which the owner's roster and a role's send read |
 | the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which an agent added on the console is checked against |
 | a stand-in | `GET /stand-in?agent=` | | `answers`, whether a stand-in answers the agent while the rest closes its road |
 | the rest | `GET /rest` | | `resting`, `until`, `kind` |
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
-| start a session | `POST /sessions` | `agentName`, `scope`, `roomId` | the session's `id`, `agentName`, `scope`, `roomId` |
+| start a session | `POST /sessions` | `agentName`, `scope`, `agent` or `room`, and `roomId` for a room's | the session's `id`, `agentName`, `scope`, `roomId` |
 | send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to; no base persona, which the agency takes from the agent's brain | `id`, `delivery` |
 | read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation`, `context` (what the session carries: `carried` against its `window`, which the fold is judged from, and the turn's token counts), `foldRatio`, `foldsItself`, whether the session's program carries its own fold, in which case the receiver folds it never (`docs/wake.md`), `supervisor` or `role`, the row the session runs for, the other null, and `prefixChangeReason` where it names why the session's prefix changed, which tells the receiver whether the session's head moved (`docs/unified-bmo.md`, 「Replacing the session」) |
 | push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
 | fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
 | end a session | `DELETE /sessions/{sessionId}` | | nothing |
-| list sessions | `GET /sessions` | | `items` |
+| list sessions | `GET /sessions` | | `items`, each a session's `id`, `agentName`, `scope` — `agent`, `room`, `role` or `conversation` — and `roomId` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
-| an agent added on the console registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the agent's fields; nothing | `ok`; nothing |
+| an agent added on the console registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | the agent's fields; nothing | `ok`; nothing. A seeded supervisor is never asked to be taken out: the receiver reads `seeded` off the supervisor first and refuses the console itself |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
 | a session's loads | `GET /session-loads/{sessionId}` | | `sessionId`, `documents`, each `path` and `version` |
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
 | the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, newest first, each its `id`, `name` and `startedAt`, which `quiet` reads |
-| the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `roleName`, the role it runs as, `workerName`, the checkout it runs in, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
+| the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `roleName`, the role it runs as, `repositoryName`, the repository it runs in, or null for a checkout no repository holds any longer, `workerName`, the checkout of it the job runs in, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
 | a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, newest first; the round's last run is the one with the highest id, whatever the order |
 | an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |
 | the events | `GET /events?kinds=` | | a stream of the kinds named, each event its number (`id`), `kind`, the moment it was published (`at`) and its `data` |
@@ -204,10 +205,13 @@ Of the events whose shape the receiver reads:
 
 - **`road.changed`** names its row as `supervisor` or `role`, the other null, beside its `fact` and what the fact
   carries.
-- **`worker.changed`** names `worker`, the checkout the job's run ran in, and `role`, the role it ran as, beside
-  the models and the job.
+- **`worker.changed`** names `repository`, the repository the job's run ran in, or null for a checkout no
+  repository holds any longer, `worker`, the checkout of it the run ran in, and `role`, the role it ran as,
+  beside the models and the job.
 - **`companion-reset.created`** names `agent` and either `point`, the moment the reset cut the agent off, which the
-  receiver keeps as the agent's reset point (`docs/store.md`, 「The settings」), or the ranges the reset took.
+  receiver keeps as the agent's reset point (`docs/store.md`, 「The settings」), or the ranges the reset took. The
+  point it names is the live signal; the supervisor's `resetPoint` is the point itself, read again by every ask
+  it judges, so a cut-off the receiver never heard still counts.
 
 A turn of a round names the round in its body, and the agency opens the turn's run in its ledger under that name.
 Once the round's answer is filed in the room, the receiver asks for the round's runs and attaches the answer, as
@@ -344,9 +348,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
   what the console reads of the receiver, the same two paths, their schemas, the fields `companion` of an
   `Answerer` and `companions` of a `Room`, and the codes `not-companion` and `seeded-companion`. Each keeps its
   name until the agency and the web unit rename theirs, and the receiver renames its own in the same change.
-- **The agency's `worker.changed` and its job** name the checkout a job ran in (`worker`, `workerName`) and no
-  repository: the receiver names the checkout, whose base the agency names after its repository, until the agency
-  names the repository itself.
 - **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
   and `version` and reads back only those, until the agency states the item.
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
