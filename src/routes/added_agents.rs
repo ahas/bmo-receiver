@@ -26,13 +26,20 @@ use crate::store::Fault;
 use crate::{all, one, run};
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Added {
   name: String,
   label: String,
-  provider: String,
-  model: String,
+  #[serde(default)]
+  provider: Option<String>,
+  #[serde(default)]
+  model: Option<String>,
   worker: String,
   room: String,
+  #[serde(default)]
+  order: Option<Value>,
+  #[serde(default)]
+  quota_share: Option<Value>,
 }
 
 #[derive(Deserialize, Default)]
@@ -55,6 +62,10 @@ fn refused_field(refusal: FieldRefusal, provider: &str, worker: &str, agent: &st
     "model" => code(&AddedAgentRefusal::Model),
     "worker" => code(&AddedAgentRefusal::Worker {
       worker: worker.to_owned(),
+    }),
+    "quotaShare" => code(&AddedAgentRefusal::QuotaShare),
+    member if member == "order" || member.starts_with("order[") => code(&AddedAgentRefusal::Order {
+      member: member.to_owned(),
     }),
     "agent" => code(&AddedAgentRefusal::NotAdded {
       agent: agent.to_owned(),
@@ -155,6 +166,8 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
     provider: asked.provider.clone(),
     model: asked.model.clone(),
     worker: asked.worker.clone(),
+    order: asked.order.clone(),
+    quota_share: asked.quota_share.clone(),
   };
 
   // The agency stands the agent's row and the gate its options; the receiver writes the room half.
@@ -163,7 +176,12 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Answered {
   receiver.forget_agents();
 
   if let Err(refusal) = added {
-    return Err(refused_field(refusal, &asked.provider, &asked.worker, &asked.name));
+    return Err(refused_field(
+      refusal,
+      asked.provider.as_deref().unwrap_or_default(),
+      &asked.worker,
+      &asked.name,
+    ));
   }
 
   let chat_agent = receiver.deployment().agent.as_str();

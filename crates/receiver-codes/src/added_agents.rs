@@ -27,6 +27,10 @@ pub enum AddedAgentRefusal {
   Worker { worker: String },
   #[error("the room needs a title")]
   Room,
+  #[error("the agency refused the order at {member}")]
+  Order { member: String },
+  #[error("the quota share is a fraction from 0 to 1")]
+  QuotaShare,
   #[error("{label} is a seeded agent, so it cannot be removed")]
   #[strum(serialize = "seeded-companion")]
   Seeded { label: String },
@@ -45,6 +49,8 @@ impl AddedAgentRefusal {
       | Self::Model
       | Self::Worker { .. }
       | Self::Room
+      | Self::Order { .. }
+      | Self::QuotaShare
       | Self::Action => StatusCode::BAD_REQUEST,
     }
   }

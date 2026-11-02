@@ -153,6 +153,8 @@ matches them by.
 | `model` | 400 | | a model that is no registered model with an address |
 | `worker` | 400 | `worker` | a worker that is no worker |
 | `room` | 400 | | no room title |
+| `order` | 400 | `member` | the agency refused the order at the member named, `order` for the whole list or `order[<n>]` for one entry |
+| `quota-share` | 400 | | a quota share that is no fraction from 0 to 1 |
 | `seeded-companion` | 409 | `label` | a seeded agent asked to be removed |
 | `action` | 400 | | an action the route does not take |
 

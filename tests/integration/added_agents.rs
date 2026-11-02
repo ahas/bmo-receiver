@@ -133,6 +133,94 @@ async fn a_field_the_agency_refuses_comes_back_as_the_receivers_code_and_nothing
 }
 
 #[tokio::test]
+async fn an_order_handed_whole_goes_to_the_agencys_one_add_with_its_share() {
+  let scratch = Scratch::new().await;
+  let front = bench(&scratch).await;
+  let order = json!([
+    { "provider": "provider-a", "model": "model-a", "effort": "high", "thinking": "on" },
+    { "provider": "provider-b", "model": "model-b" },
+  ]);
+  let (status, answer) = post(
+    &front,
+    "/companions",
+    json!({
+      "name": ADDED,
+      "label": "Agent D",
+      "worker": WORKER,
+      "room": "A room of its own",
+      "order": order,
+      "quotaShare": 0.2,
+    }),
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+
+  let rows = front.standing.agency.added_rows.lock().unwrap().clone();
+
+  assert_eq!(rows.len(), 1, "the agent and its order go to the agency in one ask");
+  assert_eq!(
+    serde_json::to_value(&rows[0]).unwrap(),
+    json!({
+      "name": ADDED,
+      "label": "Agent D",
+      "worker": WORKER,
+      "order": order,
+      "quotaShare": 0.2,
+    }),
+    "the order and its share are handed on as they came, with no provider or model the console did not name"
+  );
+  assert_eq!(answerers(&scratch).await, 1);
+}
+
+#[tokio::test]
+async fn an_order_or_a_share_the_agency_refuses_comes_back_as_its_own_code() {
+  let scratch = Scratch::new().await;
+  let front = bench(&scratch).await;
+  let refusing = |field: &str| {
+    *front.standing.agency.refusing.lock().unwrap() = Some(FieldRefusal {
+      field: field.to_owned(),
+      error: "Refused.".to_owned(),
+    });
+  };
+  let ordered = || {
+    json!({
+      "name": ADDED,
+      "label": "Agent D",
+      "worker": WORKER,
+      "room": "A room of its own",
+      "order": [{ "provider": "provider-a", "model": "model-a" }],
+      "quotaShare": 2,
+    })
+  };
+
+  refusing("order[0]");
+
+  let (status, answer) = post(&front, "/companions", ordered()).await;
+
+  assert_eq!(
+    (status, answer["code"].clone(), answer["error"].clone()),
+    (
+      StatusCode::BAD_REQUEST,
+      json!("order"),
+      json!("the agency refused the order at order[0]")
+    ),
+    "{answer}"
+  );
+
+  refusing("quotaShare");
+
+  let (status, answer) = post(&front, "/companions", ordered()).await;
+
+  assert_eq!(
+    (status, answer["code"].clone()),
+    (StatusCode::BAD_REQUEST, json!("quota-share")),
+    "{answer}"
+  );
+  assert_eq!(answerers(&scratch).await, 0, "nothing of the room is written");
+}
+
+#[tokio::test]
 async fn an_added_agents_console_room_is_born_on_the_record_and_its_first_answer_is_kept_there() {
   use bmo_receiver::chat::reply::{OutgoingReply, send_reply};
   use bmo_receiver::roads::Road;

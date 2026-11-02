@@ -1385,12 +1385,22 @@ export interface components {
             label: string;
             name: string;
         };
-        /** @description A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by. */
+        /**
+         * @description A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.
+         *     Its order is `order` whole with `quotaShare`, or `provider` and `model` alone, or both, the order's first
+         *     entry then being that provider and model.
+         */
         CompanionRequest: {
             label: string;
-            model: string;
+            model?: string | null;
             name: string;
-            provider: string;
+            order?: components["schemas"]["OrderEntry"][] | null;
+            provider?: string | null;
+            /**
+             * Format: double
+             * @description The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.
+             */
+            quotaShare?: number | null;
             room: string;
             worker: string;
         };
@@ -1864,6 +1874,16 @@ export interface components {
             /** Format: int64 */
             id: number;
             text: string;
+        };
+        /** @description One entry of an agent's provider order, as the agency's order takes it. */
+        OrderEntry: {
+            /** Format: int64 */
+            answerTokens?: number | null;
+            effort?: string | null;
+            model: string;
+            provider: string;
+            /** @description `on`, `off`, or none for the provider's own. */
+            thinking?: string | null;
         };
         /** @description The sender an agent's own words stand under in a room. */
         OwnNumber: {

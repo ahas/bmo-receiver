@@ -1,5 +1,5 @@
 //! An agent's reset point as a send or a consult line is judged by it (docs/wake.md, 「An agent's reset」): the
-//! agency's point, read afresh off the agent's supervisor and kept, overtakes a turn even where no cut-off was
+//! agency's point, read afresh at its reset-point read and kept, overtakes a turn even where no cut-off was
 //! heard; the later of it and the kept point stands; and the kept point alone stands where the agency does not
 //! answer.
 
@@ -54,9 +54,13 @@ async fn the_agencys_point_overtakes_a_turn_no_cut_off_was_heard_for_and_is_kept
     "the point read is kept"
   );
   assert_eq!(
-    *front.standing.agency.supervisors_read.lock().unwrap(),
+    *front.standing.agency.reset_points_read.lock().unwrap(),
     [AGENT, AGENT, AGENT],
-    "each ask reads the supervisor afresh"
+    "each ask reads the reset point afresh"
+  );
+  assert!(
+    front.standing.agency.supervisors_read.lock().unwrap().is_empty(),
+    "no ask reads the supervisor's whole row for its point"
   );
 }
 

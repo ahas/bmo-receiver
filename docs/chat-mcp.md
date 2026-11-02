@@ -47,7 +47,7 @@ needs its road to perform, so the room's block names the sending entries a room'
   answers, the moment the turn took its words, the chat that set it off and whether a job asks, which the
   receiver says or hands over the same way; a call made outside any agent's turn is refused here, since there is
   no agent to speak as.
-- **An overtaken turn sends nothing.** The receiver reads the agent's reset point off the agency's supervisor as
+- **An overtaken turn sends nothing.** The receiver reads the agent's reset point from the agency's reset-point read as
   each send or consult line asks, beside the one it keeps from the agency's cut-off (`docs/wake.md`, 「An agent's
   reset」), and refuses a send or a consult line whose `began` is at or before that point, before anything else is
   read, the refusal telling the turn to end without another call.

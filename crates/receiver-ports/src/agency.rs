@@ -41,12 +41,16 @@ impl Agent {
   pub fn seeded(&self) -> bool {
     self.row.get("seeded").and_then(Value::as_bool).unwrap_or(false)
   }
+}
 
-  /// The moment in epoch milliseconds the supervisor's last reset cut its turns off at; none where it was
-  /// never reset.
-  pub fn reset_point(&self) -> Option<i64> {
-    self.row.get("resetPoint").and_then(Value::as_i64)
-  }
+/// A supervisor's reset point alone: the moment in epoch milliseconds its last reset cut its turns off at,
+/// none where it was never reset.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPoint {
+  pub supervisor: String,
+  #[serde(default)]
+  pub reset_point: Option<i64>,
 }
 
 /// Every supervisor, and whether more stand beyond the page (the agency's page of supervisors).
@@ -304,15 +308,23 @@ pub struct SessionState {
 }
 
 /// The row of an agent the console stands up: the name it is registered by, what it is called in the room,
-/// the provider and model its order names, and the repository its items go to, under the agency's field
-/// `worker`. The room it answers is the receiver's.
+/// the repository its items go to, under the agency's field `worker`, and its order: the order whole with its
+/// quota share, or one provider and model, or both, each handed on as the console gave it for the agency to
+/// judge. The room it answers is the receiver's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConsoleAgentRow {
   pub name: String,
   pub label: String,
-  pub provider: String,
-  pub model: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub provider: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub model: Option<String>,
   pub worker: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub order: Option<Value>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub quota_share: Option<Value>,
 }
 
 /// A field of the body the agency refused: the field's name and the English sentence saying why.
@@ -519,6 +531,9 @@ pub trait Agency: Send + Sync {
 
   /// One supervisor with its row, read afresh; none where no supervisor has the name.
   fn supervisor<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<Agent>>>;
+
+  /// A supervisor's reset point alone, read afresh; none where no supervisor has the name.
+  fn reset_point<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<ResetPoint>>>;
 
   /// Every role a piece of work runs as.
   fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>>;
@@ -760,6 +775,10 @@ impl Agency for HttpAgency {
 
   fn supervisor<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<Agent>>> {
     Box::pin(async move { self.caller.found(&["supervisors", name], &[]).await })
+  }
+
+  fn reset_point<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<ResetPoint>>> {
+    Box::pin(async move { self.caller.found(&["supervisors", name, "reset-point"], &[]).await })
   }
 
   fn roles(&self) -> BoxFuture<'_, Answer<Vec<Role>>> {

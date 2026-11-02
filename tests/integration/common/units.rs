@@ -21,8 +21,8 @@ use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
   Agency, Agent, Agents, ConsoleAgentRow, Delivery, Event, Events, FieldRefusal, Forgotten, KeptEvents,
-  Load, OpenRun, Passed, Repository, Rest, RestKind, Resting, Role, Run, RunLine, RunningJob, Said, Scope,
-  Session, SessionState, Turn, Written,
+  Load, OpenRun, Passed, Repository, ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine, RunningJob,
+  Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
@@ -863,6 +863,10 @@ pub struct StandInAgency {
   pub agents_asked: AtomicUsize,
   /// Every supervisor it was asked for by its name, in order.
   pub supervisors_read: Mutex<Vec<String>>,
+  /// Every supervisor whose reset point alone it was asked for, in order.
+  pub reset_points_read: Mutex<Vec<String>>,
+  /// Every row an add of an agent on the console handed it, in order.
+  pub added_rows: Mutex<Vec<ConsoleAgentRow>>,
   pub stand_ins: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
   pub written: Mutex<Vec<Resting>>,
@@ -907,6 +911,8 @@ impl StandInAgency {
       agents: Mutex::default(),
       agents_asked: AtomicUsize::new(0),
       supervisors_read: Mutex::default(),
+      reset_points_read: Mutex::default(),
+      added_rows: Mutex::default(),
       stand_ins: Mutex::default(),
       rest: Mutex::new(Rest {
         resting: false,
@@ -1029,6 +1035,28 @@ impl Agency for StandInAgency {
     }
 
     let found = self.agents.lock().unwrap().iter().find(|agent| agent.name == name).cloned();
+
+    Box::pin(async move { Ok(found) })
+  }
+
+  fn reset_point<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Answer<Option<ResetPoint>>> {
+    self.reset_points_read.lock().unwrap().push(name.to_owned());
+
+    if self.is_down() {
+      return agency_down("supervisors");
+    }
+
+    let found =
+      self
+        .agents
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|agent| agent.name == name)
+        .map(|agent| ResetPoint {
+          supervisor: agent.name.clone(),
+          reset_point: agent.row.get("resetPoint").and_then(Value::as_i64),
+        });
 
     Box::pin(async move { Ok(found) })
   }
@@ -1256,6 +1284,8 @@ impl Agency for StandInAgency {
     &'a self,
     added: &'a ConsoleAgentRow,
   ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+    self.added_rows.lock().unwrap().push(added.clone());
+
     if let Some(refusal) = self.refusing.lock().unwrap().clone() {
       return Box::pin(async move { Ok(Err(refusal)) });
     }

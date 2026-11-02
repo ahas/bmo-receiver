@@ -35,8 +35,8 @@ pub async fn keep_point(db: &impl ConnectionTrait, agent: &str, at: i64) -> Resu
   settings::set(db, &reset_point_key(agent), &at.to_string()).await
 }
 
-/// The agent's reset point as a turn is judged by it: the agency's, read afresh off the agent's supervisor
-/// and kept, and the kept one where that is later or the agency does not answer; none where neither names
+/// The agent's reset point as a turn is judged by it: the agency's, read afresh at its reset-point read and
+/// kept, and the kept one where that is later or the agency does not answer; none where neither names
 /// one.
 pub async fn reset_point(receiver: &Receiver, agent: &str) -> Option<i64> {
   let kept = match point(receiver.db(), agent).await {
@@ -46,8 +46,8 @@ pub async fn reset_point(receiver: &Receiver, agent: &str) -> Option<i64> {
       None
     }
   };
-  let read = match receiver.units().agency.supervisor(agent).await {
-    Ok(supervisor) => supervisor.and_then(|supervisor| supervisor.reset_point()),
+  let read = match receiver.units().agency.reset_point(agent).await {
+    Ok(point) => point.and_then(|point| point.reset_point),
     Err(why) => {
       eprintln!("agent {agent}: the agency's reset point was not read, so the kept one stands: {why}");
       None

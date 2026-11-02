@@ -253,9 +253,11 @@ async fn an_agent_is_added_and_removed_on_the_routes_the_agency_serves_and_a_ref
   let row = ConsoleAgentRow {
     name: "agent-d".to_owned(),
     label: "Agent D".to_owned(),
-    provider: "provider-a".to_owned(),
-    model: "model-a".to_owned(),
+    provider: Some("provider-a".to_owned()),
+    model: Some("model-a".to_owned()),
     worker: "worker-a".to_owned(),
+    order: Some(json!([{ "provider": "provider-a", "model": "model-a", "effort": "high" }])),
+    quota_share: Some(json!(0.2)),
   };
   unit.answer("POST /companions", 201, json!({ "ok": true }));
   unit.answer_empty("DELETE /companions/agent-d", 204);
@@ -299,6 +301,8 @@ async fn an_agent_is_added_and_removed_on_the_routes_the_agency_serves_and_a_ref
     "provider": "provider-a",
     "model": "model-a",
     "worker": "worker-a",
+    "order": [{ "provider": "provider-a", "model": "model-a", "effort": "high" }],
+    "quotaShare": 0.2,
   });
 
   assert_eq!(
@@ -585,7 +589,7 @@ async fn the_kept_events_are_read_after_a_number_and_a_turn_is_read_by_its_id() 
 }
 
 #[tokio::test]
-async fn one_supervisor_is_read_by_its_name_with_its_seeding_and_its_reset_point_and_none_where_none_is() {
+async fn one_supervisor_is_read_by_its_name_with_its_seeding_and_none_where_none_is() {
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
 
@@ -609,9 +613,7 @@ async fn one_supervisor_is_read_by_its_name_with_its_seeding_and_its_reset_point
   let added = agency.supervisor("agent-b").await.unwrap().expect("agent-b stands");
 
   assert!(seeded.seeded());
-  assert_eq!(seeded.reset_point(), Some(1_700_000_000_123));
   assert!(!added.seeded());
-  assert_eq!(added.reset_point(), None, "a supervisor never reset names no point");
   assert_eq!(
     agency.supervisor("agent-c").await.unwrap(),
     None,
@@ -623,6 +625,51 @@ async fn one_supervisor_is_read_by_its_name_with_its_seeding_and_its_reset_point
       call("GET /supervisors/agent-a", "", None),
       call("GET /supervisors/agent-b", "", None),
       call("GET /supervisors/agent-c", "", None),
+    ]
+  );
+}
+
+#[tokio::test]
+async fn a_supervisors_reset_point_is_read_alone_and_none_where_no_supervisor_has_the_name() {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+
+  unit.answer(
+    "GET /supervisors/agent-a/reset-point",
+    200,
+    json!({ "supervisor": "agent-a", "resetPoint": 1_700_000_000_123_i64 }),
+  );
+  unit.answer(
+    "GET /supervisors/agent-b/reset-point",
+    200,
+    json!({ "supervisor": "agent-b", "resetPoint": null }),
+  );
+  unit.answer(
+    "GET /supervisors/agent-c/reset-point",
+    404,
+    json!({ "code": "not-found", "error": "no such supervisor" }),
+  );
+
+  assert_eq!(
+    agency.reset_point("agent-a").await.unwrap().and_then(|point| point.reset_point),
+    Some(1_700_000_000_123)
+  );
+  assert_eq!(
+    agency.reset_point("agent-b").await.unwrap().expect("agent-b stands").reset_point,
+    None,
+    "a supervisor never reset names no point"
+  );
+  assert_eq!(
+    agency.reset_point("agent-c").await.unwrap(),
+    None,
+    "no supervisor of the name reads as none"
+  );
+  assert_eq!(
+    unit.took(),
+    [
+      call("GET /supervisors/agent-a/reset-point", "", None),
+      call("GET /supervisors/agent-b/reset-point", "", None),
+      call("GET /supervisors/agent-c/reset-point", "", None),
     ]
   );
 }

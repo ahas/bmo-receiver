@@ -235,9 +235,9 @@ agent's reset point, publishes the cut-off, and then tells each unit holding the
 Both go under the kind `companion-reset.created`, which is the agency's name for it, and are told apart by their
 fields: a cut-off names the `point` alone, a reset names its `ranges`.
 
-- **The reset point is the agency's.** The agency answers it on the supervisor's row as `resetPoint`
-  (`docs/boundary-api.md`, 「The agency」), and a send or a consult line asked in a turn that began at or before
-  it is refused (`docs/chat-mcp.md`, 「Turn context」). Each such ask reads the agent's supervisor afresh and
+- **The reset point is the agency's.** The agency answers it as `resetPoint` at its read of the supervisor's
+  reset point (`docs/boundary-api.md`, 「The agency」), and a send or a consult line asked in a turn that began at or before
+  it is refused (`docs/chat-mcp.md`, 「Turn context」). Each such ask reads the agent's reset point afresh and
   judges the turn by the later of that point and the one the receiver keeps (`docs/store.md`, 「The settings」),
   keeping the point it read; the kept point alone stands where the agency does not answer or holds no supervisor
   of the name. A reset the receiver did not hear, published while its stream was down and no longer kept by the

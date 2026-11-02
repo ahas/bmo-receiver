@@ -512,7 +512,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /companions` | `name`, `label`, `provider`, `model`, `worker`, `room` | a page of the agents added on the console, and `room` (`id`, `takenBack`, `said`) |
+| `POST /companions` | `name`, `label`, `worker`, `room`, and the order: `order` and `quotaShare`, or `provider` and `model`, or both | a page of the agents added on the console, and `room` (`id`, `takenBack`, `said`) |
 | `DELETE /companions/{companionName}` | `by` | a page of the agents added on the console; `not-companion` (404), `seeded-companion` (409), `action` (400) |
 
 - **An agent added on the console is a chat agent like any other,** with a room of the console's own: its rounds
@@ -522,8 +522,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - The receiver writes the agent's console room, its number there, its one provider, the record, and the room's
   answerers; the agent's half is
   the agency's, and its gate options the gate's. What a name may be is the agency's to say. A field the agency
-  refuses comes back as the refusal of that field (`name`, `label`, `provider`, `model`, `worker`; `agent` as
+  refuses comes back as the refusal of that field (`name`, `label`, `provider`, `model`, `worker`; an order's
+  member, `order` or `order[<n>]`, as `order` naming it; `quotaShare` as `quota-share`; `agent` as
   `not-companion`; any other as `upstream-failed`).
+- **The agent's order is added with it, in one ask.** `order` is its provider order whole, each entry a
+  `provider`, a `model`, and the `effort`, `thinking` and `answerTokens` the agency's order takes, and `quotaShare`
+  the share beside it; the receiver hands both to the agency's add as they came, and the agency judges them as a
+  supervisor's order is judged and writes the row with them. Where the console names `provider` and `model`
+  alone, the order is that one entry at the agency's default share; where it names both, the order's first entry
+  must be that provider and model, or the agency refuses it as `order`.
 - **A seeded agent is never taken out.** Before it asks the agency anything, the receiver reads the agent's
   supervisor (`GET /supervisors/{supervisorName}`): one the deployment seeds, or the default answerer, is refused
   `seeded-companion` with its `label`, and nothing is asked of the agency or written. An agent the agency does not

@@ -853,15 +853,39 @@ pub struct TalkAnswer {
 }
 
 /// A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+/// Its order is `order` whole with `quotaShare`, or `provider` and `model` alone, or both, the order's first
+/// entry then being that provider and model.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionRequest {
   pub name: String,
   pub label: String,
-  pub provider: String,
-  pub model: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub provider: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub model: Option<String>,
   pub worker: String,
   pub room: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub order: Option<Vec<OrderEntry>>,
+  /// The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub quota_share: Option<f64>,
+}
+
+/// One entry of an agent's provider order, as the agency's order takes it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderEntry {
+  pub provider: String,
+  pub model: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub effort: Option<String>,
+  /// `on`, `off`, or none for the provider's own.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub thinking: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub answer_tokens: Option<i64>,
 }
 
 /// One agent added on the console.

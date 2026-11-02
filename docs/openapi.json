@@ -437,19 +437,42 @@
         "type": "object"
       },
       "CompanionRequest": {
-        "description": "A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.",
+        "description": "A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.\nIts order is `order` whole with `quotaShare`, or `provider` and `model` alone, or both, the order's first\nentry then being that provider and model.",
         "properties": {
           "label": {
             "type": "string"
           },
           "model": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
             "type": "string"
           },
+          "order": {
+            "items": {
+              "$ref": "#/components/schemas/OrderEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "provider": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quotaShare": {
+            "description": "The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "room": {
             "type": "string"
@@ -461,8 +484,6 @@
         "required": [
           "name",
           "label",
-          "provider",
-          "model",
           "worker",
           "room"
         ],
@@ -1719,6 +1740,42 @@
         "required": [
           "id",
           "text"
+        ],
+        "type": "object"
+      },
+      "OrderEntry": {
+        "description": "One entry of an agent's provider order, as the agency's order takes it.",
+        "properties": {
+          "answerTokens": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "thinking": {
+            "description": "`on`, `off`, or none for the provider's own.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "model"
         ],
         "type": "object"
       },
