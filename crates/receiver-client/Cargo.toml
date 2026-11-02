@@ -12,7 +12,7 @@ license.workspace = true
 autotests = false
 
 [dependencies]
-reqwest = { workspace = true, features = ["json", "query"] }
+reqwest.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -22,7 +22,7 @@ url.workspace = true
 # The receiver's route stood on a loopback port, for a call through the client to be read back.
 axum.workspace = true
 serde_json.workspace = true
-tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread"] }
+tokio.workspace = true
 
 [[test]]
 name = "main"

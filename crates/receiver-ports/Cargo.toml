@@ -13,19 +13,19 @@ autotests = false
 # The chat services' provider routes, and the client the receiver reaches each one through.
 bmo-chat-client.workspace = true
 futures-util.workspace = true
-reqwest = { workspace = true, features = ["query", "stream"] }
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 # The agency's event stream, read as server-sent events.
 sse-stream.workspace = true
-tokio = { workspace = true, features = ["time"] }
+tokio.workspace = true
 
 [dev-dependencies]
 # The stand-in each port's client is tried against.
 axum.workspace = true
 # The tool host's stand-in stands on a socket in a folder of the test's own.
 tempfile.workspace = true
-tokio = { workspace = true, features = ["net"] }
+tokio.workspace = true
 
 [[test]]
 name = "main"

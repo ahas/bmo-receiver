@@ -12,7 +12,7 @@ license = "MIT"
 
 [workspace.dependencies]
 async-trait = "0.1.92"
-axum = { version = "0.8.4", default-features = false, features = ["http1", "json", "multipart", "query", "tokio"] }
+axum = { version = "0.8.9", features = ["macros", "multipart", "ws"] }
 # A moment written as the room's transcript shows it, in UTC.
 chrono = "0.4.45"
 # The base library the receiver reaches every chat service through.
@@ -42,7 +42,7 @@ room-calls = { path = "crates/room-calls" }
 tool-call = { path = "crates/tool-call" }
 # The shape a tool's entry declares its arguments by.
 schemars = "1.0.4"
-reqwest = { version = "0.13.5", default-features = false }
+reqwest = { version = "0.13.5", features = ["json", "query", "stream"] }
 # The seed a fair draw starts from, out of the system's cryptographic random source.
 rand = "0.9.2"
 # The digest a labelled picture is named by, so the same picture labelled twice is one file.
@@ -58,7 +58,7 @@ sse-stream = "0.2.6"
 strum = { version = "0.28.0", features = ["derive"] }
 tempfile = "3.20.0"
 thiserror = "2.0.21"
-tokio = { version = "1.47.0", features = ["macros", "net", "rt", "rt-multi-thread", "sync"] }
+tokio = { version = "1.53.3", features = ["fs", "io-std", "io-util", "macros", "net", "process", "rt", "rt-multi-thread", "signal", "sync", "test-util", "time"] }
 toml = { version = "0.8.23", default-features = false, features = ["parse"] }
 tower = { version = "0.5.2", default-features = false, features = ["util"] }
 # A kept file's bytes served as HTTP serves a file: its type, its length and the ranges asked of it.
@@ -116,7 +116,7 @@ serde_json.workspace = true
 serde_urlencoded.workspace = true
 sqlx = { workspace = true, features = ["any", "sqlite"] }
 thiserror.workspace = true
-tokio = { workspace = true, features = ["fs", "signal", "time"] }
+tokio.workspace = true
 # The service's configuration file, read at start.
 toml.workspace = true
 # The web addresses a text is read for.
@@ -140,7 +140,7 @@ serde_json.workspace = true
 strum.workspace = true
 tempfile.workspace = true
 # The clock paused and moved on by the test, so a wait of minutes passes at once.
-tokio = { workspace = true, features = ["test-util"] }
+tokio.workspace = true
 toml.workspace = true
 # The chat services' routes asked one request at a time, with no listener.
 tower.workspace = true

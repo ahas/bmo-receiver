@@ -27,7 +27,7 @@ tokio.workspace = true
 [dev-dependencies]
 axum.workspace = true
 tempfile.workspace = true
-tokio = { workspace = true, features = ["io-util", "process"] }
+tokio.workspace = true
 
 [[test]]
 name = "main"
