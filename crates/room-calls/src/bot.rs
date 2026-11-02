@@ -5,16 +5,12 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use serde_json::Value;
 
 use dotenvy::from_path_iter;
 use reqwest::Client;
 use reqwest::header::CONTENT_TYPE;
-
-// Long enough for the receiver to start a run, short enough that a call never outlasts its own deadline.
-const CALL_WAIT: Duration = Duration::from_secs(20);
 
 /// The env file under the data root the receiver's `tool-env` verb writes as it is deployed.
 pub const ENV_FILE: &str = "env/receiver.env";
@@ -81,7 +77,7 @@ impl Service {
   /// One `POST` to the receiver under its token, answering the JSON the route answered with, or why the
   /// receiver did not do it: no token, nothing answering, or the route's own refusal.
   pub async fn post(&self, path: &str, body: &Value) -> Result<Value, String> {
-    let (status, said) = self.post_within(path, body, CALL_WAIT).await?;
+    let (status, said) = self.post_answered(path, body).await?;
 
     if (200..300).contains(&status) {
       return Ok(said);
@@ -92,14 +88,9 @@ impl Service {
     Err(format!("the receiver refused {path} ({status}): {why}"))
   }
 
-  /// One `POST` to the receiver under its token, waited on as long as `wait`: the status and the JSON the
-  /// route answered with, whatever the status, or why nothing answered.
-  pub async fn post_within(
-    &self,
-    path: &str,
-    body: &Value,
-    wait: Duration,
-  ) -> Result<(u16, Value), String> {
+  /// One `POST` to the receiver under its token, waited on until the receiver answers or the connection fails:
+  /// the status and the JSON the route answered with, whatever the status, or why nothing answered.
+  pub async fn post_answered(&self, path: &str, body: &Value) -> Result<(u16, Value), String> {
     let Some(token) = &self.token else {
       return Err(format!(
         "{TOKEN_VARIABLE} is set nowhere this call reads, so the receiver cannot be asked"
@@ -111,7 +102,6 @@ impl Service {
       .bearer_auth(token)
       .header(CONTENT_TYPE, "application/json")
       .body(written)
-      .timeout(wait)
       .send()
       .await
       .map_err(|why| format!("the receiver did not answer {path}: {why}"))?;

@@ -8,7 +8,6 @@
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, FileItem};
 use room_calls::procedures;
@@ -29,10 +28,6 @@ use crate::verbs::room_files::{room_file_refusal, room_stores};
 use crate::verbs::sends::{Going, NotSent, Sends};
 use crate::verbs::{CommandAsked, LaunchAsked, RunAsked, VerbError};
 use crate::{Fault, now_ms, one, run};
-
-/// How long one line's run may take before it is called off. The gates are the whole of the wait, and three
-/// passes of the pair is the worst measured.
-pub const SAY_CAP_MS: i64 = 5 * 60_000;
 
 pub const SAY_USAGE: &str = "usage: bmo room say [--chat <chatId>] [--by chat:<chatId>] [--reply] --text <text>  (the words are read from stdin without --text)";
 
@@ -183,7 +178,6 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
       agent: "say".to_owned(),
       chat_id: asked.chat_id,
       unit: unit.clone(),
-      cap_ms: Some(SAY_CAP_MS),
       started_by: asked.started_by.clone(),
       asked_by: sends.turn_agent().map(str::to_owned),
     })
@@ -411,19 +405,18 @@ async fn logged(sends: &Sends, unit: &str, kind: &str, words: String) {
   sends.launch().log(unit, kind, &words).await;
 }
 
-// The sending raced against a stop from outside and the cap: how it ended, or why it did not.
+// The sending raced against a stop from outside: how it ended, or why it did not. The gates take as long as they
+// take; the run ends when they finish or when it is stopped.
 async fn stopped_or(said: impl std::future::Future<Output = Result<(), String>>) -> Result<(), String> {
   use tokio::signal::unix::{SignalKind, signal};
 
   let mut term = signal(SignalKind::terminate()).map_err(|why| why.to_string())?;
   let mut interrupt = signal(SignalKind::interrupt()).map_err(|why| why.to_string())?;
-  let cap = Duration::from_millis(u64::try_from(SAY_CAP_MS).unwrap_or(0));
 
   tokio::select! {
     said = said => said,
     _ = term.recv() => Err("stopped by SIGTERM".to_owned()),
     _ = interrupt.recv() => Err("stopped by SIGINT".to_owned()),
-    () = tokio::time::sleep(cap) => Err(format!("the gates did not finish within {}s", cap.as_secs())),
   }
 }
 

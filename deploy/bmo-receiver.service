@@ -14,7 +14,9 @@ WorkingDirectory=%h/.local/share/bmo-receiver/deploy
 ExecStart=%h/.local/share/bmo-receiver/deploy/bin/bmo-receiver serve
 Restart=always
 RestartSec=2
-TimeoutStopSec=30
+# The service ends on SIGTERM once its streams are told and its going-down line is said, so its stop is waited on
+# until it has ended, never cut by a kill after a span.
+TimeoutStopSec=infinity
 
 [Install]
 WantedBy=default.target

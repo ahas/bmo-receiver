@@ -59,8 +59,6 @@ follow_up = "The session will be woken fresh to bring it back."
 # The room as the fact names it: the owner's own chat, or another by its title ({title}).
 owner_room = "in this chat, the owner's own"
 room = "in the room \"{title}\""
-# How long the notice may wait to be said before it is let go.
-ttl_minutes = 30
 
 # What the owner is told, by the chat agent in the owner's own chat, as a stand-in takes a run over: {label} names
 # the stand-in now answering and {model} its model, {previous} the one that could not answer this run.
@@ -71,8 +69,6 @@ intent = "tell the owner which stand-in and model you are answering on now."
 # Claude answering again, which ends whichever fallback stood.
 lifted = "Claude is answering again, so the borrowed stand-in is done and you are back on your own model."
 lifted_intent = "tell the owner you are back on Claude."
-# How long the line stays worth saying: which road answers can be out of date within minutes.
-ttl_minutes = 5
 
 # What is in force in a room: the room's rules ({rows} is its rows as JSON), or the room's grants once the account
 # model is in force.

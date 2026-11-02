@@ -1189,14 +1189,6 @@
             },
             "type": "array"
           },
-          "expiresAt": {
-            "default": null,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "kind": {
             "default": null,
             "type": [
@@ -1256,7 +1248,6 @@
           "kind",
           "sort",
           "summary",
-          "expiresAt",
           "events",
           "agentOnly",
           "ridesUntil",
@@ -1611,13 +1602,6 @@
             "format": "int64",
             "type": "integer"
           },
-          "expiresAt": {
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -1643,8 +1627,7 @@
           "kind",
           "summary",
           "text",
-          "createdAt",
-          "expiresAt"
+          "createdAt"
         ],
         "type": "object"
       },
@@ -3893,7 +3876,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, conflict, upstream-failed"
+            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed"
           }
         },
         "summary": "An agent's standing session asked for its handoff file ahead of a fresh session, kept for that session's first turn.",
@@ -3903,7 +3886,6 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
-          "conflict",
           "upstream-failed"
         ]
       }

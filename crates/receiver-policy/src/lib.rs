@@ -16,7 +16,6 @@ pub mod keepalive;
 pub mod kept;
 pub mod owner_facts;
 pub mod providers;
-pub mod queue;
 pub mod quiet;
 pub mod resident_turn;
 pub mod rest;

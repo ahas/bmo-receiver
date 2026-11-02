@@ -110,7 +110,6 @@ pub async fn lift_rest_if_due(receiver: &Receiver) -> Result<(), Fault> {
     follow_up: said.follow_up.clone(),
     optional: false,
     kind: Some(said.kind.clone()),
-    ttl_ms: Some(said.ttl_minutes * 60_000),
     events: vec![],
     rides_ms: None,
   };
@@ -200,7 +199,6 @@ pub async fn say_stop(receiver: &Receiver) {
 /// The back notice a restart leaves the owner's session, carrying what the deployment recorded, which is spent
 /// either way.
 pub fn back_notice(reason: Option<&Value>) -> Voiced {
-  let ttl_ms = Some(RESTART.ttl_minutes * 60_000);
   let kind = Some(RESTART.kind.clone());
   let Some(reason) = reason else {
     let said = &RESTART.unannounced;
@@ -211,7 +209,6 @@ pub fn back_notice(reason: Option<&Value>) -> Voiced {
       follow_up: Some(said.follow_up.clone()),
       optional: false,
       kind,
-      ttl_ms,
       events: vec![],
       rides_ms: None,
     };
@@ -270,7 +267,6 @@ pub fn back_notice(reason: Option<&Value>) -> Voiced {
     follow_up: Some(if job.is_some() { said.job_follow_up.clone() } else { said.follow_up.clone() }),
     optional: false,
     kind,
-    ttl_ms,
     events: vec![],
     rides_ms: Some(RESTART.ride_minutes * 60_000),
   }
@@ -393,19 +389,11 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
     conversations.wake(unread, room).await;
 
     // One room at a time: the next room waits until this room's turn has gone out and its read mark stands at
-    // the last line handed, which is what keeps a served line from being served again.
-    let waited = tokio::time::timeout(Duration::from_secs(CHAT_ROUND.backlog.turn_seconds), async {
-      while !rows::is_read(db, chat_id, last).await.unwrap_or(false) {
-        tokio::time::sleep(Duration::from_millis(50)).await;
-      }
-    })
-    .await;
-
-    if waited.is_err() {
-      eprintln!(
-        "restart: chat {chat_id} was still answering after {}s, so the next open room waits",
-        CHAT_ROUND.backlog.turn_seconds
-      );
+    // the last line handed, which is what keeps a served line from being served again, or until the room holds
+    // nothing more to answer, as a turn that failed or was stopped leaves it. However long the turn takes, the
+    // next room waits for it.
+    while !rows::is_read(db, chat_id, last).await.unwrap_or(false) && !conversations.settled(chat_id) {
+      tokio::time::sleep(Duration::from_millis(50)).await;
     }
   }
 

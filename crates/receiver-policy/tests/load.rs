@@ -14,7 +14,6 @@ use receiver_policy::keepalive::KEEPALIVE;
 use receiver_policy::kept::KEPT;
 use receiver_policy::owner_facts::OWNER_FACTS;
 use receiver_policy::providers::{Handover, PROVIDERS, Turns};
-use receiver_policy::queue::QUEUE;
 use receiver_policy::quiet::QUIET;
 use receiver_policy::resident_turn::RESIDENT_TURN;
 use receiver_policy::rest::REST;
@@ -34,7 +33,7 @@ const POLICY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy");
 /// Every part, by its file, read here so a file that does not read as its type fails this test.
 fn parts() -> Vec<&'static str> {
   let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS);
-  let _ = (&*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS, &*QUEUE);
+  let _ = (&*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
   let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING, &*QUIET);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES);
@@ -53,7 +52,6 @@ fn parts() -> Vec<&'static str> {
     "kept.toml",
     "owner-facts.toml",
     "providers.toml",
-    "queue.toml",
     "quiet.toml",
     "resident-turn.toml",
     "rest.toml",
@@ -154,7 +152,6 @@ fn the_other_lines_carry_their_marks_and_numbers() {
   assert_eq!(RESTART.ride_minutes, 3);
   assert_eq!(WAKE.file_lead_seconds, 120);
   assert!(WAKE.file_lead_messages > 0);
-  assert_eq!(QUEUE.question_stop_seconds, 30 * 60);
   assert!(HANDOVER.transcript.answer.contains("{agent}"));
   assert!(CHAT_HEALTH.failed.run_log.as_deref().is_some_and(|line| line.contains("{run}")));
   assert!(REST.threshold > 0.0 && REST.lift_check_seconds > 0);

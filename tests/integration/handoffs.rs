@@ -1,6 +1,6 @@
 //! A handoff asked for ahead of a fresh session (docs/api.md, 「Handoffs」; docs/unified-bmo.md, 「Replacing the
 //! session」): the route has the agent's standing session write its handoff file and keeps it, a second asking while
-//! one runs is refused, an agent with no opened session writes nothing, and the next fresh session's first turn
+//! one runs waits in line for it, an agent with no opened session writes nothing, and the next fresh session's first turn
 //! opens on the file, then the room's words, then the brain.
 
 use std::sync::Arc;
@@ -26,7 +26,7 @@ use crate::common::units::{ADDRESS, AGENT, OWNER, StandInChat, deployment, regis
 const NOTE: &str = "what the closing session was in the middle of";
 
 #[tokio::test]
-async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_refuses_a_second_asking() {
+async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queues_a_second_asking() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
   let session = Arc::new(
@@ -50,12 +50,22 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_refus
   assert_eq!(std::fs::read_to_string(&path).unwrap(), NOTE);
   assert_eq!(settings::get(scratch.db(), &pending_key(AGENT)).await.unwrap(), Some(path));
 
-  // A handoff of the same agent under way refuses the second asking.
-  let under_way = Asking::begin(AGENT).unwrap();
-  let (status, body) = post(&front, "/handoffs/agent-a", json!({ "reason": "again" })).await;
+  // A handoff of the same agent under way holds the second asking in line until it ends, which is then answered
+  // by the handoff kept.
+  let under_way = Asking::begin(AGENT).await;
+  let again = post(&front, "/handoffs/agent-a", json!({ "reason": "again" }));
 
-  assert_eq!((status, body["code"].as_str()), (StatusCode::CONFLICT, Some("conflict")));
+  tokio::pin!(again);
+  assert!(
+    tokio::time::timeout(Duration::from_millis(200), &mut again).await.is_err(),
+    "it waits in line"
+  );
   drop(under_way);
+
+  let (status, body) = again.await;
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  assert_eq!(body["bytes"], NOTE.len());
 
   let (status, _) = post(&front, "/handoffs/agent-a", json!({ "reason": "" })).await;
 

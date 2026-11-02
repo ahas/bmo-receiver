@@ -45,7 +45,6 @@ async fn tell_health(receiver: &Receiver, chat_id: i64, said: &Notice, reason: O
     follow_up: said.follow_up.clone(),
     optional: false,
     kind: Some(said.kind.clone()),
-    ttl_ms: Some(said.ttl_minutes * 60_000),
     events: vec![],
     rides_ms: None,
   };
@@ -68,7 +67,6 @@ pub async fn raise_order(
   let text = fill_marks(&CHAT_HEALTH.order.what, &[("where", &where_)]);
   let row = Queued {
     kind: Some(ORDER_KIND),
-    expires_at_ms: Some(CHAT_HEALTH.order.check_seconds as i64 * 1_000),
     events: vec![],
     rides_until_ms: None,
     rides_session: false,

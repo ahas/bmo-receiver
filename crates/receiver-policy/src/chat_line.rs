@@ -79,7 +79,6 @@ pub struct Downgrade {
   pub follow_up: String,
   pub owner_room: String,
   pub room: String,
-  pub ttl_minutes: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,7 +87,6 @@ pub struct Fallback {
   pub taken: String,
   pub moved: String,
   pub intent: String,
-  pub ttl_minutes: i64,
   pub lifted: String,
   pub lifted_intent: String,
 }

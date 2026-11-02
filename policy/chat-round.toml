@@ -239,12 +239,10 @@ restart_limit = 2
 restarted = "This instruction was handed to you before, and the service restarted before that round ended. Part of it may already be done: look at what is there before you repeat anything that has an effect."
 room_removed = "This came back from work started in room {room}, whose registration has been removed; nothing goes to that room, so it is told here."
 
-# The words a restart left unread, read back as the process that holds the conversations starts: how old the
-# oldest that may still wake an agent is, in seconds, and how long the start settles before they are read, in
-# milliseconds.
+# The words a restart left unread, read back as the process that holds the conversations starts: how long the
+# start settles before they are read, in milliseconds.
 [backlog]
 settle_ms = 1500
-turn_seconds = 300
 
 # The owner's words from the console to a room's session (docs/receiver.md, 「The owner's words」): the quiet
 # instruction they go in as, around the owner's {text}, and the kind the console names such a row by.

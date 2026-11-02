@@ -172,8 +172,8 @@ impl ChatServices {
       roads: peers
         .iter()
         .map(|(road, peer)| {
-          // A chat service whose connection is refused is skipped at once: a turn must not wait its patience
-          // window for a road that is down. A service that answers slowly still waits; only a refusal is not
+          // A chat service whose connection is refused is skipped at once: a turn must not wait for a road that
+          // is down to come up. A service that answers slowly still waits; only a refusal is not
           // offered again (docs/receiver.md, 「A room's chat providers」).
           let patience = ChatPatience {
             window: Duration::ZERO,

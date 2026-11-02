@@ -69,8 +69,6 @@ struct Instruction {
   #[serde(default)]
   summary: Option<String>,
   #[serde(default)]
-  expires_at: Option<i64>,
-  #[serde(default)]
   events: Vec<String>,
   #[serde(default)]
   agent_only: bool,
@@ -94,8 +92,6 @@ struct Notice {
   optional: bool,
   #[serde(default)]
   kind: Option<String>,
-  #[serde(default)]
-  expires_at: Option<i64>,
   #[serde(default)]
   events: Vec<String>,
   #[serde(default)]
@@ -175,7 +171,6 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
   let mut text = said(&asked.said);
   let mut queued = Queued {
     kind: asked.kind.as_deref(),
-    expires_at_ms: asked.expires_at,
     events: asked.events.clone(),
     rides_until_ms: asked.rides_until,
     rides_session: false,
@@ -290,7 +285,6 @@ pub async fn notice(State(served): State<Served>, Path(room): Path<i64>, body: B
   );
   let queued = Queued {
     kind: asked.kind.as_deref(),
-    expires_at_ms: asked.expires_at,
     events: asked.events.clone(),
     rides_until_ms: asked.rides_until,
     sort: Some(NOTICE_SORT),
@@ -362,7 +356,7 @@ pub async fn notices(State(served): State<Served>, Path(room): Path<i64>, raw: R
 
   values.push(bound.into());
   let sql = format!(
-    r#"SELECT "id", "kind", "summary", "text", "created_at", "expires_at" FROM "instructions"
+    r#"SELECT "id", "kind", "summary", "text", "created_at" FROM "instructions"
        WHERE {} ORDER BY "id" {} LIMIT ${}"#,
     conditions.join(" AND "),
     order,
@@ -380,7 +374,6 @@ pub async fn notices(State(served): State<Served>, Path(room): Path<i64>, raw: R
     .iter()
     .map(|row| {
       let created: i64 = row.try_get("", "created_at").unwrap_or(0);
-      let expires: Option<i64> = row.try_get("", "expires_at").ok().flatten();
 
       json!({
         "id": row.try_get::<i64>("", "id").ok(),
@@ -388,7 +381,6 @@ pub async fn notices(State(served): State<Served>, Path(room): Path<i64>, raw: R
         "summary": row.try_get::<Option<String>>("", "summary").ok().flatten(),
         "text": row.try_get::<String>("", "text").unwrap_or_default(),
         "createdAt": created,
-        "expiresAt": expires,
       })
     })
     .collect();

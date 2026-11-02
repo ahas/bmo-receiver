@@ -9,7 +9,7 @@ use receiver_ports::gate::Judgement;
 use serde_json::json;
 
 use super::conversation::{BoxFuture, Conversations, Held, Noting, Reply, unified_session};
-use super::fold::{Failures, Folding, compact, fold_timeout, hand_off, handover_of};
+use super::fold::{Failures, Folding, compact, hand_off, handover_of};
 use super::prompt::recent_lines;
 use super::sentinels::{is_skip, is_wait};
 use crate::form::without_control_markers;
@@ -169,11 +169,7 @@ impl Noting for Noter {
   ) -> BoxFuture<'a, ()> {
     Box::pin(async move {
       let recent = recent_lines(receiver, receiver.owner_id(), chat_id).await.unwrap_or_default();
-      let folding = Folding {
-        room,
-        recent,
-        timeout: fold_timeout(),
-      };
+      let folding = Folding { room, recent };
 
       // A full session its provider hands over by its own note is replaced at its next turn, not folded.
       if unified_session(receiver, agent).await && handover_of(receiver, agent).await == Handover::Handoff {

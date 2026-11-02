@@ -1,6 +1,6 @@
 //! How a port reaches its unit: a call of a JSON body, a GET with its query, or a GET held open for the events
-//! it streams, at a path under the unit's base address and behind the unit's token, offered again only while the
-//! connection is refused (`docs/boundary-api.md`, 「Calls the receiver makes」).
+//! it streams, at a path under the unit's base address and behind the unit's token, offered again for as long as
+//! the connection is refused (`docs/boundary-api.md`, 「Calls the receiver makes」).
 
 use std::fmt;
 use std::io;
@@ -13,6 +13,9 @@ use reqwest::{Client, Method, Url};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+/// How long a connection stays silent before the first keep-alive probe asks whether its peer is still there.
+const KEEP_ALIVE: Duration = Duration::from_secs(30);
+
 /// Where a unit answers and the token it is called with, as the receiver's configuration gives them. A unit that
 /// takes no token is given none, and its calls carry no `Authorization` header.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -23,8 +26,7 @@ pub struct Peer {
   pub token: String,
 }
 
-/// How a wait between two offers of a call is spent. The caller counts the time it has waited by the intervals
-/// it asked for, never by reading a clock, so a waiter that returns at once makes a whole window pass at once.
+/// How a wait between two offers of a call is spent.
 pub trait Wait: Send + Sync {
   fn wait(&self, interval: Duration) -> BoxFuture<'_, ()>;
 }
@@ -39,21 +41,19 @@ impl Wait for RealClock {
   }
 }
 
-/// How long a call whose connection was refused keeps being offered, and how often.
+/// How often a call whose connection was refused is offered again, until the unit listens: a refusal is the unit
+/// down or coming up, so the call waits for it, and only its own caller giving it up ends that wait.
 #[derive(Clone)]
 pub struct Patience {
-  /// The most time spent waiting before the call is given up.
-  pub window: Duration,
-  /// The wait before each new offer; zero offers a call only once.
+  /// The wait before each new offer; zero offers a call only once, so a refusal ends it.
   pub every: Duration,
   pub waiter: Arc<dyn Wait>,
 }
 
 impl Default for Patience {
-  /// Two minutes, offered every two seconds, on the real clock.
+  /// Offered every two seconds, on the real clock.
   fn default() -> Self {
     Self {
-      window: Duration::from_secs(120),
       every: Duration::from_secs(2),
       waiter: Arc::new(RealClock),
     }
@@ -62,10 +62,7 @@ impl Default for Patience {
 
 impl fmt::Debug for Patience {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Patience")
-      .field("window", &self.window)
-      .field("every", &self.every)
-      .finish_non_exhaustive()
+    f.debug_struct("Patience").field("every", &self.every).finish_non_exhaustive()
   }
 }
 
@@ -81,12 +78,8 @@ pub struct WireError {
 pub enum PortFailure {
   /// The base address is no `http` address a path can be put under.
   NotAnAddress { base: String },
-  /// Nothing listened at the address for the whole patience window.
-  Unreachable {
-    url: String,
-    waited: Duration,
-    why: String,
-  },
+  /// Nothing listened at the address, for a call offered only once.
+  Unreachable { url: String, why: String },
   /// The unit answered, and not with success. Such a call is never offered again.
   Answered {
     url: String,
@@ -125,9 +118,7 @@ impl fmt::Display for PortFailure {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::NotAnAddress { base } => write!(f, "{base} is not an http address a unit can be reached at"),
-      Self::Unreachable { url, waited, why } => {
-        write!(f, "Nothing was listening at {url} after waiting {waited:?}: {why}")
-      }
+      Self::Unreachable { url, why } => write!(f, "Nothing was listening at {url}: {why}"),
       Self::Answered {
         url,
         status,
@@ -162,10 +153,12 @@ pub struct Caller {
 
 impl Caller {
   /// A caller of the unit at the peer's base address, with the default patience. It reads no environment of its
-  /// own, so no proxy is taken from it.
+  /// own, so no proxy is taken from it. Its connections carry TCP keep-alive, which tells a peer gone from a
+  /// connection held open; nothing bounds how long a live peer takes to answer.
   pub fn new(peer: &Peer) -> Self {
     let client = Client::builder()
       .no_proxy()
+      .tcp_keepalive(KEEP_ALIVE)
       .build()
       .expect("a client with no TLS and no proxy always builds");
 
@@ -329,7 +322,7 @@ impl Caller {
     Err(failed(url, answer).await)
   }
 
-  // The request sent, offered again only while the connection is refused and the patience window lasts.
+  // The request sent, offered again for as long as the connection is refused.
   async fn sent<B: Serialize>(
     &self,
     method: Method,
@@ -359,12 +352,7 @@ impl Caller {
         None => request,
       }
     };
-    let Patience {
-      window,
-      every,
-      waiter,
-    } = &self.patience;
-    let mut waited = Duration::ZERO;
+    let Patience { every, waiter } = &self.patience;
 
     loop {
       let error = match request().send().await {
@@ -379,16 +367,14 @@ impl Caller {
         });
       }
 
-      if every.is_zero() || waited + *every > *window {
+      if every.is_zero() {
         return Err(PortFailure::Unreachable {
           url: shown,
-          waited,
           why: chain(&error),
         });
       }
 
       waiter.wait(*every).await;
-      waited += *every;
     }
   }
 }

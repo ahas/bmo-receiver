@@ -12,11 +12,10 @@ dropped = "That session has been dropped; the next job on this worker and model 
 kept = "The owner turned the downgrade heal off for this worker, so that session is kept: the next job on this worker goes on in the same session, launched on {model} rather than on the model its tier names, until a fresh session is opened. No room is waiting on it."
 # One line of it stands at a time for each worker: the kind is this and the worker's name.
 kind = "worker-downgrade"
-ttl_minutes = 60
 
 # The order a run past its clock hands the chat agent in the owner's chat: the {ask} number, {what} it does, its
 # {agent} and {run}, how long it has run ({running}) since when ({since}), its {bound}, its last {activity}, the
-# moment ({by}) the agency cuts it with no verdict, and the {verb} a verdict is given with. A last activity is told
+# word that nothing is cut without a verdict, and the {verb} a verdict is given with. A last activity is told
 # by its moment ({at}), how long before the ask it was ({before}) and what it was ({what}).
 [overtime]
 head = "[A run reached its clock — keep it or cut it]"
@@ -29,7 +28,7 @@ activity = "Last activity: {activity}"
 activity_at = "{at}, {before} before this ask: {what}"
 activity_unknown = "a line of unknown kind"
 activity_none = "nothing recorded"
-nothing_cut = "Nothing has been cut: the run goes on until you answer. With no answer by {by} the agency cuts it itself and records that it did."
+nothing_cut = "Nothing has been cut: the run goes on until you answer, and nothing cuts it without your verdict."
 steps = [
   "What to do — read the procedure overtime first:",
   "1. Decide yourself whether to keep it or cut it. Do not ask the owner: this is left to you.",

@@ -4,7 +4,6 @@
 //! nothing, and on the word that nothing was recovered only where neither stands, the owner told so once.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use receiver_codes::{HealthFact, SessionReason};
 use receiver_policy::fill_marks;
@@ -69,8 +68,8 @@ pub fn read(path: &Path) -> Option<Handoff> {
   })
 }
 
-/// The closing session asked one more turn, bounded by the policy, to write its handoff file; the file it wrote,
-/// where it stands and is not empty. A run that fails or outlasts the bound leaves whatever the file holds.
+/// The closing session asked one more turn to write its handoff file, waited on until the turn ends however long it
+/// takes; the file it wrote, where it stands and is not empty. A run that fails leaves whatever the file holds.
 pub async fn ask(receiver: &Receiver, agent: &str, session: &str) -> Option<Handoff> {
   let folder = folder(receiver.data_root().path(), agent);
 
@@ -92,12 +91,9 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str) -> Option<Hand
     round: rounds::current(),
   };
   let agency = receiver.units().agency.clone();
-  let bound = Duration::from_secs(HANDOVER.ask_seconds);
 
-  match tokio::time::timeout(bound, agency.turn(&turn)).await {
-    Ok(Ok(_)) => {}
-    Ok(Err(why)) => eprintln!("{agent}: the handoff turn of session {session} failed: {why}"),
-    Err(_) => eprintln!("{agent}: the handoff turn of session {session} outlasted {}s", bound.as_secs()),
+  if let Err(why) = agency.turn(&turn).await {
+    eprintln!("{agent}: the handoff turn of session {session} failed: {why}");
   }
 
   let handed = read(&path);
@@ -140,7 +136,6 @@ pub async fn tell_lost(receiver: &Receiver, agent: &str, reason: SessionReason) 
     follow_up: None,
     optional: false,
     kind: Some(said.kind.clone()),
-    ttl_ms: Some(said.ttl_minutes * 60_000),
     events: vec![],
     rides_ms: None,
   };
@@ -157,24 +152,29 @@ pub fn pending_key(agent: &str) -> String {
 }
 
 // The agents whose handoff is being asked for now.
-static UNDER_WAY: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> =
-  std::sync::LazyLock::new(Default::default);
+type Turns = std::collections::HashMap<String, std::sync::Arc<tokio::sync::Mutex<()>>>;
 
-/// An agent's handoff being asked for, held so a second asking for the same agent is told it is under way; none
-/// where one already is. Dropped, it lets the agent go.
-pub struct Asking(String);
+static UNDER_WAY: std::sync::LazyLock<std::sync::Mutex<Turns>> = std::sync::LazyLock::new(Default::default);
 
-impl Asking {
-  pub fn begin(agent: &str) -> Option<Self> {
-    let mut under_way = UNDER_WAY.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-
-    under_way.insert(agent.to_owned()).then(|| Asking(agent.to_owned()))
-  }
+/// An agent's handoff being asked for, held so a second asking for the same agent waits in line behind it, however
+/// long it takes. Dropped, it lets the next asking go.
+pub struct Asking {
+  _held: tokio::sync::OwnedMutexGuard<()>,
 }
 
-impl Drop for Asking {
-  fn drop(&mut self) {
-    UNDER_WAY.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&self.0);
+impl Asking {
+  /// The agent's turn to ask, once every asking for it ahead of this one has ended.
+  pub async fn begin(agent: &str) -> Self {
+    let line = UNDER_WAY
+      .lock()
+      .unwrap_or_else(std::sync::PoisonError::into_inner)
+      .entry(agent.to_owned())
+      .or_default()
+      .clone();
+
+    Asking {
+      _held: line.lock_owned().await,
+    }
   }
 }
 

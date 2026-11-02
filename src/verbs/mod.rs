@@ -46,8 +46,6 @@ pub struct RunAsked {
   pub chat_id: i64,
   /// The unit the run is, which its log lines are grouped under.
   pub unit: String,
-  /// How long the run may take before it is called off, in milliseconds.
-  pub cap_ms: Option<i64>,
   /// The chat that set it off.
   pub started_by: Option<String>,
   /// The agent whose turn set the run going.

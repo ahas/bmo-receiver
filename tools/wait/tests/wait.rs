@@ -1,5 +1,6 @@
 //! The wait tool's entries (docs/reminders.md, 「The wait tool」): the manifest held to the executable, a wait
-//! answered with its note once its moment has come, and a watch answered once its check holds or it lapses.
+//! answered with its note once its moment has come, and a watch answered once its check holds, each run waited on
+//! to its end.
 
 use std::path::Path;
 use std::time::{Duration, Instant, SystemTime};
@@ -52,7 +53,6 @@ fn a_wait_ends_seconds_from_now_or_at_the_moment_it_names_and_is_refused_both_or
     until: until.map(str::to_owned),
     check: None,
     every: None,
-    within: None,
     note: "n".to_owned(),
   };
 
@@ -109,17 +109,21 @@ async fn a_watch_answers_once_its_check_exits_zero_with_what_it_wrote() {
 }
 
 #[tokio::test]
-async fn a_watch_whose_check_never_holds_lapses_within_its_seconds() {
+async fn a_check_run_longer_than_its_every_is_waited_on_to_its_end() {
   let started = Instant::now();
-  let said =
-    call("wait", json!({ "check": "echo not yet; exit 3", "every": 1, "within": 1, "note": "n" })).await;
+  let said = call("wait", json!({ "check": "sleep 2; echo done", "every": 1, "note": "n" })).await;
 
-  assert!(started.elapsed() < Duration::from_secs(5));
+  assert!(started.elapsed() >= Duration::from_secs(2));
   assert!(!said.is_error, "{}", said.plain());
-  assert_eq!(
-    said.plain(),
-    "lapsed: n\nthe check did not hold within 1 seconds, over 2 runs; its last run wrote:\nnot yet"
-  );
+  assert_eq!(said.plain(), "n\nthe check held on run 1; it wrote:\ndone");
+}
+
+#[tokio::test]
+async fn a_watch_takes_no_span_to_lapse_in() {
+  let refused = call("wait", json!({ "check": "true", "within": 1, "note": "n" })).await;
+
+  assert!(refused.is_error);
+  assert!(refused.plain().contains("within"), "{}", refused.plain());
 }
 
 #[tokio::test]

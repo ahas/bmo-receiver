@@ -4,17 +4,15 @@
 use receiver_policy::quiet::QUIET;
 use receiver_ports::agency::{Agency, OpenRun, RunningJob};
 
-/// The open runs that count as under way at `now_ms`, each named as a line: one whose name carries a long-work
-/// word however long it has run, a chat turn's started within the policy's span; no other.
-pub fn under_way(open: &[OpenRun], now_ms: i64) -> Vec<String> {
-  let span = QUIET.recent_minutes * 60_000;
-
+/// The open runs that count as under way, each named as a line: one whose name carries a long-work word or a
+/// chat turn's word, however long it has run; no other.
+pub fn under_way(open: &[OpenRun]) -> Vec<String> {
   open
     .iter()
     .filter(|run| {
       let carries = |words: &[String]| words.iter().any(|word| run.name.contains(word.as_str()));
 
-      carries(&QUIET.long_words) || (carries(&QUIET.turn_words) && now_ms - run.started_at < span)
+      carries(&QUIET.long_words) || carries(&QUIET.turn_words)
     })
     .map(|run| format!("run {} {} under way since {}", run.id, run.name, run.started_at))
     .collect()
@@ -39,12 +37,8 @@ pub fn jobs_under_way(jobs: &[RunningJob]) -> Vec<String> {
 
 /// What stands under way as the agency answers now: the runs that count, and with `jobs` every job starting or
 /// running; the agency's failure where it did not answer either.
-pub async fn asked(agency: &dyn Agency, now_ms: i64, jobs: bool) -> Result<Vec<String>, String> {
-  let mut lines = agency
-    .open_runs()
-    .await
-    .map(|open| under_way(&open, now_ms))
-    .map_err(|why| why.to_string())?;
+pub async fn asked(agency: &dyn Agency, jobs: bool) -> Result<Vec<String>, String> {
+  let mut lines = agency.open_runs().await.map(|open| under_way(&open)).map_err(|why| why.to_string())?;
 
   if jobs {
     lines.extend(

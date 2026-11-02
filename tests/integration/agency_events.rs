@@ -46,7 +46,6 @@ struct Row {
   text: String,
   kind: Option<String>,
   sort: Option<String>,
-  expires_at: Option<i64>,
   rides: i64,
   ride_until: Option<i64>,
 }
@@ -141,7 +140,7 @@ impl Heard {
   async fn rows(&self) -> Vec<Row> {
     all(
       self.db(),
-      r#"SELECT "agent", "chat_id", "text", "kind", "sort", "expires_at", "rides", "ride_until"
+      r#"SELECT "agent", "chat_id", "text", "kind", "sort", "rides", "ride_until"
          FROM "instructions" ORDER BY "id""#,
       vec![],
     )
@@ -154,7 +153,6 @@ impl Heard {
       text: row.try_get("", "text").unwrap(),
       kind: row.try_get("", "kind").unwrap(),
       sort: row.try_get("", "sort").unwrap(),
-      expires_at: row.try_get("", "expires_at").unwrap(),
       rides: row.try_get("", "rides").unwrap(),
       ride_until: row.try_get("", "ride_until").unwrap(),
     })
@@ -374,7 +372,6 @@ async fn a_worker_fallen_to_a_lesser_model_is_voiced_to_the_owner() {
   assert!(rows[0].text.contains("came off model-b instead of model-a"), "{}", rows[0].text);
   assert!(rows[0].text.contains("It happened on job #9."));
   assert!(rows[0].text.contains("That session has been dropped"));
-  assert!(rows[0].expires_at.is_some(), "the notice lapses");
 }
 
 #[tokio::test]
@@ -509,7 +506,7 @@ async fn a_run_past_its_clock_is_an_order_withdrawn_where_its_ask_closes_before_
   let asked = |ask: i64, run: &str| {
     json!({
       "ask": ask, "agent": "worker-a", "run": run, "what": "a job's turn", "startedAt": now_ms() - 600_000,
-      "boundMs": 300_000, "lastActivityAt": null, "lastActivity": null, "answerBy": now_ms() + 1_800_000,
+      "boundMs": 300_000, "lastActivityAt": null, "lastActivity": null,
       "verb": "bmo-agency overtime",
     })
   };
@@ -524,6 +521,7 @@ async fn a_run_past_its_clock_is_an_order_withdrawn_where_its_ask_closes_before_
   assert!(order[0].text.contains("Ask: #5"));
   assert!(order[0].text.contains("Clock: 5 minutes"));
   assert!(order[0].text.contains("Last activity: nothing recorded"));
+  assert!(order[0].text.contains("nothing cuts it without your verdict"), "{}", order[0].text);
   assert!(
     order[0].text.contains("`bmo-agency overtime --keep 5 [--for <length>]"),
     "{}",

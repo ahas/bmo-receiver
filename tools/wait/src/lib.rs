@@ -4,7 +4,7 @@
 //! wakes the agent with the answer once the call ends.
 
 use std::process::Stdio;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use schemars::JsonSchema;
@@ -20,7 +20,7 @@ const CATALOGUE: &[&str] = &["room.tools"];
 // A watch runs a command of the caller's, which may reach anything.
 const REACHES_OUT: &[(&str, bool)] = &[("open_world", true)];
 
-/// The seconds between a watch's checks where the call names none.
+/// The seconds from one of a watch's checks ending to the next one starting, where the call names none.
 pub const EVERY: u64 = 60;
 
 /// The most of a check's output a watch answers with: its last characters.
@@ -41,12 +41,9 @@ pub struct WaitInput {
   /// The shell command run through sh, every few seconds until a run of it exits 0: a watch on a wait. Give this, seconds, or until.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub check: Option<String>,
-  /// Seconds between runs of the check, 60 where not given; a run that outlasts it is ended. With check alone.
+  /// Seconds from one run of the check ending to the next starting, 60 where not given. With check alone.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub every: Option<u64>,
-  /// Seconds after which a check that has not held ends the wait as lapsed; none where not given. With check alone.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub within: Option<u64>,
   /// What the answer says once the wait is over or the check holds: what you are to remember then.
   pub note: String,
 }
@@ -140,8 +137,8 @@ fn tail(written: &str) -> String {
   written.chars().skip(count.saturating_sub(OUTPUT_CHARS)).collect()
 }
 
-// One run of the check through `sh`, ended where it outlasts `bound`.
-async fn run_check(check: &str, bound: Duration) -> Result<Run, String> {
+// One run of the check through `sh`, waited on until it exits.
+async fn run_check(check: &str) -> Result<Run, String> {
   let child = Command::new("sh")
     .arg("-c")
     .arg(check)
@@ -152,23 +149,18 @@ async fn run_check(check: &str, bound: Duration) -> Result<Run, String> {
     .spawn()
     .map_err(|why| format!("the check could not be started: {why}"))?;
 
-  match tokio::time::timeout(bound, child.wait_with_output()).await {
-    Ok(Ok(output)) => {
-      let mut written = String::from_utf8_lossy(&output.stdout).into_owned();
+  let output = child
+    .wait_with_output()
+    .await
+    .map_err(|why| format!("the check could not be read: {why}"))?;
+  let mut written = String::from_utf8_lossy(&output.stdout).into_owned();
 
-      written.push_str(&String::from_utf8_lossy(&output.stderr));
+  written.push_str(&String::from_utf8_lossy(&output.stderr));
 
-      Ok(Run {
-        held: output.status.success(),
-        output: tail(written.trim_end()),
-      })
-    }
-    Ok(Err(why)) => Err(format!("the check could not be read: {why}")),
-    Err(_) => Ok(Run {
-      held: false,
-      output: format!("the run outlasted {} seconds and was ended", bound.as_secs()),
-    }),
-  }
+  Ok(Run {
+    held: output.status.success(),
+    output: tail(written.trim_end()),
+  })
 }
 
 // What a run wrote, as the answer shows it.
@@ -176,21 +168,20 @@ fn shown(output: &str) -> String {
   if output.is_empty() { " nothing".to_owned() } else { format!(":\n{output}") }
 }
 
-/// A watch: the check run at once and then every `every` seconds, until a run exits 0 or `within` has passed.
+/// A watch: the check run at once and then `every` seconds after each run ends, until a run exits 0. Only the
+/// call's own stop ends it otherwise.
 pub async fn watch(input: WaitInput) -> Answer {
   let Some(check) = input.check.as_deref().map(str::trim).filter(|check| !check.is_empty()) else {
     return Answer::refusal("check names no command");
   };
 
   let every = Duration::from_secs(input.every.unwrap_or(EVERY).max(1));
-  let within = input.within.map(Duration::from_secs);
-  let started = Instant::now();
   let mut runs: u64 = 0;
 
   loop {
     runs += 1;
 
-    let run = match run_check(check, every).await {
+    let run = match run_check(check).await {
       Ok(run) => run,
       Err(why) => return Answer::failure(why),
     };
@@ -203,22 +194,7 @@ pub async fn watch(input: WaitInput) -> Answer {
       ));
     }
 
-    let rest = match within {
-      Some(within) => match within.checked_sub(started.elapsed()) {
-        Some(rest) if !rest.is_zero() => rest,
-        _ => {
-          return Answer::text(format!(
-            "lapsed: {}\nthe check did not hold within {} seconds, over {runs} runs; its last run wrote{}",
-            input.note,
-            within.as_secs(),
-            shown(&run.output)
-          ));
-        }
-      },
-      None => every,
-    };
-
-    tokio::time::sleep(every.min(rest)).await;
+    tokio::time::sleep(every).await;
   }
 }
 
@@ -233,9 +209,7 @@ pub async fn call(name: &str, arguments: Value) -> Answer {
         match (input.check.is_some(), input.seconds, input.until.as_deref()) {
           (true, None, None) => watch(input).await,
           (true, _, _) => Answer::refusal("give check or seconds or until, not both"),
-          (false, _, _) if input.every.is_some() || input.within.is_some() => {
-            Answer::refusal("every and within go with check")
-          }
+          (false, _, _) if input.every.is_some() => Answer::refusal("every goes with check"),
           (false, _, _) => wait(input).await,
         }
       }

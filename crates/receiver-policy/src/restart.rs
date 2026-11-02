@@ -57,7 +57,6 @@ pub struct Restart {
   pub fresh_minutes: i64,
   pub ride_minutes: i64,
   pub kind: String,
-  pub ttl_minutes: i64,
   pub unannounced: Unannounced,
   pub deployed: Deployed,
   pub briefing: Briefing,

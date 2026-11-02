@@ -1652,11 +1652,6 @@ export interface components {
             agentOnly: boolean;
             /** @default [] */
             events: string[];
-            /**
-             * Format: int64
-             * @default null
-             */
-            expiresAt: number | null;
             /** @default null */
             kind: string | null;
             /**
@@ -1827,8 +1822,6 @@ export interface components {
              * @description Epoch milliseconds.
              */
             createdAt: number;
-            /** Format: int64 */
-            expiresAt: number | null;
             /** Format: int64 */
             id: number;
             kind: string | null;
@@ -2836,7 +2829,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A refusal or failure: unauthorized, bad-request, conflict, upstream-failed */
+            /** @description A refusal or failure: unauthorized, bad-request, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;

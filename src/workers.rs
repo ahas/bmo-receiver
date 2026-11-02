@@ -53,7 +53,6 @@ impl Downgraded {
       follow_up: Some(follow_up),
       optional: false,
       kind: Some(format!("{}:{}", said.kind, self.worker)),
-      ttl_ms: Some(said.ttl_minutes * 60_000),
       events: vec![],
       rides_ms: None,
     })

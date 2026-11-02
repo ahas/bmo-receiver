@@ -7,9 +7,8 @@ fresh_minutes = 15
 # How long the restart's lines wait for the deployment's outcome fact, which opens the one turn they go in, in
 # minutes.
 ride_minutes = 3
-# What the notice's row is kept as, and how long a back line not yet spoken still stands, in minutes.
+# What the notice's row is kept as.
 kind = "restart-back"
-ttl_minutes = 30
 
 # A restart no deployment announced.
 [unannounced]

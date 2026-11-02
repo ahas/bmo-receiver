@@ -56,9 +56,8 @@ env_links = [{ link = "settings.toml", target = "env/receiver.toml" }]
 units = ["deploy/*.service"]
 # Answers 0 once the service the deployed configuration answers up (docs/boundary-api.md, 「Health」).
 health = "~/.local/share/bmo-receiver/deploy/bin/bmo-receiver --config ~/.local/share/bmo-receiver/deploy/settings.toml health"
-# How long the service that answered must stay up before the deployment counts it stood: long enough to catch a
-# start that falls over at once, short enough not to hold every deployment for half a minute.
-stay_up_seconds = 5
+# The service is up once its health answers ready: no span it must stay up for besides.
+stay_up_seconds = 0
 # Answers 0 where no work stands under way that the restart would cut, a chat turn or a research run, asked from
 # the release just before the flip and waited on (docs/boundary-api.md, 「The service and its commands」, `quiet`).
 quiet = "bin/bmo-receiver --config settings.toml quiet"

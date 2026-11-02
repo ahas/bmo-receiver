@@ -26,7 +26,8 @@ pub struct Asked {
 }
 
 /// 200 with the file's path and size where the standing session wrote it, 204 where the agent has no session to
-/// ask or it wrote nothing, 409 while a handoff of the same agent is under way.
+/// ask or it wrote nothing. An asking while a handoff of the same agent is under way waits for it in line, and is
+/// then answered by the handoff kept, as an asking again within the policy's span is.
 pub async fn hand_off(
   State(served): State<Served>,
   Path(agent): Path<String>,
@@ -38,13 +39,7 @@ pub async fn hand_off(
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "reason (non-empty string) is required"));
   }
 
-  let Some(_asking) = Asking::begin(&agent) else {
-    return Err(refused(
-      StatusCode::CONFLICT,
-      "conflict",
-      &format!("A handoff of {agent} is already under way."),
-    ));
-  };
+  let _asking = Asking::begin(&agent).await;
 
   let receiver = served.receiver.as_ref();
   let reason = asked.reason.trim();

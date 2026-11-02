@@ -21,9 +21,6 @@ pub const AUTOPLAY: &str = "voice_briefing_autoplay";
 /// The kind the owner's line about the switch stands under, one waiting at a time.
 const SWITCH_KIND: &str = "voice-briefing";
 
-// A switch's line not said within this long is no longer worth saying.
-const SWITCH_TTL_MS: i64 = 30 * 60_000;
-
 // How short a line's first sentence is for its second to be spoken with it.
 const SHORT_OPENING: usize = 40;
 
@@ -53,7 +50,6 @@ pub async fn set(receiver: &Receiver, key: &str, value: bool) -> Result<(), NotR
       follow_up: None,
       optional: false,
       kind: Some(SWITCH_KIND.to_owned()),
-      ttl_ms: Some(SWITCH_TTL_MS),
       events: vec![],
       rides_ms: None,
     };

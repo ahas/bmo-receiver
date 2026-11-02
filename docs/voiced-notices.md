@@ -53,8 +53,8 @@ agent that answers the room says the line.
 - **One line per kind.** Each notice carries a kind (a setting, a rest lifted, a deploy going down). A notice of
   a kind still undelivered for that chat is replaced by the newer one, so a setting toggled twice, or a state
   that flapped, leaves one line.
-- **Late is dropped.** A notice about a state that may already have moved on carries an expiry; a row past it is
-  discarded rather than delivered.
+- **A notice waits until it is said.** A notice carries no expiry: it waits for a turn to take it, however long
+  that is, and a state that has moved on meanwhile replaces it by the newer notice of the same kind.
 - **Shut rooms are not woken.** A row for a chat that is not allowed is discarded and logged, never left pending.
   The owner's private chat is always deliverable.
 - **Nothing waits on a notice.** A launcher that starts a slow tool returns at once; no tool holds a room while a
@@ -124,8 +124,8 @@ agent that answers the room says the line.
   handed to the agent's session in the owner's chat as an order to decide on, keep or cut, never as a line to
   say; the order is withdrawn where `overtime-request.changed` comes first.
   - The order carries the ask's number, what the run is doing, its agent and run, how long it has run and since
-    when, its bound, its last sign of work and when it was, and the moment the agency cuts it with no verdict; it
-    names the procedure `overtime` and the verb the event names, with its keep and cut forms.
+    when, its clock, its last sign of work and when it was, and the word that nothing cuts the run without a
+    verdict; it names the procedure `overtime` and the verb the event names, with its keep and cut forms.
   - It is kept under the run's own kind (`overtime:<run>`), so a later ask on the same run replaces one not yet
     handed over, and the ask's closing withdraws only an order no round has taken.
 - **A job's end.** The job's report is the worker's English, written to the agent, and carries the system:

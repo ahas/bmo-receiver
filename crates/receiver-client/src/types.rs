@@ -554,7 +554,6 @@ pub struct Notice {
   pub text: String,
   /// Epoch milliseconds.
   pub created_at: i64,
-  pub expires_at: Option<i64>,
 }
 
 /// The verbs the road a room is answered on performs.
@@ -596,8 +595,6 @@ pub struct InstructionRequest {
   pub sort: String,
   #[serde(default)]
   pub summary: Option<String>,
-  #[serde(default)]
-  pub expires_at: Option<i64>,
   #[serde(default)]
   pub events: Vec<String>,
   /// A record the agent reads and no room hears: a round carrying only such rows sends no message.

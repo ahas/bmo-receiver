@@ -7,9 +7,6 @@ use sea_orm::{DatabaseConnection, TransactionTrait};
 
 use crate::{Fault, now_ms, run};
 
-// A setting's acknowledgement not spoken within this long is no longer worth saying.
-const SETTING_NOTICE_TTL_MS: i64 = 30 * 60_000;
-
 const INTENT: &str = "acknowledge the owner's command in this chat.";
 
 /// The voiced notice's frame around the facts, for a line that is to be said.
@@ -79,15 +76,14 @@ pub async fn queue(
   .await?;
   run(
     &transaction,
-    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "expires_at", "via", "events", "rides", "ride_until")
-       VALUES ($1, $2, $3, $4, $5, $6, NULL, '', 0, NULL)"#,
+    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "via", "events", "rides", "ride_until")
+       VALUES ($1, $2, $3, $4, $5, NULL, '', 0, NULL)"#,
     vec![
       agent.into(),
       chat_id.into(),
       text.into(),
       now.into(),
       kind.into(),
-      (now + SETTING_NOTICE_TTL_MS).into(),
     ],
   )
   .await?;

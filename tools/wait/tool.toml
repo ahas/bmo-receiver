@@ -1,7 +1,8 @@
 # The reminders and watches an agent sets, one entry a call `bmo use` runs on its own so that its end wakes the
 # agent (docs/reminders.md): a wait for a moment, or a shell check run until it holds, named as the wait's own
-# `check`. It reads no turn and calls no unit. It is unbounded, since the unit the call runs in ends it at its
-# longest run. The crate's own test holds the entry here to the Rust tool answering it.
+# `check`. It reads no turn and calls no unit. Its entry is unbounded: a call ends when its moment comes or its
+# check holds, or when it is stopped, so the tool's `timeout`, which the manifest format asks of every tool, bounds
+# no call. The crate's own test holds the entry here to the Rust tool answering it.
 
 [tool]
 name = "wait"

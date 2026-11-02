@@ -7,8 +7,6 @@
 //! round: every other send it hands to the room's supervisor (docs/messages.md, 「Words handed to the room's
 //! supervisor」).
 
-use std::time::Duration;
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -21,9 +19,6 @@ pub const SENDS_PATH: &str = "/sends";
 
 /// The route a line in the consult room is asked of.
 pub const CONSULT_PATH: &str = "/consult-lines";
-
-// Long enough for an album to be drawn on and uploaded, short of the tool host's limit on a call.
-const SEND_WAIT: Duration = Duration::from_secs(170);
 
 fn off(flag: &bool) -> bool {
   !*flag
@@ -403,8 +398,7 @@ impl Unsent {
 pub async fn ask(receiver: &Service, asked: &Asked) -> Result<Vec<String>, Unsent> {
   let body = serde_json::to_value(asked)
     .map_err(|why| Unsent::Unreached(format!("the send could not be written: {why}")))?;
-  let (status, said) =
-    receiver.post_within(SENDS_PATH, &body, SEND_WAIT).await.map_err(Unsent::Unreached)?;
+  let (status, said) = receiver.post_answered(SENDS_PATH, &body).await.map_err(Unsent::Unreached)?;
 
   answered(SENDS_PATH, status, &said)
 }
@@ -423,8 +417,7 @@ pub async fn ask_speaking(
   };
   let body = serde_json::to_value(&asked)
     .map_err(|why| Unsent::Unreached(format!("the send could not be written: {why}")))?;
-  let (status, said) =
-    receiver.post_within(SENDS_PATH, &body, SEND_WAIT).await.map_err(Unsent::Unreached)?;
+  let (status, said) = receiver.post_answered(SENDS_PATH, &body).await.map_err(Unsent::Unreached)?;
   let own = (200..300).contains(&status) && said.get("own").and_then(Value::as_bool) == Some(true);
 
   if own {
@@ -464,8 +457,7 @@ pub async fn ask_consult(
     body["from"] = json!(from);
   }
 
-  let (status, said) =
-    receiver.post_within(CONSULT_PATH, &body, SEND_WAIT).await.map_err(Unsent::Unreached)?;
+  let (status, said) = receiver.post_answered(CONSULT_PATH, &body).await.map_err(Unsent::Unreached)?;
 
   answered(CONSULT_PATH, status, &said)
 }

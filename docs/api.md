@@ -261,10 +261,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `GET /rooms/{roomId}/notices` | `before`, `after`, `limit`, `kind`, `from`, `to` | a page of `Notice` |
-| `POST /rooms/{roomId}/notices` | `fact`, `intent`, `followUp?`, `optional`, `kind?`, `expiresAt?`, `events?`, `ridesUntil?` | 201, `{id}`: the instruction it was queued as |
+| `POST /rooms/{roomId}/notices` | `fact`, `intent`, `followUp?`, `optional`, `kind?`, `events?`, `ridesUntil?` | 201, `{id}`: the instruction it was queued as |
 | `POST /owner/notices` | `code` and its parameters beside it | 201, `{id}` |
 
-- **A `Notice`** is `id`, `kind`, `summary`, `text`, `createdAt` and `expiresAt`. The list is walked by `before` or
+- **A `Notice`** is `id`, `kind`, `summary`, `text` and `createdAt`. The list is walked by `before` or
   `after`, an instruction id, and narrowed by `kind` and by the span it was queued in, both ends included.
 - **An owner notice** is queued for the chat agent in the owner's private room, carrying the code and its
   parameters as a fact.
@@ -273,7 +273,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `expiresAt?`, `events?`, `agentOnly?`, `ridesUntil?`, `via?`, `run?` | 201, `{id}` |
+| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `events?`, `agentOnly?`, `ridesUntil?`, `via?`, `run?` | 201, `{id}` |
 | `GET /instructions/{instructionId}` | | `id`, `state` (`pending`, `handed` or `delivered`) |
 | `DELETE /instructions/{instructionId}` | | 204 |
 | `POST /owner/instructions` | `chatId`, `text` | 204 |
@@ -436,13 +436,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body | Answers |
 |---|---|---|
-| `POST /handoffs/{agentName}` | `reason`, `room?` | 200 `path`, `bytes`: the handoff file the agent's standing session wrote; 204 where it has no session to ask or wrote nothing; 409 `conflict` while a handoff of the agent is under way |
+| `POST /handoffs/{agentName}` | `reason`, `room?` | 200 `path`, `bytes`: the handoff file the agent's standing session wrote; 204 where it has no session to ask or wrote nothing |
 
 - **The agency asks this before it opens a fresh session for an agent that had one** (`docs/unified-bmo.md`,
   「Replacing the session」). The receiver asks the agent's standing session — its one session, or the session of
-  `room` where it keeps one in each room — for its handoff file as a replacement does, bounded by the handover
-  policy's `ask_seconds`, and keeps the file for the next fresh session's first turn, which opens on it. `reason`
-  names why a fresh session is coming, for the receiver's journal.
+  `room` where it keeps one in each room — for its handoff file as a replacement does, waited on until its turn
+  ends however long it takes, and keeps the file for the next fresh session's first turn, which opens on it.
+  `reason` names why a fresh session is coming, for the receiver's journal.
+- **An asking while a handoff of the same agent is under way waits in line** behind it, and is then answered as
+  an asking again within `again_minutes` is.
 - **An asking within `again_minutes` of the last one asked** (`handover.toml`) does not reach the standing
   session: it answers 200 with the file that one kept where it is still kept, else 204, and the journal counts
   the askings in a row.
@@ -546,4 +548,5 @@ and in this repository's delivery report.
 | the cache warmer | the consumer and its one target, the chat touch |
 | each chat service | every provider route of the protocol, through `bmo-chat-client` |
 
-A call is retried only where the connection was refused, within two minutes, offered every two seconds.
+A call is offered again only where the connection was refused, every two seconds until the unit listens; a call
+that reached a listener is never offered again, and nothing bounds how long a unit takes to answer.

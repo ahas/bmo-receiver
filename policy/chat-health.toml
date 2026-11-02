@@ -8,8 +8,6 @@
 fact = "The provider had stopped answering; a run has just come back from it, so the outage is over."
 intent = "tell the owner the connection is back and you are answering again."
 kind = "outage-lifted"
-# Another outage may have begun by the time a late line would be said.
-ttl_minutes = 5
 
 # A limit's rest over, told to the owner: the window has reset. An outage's rest lifts in silence, since whether
 # the service is back is known only when a run answers.
@@ -17,8 +15,6 @@ ttl_minutes = 5
 fact = "The usage limit's rest is over: the window has reset and you answer again as usual."
 intent = "say you are back from the rest and answering again."
 kind = "rest-lifted"
-# A back-from-rest line not spoken within this long has been overtaken by whatever came next.
-ttl_minutes = 30
 
 # A turn somebody stopped, told to its room.
 [stopped]
@@ -26,7 +22,6 @@ fact = "The answer you were writing for this chat was stopped from outside befor
 intent = "tell the chat that the answer it was waiting for was cut off with no result."
 follow_up = "Nothing follows from that turn; whoever asked can ask again."
 kind = "run-stopped"
-ttl_minutes = 10
 
 # A round that died, told to its room; the owner's own chat is also told which run's log holds it ({run}).
 [failed]
@@ -35,7 +30,6 @@ run_log = "What could not be read is in that run's own log, {run}."
 intent = "tell the chat that the round it was waiting on failed and left no answer."
 follow_up = "Nothing follows from that round; whoever asked can ask again. Do not say why it broke: that is being looked into elsewhere."
 kind = "run-failed"
-ttl_minutes = 10
 
 # What a failure order names a broken chat turn as, by where it was ({where}), and how often, in seconds, the
 # orders nobody took up are looked over for the receiver's own last line.
@@ -46,13 +40,10 @@ check_seconds = 60
 # A full session folded: what the session is asked for its line before the fold, and what it is handed to say
 # once it is awake again.
 [fold]
-# How long a fold is given, in minutes.
-timeout_minutes = 10
 prompt = "Quiet instruction from the system: your memory is full and is about to be folded up (compacted): you will keep the gist and lose the detail. Tell the room, in one short line in your own voice and in the room's language, that you are going to nap for a moment. Output only that line, nothing else."
 fact = "Your memory has just been folded up (compacted): you kept the gist and lost the detail, and you are awake again."
 intent = "tell the chat you woke up from your nap."
 kind = "compacted"
-ttl_minutes = 30
 
 # The cache warmer's touch of a quiet room's session: what it says beside its word where it carries reference,
 # and the chat touch target as the receiver declares it to the warmer.

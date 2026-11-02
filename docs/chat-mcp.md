@@ -59,8 +59,9 @@ needs its road to perform, so the room's block names the sending entries a room'
   sends only where it answers the room and its role gives sending.
 - **Where the receiver cannot be reached,** the call fails saying so; nothing is sent twice, since a call that
   reached a listener is never offered again.
-- **A call that has not answered within its manifest's limit** is ended and answered as failed. Every send returns
-  once it is on its way, a draw once it is drawn and its line is out.
+- **A call waits for the receiver's answer.** Every entry is declared unbounded, so the tool host sets no limit on a
+  call, and the call to the receiver carries no request timeout: it ends with the answer or the connection
+  failing. Every send returns once it is on its way, a draw once it is drawn and its line is out.
 
 ## Turn context
 

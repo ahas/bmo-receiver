@@ -117,7 +117,6 @@ struct Row {
   agent: String,
   chat_id: i64,
   text: String,
-  expires_at: Option<i64>,
   restarts: i64,
   sort: Option<String>,
   via: Option<String>,
@@ -140,11 +139,11 @@ impl Row {
 async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
   let rows = all(
     db,
-    r#"SELECT "id", "agent", "chat_id", "text", "expires_at", "restarts", "sort", "via", "events", "rides", "ride_until"
+    r#"SELECT "id", "agent", "chat_id", "text", "restarts", "sort", "via", "events", "rides", "ride_until"
        FROM "instructions" WHERE "delivered_at" IS NULL AND "handed_at" IS NULL ORDER BY "id""#,
     vec![],
   )
-    .await?;
+  .await?;
   let mut read = Vec::new();
 
   for row in rows {
@@ -156,7 +155,6 @@ async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
       agent: row.try_get("", "agent")?,
       chat_id: row.try_get("", "chat_id")?,
       text: row.try_get("", "text")?,
-      expires_at: row.try_get("", "expires_at")?,
       restarts: row.try_get("", "restarts")?,
       sort: row.try_get("", "sort")?,
       via: row.try_get("", "via")?,
@@ -189,19 +187,12 @@ async fn session_of(receiver: &Receiver, agent: &str, chat_id: i64) -> Scope {
   Scope::Room { room: chat_id }
 }
 
-// A row no turn could ever take is let go rather than left waiting: one past its expiry, whose news may no
-// longer be true, and one for a room its agent does not answer or a read-only room, or of an agent that holds no
-// conversation.
-async fn deliverable(
-  receiver: &Receiver,
-  rooms: &dyn Rooms,
-  row: &Row,
-  now_ms: i64,
-) -> Result<bool, Fault> {
+// A row no turn could ever take is let go rather than left waiting: one for a room its agent does not answer or a
+// read-only room, or of an agent that holds no conversation. Any other row waits for a turn to take it, however
+// long that is; a row whose news a newer state replaces is replaced by that state's row of the same kind.
+async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Result<bool, Fault> {
   let kind = row.sort.as_deref().unwrap_or("no sort");
-  let expired = row.expires_at.is_some_and(|at| at <= now_ms);
   let interrupted = row.restarts > 0;
-  let held = interrupted || rooms.is_active(&row.agent, row.chat_id) || rooms.busy(&row.agent);
 
   if interrupted {
     println!(
@@ -240,23 +231,6 @@ async fn deliverable(
     discard(receiver.db(), row.id).await?;
 
     return Ok(false);
-  }
-
-  if expired && !held {
-    println!(
-      "instruction {} for chat {} ({kind}) expired undelivered, no turn holding it; discarding",
-      row.id, row.chat_id
-    );
-    discard(receiver.db(), row.id).await?;
-
-    return Ok(false);
-  }
-
-  if expired {
-    println!(
-      "instruction {} for chat {} ({kind}) expired while a turn held it; delivering once",
-      row.id, row.chat_id
-    );
   }
 
   Ok(true)
@@ -298,7 +272,7 @@ pub async fn deliver_pending(
   let mut held = false;
 
   for row in pending(db).await? {
-    if !deliverable(receiver, rooms, &row, now_ms).await? || !row.opens_turn(now_ms) {
+    if !deliverable(receiver, rooms, &row).await? || !row.opens_turn(now_ms) {
       continue;
     }
 
@@ -307,22 +281,20 @@ pub async fn deliver_pending(
     }
 
     let cold = !rooms.is_active(&row.agent, row.chat_id);
-    let expired = row.expires_at.is_some_and(|at| at <= now_ms);
     let interrupted = row.restarts > 0;
 
     // A row never wakes a session past its cache lifetime: it waits for a round a room's own words open. One a
-    // turn already held, one a restart cut off, or one whose expiry came while the agent was busy, is handed
-    // rather than held again.
-    if cold && !expired && !interrupted && super::cache::expired(db, &row.agent).await {
+    // turn already held or one a restart cut off is handed rather than held again.
+    if cold && !interrupted && super::cache::expired(db, &row.agent).await {
       continue;
     }
 
-    if cold && !expired && !interrupted && now_ms - *last_cold_wake < gap_ms {
+    if cold && !interrupted && now_ms - *last_cold_wake < gap_ms {
       held = true;
       continue;
     }
 
-    if cold && !expired && !interrupted {
+    if cold && !interrupted {
       *last_cold_wake = now_ms;
     }
 
@@ -340,7 +312,6 @@ pub async fn deliver_riders(
   rooms: &dyn Rooms,
   agent: &str,
   chat_id: i64,
-  now_ms: i64,
 ) -> Result<Vec<i64>, Fault> {
   let session = session_of(receiver, agent, chat_id).await;
   let db = receiver.db();
@@ -355,7 +326,7 @@ pub async fn deliver_riders(
       }
     };
 
-    if !rideable || !deliverable(receiver, rooms, &row, now_ms).await? {
+    if !rideable || !deliverable(receiver, rooms, &row).await? {
       continue;
     }
 
@@ -425,8 +396,6 @@ async fn newest(db: &DatabaseConnection) -> i64 {
 pub struct Queued<'a> {
   /// A kind replaces the pending row of the same kind in the chat.
   pub kind: Option<&'a str>,
-  /// When it lapses, in epoch milliseconds.
-  pub expires_at_ms: Option<i64>,
   /// The events its delivery carries, each as the column keeps one.
   pub events: Vec<String>,
   /// Whether it rides the next turn rather than opening one, and until when in epoch milliseconds.
@@ -476,8 +445,8 @@ pub async fn queue(
 
   let written = one(
     &transaction,
-    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "expires_at", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING "id""#,
     vec![
       agent.into(),
@@ -485,7 +454,6 @@ pub async fn queue(
       text.into(),
       now_ms().into(),
       queued.kind.into(),
-      queued.expires_at_ms.into(),
       queued.via.into(),
       queued.events.join(",").into(),
       rides(queued).into(),
@@ -532,7 +500,7 @@ impl Pass {
 
   /// The rows of an agent's riding a round handed to it as the round starts.
   pub async fn riders(&self, agent: &str, chat_id: i64) {
-    if let Err(why) = deliver_riders(&self.receiver, self.rooms.as_ref(), agent, chat_id, now_ms()).await {
+    if let Err(why) = deliver_riders(&self.receiver, self.rooms.as_ref(), agent, chat_id).await {
       eprintln!("instructions: {}", why.detail);
     }
   }

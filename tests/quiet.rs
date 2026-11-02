@@ -1,5 +1,5 @@
 //! What `quiet` counts as work under way (docs/boundary-api.md, 「The service and its commands」): a long-work run
-//! however long it has run, any other open run started within the span, and nothing older.
+//! or a chat turn's however long it has run, and no other run.
 
 use bmo_receiver::quiet::{jobs_under_way, under_way};
 use receiver_ports::agency::{OpenRun, RunningJob};
@@ -24,19 +24,20 @@ fn job(id: i64, minutes_ago: i64) -> OpenRun {
 }
 
 #[test]
-fn a_long_run_counts_however_long_it_has_run_and_another_only_within_the_span() {
+fn a_long_run_and_a_chat_turn_count_however_long_they_have_run() {
   let runs = [
     open(1, "agent-a:research:7", 240),
     open(2, "agent-a:chat:-3:100", 2),
     open(3, "agent-a:chat:-3:50", 300),
     job(4, 2),
   ];
-  let named = under_way(&runs, NOW);
+  let named = under_way(&runs);
 
-  assert_eq!(named.len(), 2, "a job's run counts not: {named:?}");
+  assert_eq!(named.len(), 3, "a job's run counts not: {named:?}");
   assert!(named[0].starts_with("run 1 agent-a:research:7"));
   assert!(named[1].starts_with("run 2 agent-a:chat:-3:100"));
-  assert!(under_way(&[], NOW).is_empty(), "nothing open is quiet");
+  assert!(named[2].starts_with("run 3 agent-a:chat:-3:50"));
+  assert!(under_way(&[]).is_empty(), "nothing open is quiet");
 }
 
 #[test]

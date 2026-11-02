@@ -92,7 +92,6 @@ pub fn answering_notice(answering: &Answering) -> Voiced {
     follow_up: None,
     optional: false,
     kind: Some(ANSWERING_KIND.to_owned()),
-    ttl_ms: Some(said.ttl_minutes * 60_000),
     events: vec![],
     rides_ms: None,
   }
@@ -123,7 +122,6 @@ pub async fn ended(receiver: &Receiver) -> Result<(), Fault> {
     follow_up: None,
     optional: false,
     kind: Some(ENDED_KIND.to_owned()),
-    ttl_ms: Some(said.ttl_minutes * 60_000),
     events: vec![],
     rides_ms: None,
   };

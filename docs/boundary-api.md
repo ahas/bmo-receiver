@@ -53,7 +53,7 @@ base address and token.
 - **`quiet`** says whether work stands under way that a restart of the receiver would cut, for the testbed's wait
   before a deployment's flip (`testbed.toml`, `quiet`): it asks the agency for the runs still open and names each
   that counts, a run whose name carries one of the long-work words of `quiet.toml` however long it has run, and
-  a chat turn's run, named as the receiver names its turns' runs, started within that policy's span. A job counts
+  a chat turn's run, named as the receiver names its turns' runs, however long it has run too. A job counts
   only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
   agency answers as starting or running counts, however long it has run. It ends 0 where none counts and 1 where
   some does or the agency did not answer, each one named on its own line.
@@ -147,7 +147,10 @@ Each call goes to the serving unit's configured base address, carrying that unit
 method, path and body the serving unit's own boundary document gives it. Every unit the receiver calls takes a
 token, the cache warmer included, and the receiver is configured with each. Each unit is a port of the crate
 `receiver-ports`: a trait the receiver's code is written against and the HTTP client that answers it. A call is
-retried only where the connection was refused, within two minutes, offered every two seconds.
+offered again only where the connection was refused, every two seconds until the unit listens, since a refusal is
+the unit down or coming up; a call that reached a listener is never offered again. No request timeout cuts a call
+short: it ends with its answer, a broken connection, or the peer gone, which the connection's TCP keep-alive
+tells.
 
 ### The agency
 

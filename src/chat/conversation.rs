@@ -1219,6 +1219,16 @@ impl Conversations {
     }
   }
 
+  /// Whether nothing of a room's stands to be answered now: no round in flight there and no words in its buffer,
+  /// or no conversation in it at all.
+  pub fn settled(&self, chat_id: i64) -> bool {
+    self
+      .state()
+      .active
+      .get(&chat_id)
+      .is_none_or(|conv| !conv.in_flight && conv.buffer.is_empty())
+  }
+
   /// Whether a round of the agent's stands in any room now.
   pub fn busy(&self) -> bool {
     self.state().active.values().any(|conv| conv.in_flight)

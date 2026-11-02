@@ -181,10 +181,18 @@ async fn tells_every_listener_as_it_comes_and_ends_each_stream_after_saying_it_i
 
   assert!(frames.try_recv().unwrap().starts_with("id: 1\nevent: bot\ndata: "));
 
-  events.stopping().await;
+  // The stop waits until every stream told has let its listener go, which a stream does once the word is out.
+  let stopped = tokio::spawn({
+    let events = events.clone();
 
-  assert_eq!(frames.try_recv().unwrap(), STOPPING_FRAME);
+    async move { events.stopping().await }
+  });
+
+  assert_eq!(frames.recv().await.unwrap(), STOPPING_FRAME);
   assert!(frames.try_recv().is_err());
+  assert!(!stopped.is_finished(), "the stop waits for the stream that has not let go");
+  drop(frames);
+  stopped.await.unwrap();
 
   // Nothing of the stop goes into the ring a later listener is replayed from.
   let (opening, _) = frames_of(&events, 0, None);

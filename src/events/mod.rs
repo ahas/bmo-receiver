@@ -9,13 +9,11 @@ mod stream;
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Duration;
 
 use axum::response::Response;
 use futures_util::future::join_all;
 use serde_json::{Value, json};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
-use tokio::time::timeout;
 
 use crate::now_ms;
 use crate::receiver::{News, Receiver};
@@ -28,9 +26,6 @@ pub use relay::relay_caller;
 pub const RING: usize = 500;
 
 pub const STOPPING_FRAME: &str = "event: stopping\ndata: {}\n\n";
-
-// How long the word that the streams are stopping is given to leave before the process goes on to end.
-const STOPPING_FLUSH: Duration = Duration::from_millis(250);
 
 /// The stream and everything listening to it. Cloned freely: every clone is the one stream.
 #[derive(Clone)]
@@ -128,7 +123,7 @@ impl Events {
   }
 
   /// Every stream told this process is stopping on purpose, then ended: each ends once the word has
-  /// gone out on it, and this returns once every one has, or once the flush has passed.
+  /// gone out on it, and this returns once every one has.
   pub async fn stopping(&self) {
     let told: Vec<UnboundedSender<String>> = self
       .hub()
@@ -138,7 +133,7 @@ impl Events {
       .collect();
     let gone = join_all(told.iter().map(UnboundedSender::closed));
 
-    let _ = timeout(STOPPING_FLUSH, gone).await;
+    gone.await;
   }
 
   /// One relay of the news counted; the line to write where it completed a burst.

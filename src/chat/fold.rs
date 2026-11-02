@@ -5,7 +5,6 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Duration;
 
 use receiver_codes::{FixedLine, HealthFact, SessionReason};
 use receiver_policy::chat_health::CHAT_HEALTH;
@@ -57,12 +56,6 @@ impl Failures {
 pub struct Folding {
   pub room: Room,
   pub recent: Vec<String>,
-  pub timeout: Duration,
-}
-
-/// How long a fold is given.
-pub fn fold_timeout() -> Duration {
-  Duration::from_secs(CHAT_HEALTH.fold.timeout_minutes * 60)
 }
 
 /// Whether a room's session is past its fold: a session stands, and the context it carries is past the share the
@@ -215,7 +208,6 @@ pub async fn compact(
           follow_up: None,
           optional: false,
           kind: Some(CHAT_HEALTH.fold.kind.clone()),
-          ttl_ms: Some(CHAT_HEALTH.fold.ttl_minutes * 60_000),
           events: vec![],
           rides_ms: None,
         };
@@ -248,7 +240,6 @@ pub async fn compact(
             follow_up: None,
             optional: false,
             kind: Some(format!("fold-failed:{chat_id}")),
-            ttl_ms: Some(CHAT_HEALTH.fold.ttl_minutes * 60_000),
             events: vec![],
             rides_ms: None,
           };

@@ -40,7 +40,6 @@ pub struct Asked {
   pub last_activity_at: Option<i64>,
   #[serde(default)]
   pub last_activity: Option<String>,
-  pub answer_by: i64,
   pub verb: String,
 }
 
@@ -101,7 +100,7 @@ pub fn order(asked: &Asked, now: i64) -> String {
   }
 
   lines.push(fill_marks(&said.activity, &[("activity", &activity)]));
-  lines.push(fill_marks(&said.nothing_cut, &[("by", &moment(asked.answer_by))]));
+  lines.push(said.nothing_cut.clone());
   lines.push(String::new());
   lines.extend(said.steps.iter().map(|step| fill_marks(step, &[("verb", &asked.verb), ("ask", &ask)])));
 

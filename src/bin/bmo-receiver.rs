@@ -30,13 +30,6 @@ use receiver_ports::tool_host::HttpToolHost;
 use reqwest::Client;
 use serde::Deserialize;
 use tokio::net::TcpListener;
-use tokio::time::timeout;
-
-/// How long the going-down line may hold the stop.
-const STOP_LINE_WAIT: Duration = Duration::from_secs(5);
-
-/// How long the service is waited on for one health answer.
-const PATIENCE: Duration = Duration::from_secs(5);
 
 #[derive(Parser)]
 #[command(
@@ -226,7 +219,8 @@ async fn serve(config: &Config) -> Result<(), String> {
     .await
     .map_err(|why| why.to_string());
 
-  let _ = timeout(STOP_LINE_WAIT, say_stop(&standing.receiver)).await;
+  // The going-down line is said before the process ends, waited on until its send has answered.
+  say_stop(&standing.receiver).await;
 
   served
 }
@@ -255,7 +249,7 @@ async fn deliver_waiting(config: &Config) -> Result<u8, String> {
 async fn quiet(config: &Config, jobs: bool) -> u8 {
   let units = config.units();
 
-  match bmo_receiver::quiet::asked(units.agency.as_ref(), bmo_receiver::now_ms(), jobs).await {
+  match bmo_receiver::quiet::asked(units.agency.as_ref(), jobs).await {
     Ok(under_way) if under_way.is_empty() => 0,
     Ok(under_way) => {
       for line in under_way {
@@ -326,12 +320,12 @@ async fn redact_kept(config: &Config, dry_run: bool) -> Result<u8, String> {
   Ok(0)
 }
 
-/// Whether the service the configuration names answers ready.
+/// Whether the service the configuration names answers ready, waited on until it answers or its connection is
+/// refused.
 async fn ask_health(config: &Config) -> Result<(), String> {
   let url = format!("{}/health", base_address(&config.listen));
   let client = Client::builder()
     .no_proxy()
-    .timeout(PATIENCE)
     .build()
     .map_err(|why| format!("no client for {url}: {why}"))?;
   let answer = client

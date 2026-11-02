@@ -14,15 +14,16 @@ send tool's (`docs/chat-mcp.md`). A session reaches it through the toolbook and 
 - **`bmo/wait`**: waits `seconds`, or until the moment `until` names (a date and time with its offset from UTC,
   in RFC 3339), and answers with the `note` it was given: the note on its first line, the moment it waited until
   after it. Exactly one of `seconds` and `until` is given; a moment already past is answered at once.
-- **A watch is the same entry with `check`:** it runs the shell command at once and then every `every` seconds
-  (60 where none is given), and answers once a run of it ends with 0: the `note` on its first line, then how many
-  runs it took and what the last run wrote, cut to its last 2,000 characters. Each run is ended where it
-  outlasts `every`. Where `within` names a number of seconds and the check has not held by then, the watch
-  answers that it lapsed, with the note and the last run's output, so the agent is woken either way. A call
-  naming `check` with `seconds` or `until` is refused, and so is one naming `every` or `within` without it.
+- **A watch is the same entry with `check`:** it runs the shell command at once and then `every` seconds after
+  each run ends (60 where none is given), and answers once a run of it ends with 0: the `note` on its first line,
+  then how many runs it took and what the last run wrote, cut to its last 2,000 characters. Each run is waited on
+  until it exits, however long it takes, and nothing but the check holding or the call being stopped ends a
+  watch. An agent that wants to hear at a moment whether the check has held by then sets a reminder for that
+  moment beside the watch. A call naming `check` with `seconds` or `until` is refused, and so is one naming
+  `every` without it.
 - **It is reached by `act`,** since its check is a command of the caller's where one is named. It is declared
-  unbounded: the host sets no limit on a call of it, and the unit `bmo use --async` runs the call in ends it at
-  its longest run. It carries a manual, which `bmo use <tool> --describe` answers whole.
+  unbounded: the host sets no limit on a call of it. The unit `bmo use --async` runs the call in ends it as
+  bmo-cli's document states. It carries a manual, which `bmo use <tool> --describe` answers whole.
 - **A check runs as a call of the tool does:** in the tool's placed folder, with the tool host's clean
   environment, so it names what it reads by absolute paths.
 - **The tool reads nothing of the turn.** The room and the agent the end wakes are the ones `bmo use` was given or
@@ -33,7 +34,7 @@ send tool's (`docs/chat-mcp.md`). A session reaches it through the toolbook and 
 - **A reminder** is `bmo use bmo/wait --async` with `seconds` or `until`, the `note`, and `--memory` saying what
   the agent meant to do then. A moment further away than a day needs `--max-seconds` past it, since the unit is
   stopped at its longest run, one day unless that option names another.
-- **A watch** is `bmo use bmo/wait --async` with the `check`, the `note`, and `every` and `within` as it needs.
+- **A watch** is `bmo use bmo/wait --async` with the `check`, the `note`, and `every` as it needs.
 - **A repeating reminder** is one reminder at a time: the turn its end opens sets the next.
 - **Cancelling one** is stopping its unit, `bmo-use-<id>` as `bmo use --async` answered it; the stop is that
   unit's end, and its last word wakes the agent with the failure, so the agent learns the wait is gone.

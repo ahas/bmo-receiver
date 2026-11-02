@@ -371,7 +371,6 @@ async fn an_instruction_a_restart_interrupted_is_delivered_after_the_restart() {
     OWNER,
     text,
     &Queued {
-      expires_at_ms: Some(now_ms() - 1),
       sort: Some("job"),
       ..Queued::default()
     },
@@ -379,7 +378,7 @@ async fn an_instruction_a_restart_interrupted_is_delivered_after_the_restart() {
   .await
   .unwrap();
 
-  // The row a turn was reading when the process stopped: handed, and past its expiry.
+  // The row a turn was reading when the process stopped: handed.
   round
     .scratch
     .run(r#"UPDATE "instructions" SET "handed_at" = 1 WHERE "id" = $1"#, vec![id.into()])
@@ -421,26 +420,15 @@ async fn an_instruction_a_restart_interrupted_is_delivered_after_the_restart() {
 }
 
 #[tokio::test]
-async fn an_expired_instruction_held_by_a_busy_turn_is_delivered_when_it_ends() {
+async fn an_instruction_queued_while_a_turn_works_is_held_by_it_and_delivered_when_it_ends() {
   let session = StandInSession::new(SESSION, "here").working_for(Duration::from_millis(300));
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   until("the turn working", || round.session.working()).await;
 
-  let text = "a notice held past its expiry";
-  let id = queue(
-    round.scratch.db(),
-    AGENT,
-    OWNER,
-    text,
-    &Queued {
-      expires_at_ms: Some(now_ms() - 1),
-      ..Queued::default()
-    },
-  )
-  .await
-  .unwrap();
+  let text = "a notice held by the working turn";
+  let id = queue(round.scratch.db(), AGENT, OWNER, text, &Queued::default()).await.unwrap();
   let mut last = 0;
   let held = deliver_pending(&round.standing.receiver, &round.runner, &mut last, now_ms(), 0)
     .await
@@ -455,7 +443,7 @@ async fn an_expired_instruction_held_by_a_busy_turn_is_delivered_when_it_ends() 
       ))
       .await,
     ["true|false"],
-    "the expired row is held by the working turn, not dropped"
+    "the row is held by the working turn"
   );
 
   let waited = tokio::time::timeout(Duration::from_secs(20), async {
@@ -481,36 +469,28 @@ async fn an_expired_instruction_held_by_a_busy_turn_is_delivered_when_it_ends() 
 }
 
 #[tokio::test]
-async fn an_expired_instruction_with_no_turn_is_dropped() {
-  let session = StandInSession::new(SESSION, "unused");
+async fn an_instruction_however_old_still_opens_a_turn() {
+  let session = StandInSession::new(SESSION, "the late answer");
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let text = "a notice that waited a long time";
+  let id = queue(round.scratch.db(), AGENT, OWNER, text, &Queued::default()).await.unwrap();
 
-  let id = queue(
-    round.scratch.db(),
-    AGENT,
-    OWNER,
-    "a notice nobody holds",
-    &Queued {
-      expires_at_ms: Some(now_ms() - 1),
-      ..Queued::default()
-    },
-  )
-  .await
-  .unwrap();
+  round
+    .scratch
+    .run(r#"UPDATE "instructions" SET "created_at" = 1 WHERE "id" = $1"#, vec![id.into()])
+    .await;
+
   let mut last = 0;
-  let held = deliver_pending(&round.standing.receiver, &round.runner, &mut last, now_ms(), 0)
+
+  deliver_pending(&round.standing.receiver, &round.runner, &mut last, now_ms(), 0)
     .await
     .unwrap();
+  round.ended(1).await;
 
-  assert!(!held);
-  assert_eq!(
-    round
-      .scratch
-      .texts(&format!(r#"SELECT "text" FROM "instructions" WHERE "id" = {id}"#))
-      .await,
-    Vec::<String>::new(),
-    "a row with no turn is let go"
-  );
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(prompts[0].contains(text), "{}", prompts[0]);
 }
 
 #[tokio::test]

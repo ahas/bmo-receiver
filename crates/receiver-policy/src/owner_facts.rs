@@ -13,7 +13,6 @@ pub struct WorkerDowngraded {
   pub dropped: String,
   pub kept: String,
   pub kind: String,
-  pub ttl_minutes: i64,
 }
 
 /// The order a run past its clock hands the chat agent.

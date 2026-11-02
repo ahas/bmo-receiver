@@ -205,7 +205,7 @@
   `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」). The file
   holds what the session was in the middle of and how far it got, the promises it made and what wakes them,
   the open threads of each room, what the next session must do first, and what it learned was wrong. The turn
-  is bounded by the policy's `ask_seconds`; a run that fails or passes the bound ends the session all the same.
+  is waited on until it ends, however long it takes; a run that fails ends the session all the same.
   A file that stands and is not empty is copied to `handoffs/<agent>/latest.md`, the newest handoff.
 - **The new session's first turn carries the note at its head:** the handoff file's path and its whole content,
   so the session can read it again with its file tool.
@@ -219,7 +219,8 @@
   session for an agent that had one — the kept session gone, a program stood anew that cannot resume it, its own
   restart — it asks the receiver first (`POST /handoffs/{agentName}`, `docs/api.md`, 「Handoffs」), and the receiver
   asks the agent's standing session, usually still alive in its pane, for its handoff file exactly as a
-  replacement does, under the same `ask_seconds` bound. The file it writes is kept for the agent
+  replacement does, waited on until its turn ends. A second asking for the same agent while one is under way
+  waits in line behind it. The file it writes is kept for the agent
   (`<agent>_handoff_pending`, `docs/store.md`), and the next turn on a session the agency's state says was never
   opened carries it as its note, in the order below; a turn on a session the agency resumed lets it go. Where the
   agent has no opened session to ask, or it wrote nothing, the transcript the receiver keeps stands in at the next

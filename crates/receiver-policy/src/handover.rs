@@ -37,7 +37,6 @@ pub struct Notes {
 pub struct LostNotice {
   pub intent: String,
   pub kind: String,
-  pub ttl_minutes: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,8 +46,6 @@ pub struct Handover {
   pub transcript_tail_chars: usize,
   /// What a room's own speaker is named in a transcript.
   pub room_speaker: String,
-  /// How long the closing session's handoff turn is given, in seconds.
-  pub ask_seconds: u64,
   /// The span within which a handoff asked again for the same agent is not asked of its session, in minutes.
   pub again_minutes: i64,
   /// The folder under the data root an agent's handoffs are kept in, `{agent}` its name.

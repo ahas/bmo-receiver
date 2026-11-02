@@ -14,7 +14,6 @@ pub struct Notice {
   #[serde(default)]
   pub run_log: Option<String>,
   pub kind: String,
-  pub ttl_minutes: i64,
 }
 
 /// What a failure order names a broken chat turn as.
@@ -29,12 +28,10 @@ pub struct Order {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Fold {
-  pub timeout_minutes: u64,
   pub prompt: String,
   pub fact: String,
   pub intent: String,
   pub kind: String,
-  pub ttl_minutes: i64,
 }
 
 /// The cache warmer's touch of a quiet room's session: its note, and the chat touch target as the receiver

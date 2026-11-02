@@ -10,9 +10,6 @@ transcript_tail_chars = 40000
 # What a room's own speaker is named in a transcript, beside the agent's own name.
 room_speaker = "room"
 
-# How long the closing session's handoff turn is given, in seconds; past it the session is ended all the same.
-ask_seconds = 300
-
 # The span within which a handoff asked again for the same agent is not asked of its session, in minutes: the one
 # kept stands in, and the asking is logged with how many have come in a row.
 again_minutes = 5
@@ -78,4 +75,3 @@ lost = [
 [lost_notice]
 intent = "tell the owner, in one short line, that your session was replaced and nothing of it could be carried over, so you have lost the thread of the rooms' recent conversation."
 kind = "handoff-lost"
-ttl_minutes = 60
