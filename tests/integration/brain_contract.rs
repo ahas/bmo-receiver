@@ -4,9 +4,9 @@
 use axum::http::StatusCode;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::queue::{get, post, put, remove, stood};
-use crate::common::units::{AGENT, OWNER};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{get, post, put, remove, stood};
+use crate::integration::common::units::{AGENT, OWNER};
 
 #[tokio::test]
 async fn a_rooms_record_answers_the_fields_the_api_names() {

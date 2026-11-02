@@ -5,8 +5,8 @@
 use axum::http::StatusCode;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::queue::{get, stood};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{get, stood};
 use bmo_receiver::chat::situation::{note_from_answer, update_prompt};
 
 const ROOM: i64 = -5_200;

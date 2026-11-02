@@ -18,9 +18,11 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::Load;
 use receiver_ports::gate::{Entry, Source};
 
-use crate::common::Scratch;
-use crate::common::session::StandInSession;
-use crate::common::units::{ADDRESS, AGENT, StandInChat, Standing, deployment, registration, unrun, woken};
+use crate::integration::common::Scratch;
+use crate::integration::common::session::StandInSession;
+use crate::integration::common::units::{
+  ADDRESS, AGENT, StandInChat, Standing, deployment, registration, unrun, woken,
+};
 
 const SESSION: &str = "agent-a@room";
 const ROOM: i64 = -500;
@@ -88,7 +90,7 @@ impl Group {
   async fn new(session: StandInSession) -> Self {
     let scratch = Scratch::new().await;
 
-    crate::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_drafting(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).agent_in(ROOM, IDENTITY));

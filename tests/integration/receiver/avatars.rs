@@ -5,9 +5,9 @@
 use axum::http::{StatusCode, header};
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, fetched, get, stood};
-use crate::common::units::OWNER;
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, fetched, get, stood};
+use crate::integration::common::units::OWNER;
 
 use super::message_files::{bytes_of, header_of, written};
 

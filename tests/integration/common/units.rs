@@ -36,7 +36,7 @@ use receiver_ports::web::{
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
 
-use crate::common::session::StandInSession;
+use crate::integration::common::session::StandInSession;
 
 /// The owner every receiver of the tests answers for.
 pub const OWNER: i64 = 42;

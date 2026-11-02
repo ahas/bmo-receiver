@@ -5,6 +5,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+# One test target, the harness at tests/main.rs, with a module per file of tests (bmo-chat's
+# docs/conventions.md, 「Rust builds」).
+autotests = false
 
 [dependencies]
 # The verbs a road performs, named as the chat protocol names them, which a procedure is held to.
@@ -32,3 +35,7 @@ tokio.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 tokio.workspace = true
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

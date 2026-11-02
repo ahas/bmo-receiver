@@ -2,8 +2,8 @@
 //! 「The system prompt and the room switch」; docs/boundary-api.md, 「The agency」): a keep replaces the whole
 //! list, so the turn's loads are laid over the ones the session held, by path, and another session's stay its own.
 
-use crate::common::Scratch;
-use crate::common::units::standing;
+use crate::integration::common::Scratch;
+use crate::integration::common::units::standing;
 use bmo_receiver::chat::context::{fingerprint, remember_held};
 use bmo_receiver::chat::room::RoomContext;
 use bmo_receiver::data_root::DataRoot;

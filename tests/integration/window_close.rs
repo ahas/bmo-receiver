@@ -11,8 +11,8 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
 use bmo_receiver::receiver::wake::agents::{set_window, watch_window, watch_windows};
 
-use crate::common::Scratch;
-use crate::common::units::{AGENT, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{AGENT, standing};
 
 const ROOM: i64 = -100;
 

@@ -12,9 +12,9 @@ use bmo_receiver::receiver::wake::agents;
 use bmo_receiver::roads::Roads;
 use receiver_ports::chat::{Chat, ChatServices};
 
-use crate::common::Scratch;
-use crate::common::queue::{get, stood_on};
-use crate::common::units::{AGENT, OWNER, StandInChat, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{get, stood_on};
+use crate::integration::common::units::{AGENT, OWNER, StandInChat, registration, standing};
 
 // The span the tests keep an answer for: long enough that a read straight after another falls inside it.
 const SPAN: Duration = Duration::from_millis(1500);

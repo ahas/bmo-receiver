@@ -15,9 +15,9 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 
-use crate::common::Scratch;
-use crate::common::session::StandInSession;
-use crate::common::units::{
+use crate::integration::common::Scratch;
+use crate::integration::common::session::StandInSession;
+use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
 
@@ -97,7 +97,7 @@ impl Unified {
   async fn on(session: StandInSession) -> Self {
     let scratch = Scratch::new().await;
 
-    crate::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_drafting(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -206,9 +206,10 @@ const NOTE: &str = "In the middle of the owner's question about the deployment; 
 
 #[tokio::test]
 async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_session_opens_on_it() {
-  let unified =
-    Unified::on(StandInSession::new(SESSION, ANSWER).acting(crate::common::session::writing_handoff(NOTE)))
-      .await;
+  let unified = Unified::on(
+    StandInSession::new(SESSION, ANSWER).acting(crate::integration::common::session::writing_handoff(NOTE)),
+  )
+  .await;
 
   unified.round(1, "the first words").await;
   unified.session.prefix_changed("reload: a prompt document");
@@ -219,7 +220,8 @@ async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_ses
   assert_eq!(prompts.len(), 3, "{prompts:?}");
 
   // The old session was asked, before it was ended, to write its handoff at a file under the data root.
-  let path = crate::common::session::handoff_path(&prompts[1]).expect("the handoff names its file");
+  let path =
+    crate::integration::common::session::handoff_path(&prompts[1]).expect("the handoff names its file");
   let folder = unified.data.path().join("handoffs").join(AGENT);
 
   assert!(path.starts_with(&folder.display().to_string()), "{path}");
@@ -289,9 +291,10 @@ async fn nothing_is_recovered_only_where_neither_a_handoff_nor_a_transcript_stan
 
 #[tokio::test]
 async fn a_full_session_handed_over_by_its_note_is_replaced_at_its_next_turn_through_the_same_handoff() {
-  let unified =
-    Unified::on(StandInSession::new(SESSION, ANSWER).acting(crate::common::session::writing_handoff(NOTE)))
-      .await;
+  let unified = Unified::on(
+    StandInSession::new(SESSION, ANSWER).acting(crate::integration::common::session::writing_handoff(NOTE)),
+  )
+  .await;
 
   unified.round(1, "the first words").await;
   assert!(bmo_receiver::chat::fold::hand_off(&unified.standing.receiver, AGENT).await);
@@ -300,7 +303,11 @@ async fn a_full_session_handed_over_by_its_note_is_replaced_at_its_next_turn_thr
   let prompts = unified.session.prompts();
 
   assert_eq!(prompts.len(), 3, "{prompts:?}");
-  assert!(crate::common::session::handoff_path(&prompts[1]).is_some(), "{}", prompts[1]);
+  assert!(
+    crate::integration::common::session::handoff_path(&prompts[1]).is_some(),
+    "{}",
+    prompts[1]
+  );
   assert!(prompts[2].contains(NOTE), "{}", prompts[2]);
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }

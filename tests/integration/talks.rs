@@ -16,8 +16,8 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 use tower::ServiceExt;
 
-use crate::common::Scratch;
-use crate::common::units::{ADDRESS, AGENT, SENDER, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{ADDRESS, AGENT, SENDER, registration, standing};
 use bmo_receiver::chat::conversation::{BoxFuture, Talking};
 use bmo_receiver::chat::talk::{TalkFailure, TalkRequest};
 use bmo_receiver::data_root::DataRoot;

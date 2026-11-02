@@ -21,9 +21,9 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use super::inbound;
-use crate::common::Scratch;
-use crate::common::queue::{Front, TOKEN, get, post, put, read, stood_on};
-use crate::common::units::{OWNER, StandInChat, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, TOKEN, get, post, put, read, stood_on};
+use crate::integration::common::units::{OWNER, StandInChat, standing};
 
 const ROOM: i64 = -120;
 

@@ -18,9 +18,9 @@ use bmo_receiver::{now_ms, one};
 use receiver_policy::chat_line::CHAT_LINE;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::session::StandInSession;
-use crate::common::units::{
+use crate::integration::common::Scratch;
+use crate::integration::common::session::StandInSession;
+use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
 
@@ -118,7 +118,7 @@ impl Rounds {
   async fn on(session: StandInSession) -> Self {
     let scratch = Scratch::new().await;
 
-    crate::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_drafting(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));

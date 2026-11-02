@@ -9,9 +9,9 @@ use serde_json::json;
 
 use std::sync::Arc;
 
-use crate::common::Scratch;
-use crate::common::queue::{TOKEN, get, patch, pinged, post, put, remove, stood, stood_on};
-use crate::common::units::{AGENT, OWNER, StandInChat};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{TOKEN, get, patch, pinged, post, put, remove, stood, stood_on};
+use crate::integration::common::units::{AGENT, OWNER, StandInChat};
 
 #[tokio::test]
 async fn bmo_jobs_calls_answer_as_its_document_states_them() {

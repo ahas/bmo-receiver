@@ -18,9 +18,9 @@ use bmo_receiver::receiver::{Context, Deployment, Inbound, Room};
 use bmo_receiver::room_record::chat_tables;
 use bmo_receiver::routes::routes;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, Kicked, TOKEN, remove};
-use crate::common::units::{AGENT, StandInChat, deployment, standing_on};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, Kicked, TOKEN, remove};
+use crate::integration::common::units::{AGENT, StandInChat, deployment, standing_on};
 
 const ADMIN: &str = "the-administrator";
 const ROOM: i64 = -4_300;

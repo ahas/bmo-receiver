@@ -2,8 +2,8 @@
 //! set by number or title, refused where fewer than two agents answer there, and the block an agent outside it
 //! is shown.
 
-use crate::common::Scratch;
-use crate::common::units::{Standing, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{Standing, standing};
 use bmo_receiver::chat::consult::window_states;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::verbs::consult::{room, state};

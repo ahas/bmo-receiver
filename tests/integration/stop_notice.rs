@@ -3,8 +3,8 @@
 //! nothing where the owner turned restart notices off. The line is the web unit's to word; the tests read the
 //! service's own mark for it.
 
-use crate::common::Scratch;
-use crate::common::units::{AGENT, OWNER, deployment, registration, standing, unrun};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{AGENT, OWNER, deployment, registration, standing, unrun};
 use bmo_receiver::chat::restart::{notice_enabled, queue_back_notice, stop_line};
 use bmo_receiver::data_root::DataRoot;
 use receiver_policy::restart::RESTART;

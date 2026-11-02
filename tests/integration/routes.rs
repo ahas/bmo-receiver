@@ -13,9 +13,9 @@ use axum::{
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, get, patch, post, put, remove, stood};
-use crate::common::units::OWNER;
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, patch, post, put, remove, stood};
+use crate::integration::common::units::OWNER;
 
 use bmo_receiver::routes::served;
 

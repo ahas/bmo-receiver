@@ -10,7 +10,7 @@ use bmo_receiver::chat::conversation::{Aside, AsideOutcome, BoxFuture};
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::Said;
 
-use crate::common::units::StandInAgency;
+use crate::integration::common::units::StandInAgency;
 
 const SESSION: &str = "agent-a@-7";
 const TURN: i64 = 7;

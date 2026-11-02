@@ -3,7 +3,7 @@
 
 use bmo_receiver::store::{one, pool};
 
-use crate::common::{Scratch, SharedSchema};
+use crate::integration::common::{Scratch, SharedSchema};
 
 const MESSAGES: &str = r#"SELECT COUNT(*) FROM "messages""#;
 

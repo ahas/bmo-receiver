@@ -33,8 +33,8 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, How, Inbound, Room};
 use receiver_policy::commands::COMMANDS;
 
-use crate::common::Scratch;
-use crate::common::units::{ADDRESS, OWNER, StandInChat, Standing, Woken, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{ADDRESS, OWNER, StandInChat, Standing, Woken, standing};
 
 /// The agent's number in the rooms of these tests.
 const AGENT_NUMBER: i64 = 7;

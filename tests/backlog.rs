@@ -1,10 +1,8 @@
 //! The restart's backlog (docs/receiver.md, 「Where it stands」; docs/wake.md, 「The room's queue and the
 //! round」): every room with unread lines is served one at a time, each room's unread lines as one turn, marked
-//! read so a line is never served twice, and a room with nothing waiting gets no turn. It stands in a test target
-//! of its own so the windows it opens do not run beside the rounds other integration tests wait on.
-
-#[path = "integration/common/mod.rs"]
-mod common;
+//! read so a line is never served twice, and a room with nothing waiting gets no turn. It runs alone in a process of
+//! its own (`integration::common::alone`): a room's first launch in a process is spaced from every other room's, so
+//! the two fresh rooms it opens would hold back the rounds the other tests of the process wait on.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -18,9 +16,12 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::rows;
 use receiver_policy::chat_line::CHAT_LINE;
 
-use common::Scratch;
-use common::session::StandInSession;
-use common::units::{ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken};
+use crate::integration::common::Scratch;
+use crate::integration::common::alone::alone;
+use crate::integration::common::session::StandInSession;
+use crate::integration::common::units::{
+  ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
+};
 
 const SESSION: &str = "agent-a@room";
 const ROOM: i64 = -500;
@@ -48,7 +49,7 @@ impl Group {
   async fn new(session: StandInSession) -> Self {
     let scratch = Scratch::new().await;
 
-    common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_drafting(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(
@@ -90,6 +91,10 @@ impl Group {
 
 #[tokio::test]
 async fn a_restart_serves_each_room_once_and_in_order() {
+  let Some(_run) = alone(module_path!(), "a_restart_serves_each_room_once_and_in_order") else {
+    return;
+  };
+
   let round = Group::new(
     StandInSession::new(SESSION, "unscripted")
       .answering(&["here", "there"])

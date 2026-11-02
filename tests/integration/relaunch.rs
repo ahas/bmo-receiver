@@ -15,8 +15,8 @@ use bmo_receiver::chat::relaunch::{Briefings, deployments, instruction};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
 
-use crate::common::Scratch;
-use crate::common::units::{AGENT, OWNER, deployment, unrun};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{AGENT, OWNER, deployment, unrun};
 
 const ROOM: i64 = 7;
 

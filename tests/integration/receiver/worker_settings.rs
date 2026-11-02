@@ -6,9 +6,9 @@
 use axum::http::StatusCode;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::queue::{get, stood};
-use crate::common::units::{AGENT, OWNER, registration};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{get, stood};
+use crate::integration::common::units::{AGENT, OWNER, registration};
 
 #[tokio::test]
 async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {

@@ -16,8 +16,10 @@ use serde_json::{Value, json};
 use tempfile::TempDir;
 use tower::ServiceExt;
 
-use crate::common::Scratch;
-use crate::common::units::{ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{
+  ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing,
+};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
 use bmo_receiver::verbs::asked_sends::shell_asker;

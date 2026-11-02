@@ -5,6 +5,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+# One test target, the harness at tests/main.rs, with a module per file of tests (bmo-chat's
+# docs/conventions.md, 「Rust builds」).
+autotests = false
 
 [[bin]]
 name = "wait-tool"
@@ -24,3 +27,7 @@ tokio = { workspace = true, features = ["process", "time", "io-util"] }
 [dev-dependencies]
 tempfile.workspace = true
 toml.workspace = true
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

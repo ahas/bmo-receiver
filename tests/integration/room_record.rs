@@ -10,7 +10,7 @@ use bmo_receiver::room_record::setting::{ROOM as ROOM_PART, RoomSetting, declare
 use bmo_receiver::room_record::{self, Act, RoomHolding, names_a_room};
 use sqlx::{AnyConnection, Connection, Row};
 
-use crate::common::Scratch;
+use crate::integration::common::Scratch;
 
 const ROOM: i64 = -4_200;
 

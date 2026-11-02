@@ -7,9 +7,9 @@ use serde_json::json;
 
 use bmo_receiver::now_ms;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, get, post, put, remove, stood};
-use crate::common::units::{AGENT, OWNER};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, post, put, remove, stood};
+use crate::integration::common::units::{AGENT, OWNER};
 
 // Rooms the record holds: two by their messages, one by its title alone.
 const SPOKEN: i64 = -501;

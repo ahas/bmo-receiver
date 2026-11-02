@@ -15,8 +15,8 @@ use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::tool_host::{Change, Entry, StandingSession, ToolEvent, ToolEvents, ToolHost};
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::units::{OWNER, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{OWNER, registration, standing};
 
 fn event(id: i64, kind: &str, tool: &str, namespaces: &[&str], replaced: bool) -> ToolEvent {
   ToolEvent {

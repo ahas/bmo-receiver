@@ -6,9 +6,9 @@
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, get, stood};
-use crate::common::units::OWNER;
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, stood};
+use crate::integration::common::units::OWNER;
 
 const ROOM: i64 = -711;
 

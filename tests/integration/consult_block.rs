@@ -2,8 +2,8 @@
 //! answers in the consult room (docs/consult.md, 「What an agent is shown」). The tools she files and keeps
 //! things with are tested in their own areas.
 
-use crate::common::Scratch;
-use crate::common::units::standing;
+use crate::integration::common::Scratch;
+use crate::integration::common::units::standing;
 use bmo_receiver::chat::consult::{consult_block, window_states};
 use bmo_receiver::data_root::DataRoot;
 use receiver_ports::agency::Agent;

@@ -8,9 +8,9 @@ use serde_json::{Value, json};
 
 use receiver_ports::agency::{Agent, Scope, Session, SessionState};
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, get, stood};
-use crate::common::units::{AGENT, OWNER, SENDER};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, stood};
+use crate::integration::common::units::{AGENT, OWNER, SENDER};
 
 const ROOM: i64 = -911;
 const OTHER_ROOM: i64 = -912;

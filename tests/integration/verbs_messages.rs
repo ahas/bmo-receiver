@@ -20,8 +20,10 @@ use bmo_receiver::verbs::room_files::{room_file_refusal, room_stores};
 use bmo_receiver::verbs::sends::{Sends, verb_refusal};
 use bmo_receiver::verbs::{Launch, LaunchAsked, RunAsked, VerbError};
 
-use crate::common::Scratch;
-use crate::common::units::{ADDRESS, AGENT, OWNER, SENDER, StandInChat, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{
+  ADDRESS, AGENT, OWNER, SENDER, StandInChat, registration, standing,
+};
 
 const ROOM: i64 = -300;
 const MESSAGE: i64 = 7;

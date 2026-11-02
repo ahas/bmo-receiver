@@ -29,9 +29,9 @@ use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_ports::agency::Said;
 
-use crate::common::Scratch;
-use crate::common::session::{StandInSession, drafting, drafting_sending};
-use crate::common::units::{
+use crate::integration::common::Scratch;
+use crate::integration::common::session::{StandInSession, drafting, drafting_sending};
+use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
 

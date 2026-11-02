@@ -34,10 +34,12 @@ repository's, under `tools/`, each with its `tool.toml`.
   registration and the service's configuration; tests use neutral names such as `agent-a` and `agent-b`. No
   list of forbidden names is kept in the repository; the names check reads one from outside it
   (`docs/checks.md`).
-- **Tests live in `tests/`.** A crate's tests are in its own `tests/`; checks that span the repository and
-  the service's own tests are in the root `tests/`, the integration tests one binary under
-  `tests/integration/`. No test module sits in `src/`; a private function a test needs becomes public in
-  its own module.
+- **Tests live in `tests/`.** Each crate's integration tests are one test target, the harness
+  `tests/main.rs` named `main` (bmo-chat's `docs/conventions.md`, 「Rust builds」), each file of tests a module
+  of it. The root `tests/` holds the checks that span the repository and the service's own tests, a module
+  per file, and the integration tests as the module `tests/integration/`. One file's tests run as
+  `bmo-testbed cargo test -p <crate> --test main <module>::`. No test module sits in `src/`; a private
+  function a test needs becomes public in its own module.
 - **No directory named after its parent** (no `x/x`), and **only Cargo manifests at the root**: the root
   `Cargo.toml` is the workspace and also the service's package.
 - **The code graph in `.graph/` is written only with `bmo graph`**: one node per feature, with its files, its

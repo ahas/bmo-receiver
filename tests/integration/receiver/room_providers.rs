@@ -10,9 +10,9 @@ use bmo_chat_client::{ChatSend, ChatVoice};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, TOKEN, get, post, put, read, stood_on};
-use crate::common::units::{OWNER, StandInChat};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, TOKEN, get, post, put, read, stood_on};
+use crate::integration::common::units::{OWNER, StandInChat};
 
 const ROOM: i64 = -100;
 

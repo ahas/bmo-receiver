@@ -5,6 +5,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+# One test target, the harness at tests/main.rs, with a module per file of tests (bmo-chat's
+# docs/conventions.md, 「Rust builds」).
+autotests = false
 
 [dependencies]
 # The send verbs and capabilities a refusal names, as the chat protocol declares them.
@@ -20,3 +23,7 @@ thiserror.workspace = true
 [dev-dependencies]
 # The codes document, read to check every code is listed.
 pulldown-cmark.workspace = true
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

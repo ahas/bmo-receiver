@@ -7,6 +7,9 @@ description = "The chat receiver's fixed API: every body and member as a Rust ty
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+# One test target, the harness at tests/main.rs, with a module per file of tests (bmo-chat's
+# docs/conventions.md, 「Rust builds」).
+autotests = false
 
 [dependencies]
 reqwest = { workspace = true, features = ["json", "query"] }
@@ -20,3 +23,7 @@ url.workspace = true
 axum.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread"] }
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

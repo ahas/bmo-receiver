@@ -7,9 +7,9 @@ use axum::http::StatusCode;
 use sea_orm::Value;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, get, post, put, remove, stood};
-use crate::common::units::{AGENT, OWNER, registration};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, post, put, remove, stood};
+use crate::integration::common::units::{AGENT, OWNER, registration};
 
 // How many instruction rows hold every one of these pieces, in whatever order their facts are written.
 async fn told(scratch: &Scratch, pieces: &[String]) -> i64 {

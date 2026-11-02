@@ -19,7 +19,7 @@ use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
 use sea_orm_migration::MigratorTrait;
 
-use crate::common::Scratch;
+use crate::integration::common::Scratch;
 
 // The tables of the schema, the migrator's own record among them.
 const SCHEMA_TABLES: &str = "SELECT table_name::text FROM information_schema.tables

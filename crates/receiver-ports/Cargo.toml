@@ -5,6 +5,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+# One test target, the harness at tests/main.rs, with a module per file of tests (bmo-chat's
+# docs/conventions.md, 「Rust builds」).
+autotests = false
 
 [dependencies]
 # The chat services' provider routes, and the client the receiver reaches each one through.
@@ -23,3 +26,7 @@ axum.workspace = true
 # The tool host's stand-in stands on a socket in a folder of the test's own.
 tempfile.workspace = true
 tokio = { workspace = true, features = ["net"] }
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

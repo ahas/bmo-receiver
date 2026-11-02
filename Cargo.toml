@@ -77,6 +77,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+# One test target, the harness at tests/main.rs, with a module per file of tests and the integration tests a
+# module of their own (bmo-chat's docs/conventions.md, 「Rust builds」).
+autotests = false
 
 [dependencies]
 # The chat services' receiver routes, which the receiver implements, and the router they are served by.
@@ -142,10 +145,22 @@ toml.workspace = true
 # The chat services' routes asked one request at a time, with no listener.
 tower.workspace = true
 
-# Build output kept small: line tables alone for a backtrace, split out, and no incremental cache.
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+# The build profiles bmo-chat's docs/conventions.md, 「Rust builds」, states, which the cargo-profile quick
+# check holds: debug information down to line numbers in a development build, none in a test binary, whose
+# panics still name their file and line, and no incremental state, since every checkout's crates build
+# under names of their own in the one shared build directory.
 [profile.dev]
 debug = "line-tables-only"
 split-debuginfo = "unpacked"
+incremental = false
+
+[profile.test]
+debug = "line-tables-only"
+strip = "debuginfo"
 incremental = false
 
 [profile.release]

@@ -13,9 +13,9 @@ use bmo_receiver::routes::routes;
 
 use receiver_ports::agency::Agent;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, Kicked, TOKEN, post};
-use crate::common::units::{AGENT, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, Kicked, TOKEN, post};
+use crate::integration::common::units::{AGENT, standing};
 
 /// The front standing as the receiver for an owner, hearing its news in a stream of its own the test reads, and
 /// registering the chat agent with the voice given.

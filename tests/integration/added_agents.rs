@@ -8,9 +8,9 @@ use serde_json::{Value, json};
 
 use receiver_ports::agency::{Agent, FieldRefusal};
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, post, remove, stood};
-use crate::common::units::{AGENT, OWNER};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, post, remove, stood};
+use crate::integration::common::units::{AGENT, OWNER};
 
 const ADDED: &str = "agent-d";
 const WORKER: &str = "worker-a";

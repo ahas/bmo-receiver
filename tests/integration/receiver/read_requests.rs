@@ -12,9 +12,9 @@ use bmo_receiver::receiver::handover::routes;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, post, put, stood_on};
-use crate::common::units::{OWNER, StandInChat};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, post, put, stood_on};
+use crate::integration::common::units::{OWNER, StandInChat};
 
 /// A room the service says it reads through the owner's account alone, though an account of its own is there.
 const READER_ROOM: i64 = -180;

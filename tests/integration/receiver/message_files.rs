@@ -10,9 +10,9 @@ use axum::http::{StatusCode, header};
 use axum::response::Response;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, fetched, get, stood};
-use crate::common::units::OWNER;
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, fetched, get, stood};
+use crate::integration::common::units::OWNER;
 
 const ROOM: i64 = -611;
 const OTHER: i64 = -612;

@@ -14,8 +14,10 @@ use bmo_receiver::verbs::{
   draws::{commitment_of, draw, verify_recorded},
 };
 
-use crate::common::Scratch;
-use crate::common::units::{ADDRESS, AGENT, OWNER, SENDER, StandInChat, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{
+  ADDRESS, AGENT, OWNER, SENDER, StandInChat, registration, standing,
+};
 
 const ROOM: i64 = -300;
 const SEED: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";

@@ -8,9 +8,9 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, get, put, stood_on};
-use crate::common::units::{OWNER, StandInChat};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, put, stood_on};
+use crate::integration::common::units::{OWNER, StandInChat};
 
 const ROOM: i64 = -811;
 

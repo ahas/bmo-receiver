@@ -8,9 +8,9 @@ use std::sync::Arc;
 use bmo_chat_client::{ChatCapability, ChatModeStanding, ChatSend, ChatSendRequest, ChatVoice};
 use serde_json::{Value, json};
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, get, post, stood_on};
-use crate::common::units::{OWNER, StandInChat};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, post, stood_on};
+use crate::integration::common::units::{OWNER, StandInChat};
 
 // A service that lists its account's rooms and answers as the person it reads, and one that does neither.
 async fn front(scratch: &Scratch) -> (Front, Arc<StandInChat>, Arc<StandInChat>) {

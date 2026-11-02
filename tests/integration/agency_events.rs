@@ -22,9 +22,9 @@ use bmo_receiver::{all, now_ms, run};
 use sea_orm::DatabaseConnection;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::session::StandInSession;
-use crate::common::units::{AGENT, OWNER, StandInChat, Standing, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::session::StandInSession;
+use crate::integration::common::units::{AGENT, OWNER, StandInChat, Standing, registration, standing};
 
 /// The other agent a reset is of.
 const OTHER: &str = "agent-c";
@@ -62,7 +62,7 @@ struct Heard {
 impl Heard {
   async fn on() -> Self {
     let scratch = Scratch::new().await;
-    crate::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_drafting(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
     let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()]);

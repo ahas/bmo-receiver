@@ -16,8 +16,8 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::roads::ROADS;
 
 use super::inbound;
-use crate::common::Scratch;
-use crate::common::units::{CAP, StandInChat, Standing, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{CAP, StandInChat, Standing, standing};
 
 const ROOM: i64 = -120;
 

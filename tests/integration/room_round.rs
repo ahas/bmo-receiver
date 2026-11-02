@@ -21,9 +21,9 @@ use receiver_policy::drafting::DRAFTING;
 use receiver_ports::agency::Said;
 use serde_json::{Value, json};
 
-use crate::common::Scratch;
-use crate::common::session::StandInSession;
-use crate::common::units::{
+use crate::integration::common::Scratch;
+use crate::integration::common::session::StandInSession;
+use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, ROUND_RUN, StandInChat, Standing, deployment, registration, unrun, woken,
 };
 
@@ -134,7 +134,7 @@ impl Round {
   // receiver's own stream where `news` stands, else the recording hearer.
   async fn stood(timings: Timings, session: StandInSession, news: Option<Arc<Events>>) -> Self {
     let scratch = Scratch::new().await;
-    crate::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_drafting(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -360,7 +360,7 @@ async fn a_turn_hands_the_agency_no_base_persona_even_where_the_deployment_keeps
 
   let scratch = Scratch::new().await;
 
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
   let persona = data.path().join("prompts").join("persona");
@@ -491,15 +491,16 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
 
   let scratch = Scratch::new().await;
 
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
   documents(data.path());
 
   let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
-  let session =
-    Arc::new(StandInSession::new(SESSION, ANSWER).acting(crate::common::session::writing_handoff(NOTE)));
+  let session = Arc::new(
+    StandInSession::new(SESSION, ANSWER).acting(crate::integration::common::session::writing_handoff(NOTE)),
+  );
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
   let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
@@ -555,7 +556,7 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
 #[tokio::test]
 async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_rest() {
   let scratch = Scratch::new().await;
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -612,7 +613,7 @@ async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_
 async fn folds_after_a_round(folds_itself: bool) -> Vec<String> {
   let scratch = Scratch::new().await;
 
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -668,7 +669,7 @@ async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet
 
   let scratch = Scratch::new().await;
 
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").holding(&[LAB]).owners(OWNER));
 
@@ -730,7 +731,7 @@ async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_hi
 
   let scratch = Scratch::new().await;
 
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").holding(&[LAB]).owners(OWNER));
 

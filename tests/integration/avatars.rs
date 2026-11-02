@@ -11,9 +11,9 @@ use axum::{
 use serde_json::Value;
 use tower::ServiceExt;
 
-use crate::common::Scratch;
-use crate::common::queue::{Front, TOKEN, stood};
-use crate::common::units::OWNER;
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, TOKEN, stood};
+use crate::integration::common::units::OWNER;
 
 // A small picture with transparency, as a PNG.
 fn png() -> Vec<u8> {

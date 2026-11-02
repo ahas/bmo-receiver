@@ -10,8 +10,8 @@ use bmo_chat_client::ChatSend;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::roads::Road;
 
-use crate::common::Scratch;
-use crate::common::units::{OWNER, SENDER, StandInChat, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{OWNER, SENDER, StandInChat, standing};
 
 /// A room of others, held by the platform road.
 const ROOM: i64 = -300;

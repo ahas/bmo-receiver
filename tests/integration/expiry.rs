@@ -21,9 +21,9 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_ports::gate::TurnEvent;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::session::{StandInSession, writing_handoff};
-use crate::common::units::{
+use crate::integration::common::Scratch;
+use crate::integration::common::session::{StandInSession, writing_handoff};
+use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
 
@@ -155,7 +155,7 @@ async fn an_expired_session_is_not_touched_and_no_instruction_wakes_it() {
 async fn a_real_message_after_expiry_goes_through_the_handoff_into_a_new_session() {
   let scratch = Scratch::new().await;
 
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
 
   let data = tempfile::tempdir().unwrap();
   let session = Arc::new(

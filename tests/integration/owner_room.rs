@@ -11,8 +11,8 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::owner_room::stand_up;
 use bmo_receiver::store::settings;
 
-use crate::common::Scratch;
-use crate::common::units::{AGENT, OWNER, StandInChat, deployment, unrun};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{AGENT, OWNER, StandInChat, deployment, unrun};
 
 const PRIVATE: i64 = -9_000_000_000_010;
 

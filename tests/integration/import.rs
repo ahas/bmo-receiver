@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use bmo_receiver::import::{self, Cell};
 use serde_json::{Value, json};
 
-use crate::common::Scratch;
+use crate::integration::common::Scratch;
 
 /// A small export in the shape the item's export hand writes: every table the import knows, with the
 /// rows given and none elsewhere. The stale prefix and the live root stand under the test's own

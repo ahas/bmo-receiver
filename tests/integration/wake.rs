@@ -17,8 +17,8 @@ use receiver_policy::commands::COMMANDS;
 use receiver_ports::agency::{Rest, RestKind};
 use receiver_ports::job::{Chosen, Moved, OpenQuestion, Talked};
 
-use crate::common::Scratch;
-use crate::common::units::{
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{
   ADDRESS, AGENT, Handed, OWNER, StandInChat, Standing, registration, standing, woken,
 };
 

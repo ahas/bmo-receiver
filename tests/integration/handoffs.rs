@@ -18,10 +18,12 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use serde_json::json;
 
-use crate::common::Scratch;
-use crate::common::queue::{post, stood};
-use crate::common::session::{StandInSession, writing_handoff};
-use crate::common::units::{ADDRESS, AGENT, OWNER, StandInChat, deployment, registration, unrun, woken};
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{post, stood};
+use crate::integration::common::session::{StandInSession, writing_handoff};
+use crate::integration::common::units::{
+  ADDRESS, AGENT, OWNER, StandInChat, deployment, registration, unrun, woken,
+};
 
 const NOTE: &str = "what the closing session was in the middle of";
 
@@ -137,7 +139,7 @@ async fn the_next_fresh_sessions_first_turn_opens_on_the_kept_handoff_then_the_r
 
   let scratch = Scratch::new().await;
 
-  crate::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_drafting(scratch.db()).await;
 
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));

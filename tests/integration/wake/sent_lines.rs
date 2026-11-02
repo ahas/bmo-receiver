@@ -11,8 +11,10 @@ use bmo_receiver::receiver::Context;
 use bmo_receiver::verbs::sends::Sends;
 
 use super::{everyone_heard, inbound, room};
-use crate::common::Scratch;
-use crate::common::units::{ADDRESS, AGENT, Handed, StandInChat, Standing, registration, standing, woken};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{
+  ADDRESS, AGENT, Handed, StandInChat, Standing, registration, standing, woken,
+};
 
 const ROOM: i64 = -141;
 

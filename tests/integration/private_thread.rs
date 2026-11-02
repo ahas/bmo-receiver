@@ -7,8 +7,10 @@ use bmo_receiver::data_root::DataRoot;
 
 use std::sync::Arc;
 
-use crate::common::Scratch;
-use crate::common::units::{ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{
+  ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing,
+};
 
 const MEMBER: i64 = 4344;
 const OTHER_SENDER: i64 = 4345;

@@ -16,8 +16,8 @@ use serde_json::Value;
 use tempfile::tempdir;
 use tower::ServiceExt;
 
-use crate::common::Scratch;
-use crate::common::units::{StandInChat, Standing, standing};
+use crate::integration::common::Scratch;
+use crate::integration::common::units::{StandInChat, Standing, standing};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Pass, Receiver};
 use bmo_receiver::routes::routes;

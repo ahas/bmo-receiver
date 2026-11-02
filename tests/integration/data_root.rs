@@ -4,7 +4,7 @@ use std::path::Path;
 
 use bmo_receiver::data_root::DataRoot;
 
-use crate::common::alone::alone;
+use crate::integration::common::alone::alone;
 
 #[test]
 fn a_rooms_folders_are_found_only_where_they_stand() {
