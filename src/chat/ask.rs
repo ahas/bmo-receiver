@@ -178,12 +178,13 @@ impl Carry {
     agent: &str,
     old: &str,
     scope: Scope,
+    chat_id: i64,
     reason: SessionReason,
   ) -> Result<(Session, String), Failure> {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let db = receiver.db();
-    let handed = handoff::ask(receiver, agent, old).await;
+    let handed = handoff::ask(receiver, agent, old, chat_id).await;
 
     agency.end(old).await.map_err(fault_of)?;
 
@@ -251,7 +252,8 @@ impl Carry {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let unified = unified_session(receiver, agent).await;
-    let scope = scope_of(unified, room.unwrap_or_else(|| receiver.owner_room()));
+    let chat_id = room.unwrap_or_else(|| receiver.owner_room());
+    let scope = scope_of(unified, chat_id);
     let Ok(standing) = agency.start(agent, scope).await else {
       return Ok(None);
     };
@@ -261,7 +263,7 @@ impl Carry {
       return Ok(None);
     }
 
-    let Some(handed) = handoff::ask(receiver, agent, &standing.id).await else {
+    let Some(handed) = handoff::ask(receiver, agent, &standing.id, chat_id).await else {
       return Ok(None);
     };
 
@@ -319,7 +321,7 @@ impl Carry {
     let (session, note, replaced): (Session, Option<String>, Vec<SessionReason>) = match reason {
       None => (started, None, vec![]),
       Some(reason) => {
-        let again = self.replace(agent, &started_id, scope, reason).await?;
+        let again = self.replace(agent, &started_id, scope, chat_id, reason).await?;
 
         (again.0, Some(again.1), vec![reason])
       }

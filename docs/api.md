@@ -452,6 +452,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   「Replacing the session」). The receiver asks the agent's standing session — its one session, or the session of
   `room` where it keeps one in each room — for its handoff file as a replacement does, waited on until its turn
   ends however long it takes, and keeps the file for the next fresh session's first turn, which opens on it.
+  The handoff turn answers `room`, carrying its block, and the owner's private chat where none is named.
   `reason` names why a fresh session is coming, for the receiver's journal.
 - **An asking while a handoff of the same agent is under way waits in line** behind it, and is then answered as
   an asking again within `again_minutes` is.

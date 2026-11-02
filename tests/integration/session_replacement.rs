@@ -4,7 +4,6 @@
 //! writes nothing the receiver's transcript of it stands in, and only where neither stands is nothing recovered and
 //! the owner told so.
 
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,7 +12,6 @@ use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
-use receiver_policy::chat_line::CHAT_LINE;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::session::StandInSession;
@@ -64,15 +62,6 @@ fn timings() -> Timings {
   }
 }
 
-fn documents(data: &Path) {
-  let chat = data.join("prompts").join("chat");
-
-  std::fs::create_dir_all(&chat).unwrap();
-  std::fs::write(chat.join(&CHAT_LINE.room.owner_document), "The owner's own chat.").unwrap();
-  std::fs::write(chat.join(&CHAT_LINE.room.group_document), "A group room.").unwrap();
-  std::fs::write(chat.join(&CHAT_LINE.capabilities.document), "What the agent can do.").unwrap();
-}
-
 async fn until(what: &str, holds: impl Fn() -> bool) {
   let waited = tokio::time::timeout(Duration::from_secs(20), async {
     while !holds() {
@@ -101,7 +90,7 @@ impl Unified {
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
-    documents(data.path());
+    crate::integration::common::session::prompt_documents(data.path());
 
     let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
     let session = Arc::new(session);
@@ -226,6 +215,8 @@ async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_ses
 
   assert!(path.starts_with(&folder.display().to_string()), "{path}");
   assert_eq!(std::fs::read_to_string(&path).unwrap(), NOTE);
+  // The handoff turn answers the room the replacement is made in, as every turn across rooms names one.
+  assert_eq!(unified.session.rooms()[1], Some(OWNER), "{:?}", unified.session.rooms());
   assert_eq!(
     std::fs::read_to_string(folder.join("latest.md")).unwrap(),
     NOTE,

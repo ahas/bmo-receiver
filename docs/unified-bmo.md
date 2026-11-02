@@ -207,7 +207,10 @@
   `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」). The file
   holds what the session was in the middle of and how far it got, the promises it made and what wakes them,
   the open threads of each room, what the next session must do first, and what it learned was wrong. The turn
-  is waited on until it ends, however long it takes; a run that fails ends the session all the same.
+  is waited on until it ends, however long it takes; a run that fails ends the session all the same. The turn
+  answers a room, as every turn of a session across rooms does, carrying that room's block: the room the
+  replacement is made in, or the room the agency's asking named, and the owner's private chat where neither
+  names one.
   A file that stands and is not empty is copied to `handoffs/<agent>/latest.md`, the newest handoff.
 - **The new session's first turn carries the note at its head:** the handoff file's path and its whole content,
   so the session can read it again with its file tool.

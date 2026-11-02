@@ -5,10 +5,12 @@
 //! test set it to end.
 
 use std::collections::VecDeque;
+use std::path::Path;
 use std::sync::Mutex;
 use std::time::Duration;
 
 use futures_util::future::BoxFuture;
+use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
 use receiver_ports::agency::{Delivery, Event, Events, RunLine, Scope, Session, SessionState, Turn};
@@ -194,6 +196,17 @@ impl StandInSession {
   /// Every turn's prompt, in the order they were carried.
   pub fn prompts(&self) -> Vec<String> {
     self.turns.lock().unwrap().iter().map(|turn| turn.prompt.clone()).collect()
+  }
+
+  /// The room each turn it was sent answers, in order; None for a turn naming no room.
+  pub fn rooms(&self) -> Vec<Option<i64>> {
+    self
+      .turns
+      .lock()
+      .unwrap()
+      .iter()
+      .map(|turn| turn.room.as_ref().map(|room| room.chat_id))
+      .collect()
   }
 
   /// An event published on its stream.
@@ -400,6 +413,16 @@ async fn drafting_row(
 /// No question follows a turn: its own answer is the message, as a test of something else needs it.
 pub async fn no_drafting(db: &sea_orm::DatabaseConnection) {
   drafting(db, &[], &[], 150).await;
+}
+
+/// The prompt documents a room's block is composed from, stood under `data` so a turn can name its room.
+pub fn prompt_documents(data: &Path) {
+  let chat = data.join("prompts").join("chat");
+
+  std::fs::create_dir_all(&chat).unwrap();
+  std::fs::write(chat.join(&CHAT_LINE.room.owner_document), "The owner's own chat.").unwrap();
+  std::fs::write(chat.join(&CHAT_LINE.room.group_document), "A group room.").unwrap();
+  std::fs::write(chat.join(&CHAT_LINE.capabilities.document), "What the agent can do.").unwrap();
 }
 
 /// What a session with a file tool does with the handoff instruction: `note` written to the file it names.

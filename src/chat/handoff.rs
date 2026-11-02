@@ -8,9 +8,10 @@ use std::path::{Path, PathBuf};
 use receiver_codes::{HealthFact, SessionReason};
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
-use receiver_ports::agency::Turn;
+use receiver_ports::agency::{Turn, TurnRoom};
 
 use super::notices::{self, Voiced};
+use super::room::room_context;
 use crate::receiver::Receiver;
 use crate::{now_ms, rounds};
 
@@ -70,7 +71,8 @@ pub fn read(path: &Path) -> Option<Handoff> {
 
 /// The closing session asked one more turn to write its handoff file, waited on until the turn ends however long it
 /// takes; the file it wrote, where it stands and is not empty. A run that fails leaves whatever the file holds.
-pub async fn ask(receiver: &Receiver, agent: &str, session: &str) -> Option<Handoff> {
+/// The turn answers `chat_id`, carrying that room's block as every turn of a session across rooms does.
+pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) -> Option<Handoff> {
   let folder = folder(receiver.data_root().path(), agent);
 
   if let Err(why) = std::fs::create_dir_all(&folder) {
@@ -79,11 +81,23 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str) -> Option<Hand
     return None;
   }
 
+  let room = match room_context(receiver, chat_id, None).await {
+    Ok(room) => room,
+    Err(why) => {
+      eprintln!("{agent}: the handoff turn's room {chat_id} could not be composed: {}", why.detail);
+
+      return None;
+    }
+  };
   let path = folder.join(format!("{}.md", now_ms()));
   let turn = Turn {
     session: session.to_owned(),
     prompt: instruction(&path),
-    room: None,
+    room: Some(TurnRoom {
+      chat_id,
+      text: room.text,
+      mark: room.mark,
+    }),
     via: None,
     privileged: None,
     answers: vec![],

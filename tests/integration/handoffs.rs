@@ -20,7 +20,7 @@ use serde_json::json;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::queue::{post, stood};
-use crate::integration::common::session::{StandInSession, writing_handoff};
+use crate::integration::common::session::{StandInSession, prompt_documents, writing_handoff};
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, deployment, registration, unrun, woken,
 };
@@ -31,6 +31,8 @@ const NOTE: &str = "what the closing session was in the middle of";
 async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queues_a_second_asking() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
+
+  prompt_documents(front.data.path());
   let session = Arc::new(
     StandInSession::new("agent-a@agent", "unused")
       .at_generation(3)
@@ -51,6 +53,8 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queue
 
   assert_eq!(std::fs::read_to_string(&path).unwrap(), NOTE);
   assert_eq!(settings::get(scratch.db(), &pending_key(AGENT)).await.unwrap(), Some(path));
+  // The handoff turn answers the owner's private chat where the asking names no room, carrying its block.
+  assert_eq!(session.rooms(), [Some(OWNER)]);
 
   // A handoff of the same agent under way holds the second asking in line until it ends, which is then answered
   // by the handoff kept.
@@ -78,6 +82,8 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queue
 async fn an_agent_whose_session_never_opened_has_nothing_to_hand_over() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
+
+  prompt_documents(front.data.path());
   let session = Arc::new(StandInSession::new("agent-c@agent", "unused").acting(writing_handoff(NOTE)));
   let mut agent = registration("agent-c", "Agent X", vec![ADDRESS], None, true);
 
@@ -96,6 +102,8 @@ async fn an_agent_whose_session_never_opened_has_nothing_to_hand_over() {
 async fn a_handoff_asked_again_within_the_span_does_not_reach_the_session_and_answers_the_one_kept() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
+
+  prompt_documents(front.data.path());
   let session = Arc::new(
     StandInSession::new("agent-b@agent", "unused")
       .at_generation(3)
