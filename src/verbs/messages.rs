@@ -305,10 +305,12 @@ pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbEr
         &replying(
           ChatSendRequest::new(
             run_.chat_id,
+            // A line's words go out as any message does: no send path fixes their form, so no fold is
+            // asked here.
             ChatSend::Text {
               text: text.clone(),
               silent: false,
-              fold: true,
+              fold: false,
             },
           ),
           run_.reply_to,
