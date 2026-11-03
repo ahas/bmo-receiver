@@ -137,6 +137,15 @@ family. No code carries a sentence in a room's language.
 | `contact-unknown` | 409 | `label` | the provider does not know a contact the start names |
 | `start-refused` | 409 | `label`, `detail` | the provider refused to start the conversation, for its own reason |
 
+### RoomModeRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `room-not-added` | 409 | `room` | the room was never added, so it has no mode to change |
+| `no-chat-service` | 409 | | the room is on no chat service, so nothing there would answer as the person |
+| `avatar-unoffered` | 409 | `label` | a chat service on the room's list does not offer the avatar mode |
+| `room-takes-no-avatar` | 409 | `label`, `room` | a chat service says the room is never answered in, so it takes no avatar |
+
 ### SupervisorRefusal
 
 The refusals of the supervisor routes and of a room's list of supervisors (`docs/api.md`, 「Supervisors」).

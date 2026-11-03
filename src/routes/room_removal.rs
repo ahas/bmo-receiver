@@ -43,9 +43,10 @@ pub struct Declared {
 }
 
 async fn administrator(receiver: &Receiver, by: &str) -> Result<(), Refusal> {
-  match receiver.units().web.user(by).await {
-    Ok(found) if found.administrator => Ok(()),
-    _ => Err(code(&RoomRemovalRefusal::NotAdministrator)),
+  if super::is_administrator(receiver, by).await {
+    Ok(())
+  } else {
+    Err(code(&RoomRemovalRefusal::NotAdministrator))
   }
 }
 

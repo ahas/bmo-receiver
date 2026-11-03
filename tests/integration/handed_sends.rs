@@ -17,6 +17,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
+use crate::integration::common::alone::alone;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing,
 };
@@ -87,6 +88,19 @@ async fn orders(scratch: &Scratch) -> Vec<(String, i64, String, String)> {
 
 #[tokio::test]
 async fn a_say_a_command_asks_outside_any_turn_becomes_an_order_for_the_rooms_supervisor() {
+  let Some(_run) = alone(
+    module_path!(),
+    "a_say_a_command_asks_outside_any_turn_becomes_an_order_for_the_rooms_supervisor",
+  ) else {
+    return;
+  };
+
+  // SAFETY: this process runs this one test alone, so no other thread reads the environment.
+  unsafe {
+    std::env::remove_var("BMO_AGENT_PLACE");
+    std::env::remove_var("BMO_TURN_AGENT");
+  }
+
   let (scratch, port, road, _standing, _data) = stood().await;
   let asker = shell_asker(ROOM, None, None, "room say");
 

@@ -407,6 +407,17 @@ impl Roads {
     matches!(room, Some(Some(room)) if room.identity.is_none())
   }
 
+  /// Whether a chat service's answer for a room takes the avatar mode: none where it does not hold the room or did
+  /// not answer, else whether the room's modes, where stated, hold `human-avatar`. A room that states modes
+  /// without it is never answered in.
+  pub async fn takes_avatar(&self, key: &str, chat_id: i64) -> Option<bool> {
+    self
+      .room_of(key, chat_id)
+      .await
+      .flatten()
+      .map(|room| room.modes.as_ref().is_none_or(|modes| modes.contains(&ChatVoice::HumanAvatar)))
+  }
+
   /// Whether a room is the owner's private chat, as the road it is on says.
   pub async fn is_owner_room(&self, chat_id: i64) -> bool {
     self.room_facts(chat_id).await.owner_room

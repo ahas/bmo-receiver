@@ -972,6 +972,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the receiver holds of a room's registration: its mode, its providers, its answerers, and whether it is read-only and by which chat services. */
+        get: operations["roomRegistration"];
+        /** A room's mode changed between record-only and avatar, its record, providers and messages untouched. */
+        put: operations["changeRoomMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/roads": {
         parameters: {
             query?: never;
@@ -1439,6 +1457,10 @@ export interface components {
         Avatars: {
             items: components["schemas"]["Avatar"][];
             more: boolean;
+        };
+        /** @description `PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in. */
+        ChangeRoomMode: {
+            mode: components["schemas"]["RoomMode"];
         };
         /** @description A room's chat providers set whole: at least one, each once. */
         ChooseProviders: {
@@ -2237,6 +2259,23 @@ export interface components {
         RoomReadCount: {
             /** Format: int64 */
             count: number;
+            /** Format: int64 */
+            room: number;
+        };
+        /** @description `GET /rooms/{roomId}/registration`: what the receiver holds of a room's registration. */
+        RoomRegistration: {
+            /** @description The agents answering the room. */
+            answerers: components["schemas"]["Answerers"];
+            /** @description Whether the list was set rather than read off what the room holds. */
+            chosen: boolean;
+            /** @description The mode the room was added in; null for a room never added. */
+            mode: components["schemas"]["RoomMode"] | null;
+            /** @description The chat providers the room is on, in order. */
+            providers: string[];
+            /** @description Whether every chat service on the room's list reads it in the owner's account alone. */
+            readOnly: boolean;
+            /** @description The chat services on the list that read the room in the owner's account alone, in list order. */
+            readOnlyBy: string[];
             /** Format: int64 */
             room: number;
         };
@@ -4806,6 +4845,76 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomRegistration: {
+        parameters: {
+            query: {
+                by: string;
+            };
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRegistration"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-administrator, not-found, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    changeRoomMode: {
+        parameters: {
+            query: {
+                by: string;
+            };
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeRoomMode"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRegistration"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-administrator, not-found, conflict, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

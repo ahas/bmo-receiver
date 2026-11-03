@@ -223,6 +223,36 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/rooms/{roomId}/registration",
+    "roomRegistration",
+    "Rooms",
+    "What the receiver holds of a room's registration: its mode, its providers, its answerers, and whether it is read-only and by which chat services.",
+    vec![path_parameter("roomId"), parameter("by", "string", true)],
+    None,
+    vec![(200, json_answer::<RoomRegistration>(&mut generator))],
+    vec!["unauthorized", "not-administrator", "not-found", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/registration",
+    "changeRoomMode",
+    "Rooms",
+    "A room's mode changed between record-only and avatar, its record, providers and messages untouched.",
+    vec![path_parameter("roomId"), parameter("by", "string", true)],
+    Some(generator.subschema_for::<ChangeRoomMode>()),
+    vec![(200, json_answer::<RoomRegistration>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-administrator",
+      "not-found",
+      "conflict",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
+    "GET",
     "/rooms/{roomId}/title",
     "roomTitle",
     "Rooms",

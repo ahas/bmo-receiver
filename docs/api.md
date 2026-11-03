@@ -90,6 +90,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms` | | a page of `Room`, the pinned ones first |
 | `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title | 201, the `Room` added |
 | `GET /rooms/{roomId}` | | one `Room` |
+| `GET /rooms/{roomId}/registration` | `by` (the administrator) | the room's registration: `mode`, `providers` and `chosen`, `answerers`, `readOnly`, and `readOnlyBy`, the chat services reading it in the owner's account alone |
+| `PUT /rooms/{roomId}/registration` | `by` (the administrator); `mode`, `avatar` or `record-only` | the registration as it now stands |
 | `GET /rooms/{roomId}/title` | | `title`, or null |
 | `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `defaultAnswerer`, whether it is the supervisor the receiver's default answerer setting names) |
 | `PUT /rooms/{roomId}/supervisors` | `supervisors`, the whole list, each a supervisor's name | `supervisors`, the list as it now stands; `unknown-supervisor` (404) for a name the agency does not register |
@@ -124,6 +126,16 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
     that names no voice of its own goes in the provider's `human-avatar` voice, the account of the person the
     provider reads.
   - null for a room never added: it stands as the roads that handed it messages make it.
+- **A room's registration is read and its mode changed by the administrator alone,** `by` naming him as the web
+  unit knows him. `GET /rooms/{roomId}/registration` answers `room`, `mode`, `providers`, `chosen`,
+  `answerers`, `readOnly`, whether every chat service on the list reads the room in the owner's account alone,
+  and `readOnlyBy`, those services. `PUT /rooms/{roomId}/registration` sets `mode` between `record-only` and
+  `avatar` and answers the registration as it now stands, leaving the room's record, title, providers and
+  messages as they stand. A room never added is refused 409 `room-not-added`; `avatar` for a room on no chat
+  service 409 `no-chat-service`, for a chat service that does not offer it 409 `avatar-unoffered`, and for one
+  whose answer for the room is never answered in 409 `room-takes-no-avatar`; a room the receiver does not hold
+  404 `not-found`; and anyone but the administrator 403 `not-administrator`. A read-only room is never answered
+  in, so no mode makes it answer; what does is its chat service's own account standing in it.
 - **Any chat reads as a room.** One never registered reads as one whose registration is gone, and work filed from
   it reaches the owner's private room instead.
 - **The answerers** are the awake agents the room names, or the default answerer where it names none awake; `voice`

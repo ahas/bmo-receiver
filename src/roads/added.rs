@@ -122,6 +122,19 @@ pub async fn voice_in<C: ConnectionTrait>(db: &C, chat_id: i64) -> Option<ChatVo
   }
 }
 
+/// A room's mode changed on its registration, leaving its title, its list of providers and its messages as they
+/// stand. Whether a registration stood to change.
+pub async fn set_mode<C: ConnectionTrait>(db: &C, chat_id: i64, mode: RoomMode) -> Result<bool, Fault> {
+  let changed = run(
+    db,
+    r#"UPDATE "room_modes" SET "mode" = $1 WHERE "chat_id" = $2"#,
+    vec![mode.as_str().into(), chat_id.into()],
+  )
+  .await?;
+
+  Ok(changed > 0)
+}
+
 /// A room added on the service under `key` in `mode`: its mode, its title where one is given, and its list of
 /// providers set to that service and the record, in one write. Whether it was added; a room added before is not,
 /// and nothing is written.

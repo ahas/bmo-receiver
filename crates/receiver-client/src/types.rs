@@ -477,6 +477,32 @@ pub struct ChooseProviders {
   pub providers: Vec<String>,
 }
 
+/// `GET /rooms/{roomId}/registration`: what the receiver holds of a room's registration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomRegistration {
+  pub room: i64,
+  /// The mode the room was added in; null for a room never added.
+  pub mode: Option<RoomMode>,
+  /// The chat providers the room is on, in order.
+  pub providers: Vec<String>,
+  /// Whether the list was set rather than read off what the room holds.
+  pub chosen: bool,
+  /// The agents answering the room.
+  pub answerers: Answerers,
+  /// Whether every chat service on the room's list reads it in the owner's account alone.
+  pub read_only: bool,
+  /// The chat services on the list that read the room in the owner's account alone, in list order.
+  pub read_only_by: Vec<String>,
+}
+
+/// `PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeRoomMode {
+  pub mode: RoomMode,
+}
+
 /// A room's road.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

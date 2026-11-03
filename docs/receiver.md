@@ -223,6 +223,24 @@ flowchart TD
     in the `human-avatar` voice, the account of the person the service reads.
 - **A room never added has no mode** and stands as the roads that handed it messages make it.
 
+## Reading and changing a room's mode
+
+- **The administrator reads a room's registration** through `GET /rooms/{roomId}/registration`, `by` naming him
+  as the web unit knows him: its mode, its list of providers and whether that list was chosen, the agents
+  answering it, and whether it is read-only. It is read-only where every chat service on its list reads it in the
+  owner's account alone (「A read-only room」 above), and `readOnlyBy` names those services.
+- **The administrator changes the mode between `record-only` and `avatar`** through
+  `PUT /rooms/{roomId}/registration`, and the room's record, its title, its list of providers and its messages
+  stay as they stand. A room never added has no mode and is refused `room-not-added`.
+- **`avatar` is refused where it cannot be answered in.** Every chat service on the room's list must declare its
+  `human-avatar` mode active, else `avatar-unoffered`; its answer for the room, where it states modes, must hold
+  `human-avatar`, else `room-takes-no-avatar`; and a room on no chat service is refused `no-chat-service`, since
+  no account there stands to answer as the person. Nothing is written by a refused change.
+- **A mode does not make a read-only room answer.** A room its chat service reads in the owner's account alone
+  stays read-only in every mode: `record-only` only says no agent is woken, which the read-only room already
+  holds, and `avatar` is refused. What would make it answer is the service's own account standing in the room,
+  which the room's platform gives and this route does not; the route changes a mode and nothing else.
+
 ## The owner's words
 
 - **`POST /owner/messages` and `POST /owner/message-files` put the owner's words into a room from the console.**

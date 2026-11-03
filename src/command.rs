@@ -7,6 +7,7 @@
 use std::io::Read;
 
 use clap::{Args, Subcommand};
+use receiver_client::{ReceiverClient, RoomMode, RoomRegistration};
 use room_calls::bot::Service;
 use room_calls::sends::{
   Act, ConsultInput, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
@@ -15,13 +16,15 @@ use serde_json::{Map, Value};
 
 use crate::config::Config;
 use crate::receiver::Receiver;
+use crate::tool_env::base_address;
 use crate::verbs::draws::{self, Claim, Claimed};
 use crate::verbs::{VerbError, asked_sends, consult, messages, turn};
 
 /// The nouns `bmo` dispatches to this command, each marked `home`: the receiver's rooms, its consult room and
 /// the draws its store keeps are the operations machine's.
-pub const NOUNS: [&str; 8] = [
+pub const NOUNS: [&str; 9] = [
   "room say\thome",
+  "room registration\thome",
   "talk\thome",
   "photo\thome",
   "react\thome",
@@ -49,6 +52,21 @@ pub struct SayArgs {
   /// The words; read from standard input where none are given.
   #[arg(long)]
   pub text: Option<String>,
+}
+
+/// The words of `room registration`: one room's registration as the administrator named, and its mode changed
+/// where one is named.
+#[derive(Args, Debug)]
+pub struct RegistrationArgs {
+  /// The room.
+  #[arg(long)]
+  pub room: i64,
+  /// The mode: `record-only` or `avatar`; the registration is only read where none is named.
+  #[arg(long, value_parser = ["record-only", "avatar"])]
+  pub mode: Option<String>,
+  /// The administrator's name, as the web unit knows it.
+  #[arg(long)]
+  pub by: String,
 }
 
 /// The words of `talk`: a line said in a room, or spoken in a voice and sent as a voice note with the words
@@ -218,6 +236,88 @@ pub async fn room_say(
   };
 
   asked_sends::ask(&config.data_root, asker, Act::Say(input)).await
+}
+
+// The running receiver the registration verbs reach, at the address its configuration names.
+fn client(config: &Config) -> Result<ReceiverClient, VerbError> {
+  let http = reqwest::Client::builder()
+    .no_proxy()
+    .build()
+    .map_err(|why| VerbError::Refused(format!("no client for the receiver: {why}")))?;
+  let client =
+    ReceiverClient::new(&base_address(&config.listen), config.token.clone()).map_err(VerbError::Refused)?;
+
+  Ok(client.with_http(http))
+}
+
+// A room's registration as the verb prints it: its mode, its providers, whether it is read-only and why, and its
+// answerers.
+fn registration_lines(registration: &RoomRegistration) -> Vec<String> {
+  let mode = match registration.mode {
+    Some(RoomMode::Avatar) => "avatar",
+    Some(RoomMode::RecordOnly) => "record-only",
+    None => "none",
+  };
+  let providers = if registration.providers.is_empty() {
+    "none".to_owned()
+  } else {
+    registration.providers.join(", ")
+  };
+  let mut lines = vec![
+    format!("room {}", registration.room),
+    format!("mode {mode}"),
+    format!(
+      "providers {providers} ({})",
+      if registration.chosen { "chosen" } else { "read off the room" }
+    ),
+  ];
+
+  if registration.read_only {
+    lines.push(format!(
+      "read-only yes, read in the owner's account alone by {}",
+      registration.read_only_by.join(", ")
+    ));
+  } else if registration.read_only_by.is_empty() {
+    lines.push("read-only no".to_owned());
+  } else {
+    lines.push(format!(
+      "read-only no, though {} reads it in the owner's account alone",
+      registration.read_only_by.join(", ")
+    ));
+  }
+
+  let named: Vec<&str> = registration
+    .answerers
+    .items
+    .iter()
+    .map(|answerer| answerer.agent_name.as_str())
+    .collect();
+
+  lines.push(format!(
+    "answerers default {}, voice {}, named {}",
+    registration.answerers.default,
+    registration.answerers.voice,
+    if named.is_empty() { "none".to_owned() } else { named.join(", ") }
+  ));
+
+  lines
+}
+
+/// `room registration`: a room's registration read through `GET /rooms/{roomId}/registration`, or its mode
+/// changed through `PUT` on the same route where one is named.
+pub async fn room_registration(config: &Config, args: RegistrationArgs) -> Result<Vec<String>, VerbError> {
+  let client = client(config)?;
+  let registration = match args.mode.as_deref() {
+    None => client.room_registration(args.room, args.by.trim()).await,
+    Some("avatar") => client.change_room_mode(args.room, args.by.trim(), RoomMode::Avatar).await,
+    Some("record-only") => client.change_room_mode(args.room, args.by.trim(), RoomMode::RecordOnly).await,
+    Some(other) => {
+      return Err(VerbError::Refused(format!("--mode names {other}, not record-only or avatar")));
+    }
+  }
+  .map_err(|why| VerbError::Refused(why.to_string()))?;
+
+  Ok(registration_lines(&registration))
 }
 
 /// `talk`: a line into a room as text, or spoken in a voice and sent as a voice note.

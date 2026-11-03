@@ -15,7 +15,7 @@ use bmo_chat_client::{
   AccountRoomsQuery, ChatCapability, ChatContactKind, ChatDeclaration, ChatStart, ClientFailure,
   ContactsQuery, ErrorCode, ProviderRoom, RoomKind,
 };
-use receiver_codes::RoomAdditionRefusal;
+use receiver_codes::{RoomAdditionRefusal, RoomModeRefusal};
 use receiver_ports::chat::Chat;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -79,15 +79,21 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
 /// there that is not resting.
 pub async fn answerers(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let default = agents::default_designated(&receiver).await.map_err(reached)?;
-  let voice = agents::voice_of(&receiver, room).await.map_err(reached)?;
-  let named = agents::named_designated(&receiver, room).await.map_err(reached)?;
+
+  answered(answerers_json(&receiver, room).await?)
+}
+
+// The answerers of a room, as `GET /rooms/{roomId}/answerers` and a room's registration answer them.
+async fn answerers_json(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
+  let default = agents::default_designated(receiver).await.map_err(reached)?;
+  let voice = agents::voice_of(receiver, room).await.map_err(reached)?;
+  let named = agents::named_designated(receiver, room).await.map_err(reached)?;
   let listed: Vec<Value> = named
     .iter()
     .map(|agent| json!({ "agentName": agent.name, "defaultAnswerer": agent.default_answerer }))
     .collect();
 
-  answered(json!({
+  Ok(json!({
     "default": default.name,
     "voice": voice,
     "items": listed,
@@ -479,6 +485,179 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   receiver.roads().forget_room(room);
 
   Ok((StatusCode::CREATED, axum::Json(room_read(&receiver, room).await?)))
+}
+
+/// The administrator a registration read or a mode change is asked by, as the console names him.
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ByAdministrator {
+  #[serde(default)]
+  by: String,
+}
+
+/// The mode a room's registration is to stand in.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ChangingMode {
+  mode: RoomMode,
+}
+
+// A registration read or a mode change is the administrator's alone.
+async fn administrator(receiver: &Receiver, asked: &ByAdministrator) -> Result<(), Refusal> {
+  if super::is_administrator(receiver, asked.by.trim()).await {
+    return Ok(());
+  }
+
+  Err(refused(
+    StatusCode::FORBIDDEN,
+    "not-administrator",
+    "only the administrator reads or changes a room's registration",
+  ))
+}
+
+// A room the receiver holds has a registration to read or change: one added, or one its record keeps.
+async fn held_registration(receiver: &Receiver, room: i64) -> Result<(), Refusal> {
+  if added::mode_of(receiver.db(), room).await.map_err(store)?.is_some() || known(receiver, room).await? {
+    return Ok(());
+  }
+
+  Err(refused(
+    StatusCode::NOT_FOUND,
+    "not-found",
+    &format!("The receiver holds no room {room}."),
+  ))
+}
+
+// A room's registration as the read and the change answer it: its mode, its providers, its answerers, and
+// whether the chat services on its list read it in the owner's account alone.
+async fn registration(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
+  let db = receiver.db();
+  let mode = added::mode_of(db, room).await.map_err(store)?;
+  let listed = providers::listed(db, receiver.roads(), room).await.map_err(store)?;
+  let answerers = answerers_json(receiver, room).await?;
+  let mut read_only_by: Vec<String> = vec![];
+  let mut services = 0;
+
+  for key in &listed.providers {
+    if receiver.roads().chats().road(key).is_none() {
+      continue;
+    }
+
+    services += 1;
+
+    if receiver.roads().reads_only(key, room).await {
+      read_only_by.push(key.clone());
+    }
+  }
+
+  Ok(json!({
+    "room": room,
+    "mode": mode.map(RoomMode::as_str),
+    "providers": listed.providers,
+    "chosen": listed.chosen,
+    "answerers": answerers,
+    "readOnly": services > 0 && read_only_by.len() == services,
+    "readOnlyBy": read_only_by,
+  }))
+}
+
+/// A room's registration: its mode, the chat providers it is on, the agents answering it, and whether it is
+/// read-only and by which chat services.
+pub async fn room_registration(
+  State(served): State<Served>,
+  Path(room): Path<i64>,
+  raw: RawQuery,
+) -> Answered {
+  let asked = query::<ByAdministrator>(raw)?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  administrator(&receiver, &asked).await?;
+  held_registration(&receiver, room).await?;
+  answered(registration(&receiver, room).await?)
+}
+
+// Whether every chat service on the room's list offers the avatar mode and takes it for the room, refused naming
+// the service and the reason where one does not. A room on no chat service has no account to answer as the person.
+async fn offer_avatar(receiver: &Receiver, room: i64) -> Result<(), Refusal> {
+  let listed = providers::listed(receiver.db(), receiver.roads(), room).await.map_err(store)?;
+
+  // What a service says of the room is asked afresh: the account the road sends through joining it, or an
+  // account leaving, moves it.
+  receiver.roads().forget_room(room);
+
+  let mut services = 0;
+
+  for key in &listed.providers {
+    if receiver.roads().chats().road(key).is_none() {
+      continue;
+    }
+
+    services += 1;
+
+    let Some(declared) = receiver.roads().declaration_now(key).await else {
+      return Err(unanswered(key, "its declaration"));
+    };
+
+    if !added::offered(&declared).contains(&RoomMode::Avatar) {
+      return Err(code(&RoomModeRefusal::AvatarUnoffered {
+        label: declared.label,
+      }));
+    }
+
+    match receiver.roads().takes_avatar(key, room).await {
+      Some(true) => {}
+      Some(false) => {
+        return Err(code(&RoomModeRefusal::RoomTakesNoAvatar {
+          label: declared.label,
+          room,
+        }));
+      }
+      None => {
+        return Err(code(&RoomAdditionRefusal::RoomUnknown {
+          label: declared.label,
+          room,
+        }));
+      }
+    }
+  }
+
+  if services == 0 {
+    return Err(code(&RoomModeRefusal::NoChatService));
+  }
+
+  Ok(())
+}
+
+/// A room's mode changed between `record-only` and `avatar`, its record, title, providers and messages untouched;
+/// answered with the registration as it now stands. A mode the services on its list do not offer, or a room they
+/// never answer in, is refused and nothing is written.
+pub async fn change_room_mode(
+  State(served): State<Served>,
+  Path(room): Path<i64>,
+  raw: RawQuery,
+  body: Bytes,
+) -> Answered {
+  let asked = query::<ByAdministrator>(raw)?;
+  let changing = read::<ChangingMode>(&body)?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  administrator(&receiver, &asked).await?;
+  held_registration(&receiver, room).await?;
+
+  let db = receiver.db();
+  let Some(current) = added::mode_of(db, room).await.map_err(store)? else {
+    return Err(code(&RoomModeRefusal::RoomNotAdded { room }));
+  };
+
+  if changing.mode != current {
+    if changing.mode == RoomMode::Avatar {
+      offer_avatar(&receiver, room).await?;
+    }
+
+    added::set_mode(db, room, changing.mode).await.map_err(store)?;
+  }
+
+  answered(registration(&receiver, room).await?)
 }
 
 /// The list of providers a room is to be on, set whole.

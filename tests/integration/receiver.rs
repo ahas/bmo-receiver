@@ -19,6 +19,7 @@ mod read_requests;
 mod record_alone_rooms;
 mod room_addition;
 mod room_figures;
+mod room_mode;
 mod room_pictures;
 mod room_providers;
 mod secrets;

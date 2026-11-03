@@ -78,6 +78,11 @@ fn refused(status: StatusCode, code: &str, error: &str) -> Refusal {
   }
 }
 
+/// Whether the web unit says the named console user is the platform administrator.
+pub(super) async fn is_administrator(receiver: &Receiver, by: &str) -> bool {
+  matches!(receiver.units().web.user(by).await, Ok(found) if found.administrator)
+}
+
 impl IntoResponse for Refusal {
   fn into_response(self) -> Response {
     let body = Json(json!({ "code": self.code, "error": self.error }));
@@ -105,6 +110,8 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/rooms", get(console::rooms)),
     ("POST", "/rooms", post(rooms::add_room)),
     ("GET", "/rooms/{roomId}", get(rooms::room)),
+    ("GET", "/rooms/{roomId}/registration", get(rooms::room_registration)),
+    ("PUT", "/rooms/{roomId}/registration", put(rooms::change_room_mode)),
     ("GET", "/rooms/{roomId}/title", get(console::title)),
     ("GET", "/answerers", get(brain::all_answerers)),
     ("GET", "/rooms/{roomId}/answerers", get(rooms::answerers)),

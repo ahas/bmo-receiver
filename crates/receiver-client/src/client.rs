@@ -128,6 +128,37 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string()])).await
   }
 
+  /// `GET /rooms/{roomId}/registration`.
+  pub async fn room_registration(&self, room_id: i64, by: &str) -> Answer<RoomRegistration> {
+    #[derive(Serialize)]
+    struct Asked<'a> {
+      by: &'a str,
+    }
+
+    let room = room_id.to_string();
+
+    Self::answered(self.get(&["rooms", &room, "registration"], &Asked { by })).await
+  }
+
+  /// `PUT /rooms/{roomId}/registration`.
+  pub async fn change_room_mode(&self, room_id: i64, by: &str, mode: RoomMode) -> Answer<RoomRegistration> {
+    #[derive(Serialize)]
+    struct Asked<'a> {
+      by: &'a str,
+    }
+
+    let room = room_id.to_string();
+    let changing = ChangeRoomMode { mode };
+
+    Self::answered(
+      self
+        .request(Method::PUT, &["rooms", &room, "registration"])
+        .query(&Asked { by })
+        .json(&changing),
+    )
+    .await
+  }
+
   /// `GET /rooms/{roomId}/title`.
   pub async fn room_title(&self, room_id: i64) -> Answer<RoomTitle> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "title"])).await

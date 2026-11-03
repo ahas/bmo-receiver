@@ -396,6 +396,18 @@
         ],
         "type": "object"
       },
+      "ChangeRoomMode": {
+        "description": "`PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/RoomMode"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
       "ChooseProviders": {
         "description": "A room's chat providers set whole: at least one, each once.",
         "properties": {
@@ -2636,6 +2648,62 @@
         "required": [
           "room",
           "count"
+        ],
+        "type": "object"
+      },
+      "RoomRegistration": {
+        "description": "`GET /rooms/{roomId}/registration`: what the receiver holds of a room's registration.",
+        "properties": {
+          "answerers": {
+            "$ref": "#/components/schemas/Answerers",
+            "description": "The agents answering the room."
+          },
+          "chosen": {
+            "description": "Whether the list was set rather than read off what the room holds.",
+            "type": "boolean"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoomMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The mode the room was added in; null for a room never added."
+          },
+          "providers": {
+            "description": "The chat providers the room is on, in order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "readOnly": {
+            "description": "Whether every chat service on the room's list reads it in the owner's account alone.",
+            "type": "boolean"
+          },
+          "readOnlyBy": {
+            "description": "The chat services on the list that read the room in the owner's account alone, in list order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "mode",
+          "providers",
+          "chosen",
+          "answerers",
+          "readOnly",
+          "readOnlyBy"
         ],
         "type": "object"
       },
@@ -7060,6 +7128,129 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/registration": {
+      "get": {
+        "operationId": "roomRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomRegistration"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-administrator, not-found, failed"
+          }
+        },
+        "summary": "What the receiver holds of a room's registration: its mode, its providers, its answerers, and whether it is read-only and by which chat services.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-administrator",
+          "not-found",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "changeRoomMode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoomMode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomRegistration"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-administrator, not-found, conflict, upstream-failed, failed"
+          }
+        },
+        "summary": "A room's mode changed between record-only and avatar, its record, providers and messages untouched.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-administrator",
+          "not-found",
+          "conflict",
+          "upstream-failed",
           "failed"
         ]
       }

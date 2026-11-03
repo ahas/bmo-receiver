@@ -1,0 +1,223 @@
+//! A room's registration read and its mode changed (docs/receiver.md, 「Reading and changing a room's mode」;
+//! docs/api.md, 「Rooms」): the mode, the providers and the answerers as the receiver holds them, the chat services
+//! that read the room in the owner's account alone, the administrator's check, a mode changed with the record and
+//! its messages left as they stand, and every reason a change is refused.
+
+use std::sync::Arc;
+
+use bmo_chat_client::{ChatModeStanding, ChatVoice};
+use serde_json::json;
+
+use crate::integration::common::Scratch;
+use crate::integration::common::queue::{Front, get, post, put, stood_on};
+use crate::integration::common::units::{AGENT, OWNER, StandInChat};
+
+const ROOM: i64 = -100;
+const ADMIN: &str = "the-admin";
+
+// A front reaching one chat service that holds the rooms and declares the avatar mode as given, the room read in
+// the modes it states, and the web unit answering for one administrator.
+async fn front(scratch: &Scratch, standing: ChatModeStanding, room_modes: Option<&[ChatVoice]>) -> Front {
+  let service = StandInChat::new("road-a").holding(&[ROOM, -200]);
+  let service = match room_modes {
+    Some(modes) => service.room_moding(ROOM, modes),
+    None => service,
+  };
+  let service = Arc::new(service);
+
+  service.moding(ChatVoice::HumanAvatar, standing);
+
+  let front = stood_on(scratch, OWNER, vec![service]).await;
+
+  front.standing.web.admin(ADMIN.to_owned());
+
+  front
+}
+
+// A room added on the service in the mode given.
+async fn added(front: &Front, mode: &str) {
+  let (status, room) =
+    post(front, "/rooms", json!({ "provider": "road-a", "roomId": ROOM, "mode": mode })).await;
+
+  assert_eq!(status.as_u16(), 201, "{room}");
+}
+
+// The mode the store keeps for the room, or none.
+async fn kept_mode(scratch: &Scratch) -> Option<String> {
+  scratch
+    .texts(&format!(r#"SELECT "mode" FROM "room_modes" WHERE "chat_id" = {ROOM}"#))
+    .await
+    .pop()
+}
+
+fn registration_path(room: i64) -> String {
+  format!("/rooms/{room}/registration?by={ADMIN}")
+}
+
+#[tokio::test]
+async fn a_registration_reads_the_mode_the_providers_the_answerers_and_why_the_room_is_read_only() {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch, ChatModeStanding::Active, Some(&[ChatVoice::HumanReader])).await;
+
+  added(&front, "record-only").await;
+
+  let (status, registration) = get(&front, &registration_path(ROOM)).await;
+
+  assert_eq!(status.as_u16(), 200, "{registration}");
+  assert_eq!(registration["room"].as_i64(), Some(ROOM));
+  assert_eq!(registration["mode"], "record-only");
+  assert_eq!(registration["providers"], json!(["road-a", "record"]));
+  assert_eq!(registration["chosen"], true);
+  assert_eq!(registration["answerers"]["default"], AGENT);
+  assert_eq!(registration["answerers"]["voice"], AGENT);
+  assert_eq!(registration["readOnly"], true);
+  assert_eq!(registration["readOnlyBy"], json!(["road-a"]));
+
+  // Anyone but the administrator is refused, and a room the receiver does not hold is no registration.
+  assert_eq!(
+    get(&front, &format!("/rooms/{ROOM}/registration?by=someone-else")).await.1["code"],
+    "not-administrator"
+  );
+  assert_eq!(get(&front, &registration_path(-999)).await.1["code"], "not-found");
+}
+
+#[tokio::test]
+async fn the_mode_changes_between_record_only_and_avatar_with_the_record_and_the_messages_left_as_they_stand()
+ {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch, ChatModeStanding::Active, None).await;
+
+  added(&front, "record-only").await;
+  scratch.message(ROOM, 1, 55).await;
+
+  let added_at = scratch
+    .texts(&format!(r#"SELECT "added_at"::text FROM "room_modes" WHERE "chat_id" = {ROOM}"#))
+    .await;
+
+  let (status, registration) = put(&front, &registration_path(ROOM), json!({ "mode": "avatar" })).await;
+
+  assert_eq!(status.as_u16(), 200, "{registration}");
+  assert_eq!(registration["mode"], "avatar");
+  assert_eq!(registration["providers"], json!(["road-a", "record"]));
+  assert_eq!(kept_mode(&scratch).await.as_deref(), Some("avatar"));
+
+  // The reading agrees, and the room is not read-only: no chat service reads it in the owner's account alone.
+  let (_, read) = get(&front, &registration_path(ROOM)).await;
+
+  assert_eq!((read["mode"].clone(), read["readOnly"].clone()), (json!("avatar"), json!(false)));
+  assert_eq!(read["readOnlyBy"], json!([]));
+
+  // The registration's other settings and the record stand as they were.
+  assert_eq!(
+    scratch
+      .texts(&format!(r#"SELECT "added_at"::text FROM "room_modes" WHERE "chat_id" = {ROOM}"#))
+      .await,
+    added_at,
+    "the mode was changed in place, not added again"
+  );
+  assert_eq!(
+    scratch
+      .texts(&format!(r#"SELECT "provider" FROM "room_providers" WHERE "chat_id" = {ROOM}"#))
+      .await,
+    ["road-a", "record"],
+    "the room's providers were not touched"
+  );
+  assert_eq!(
+    scratch
+      .count(&format!(r#"SELECT COUNT(*) FROM "messages" WHERE "chat_id" = {ROOM}"#), vec![])
+      .await,
+    1,
+    "the room's messages were not touched"
+  );
+
+  // The same mode asked again writes nothing, and record-only changes it back.
+  assert_eq!(
+    put(&front, &registration_path(ROOM), json!({ "mode": "avatar" })).await.1["mode"],
+    "avatar"
+  );
+  assert_eq!(
+    put(&front, &registration_path(ROOM), json!({ "mode": "record-only" })).await.1["mode"],
+    "record-only"
+  );
+  assert_eq!(kept_mode(&scratch).await.as_deref(), Some("record-only"));
+
+  // A room never added has no mode to change; one the receiver does not hold is no room.
+  scratch.message(-200, 1, 55).await;
+
+  let (status, refused) = put(&front, &registration_path(-200), json!({ "mode": "avatar" })).await;
+
+  assert_eq!((status.as_u16(), refused["code"].as_str()), (409, Some("room-not-added")));
+  assert_eq!(
+    put(&front, &registration_path(-999), json!({ "mode": "avatar" })).await.1["code"],
+    "not-found"
+  );
+  assert_eq!(
+    put(&front, &registration_path(ROOM), json!({ "mode": "silent" })).await.1["code"],
+    "bad-request"
+  );
+}
+
+#[tokio::test]
+async fn an_avatar_is_refused_where_the_service_does_not_offer_it() {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch, ChatModeStanding::Unsupported, None).await;
+
+  added(&front, "record-only").await;
+
+  let (status, refused) = put(&front, &registration_path(ROOM), json!({ "mode": "avatar" })).await;
+
+  assert_eq!((status.as_u16(), refused["code"].as_str()), (409, Some("avatar-unoffered")));
+  assert_eq!(kept_mode(&scratch).await.as_deref(), Some("record-only"), "a refusal wrote nothing");
+}
+
+#[tokio::test]
+async fn an_avatar_is_refused_where_the_room_is_never_answered_in() {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch, ChatModeStanding::Active, Some(&[ChatVoice::HumanReader])).await;
+
+  added(&front, "record-only").await;
+
+  let (status, refused) = put(&front, &registration_path(ROOM), json!({ "mode": "avatar" })).await;
+
+  assert_eq!((status.as_u16(), refused["code"].as_str()), (409, Some("room-takes-no-avatar")));
+  assert_eq!(kept_mode(&scratch).await.as_deref(), Some("record-only"), "a refusal wrote nothing");
+}
+
+#[tokio::test]
+async fn an_avatar_is_refused_where_no_chat_service_stands_in_the_room() {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch, ChatModeStanding::Active, None).await;
+
+  added(&front, "record-only").await;
+  scratch.message(ROOM, 1, 55).await;
+  put(&front, "/rooms/-100/providers", json!({ "providers": ["record"] })).await;
+
+  let (status, refused) = put(&front, &registration_path(ROOM), json!({ "mode": "avatar" })).await;
+
+  assert_eq!((status.as_u16(), refused["code"].as_str()), (409, Some("no-chat-service")));
+  assert_eq!(kept_mode(&scratch).await.as_deref(), Some("record-only"), "a refusal wrote nothing");
+
+  // The user alone is still a mode the room may take.
+  assert_eq!(
+    put(&front, &registration_path(ROOM), json!({ "mode": "record-only" })).await.1["mode"],
+    "record-only"
+  );
+}
+
+#[tokio::test]
+async fn only_the_administrator_changes_a_rooms_mode() {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch, ChatModeStanding::Active, None).await;
+
+  added(&front, "record-only").await;
+
+  let (status, refused) = put(
+    &front,
+    &format!("/rooms/{ROOM}/registration?by=someone-else"),
+    json!({ "mode": "avatar" }),
+  )
+  .await;
+
+  assert_eq!((status.as_u16(), refused["code"].as_str()), (403, Some("not-administrator")));
+  assert_eq!(kept_mode(&scratch).await.as_deref(), Some("record-only"));
+}
