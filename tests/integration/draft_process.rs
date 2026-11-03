@@ -37,7 +37,7 @@ use crate::integration::common::units::{
 
 const SESSION: &str = "agent-a@room";
 
-/// The number the chat agent speaks under in the owner's chat, as the room's road says.
+/// The number the default answerer speaks under in the owner's chat, as the room's road says.
 const IDENTITY: i64 = 7;
 
 /// Words long enough that a turn reading them is no light one.
@@ -114,7 +114,7 @@ async fn until(what: &str, holds: impl Fn() -> bool) {
   assert!(waited.is_ok(), "{what} never came");
 }
 
-/// The owner's chat with the chat agent's conversations standing on the stand-in units, its session answering
+/// The owner's chat with the default answerer's conversations standing on the stand-in units, its session answering
 /// as the test scripts it.
 struct Drafting {
   scratch: Scratch,
@@ -175,9 +175,7 @@ impl Drafting {
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 
-    standing
-      .agency
-      .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+    standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
     standing.agency.carrying_on(session.clone());
     receiver.hold_runner(Arc::new(runner.clone()));
 
@@ -1381,7 +1379,7 @@ async fn every_event_of_the_chat_agent_s_round_names_it_as_the_room_s_own_voice(
     for event in events {
       assert_eq!(
         event["speaker"], speaker,
-        "{kind} names the chat agent by its name and the room's identity"
+        "{kind} names the default answerer by its name and the room's identity"
       );
     }
   }

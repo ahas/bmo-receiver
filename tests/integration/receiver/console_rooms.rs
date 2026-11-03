@@ -1,5 +1,5 @@
 //! A room's line and the pinned order (`docs/api.md`, 「Rooms」): the order set whole, a room added and taken one
-//! at a time, a room the record does not hold refused with nothing written, and the chat agent's window read in
+//! at a time, a room the record does not hold refused with nothing written, and the default answerer's window read in
 //! milliseconds and the moment it closes.
 
 use axum::http::StatusCode;
@@ -156,6 +156,6 @@ async fn the_chat_agents_window_is_read_in_milliseconds_and_when_it_closes() {
   assert_eq!(
     get(&front, &format!("/rooms/{TITLED}/window")).await,
     (StatusCode::OK, json!({ "openForMs": 0, "closesAt": null })),
-    "another agent's window is not the chat agent's",
+    "another agent's window is not the default answerer's",
   );
 }

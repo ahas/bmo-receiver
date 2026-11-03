@@ -55,7 +55,6 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
       .map(|(key, _)| key.to_owned())
       .collect::<Vec<String>>(),
     [
-      "companions",
       "id",
       "lastMessageAt",
       "messageCount",
@@ -64,6 +63,7 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
       "pinned",
       "registered",
       "senders",
+      "supervisors",
       "title",
       "workRoom",
     ],

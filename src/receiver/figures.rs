@@ -157,12 +157,12 @@ pub async fn filed(
 pub async fn answerers(db: &DatabaseConnection, chat_id: i64) -> Result<Vec<String>, Fault> {
   all(
     db,
-    r#"SELECT "agent" FROM "room_answerers" WHERE "chat_id" = $1 ORDER BY "agent""#,
+    r#"SELECT "supervisor" FROM "room_supervisors" WHERE "chat_id" = $1 ORDER BY "supervisor""#,
     vec![chat_id.into()],
   )
   .await?
   .iter()
-  .map(|row| Ok(row.try_get("", "agent")?))
+  .map(|row| Ok(row.try_get("", "supervisor")?))
   .collect()
 }
 

@@ -14,6 +14,7 @@ use receiver_ports::web::Render;
 use sea_orm::DatabaseConnection;
 use serde_json::{Map, Value};
 
+use super::default_answerer::DefaultAnswerer;
 use super::{Deployment, News, Units};
 use crate::Fault;
 use crate::roads::providers::{self, Carried, Delivery};
@@ -54,6 +55,7 @@ pub struct KeptLine<'a> {
 pub struct Speech {
   db: DatabaseConnection,
   deployment: Arc<Deployment>,
+  default_answerer: DefaultAnswerer,
   units: Units,
   news: Arc<dyn News>,
 }
@@ -62,12 +64,14 @@ impl Speech {
   pub fn new(
     db: DatabaseConnection,
     deployment: Arc<Deployment>,
+    default_answerer: DefaultAnswerer,
     units: Units,
     news: Arc<dyn News>,
   ) -> Self {
     Self {
       db,
       deployment,
+      default_answerer,
       units,
       news,
     }
@@ -138,8 +142,9 @@ impl Speech {
     }
   }
 
-  /// The line kept in the room's record as the chat agent's own: filed under the number the room's road gave the
-  /// agent where it numbered it, and under who the agent is in the room otherwise. A line already `sent` on a road
+  /// The line kept in the room's record as an agent's own, the default answerer's where it names none: filed under
+  /// the number the room's road gave the agent where it numbered it, and under who the agent is in the room
+  /// otherwise. A line already `sent` on a road
   /// is kept under the number that road gave it, the record's own where it gave none (docs/unified-bmo.md, 「The
   /// cases」), and goes on to the room's other providers but that road (docs/receiver.md, 「A room's chat
   /// providers」).
@@ -192,23 +197,26 @@ impl Speech {
     let roads = &self.units.roads;
     // The words are the speaking agent's: under its own number in the room, the room's road's or else the
     // record's, and its own name (docs/receiver.md, 「Identity, and reaching the owner」).
-    let speaker = agent.unwrap_or(&self.deployment.agent);
-    let chat_agent = speaker == self.deployment.agent;
+    let default = self.default_answerer.name();
+    let speaker = agent.unwrap_or(&default);
+    // The default answerer is the road's own voice there; the configured agent's words stand under the
+    // deployment's sender name, every other agent's under its label.
+    let road_voice = speaker == default;
     let mut numbered = match roads.room_road(chat_id).await {
       Some(road) => record::agent_number(&self.db, &road, speaker).await?,
       None => None,
     };
 
-    if numbered.is_none() && !chat_agent {
+    if numbered.is_none() && !road_voice {
       numbered = record::agent_number(&self.db, Road::Record.key(), speaker).await?;
     }
 
     let sender_id = match numbered {
       Some(number) => Some(number),
-      None if chat_agent => roads.identity_in(chat_id).await,
+      None if road_voice => roads.identity_in(chat_id).await,
       None => None,
     };
-    let name = if chat_agent {
+    let name = if speaker == self.deployment.agent {
       self.deployment.sender_name.clone()
     } else {
       self.label_of(speaker).await

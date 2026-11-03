@@ -315,7 +315,7 @@ async fn answers(receiver: &Receiver, chat_id: i64) -> bool {
 async fn answerer_numbers(receiver: &Receiver, chat_id: i64, road: &str) -> HashSet<i64> {
   let rows = all(
     receiver.db(),
-    r#"SELECT "sender_id" FROM "room_answerers" WHERE "chat_id" = $1 AND "road" = $2"#,
+    r#"SELECT "sender_id" FROM "room_supervisors" WHERE "chat_id" = $1 AND "road" = $2"#,
     vec![chat_id.into(), road.into()],
   )
   .await

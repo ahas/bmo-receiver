@@ -8,10 +8,10 @@ use http::StatusCode;
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
-  AddedAgentFact, AddedAgentRefusal, AvatarRefusal, Code, ConsultRefusal, Fact, FileUnsent, FixedLine,
-  HealthFact, MessageActRefusal, OwnerSendRefusal, ReceiverError, Refused, RoomAdditionRefusal,
-  RoomGrantRefusal, RoomRemovalRefusal, RoomRemovalWarning, RunTitle, SendRefusal, SessionReason,
-  SettingFact, SkipReason, TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
+  AvatarRefusal, Code, ConsultRefusal, Fact, FileUnsent, FixedLine, HealthFact, MessageActRefusal,
+  OwnerSendRefusal, ReceiverError, Refused, RoomAdditionRefusal, RoomGrantRefusal, RoomRemovalRefusal,
+  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason, SupervisorFact,
+  SupervisorRefusal, TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -39,11 +39,11 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("SendRefusal", Codes, SendRefusal::VARIANTS),
     ("RoomGrantRefusal", Codes, RoomGrantRefusal::VARIANTS),
     ("RoomAdditionRefusal", Codes, RoomAdditionRefusal::VARIANTS),
-    ("AddedAgentRefusal", Codes, AddedAgentRefusal::VARIANTS),
+    ("SupervisorRefusal", Codes, SupervisorRefusal::VARIANTS),
     ("HealthFact", Codes, HealthFact::VARIANTS),
     ("VoiceFact", Codes, VoiceFact::VARIANTS),
     ("SettingFact", Codes, SettingFact::VARIANTS),
-    ("AddedAgentFact", Codes, AddedAgentFact::VARIANTS),
+    ("SupervisorFact", Codes, SupervisorFact::VARIANTS),
     ("RoomRemovalWarning", Codes, RoomRemovalWarning::VARIANTS),
     ("FixedLine", Codes, FixedLine::VARIANTS),
     ("FileUnsent", Kinds, FileUnsent::VARIANTS),
@@ -248,7 +248,7 @@ fn a_kind_is_its_kebab_case_word() {
   assert_eq!(TurnOpening::FoldDeferred.to_string(), "fold-deferred");
   assert_eq!(SkipReason::ProviderOff.to_string(), "provider-off");
   assert_eq!(
-    serde_json::to_value(AddedAgentFact::RoomTakenBack {
+    serde_json::to_value(SupervisorFact::RoomTakenBack {
       label: "agent-a".to_owned(),
       title: "room-a".to_owned()
     })
@@ -266,10 +266,17 @@ fn a_kind_is_its_kebab_case_word() {
   assert_eq!(RoomGrantRefusal::NotOwnersMessage.code(), "not-owners-message");
   assert_eq!(RoomRemovalRefusal::OwnersChat.code(), "owners-chat");
   assert_eq!(
-    AddedAgentRefusal::Seeded {
+    SupervisorRefusal::Seeded {
       label: "agent-a".to_owned()
     }
     .code(),
-    "seeded-companion"
+    "seeded"
+  );
+  assert_eq!(
+    SupervisorRefusal::UnknownSupervisor {
+      supervisor: "agent-a".to_owned()
+    }
+    .status(),
+    StatusCode::NOT_FOUND
   );
 }

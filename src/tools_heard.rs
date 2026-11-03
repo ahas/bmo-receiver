@@ -1,7 +1,7 @@
 //! The tool host's catalogue as the receiver hears it (docs/boundary-api.md, 「The tool host」; docs/wake.md,
 //! 「Quiet instructions」): the host's event stream heard for as long as the service runs, resumed after the last
 //! event read and opened afresh where the host holds that event no longer, and each tool placed, updated or
-//! removed told to every chat agent whose standing tool session holds one of its namespaces, as a fact that rides
+//! removed told to every supervisor whose standing tool session holds one of its namespaces, as a fact that rides
 //! the agent's next round in any room and wakes nobody.
 
 use std::sync::Arc;
@@ -20,7 +20,7 @@ const REMOVED: &str = "tool.removed";
 // The status the host answers a cursor it holds no event after.
 const GONE: u16 = 410;
 
-/// The fact a chat agent is told of a change: what became of the tool and each entry with how it is reached and
+/// The fact a supervisor is told of a change: what became of the tool and each entry with how it is reached and
 /// its summary, then the reading rule and that nothing needs saying.
 pub fn instruction(event: &ToolEvent) -> String {
   let said = &*TOOL_HOST;
@@ -48,7 +48,7 @@ pub fn instruction(event: &ToolEvent) -> String {
   format!("{fact}\n\n{}\n{}", said.read_first, said.nothing_said)
 }
 
-/// The chat agents a change concerns: each supervisor of the agency's whose standing tool session holds one
+/// The supervisors a change concerns: each supervisor of the agency's whose standing tool session holds one
 /// of the change's namespaces.
 pub fn concerned(agents: &[Agent], sessions: &[StandingSession], namespaces: &[String]) -> Vec<String> {
   agents
@@ -63,7 +63,7 @@ pub fn concerned(agents: &[Agent], sessions: &[StandingSession], namespaces: &[S
     .collect()
 }
 
-/// One change told to every chat agent it concerns, each one instruction in the owner's private chat that rides
+/// One change told to every supervisor it concerns, each one instruction in the owner's private chat that rides
 /// any room's round of its session; the agents told.
 pub async fn tell(
   receiver: &Receiver,

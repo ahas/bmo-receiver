@@ -35,7 +35,7 @@ async fn stood(rooms: &[i64]) -> (Scratch, Router, Arc<StandInChat>) {
   let road = Arc::new(StandInChat::new("road-a").holding(rooms).owners(OWNER));
   let standing = standing(scratch.db(), DataRoot::new(data.path()), [road.clone()].to_vec());
 
-  let mut agent = registration(AGENT, SENDER, [ADDRESS].to_vec(), None, true);
+  let mut agent = registration(AGENT, SENDER, [ADDRESS].to_vec(), None);
 
   agent.row.insert("role".to_owned(), serde_json::json!("chat"));
   standing.agency.registering([agent].to_vec());

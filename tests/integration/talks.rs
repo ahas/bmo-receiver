@@ -70,7 +70,7 @@ async fn stood(answers: Vec<Result<Option<String>, TalkFailure>>) -> (Router, Ar
 
   standing
     .agency
-    .registering([registration(AGENT, SENDER, [ADDRESS].to_vec(), None, true)].to_vec());
+    .registering([registration(AGENT, SENDER, [ADDRESS].to_vec(), None)].to_vec());
 
   let taker = Arc::new(Taker {
     asked: Mutex::default(),
@@ -193,7 +193,7 @@ async fn a_second_word_while_the_first_is_unanswered_is_refused() {
 
   standing
     .agency
-    .registering([registration(AGENT, SENDER, [ADDRESS].to_vec(), None, true)].to_vec());
+    .registering([registration(AGENT, SENDER, [ADDRESS].to_vec(), None)].to_vec());
 
   let (handed, answers) = tokio::sync::mpsc::unbounded_channel();
   let taker = Arc::new(Waiting {

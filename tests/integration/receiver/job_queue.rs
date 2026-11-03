@@ -44,10 +44,10 @@ async fn registered(scratch: &Scratch, chat_id: i64) {
 // The agents the agency registers, the first the default answerer and every one in `resting` asleep, and the
 // room naming `named` among its answerers.
 async fn answering(front: &Front, scratch: &Scratch, chat_id: i64, named: &[&str], resting: &[&str]) {
-  let mut agents = [registration(AGENT, "Agent A", ["a"].to_vec(), None, true)].to_vec();
+  let mut agents = [registration(AGENT, "Agent A", ["a"].to_vec(), None)].to_vec();
 
   for name in ["agent-b", "agent-c"] {
-    let mut agent = registration(name, name, [name].to_vec(), None, false);
+    let mut agent = registration(name, name, [name].to_vec(), None);
 
     agent.awake = !resting.contains(&name);
     agents.push(agent);
@@ -58,7 +58,7 @@ async fn answering(front: &Front, scratch: &Scratch, chat_id: i64, named: &[&str
   for name in named {
     scratch
       .run(
-        r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
+        r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2)"#,
         vec![chat_id.into(), (*name).into()],
       )
       .await;
@@ -346,7 +346,7 @@ async fn an_instruction_for_a_room_whose_registration_is_gone_goes_to_the_owners
   front
     .standing
     .agency
-    .registering([registration(AGENT, "Agent A", ["a"].to_vec(), None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", ["a"].to_vec(), None)].to_vec());
 
   // A row of the owner's own, of the kind the removed room's row names.
   let (_, own) = post(
@@ -403,7 +403,7 @@ async fn a_notice_voiced_in_a_room_is_queued_for_the_rooms_voice_and_replaces_on
   front
     .standing
     .agency
-    .registering([registration(AGENT, "Agent A", ["a"].to_vec(), None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", ["a"].to_vec(), None)].to_vec());
 
   let (made, queued) = post(
     &front,

@@ -111,7 +111,7 @@ fn window(limit: Option<i64>) -> i64 {
 }
 
 /// Every room the record shows, the pinned ones first in the owner's order, each with its name, how many
-/// messages it holds, when the last was sent, and the people and the agents beside the chat agent it holds.
+/// messages it holds, when the last was sent, the people it holds and the supervisors it names.
 pub async fn rooms(State(served): State<Served>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
   let db = receiver.db();
@@ -134,16 +134,10 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     .cloned()
     .collect();
   let modes = crate::roads::added::modes(db).await.map_err(store)?;
-  let awake = agents::awake(&receiver).await.map_err(failed)?;
   let mut items: Vec<Value> = vec![];
 
   for room in listed {
-    let answerers = agents::named_among(db, room.chat_id, &awake).await.map_err(failed)?;
-    let beside: Vec<String> = answerers
-      .iter()
-      .filter(|agent| agent.beside())
-      .map(|agent| agent.name.clone())
-      .collect();
+    let supervisors = crate::receiver::figures::answerers(db, room.chat_id).await.map_err(store)?;
     let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
     let owner_room = receiver.roads().is_owner_room(room.chat_id).await;
     let registered = rows::is_registered(db, room.chat_id).await.map_err(store)?;
@@ -155,7 +149,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "lastMessageAt": room.last_message_at,
       "pinned": pinned.contains(&room.chat_id),
       "senders": senders,
-      "companions": beside,
+      "supervisors": supervisors,
       "ownerRoom": owner_room,
       "registered": registered,
       "workRoom": work.chat_id,
@@ -363,11 +357,11 @@ pub async fn pictures(State(served): State<Served>, Path(room): Path<i64>, raw: 
   answered(json!({ "items": items, "more": more, "before": before, "total": total }))
 }
 
-/// How long the chat agent's window in a room has left, in milliseconds, and when it closes, in epoch milliseconds;
+/// How long the default answerer's window in a room has left, in milliseconds, and when it closes, in epoch milliseconds;
 /// a room that never opened one closes at no time.
 pub async fn room_window(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let until = agents::window_until(receiver.db(), room, &receiver.deployment().agent)
+  let until = agents::window_until(receiver.db(), room, &receiver.default_answerer())
     .await
     .map_err(failed)?;
   let closes_at = (until > 0).then_some(until);

@@ -20,7 +20,7 @@ async fn the_consumer_its_target_and_a_use_go_out_as_the_warmer_publishes_them_b
 
   let target = Target {
     kind: "chat-touch".to_owned(),
-    label: "the chat agent's one session".to_owned(),
+    label: "the default answerer's one session".to_owned(),
     subject_name: Some("agent-a".to_owned()),
     rank: 90,
     idle_ms: 2_400_000,
@@ -57,7 +57,7 @@ async fn the_consumer_its_target_and_a_use_go_out_as_the_warmer_publishes_them_b
         "",
         Some(json!({
           "kind": "chat-touch",
-          "label": "the chat agent's one session",
+          "label": "the default answerer's one session",
           "subjectName": "agent-a",
           "rank": 90,
           "idleMs": 2_400_000,

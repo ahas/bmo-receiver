@@ -261,20 +261,11 @@ impl Caller {
     read_refusal(url, answer).await.map(Err)
   }
 
-  /// A DELETE whose refusal of its path is an answer of its own: success carries nothing the receiver reads, a
-  /// 400 whose body reads as the unit's refusal handed back as that refusal, and anything else the failure it is.
-  pub async fn checked_delete<R: DeserializeOwned>(&self, segments: &[&str]) -> Answer<Result<(), R>> {
-    let (url, answer) = self.sent::<()>(Method::DELETE, segments, None, &[]).await?;
+  /// A DELETE with the query's fields whose success carries nothing the receiver reads.
+  pub async fn emptied(&self, segments: &[&str], query: &[(&str, String)]) -> Answer<()> {
+    let (url, answer) = self.sent::<()>(Method::DELETE, segments, None, query).await?;
 
-    if answer.status().is_success() {
-      return Ok(Ok(()));
-    }
-
-    if answer.status() != reqwest::StatusCode::BAD_REQUEST {
-      return Err(failed(url, answer).await);
-    }
-
-    read_refusal(url, answer).await.map(Err)
+    succeeded(url, answer).await
   }
 
   /// A GET with the query's fields, its successful answer decoded as the call's.

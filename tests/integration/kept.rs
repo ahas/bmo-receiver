@@ -66,7 +66,7 @@ async fn the_agents_are_asked_once_within_the_span_and_again_after_it() {
   let receiver = standing.receiver.clone().keeping_agents_for(SPAN);
   let asked = || standing.agency.agents_asked.load(Ordering::SeqCst);
 
-  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None)]);
 
   assert!(agents::registered(&receiver, AGENT).await.unwrap().is_some());
   assert_eq!(agents::default_designated(&receiver).await.unwrap().name, AGENT);
@@ -84,7 +84,7 @@ async fn the_agents_are_asked_once_within_the_span_and_again_after_it() {
 }
 
 #[tokio::test]
-async fn the_room_list_reads_the_agents_once_and_a_page_reads_the_rooms_facts_kept() {
+async fn the_room_list_reads_no_agents_and_a_page_reads_the_rooms_facts_kept() {
   let scratch = Scratch::new().await;
   let chat = service();
   let front = stood_on(&scratch, OWNER, vec![chat.clone()]).await;
@@ -98,7 +98,11 @@ async fn the_room_list_reads_the_agents_once_and_a_page_reads_the_rooms_facts_ke
 
   assert_eq!(status, StatusCode::OK, "{listed}");
   assert_eq!(listed["items"].as_array().unwrap().len(), 2);
-  assert_eq!(agency.agents_asked.load(Ordering::SeqCst), 1, "one read of the agents for every room");
+  assert_eq!(
+    agency.agents_asked.load(Ordering::SeqCst),
+    0,
+    "a room's supervisors are its own rows, so the agents are never read for the list"
+  );
   assert_eq!(asked(&chat), 2, "each room's facts asked once");
 
   assert_eq!(get(&front, "/rooms").await.0, StatusCode::OK);

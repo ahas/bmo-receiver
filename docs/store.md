@@ -41,11 +41,11 @@ takes it outright: the table holds no default agent.
 | `chat_notices` | a room's rest or restart notice switched on or off (`docs/voiced-notices.md`) | room and kind |
 | `chat_reads` | the last message of a room the receiver has read | room |
 | `chat_titles` | a room's title | room |
-| `room_answerers` | an agent answering in a room | room and agent |
+| `room_supervisors` | a supervisor a room names to answer it; a room naming none is answered by the default answerer (`docs/api.md`, 「Supervisors」) | room and supervisor |
 | `people_reads` | a message an agent's book of a room has read, and when the mark was made | agent, room and message |
 | `room_windows` | when a room's window for an agent closes, in epoch milliseconds (`docs/wake.md`, 「The names and the window」) | room and agent |
 | `run_records` | what one of a room's runs wrote down beside it: the run it was written under, the kind of record, its words, the number of the row it wrote, whether it woke the agent and when (`docs/answer-checks.md`) | its number |
-| `bmo_rooms` | a room the chat agent's one shared session has answered in (`docs/unified-bmo.md`) | room |
+| `bmo_rooms` | a room a supervisor's one shared session has answered in (`docs/unified-bmo.md`) | room |
 | `bmo_room_contexts` | the fingerprint of the room context a chat session was last given | session |
 | `bmo_session_rooms` | a room a chat session has been given the context of | session and room |
 | `collected_items` | a file a message carried, kept in the message-file store (`docs/room-files.md`) | its number; one per room, message and the file's id among its message's files, `file_unique_id` |
@@ -93,6 +93,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 
 | Key | Value | Kept by |
 |---|---|---|
+| `default_answerer` | the name of the supervisor that answers every room naming none, which a new room gets (`docs/api.md`, 「Supervisors」); seeded with the configuration's `agent` at the start where absent | the start, `PUT /default-answerer` |
 | `photos_look` | `on` while the agent opens the pictures rooms store; absent otherwise | the photos switch |
 | `private_thread` | `off` turns a person's own thread in a group room off (`chat-round.toml`, its `setting`) | the thread |
 | `turn_mark:<turn>` | what one turn has handed: each document by path and version and the room lines by number; later rounds of the turn carry them as lines, and it is let go when the turn ends (`docs/drafting.md`, 「The turn's mark」) | the turn |
@@ -101,7 +102,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
 | `consult_room` | the consult room's number (`consult.toml`, its `room_setting`) | the consult room (`docs/consult.md`) |
 | `restart_reason` | what a deployment recorded before the receiver stopped: its purpose and the items going live, taken once at start-up | the restart |
-| `fallback_since`, `fallback_provider` | since when, in epoch milliseconds, a stand-in has answered for the chat agent, and which one | the agency's `fallback.changed` |
+| `fallback_since`, `fallback_provider` | since when, in epoch milliseconds, a stand-in has answered for the default answerer, and which one | the agency's `fallback.changed` |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |
 | `console_pinned_rooms` | the rooms the console stands over the rest, as a JSON list of room numbers in the owner's order; a room's removal takes its number out, and a number the record no longer has stands for nothing | the console's pinned order (`docs/boundary-api.md`, 「The pinned order」), read by the console's room list |
@@ -111,7 +112,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `<agent>_cache:<session>` | what the receiver knows of a session's cache between turns, as JSON: the fingerprint of the head and the agency's reason for a changed prefix its last turn stood on, when that turn was, and whether a resumed turn read nothing from the cache (`docs/unified-bmo.md`, 「Replacing the session」) | the chat session |
 | `<agent>_handoff_pending` | the path of the handoff file an agent's standing session wrote when the agency asked ahead of a fresh session, taken by the next turn (`docs/unified-bmo.md`, 「Replacing the session」) | the handoff the agency asks for |
 | `<agent>_briefed_at`, `<agent>_briefed_at:<room>` | when the agent's one session, or its session of the room, was last briefed on what went live, or first looked, in epoch milliseconds (`docs/wake.md`, 「Quiet instructions」) | the deployment briefing |
-| `reset_point:<agent>` | the moment an agent's last reset cut it off, in epoch milliseconds, a later point in place of an earlier: the agency's point as the receiver last heard or read it, which stands alone where the agency does not answer; a send or a consult line of a turn begun at or before it is refused (`docs/wake.md`, 「An agent's reset」) | the agency's `companion-reset.created`, and the supervisor's reset point each such ask reads |
+| `reset_point:<agent>` | the moment an agent's last reset cut it off, in epoch milliseconds, a later point in place of an earlier: the agency's point as the receiver last heard or read it, which stands alone where the agency does not answer; a send or a consult line of a turn begun at or before it is refused (`docs/wake.md`, 「An agent's reset」) | the agency's `supervisor-reset.created`, and the supervisor's reset point each such ask reads |
 | `agency_events_heard` | the last of the agency's events the receiver handed to its hearers, as JSON: its number and the moment the agency published it, so a stream opened again resumes after it (`docs/wake.md`, 「What the agency's events wake」) | the agency's events |
 | `<agent>_last_chat_launch` | the launch the agent's one chat session last stood on, as JSON: the room it stood in, whether every word of it was the owner's, whether the room's tools were on, and when it went out, in epoch milliseconds | the chat session |
 

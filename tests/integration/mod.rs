@@ -4,7 +4,6 @@
 
 pub(crate) mod common;
 
-mod added_agents;
 mod agency_events;
 mod agent_rounds;
 mod alone_runs;
@@ -40,6 +39,7 @@ mod spoken_talk;
 mod stop_notice;
 mod store;
 mod supervisor;
+mod supervisor_routes;
 mod talks;
 mod tools_heard;
 mod verbs_draws;

@@ -131,7 +131,7 @@ enum Effect {
   Warns,
 }
 
-// Where a job's status notice goes: the room's answerer, then the requester's private room, then the chat agent.
+// Where a job's status notice goes: the room's answerer, then the requester's private room, then the default answerer.
 // An `agentName` that answers the room is kept, and one that does not is replaced by this order.
 async fn destination(
   receiver: &Receiver,
@@ -156,11 +156,11 @@ async fn destination(
     return Ok((private, agents::voice_of(receiver, private).await?));
   }
 
-  Ok((private, receiver.deployment().agent.clone()))
+  Ok((private, receiver.default_answerer()))
 }
 
 /// The instruction queued, answered with its id. A job's status notice goes to the room's answerer; where the
-/// room names none, to the requester's private room, and where that names none, to the chat agent. Every other
+/// room names none, to the requester's private room, and where that names none, to the default answerer. Every other
 /// instruction keeps the room it names. One for a room whose registration is gone goes to the owner's private
 /// room, opening with the room's number (docs/receiver.md, 「Removing a room's registration」).
 pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Accepted {
@@ -194,7 +194,7 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
   }
 
   // A job's status notice follows the requester; every other instruction keeps the room it names, whose voice is
-  // the room's answerer or the chat agent.
+  // the room's answerer or the default answerer.
   let (chat_id, agent) = if asked.sort == "job" && asked.said.order.is_some() {
     destination(&receiver, &room, asked.agent_name.as_deref()).await.map_err(reached)?
   } else {

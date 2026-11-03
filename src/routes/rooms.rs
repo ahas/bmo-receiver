@@ -56,12 +56,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let shown = reads::shown(db).await.map_err(store)?;
   let line = shown.iter().find(|line| line.chat_id == room);
   let pinned = crate::receiver::pinned::pinned(db).await.map_err(store)?;
-  let answerers = agents::named_designated(receiver, room).await.map_err(reached)?;
-  let beside: Vec<String> = answerers
-    .iter()
-    .filter(|agent| agent.beside())
-    .map(|agent| agent.name.clone())
-    .collect();
+  let supervisors = crate::receiver::figures::answerers(db, room).await.map_err(store)?;
   let senders = reads::senders(db, room).await.map_err(store)?;
   let mode = added::mode_of(db, room).await.map_err(store)?;
 
@@ -72,7 +67,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
     "lastMessageAt": line.and_then(|line| line.last_message_at),
     "pinned": pinned.contains(&room),
     "senders": senders,
-    "companions": beside,
+    "supervisors": supervisors,
     "ownerRoom": owner_room,
     "registered": registered,
     "workRoom": work.chat_id,
@@ -89,7 +84,7 @@ pub async fn answerers(State(served): State<Served>, Path(room): Path<i64>) -> A
   let named = agents::named_designated(&receiver, room).await.map_err(reached)?;
   let listed: Vec<Value> = named
     .iter()
-    .map(|agent| json!({ "agentName": agent.name, "companion": agent.beside() }))
+    .map(|agent| json!({ "agentName": agent.name, "defaultAnswerer": agent.default_answerer }))
     .collect();
 
   answered(json!({

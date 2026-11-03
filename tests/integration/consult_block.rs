@@ -15,12 +15,11 @@ const ROOM: i64 = -121;
 const OTHER: &str = "agent-d";
 const WORKER: &str = "agent-d-repo";
 
-// Another agent that declares a repository of its own, beside the chat agent that declares none.
+// Another agent that declares a repository of its own, beside the default answerer that declares none.
 fn registered() -> Vec<Agent> {
   let row = |worker: &str| {
     let mut held = serde_json::Map::<String, Value>::new();
 
-    held.insert("defaultAnswerer".to_owned(), json!(false));
     held.insert("windowSeconds".to_owned(), json!(60));
     held.insert(
       "repository".to_owned(),
@@ -64,7 +63,7 @@ async fn an_agents_consult_block_shows_the_others_work_and_not_her_own() {
     .await;
   scratch
     .run(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2), ($1, $3)"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2), ($1, $3)"#,
       vec![ROOM.into(), OTHER.into(), "chat-a".into()],
     )
     .await;
@@ -74,7 +73,7 @@ async fn an_agents_consult_block_shows_the_others_work_and_not_her_own() {
         id: 900,
         approved: true,
         status: "waiting".into(),
-        title: "work of the chat agent".into(),
+        title: "work of the default answerer".into(),
         worker: None,
       },
       ItemRow {
@@ -103,7 +102,7 @@ async fn the_windows_of_a_room_more_than_one_agent_answers_stand_in_the_block() 
   standing.agency.registering(registered());
   scratch
     .run(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2), ($1, $3)"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2), ($1, $3)"#,
       vec![ROOM.into(), OTHER.into(), "chat-a".into()],
     )
     .await;

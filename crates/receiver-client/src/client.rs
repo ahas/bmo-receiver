@@ -596,19 +596,56 @@ impl ReceiverClient {
     Self::answered(self.send(Method::PUT, &["draft-questions", name], question)).await
   }
 
-  /// `POST /companions`.
-  pub async fn add_console_agent(&self, agent: &CompanionRequest) -> Answer<Companions> {
-    Self::answered(self.send(Method::POST, &["companions"], agent)).await
+  /// `POST /supervisors`.
+  pub async fn add_supervisor(&self, supervisor: &SupervisorRequest) -> Answer<SupervisorAdded> {
+    Self::answered(self.send(Method::POST, &["supervisors"], supervisor)).await
   }
 
-  /// `DELETE /companions/{companionName}`.
-  pub async fn remove_console_agent(&self, name: &str, by: Option<&str>) -> Answer<Companions> {
-    let mut request = self.request(Method::DELETE, &["companions", name]);
+  /// `DELETE /supervisors/{supervisorName}`.
+  pub async fn remove_supervisor(
+    &self,
+    name: &str,
+    by: Option<&str>,
+    forget_brain: bool,
+    force: bool,
+  ) -> Answer<()> {
+    let mut request = self
+      .request(Method::DELETE, &["supervisors", name])
+      .query(&[("forgetBrain", forget_brain), ("force", force)]);
     if let Some(by) = by {
       request = request.query(&[("by", by)]);
     }
 
-    Self::answered(request).await
+    Self::nothing(request).await
+  }
+
+  /// `POST /supervisors/{supervisorName}/resets`.
+  pub async fn reset_supervisor(&self, name: &str, reset: &SupervisorReset) -> Answer<Value> {
+    Self::answered(self.send(Method::POST, &["supervisors", name, "resets"], reset)).await
+  }
+
+  /// `GET /supervisors/{supervisorName}/rooms`.
+  pub async fn supervisor_rooms(&self, name: &str) -> Answer<Page<SupervisorRoom>> {
+    Self::answered(self.request(Method::GET, &["supervisors", name, "rooms"])).await
+  }
+
+  /// `GET /default-answerer`.
+  pub async fn default_answerer(&self) -> Answer<DefaultAnswerer> {
+    Self::answered(self.request(Method::GET, &["default-answerer"])).await
+  }
+
+  /// `PUT /default-answerer`.
+  pub async fn set_default_answerer(&self, answerer: &DefaultAnswerer) -> Answer<DefaultAnswerer> {
+    Self::answered(self.send(Method::PUT, &["default-answerer"], answerer)).await
+  }
+
+  /// `PUT /rooms/{roomId}/supervisors`.
+  pub async fn set_room_supervisors(
+    &self,
+    room_id: i64,
+    list: &RoomSupervisors,
+  ) -> Answer<RoomSupervisors> {
+    Self::answered(self.send(Method::PUT, &["rooms", &room_id.to_string(), "supervisors"], list)).await
   }
 
   /// `PUT /pinned-rooms`.

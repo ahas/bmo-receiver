@@ -20,7 +20,7 @@ role_none = "unnamed"
 # One line of it stands at a time for each checkout and role: the kind is this, the checkout and the role.
 kind = "worker-downgrade"
 
-# The order a run past its clock hands the chat agent in the owner's chat: the {ask} number, {what} it does, its
+# The order a run past its clock hands the default answerer in the owner's chat: the {ask} number, {what} it does, its
 # {agent} and {run}, how long it has run ({running}) since when ({since}), its {bound}, its last {activity}, the
 # word that nothing is cut without a verdict, and the {verb} a verdict is given with. A last activity is told
 # by its moment ({at}), how long before the ask it was ({before}) and what it was ({what}).
@@ -55,7 +55,7 @@ sort = "overtime"
 [road]
 kind = "road-changed"
 sort = "road"
-supervisor = "the chat agent {name}"
+supervisor = "the supervisor {name}"
 role = "the role {name}"
 row_none = "a row the agency did not name"
 road = "{provider} · {model}"

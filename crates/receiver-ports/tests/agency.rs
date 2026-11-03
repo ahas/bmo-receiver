@@ -2,8 +2,8 @@
 
 use futures_util::StreamExt;
 use receiver_ports::agency::{
-  Agency, ConsoleAgentRow, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, RestKind, Resting,
-  Run, Said, Scope, Turn, TurnRead, TurnRoom,
+  Agency, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, NewSupervisor, Removal, RestKind,
+  Resting, Run, Said, Scope, Turn, TurnRead, TurnRoom,
 };
 use serde_json::json;
 
@@ -247,34 +247,45 @@ async fn the_event_stream_reads_each_event_by_its_kind_and_ends_with_the_stream(
 }
 
 #[tokio::test]
-async fn an_agent_is_added_and_removed_on_the_routes_the_agency_serves_and_a_refused_field_comes_back() {
+async fn a_supervisor_is_added_removed_and_reset_on_the_routes_the_agency_serves_and_a_refused_field_comes_back()
+ {
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
-  let row = ConsoleAgentRow {
+  let row = NewSupervisor {
     name: "agent-d".to_owned(),
     label: "Agent D".to_owned(),
     provider: Some("provider-a".to_owned()),
     model: Some("model-a".to_owned()),
-    worker: "worker-a".to_owned(),
+    repository: Some("repository-a".to_owned()),
     order: Some(json!([{ "provider": "provider-a", "model": "model-a", "effort": "high" }])),
     quota_share: Some(json!(0.2)),
   };
-  unit.answer("POST /companions", 201, json!({ "ok": true }));
-  unit.answer_empty("DELETE /companions/agent-d", 204);
+  let removal = Removal {
+    rooms: vec![-5, 7],
+    forget_brain: true,
+    force: false,
+  };
+  let answer = json!({ "supervisor": { "name": "agent-d" }, "brain": "made" });
+  unit.answer("POST /supervisors", 201, answer.clone());
+  unit.answer_empty("DELETE /supervisors/agent-d", 204);
+  unit.answer("POST /supervisors/agent-d/resets", 200, json!({ "agent": "agent-d" }));
 
-  assert_eq!(agency.add_console_agent(&row).await.unwrap(), Ok(()));
-  assert_eq!(agency.remove_console_agent("agent-d").await.unwrap(), Ok(()));
-  assert_eq!(agency.remove_console_agent("agent-d").await.unwrap(), Ok(()));
+  assert_eq!(agency.add_supervisor(&row).await.unwrap(), Ok(answer));
+  agency.remove_supervisor("agent-d", &removal).await.unwrap();
+  assert_eq!(
+    agency.reset_supervisor("agent-d", &json!({ "conversation": true })).await.unwrap(),
+    json!({ "agent": "agent-d" })
+  );
 
   unit.answer(
-    "POST /companions",
+    "POST /supervisors",
     400,
-    json!({ "field": "model", "error": "The model has no address." }),
+    json!({ "code": "bad-request", "field": "model", "error": "The model has no address." }),
   );
   unit.answer(
-    "DELETE /companions/agent-d",
-    400,
-    json!({ "field": "agent", "error": "agent-d is not an agent added on the console." }),
+    "DELETE /supervisors/agent-d",
+    409,
+    json!({ "code": "running", "error": "Agent D is running a turn." }),
   );
 
   let refused = FieldRefusal {
@@ -282,17 +293,17 @@ async fn an_agent_is_added_and_removed_on_the_routes_the_agency_serves_and_a_ref
     error: "The model has no address.".to_owned(),
   };
 
-  assert_eq!(agency.add_console_agent(&row).await.unwrap(), Err(refused));
-  assert_eq!(agency.remove_console_agent("agent-d").await.unwrap().unwrap_err().field, "agent");
+  assert_eq!(agency.add_supervisor(&row).await.unwrap(), Err(refused));
+  assert_eq!(agency.remove_supervisor("agent-d", &removal).await.unwrap_err().code(), Some("running"));
 
-  unit.answer("POST /companions", 400, json!({ "code": "bad-request", "error": "Not JSON." }));
+  unit.answer("POST /supervisors", 409, json!({ "code": "name-taken", "error": "agent-d is taken." }));
 
-  let failure = agency.add_console_agent(&row).await.unwrap_err();
+  let failure = agency.add_supervisor(&row).await.unwrap_err();
 
   assert_eq!(
     (failure.status(), failure.code()),
-    (Some(400), Some("bad-request")),
-    "a 400 that names no field is the call's failure"
+    (Some(409), Some("name-taken")),
+    "a name the agency holds is the call's failure under its code"
   );
 
   let added = json!({
@@ -300,20 +311,21 @@ async fn an_agent_is_added_and_removed_on_the_routes_the_agency_serves_and_a_ref
     "label": "Agent D",
     "provider": "provider-a",
     "model": "model-a",
-    "worker": "worker-a",
+    "repository": "repository-a",
     "order": [{ "provider": "provider-a", "model": "model-a", "effort": "high" }],
     "quotaShare": 0.2,
   });
+  let removed = "rooms=-5%2C7&forgetBrain=true&force=false";
 
   assert_eq!(
     unit.took(),
     [
-      call("POST /companions", "", Some(added.clone())),
-      call("DELETE /companions/agent-d", "", None),
-      call("DELETE /companions/agent-d", "", None),
-      call("POST /companions", "", Some(added.clone())),
-      call("DELETE /companions/agent-d", "", None),
-      call("POST /companions", "", Some(added)),
+      call("POST /supervisors", "", Some(added.clone())),
+      call("DELETE /supervisors/agent-d", removed, None),
+      call("POST /supervisors/agent-d/resets", "", Some(json!({ "conversation": true }))),
+      call("POST /supervisors", "", Some(added.clone())),
+      call("DELETE /supervisors/agent-d", removed, None),
+      call("POST /supervisors", "", Some(added)),
     ]
   );
 }

@@ -32,7 +32,7 @@ const OTHER: &str = "agent-c";
 /// A room the other agent answers alone.
 const ALONE: i64 = -100;
 
-/// A room the other agent shares with the chat agent.
+/// A room the other agent shares with the default answerer.
 const SHARED: i64 = -200;
 
 /// A room the event calls the other agent's alone that the record says another agent answers too.
@@ -67,12 +67,12 @@ impl Heard {
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
     let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()]);
     let session = Arc::new(StandInSession::new("agent-a@agent", "unused"));
-    let mut agent = registration(AGENT, "Agent A", vec!["agent-a"], None, true);
+    let mut agent = registration(AGENT, "Agent A", vec!["agent-a"], None);
 
     agent.row.insert("sessionScope".to_owned(), json!("agent"));
     standing
       .agency
-      .registering(vec![agent, registration(OTHER, "Agent C", vec!["agent-c"], None, false)]);
+      .registering(vec![agent, registration(OTHER, "Agent C", vec!["agent-c"], None)]);
     standing.agency.carrying_on(session.clone());
 
     let receiver = &standing.receiver;
@@ -195,7 +195,7 @@ where
 async fn an_agents_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_its_rooms_alone() {
   let heard = Heard::on().await;
 
-  heard.sql(&format!(r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{OTHER}'), ({SHARED}, '{OTHER}'), ({SHARED}, '{AGENT}'), ({CLAIMED}, '{OTHER}'), ({CLAIMED}, '{AGENT}')"#)).await;
+  heard.sql(&format!(r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ({ALONE}, '{OTHER}'), ({SHARED}, '{OTHER}'), ({SHARED}, '{AGENT}'), ({CLAIMED}, '{OTHER}'), ({CLAIMED}, '{AGENT}')"#)).await;
 
   for room in [ALONE, SHARED, CLAIMED] {
     heard
@@ -218,7 +218,7 @@ async fn an_agents_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_it
     heard.sql(&format!(r#"INSERT INTO "people_reads" ("agent", "chat_id", "message_id", "read_at") VALUES ('{agent}', {SHARED}, 1, 1)"#)).await;
   }
 
-  // A run of the room answered alone, one of the other agent's own in the shared room, one of the chat agent's
+  // A run of the room answered alone, one of the other agent's own in the shared room, one of the default answerer's
   // there, one of the room the event calls alone that the record says another agent answers, and a job's.
   let other_run = format!("chat:{SHARED}:2:1");
 
@@ -274,7 +274,7 @@ async fn an_agents_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_it
       .map(|row| row.try_get::<String>("", "agent").unwrap())
       .collect();
 
-    assert_eq!(agents, [AGENT], "the other agent's own {table} go and the chat agent's stay");
+    assert_eq!(agents, [AGENT], "the other agent's own {table} go and the default answerer's stay");
   }
 }
 
@@ -282,7 +282,7 @@ async fn an_agents_reset_takes_its_rows_of_the_ranges_named_and_the_record_of_it
 async fn a_dry_run_counts_the_run_records_a_reset_would_take_and_writes_nothing() {
   let heard = Heard::on().await;
 
-  heard.sql(&format!(r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{OTHER}'), ({CLAIMED}, '{OTHER}'), ({CLAIMED}, '{AGENT}')"#)).await;
+  heard.sql(&format!(r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ({ALONE}, '{OTHER}'), ({CLAIMED}, '{OTHER}'), ({CLAIMED}, '{AGENT}')"#)).await;
   heard
     .sql(&format!(r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_name", "sent_at", "text") VALUES ({ALONE}, 1, 'tester', 1, 'words')"#))
     .await;
@@ -336,7 +336,7 @@ async fn a_reset_of_the_person_range_alone_keeps_the_agents_conversation() {
 
   heard
     .sql(&format!(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ({ALONE}, '{OTHER}')"#
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ({ALONE}, '{OTHER}')"#
     ))
     .await;
   heard
@@ -498,7 +498,7 @@ fn a_supervisors_road_is_named_as_the_supervisor_and_keyed_by_it() {
   assert!(
     fact
       .fact()
-      .starts_with("The work of the chat agent agent-a is back on claude-code · model-a"),
+      .starts_with("The work of the supervisor agent-a is back on claude-code · model-a"),
     "{}",
     fact.fact()
   );

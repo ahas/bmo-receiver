@@ -1,4 +1,4 @@
-//! The one window every turn of the chat agent's session passes (docs/bmo-window.md): what a turn brought
+//! The one window every turn of the default answerer's session passes (docs/bmo-window.md): what a turn brought
 //! selected over for its core — the speakers' sheet heads, the room's due memories and the rows its events wake,
 //! with a user's own thread in their private room — each entry wrapped to go to a session in full once per version,
 //! and beside it the brain's index with its hint. The window hands the gate the

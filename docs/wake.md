@@ -5,9 +5,12 @@ its rounds.
 
 ## Who reaches the session
 
+- **A room's designated agents are the supervisors it names,** its `supervisors` (`docs/api.md`,
+  「Supervisors」). A room that names none has one, the default answerer, the supervisor the receiver's setting
+  names; it is alone there in the owner's private chat and in a user's own private chat.
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
-  rule, the chat agent and every other agent alike, over every word filed in the room, a person's or an agent's,
-  and never wakes an agent with its own words.
+  rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
+  agent with its own words.
 - **A user's own private chat needs no name and no open window,** the owner's and every other user's alike.
   - Which room is the owner's is each chat service's own answer (`POST /room/is-owner`), not a number the
     receiver reads.
@@ -19,7 +22,7 @@ its rounds.
 - **A private chat needs no name for a person's words alone.** An agent's words filed there, another agent's
   answer in the owner's private chat among them, wake an agent on the three grounds below and not because the chat
   is private, so two agents answering one private chat do not wake each other on every answer.
-- **A room that names only other agents never reaches the chat agent at all.**
+- **A room that names supervisors never reaches the default answerer** unless it names it among them.
 - **A room added `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
   kept and carried to its providers, and nothing past that is decided for them. The owner's answer to a job's
   open question is still handed to bmo-job there, since that wakes no agent.
@@ -197,7 +200,7 @@ its rounds.
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
   window is carried into the agent's session through the agency (`POST /sessions`, `GET /sessions/{sessionId}`,
   `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); every
-  agent's turn, the chat agent's and any other's alike, opens the same way and carries the first question of the
+  agent's turn, every supervisor's alike, opens the same way and carries the first question of the
   draft process, which makes the message (`docs/drafting.md`): the questions asked of the same
   session, the notes they establish first and the message last, the items and the checks on the final text
   (`docs/answer-checks.md`); the message is sent on the road the turn
@@ -230,9 +233,10 @@ its rounds.
 
 ## An agent's reset
 
-An agent's reset is the agency's (the agency's `docs/companions.md`, 「Starting it afresh」): it moves the
-agent's reset point, publishes the cut-off, and then tells each unit holding the agent's rows to take its own.
-Both go under the kind `companion-reset.created`, which is the agency's name for it, and are told apart by their
+An agent's reset is the agency's (the agency's `docs/supervisors.md`, 「Starting it afresh」), asked through the
+receiver's `POST /supervisors/{supervisorName}/resets` with the rooms the receiver names (`docs/api.md`,
+「Supervisors」): it moves the agent's reset point, publishes the cut-off, and then tells each unit holding the
+agent's rows to take its own. Both go under the kind `supervisor-reset.created` and are told apart by their
 fields: a cut-off names the `point` alone, a reset names its `ranges`.
 
 - **The reset point is the agency's.** The agency answers it as `resetPoint` at its read of the supervisor's
@@ -323,8 +327,8 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
 
 ### The tool host's changes
 
-- **A tool placed on the tool host or taken from it is told to each chat agent it concerns,** as the host
-  publishes it (`docs/boundary-api.md`, 「The tool host」): one instruction a chat agent whose standing tool session
+- **A tool placed on the tool host or taken from it is told to each supervisor it concerns,** as the host
+  publishes it (`docs/boundary-api.md`, 「The tool host」): one instruction a supervisor whose standing tool session
   holds one of the event's namespaces, nothing to an agent whose session holds none of them.
 - **The instruction is a fact** in the tool host policy's words (`policy/tool-host.toml`): which tool was placed,
   updated (a placing that replaced another version of it) or removed, each entry by its full name, how it is
@@ -337,7 +341,7 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
 
 ### A road's change
 
-- **The agency's `road.changed` is told to the owner once,** through the chat agent's session in his private
+- **The agency's `road.changed` is told to the owner once,** through the default answerer's session in his private
   chat, as the deployment briefing is (the agency's `docs/api.md`, 「Events」): one instruction an event, in the
   owner facts' words (`policy/owner-facts.toml`, `[road]`), under the kind `road-changed:supervisor:<name>` or
   `road-changed:role:<name>`, so a newer fact of the same supervisor or role replaces one still waiting and none
@@ -357,7 +361,7 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
 ## What the agency's events wake
 
 Each event the receiver reads (`docs/boundary-api.md`, 「The agency」) is heard by the part its effect belongs
-to, and those that tell the chat agent something wake it as an instruction in the owner's private chat, which
+to, and those that tell the default answerer something wake it as an instruction in the owner's private chat, which
 opens a round there like any instruction:
 
 - **A voiced notice:** a stand-in answering or ended, and a job's run fallen to a lesser model, named by its role
@@ -397,7 +401,7 @@ The stream is heard from where the receiver left it:
 
 ## A job's end
 
-- **A job's end wakes the chat agent through bmo-job's instruction:** its ending, its report and its state
+- **A job's end wakes the default answerer through bmo-job's instruction:** its ending, its report and its state
   facts are queued with `POST /instructions` as a fact for the agent in the room the work was filed from, or
   the owner's private chat once that room is gone, and open a round there like any instruction
   (`docs/voiced-notices.md`, 「A job's end」).

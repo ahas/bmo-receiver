@@ -2,7 +2,6 @@
 //! tool and the `bmo` command line reach the receiver on. Every one answers only a request carrying the
 //! receiver's token, and a refusal with its code and the English sentence naming it.
 
-mod added_agents;
 mod as_owner;
 mod avatars;
 mod brain;
@@ -23,6 +22,7 @@ mod room_removal;
 mod rooms;
 mod say;
 mod sends;
+mod supervisors;
 mod talks;
 
 use std::sync::Arc;
@@ -194,8 +194,13 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ),
     ("GET", "/draft-questions", get(drafts::questions)),
     ("PUT", "/draft-questions/{name}", put(drafts::set_question)),
-    ("POST", "/companions", post(added_agents::add)),
-    ("DELETE", "/companions/{companion}", delete(added_agents::remove)),
+    ("POST", "/supervisors", post(supervisors::add)),
+    ("DELETE", "/supervisors/{supervisorName}", delete(supervisors::remove)),
+    ("POST", "/supervisors/{supervisorName}/resets", post(supervisors::reset)),
+    ("GET", "/supervisors/{supervisorName}/rooms", get(supervisors::rooms)),
+    ("GET", "/default-answerer", get(supervisors::default_answerer)),
+    ("PUT", "/default-answerer", put(supervisors::set_default_answerer)),
+    ("PUT", "/rooms/{roomId}/supervisors", put(supervisors::name_room)),
     ("PUT", "/pinned-rooms", put(console::pin)),
     ("POST", "/pinned-rooms", post(console::pin_one)),
     ("DELETE", "/pinned-rooms/{room}", delete(console::unpin)),

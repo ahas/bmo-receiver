@@ -89,7 +89,7 @@ async fn fill(scratch: &Scratch, data: &std::path::Path, room: i64) {
       vec![room.into(), format!("r{room}").into()],
     ),
     (
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2)"#,
       vec![room.into(), AGENT.into()],
     ),
     (

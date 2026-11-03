@@ -1,4 +1,4 @@
-//! The words a turn of the chat agent's session answers with when it is not answering the room: wait for more, or
+//! The words a turn of the default answerer's session answers with when it is not answering the room: wait for more, or
 //! say nothing this time; the one a turn of the draft process opens on to make its answer the message now; and the
 //! marks it sets on a message that arrived while the process ran.
 

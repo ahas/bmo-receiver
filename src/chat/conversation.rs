@@ -45,7 +45,7 @@ use receiver_ports::gate::{Judgement, TurnEvent};
 /// A hook's answer, which it may take its time over.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// How long the room queue gathers a room's words, how long a wait holds them, how long the chat agent's
+/// How long the room queue gathers a room's words, how long a wait holds them, how long the default answerer's
 /// window keeps a room listening where its row says nothing else, and how often a working turn is looked at
 /// for words that came for its room.
 #[derive(Clone, Copy, Debug)]
@@ -57,7 +57,7 @@ pub struct Timings {
 }
 
 impl Timings {
-  /// The round policy's, the window the chat agent's row keeps.
+  /// The round policy's, the window the default answerer's row keeps.
   pub fn of_policy() -> Self {
     let held = &CHAT_ROUND.conversation;
 
@@ -2781,7 +2781,7 @@ impl Conversations {
     touched
   }
 
-  /// What a line a person typed into the chat agent's program at `at_ms` goes with (docs/bmo-window.md,
+  /// What a line a person typed into the default answerer's program at `at_ms` goes with (docs/bmo-window.md,
   /// 「A line typed into the program」): a round of the owner's private chat holding the line as one new message
   /// of his, built by the round's own prompt builder over the window's own selection and opened against the
   /// program's session, which then holds what went in full. Nothing is asked and nothing waits behind a running
@@ -3188,8 +3188,8 @@ pub async fn speaker(receiver: &Receiver, agent: &str, chat_id: i64) -> Value {
   json!({ "id": id, "name": agent })
 }
 
-// The agent as the wake judges it: the default answerer known as such whether or not a registration marks it, and
-// where the agency does not answer, the deployment's own agent taken for it.
+// The agent as the wake judges it: the default answerer known as such whether or not the agency registers it, and
+// where the agency does not answer, the agent by its name alone.
 async fn designated(receiver: &Receiver, agent: &str) -> wake::agents::Designated {
   if let Ok(default) = wake::agents::default_designated(receiver).await
     && default.name == agent
@@ -3203,7 +3203,7 @@ async fn designated(receiver: &Receiver, agent: &str) -> wake::agents::Designate
       name: agent.to_owned(),
       call_names: Vec::new(),
       window_seconds: None,
-      default_answerer: agent == receiver.deployment().agent,
+      default_answerer: agent == receiver.default_answerer(),
     },
   }
 }

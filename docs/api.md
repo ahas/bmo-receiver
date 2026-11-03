@@ -91,7 +91,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title | 201, the `Room` added |
 | `GET /rooms/{roomId}` | | one `Room` |
 | `GET /rooms/{roomId}/title` | | `title`, or null |
-| `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `companion`, whether it answers beside the chat agent) |
+| `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `defaultAnswerer`, whether it is the supervisor the receiver's default answerer setting names) |
+| `PUT /rooms/{roomId}/supervisors` | `supervisors`, the whole list, each a supervisor's name | `supervisors`, the list as it now stands; `unknown-supervisor` (404) for a name the agency does not register |
 | `GET /answerers` | `room` (optional) | a page of `{room, agents}`: every room's agents answering it, or one room's |
 | `GET /rooms/{roomId}/roads` | | `kind` (`owner` or `group`) and `oneToOne` |
 | `GET /rooms/{roomId}/own-number` | `agentName` | `number` (or null), the sender an agent's own words stand under: the number the room's road gave it, else the sender its newest own words in the room's record are archived under |
@@ -99,7 +100,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/people` | `ids`, comma-separated | a page of `Person`: those among `ids` who have stood as a sender in the room |
 | `GET /rooms/{roomId}/owner-spoke` | `person`, `before`, `windowMs` | `owner` and `spoke`: whether the person is the owner, and whether the owner spoke in the span |
 | `GET /rooms/{roomId}/situation` | | `text`, the room's situation note as it stands, and `updatedAt`, when it last changed in epoch milliseconds, both null where the room has none |
-| `GET /rooms/{roomId}/window` | | `openForMs`, the chat agent's window left, and `closesAt` in epoch milliseconds, or null |
+| `GET /rooms/{roomId}/window` | | `openForMs`, the default answerer's window left, and `closesAt` in epoch milliseconds, or null |
 | `GET /providers` | | a page of `Provider` (`key`, `label`, `listsRooms`, `listsContacts`, `startsChats`, `startsGroups`, `roomModes`): every chat provider a room may be on |
 | `GET /providers/{key}/rooms` | `after` (a room number), `limit` | a page of `AccountRoom` (`id`, `title`, `kind`, `privateTo`, `held`, `mode`): the rooms the provider's account is in |
 | `GET /providers/{key}/contacts` | `after` (a contact number), `limit` | a page of `AccountContact` (`id`, `name`, `kind`, `roomId`, `held`, `mode`): the contacts of the provider's account |
@@ -113,7 +114,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `DELETE /rooms/{roomId}` | `by` (the administrator), `dryRun` | what the removal would do, or what it took |
 
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
-  people that have stood as a sender, `companions`, the agents other than the chat agent answering there,
+  people that have stood as a sender, `supervisors`, the names of the supervisors the room names to answer it, in
+  name order, empty where it names none and the default answerer answers it,
   `ownerRoom`, `registered`, `workRoom`, where the news, questions and answers of work filed from it are told, and `mode`, the mode it was
   added in:
   - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
@@ -266,7 +268,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 - **A `Notice`** is `id`, `kind`, `summary`, `text` and `createdAt`. The list is walked by `before` or
   `after`, an instruction id, and narrowed by `kind` and by the span it was queued in, both ends included.
-- **An owner notice** is queued for the chat agent in the owner's private room, carrying the code and its
+- **An owner notice** is queued for the default answerer in the owner's private room, carrying the code and its
   parameters as a fact.
 
 ## Instructions
@@ -281,8 +283,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **An instruction** is queued for the agent's session in the room, and a `kind` replaces the pending instruction
   of the same kind there. **A job's status notice** — an order under the sort `job` — goes to the room's
   answerer; where the room names no answerer, to the requester's private room; where that names none, to the
-  chat agent. An `agentName` that answers the room is kept; one that does not is replaced by this order. Every
-  other instruction keeps the room it names, and its voice is the room's answerer or the chat agent. One marked
+  default answerer. An `agentName` that answers the room is kept; one that does not is replaced by this order. Every
+  other instruction keeps the room it names, and its voice is the room's answerer or the default answerer. One marked
   `agentOnly` is a record the agent reads and no room hears: a round carrying only such rows sends no room
   message (`docs/bmo-window.md`, 「Quiet instruction」). An instruction for a room whose registration is gone
   goes to the owner's private room instead, naming the room, and never into the platform room.
@@ -382,7 +384,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `fields` are the values that head carries. The receiver enumerates no kind; `item` and `document` are read as the
   talks they name, and any other kind is read from the heading and fields as given.
 - **A talk that comes back with nothing is refused:** `conflict` with `busy` where the talk is being answered,
-  `not-ready` where the chat agent's conversations do not stand, `conflict` with `resting` where the agent rests,
+  `not-ready` where the default answerer's conversations do not stand, `conflict` with `resting` where the agent rests,
   429 `limit` where its provider's limit is reached, and 503 `outage` where its provider is out.
 
 ## Events and the live board
@@ -509,36 +511,63 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   bound is outside 0 to 1,000 characters, and where a question's name is not a lowercase word of letters, digits
   and dashes of at most 40 characters or its text is empty or past 4,000 characters.
 
-## Agents added on the console
+## Supervisors
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /companions` | `name`, `label`, `worker`, `room`, and the order: `order` and `quotaShare`, or `provider` and `model`, or both | a page of the agents added on the console, and `room` (`id`, `takenBack`, `said`) |
-| `DELETE /companions/{companionName}` | `by` | a page of the agents added on the console; `not-companion` (404), `seeded-companion` (409), `action` (400) |
+| `POST /supervisors` | `name`, `label`, `repository` (optional), `room`, and the order: `order` and `quotaShare`, or `provider` and `model`, or both | 201, `supervisor`, the agency's read of it, `brain`, what became of its brain, and `room` (`id`, `takenBack`, `said`) |
+| `DELETE /supervisors/{supervisorName}` | `by`, `forgetBrain`, `force` | 204; `unknown-supervisor` (404), `seeded` (409), `default-answerer` (409), `running` (409), `action` (400) |
+| `POST /supervisors/{supervisorName}/resets` | `conversation`, `person`, `dryRun`, `by` | the agency's answer to the reset as it came; `unknown-supervisor` (404) |
+| `GET /supervisors/{supervisorName}/rooms` | | a page of `SupervisorRoom` (`id`, `title`, `named`, `alone`): the rooms it answers |
+| `GET /default-answerer` | | `supervisor`, the name the setting holds |
+| `PUT /default-answerer` | `supervisor` | `supervisor`, as the setting now stands; `unknown-supervisor` (404) |
 
-- **An agent added on the console is a chat agent like any other,** with a room of the console's own: its rounds
-  are the same rounds, its judgement of window words first and its draft process among them (`docs/wake.md`). The
-  paths, the fields `companion` and `companions` above, and the codes `not-companion` and `seeded-companion` keep
-  the names the agency's resource and the console's language pack carry.
-- The receiver writes the agent's console room, its number there, its one provider, the record, and the room's
-  answerers; the agent's half is
-  the agency's, and its gate options the gate's. What a name may be is the agency's to say. A field the agency
-  refuses comes back as the refusal of that field (`name`, `label`, `provider`, `model`, `worker`; an order's
-  member, `order` or `order[<n>]`, as `order` naming it; `quotaShare` as `quota-share`; `agent` as
-  `not-companion`; any other as `upstream-failed`).
-- **The agent's order is added with it, in one ask.** `order` is its provider order whole, each entry a
-  `provider`, a `model`, and the `effort`, `thinking` and `answerTokens` the agency's order takes, and `quotaShare`
-  the share beside it; the receiver hands both to the agency's add as they came, and the agency judges them as a
+- **Every supervisor is alike to the receiver.** Its rounds are the same rounds, its judgement of window words
+  first and its draft process among them (`docs/wake.md`); what tells one from another is its own row at the
+  agency and the rooms that name it here.
+- **A room names the supervisors that answer it,** the room's `supervisors`. A room that names none is answered by
+  the default answerer, and a room is added naming none, so the default answerer is also the supervisor a new room
+  gets. `PUT /rooms/{roomId}/supervisors` writes the whole list, each name one the agency registers; an empty list
+  hands the room back to the default answerer.
+- **The default answerer is a setting of the receiver's,** naming one supervisor: the one that answers every room
+  naming none, says the system's own lines there, takes the console's talks, the warmer's touch and a line typed
+  into its program, and is told the owner's facts in his private room (`docs/wake.md`, 「Who reaches the
+  session」). The store's settings hold it (`docs/store.md`, 「The settings」); a store holding none is seeded
+  with the configuration's `agent` as the receiver starts. `PUT /default-answerer` names a supervisor the agency registers and is read by
+  the next thing that asks who answers; the clocks the conversations keep (the health check and the restart's
+  backlog) stay on the supervisor the receiver started with until it starts again.
+- **Adding a supervisor writes both halves at once.** The receiver writes its console room, its number there, the
+  room's one provider, the record, and the room's `supervisors`, naming it alone; the supervisor's half is the
+  agency's `POST /supervisors`, and its gate options are copied from the default answerer's as they stand. What a
+  name may be is the agency's to say. A field the agency refuses comes back as the refusal of that field (`name`,
+  `label`, `provider`, `model`, `repository`; an order's member, `order` or `order[<n>]`, as `order` naming it;
+  `quotaShare` as `quota-share`; a name the agency holds already as `name-taken`; any other as
+  `upstream-failed`). A name the agency registers already is refused `name-taken` before anything is written.
+- **The order is added with it, in one ask.** `order` is its provider order whole, each entry a `provider`, a
+  `model`, and the `effort`, `thinking` and `answerTokens` the agency's order takes, and `quotaShare` the share
+  beside it; the receiver hands both to the agency's add as they came, and the agency judges them as a
   supervisor's order is judged and writes the row with them. Where the console names `provider` and `model`
   alone, the order is that one entry at the agency's default share; where it names both, the order's first entry
   must be that provider and model, or the agency refuses it as `order`.
-- **A seeded agent is never taken out.** Before it asks the agency anything, the receiver reads the agent's
-  supervisor (`GET /supervisors/{supervisorName}`): one the deployment seeds, or the default answerer, is refused
-  `seeded-companion` with its `label`, and nothing is asked of the agency or written. An agent the agency does not
-  list, or one not added on the console, is refused `not-companion`.
-- **`worker` names the repository** the agent's items go to, under the field name the agency's resource and the
-  console's dialog carry: a repository the agency does not hold (`GET /repositories`) is refused as `worker`
-  before anything is written.
+- **`repository` names the repository** the supervisor's items go to, where it names one: a repository the agency
+  does not hold (`GET /repositories`) is refused as `repository` before anything is written.
+- **Removing a supervisor asks the agency for its half and takes the receiver's.** Before it asks the agency
+  anything, the receiver reads the supervisor (`GET /supervisors/{supervisorName}`): one the agency does not
+  register is refused `unknown-supervisor`, one the deployment seeds `seeded` with its `label`, and the one the
+  default answerer setting names `default-answerer` with its `label`. It then asks the agency's
+  `DELETE /supervisors/{supervisorName}` with `rooms`, every room that names it, read there as rooms it shares so
+  each keeps its record, and `forgetBrain` and `force` as the console gave them; the agency's `running` comes back
+  as `running` with the `label`. Once the agency has taken its half, the receiver lets go of every number it gave
+  the supervisor that no kept message is filed under, with its picture, and of every room's naming of it; a room
+  left naming none is the default answerer's.
+- **A reset is the agency's, with the rooms the receiver names.** `POST /supervisors/{supervisorName}/resets`
+  hands the agency's reset (the agency's `docs/supervisors.md`, 「Starting it afresh」) `conversation`, `person`,
+  `dryRun` and `by` as they came, with `alone`, the rooms that name the supervisor alone, and `shared`, those that
+  name it beside another; a room that names none is handed in neither list, so its record stays whole. The
+  agency's answer is the route's, and a body it refuses comes back as `bad-request` with the agency's sentence.
+- **A `SupervisorRoom`** is a room the supervisor answers: `id`, `title` (or null), `named`, true where the room
+  names it and false where it answers as the default answerer of a room naming none, and `alone`, whether it
+  answers there alone.
 
 ## The chat services
 
@@ -566,9 +595,9 @@ and in this repository's delivery report.
 
 | Unit | What the receiver reaches it for |
 |---|---|
-| the agency | supervisors, roles and repositories, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, the agents added on the console, a run's log, a room forgotten, a session's loaded documents, the deployment's documents |
+| the agency | supervisors, roles and repositories, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, the supervisors added and removed, a supervisor's reset, a run's log, a room forgotten, a session's loaded documents, the deployment's documents |
 | bmo-job | a room's holdings, the questions the owner answers in his chat, the items a turn filed, the queue moved |
-| the gate | a turn's reference, the brain's index, a room's judgements, an added agent's gate options |
+| the gate | a turn's reference, the brain's index, a room's judgements, a new supervisor's gate options |
 | the web unit | the account model: a sender's user, the checks, the grants, a fixed line rendered |
 | the cache warmer | the consumer and its one target, the chat touch |
 | each chat service | every provider route of the protocol, through `bmo-chat-client` |

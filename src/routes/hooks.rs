@@ -81,14 +81,14 @@ async fn title(receiver: &Receiver, ask: &Value) -> Answered {
   answered(json!({ "answer": reads::title(receiver.db(), chat).await.ok().flatten() }))
 }
 
-/// The context a line typed into the chat agent's program goes on with, or null where none was composed.
+/// The context a line typed into the default answerer's program goes on with, or null where none was composed.
 async fn typed(receiver: &Receiver, ask: &Value) -> Answered {
   let asked = read_ask::<AskLine>(ask)?;
   let Some(typing) = receiver.typing() else {
     return answered(json!({ "answer": null }));
   };
   let context = typing
-    .typed_line(receiver, &receiver.deployment().agent, &asked.text, &asked.session_id, now_ms())
+    .typed_line(receiver, &receiver.default_answerer(), &asked.text, &asked.session_id, now_ms())
     .await;
 
   answered(json!({ "answer": context.ok() }))
@@ -105,7 +105,7 @@ async fn verbs(receiver: &Receiver, ask: &Value) -> Answered {
   }
 }
 
-/// The warmer's ping answered: the touch of the chat agent's one session, where the ping is of that target.
+/// The warmer's ping answered: the touch of the default answerer's one session, where the ping is of that target.
 pub async fn ping(State(served): State<Served>, query: Query<Tokened>, body: Bytes) -> Answered {
   let asked = read::<Ping>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
@@ -142,5 +142,5 @@ async fn touched(receiver: &Receiver, ping: &Ping) -> Result<TouchAnswer, Fault>
     });
   };
 
-  touching.touch(receiver, &receiver.deployment().agent, Some(ping.bound_ms)).await
+  touching.touch(receiver, &receiver.default_answerer(), Some(ping.bound_ms)).await
 }

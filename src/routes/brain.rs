@@ -350,7 +350,7 @@ pub async fn owner_spoke(State(served): State<Served>, Path(room): Path<i64>, ra
   answered(json!({ "owner": owner, "spoke": spoke }))
 }
 
-/// The code and its parameters queued as an instruction for the chat agent in the owner's private chat.
+/// The code and its parameters queued as an instruction for the default answerer in the owner's private chat.
 pub async fn notice(State(served): State<Served>, body: axum::body::Bytes) -> Accepted {
   let asked = read::<Map<String, Value>>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
@@ -366,7 +366,7 @@ pub async fn notice(State(served): State<Served>, body: axum::body::Bytes) -> Ac
   };
   let id = queue(
     receiver.db(),
-    &receiver.deployment().agent,
+    &receiver.default_answerer(),
     receiver.owner_room(),
     &frame(&fact, OWNER_INTENT, None, false),
     &queued,

@@ -90,7 +90,7 @@ async fn the_restart_back_notice_goes_to_the_owners_private_room_where_a_notices
 
   let standing = unrun(scratch.db(), DataRoot::new(data.path()), vec![], given);
 
-  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None)]);
   queue_back_notice(&standing.receiver).await;
 
   assert_eq!(

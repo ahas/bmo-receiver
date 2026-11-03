@@ -1,4 +1,4 @@
-//! The cache warmer's touch of the chat agent's session, as the receiver puts it in (docs/bmo-window.md, 「The
+//! The cache warmer's touch of the default answerer's session, as the receiver puts it in (docs/bmo-window.md, 「The
 //! touch」).
 
 use serde::Deserialize;

@@ -36,7 +36,7 @@ pub async fn room(receiver: &Receiver, named: Option<&str>) -> Result<Vec<String
     }]);
   };
   let wanted = named.trim();
-  let rooms = all(db, r#"SELECT DISTINCT "chat_id" FROM "room_answerers" ORDER BY "chat_id""#, vec![])
+  let rooms = all(db, r#"SELECT DISTINCT "chat_id" FROM "room_supervisors" ORDER BY "chat_id""#, vec![])
     .await
     .ok()
     .unwrap_or_default();

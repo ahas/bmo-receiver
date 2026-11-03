@@ -1,6 +1,6 @@
 //! A supervisor's or a role's road the agency moved, returned or found closed, told to the owner
 //! (docs/wake.md, 「Quiet instructions」, 「A road's change」): each `road.changed` one instruction for the
-//! chat agent's session in the owner's private chat, a newer fact of the same supervisor or role in place
+//! default answerer's session in the owner's private chat, a newer fact of the same supervisor or role in place
 //! of one still waiting, asking for one sentence in the owner's language, a reopening command set apart
 //! exactly as the agency wrote it.
 
@@ -221,7 +221,7 @@ impl RoadChanges {
     RoadChanges { receiver }
   }
 
-  /// One fact queued for the chat agent's session in the owner's private chat, in place of one of the same
+  /// One fact queued for the default answerer's session in the owner's private chat, in place of one of the same
   /// supervisor or role still waiting; its instruction's id.
   pub async fn told(&self, data: &Value) -> Result<i64, String> {
     let fact = serde_json::from_value::<RoadFact>(data.clone()).map_err(|why| why.to_string())?;
@@ -236,7 +236,7 @@ impl RoadChanges {
 
     queue(
       receiver.db(),
-      &receiver.deployment().agent,
+      &receiver.default_answerer(),
       receiver.owner_room(),
       &fact.instruction(),
       &queued,

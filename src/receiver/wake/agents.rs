@@ -16,8 +16,8 @@ use crate::secrets;
 use crate::{all, now_ms, one, run};
 
 /// One designated agent of a room: its registration name, the words a room calls it by, how long a room it
-/// answered keeps it listening where it keeps a window at all, and whether it answers the rooms that name
-/// nobody.
+/// answered keeps it listening where it keeps a window at all, and whether the default answerer setting names it,
+/// so it answers the rooms that name nobody.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Designated {
   pub name: String,
@@ -28,8 +28,8 @@ pub struct Designated {
 
 impl Designated {
   /// The agent as its registration gives it: its label and the words its row names, held as one line
-  /// separated by commas.
-  pub fn of(agent: &Agent) -> Self {
+  /// separated by commas; `default` is the name the default answerer setting holds.
+  pub fn of(agent: &Agent, default: &str) -> Self {
     let words = text(&agent.row, "aliases").unwrap_or_default();
     let named = agent.label.clone().into_iter().chain(words.split(',').map(str::to_owned));
 
@@ -37,13 +37,8 @@ impl Designated {
       name: agent.name.clone(),
       call_names: named.map(trim).filter(|word| !word.is_empty()).collect(),
       window_seconds: count(&agent.row, "windowSeconds"),
-      default_answerer: flag(&agent.row, "defaultAnswerer"),
+      default_answerer: agent.name == default,
     }
-  }
-
-  /// Whether it answers beside the chat agent rather than as it: any agent that is not the default answerer.
-  pub fn beside(&self) -> bool {
-    !self.default_answerer
   }
 
   /// Whether the words call it: its label or one of its words stands in them, in either case. The secret marker is
@@ -66,12 +61,6 @@ fn trim(word: String) -> String {
 
 fn text(row: &Map<String, Value>, key: &str) -> Option<String> {
   row.get(key).and_then(|value| value.as_str()).map(|word| word.to_owned())
-}
-
-fn flag(row: &Map<String, Value>, key: &str) -> bool {
-  row
-    .get(key)
-    .is_some_and(|value| value.as_bool().unwrap_or_else(|| value.as_i64().is_some_and(|held| held != 0)))
 }
 
 fn count(row: &Map<String, Value>, key: &str) -> Option<i64> {
@@ -108,10 +97,11 @@ pub async fn registered(receiver: &Receiver, name: &str) -> Result<Option<Design
 /// awake.
 async fn listed(receiver: &Receiver) -> Result<Vec<(String, Designated, bool)>, NotReceived> {
   let listed: Agents = receiver.agents().await.map_err(NotReceived::from)?;
+  let default = receiver.default_answerer();
   let mut agents = listed
     .agents
     .iter()
-    .map(|agent| (agent.name.clone(), Designated::of(agent), agent.awake))
+    .map(|agent| (agent.name.clone(), Designated::of(agent, &default), agent.awake))
     .collect::<Vec<(String, Designated, bool)>>();
 
   agents.sort_by(|one, other| one.0.cmp(&other.0));
@@ -119,8 +109,8 @@ async fn listed(receiver: &Receiver) -> Result<Vec<(String, Designated, bool)>, 
   Ok(agents)
 }
 
-/// The agent that answers the rooms that name nobody: the awake one its registration marks as the default,
-/// and where none does, the deployment's own chat agent, called by nothing and keeping no window.
+/// The agent that answers the rooms that name nobody: the one the default answerer setting names, as the agency
+/// registers it where it is awake, and otherwise by its name alone, called by nothing and keeping no window.
 pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotReceived> {
   Ok(
     awake(receiver)
@@ -129,7 +119,7 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
       .find(|agent| agent.default_answerer)
       .cloned()
       .unwrap_or_else(|| Designated {
-        name: receiver.deployment().agent.clone(),
+        name: receiver.default_answerer(),
         call_names: Vec::new(),
         window_seconds: None,
         default_answerer: true,
@@ -153,19 +143,21 @@ pub async fn named_among(
 ) -> Result<Vec<Designated>, NotReceived> {
   let rows = all(
     db,
-    r#"SELECT "agent" FROM "room_answerers" WHERE "chat_id" = $1 ORDER BY "agent""#,
+    r#"SELECT "supervisor" FROM "room_supervisors" WHERE "chat_id" = $1 ORDER BY "supervisor""#,
     vec![chat_id.into()],
   )
   .await?;
-  let named: Vec<String> =
-    rows.iter().map(|row| row.try_get::<String>("", "agent")).collect::<Result<_, _>>()?;
+  let named: Vec<String> = rows
+    .iter()
+    .map(|row| row.try_get::<String>("", "supervisor"))
+    .collect::<Result<_, _>>()?;
 
   Ok(awake.iter().filter(|agent| named.contains(&agent.name)).cloned().collect())
 }
 
 /// Who answers in a room, and whether one of them answers it alone: a room that records one answerer, or one
-/// that records none and is a user's own private chat with the chat agent, the owner's or anyone else's, as the
-/// room's road declares it, which is the chat agent's.
+/// that records none and is a user's own private chat, the owner's or anyone else's, as the room's road declares
+/// it, which is the default answerer's.
 pub async fn room_designated(
   receiver: &Receiver,
   chat_id: i64,
@@ -184,7 +176,7 @@ pub async fn room_designated(
   Ok((answerers, alone))
 }
 
-/// Whether a room is a user's own private chat: its road says it is a one-to-one with the chat agent, with a
+/// Whether a room is a user's own private chat: its road says it is a one-to-one with the road's own voice, with a
 /// person whose sender the account model links to a user.
 async fn private_room(receiver: &Receiver, private_to: Option<i64>) -> Result<bool, NotReceived> {
   match private_to {
@@ -211,7 +203,7 @@ pub async fn answers(receiver: &Receiver, agent: &str, chat_id: i64) -> Result<b
 
 /// The first agent a room records as its answerer, where it records one; none where it records nobody. The
 /// instruction a job's status notice queues goes to this agent, then to the requester's private room, then to the
-/// chat agent (docs/api.md, 「Instructions」).
+/// default answerer (docs/api.md, 「Instructions」).
 pub async fn answerer(receiver: &Receiver, chat_id: i64) -> Result<Option<String>, NotReceived> {
   Ok(named_designated(receiver, chat_id).await?.first().map(|agent| agent.name.clone()))
 }
@@ -231,10 +223,10 @@ pub async fn voice_of(receiver: &Receiver, chat_id: i64) -> Result<String, NotRe
   })
 }
 
-/// The sender number an agent's words are filed under in a room. For the agent the road itself speaks as it is
-/// who the room's road says the chat agent is there, whichever road carried the message: an answer said on
-/// another road there is filed under the number that road gave the agent, not the one a console gave it for its
-/// own rooms. Every other agent's, and the chat agent's where the room's road names nobody, is the number the
+/// The sender number an agent's words are filed under in a room. For the default answerer, the road's own voice,
+/// it is who the room's road says speaks there, whichever road carried the message: an answer said on another
+/// road there is filed under the number that road gave the agent, not the one a console gave it for its own
+/// rooms. Every other agent's, and the default answerer's where the room's road names nobody, is the number the
 /// road gave it.
 pub async fn own_number(
   receiver: &Receiver,

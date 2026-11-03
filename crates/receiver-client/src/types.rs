@@ -35,8 +35,9 @@ pub struct Room {
   pub pinned: bool,
   /// The people that have stood as a sender in the room.
   pub senders: Vec<i64>,
-  /// The agents other than the chat agent answering in the room.
-  pub companions: Vec<String>,
+  /// The supervisors the room names to answer it, in name order; empty where it names none and the default
+  /// answerer answers it.
+  pub supervisors: Vec<String>,
   pub owner_room: bool,
   pub registered: bool,
   /// The room where work filed from this one is told.
@@ -136,8 +137,8 @@ pub struct RoomTitle {
 #[serde(rename_all = "camelCase")]
 pub struct Answerer {
   pub agent_name: String,
-  /// Whether it answers beside the chat agent rather than as it: any agent but the default answerer.
-  pub companion: bool,
+  /// Whether it is the supervisor the receiver's default answerer setting names.
+  pub default_answerer: bool,
 }
 
 /// `GET /rooms/{roomId}/answerers`: the room's default answerer, its voice, and every agent answering it.
@@ -432,7 +433,7 @@ pub struct Figures {
   pub agents: Vec<AgentFigure>,
 }
 
-/// How long the chat agent's window in a room has left.
+/// How long the default answerer's window in a room has left.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Window {
@@ -852,19 +853,20 @@ pub struct TalkAnswer {
   pub answer: Option<String>,
 }
 
-/// A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.
-/// Its order is `order` whole with `quotaShare`, or `provider` and `model` alone, or both, the order's first
-/// entry then being that provider and model.
+/// A supervisor added with a room of the console's own. Its order is `order` whole with `quotaShare`, or
+/// `provider` and `model` alone, or both, the order's first entry then being that provider and model.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CompanionRequest {
+pub struct SupervisorRequest {
   pub name: String,
   pub label: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub provider: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub model: Option<String>,
-  pub worker: String,
+  /// The repository its items go to, one the agency holds.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub repository: Option<String>,
   pub room: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub order: Option<Vec<OrderEntry>>,
@@ -888,33 +890,62 @@ pub struct OrderEntry {
   pub answer_tokens: Option<i64>,
 }
 
-/// One agent added on the console.
+/// The console room the receiver stood up for a supervisor it added: whether it took back one already standing
+/// under the name, and what the owner is told of that.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Companion {
-  pub name: String,
-  pub label: String,
-  /// The room the receiver stood up for it, where it did.
-  pub id: Option<i64>,
-}
-
-/// An agent added on the console and the room it answers.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct CompanionRoom {
+pub struct AddedRoom {
   pub id: i64,
   pub taken_back: bool,
   pub said: Option<Value>,
 }
 
-/// Every agent added on the console as it now stands.
+/// `POST /supervisors`: the agency's read of the supervisor, what became of its brain, and its room.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Companions {
-  pub items: Vec<Companion>,
-  pub more: bool,
-  pub room: Option<CompanionRoom>,
-  pub said: Option<Value>,
+pub struct SupervisorAdded {
+  pub supervisor: Value,
+  pub brain: Value,
+  pub room: AddedRoom,
+}
+
+/// A reset asked of a supervisor: its ranges, whether it only counts, and who asks.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SupervisorReset {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub conversation: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub person: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub dry_run: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub by: Option<String>,
+}
+
+/// One room a supervisor answers: whether the room names it, or names none and it is the default answerer, and
+/// whether it answers there alone.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SupervisorRoom {
+  pub id: i64,
+  pub title: Option<String>,
+  pub named: bool,
+  pub alone: bool,
+}
+
+/// The default answerer setting: the supervisor that answers every room naming none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DefaultAnswerer {
+  pub supervisor: String,
+}
+
+/// A room's whole list of supervisors.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomSupervisors {
+  pub supervisors: Vec<String>,
 }
 
 /// The pinned order as it now stands.

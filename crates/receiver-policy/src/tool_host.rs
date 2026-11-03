@@ -1,4 +1,4 @@
-//! What the receiver hears of the tool host's catalogue and tells the chat agents of it (docs/boundary-api.md,
+//! What the receiver hears of the tool host's catalogue and tells the supervisors of it (docs/boundary-api.md,
 //! 「The tool host」; docs/wake.md, 「Quiet instructions」): the stream's clocks, and the words a tool placed, updated
 //! or removed is told in.
 

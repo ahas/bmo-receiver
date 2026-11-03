@@ -137,25 +137,25 @@ family. No code carries a sentence in a room's language.
 | `contact-unknown` | 409 | `label` | the provider does not know a contact the start names |
 | `start-refused` | 409 | `label`, `detail` | the provider refused to start the conversation, for its own reason |
 
-### AddedAgentRefusal
+### SupervisorRefusal
 
-The refusals of an agent added on the console with a room of its own (`docs/api.md`, 「Agents added on the
-console」). Two of its codes, `not-companion` and `seeded-companion`, keep the names the console's language pack
-matches them by.
+The refusals of the supervisor routes and of a room's list of supervisors (`docs/api.md`, 「Supervisors」).
 
 | Code | Status | Fields | When |
 |---|---|---|---|
-| `not-companion` | 404 | `agent` | the agent named is not one added on the console |
+| `unknown-supervisor` | 404 | `supervisor` | the agency registers no supervisor of the name |
 | `name` | 400 | | a name that is no name |
-| `name-taken` | 409 | `name` | the name is another agent's |
+| `name-taken` | 409 | `name` | the name is another supervisor's |
 | `label` | 400 | | no label |
-| `provider` | 400 | `provider` | a provider that cannot carry a chat agent |
+| `provider` | 400 | `provider` | a provider that cannot carry the chat line |
 | `model` | 400 | | a model that is no registered model with an address |
-| `worker` | 400 | `worker` | a worker that is no worker |
+| `repository` | 400 | `repository` | a repository the agency does not hold |
 | `room` | 400 | | no room title |
 | `order` | 400 | `member` | the agency refused the order at the member named, `order` for the whole list or `order[<n>]` for one entry |
 | `quota-share` | 400 | | a quota share that is no fraction from 0 to 1 |
-| `seeded-companion` | 409 | `label` | a seeded agent asked to be removed |
+| `seeded` | 409 | `label` | a supervisor the deployment seeds asked to be removed |
+| `default-answerer` | 409 | `label` | the supervisor the default answerer setting names asked to be removed |
+| `running` | 409 | `label` | a supervisor a turn holds now asked to be removed without `force` |
 | `action` | 400 | | an action the route does not take |
 
 ## Facts
@@ -189,11 +189,11 @@ session once the setting has changed, one waiting per setting.
 | `member-muted` | `muted` | the owner muted or unmuted a member of the room |
 | `mute-target-missing` | | a mute or an unmute named nobody who can be: neither an answered person nor a number, or the owner or the agent |
 
-### AddedAgentFact
+### SupervisorFact
 
 | Code | Fields | When |
 |---|---|---|
-| `room-taken-back` | `label`, `title` | an agent added on the console took back a room already standing under its name |
+| `room-taken-back` | `label`, `title` | a supervisor added on the console took back a room already standing under its name |
 
 ### RoomRemovalWarning
 

@@ -73,8 +73,8 @@ pub async fn overtaken(receiver: &Receiver, asker: &Asker) -> Option<String> {
   overtakes(point, began).then(|| overtaken_refusal(agent))
 }
 
-/// The kind a reset's move of the point is published under, the agency's own name for it.
-pub const CUT_OFF: &str = "companion-reset.created";
+/// The kind a reset's move of the point is published under.
+pub const CUT_OFF: &str = "supervisor-reset.created";
 
 /// The cut-off as the service hears it on the agency's stream: each one lets go what waited for the agent's
 /// turns in the conversations the runner holds.

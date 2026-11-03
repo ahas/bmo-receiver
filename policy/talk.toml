@@ -1,6 +1,6 @@
-# A talk the owner has with the chat agent from the console about one thing the owner has open there (docs/boundary-
+# A talk the owner has with the default answerer from the console about one thing the owner has open there (docs/boundary-
 # api.md, 「For bmo-job」, `POST /talks`): the lines a turn of it is composed in. `{owner}` is the owner's name as
-# the configuration gives it, `{agent}` the chat agent's registered label; `{name}` marks what each other line carries.
+# the configuration gives it, `{agent}` the default answerer's registered label; `{name}` marks what each other line carries.
 
 # How many of the last turns a turn restates, and how much of each, in characters.
 turns_given = 6

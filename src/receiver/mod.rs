@@ -4,6 +4,7 @@
 //! wakes. Nothing here reads which service a message came from in order to decide anything.
 
 pub mod commands;
+pub mod default_answerer;
 pub mod figures;
 pub mod files;
 pub mod handover;
@@ -315,11 +316,11 @@ impl Runner for NoRunner {
 pub struct Deployment {
   /// The owner, whose commands the receiver takes.
   pub owner_id: i64,
-  /// The chat agent's registration name, whose session takes the acknowledgements.
+  /// The configured agent's registration name, which the default answerer setting is seeded with.
   pub agent: String,
-  /// The name the chat agent's own words are filed under.
+  /// The name the configured agent's own words are filed under.
   pub sender_name: String,
-  /// The words a room calls the chat agent by, left off the front of an owner's command.
+  /// The words a room calls the configured agent by, left off the front of an owner's command.
   pub addresses: Vec<String>,
   /// The infrastructure room, where the configuration names one.
   pub infra_room: Option<i64>,
@@ -336,7 +337,7 @@ pub struct Deployment {
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
 /// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, and the cache warmer the
-/// chat agent's one session prefix is kept warm through.
+/// default answerer's one session prefix is kept warm through.
 #[derive(Clone)]
 pub struct Units {
   pub roads: Roads,
@@ -360,6 +361,7 @@ pub struct Receiver {
   db: DatabaseConnection,
   data_root: DataRoot,
   deployment: Arc<Deployment>,
+  default_answerer: default_answerer::DefaultAnswerer,
   units: Units,
   agents: Kept<(), Agents>,
   speech: Speech,
@@ -401,6 +403,7 @@ impl Receiver {
   /// runner are given.
   pub fn new(db: DatabaseConnection, data_root: DataRoot, deployment: Deployment, units: Units) -> Self {
     let deployment = Arc::new(deployment);
+    let default_answerer = default_answerer::DefaultAnswerer::configured(&deployment.agent);
     let news: Arc<dyn News> = Arc::new(Unheard);
 
     units.roads.with_store(db.clone());
@@ -408,10 +411,17 @@ impl Receiver {
     units.roads.with_owner_room(deployment.owner_room.unwrap_or(deployment.owner_id));
 
     Self {
-      speech: Speech::new(db.clone(), deployment.clone(), units.clone(), news.clone()),
+      speech: Speech::new(
+        db.clone(),
+        deployment.clone(),
+        default_answerer.clone(),
+        units.clone(),
+        news.clone(),
+      ),
       db,
       data_root,
       deployment,
+      default_answerer,
       units,
       agents: Kept::new(Duration::from_secs(KEPT.agents_seconds)),
       news,
@@ -449,7 +459,7 @@ impl Receiver {
     self.review_gate
   }
 
-  /// The conversations that answer a line typed into the chat agent's program, and that take the warmer's touch
+  /// The conversations that answer a line typed into the default answerer's program, and that take the warmer's touch
   /// of a quiet room's session; the first given stands, for every clone alike.
   pub fn hold_typing(self, typing: Arc<dyn Typing>) {
     let _ = self.typing.set(typing);
@@ -492,7 +502,13 @@ impl Receiver {
 
   /// The receiver telling its news to this hearer, its own lines' too.
   pub fn with_news(mut self, news: Arc<dyn News>) -> Self {
-    self.speech = Speech::new(self.db.clone(), self.deployment.clone(), self.units.clone(), news.clone());
+    self.speech = Speech::new(
+      self.db.clone(),
+      self.deployment.clone(),
+      self.default_answerer.clone(),
+      self.units.clone(),
+      news.clone(),
+    );
     self.news = news;
     self
   }
@@ -543,6 +559,22 @@ impl Receiver {
 
   pub fn deployment(&self) -> &Deployment {
     &self.deployment
+  }
+
+  /// The supervisor the default answerer setting names now: the one that answers every room naming none
+  /// (docs/api.md, 「Supervisors」).
+  pub fn default_answerer(&self) -> String {
+    self.default_answerer.name()
+  }
+
+  /// The default answerer setting as the store holds it, read into the process.
+  pub async fn load_default_answerer(&self) -> Result<(), Fault> {
+    self.default_answerer.load(&self.db).await
+  }
+
+  /// The default answerer setting moved to the supervisor named.
+  pub async fn set_default_answerer(&self, name: &str) -> Result<(), Fault> {
+    self.default_answerer.set(&self.db, name).await
   }
 
   /// The owner as a sender: his number on each road. A room is never read off it.
@@ -762,7 +794,7 @@ impl Receiver {
 
   // The setting's new state, told to the room's own session to say in its own voice.
   async fn acknowledge(&self, chat_id: i64, fact: SettingFact) -> Result<(), NotReceived> {
-    notices::queue(&self.db, &self.deployment.agent, chat_id, &fact).await?;
+    notices::queue(&self.db, &self.default_answerer(), chat_id, &fact).await?;
 
     // The acknowledgement goes out at once rather than at the pass's next tick.
     if let Some(pass) = self.pass.get() {

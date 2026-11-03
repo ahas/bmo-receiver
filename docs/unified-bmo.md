@@ -1,18 +1,20 @@
-# One chat agent
+# One session across rooms
 
 ## One agent, one session
 
-- **One row.** The chat agent is the agency's supervisor whose row makes the one session: the `agent` scope, the
-  `window` shape and the default answerer. The receiver reads it from `GET /supervisors` like every other
-  supervisor; nothing of this document is read off its name.
-  - The chat agent in the owner's private chat and in the group rooms is the same agent.
+- **One row.** What this document states holds for a supervisor whose row makes the one session: the `agent`
+  scope and the `window` shape. The receiver reads it from `GET /supervisors` like every other supervisor; nothing
+  of this document is read off its name, and whether it is the default answerer is the receiver's setting, not its
+  row (`docs/api.md`, 「Supervisors」).
+  - The supervisor in the owner's private chat and in the group rooms is the same agent.
   - The work it hands off runs as the agency's roles — a job, a search, a delegation — each apart from it.
 - **Who carries it:** the agency, on the one session its row keeps across rooms (`POST /sessions` with the
   `agent` scope), as the resident program standing in the agent's one pane. Every round, fold and touch of every
   room is a turn put into it (`POST /sessions/{sessionId}/turns`), and a person watching the pane sees it working
   and can type into it.
-- **Every room but one other agents answer alone.** A room made for an agent names who answers in it. Where
-  the chat agent is not among them, its words never reach this session, the room is never recorded among the
+- **A room answered by other supervisors alone stays out of it.** A room names the supervisors that answer in
+  it. Where this supervisor is not among them, nor the default answerer of a room naming none, its words never
+  reach this session, the room is never recorded among the
   agent's rooms, and nothing of it is in the transcript; where it is, the room is one more group room of this
   session's, with the other agents' words in its line.
 - **One queue:** chat runs for every room are handled one at a time from a common queue.
@@ -31,7 +33,7 @@
 - **The fixed system prompt** is the chat line's, which the agency composes and keeps (the room-switch contract,
   the absolute rules, the common manual, the answer rules, the base persona). It is the same for every room.
 - **The base persona is the agent's own,** the base layer of its brain, which the agency reads itself when it
-  launches the chat agent and puts after the line's documents. The receiver hands no base persona with a turn.
+  launches the supervisor and puts after the line's documents. The receiver hands no base persona with a turn.
 - **The persona a room adds is the receiver's:** the room's tone layer, `prompts/persona/<tone>.md` under the data
   root, and the room's own persona, `prompts/persona/rooms/<chat id>.md`, each under its header in the turn's block.
 - **What a turn's scaffolding means is said there once**, not on every turn: that a quiet instruction comes from
@@ -114,7 +116,7 @@
     service last showed the owner by in that room, else under the owner's registered name, the user the web
     unit's account model links the owner's number to, and under the owner's number where neither stands. The
     owner's console rows are never read for it, and a name another room calls the owner by never reaches this
-    one. The chat agent's name never stands on the owner's row.
+    one. The supervisor's name never stands on the owner's row.
   - The answer stays in the archive as markdown, as written, and shows in the console; it goes to the room's other
     providers as every kept message does.
   - A long answer stands as the same run of messages it would have stood as on the other road: the room's line
@@ -275,8 +277,8 @@
 - **The run-privilege mark** at the head of the request (the turn's `privileged`) only says whether all new
   messages this turn are the owner's; it is not a lock. It is read off the words each round itself takes, in
   any room, his private room or not, and whatever an earlier round of the same conversation read, and every
-  question of that round's draft process carries it. Only people's words count: a line an agent said, the chat
-  agent's, an added agent's or the receiver's own, neither grants it nor takes it away, so a round whose people's
+  question of that round's draft process carries it. Only people's words count: a line an agent said, any
+  supervisor's or the receiver's own, neither grants it nor takes it away, so a round whose people's
   words are all the owner's is his. A round that takes no people's words, a quiet instruction's or agents' lines
   alone, is the owner's in his private room alone.
 - **The same absolute rules also cover:** not carrying room talk elsewhere; refusing questions about privacy and

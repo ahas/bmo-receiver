@@ -56,40 +56,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/companions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** A chat agent added with a room of the console's own. */
-        post: operations["addCompanion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/companions/{companionName}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** An agent added on the console taken out, its room half given up; a seeded one is refused. */
-        delete: operations["removeCompanion"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/consult-lines": {
         parameters: {
             query?: never;
@@ -102,6 +68,24 @@ export interface paths {
         put?: never;
         /** A line said in the consult room under an agent's own name, or handed to that agent outside its own round. */
         post: operations["consultLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/default-answerer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The supervisor that answers every room naming none. */
+        get: operations["defaultAnswerer"];
+        /** The default answerer setting moved to a supervisor the agency registers. */
+        put: operations["setDefaultAnswerer"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -375,7 +359,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** A code and its parameters queued for the chat agent in the owner's private chat. */
+        /** A code and its parameters queued for the default answerer in the owner's private chat. */
         post: operations["ownerNotice"];
         delete?: never;
         options?: never;
@@ -1073,6 +1057,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/supervisors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A room's whole list of supervisors; an empty list hands the room to the default answerer. */
+        put: operations["setRoomSupervisors"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/title": {
         parameters: {
             query?: never;
@@ -1097,7 +1098,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** How long the chat agent's window in a room has left. */
+        /** How long the default answerer's window in a room has left. */
         get: operations["window"];
         put?: never;
         post?: never;
@@ -1192,6 +1193,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/supervisors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A supervisor added with a room of the console's own. */
+        post: operations["addSupervisor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/supervisors/{supervisorName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** A supervisor taken out, the rooms naming it handed to the agency as shared; a seeded supervisor, the default answerer and one a turn holds are refused. */
+        delete: operations["removeSupervisor"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/supervisors/{supervisorName}/resets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A supervisor started afresh, handed the rooms that name it alone and beside another. */
+        post: operations["resetSupervisor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/supervisors/{supervisorName}/rooms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The rooms a supervisor answers: those that name it and, for the default answerer, those naming none. */
+        get: operations["supervisorRooms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/talks": {
         parameters: {
             query?: never;
@@ -1201,7 +1270,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** A talk the owner has with the chat agent about a topic it names. */
+        /** A talk the owner has with the default answerer about a topic it names. */
         post: operations["talk"];
         delete?: never;
         options?: never;
@@ -1283,6 +1352,16 @@ export interface components {
             roomId: number;
             title?: string | null;
         };
+        /**
+         * @description The console room the receiver stood up for a supervisor it added: whether it took back one already standing
+         *     under the name, and what the owner is told of that.
+         */
+        AddedRoom: {
+            /** Format: int64 */
+            id: number;
+            said: unknown;
+            takenBack: boolean;
+        };
         /** @description One agent's figures in a room. */
         AgentFigure: {
             agentName: string;
@@ -1310,8 +1389,8 @@ export interface components {
         /** @description One agent answering a room. */
         Answerer: {
             agentName: string;
-            /** @description Whether it answers beside the chat agent rather than as it: any agent but the default answerer. */
-            companion: boolean;
+            /** @description Whether it is the supervisor the receiver's default answerer setting names. */
+            defaultAnswerer: boolean;
         };
         /** @description `GET /rooms/{roomId}/answerers`: the room's default answerer, its voice, and every agent answering it. */
         Answerers: {
@@ -1375,49 +1454,6 @@ export interface components {
              */
             since: number;
         };
-        /** @description One agent added on the console. */
-        Companion: {
-            /**
-             * Format: int64
-             * @description The room the receiver stood up for it, where it did.
-             */
-            id: number | null;
-            label: string;
-            name: string;
-        };
-        /**
-         * @description A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.
-         *     Its order is `order` whole with `quotaShare`, or `provider` and `model` alone, or both, the order's first
-         *     entry then being that provider and model.
-         */
-        CompanionRequest: {
-            label: string;
-            model?: string | null;
-            name: string;
-            order?: components["schemas"]["OrderEntry"][] | null;
-            provider?: string | null;
-            /**
-             * Format: double
-             * @description The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.
-             */
-            quotaShare?: number | null;
-            room: string;
-            worker: string;
-        };
-        /** @description An agent added on the console and the room it answers. */
-        CompanionRoom: {
-            /** Format: int64 */
-            id: number;
-            said: unknown;
-            takenBack: boolean;
-        };
-        /** @description Every agent added on the console as it now stands. */
-        Companions: {
-            items: components["schemas"]["Companion"][];
-            more: boolean;
-            room: components["schemas"]["CompanionRoom"] | null;
-            said: unknown;
-        };
         /** @description What an agent is shown of the other agents' work. */
         ConsultBlock: {
             block: unknown;
@@ -1458,6 +1494,10 @@ export interface components {
         Created: {
             /** Format: int64 */
             id: number;
+        };
+        /** @description The default answerer setting: the supervisor that answers every room naming none. */
+        DefaultAnswerer: {
+            supervisor: string;
         };
         /** @description A row of the draft process table (docs/drafting.md, 「The process table」). */
         DraftProcess: {
@@ -1956,6 +1996,11 @@ export interface components {
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
+        Page15: {
+            items: components["schemas"]["SupervisorRoom"][];
+            more: boolean;
+        };
+        /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page2: {
             items: components["schemas"]["RoomAnswerers"][];
             more: boolean;
@@ -2136,8 +2181,6 @@ export interface components {
         };
         /** @description One room, as the room list and one room's read answer it. */
         Room: {
-            /** @description The agents other than the chat agent answering in the room. */
-            companions: string[];
             /** Format: int64 */
             id: number;
             /**
@@ -2154,6 +2197,11 @@ export interface components {
             registered: boolean;
             /** @description The people that have stood as a sender in the room. */
             senders: number[];
+            /**
+             * @description The supervisors the room names to answer it, in name order; empty where it names none and the default
+             *     answerer answers it.
+             */
+            supervisors: string[];
             title: string | null;
             /**
              * Format: int64
@@ -2210,6 +2258,10 @@ export interface components {
             text: string | null;
             /** Format: int64 */
             updatedAt: number | null;
+        };
+        /** @description A room's whole list of supervisors. */
+        RoomSupervisors: {
+            supervisors: string[];
         };
         /** @description A room's name alone. */
         RoomTitle: {
@@ -2296,6 +2348,49 @@ export interface components {
         Stickers: {
             items: components["schemas"]["Sticker"][];
         };
+        /** @description `POST /supervisors`: the agency's read of the supervisor, what became of its brain, and its room. */
+        SupervisorAdded: {
+            brain: unknown;
+            room: components["schemas"]["AddedRoom"];
+            supervisor: unknown;
+        };
+        /**
+         * @description A supervisor added with a room of the console's own. Its order is `order` whole with `quotaShare`, or
+         *     `provider` and `model` alone, or both, the order's first entry then being that provider and model.
+         */
+        SupervisorRequest: {
+            label: string;
+            model?: string | null;
+            name: string;
+            order?: components["schemas"]["OrderEntry"][] | null;
+            provider?: string | null;
+            /**
+             * Format: double
+             * @description The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.
+             */
+            quotaShare?: number | null;
+            /** @description The repository its items go to, one the agency holds. */
+            repository?: string | null;
+            room: string;
+        };
+        /** @description A reset asked of a supervisor: its ranges, whether it only counts, and who asks. */
+        SupervisorReset: {
+            by?: string | null;
+            conversation?: boolean | null;
+            dryRun?: boolean | null;
+            person?: boolean | null;
+        };
+        /**
+         * @description One room a supervisor answers: whether the room names it, or names none and it is the default answerer, and
+         *     whether it answers there alone.
+         */
+        SupervisorRoom: {
+            alone: boolean;
+            /** Format: int64 */
+            id: number;
+            named: boolean;
+            title: string | null;
+        };
         /** @description A talk's topic and what the owner says. */
         Talk: {
             said: string;
@@ -2326,7 +2421,7 @@ export interface components {
             autoplay?: boolean | null;
             on?: boolean | null;
         };
-        /** @description How long the chat agent's window in a room has left. */
+        /** @description How long the default answerer's window in a room has left. */
         Window: {
             /**
              * Format: int64
@@ -2481,72 +2576,6 @@ export interface operations {
             };
         };
     };
-    addCompanion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CompanionRequest"];
-            };
-        };
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Companions"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, upstream-failed, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    removeCompanion: {
-        parameters: {
-            query?: {
-                by?: string;
-            };
-            header?: never;
-            path: {
-                companionName: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Companions"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, upstream-failed, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
     consultBlock: {
         parameters: {
             query: {
@@ -2601,6 +2630,68 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    defaultAnswerer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DefaultAnswerer"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    setDefaultAnswerer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefaultAnswerer"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DefaultAnswerer"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4890,6 +4981,41 @@ export interface operations {
             };
         };
     };
+    setRoomSupervisors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomSupervisors"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomSupervisors"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     roomTitle: {
         parameters: {
             query?: never;
@@ -5101,6 +5227,138 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    addSupervisor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupervisorRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupervisorAdded"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, conflict, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    removeSupervisor: {
+        parameters: {
+            query?: {
+                by?: string;
+                forgetBrain?: boolean;
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                supervisorName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    resetSupervisor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supervisorName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupervisorReset"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, upstream-failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    supervisorRooms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supervisorName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page15"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

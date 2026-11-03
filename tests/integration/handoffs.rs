@@ -38,7 +38,7 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queue
       .at_generation(3)
       .acting(writing_handoff(NOTE)),
   );
-  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
 
   agent.row.insert("sessionScope".to_owned(), json!("agent"));
   front.standing.agency.registering(vec![agent]);
@@ -85,7 +85,7 @@ async fn an_agent_whose_session_never_opened_has_nothing_to_hand_over() {
 
   prompt_documents(front.data.path());
   let session = Arc::new(StandInSession::new("agent-c@agent", "unused").acting(writing_handoff(NOTE)));
-  let mut agent = registration("agent-c", "Agent X", vec![ADDRESS], None, true);
+  let mut agent = registration("agent-c", "Agent X", vec![ADDRESS], None);
 
   agent.row.insert("sessionScope".to_owned(), json!("agent"));
   front.standing.agency.registering(vec![agent]);
@@ -109,7 +109,7 @@ async fn a_handoff_asked_again_within_the_span_does_not_reach_the_session_and_an
       .at_generation(3)
       .acting(writing_handoff(NOTE)),
   );
-  let mut agent = registration("agent-b", "Agent X", vec![ADDRESS], None, true);
+  let mut agent = registration("agent-b", "Agent X", vec![ADDRESS], None);
 
   agent.row.insert("sessionScope".to_owned(), json!("agent"));
   front.standing.agency.registering(vec![agent]);
@@ -169,7 +169,7 @@ async fn the_next_fresh_sessions_first_turn_opens_on_the_kept_handoff_then_the_r
     look: Duration::from_millis(5),
   };
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings, AGENT);
-  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
   let kept = data.path().join("kept-handoff.md");
 
   agent.row.insert("sessionScope".to_owned(), json!("agent"));

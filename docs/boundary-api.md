@@ -24,8 +24,9 @@ Beside its own listen address, its token and its database it names, for each uni
 address and the token that unit takes. A chat service's base address names the receiver's `/chat` prefix, where
 the protocol's receiving-side routes stand.
 
-The deployment's names are read from the same file: the owner; the chat agent's registration name, whose label
-and wake words (`GET /supervisors`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
+The deployment's names are read from the same file: the owner; `agent`, the registration name of the supervisor
+the default answerer setting is seeded with where the store holds none (`docs/api.md`, 「Supervisors」),
+whose label and wake words (`GET /supervisors`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
 one is named in place of the room numbered as the owner's own number, a room `owner-room` below stands up on the
 record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's other notices to the owner go to, never a briefing's, which goes to his private room;
 the owner's private room where none is named; the language the rooms are spoken in, which
@@ -60,7 +61,7 @@ base address and token.
   agency did not answer, each one named on its own line.
 - **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
   title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
-  the record as its one provider, the owner and the chat agent its members and the chat agent's number there one
+  the record as its one provider, the owner and the default answerer its members and the default answerer's number there one
   of the console's own. Run again, it prints the room it stood up before and stands up nothing. It writes the
   store and never the configuration, and the room is the owner's private room once the configuration names it
   and the service starts on it.
@@ -161,10 +162,10 @@ room's matter.
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | the supervisors | `GET /supervisors` | | `items`, every supervisor with its row's fields — its `label`, `aliases`, `sessionScope`, `turnShape`, `defaultAnswerer`, `repository`, `voice`, and the `provider`, `model` and `effort` its last turn went out on — and `more`; every supervisor listed stands, and is read as awake; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
-| a supervisor | `GET /supervisors/{supervisorName}` | | the supervisor's row as the list answers it, of which the receiver reads `seeded`, whether the deployment seeds it or it is the default answerer; 404 where no supervisor has the name, read as none. Asked afresh, never kept, before an agent added on the console is taken out (`docs/api.md`, 「Agents added on the console」) |
+| a supervisor | `GET /supervisors/{supervisorName}` | | the supervisor's row as the list answers it, of which the receiver reads `seeded`, whether the deployment seeds it; 404 where no supervisor has the name, read as none. Asked afresh, never kept, before a supervisor is taken out (`docs/api.md`, 「Supervisors」) |
 | a supervisor's reset point | `GET /supervisors/{supervisorName}/reset-point` | | `supervisor` and `resetPoint`, the moment in epoch milliseconds its last reset cut its turns off at, or null where it was never reset; 404 where no supervisor has the name, read as none. Asked afresh, never kept, by every send and every consult line for its agent's reset point (`docs/wake.md`, 「An agent's reset」) |
 | the roles | `GET /roles` | | `roles`, each its `name`, `label`, `description` and `bundles` (each its `name`), which the owner's roster and a role's send read |
-| the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which an agent added on the console is checked against |
+| the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which a supervisor added on the console is checked against |
 | a stand-in | `GET /stand-in?agent=` | | `answers`, whether a stand-in answers the agent while the rest closes its road |
 | the rest | `GET /rest` | | `resting`, `until`, `kind` |
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
@@ -179,7 +180,9 @@ room's matter.
 | list sessions | `GET /sessions` | | `items`, each a session's `id`, `agentName`, `scope` — `agent`, `room`, `role` or `conversation` — and `roomId` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
-| an agent added on the console registered or taken out | `POST /companions`, `DELETE /companions/{companionName}` | `name`, `label`, `worker` and the agent's order as the console hands it — `order` whole with `quotaShare`, or `provider` and `model`, or both; nothing | `ok`, the row written with its order in the one ask; nothing. A field the agency refuses names itself, an order's member as `order[<n>]`. A seeded supervisor is never asked to be taken out: the receiver reads `seeded` off the supervisor first and refuses the console itself |
+| a supervisor registered | `POST /supervisors` | `name`, `label`, `repository` where the console names one, and its order as the console hands it — `order` whole with `quotaShare`, or `provider` and `model`, or both | 201, `supervisor` and `brain`. A field the agency refuses names itself under `field`, an order's member as `order[<n>]`; a name it holds already is 409 `name-taken` |
+| a supervisor's registration ended | `DELETE /supervisors/{supervisorName}?rooms=&forgetBrain=&force=` | `rooms`, the room numbers that name it, joined by commas | 204; 409 `seeded` and `running`. A seeded supervisor, and the one the default answerer setting names, is never asked to be taken out: the receiver reads `seeded` off the supervisor first and refuses the console itself |
+| a supervisor started afresh | `POST /supervisors/{supervisorName}/resets` | `conversation`, `person`, `dryRun`, `by`, and `alone` and `shared`, the rooms that name it alone and beside another | the reset's counts as the agency answers them, handed to the console as they came |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
 | a session's loads | `GET /session-loads/{sessionId}` | | `sessionId`, `documents`, each `path` and `version` |
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
@@ -194,7 +197,7 @@ room's matter.
 | a turn read | `GET /sessions/{sessionId}/turns/{turnId}` | | `state` (`running` or `ended`), `outcome`, `answer`; `unknown-turn` where the session holds no such turn |
 
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
-and is opened again when it drops: `turn.created`, `turn.ended`, `companion-reset.created`,
+and is opened again when it drops: `turn.created`, `turn.ended`, `supervisor-reset.created`,
 `document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
 `overtime-request.created`, `overtime-request.changed`, `road.changed` and `session.deleted`. Each time it opens
 the receiver reads the events kept since the last one it heard and hands those it has not (`docs/wake.md`, 「What
@@ -209,7 +212,7 @@ Of the events whose shape the receiver reads:
 - **`worker.changed`** names `repository`, the repository the job's run ran in, or null for a checkout no
   repository holds any longer, `worker`, the checkout of it the run ran in, and `role`, the role it ran as,
   beside the models and the job.
-- **`companion-reset.created`** names `agent` and either `point`, the moment the reset cut the agent off, which the
+- **`supervisor-reset.created`** names `agent` and either `point`, the moment the reset cut the agent off, which the
   receiver keeps as the agent's reset point (`docs/store.md`, 「The settings」), or the ranges the reset took. The
   point it names is the live signal; the agency's reset-point read is the point itself, read again by every ask
   it judges, so a cut-off the receiver never heard still counts.
@@ -251,7 +254,7 @@ A round's verdicts stand under the answer that ends it. Once the answer is sent 
 `since` the moment the round began, before it took the room's words and asked for their reference, and with
 `messageId` the answer as the room keeps it: on the record its number there, and on a chat service the copy the
 record keeps beside that service's own send. The verdict of the send itself is written under the same message.
-| an added agent's options copied | `POST /options/copied` | `agentName`, `fromAgentName` | 204 |
+| a new supervisor's options copied from the default answerer's | `POST /options/copied` | `agentName`, `fromAgentName` | 204 |
 
 ### The deployments
 
@@ -343,16 +346,10 @@ or whose number is the one that service gave a delivery, is answered as held and
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:
 
-- **The word `companion`** stands in names other units match on, while every chat agent here is an equal
-  supervisor whose rounds run the same way: the agency's resource for the agents the console adds
-  (`POST /companions`, `DELETE /companions/{companionName}`) and its reset's kind `companion-reset.created`, and
-  what the console reads of the receiver, the same two paths, their schemas, the fields `companion` of an
-  `Answerer` and `companions` of a `Room`, and the codes `not-companion` and `seeded-companion`. Each keeps its
-  name until the agency and the web unit rename theirs, and the receiver renames its own in the same change.
-- **The web unit's console** adds an agent in two asks, the receiver's add on the order's first entry and then the
-  whole order on the agency's supervisor, and its language pack holds no wording for the add's refusals `order`
-  and `quota-share`, until it hands the order whole to the receiver's one add (`docs/api.md`, 「Agents added on the
-  console」).
+- **The web unit's console** adds a supervisor in two asks, the receiver's add on the order's first entry and then
+  the whole order on the agency's supervisor, and its language pack holds no wording for the add's refusals
+  `order` and `quota-share`, until it hands the order whole to the receiver's one add (`docs/api.md`,
+  「Supervisors」).
 - **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
   and `version` and reads back only those, until the agency states the item.
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last

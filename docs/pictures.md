@@ -75,7 +75,7 @@ receiver keeps the pictures and decides what a session is shown.
   `avatars-updated`; the receiver keeps them under the data root as `avatars/room/<chatId>.jpg` or
   `avatars/person/<userId>.jpg`.
 - **The `avatars` table** keeps each subject's photo id, its stored path and when it was last taken, for every
-  room and person the archive numbers, the agents added on the console and their rooms among them.
+  room and person the archive numbers, the supervisors added on the console and their rooms among them.
 - **The receiver serves the kept pictures** on the shape every chat service's protocol gives them: `GET /avatars`
   is a page of the pictures kept, each `kind`, `id` and `takenAt`, oldest taken first; `GET /rooms/{roomId}/avatar`
   and `GET /people/{personId}/avatar` are the picture's bytes, typed by `Content-Type`, 404 `not-found` where none

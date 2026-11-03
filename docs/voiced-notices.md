@@ -17,10 +17,10 @@ agent that answers the room says the line.
 - **Every line the system says in a chat on its own account is a voiced notice.** The receiver does not send a
   sentence. It hands the room's voice a quiet instruction carrying the facts, and the session says it in one
   short line, in that room's voice and manner.
-- **The room's voice is the agent that answers it:** the chat agent in a room it answers (every room that names
+- **The room's voice is the agent that answers it:** the default answerer in a room it answers (every room that names
   nobody awake, and every room naming it among its answerers) and, in a room that names only other agents, the
   first of them by name. The row is that agent's, which only
-  its turns take, so a notice for a room the chat agent does not answer reaches the room rather than being let
+  its turns take, so a notice for a room the default answerer does not answer reaches the room rather than being let
   go as its.
 - **The caller owns its facts.** The code that knows what happened writes what the session is told: what
   happened, who asked for it, whether anything follows, as a code with its fields. There is no shared table of
@@ -119,7 +119,7 @@ agent that answers the room says the line.
   only when the agent cannot answer at all. A turn somebody stopped is the other case, and it goes the other
   way: the room that was watching the agent type hears one voiced line saying the answer was cut off with no
   result, the owner hears nothing at all, and nothing is recorded to recover from: a stop is not a failure.
-- **A turn past its clock.** A chat agent's turn past its clock, the chat agent's or an added agent's, gets no
+- **A turn past its clock.** A supervisor's turn past its clock gets no
   holding line in any room: the console shows the answering agent at work. The order below is for a worker's job
   alone, in the notices room. A worker's turn that reached its bound (the agency's `overtime-request.created`) is
   handed to the agent's session in the owner's chat as an order to decide on, keep or cut, never as a line to
@@ -133,8 +133,8 @@ agent that answers the room says the line.
   commits, test and suite counts, file counts, worker and model names, paths, commands. The receiver sends it to
   nobody: the agent that filed the item tells it. An item another agent filed is told to that agent in the room it
   was filed in, where the agent still answers it, as the one fact below, report and all, and the room hears no
-  line of it besides; every other item, the chat agent's own and one whose agent no longer answers its room, is
-  told by the chat agent as follows.
+  line of it besides; every other item, the default answerer's own and one whose agent no longer answers its room, is
+  told by the default answerer as follows.
   1. **The agent writes the owner the report.** The ending fact is told in the owner's own room the report
      belongs to (the room that asked where that is one of the owner's own, the owner's private chat otherwise)
      and carries the worker's report whole. The agent writes the owner the report in its own words there: the
@@ -159,7 +159,7 @@ agent that answers the room says the line.
 
 ## The voice briefing
 
-A line of the chat agent's is heard as well as read: a notice turn of the owner's private chat is spoken as a
+A line of the default answerer's is heard as well as read: a notice turn of the owner's private chat is spoken as a
 summary, and any agent's line can be read out whole from its chip. The voice engine speaks and keeps every
 briefing with its room and its line (its `docs/boundary-api.md`, 「Briefings」); the receiver decides when one is
 spoken, and the session writes what is said.

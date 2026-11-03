@@ -51,7 +51,7 @@ async fn stood() -> (Scratch, TempDir, Standing, Arc<StandInChat>) {
   road.moding(ChatVoice::HumanReader, ChatModeStanding::Active);
 
   let standing = woken(standing(scratch.db(), DataRoot::new(data.path()), vec![road.clone()]));
-  let mut agent = registration(AGENT, SENDER, vec![ADDRESS], None, true);
+  let mut agent = registration(AGENT, SENDER, vec![ADDRESS], None);
 
   agent.row.insert("role".to_owned(), json!("chat"));
   standing.agency.registering(vec![agent]);

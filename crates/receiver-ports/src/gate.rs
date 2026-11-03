@@ -1,5 +1,5 @@
 //! The gate port: a turn's envelope handed over for its reference, the brain's index read, a room's judgements
-//! written and an added agent's gate options copied (`docs/boundary-api.md`, 「The gate」). The bodies are the gate's
+//! written and a supervisor's gate options copied (`docs/boundary-api.md`, 「The gate」). The bodies are the gate's
 //! published shapes (`docs/api.md`): camelCase keys, epoch milliseconds, and the gate's own names — `roomId`,
 //! `messageId`, `speakerIds`, `peopleSpoke`, `gateName`, `agentName` and `fromAgentName`, with the situation road
 //! carrying `agentName`, `roomKind`, its events and `nowAt`.

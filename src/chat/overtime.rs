@@ -1,5 +1,5 @@
 //! A run past its clock, as the agency asks about it (docs/voiced-notices.md, 「A turn past its clock」): the order
-//! to keep or cut it queued for the chat agent in the owner's own chat on `overtime-request.created`, under the
+//! to keep or cut it queued for the default answerer in the owner's own chat on `overtime-request.created`, under the
 //! run's own kind, and withdrawn on `overtime-request.changed` where no round has taken it yet.
 
 use chrono::DateTime;
@@ -71,7 +71,7 @@ pub fn moment(ms: i64) -> String {
     .unwrap_or_else(|| ms.to_string())
 }
 
-/// The order an ask hands the chat agent, written at the moment it is heard (`now`, in epoch milliseconds).
+/// The order an ask hands the default answerer, written at the moment it is heard (`now`, in epoch milliseconds).
 pub fn order(asked: &Asked, now: i64) -> String {
   let said = &OWNER_FACTS.overtime;
   let ask = asked.ask.to_string();
@@ -112,7 +112,7 @@ pub fn kind(run: &str) -> String {
   format!("{}:{run}", OWNER_FACTS.overtime.kind)
 }
 
-/// The order queued for the chat agent in the owner's chat, in place of one for the same run not yet handed over.
+/// The order queued for the default answerer in the owner's chat, in place of one for the same run not yet handed over.
 pub async fn ask(receiver: &Receiver, asked: &Asked) -> Result<i64, Fault> {
   let kind = kind(&asked.run);
   let queued = Queued {
@@ -125,7 +125,7 @@ pub async fn ask(receiver: &Receiver, asked: &Asked) -> Result<i64, Fault> {
 
   queue(
     receiver.db(),
-    &receiver.deployment().agent,
+    &receiver.default_answerer(),
     receiver.notices_room(),
     &order(asked, now_ms()),
     &queued,

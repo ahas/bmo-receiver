@@ -187,7 +187,7 @@ async fn the_owners_setting_command_changes_the_room_and_is_acknowledged_in_its_
     .await
     .unwrap();
 
-  // Each acknowledgement is a row the instruction pass delivers, for the chat agent's session; nothing is woken.
+  // Each acknowledgement is a row the instruction pass delivers, for the default answerer's session; nothing is woken.
   assert!(standing.waking.woken().is_empty());
   assert_eq!(
     scratch

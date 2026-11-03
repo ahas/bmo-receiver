@@ -1,4 +1,4 @@
-//! A talk the owner has with the chat agent, handed over by bmo-job (docs/boundary-api.md, 「For bmo-job」,
+//! A talk the owner has with the default answerer, handed over by bmo-job (docs/boundary-api.md, 「For bmo-job」,
 //! `POST /talks`): the topic, the turns said so far and what he says now, taken as a round of the owner's
 //! private chat and answered with what the agent said, or refused with why it came back with nothing.
 
@@ -151,11 +151,11 @@ pub async fn talk(State(served): State<Served>, body: Bytes) -> Answered {
   }
 
   let Some(taker) = served.receiver.talks() else {
-    let why = "the chat agent's conversations are not standing";
+    let why = "the default answerer's conversations are not standing";
 
     standing.end(&key, Some(why.to_owned()));
 
-    return Err(ready("the chat agent's conversations"));
+    return Err(ready("the default answerer's conversations"));
   };
   let answer = taker.talk(&request).await;
   let why = match &answer {

@@ -189,7 +189,7 @@ async fn talk_the_question_itself_refuses_is_taken_as_an_ordinary_message() {
 
     standing
       .agency
-      .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+      .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
     standing.job.asking(OWNER, asked(id, true));
     standing.job.refusing_talk(code);
     standing
@@ -215,14 +215,14 @@ async fn another_agent_called_is_taken_by_its_own_conversations_and_opens_its_wi
 
   standing.agency.registering(
     [
-      registration(AGENT, "Agent A", vec![ADDRESS], None, true),
-      registration("agent-c", "Agent C", vec!["see"], Some(60), false),
+      registration(AGENT, "Agent A", vec![ADDRESS], None),
+      registration("agent-c", "Agent C", vec!["see"], Some(60)),
     ]
     .to_vec(),
   );
   scratch
     .run(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES (-121, 'agent-a'), (-121, 'agent-c')"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (-121, 'agent-a'), (-121, 'agent-c')"#,
       vec![],
     )
     .await;
@@ -239,7 +239,7 @@ async fn another_agent_called_is_taken_by_its_own_conversations_and_opens_its_wi
     .await
     .unwrap();
 
-  // Her turn is her own conversations' in the one runner, never the chat agent's, and it opens her window.
+  // Her turn is her own conversations' in the one runner, never the default answerer's, and it opens her window.
   assert_eq!(
     standing.taken.handed(),
     [Handed {
@@ -261,7 +261,7 @@ async fn another_agent_called_is_taken_by_its_own_conversations_and_opens_its_wi
       > 0
   );
 
-  // Her answer, filed under her own number, calls the chat agent: it wakes him, and her open window does not
+  // Her answer, filed under her own number, calls the default answerer: it wakes him, and her open window does not
   // wake her with her own words.
   scratch
     .run(
@@ -301,7 +301,7 @@ async fn another_users_private_room_wakes_the_chat_agent_on_every_word_and_a_gro
 
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
   everyone_heard(&scratch).await;
   standing.web.linking(person, "user-9".into());
 
@@ -350,7 +350,7 @@ async fn the_chat_agents_own_words_filed_in_a_room_wake_nobody_and_a_later_word_
 
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
   everyone_heard(&scratch).await;
   scratch
     .run(
@@ -383,7 +383,7 @@ async fn a_persons_file_rides_the_request_that_follows_it_and_a_muted_person_wak
 
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
   everyone_heard(&scratch).await;
   scratch
     .run(
@@ -429,7 +429,7 @@ async fn a_rule_subjects_file_wakes_only_on_the_grounds_words_do_and_rides_the_c
 
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
   standing.web.granting(-140, 55, "rule".into());
 
   // The rule names the sender, which is heard in owner-only mode but is no ground: with no caption and the
@@ -462,7 +462,7 @@ async fn a_picture_wakes_the_agent_inside_the_rooms_open_window_and_in_the_owner
 
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
   everyone_heard(&scratch).await;
 
   // A member's picture with no caption, the window closed, wakes nobody; inside the open window it does.
@@ -491,7 +491,7 @@ async fn words_that_are_nothing_but_the_secret_marker_wake_nobody_and_no_name_is
   // An agent whose wake word stands inside the marker is not called by it.
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec!["secret"], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec!["secret"], None)].to_vec());
   everyone_heard(&scratch).await;
 
   standing
@@ -537,7 +537,7 @@ async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_cha
 
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
   standing.agency.at_rest(Rest {
     resting: true,
     until: Some(4_102_444_800),
@@ -585,7 +585,7 @@ async fn a_room_added_for_the_user_alone_wakes_no_agent_even_where_one_is_called
 
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
 
   for (chat_id, mode) in [(-131, RoomMode::RecordOnly), (-132, RoomMode::Avatar)] {
     assert!(added::add(scratch.db(), chat_id, "road-a", mode, None).await.unwrap());

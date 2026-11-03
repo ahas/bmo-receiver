@@ -83,7 +83,7 @@ fn session(
   )
 }
 
-// Two people and two agents in a room: the chat agent filing under its name, keeping its session across rooms
+// Two people and two agents in a room: the default answerer filing under its name, keeping its session across rooms
 // that has been given the room, and another agent answering there under the number its road gave it, keeping a
 // session of the room's own.
 async fn bench() -> (Scratch, Front) {
@@ -104,7 +104,7 @@ async fn bench() -> (Scratch, Front) {
       vec![OTHER.into(), OTHER_NUMBER.into()],
     ),
     (
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2)"#,
       vec![ROOM.into(), OTHER.into()],
     ),
     (

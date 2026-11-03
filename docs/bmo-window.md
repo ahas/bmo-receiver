@@ -1,6 +1,6 @@
 # The one window
 
-Everything that speaks to the chat agent or wakes it reaches the agent's chat session through one window. The
+Everything that speaks to a supervisor or wakes it reaches the supervisor's chat session through one window. The
 window is where every turn is composed, and it hands every turn the same reference a turn of the owner's own
 words is handed. There is no second way in.
 
@@ -99,9 +99,9 @@ is written.
   the room's messages archived since the agent last answered there with it, up to the archived block's cap
   (「What every turn carries」).
 - **Not turns at all:**
-  - Another agent's wait come due or memory event never reaches the chat agent: it wakes its own agent
+  - Another agent's wait come due or memory event never reaches the default answerer: it wakes its own agent
     in its own room.
-  - Words in a room the chat agent does not answer, one other agents answer alone, never reach it: the
+  - Words in a room the default answerer does not answer, one other agents answer alone, never reach it: the
     receiver wakes those agents and no lane of this queue. A room the owner shares with another agent is a
     room's words like any other, in the first row.
   - A job's question is posted in the owner's chat as the agent's message and waits for the owner's answer; the
@@ -163,7 +163,7 @@ that session without the room hearing it.
   once, and a first launch never holds back another chat's turn while it waits.
 - **A job's status notice reaches the item's requester, not the launcher:** it is queued in the requester's
   room, which is the room's answerer first, the requester's private room where the room names no answerer, and
-  the chat agent where neither does. The report stands whole on the item, and the requester hears its relay in
+  the default answerer where neither does. The report stands whole on the item, and the requester hears its relay in
   its room. The launcher still gets the queue fact — a worker free, an item's state — in its own room, without
   the report's relay. None of them says what to do. The session reads the queue and the running state and
   chooses, as its procedure for the queue says; it runs another item where the owner tells it to.
@@ -196,7 +196,7 @@ round.
     outcome fact, which follows within seconds, opens the one turn and the line goes in with it. A deployment
     that tells no outcome leaves the line to open its own turn when the while is up.
   - The queue standing open at start-up rides for the same while, into the same turn.
-  - A change of the tool host's tools rides for good, in a round of any room the chat agent's session answers
+  - A change of the tool host's tools rides for good, in a round of any room the default answerer's session answers
     (`docs/wake.md`, 「Quiet instructions」).
   - The deployment briefing rides the owner's next round, written just before that round asks for its riders, for
     the restart's while. A round of another room that finds deployments since the last briefing writes the row for
@@ -347,7 +347,7 @@ Beside the reference, a turn carries the room's messages since the agent last an
 - **The touch is a turn of the room the session last stood in,** opened as `keepalive` with the keepalive
   prompt.
 - **It is never beside another turn:** while any room is in a conversation or a compaction it answers `busy`;
-  while the chat agent keeps a session per room, or its provider is off, resting or down, it answers `skipped`.
+  while the default answerer keeps a session per room, or its provider is off, resting or down, it answers `skipped`.
 - **Every turn of the session reports its use** to the warmer, so a session in use is never pinged.
 - **A session past its cache lifetime is not touched:** once its last turn is older than the lifetime its provider
   declares (`providers.toml`, `cache_minutes`, else `keepalive_idle_minutes`), waking it would pay its whole prefix again for nothing, so
@@ -367,7 +367,7 @@ flowchart TD
   X --> M[The model]
 ```
 
-- **What it is:** a line a person types into the program standing in the chat agent's pane, rather than words
+- **What it is:** a line a person types into the program standing in the default answerer's pane, rather than words
   the system puts in. It holds on whichever road the program is on.
 - **Whose it is:** the owner's. The line carries no sender, and only the owner reaches the agent's program, so
   it is composed as the owner's: the owner's id with the owner mark, with the privilege of the owner's own
@@ -394,7 +394,7 @@ flowchart TD
 - **What is left alone:** a prompt submitted while the agent's place names a run of the system's (every round,
   fold and touch the system puts in, which carries its own composition), a word the system pushed into its
   round that the program took only after the turn had ended, a slash command, and every other agent's program:
-  only the chat agent's typed lines are composed.
+  only the default answerer's typed lines are composed.
 - **Its size:** the program hands the model a hook's context whole up to 10,000 characters; a longer one it
   saves to a file beside the session and hands over the path and the first 2 KB, so the model reads the rest
   with a tool call.
@@ -409,15 +409,15 @@ flowchart TD
 - **The agency publishes `document-move.created`** when a reload names documents. The receiver tells the sessions it
   concerns by a riding instruction for each room, folded into the one still waiting there, which rides for good
   in a round of any room the session answers.
-  - Where the event names rooms, the named agent's sessions in those rooms are told, the chat agent's where it
+  - Where the event names rooms, the named agent's sessions in those rooms are told, the default answerer's where it
     names no agent, and only the rooms holding a session of that agent. A reload that names an agent and rooms is
     the brain's, so a relative path it names stands under the brain root (`docs/boundary-api.md`,
     「Configuration」).
-  - Where it names none, each document concerns the chat agent's sessions it reads in: a room's own documents
+  - Where it names none, each document concerns the default answerer's sessions it reads in: a room's own documents
     that room's, a person's the rooms they speak in, the shared ones every session; a document of a session's own
     system prompt, or of its turn, is read with its next turn and told to nobody.
 - **A chat told within the last hour** gets the documents with its next reload; one whose reload says `now` is
-  told at once. Which rooms were told when is the receiver's record (its reload tables), kept for the chat agent's
+  told at once. Which rooms were told when is the receiver's record (its reload tables), kept for the default answerer's
   sessions; another agent's session is told at once, folded into its own row still waiting in the room.
 
 ## Events

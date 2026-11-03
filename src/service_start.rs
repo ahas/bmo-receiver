@@ -45,7 +45,7 @@ pub fn hook_url(base: &str, point: &str) -> String {
   format!("{base}/hooks/{point}")
 }
 
-/// The words a room calls the chat agent by, read off its registration: its label and the words its row names,
+/// The words a room calls the configured agent by, read off its registration: its label and the words its row names,
 /// each once. Where the agency does not answer, the agent's own registration name is what a room calls it by.
 pub async fn call_names(agency: Arc<dyn Agency>, agent: &str) -> Vec<String> {
   let listed = agency.supervisors().await.unwrap_or(Agents {
@@ -57,7 +57,7 @@ pub async fn call_names(agency: Arc<dyn Agency>, agent: &str) -> Vec<String> {
     .agents
     .iter()
     .filter(|one| one.name == agent)
-    .flat_map(|one| Designated::of(one).call_names)
+    .flat_map(|one| Designated::of(one, agent).call_names)
     .filter(|name| !name.is_empty())
     .collect();
 
@@ -113,7 +113,7 @@ pub async fn settle(receiver: &Receiver, consumer: &str, listen: &str, token: &s
   }
   if let Err(refusal) = units
     .warmer
-    .target(consumer, "chat-touch", &chat_touch(&receiver.deployment().agent))
+    .target(consumer, "chat-touch", &chat_touch(&receiver.default_answerer()))
     .await
   {
     eprintln!("bmo-receiver: the chat touch was not registered: {refusal}");
@@ -152,6 +152,8 @@ impl Standing {
     let news = Arc::new(Events::new());
     let mut receiver = receiver.with_news(news.clone()).with_wake(Arc::new(Waking));
 
+    receiver.load_default_answerer().await.map_err(|why| why.detail.clone())?;
+
     let default = default_designated(&receiver).await.map_err(|why| format!("{why}"))?;
     let runner = Runner::new(
       receiver.clone(),
@@ -163,9 +165,9 @@ impl Standing {
     let rooms: Arc<dyn Rooms> = Arc::new(runner.clone());
 
     receiver.hold_runner(Arc::new(runner.clone()));
-    receiver.clone().hold_touching(Arc::new(conversations.clone()));
-    receiver.clone().hold_typing(Arc::new(conversations.clone()));
-    receiver = receiver.hold_talks(Arc::new(conversations.clone()));
+    receiver.clone().hold_touching(Arc::new(runner.clone()));
+    receiver.clone().hold_typing(Arc::new(runner.clone()));
+    receiver = receiver.hold_talks(Arc::new(runner.clone()));
 
     let pass = Pass::new(receiver.clone(), rooms);
 

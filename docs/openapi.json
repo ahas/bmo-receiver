@@ -126,6 +126,25 @@
         ],
         "type": "object"
       },
+      "AddedRoom": {
+        "description": "The console room the receiver stood up for a supervisor it added: whether it took back one already standing\nunder the name, and what the owner is told of that.",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "said": true,
+          "takenBack": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "takenBack",
+          "said"
+        ],
+        "type": "object"
+      },
       "AgentFigure": {
         "description": "One agent's figures in a room.",
         "properties": {
@@ -235,14 +254,14 @@
           "agentName": {
             "type": "string"
           },
-          "companion": {
-            "description": "Whether it answers beside the chat agent rather than as it: any agent but the default answerer.",
+          "defaultAnswerer": {
+            "description": "Whether it is the supervisor the receiver's default answerer setting names.",
             "type": "boolean"
           }
         },
         "required": [
           "agentName",
-          "companion"
+          "defaultAnswerer"
         ],
         "type": "object"
       },
@@ -411,135 +430,6 @@
         ],
         "type": "object"
       },
-      "Companion": {
-        "description": "One agent added on the console.",
-        "properties": {
-          "id": {
-            "description": "The room the receiver stood up for it, where it did.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "label": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "label",
-          "id"
-        ],
-        "type": "object"
-      },
-      "CompanionRequest": {
-        "description": "A chat agent added on the console with a room of its own; the schema keeps the name the console reads it by.\nIts order is `order` whole with `quotaShare`, or `provider` and `model` alone, or both, the order's first\nentry then being that provider and model.",
-        "properties": {
-          "label": {
-            "type": "string"
-          },
-          "model": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "name": {
-            "type": "string"
-          },
-          "order": {
-            "items": {
-              "$ref": "#/components/schemas/OrderEntry"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          },
-          "provider": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "quotaShare": {
-            "description": "The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.",
-            "format": "double",
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "room": {
-            "type": "string"
-          },
-          "worker": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "label",
-          "worker",
-          "room"
-        ],
-        "type": "object"
-      },
-      "CompanionRoom": {
-        "description": "An agent added on the console and the room it answers.",
-        "properties": {
-          "id": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "said": true,
-          "takenBack": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id",
-          "takenBack",
-          "said"
-        ],
-        "type": "object"
-      },
-      "Companions": {
-        "description": "Every agent added on the console as it now stands.",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/Companion"
-            },
-            "type": "array"
-          },
-          "more": {
-            "type": "boolean"
-          },
-          "room": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CompanionRoom"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "said": true
-        },
-        "required": [
-          "items",
-          "more",
-          "room",
-          "said"
-        ],
-        "type": "object"
-      },
       "ConsultBlock": {
         "description": "What an agent is shown of the other agents' work.",
         "properties": {
@@ -647,6 +537,18 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DefaultAnswerer": {
+        "description": "The default answerer setting: the supervisor that answers every room naming none.",
+        "properties": {
+          "supervisor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "supervisor"
         ],
         "type": "object"
       },
@@ -1999,6 +1901,25 @@
         ],
         "type": "object"
       },
+      "Page15": {
+        "description": "A page of a collection: its members, and whether anything stands past the last of them.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SupervisorRoom"
+            },
+            "type": "array"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
       "Page2": {
         "description": "A page of a collection: its members, and whether anything stands past the last of them.",
         "properties": {
@@ -2537,13 +2458,6 @@
       "Room": {
         "description": "One room, as the room list and one room's read answer it.",
         "properties": {
-          "companions": {
-            "description": "The agents other than the chat agent answering in the room.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -2588,6 +2502,13 @@
             },
             "type": "array"
           },
+          "supervisors": {
+            "description": "The supervisors the room names to answer it, in name order; empty where it names none and the default\nanswerer answers it.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "title": {
             "type": [
               "string",
@@ -2607,7 +2528,7 @@
           "lastMessageAt",
           "pinned",
           "senders",
-          "companions",
+          "supervisors",
           "ownerRoom",
           "registered",
           "workRoom",
@@ -2757,6 +2678,21 @@
         "required": [
           "text",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "RoomSupervisors": {
+        "description": "A room's whole list of supervisors.",
+        "properties": {
+          "supervisors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "supervisors"
         ],
         "type": "object"
       },
@@ -3031,6 +2967,136 @@
         ],
         "type": "object"
       },
+      "SupervisorAdded": {
+        "description": "`POST /supervisors`: the agency's read of the supervisor, what became of its brain, and its room.",
+        "properties": {
+          "brain": true,
+          "room": {
+            "$ref": "#/components/schemas/AddedRoom"
+          },
+          "supervisor": true
+        },
+        "required": [
+          "supervisor",
+          "brain",
+          "room"
+        ],
+        "type": "object"
+      },
+      "SupervisorRequest": {
+        "description": "A supervisor added with a room of the console's own. Its order is `order` whole with `quotaShare`, or\n`provider` and `model` alone, or both, the order's first entry then being that provider and model.",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "order": {
+            "items": {
+              "$ref": "#/components/schemas/OrderEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quotaShare": {
+            "description": "The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "repository": {
+            "description": "The repository its items go to, one the agency holds.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "room"
+        ],
+        "type": "object"
+      },
+      "SupervisorReset": {
+        "description": "A reset asked of a supervisor: its ranges, whether it only counts, and who asks.",
+        "properties": {
+          "by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "conversation": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "dryRun": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "person": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "SupervisorRoom": {
+        "description": "One room a supervisor answers: whether the room names it, or names none and it is the default answerer, and\nwhether it answers there alone.",
+        "properties": {
+          "alone": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "named": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "named",
+          "alone"
+        ],
+        "type": "object"
+      },
       "Talk": {
         "description": "A talk's topic and what the owner says.",
         "properties": {
@@ -3121,7 +3187,7 @@
         "type": "object"
       },
       "Window": {
-        "description": "How long the chat agent's window in a room has left.",
+        "description": "How long the default answerer's window in a room has left.",
         "properties": {
           "closesAt": {
             "description": "Epoch milliseconds; null where the room never opened one.",
@@ -3383,111 +3449,6 @@
         ]
       }
     },
-    "/companions": {
-      "post": {
-        "operationId": "addCompanion",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CompanionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Companions"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
-          }
-        },
-        "summary": "A chat agent added with a room of the console's own.",
-        "tags": [
-          "Agents added on the console"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "bad-request",
-          "upstream-failed",
-          "failed"
-        ]
-      }
-    },
-    "/companions/{companionName}": {
-      "delete": {
-        "operationId": "removeCompanion",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "companionName",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "by",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Companions"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, upstream-failed, failed"
-          }
-        },
-        "summary": "An agent added on the console taken out, its room half given up; a seeded one is refused.",
-        "tags": [
-          "Agents added on the console"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "forbidden",
-          "bad-request",
-          "not-found",
-          "conflict",
-          "upstream-failed",
-          "failed"
-        ]
-      }
-    },
     "/consult-lines": {
       "get": {
         "operationId": "consultBlock",
@@ -3574,6 +3535,86 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/default-answerer": {
+      "get": {
+        "operationId": "defaultAnswerer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultAnswerer"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized"
+          }
+        },
+        "summary": "The supervisor that answers every room naming none.",
+        "tags": [
+          "Supervisors"
+        ],
+        "x-codes": [
+          "unauthorized"
+        ]
+      },
+      "put": {
+        "operationId": "setDefaultAnswerer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultAnswerer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultAnswerer"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed"
+          }
+        },
+        "summary": "The default answerer setting moved to a supervisor the agency registers.",
+        "tags": [
+          "Supervisors"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
           "upstream-failed",
           "failed"
         ]
@@ -4453,7 +4494,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, failed"
           }
         },
-        "summary": "A code and its parameters queued for the chat agent in the owner's private chat.",
+        "summary": "A code and its parameters queued for the default answerer in the owner's private chat.",
         "tags": [
           "Notices"
         ],
@@ -7299,6 +7340,65 @@
         ]
       }
     },
+    "/rooms/{roomId}/supervisors": {
+      "put": {
+        "operationId": "setRoomSupervisors",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomSupervisors"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomSupervisors"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed"
+          }
+        },
+        "summary": "A room's whole list of supervisors; an empty list hands the room to the default answerer.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
     "/rooms/{roomId}/title": {
       "get": {
         "operationId": "roomTitle",
@@ -7381,7 +7481,7 @@
             "description": "A refusal or failure: unauthorized, upstream-failed, failed"
           }
         },
-        "summary": "How long the chat agent's window in a room has left.",
+        "summary": "How long the default answerer's window in a room has left.",
         "tags": [
           "Rooms"
         ],
@@ -7634,6 +7734,221 @@
         ]
       }
     },
+    "/supervisors": {
+      "post": {
+        "operationId": "addSupervisor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupervisorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupervisorAdded"
+                }
+              }
+            },
+            "description": "Created."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, conflict, upstream-failed, failed"
+          }
+        },
+        "summary": "A supervisor added with a room of the console's own.",
+        "tags": [
+          "Supervisors"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "conflict",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/supervisors/{supervisorName}": {
+      "delete": {
+        "operationId": "removeSupervisor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supervisorName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "forgetBrain",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, upstream-failed, failed"
+          }
+        },
+        "summary": "A supervisor taken out, the rooms naming it handed to the agency as shared; a seeded supervisor, the default answerer and one a turn holds are refused.",
+        "tags": [
+          "Supervisors"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "forbidden",
+          "bad-request",
+          "not-found",
+          "conflict",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/supervisors/{supervisorName}/resets": {
+      "post": {
+        "operationId": "resetSupervisor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supervisorName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupervisorReset"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, upstream-failed"
+          }
+        },
+        "summary": "A supervisor started afresh, handed the rooms that name it alone and beside another.",
+        "tags": [
+          "Supervisors"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "upstream-failed"
+        ]
+      }
+    },
+    "/supervisors/{supervisorName}/rooms": {
+      "get": {
+        "operationId": "supervisorRooms",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supervisorName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page15"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "The rooms a supervisor answers: those that name it and, for the default answerer, those naming none.",
+        "tags": [
+          "Supervisors"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
     "/talks": {
       "post": {
         "operationId": "talk",
@@ -7669,7 +7984,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, conflict, not-ready, failed"
           }
         },
-        "summary": "A talk the owner has with the chat agent about a topic it names.",
+        "summary": "A talk the owner has with the default answerer about a topic it names.",
         "tags": [
           "Talks"
         ],

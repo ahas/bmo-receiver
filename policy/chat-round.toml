@@ -256,7 +256,7 @@ instruction = [
   "These are the owner's own words in this chat, so treat them as you would anything the owner says here. Where acting on them needs something said in the room, say it as your reply; where it needs nothing said, output exactly <<SKIP>>.",
 ]
 
-# A line typed into the chat agent's program (docs/bmo-window.md, 「A line typed into the program」): the number it is
+# A line typed into the default answerer's program (docs/bmo-window.md, 「A line typed into the program」): the number it is
 # shown under, no message of the archive's, the name it goes by where the owner never spoke under one, and the
 # lead ahead of the round composed for it.
 [typed]

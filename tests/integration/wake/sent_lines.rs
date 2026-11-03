@@ -21,22 +21,22 @@ const ROOM: i64 = -141;
 // The head of an OGG container, which is what a voice note is read as.
 const OGG: &[u8] = &[0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4];
 
-// A room two agents answer on one road that carries voice notes: the chat agent, and another the road numbered 77.
+// A room two agents answer on one road that carries voice notes: the default answerer, and another the road numbered 77.
 async fn two_answerers() -> (Scratch, tempfile::TempDir, Arc<StandInChat>, Standing) {
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).canning(&[ChatCapability::Voice]));
   let standing = woken(standing(scratch.db(), DataRoot::new(data.path()), vec![road.clone()]));
-  let mut other = registration("agent-c", "Agent C", vec!["see"], None, false);
+  let mut other = registration("agent-c", "Agent C", vec!["see"], None);
 
   other.row.insert("role".to_owned(), serde_json::json!("chat"));
   standing
     .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None, true), other].to_vec());
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None), other].to_vec());
   everyone_heard(&scratch).await;
   scratch
     .run(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, 'agent-a'), ($1, 'agent-c')"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, 'agent-a'), ($1, 'agent-c')"#,
       vec![ROOM.into()],
     )
     .await;
@@ -83,7 +83,7 @@ async fn a_voice_note_an_agent_sent_is_kept_under_the_roads_number_and_a_reply_t
   );
 
   // A person's reply on the road names the number the road gave the note: it wakes the agent that sent it, and
-  // not the chat agent, whose window is closed and whom it does not call.
+  // not the default answerer, whose window is closed and whom it does not call.
   let mut reply = inbound(ROOM, 901, 55, "where is that");
 
   reply.reply_to_message_id = Some(900);

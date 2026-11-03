@@ -1,7 +1,7 @@
 //! The owner's private room stood up once on the record alone (docs/boundary-api.md, 「The service and its
 //! commands」, `owner-room`; docs/receiver.md, 「Identity, and reaching the owner」): numbered as a console room is,
-//! the record its one provider, the chat agent answering it under a number of the console's own, and the owner
-//! there as the sender he is on every road.
+//! the record its one provider, naming no supervisor so the default answerer answers it, the configured agent
+//! holding a number of the console's own there, and the owner there as the sender he is on every road.
 
 use receiver_policy::roads::ROADS;
 use sea_orm::DatabaseConnection;
@@ -13,8 +13,8 @@ use crate::store::{Fault, settings};
 /// The settings key the room stood up is kept under, so a second run finds it.
 const MADE: &str = "owner_room_made";
 
-/// The owner's private room: the one stood up before, else one stood up now for the chat agent under `title`;
-/// answered with its number and whether it was stood up now.
+/// The owner's private room: the one stood up before, else one stood up now under `title`, `agent` given its
+/// number there; answered with its number and whether it was stood up now.
 pub async fn stand_up(db: &DatabaseConnection, agent: &str, title: &str) -> Result<(i64, bool), Fault> {
   if let Some(made) = settings::get(db, MADE).await?.and_then(|held| held.trim().parse::<i64>().ok()) {
     return Ok((made, false));
@@ -37,14 +37,7 @@ pub async fn stand_up(db: &DatabaseConnection, agent: &str, title: &str) -> Resu
     vec![chat_id.into(), title.into()],
   )
   .await?;
-  run(
-    db,
-    r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
-    vec![chat_id.into(), agent.into()],
-  )
-  .await?;
-
-  // The chat agent's number on the record, one of the console's own, where it holds none there yet.
+  // The agent's number on the record, one of the console's own, where it holds none there yet.
   let numbered = crate::one(
     db,
     r#"SELECT "sender_id" FROM "provider_users" WHERE "provider" = $1 AND "user_id" = $2"#,

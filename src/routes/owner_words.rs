@@ -63,7 +63,7 @@ pub async fn instruct(State(served): State<Served>, body: Bytes) -> Accepted {
 
   let agent = wake::agents::voice_of(&receiver, asked.chat_id)
     .await
-    .unwrap_or(receiver.deployment().agent.clone());
+    .unwrap_or(receiver.default_answerer());
   let queued = Queued {
     sort: Some(&CHAT_ROUND.console.sort),
     summary: Some(text),

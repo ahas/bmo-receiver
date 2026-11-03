@@ -1,6 +1,6 @@
-//! A talk the owner has with the chat agent from the console about one thing he has open there — an item in the
+//! A talk the owner has with the default answerer from the console about one thing he has open there — an item in the
 //! item talk panel, a document in the document viewer (docs/boundary-api.md, 「For bmo-job」, `POST /talks`). The
-//! chat agent itself answers: the one session every room shares takes the turn as a round of the owner's private
+//! default answerer itself answers: the one session every room shares takes the turn as a round of the owner's private
 //! chat, in the same line as every room's rounds, and its answer is handed back to the console alone. What a turn
 //! is about is its subject's: the head it opens on. The session keeps its own memory of the talk, but it is folded and replaced over time, so a turn restates the last
 //! few turns.
@@ -34,7 +34,7 @@ pub struct TalkRequest {
 /// Why a turn came back with nothing.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TalkFailure {
-  /// The chat agent rests, or the owner's chat has fallen silent.
+  /// The default answerer rests, or the owner's chat has fallen silent.
   Resting,
   Limit,
   Outage,
@@ -114,7 +114,7 @@ pub fn clip(text: &str, limit: usize) -> String {
 }
 
 /// The turn as the session reads it: the head, the last few turns restated, and what he says now. The owner's
-/// name and the chat agent's label stand in the composition's lines in place of the policy's marks.
+/// name and the default answerer's label stand in the composition's lines in place of the policy's marks.
 pub fn prompt(head: &[String], turns: &[SaidTurn], said: &str, owner: &str, agent: &str) -> String {
   let mut lines: Vec<String> = head.to_vec();
   let earlier = &turns[turns.len().saturating_sub(TALK.turns_given)..];
@@ -279,7 +279,7 @@ fn failure_of(failure: Failure) -> TalkFailure {
   }
 }
 
-/// A talk's turn as the chat agent's conversations take it: the turn restated and asked of the session
+/// A talk's turn as the default answerer's conversations take it: the turn restated and asked of the session
 /// the owner's chat resumes, whose answer is handed back rather than sent. The conversations hold their turn
 /// around it.
 pub async fn answer(
@@ -340,14 +340,14 @@ pub async fn answer(
   })
 }
 
-// The chat agent's conversations take a talk's turns, behind whatever round is running.
+// The default answerer's conversations take a talk's turns, behind whatever round is running.
 impl Talking for Conversations {
   fn talk<'a>(&'a self, request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>> {
     Box::pin(Conversations::talk(self, request))
   }
 }
 
-/// The chat agent's registered label, which its own words are called by.
+/// The default answerer's registered label, which its own words are called by.
 async fn agent_label(receiver: &Receiver, agent: &str) -> String {
   label_of(receiver, agent).await
 }

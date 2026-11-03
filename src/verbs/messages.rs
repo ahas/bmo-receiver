@@ -329,7 +329,7 @@ pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbEr
     if let Some(teller) = teller {
       let speaker = match sends.turn_agent() {
         Some(agent) => agent.to_owned(),
-        None => sends.receiver().deployment().agent.clone(),
+        None => sends.receiver().default_answerer(),
       };
       let note = failed_instruction(run_.chat_id, &text, &reason);
       let queued = Queued {
@@ -362,7 +362,7 @@ pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbEr
   let speaker = asker.unwrap_or(
     wake::agents::voice_of(&sends.receiver(), run_.chat_id)
       .await
-      .unwrap_or(sends.receiver().deployment().agent.clone()),
+      .unwrap_or(sends.receiver().default_answerer()),
   );
   let window = window_seconds(&sends.receiver(), &speaker).await;
   let until = now_ms() + window * 1000;

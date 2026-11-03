@@ -26,7 +26,7 @@ pub async fn silenced(receiver: &Receiver, chat_id: i64) -> bool {
     return false;
   }
 
-  let agent = receiver.deployment().agent.clone();
+  let agent = receiver.default_answerer();
 
   resting(receiver).await.unwrap_or(false) && !stand_in(receiver, &agent).await.unwrap_or(false)
 }
@@ -115,7 +115,7 @@ impl crate::chat::conversation::Health for RoomHealth {
         return;
       }
 
-      if let Err(why) = raise_order(receiver, &self.0.deployment().agent, chat_id, reason).await {
+      if let Err(why) = raise_order(receiver, &self.0.default_answerer(), chat_id, reason).await {
         eprintln!("chat {chat_id}: the failure order: {}", why.detail);
       }
     })

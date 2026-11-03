@@ -49,7 +49,7 @@ kind = "compacted"
 # and the chat touch target as the receiver declares it to the warmer.
 [touch]
 note = "This is a keepalive touch: nobody spoke and nothing arrived. Where the reference above holds something that is due now, act on it with your tools (the say tool, with the room named in chat, to speak in one), since what you answer here goes to no room and no tool finds a room of its own here. Otherwise answer exactly <<SKIP>>."
-label = "the chat agent's one session, in the room it last stood in"
+label = "the default answerer's one session, in the room it last stood in"
 rank = 90
 idle_ms = 2400000
 lifetime_ms = 3600000

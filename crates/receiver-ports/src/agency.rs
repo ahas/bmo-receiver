@@ -1,6 +1,6 @@
 //! The agency port: the supervisors, the roles and the repositories, the sessions a turn is carried in and
-//! the words pushed into a working one, the documents a session was handed in full, a room forgotten, the
-//! agent half of an agent added on the console, the hooks the receiver answers, a run's log and the event
+//! the words pushed into a working one, the documents a session was handed in full, a room forgotten, a
+//! supervisor registered, ended and started afresh, the hooks the receiver answers, a run's log and the event
 //! stream (`docs/boundary-api.md`, 「The agency」; the agency's `docs/api.md`). Bodies are camelCase.
 
 use futures_util::StreamExt;
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sse_stream::SseStream;
 
-use crate::http::{Answer, Caller, Done, Nothing, Peer, PortFailure};
+use crate::http::{Answer, Caller, Nothing, Peer, PortFailure};
 
 /// One agent the receiver wakes, as the agency lists it among its supervisors: its name, whether it is
 /// awake, the brain folder its long-term memory is in, and every other field of its row as the agency gives
@@ -36,8 +36,7 @@ fn listed_awake() -> bool {
 }
 
 impl Agent {
-  /// Whether the deployment seeds the supervisor or it is the default answerer, which the agency never
-  /// takes out.
+  /// Whether the deployment seeds the supervisor, which the agency never takes out.
   pub fn seeded(&self) -> bool {
     self.row.get("seeded").and_then(Value::as_bool).unwrap_or(false)
   }
@@ -307,24 +306,35 @@ pub struct SessionState {
   pub prefix_change_reason: Option<String>,
 }
 
-/// The row of an agent the console stands up: the name it is registered by, what it is called in the room,
-/// the repository its items go to, under the agency's field `worker`, and its order: the order whole with its
-/// quota share, or one provider and model, or both, each handed on as the console gave it for the agency to
-/// judge. The room it answers is the receiver's.
+/// A supervisor the console registers: the name it is registered by, what it is called in the room, the
+/// repository its items go to where it names one, and its order: the order whole with its quota share, or one
+/// provider and model, or both, each handed on as the console gave it for the agency to judge. The rooms it
+/// answers are the receiver's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ConsoleAgentRow {
+pub struct NewSupervisor {
   pub name: String,
   pub label: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub provider: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub model: Option<String>,
-  pub worker: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub repository: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub order: Option<Value>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub quota_share: Option<Value>,
+}
+
+/// A supervisor's registration ended: the rooms that name it, read as rooms it shares so each keeps its record,
+/// whether its brain goes with it, and whether a turn holding it is ended under it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Removal {
+  pub rooms: Vec<i64>,
+  pub forget_brain: bool,
+  pub force: bool,
 }
 
 /// A field of the body the agency refused: the field's name and the English sentence saying why.
@@ -608,14 +618,19 @@ pub trait Agency: Send + Sync {
   /// Words put into the turn the session is working, answered with what became of them.
   fn push<'a>(&'a self, session: &'a str, turn: i64, words: &'a str) -> BoxFuture<'a, Answer<Said>>;
 
-  /// An added agent's row stood up, or the field the agency refused.
-  fn add_console_agent<'a>(
+  /// A supervisor registered, answered with the agency's `supervisor` and `brain`, or the field the agency
+  /// refused. A name the agency holds already is its 409 `name-taken`.
+  fn add_supervisor<'a>(
     &'a self,
-    agent: &'a ConsoleAgentRow,
-  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
+    supervisor: &'a NewSupervisor,
+  ) -> BoxFuture<'a, Answer<Result<Value, FieldRefusal>>>;
 
-  /// An added agent's half taken out with everything of its own, or the field the agency refused.
-  fn remove_console_agent<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>>;
+  /// A supervisor's registration ended with everything of its own; the agency's 409 `seeded` and `running`
+  /// are failures carrying those codes.
+  fn remove_supervisor<'a>(&'a self, name: &'a str, removal: &'a Removal) -> BoxFuture<'a, Answer<()>>;
+
+  /// A supervisor started afresh in the ranges the body names, answered as the agency answers the reset.
+  fn reset_supervisor<'a>(&'a self, name: &'a str, reset: &'a Value) -> BoxFuture<'a, Answer<Value>>;
 
   /// The stream of the events of the kinds named, from the moment it is opened.
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>>;
@@ -1026,20 +1041,28 @@ impl Agency for HttpAgency {
     })
   }
 
-  fn add_console_agent<'a>(
+  fn add_supervisor<'a>(
     &'a self,
-    agent: &'a ConsoleAgentRow,
-  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
-    Box::pin(async move {
-      // The agency's resource keeps its own name for the agents the console adds.
-      let done: Result<Done, FieldRefusal> = self.caller.checked(&["companions"], agent).await?;
+    supervisor: &'a NewSupervisor,
+  ) -> BoxFuture<'a, Answer<Result<Value, FieldRefusal>>> {
+    Box::pin(async move { self.caller.checked(&["supervisors"], supervisor).await })
+  }
 
-      Ok(done.map(|_| ()))
+  fn remove_supervisor<'a>(&'a self, name: &'a str, removal: &'a Removal) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      let rooms: Vec<String> = removal.rooms.iter().map(i64::to_string).collect();
+      let query = [
+        ("rooms", rooms.join(",")),
+        ("forgetBrain", removal.forget_brain.to_string()),
+        ("force", removal.force.to_string()),
+      ];
+
+      self.caller.emptied(&["supervisors", name], &query).await
     })
   }
 
-  fn remove_console_agent<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
-    Box::pin(async move { self.caller.checked_delete(&["companions", agent]).await })
+  fn reset_supervisor<'a>(&'a self, name: &'a str, reset: &'a Value) -> BoxFuture<'a, Answer<Value>> {
+    Box::pin(async move { self.caller.post(&["supervisors", name, "resets"], reset).await })
   }
 
   fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {

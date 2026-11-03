@@ -277,7 +277,7 @@ async fn ground(
   Ok((window_until(archive, inbound.chat_id, &agent.name).await? > now).then_some(Ground::Window))
 }
 
-/// The files a person posted just before words of theirs that woke the chat agent, which woke nobody
+/// The files a person posted just before words of theirs that woke the default answerer, which woke nobody
 /// themselves: a file is held to the same grounds as words, so a member's file and the request typed after it
 /// reach the session only where the request brings the file along.
 async fn files_leading_up(
@@ -367,7 +367,7 @@ pub async fn hand_owner_words(receiver: &Receiver, message: Inbound) -> Result<b
     return Ok(false);
   };
 
-  // His own chat, where who the chat agent is there is the road's to say and these words name none.
+  // His own chat, where who the default answerer is there is the road's to say and these words name none.
   let room = Room {
     owner_room: true,
     identity: None,

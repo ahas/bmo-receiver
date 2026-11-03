@@ -248,7 +248,7 @@ pub struct Console {
   pub instruction: Vec<String>,
 }
 
-/// A line typed into the chat agent's program: the number it is shown under and the lead ahead of its round.
+/// A line typed into the default answerer's program: the number it is shown under and the lead ahead of its round.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Typed {

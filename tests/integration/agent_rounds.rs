@@ -1,6 +1,6 @@
-//! An agent added on the console is a chat agent like any other (docs/wake.md, 「The room's queue and the round」;
-//! 「An agent's reset」): its round is the same round the chat agent's is, every event of it names the agent under
-//! its own number, and its reset's cut-off lets go unread what waited for its turns.
+//! Every supervisor is alike (docs/wake.md, 「The room's queue and the round」; 「An agent's reset」): another
+//! supervisor's round is the same round the default answerer's is, every event of it names the supervisor under its
+//! own number, and its reset's cut-off lets go unread what waited for its turns.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -102,7 +102,7 @@ async fn until(what: &str, holds: impl Fn() -> bool) {
   assert!(waited.is_ok(), "{what} never came");
 }
 
-/// The added agent's rounds in the owner's chat, standing on the receiver's own conversations and the stand-in
+/// A supervisor's rounds in the owner's chat, other than the default answerer's, standing on the receiver's own conversations and the stand-in
 /// units, every turn going on `session`.
 struct Rounds {
   _scratch: Scratch,
@@ -129,12 +129,12 @@ impl Rounds {
     let session = Arc::new(session);
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
-    let mut added = registration(ADDED, "Agent C", vec!["agent-c"], None, false);
+    let mut added = registration(ADDED, "Agent C", vec!["agent-c"], None);
 
     added.row.insert("turnShape".to_owned(), json!("pieces"));
     standing
       .agency
-      .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true), added]);
+      .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), added]);
     standing.agency.carrying_on(session.clone());
     receiver.hold_runner(Arc::new(runner.clone()));
 
@@ -155,7 +155,7 @@ impl Rounds {
     self.added.enqueue(said(message_id, text), owners_room(), false, false).await;
   }
 
-  // A quiet instruction for the added agent in the room, its row handing back `run` where it names one.
+  // A quiet instruction for the supervisor in the room, its row handing back `run` where it names one.
   async fn instruct(&self, text: &str, run: Option<i64>) -> i64 {
     let queued = Queued {
       run_id: run,
@@ -191,7 +191,7 @@ impl Rounds {
 }
 
 #[tokio::test]
-async fn an_added_agents_round_is_the_chat_agents_round() {
+async fn another_supervisors_round_is_the_default_answerers_round() {
   let rounds = Rounds::on(StandInSession::new(SESSION, ANSWER)).await;
 
   rounds.hear(1, FIRST).await;
@@ -251,7 +251,7 @@ async fn a_cut_off_lets_go_unread_what_waited_for_the_agents_turns() {
 }
 
 #[tokio::test]
-async fn every_event_of_an_added_agents_round_names_it_under_its_own_number() {
+async fn every_event_of_another_supervisors_round_names_it_under_its_own_number() {
   let rounds = Rounds::on(StandInSession::new(SESSION, ANSWER)).await;
 
   bmo_receiver::run(

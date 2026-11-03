@@ -24,7 +24,7 @@ fn asked_at(began: i64) -> Asker {
 // The front, with the agency naming the agent's reset point on its supervisor, or none.
 async fn naming(scratch: &Scratch, point: Option<i64>) -> Front {
   let front = stood(scratch, OWNER).await;
-  let mut agent = registration(AGENT, "Agent A", vec![], None, true);
+  let mut agent = registration(AGENT, "Agent A", vec![], None);
 
   agent.row.insert("resetPoint".to_owned(), json!(point));
   front.standing.agency.registering(vec![agent]);

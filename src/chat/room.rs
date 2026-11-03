@@ -390,8 +390,8 @@ pub fn name_order(left: &str, right: &str) -> std::cmp::Ordering {
   left.to_lowercase().cmp(&right.to_lowercase()).then_with(|| right.cmp(left))
 }
 
-/// The roster the owner's own chat is given: the one shared chat agent with the rooms it is connected to, then
-/// the other chat agents under the names the owner calls them by, and the roles work is handed off as.
+/// The roster the owner's own chat is given: the default answerer with the rooms it is connected to, then the
+/// other supervisors under the names the owner calls them by, and the roles work is handed off as.
 pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
   let db = receiver.db();
   let owners = receiver.owner_room();
@@ -419,12 +419,12 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
   let agents: Vec<Agent> = listed.as_ref().map(|listed| listed.agents.clone()).unwrap_or_default();
   let mut lines = vec![format!(
     "- {}",
-    fill_marks(&words.roster, &[("agent", &receiver.deployment().agent), ("rooms", &named.join(", "))],)
+    fill_marks(&words.roster, &[("agent", &receiver.default_answerer()), ("rooms", &named.join(", "))],)
   )];
 
   let mut supervisors: Vec<(String, String)> = agents
     .iter()
-    .filter(|one| one.name != receiver.deployment().agent)
+    .filter(|one| one.name != receiver.default_answerer())
     .map(|one| {
       let aliases = one.row.get("aliases").and_then(Value::as_str).unwrap_or_default();
 

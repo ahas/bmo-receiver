@@ -28,7 +28,7 @@ pub const RELOAD_USAGE: &str = "usage: bmo reload --path <file> [--path <file>..
 // The tree's document directories a session relies on, relative to its root.
 const DOCUMENT_DIRS: [&str; 4] = ["docs/lore", "prompts/persona", "prompts/rules", "prompts/agents"];
 
-// The rulebooks and the chat agent's own documents a chat session is given as its system prompt.
+// The rulebooks and the default answerer's own documents a chat session is given as its system prompt.
 const CHAT_DOCUMENTS: [&str; 5] = [
   "rules/answer-content.md",
   "rules/answer-shape.md",
@@ -354,7 +354,7 @@ async fn sender_rooms(receiver: &Receiver, sender: i64) -> Vec<i64> {
 
 /// Which rooms a changed document concerns. Only rooms holding a session are named.
 pub async fn chats_concerned(receiver: &Receiver, places: &Places, path: &str) -> Vec<i64> {
-  let sessions = session_rooms(receiver, &receiver.deployment().agent).await;
+  let sessions = session_rooms(receiver, &receiver.default_answerer()).await;
   let only =
     |chats: Vec<i64>| -> Vec<i64> { chats.into_iter().filter(|chat| sessions.contains(chat)).collect() };
 
@@ -513,7 +513,7 @@ pub async fn flush_due(receiver: &Receiver, places: &Places, now: i64) -> Vec<i6
       .collect();
 
     if !paths.is_empty() {
-      let _ = tell_chat(receiver, places, &receiver.deployment().agent, chat_id, &paths, now, true).await;
+      let _ = tell_chat(receiver, places, &receiver.default_answerer(), chat_id, &paths, now, true).await;
       told.push(chat_id);
     }
   }
@@ -523,14 +523,14 @@ pub async fn flush_due(receiver: &Receiver, places: &Places, now: i64) -> Vec<i6
 
 // The session a room's turns go to: the agent's own where one session is shared across rooms, the room's else.
 async fn session_key(receiver: &Receiver, chat_id: i64) -> String {
-  if unified_session(receiver, &receiver.deployment().agent).await {
-    receiver.deployment().agent.clone()
+  if unified_session(receiver, &receiver.default_answerer()).await {
+    receiver.default_answerer()
   } else {
     format!("chat:{chat_id}")
   }
 }
 
-/// A reload as the receiver runs it: the documents named told to every session of the chat agent's they concern,
+/// A reload as the receiver runs it: the documents named told to every session of the default answerer's they concern,
 /// and what the reload came to said. `given` are as the call gave them; `now` is in epoch milliseconds.
 pub async fn reload(
   receiver: &Receiver,
@@ -565,7 +565,7 @@ pub async fn reload(
     }
   }
 
-  said.extend(tell_rooms(receiver, places, &receiver.deployment().agent, by_room, now, immediate).await);
+  said.extend(tell_rooms(receiver, places, &receiver.default_answerer(), by_room, now, immediate).await);
   said
 }
 
@@ -599,8 +599,8 @@ async fn tell_rooms(
 ) -> Vec<String> {
   let mut said: Vec<String> = vec![];
   let mut told: Vec<i64> = vec![];
-  // The reload tables keep a room's gathering for the chat agent's session alone: another agent's is told at once.
-  let gathered = agent == receiver.deployment().agent;
+  // The reload tables keep a room's gathering for the default answerer's session alone: another agent's is told at once.
+  let gathered = agent == receiver.default_answerer();
 
   for (chat_id, list) in by_room {
     let last = last_told(receiver.db(), chat_id).await;
@@ -688,8 +688,8 @@ pub struct Moved {
 }
 
 /// The documents moved told to the sessions concerned, as the agency's `documents-moved` names them: where it names
-/// rooms, the named agent's sessions in those rooms, the chat agent's where it names no agent, each room holding a
-/// session of that agent told every path; where it names none, the chat agent's sessions each document concerns. A
+/// rooms, the named agent's sessions in those rooms, the default answerer's where it names no agent, each room holding a
+/// session of that agent told every path; where it names none, the default answerer's sessions each document concerns. A
 /// reload naming an agent and rooms is the brain's, so a relative path it names stands under the brain root.
 pub async fn documents_moved(receiver: &Receiver, places: &Places, moved: &Moved) -> Vec<String> {
   let now = now_ms();
@@ -698,7 +698,7 @@ pub async fn documents_moved(receiver: &Receiver, places: &Places, moved: &Moved
     return reload(receiver, places, &moved.paths, now, moved.now).await;
   }
 
-  let agent = moved.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone());
+  let agent = moved.agent.clone().unwrap_or_else(|| receiver.default_answerer());
   let brains = moved.agent.is_some();
   let paths: Vec<String> = moved
     .paths

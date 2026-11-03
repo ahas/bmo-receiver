@@ -1,4 +1,4 @@
-//! A room's words as the chat agent's session reads them (docs/bmo-window.md, 「What every turn carries」;
+//! A room's words as the default answerer's session reads them (docs/bmo-window.md, 「What every turn carries」;
 //! docs/pictures.md, 「Pictures received」): one line to a send in the room shape — the instant, the message's
 //! number, its sender with the owner's tag, its words and a bracketed note for each thing it carries: a picture,
 //! a file, the album it went out in, the message it replies to and that message's picture.

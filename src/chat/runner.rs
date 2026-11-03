@@ -1,12 +1,17 @@
 //! The one runner of every conversational agent (the agency's `docs/agents.md`, 「One runner」): each agent's conversations in
 //! its rooms, made the first time the agent is woken and kept for as long as the process stands, all on the same
-//! surroundings and the same timings. The default answerer's stand from the start, since the rooms that name
-//! nobody, the owner's own words and the console's talks are its.
+//! surroundings and the same timings. The conversations of the default answerer the receiver starts with stand
+//! from the start and keep its clocks; the console's talks, the warmer's touch and a typed line go to the
+//! conversations of the supervisor the default answerer setting names as each comes (docs/api.md,
+//! 「Supervisors」).
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use super::conversation::{BoxFuture, Conversations, Hooks, Timings};
+use super::conversation::{BoxFuture, Conversations, Hooks, Talking, Timings, Touching, Typing};
+use super::talk::{TalkFailure, TalkRequest};
+use super::touch::TouchAnswer;
+use crate::Fault;
 use crate::receiver::{Inbound, Receiver, Room};
 use crate::room_record::RoomForget;
 use crate::room_record::forget::Forgetting;
@@ -38,9 +43,14 @@ impl Runner {
     }))
   }
 
-  /// The default answerer's conversations.
+  /// The conversations of the default answerer the runner started with.
   pub fn default_answerer(&self) -> &Conversations {
     &self.0.default
+  }
+
+  /// The conversations of the supervisor the default answerer setting names now.
+  pub fn answering_unnamed(&self) -> Conversations {
+    self.of(&self.0.receiver.default_answerer())
   }
 
   /// An agent's conversations, made on first asking.
@@ -118,6 +128,39 @@ impl crate::receiver::Runner for Runner {
 
   fn in_round(&self, agent: &str, chat_id: i64) -> bool {
     self.standing(agent).is_some_and(|conversations| conversations.in_round(chat_id))
+  }
+}
+
+// A talk goes to the default answerer's conversations as the setting stands when it comes.
+impl Talking for Runner {
+  fn talk<'a>(&'a self, request: &'a TalkRequest) -> BoxFuture<'a, Result<Option<String>, TalkFailure>> {
+    Box::pin(async move { self.answering_unnamed().talk(request).await })
+  }
+}
+
+// The warmer's touch goes to the conversations of the agent it names.
+impl Touching for Runner {
+  fn touch<'a>(
+    &'a self,
+    _receiver: &'a Receiver,
+    agent: &'a str,
+    idle_override_ms: Option<i64>,
+  ) -> BoxFuture<'a, Result<TouchAnswer, Fault>> {
+    Box::pin(async move { Ok(self.of(agent).touch(idle_override_ms).await) })
+  }
+}
+
+// A line typed into an agent's program goes to that agent's conversations.
+impl Typing for Runner {
+  fn typed_line<'a>(
+    &'a self,
+    _receiver: &'a Receiver,
+    agent: &'a str,
+    text: &'a str,
+    session_id: &'a str,
+    at_ms: i64,
+  ) -> BoxFuture<'a, Result<String, Fault>> {
+    Box::pin(async move { self.of(agent).typed_line(text, session_id, at_ms).await })
   }
 }
 

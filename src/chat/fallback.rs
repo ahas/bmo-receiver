@@ -1,7 +1,7 @@
 //! The stand-in answering while Claude Code's road is closed, as the agency tells it (docs/voiced-notices.md, 「Rest
 //! and fallback」): `fallback.changed` keeps which stand-in answers and since when where it names the provider and
 //! model answering now, and clears it where it names the stand-in ended alone, and each is told to the owner by
-//! the chat agent in the owner's own chat as a voiced notice.
+//! the default answerer in the owner's own chat as a voiced notice.
 
 use futures_util::future::BoxFuture;
 use receiver_policy::chat_line::CHAT_LINE;
@@ -112,7 +112,7 @@ pub async fn answered_by(receiver: &Receiver, answering: &Answering) -> Result<(
     .map_err(|why| Fault::new(why.to_string()))
 }
 
-/// The stand-in let go and the owner told the chat agent answers on its own model again.
+/// The stand-in let go and the owner told the default answerer answers on its own model again.
 pub async fn ended(receiver: &Receiver) -> Result<(), Fault> {
   let db = receiver.db();
   let said = &CHAT_LINE.fallback;

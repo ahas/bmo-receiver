@@ -14,7 +14,7 @@ use crate::integration::common::units::{
 
 const MEMBER: i64 = 4344;
 const OTHER_SENDER: i64 = 4345;
-// The person's own private chat; a room naming nobody, so the chat agent's; one only the other agent answers;
+// The person's own private chat; a room naming nobody, so the default answerer's; one only the other agent answers;
 // one both answer.
 const PRIVATE: i64 = -4300;
 const SHARED: i64 = -4301;
@@ -39,8 +39,8 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
 
   stood.agency.registering(
     [
-      registration(AGENT, "Agent A", vec![ADDRESS], None, true),
-      registration(OTHER, "Agent B", vec![], None, false),
+      registration(AGENT, "Agent A", vec![ADDRESS], None),
+      registration(OTHER, "Agent B", vec![], None),
     ]
     .to_vec(),
   );
@@ -48,7 +48,7 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
   stood.web.linking(OWNER, "tester".into());
   scratch
     .run(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, 'agent-b'), ($2, 'agent-b'), ($2, $3)"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, 'agent-b'), ($2, 'agent-b'), ($2, $3)"#,
       vec![OTHERS.into(), MIXED.into(), AGENT.into()],
     )
     .await;
@@ -77,10 +77,10 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
     (MIXED, 6, OTHER_SENDER, "Agent B", 0, "the other agent answers again"),
     (MIXED, 7, OWNER, "tester", 6, "a reply to the other agent"),
     (MIXED, 8, 0, SENDER, 7, "a word from the side"),
-    (MIXED, 9, OWNER, "tester", 0, "Agent A, a call to the chat agent"),
-    (MIXED, 10, 0, SENDER, 0, "the chat agent answers the call"),
-    (MIXED, 11, OWNER, "tester", 10, "a reply to the chat agent"),
-    (MIXED, 12, 0, SENDER, 11, "the chat agent answers the reply"),
+    (MIXED, 9, OWNER, "tester", 0, "Agent A, a call to the default answerer"),
+    (MIXED, 10, 0, SENDER, 0, "the default answerer answers the call"),
+    (MIXED, 11, OWNER, "tester", 10, "a reply to the default answerer"),
+    (MIXED, 12, 0, SENDER, 11, "the default answerer answers the reply"),
   ] {
     scratch
       .run(
@@ -107,10 +107,10 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
     "shared answer",
     "mixed question",
     "mixed answer",
-    "a call to the chat agent",
-    "the chat agent answers the call",
-    "a reply to the chat agent",
-    "the chat agent answers the reply",
+    "a call to the default answerer",
+    "the default answerer answers the call",
+    "a reply to the default answerer",
+    "the default answerer answers the reply",
   ] {
     assert!(carried.contains(kept), "{kept} missing from {carried}");
   }

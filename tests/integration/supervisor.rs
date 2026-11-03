@@ -112,9 +112,7 @@ impl Group {
     };
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings, AGENT);
 
-    standing
-      .agency
-      .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+    standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
     standing.agency.carrying_on(session.clone());
     receiver.hold_runner(Arc::new(runner.clone()));
 

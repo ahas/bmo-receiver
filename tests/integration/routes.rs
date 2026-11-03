@@ -134,7 +134,7 @@ async fn a_route_whose_needs_are_not_met_names_what_is_missing() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
 
-  // A talk is a round of the chat agent's conversations, which this front stands none of.
+  // A talk is a round of the default answerer's conversations, which this front stands none of.
   let body = json!({
     "topic": {
       "kind": "item", "id": 900, "title": "Talk about items", "done": false, "merged_into": null,
@@ -148,7 +148,7 @@ async fn a_route_whose_needs_are_not_met_names_what_is_missing() {
     post(&front, "/talks", body).await,
     (
       StatusCode::SERVICE_UNAVAILABLE,
-      json!({ "code": "not-ready", "error": "the chat agent's conversations are not standing." }),
+      json!({ "code": "not-ready", "error": "the default answerer's conversations are not standing." }),
     ),
   );
 }

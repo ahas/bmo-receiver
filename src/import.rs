@@ -294,7 +294,10 @@ const RELOAD_SENT: TableMap = TableMap {
   times: &["at"],
   ..same("reload_sent", "reload_sent", &["chat_id", "at"])
 };
-const ROOM_ANSWERERS: TableMap = same("room_answerers", "room_answerers", &["chat_id", "agent"]);
+const ROOM_SUPERVISORS: TableMap = TableMap {
+  renamed: &[("supervisor", "agent")],
+  ..same("room_answerers", "room_supervisors", &["chat_id", "supervisor"])
+};
 const ROOM_WINDOWS: TableMap = TableMap {
   times: &["open_until"],
   ..same("room_windows", "room_windows", &["chat_id", "agent", "open_until"])
@@ -342,7 +345,7 @@ pub const TABLES: &[TableMap] = &[
   RANDOM_DRAWS,
   RELOAD_PENDING,
   RELOAD_SENT,
-  ROOM_ANSWERERS,
+  ROOM_SUPERVISORS,
   ROOM_WINDOWS,
   RUN_RECORDS,
   SAY_RELAYS,

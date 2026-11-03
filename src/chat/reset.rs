@@ -1,5 +1,5 @@
 //! The receiver's rows of an agent's reset (docs/wake.md, 「An agent's reset」): the agency takes its own part and
-//! publishes the kind `companion-reset.created`, its own name for it, and the receiver takes its own rows of the
+//! publishes the kind `supervisor-reset.created`, and the receiver takes its own rows of the
 //! ranges the event names, in one write. The conversation range takes the whole record of each room the agent
 //! answers alone, the run records those rooms' runs wrote down and those of the agent's own runs, and its own
 //! instructions and windows in every room; the person range takes the marks its book of each room has read.
@@ -14,7 +14,7 @@ use crate::receiver::Receiver;
 use crate::{Fault, all, run};
 
 /// The kind a reset that has taken the agency's part is published under.
-pub const RESET: &str = "companion-reset.created";
+pub const RESET: &str = "supervisor-reset.created";
 
 /// The range of what the agent said: its conversations.
 pub const CONVERSATION: &str = "conversation";
@@ -95,8 +95,8 @@ async fn answered_alone<C: ConnectionTrait>(db: &C, agent: &str, named: &[i64]) 
   let rows = all(
     db,
     &format!(
-      r#"SELECT "chat_id" FROM "room_answerers" WHERE "chat_id" IN ({}) GROUP BY "chat_id"
-         HAVING count(*) = 1 AND max("agent") = $1"#,
+      r#"SELECT "chat_id" FROM "room_supervisors" WHERE "chat_id" IN ({}) GROUP BY "chat_id"
+         HAVING count(*) = 1 AND max("supervisor") = $1"#,
       numbered(2, named.len())
     ),
     std::iter::once(agent.into()).chain(named.iter().map(|room| (*room).into())).collect(),

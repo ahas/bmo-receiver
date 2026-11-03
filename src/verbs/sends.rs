@@ -194,7 +194,7 @@ impl Sends {
       .speaker
       .as_ref()
       .map(|speaker| speaker.agent.clone())
-      .unwrap_or_else(|| self.receiver.deployment().agent.clone());
+      .unwrap_or_else(|| self.receiver.default_answerer());
     let voice = match request.mode {
       Some(mode) => Some(mode),
       None => added::voice_in(self.receiver.db(), chat_id).await,
@@ -252,7 +252,7 @@ impl Sends {
     let default = wake::agents::default_designated(&self.receiver).await.ok();
     let default = default
       .map(|designated| designated.name)
-      .unwrap_or_else(|| self.receiver.deployment().agent.clone());
+      .unwrap_or_else(|| self.receiver.default_answerer());
     let agent = self.turn_agent.clone().unwrap_or_else(|| default.clone());
     let named = wake::agents::named_designated(&self.receiver, chat_id).await.ok();
     let answers = match named.as_deref() {
@@ -280,7 +280,7 @@ impl Sends {
       .speaker
       .as_ref()
       .map(|speaker| speaker.agent.clone())
-      .unwrap_or_else(|| self.receiver.deployment().agent.clone());
+      .unwrap_or_else(|| self.receiver.default_answerer());
     let acted = match &request.send {
       ChatSend::Reaction { message_id, emoji } => {
         Some((*message_id, record::Act::Reaction { by: &by, emoji }))
@@ -330,7 +330,7 @@ impl Sends {
       .speaker
       .as_ref()
       .map(|speaker| speaker.agent.clone())
-      .unwrap_or_else(|| self.receiver.deployment().agent.clone());
+      .unwrap_or_else(|| self.receiver.default_answerer());
     let line = record::Kept {
       chat_id: request.room_id,
       number: None,

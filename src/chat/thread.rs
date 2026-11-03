@@ -1,5 +1,5 @@
 //! A person's own thread, followed into their private room: in a user's private room, the turn is handed what that
-//! user and the chat agent said to each other in the group rooms the user is in and the agent answers over the last
+//! user and the default answerer said to each other in the group rooms the user is in and the agent answers over the last
 //! days, and nothing anyone else said nor what the user said to another agent there. It is handed whole once, and
 //! then only the lines added since the last line it handed; the mark is the thread's own, so a session folded,
 //! replaced or started again is handed only what came after it.
@@ -316,7 +316,7 @@ pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<Th
       .await
       .ok()
       .map(|agent| agent.name)
-      .unwrap_or(receiver.deployment().agent.clone());
+      .unwrap_or(receiver.default_answerer());
 
     for row in rooms {
       let other: i64 = row.try_get("", "chat_id")?;

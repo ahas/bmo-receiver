@@ -20,7 +20,7 @@ pub struct WorkerDowngraded {
   pub kind: String,
 }
 
-/// The order a run past its clock hands the chat agent.
+/// The order a run past its clock hands the default answerer.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Overtime {

@@ -455,7 +455,7 @@ pub fn openapi() -> Value {
     "/rooms/{roomId}/window",
     "window",
     "Rooms",
-    "How long the chat agent's window in a room has left.",
+    "How long the default answerer's window in a room has left.",
     vec![path_parameter("roomId")],
     None,
     vec![(200, json_answer::<Window>(&mut generator))],
@@ -745,7 +745,7 @@ pub fn openapi() -> Value {
     "/owner/notices",
     "ownerNotice",
     "Notices",
-    "A code and its parameters queued for the chat agent in the owner's private chat.",
+    "A code and its parameters queued for the default answerer in the owner's private chat.",
     vec![],
     Some(generator.subschema_for::<OwnerNotice>()),
     vec![(201, json_answer::<Created>(&mut generator))],
@@ -961,7 +961,7 @@ pub fn openapi() -> Value {
     "/talks",
     "talk",
     "Talks",
-    "A talk the owner has with the chat agent about a topic it names.",
+    "A talk the owner has with the default answerer about a topic it names.",
     vec![],
     Some(generator.subschema_for::<Talk>()),
     vec![(200, json_answer::<TalkAnswer>(&mut generator))],
@@ -1172,24 +1172,85 @@ pub fn openapi() -> Value {
   );
   add!(
     "POST",
-    "/companions",
-    "addCompanion",
-    "Agents added on the console",
-    "A chat agent added with a room of the console's own.",
+    "/supervisors",
+    "addSupervisor",
+    "Supervisors",
+    "A supervisor added with a room of the console's own.",
     vec![],
-    Some(generator.subschema_for::<CompanionRequest>()),
-    vec![(200, json_answer::<Companions>(&mut generator))],
-    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
+    Some(generator.subschema_for::<SupervisorRequest>()),
+    vec![(201, json_answer::<SupervisorAdded>(&mut generator))],
+    vec!["unauthorized", "bad-request", "conflict", "upstream-failed", "failed"]
+  );
+  add!(
+    "POST",
+    "/supervisors/{supervisorName}/resets",
+    "resetSupervisor",
+    "Supervisors",
+    "A supervisor started afresh, handed the rooms that name it alone and beside another.",
+    vec![name_parameter("supervisorName")],
+    Some(generator.subschema_for::<SupervisorReset>()),
+    vec![(200, json_answer::<Value>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "upstream-failed"]
+  );
+  add!(
+    "GET",
+    "/supervisors/{supervisorName}/rooms",
+    "supervisorRooms",
+    "Supervisors",
+    "The rooms a supervisor answers: those that name it and, for the default answerer, those naming none.",
+    vec![name_parameter("supervisorName")],
+    None,
+    vec![(200, json_answer::<Page<SupervisorRoom>>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "GET",
+    "/default-answerer",
+    "defaultAnswerer",
+    "Supervisors",
+    "The supervisor that answers every room naming none.",
+    vec![],
+    None,
+    vec![(200, json_answer::<DefaultAnswerer>(&mut generator))],
+    vec!["unauthorized"]
+  );
+  add!(
+    "PUT",
+    "/default-answerer",
+    "setDefaultAnswerer",
+    "Supervisors",
+    "The default answerer setting moved to a supervisor the agency registers.",
+    vec![],
+    Some(generator.subschema_for::<DefaultAnswerer>()),
+    vec![(200, json_answer::<DefaultAnswerer>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "upstream-failed", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/supervisors",
+    "setRoomSupervisors",
+    "Rooms",
+    "A room's whole list of supervisors; an empty list hands the room to the default answerer.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<RoomSupervisors>()),
+    vec![(200, json_answer::<RoomSupervisors>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "upstream-failed", "failed"]
   );
   add!(
     "DELETE",
-    "/companions/{companionName}",
-    "removeCompanion",
-    "Agents added on the console",
-    "An agent added on the console taken out, its room half given up; a seeded one is refused.",
-    vec![name_parameter("companionName"), parameter("by", "string", false)],
+    "/supervisors/{supervisorName}",
+    "removeSupervisor",
+    "Supervisors",
+    "A supervisor taken out, the rooms naming it handed to the agency as shared; a seeded supervisor, the \
+     default answerer and one a turn holds are refused.",
+    vec![
+      name_parameter("supervisorName"),
+      parameter("by", "string", false),
+      parameter("forgetBrain", "boolean", false),
+      parameter("force", "boolean", false),
+    ],
     None,
-    vec![(200, json_answer::<Companions>(&mut generator))],
+    vec![(204, empty_answer())],
     vec![
       "unauthorized",
       "forbidden",

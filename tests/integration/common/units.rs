@@ -20,9 +20,9 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, ConsoleAgentRow, Delivery, Event, Events, FieldRefusal, Forgotten, KeptEvents,
-  Load, OpenRun, Passed, Repository, ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine, RunningJob,
-  Said, Scope, Session, SessionState, Turn, Written,
+  Agency, Agent, Agents, Delivery, Event, Events, FieldRefusal, Forgotten, KeptEvents, Load, NewSupervisor,
+  OpenRun, Passed, Removal, Repository, ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine,
+  RunningJob, Said, Scope, Session, SessionState, Turn, Written,
 };
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
@@ -41,11 +41,11 @@ use crate::integration::common::session::StandInSession;
 
 /// The owner every receiver of the tests answers for.
 pub const OWNER: i64 = 42;
-/// The chat agent's registration name.
+/// The default answerer's registration name.
 pub const AGENT: &str = "agent-a";
-/// What the chat agent's own words are filed under.
+/// What the default answerer's own words are filed under.
 pub const SENDER: &str = "Agent A";
-/// The name a room calls the chat agent by.
+/// The name a room calls the default answerer by.
 pub const ADDRESS: &str = "agent-a";
 
 /// A chat service: the rooms it holds and what it says of each, what it declares, and every send it was handed.
@@ -164,7 +164,7 @@ impl StandInChat {
     modes.push((voice, standing));
   }
 
-  /// A room of the service's own that is one person's private chat with the chat agent.
+  /// A room of the service's own that is one person's private chat with the default answerer.
   pub fn privating(mut self, room: i64, person: i64) -> Self {
     self.owns.insert(room);
     self.private.insert(room, person);
@@ -823,17 +823,10 @@ pub const CAP: u64 = 1024;
 pub const WINDOW: i64 = 60;
 
 /// An agent as the agency registers it.
-pub fn registration(
-  name: &str,
-  label: &str,
-  words: Vec<&str>,
-  window: Option<i64>,
-  default: bool,
-) -> Agent {
+pub fn registration(name: &str, label: &str, words: Vec<&str>, window: Option<i64>) -> Agent {
   let mut row = serde_json::Map::<String, Value>::new();
 
   row.insert("aliases".to_owned(), serde_json::json!(words.join(",")));
-  row.insert("defaultAnswerer".to_owned(), serde_json::json!(default));
 
   if let Some(window) = window {
     row.insert("windowSeconds".to_owned(), serde_json::json!(window));
@@ -854,8 +847,12 @@ pub fn registration(
 /// nothing), and the session its turns go on where a test stands one.
 pub struct StandInAgency {
   pub session: Mutex<Option<Arc<StandInSession>>>,
-  pub removals: Mutex<Vec<String>>,
+  pub removals: Mutex<Vec<(String, Removal)>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
+  /// The code a removal is refused with, as the agency's 409, where a test sets one.
+  pub removal_refused: Mutex<Option<String>>,
+  /// Every reset it was asked, the supervisor and the body, in order.
+  pub resets: Mutex<Vec<(String, Value)>>,
   pub pushes: Mutex<Vec<(String, i64, String)>>,
   pub saying: Mutex<Option<Said>>,
   pub agents: Mutex<Vec<Agent>>,
@@ -865,8 +862,8 @@ pub struct StandInAgency {
   pub supervisors_read: Mutex<Vec<String>>,
   /// Every supervisor whose reset point alone it was asked for, in order.
   pub reset_points_read: Mutex<Vec<String>>,
-  /// Every row an add of an agent on the console handed it, in order.
-  pub added_rows: Mutex<Vec<ConsoleAgentRow>>,
+  /// Every supervisor an add handed it, in order.
+  pub added_rows: Mutex<Vec<NewSupervisor>>,
   pub stand_ins: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
   pub written: Mutex<Vec<Resting>>,
@@ -906,6 +903,8 @@ impl StandInAgency {
       session: Mutex::default(),
       removals: Mutex::default(),
       refusing: Mutex::default(),
+      removal_refused: Mutex::default(),
+      resets: Mutex::default(),
       pushes: Mutex::default(),
       saying: Mutex::default(),
       agents: Mutex::default(),
@@ -1280,10 +1279,10 @@ impl Agency for StandInAgency {
     })
   }
 
-  fn add_console_agent<'a>(
+  fn add_supervisor<'a>(
     &'a self,
-    added: &'a ConsoleAgentRow,
-  ) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
+    added: &'a NewSupervisor,
+  ) -> BoxFuture<'a, Answer<Result<Value, FieldRefusal>>> {
     self.added_rows.lock().unwrap().push(added.clone());
 
     if let Some(refusal) = self.refusing.lock().unwrap().clone() {
@@ -1292,9 +1291,8 @@ impl Agency for StandInAgency {
 
     let mut row = serde_json::Map::<String, Value>::new();
 
-    row.insert("kind".to_owned(), serde_json::json!("chat"));
     row.insert("turnShape".to_owned(), serde_json::json!("pieces"));
-    row.insert("builtin".to_owned(), serde_json::json!(0));
+    row.insert("seeded".to_owned(), serde_json::json!(false));
     row.insert("windowSeconds".to_owned(), serde_json::json!(180));
 
     self.agents.lock().unwrap().push(Agent {
@@ -1305,23 +1303,42 @@ impl Agency for StandInAgency {
       row,
     });
 
-    Box::pin(async { Ok(Ok(())) })
+    let answer = serde_json::json!({ "supervisor": { "name": added.name }, "brain": "made" });
+
+    Box::pin(async move { Ok(Ok(answer)) })
   }
 
-  fn remove_console_agent<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Result<(), FieldRefusal>>> {
-    if let Some(refusal) = self.refusing.lock().unwrap().clone() {
-      return Box::pin(async move { Ok(Err(refusal)) });
+  fn remove_supervisor<'a>(&'a self, name: &'a str, removal: &'a Removal) -> BoxFuture<'a, Answer<()>> {
+    if let Some(code) = self.removal_refused.lock().unwrap().clone() {
+      return Box::pin(async move {
+        Err(PortFailure::Answered {
+          url: "agency/supervisors".to_owned(),
+          status: 409,
+          answer: Some(WireError {
+            code,
+            error: "refused".to_owned(),
+          }),
+        })
+      });
     }
 
-    self.removals.lock().unwrap().push(agent.to_owned());
+    self.removals.lock().unwrap().push((name.to_owned(), removal.clone()));
 
     let mut held = self.agents.lock().unwrap();
 
-    if let Some(at) = held.iter().position(|one| one.name == agent) {
+    if let Some(at) = held.iter().position(|one| one.name == name) {
       held.remove(at);
     }
 
-    Box::pin(async { Ok(Ok(())) })
+    Box::pin(async { Ok(()) })
+  }
+
+  fn reset_supervisor<'a>(&'a self, name: &'a str, reset: &'a Value) -> BoxFuture<'a, Answer<Value>> {
+    self.resets.lock().unwrap().push((name.to_owned(), reset.clone()));
+
+    let answer = serde_json::json!({ "agent": name, "rows": [] });
+
+    Box::pin(async move { Ok(answer) })
   }
 }
 

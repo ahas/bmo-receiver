@@ -1,4 +1,4 @@
-//! Replacing the chat agent's one session (docs/unified-bmo.md, 「Replacing the session」): a turn on an unmoved
+//! Replacing the default answerer's one session (docs/unified-bmo.md, 「Replacing the session」): a turn on an unmoved
 //! head resumes the session whatever its own composition carries, and a head the agency says moved replaces it.
 //! Before it is ended the old session writes its handoff file, which the new session's first turn carries; where it
 //! writes nothing the receiver's transcript of it stands in, and only where neither stands is nothing recovered and
@@ -73,7 +73,7 @@ async fn until(what: &str, holds: impl Fn() -> bool) {
   assert!(waited.is_ok(), "{what} never came");
 }
 
-/// The chat agent on its one session across its rooms, in the owner's chat.
+/// The default answerer on its one session across its rooms, in the owner's chat.
 struct Unified {
   scratch: Scratch,
   data: tempfile::TempDir,
@@ -96,7 +96,7 @@ impl Unified {
     let session = Arc::new(session);
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
-    let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
+    let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
 
     agent.row.insert("sessionScope".to_owned(), serde_json::json!("agent"));
     standing.agency.registering(vec![agent]);

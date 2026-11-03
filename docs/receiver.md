@@ -19,7 +19,7 @@ flowchart TD
   Rx -->|GET /events, GET /live| Screens[Console screens]
 ```
 
-- **One receiver.** It stands where its configuration names its database, the owner and the chat agent; without
+- **One receiver.** It stands where its configuration names its database, the owner and the default answerer; without
   the owner it stands no receiver and says so on its output.
 - **What it carries:**
   - the secret-shaped runs taken out of a message's words before anything keeps or forwards them
@@ -34,7 +34,7 @@ flowchart TD
     - the rest's gate, read off the agency's rest (`GET /rest`, and `GET /stand-in` for a road the rest closes);
     - the read mark and a mute;
     - the window each agent keeps in the room, and the one a call opens for it;
-    - the files a person posted just before the words of theirs that woke the chat agent;
+    - the files a person posted just before the words of theirs that woke the default answerer;
   - the conversations (`docs/wake.md`, `docs/bmo-window.md`): each room's queue, rounds, window and waits, the
     round's turn on the agent's session with the room's words and the quiet instructions that arrive while it
     works pushed into it, the draft process its answer is made in and the room's words no push put in shown at its
@@ -52,9 +52,9 @@ flowchart TD
     words a restart left unread handed to every room that answers, one room at a time and in room order, the
     room's read mark advancing as its turn goes out; a room with nothing waiting is not served, and a line already served
     is not served again;
-  - the console's talks about an item and a document (`POST /talks`), each turn a round of the owner's chat on the
-    chat agent's session;
-  - the one runner: each woken agent's turns in its conversations, the chat agent's and every other agent's alike,
+  - the console's talks about an item and a document (`POST /talks`), each turn a round of the owner's chat on the default
+    answerer's session;
+  - the one runner: each woken agent's turns in its conversations, every supervisor's alike,
     every agent's rows of the instruction pass, and the words the room sessions left untaken taken up as the
     receiver starts, each answer handed back to the receiver like any word filed in the room;
   - the console's road in: `POST /owner/messages` and `POST /owner/message-files` into any room it holds, the
@@ -353,14 +353,15 @@ flowchart TD
   list of providers like any room's: on the record alone, it is answered in the console alone, and a messenger he
   detached from it is attached again from the console's provider setting.
 - **`owner-room` stands up a room on the record alone** (`docs/boundary-api.md`, 「The service and its commands」),
-  the owner and the chat agent its members, for a configuration that names it as `owner_room`.
+  the owner and the default answerer its members and naming no supervisor, so the default answerer answers it, for a
+  configuration that names it as `owner_room`.
 - **Whose one-to-one with the agent a room is, is a chat service's question too** (its `privateTo`). The
   receiver turns the answer into a user's private chat only where that person's sender is linked to a user
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
-- **In a room the console made, the chat agent and each agent added there have numbers of the console's own,**
-  given as the rooms are stood up (`POST /companions`), and an agent's words are filed under the number it was
-  given and under its own name, the label its registration carries (the chat agent's, the deployment's sender
-  name), each message naming the agent that said it, so one room holds every speaker apart.
+- **In a room the console made, every supervisor answering it has a number of the console's own,** given as the
+  room is stood up (`POST /supervisors`, `owner-room`), and a supervisor's words are filed under the number it
+  was given and under its own name, the label its registration carries (the deployment's sender name for the
+  configured `agent`), each message naming the agent that said it, so one room holds every speaker apart.
 - **Every agent holds one number on the record,** under the record's own key, the one it was first given in
   whichever room: its words in every room the record numbers stand under it, and its kept picture with them.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice and a briefing's

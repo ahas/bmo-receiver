@@ -1,6 +1,6 @@
 # Agents settling overlapping work
 
-Every designated agent (the chat agent and every other agent) puts work on the queue for a worker of its own, so
+Every designated agent (every supervisor) puts work on the queue for a worker of its own, so
 two agents can send the same feature in two directions. The system keeps two jobs out of one checkout and nothing
 more; whether two pieces of work collide is the agents' own judgement, settled by talking in a room the owner can
 read. This document is how that talk is set up: the room it happens in, what each agent is shown so it can see an
@@ -33,7 +33,7 @@ flowchart TD
 ## Whose an item is
 
 - **An item belongs to the agent whose repository takes it.** A supervisor's row names the repository its items
-  go to; an item assigned to that repository is that agent's, and every other item is the chat agent's.
+  go to; an item assigned to that repository is that agent's, and every other item is the default answerer's.
 - **Nothing lists the agents.** The owner of an item is read from the supervisors' rows for every turn
   (`GET /supervisors` on the agency), so an agent added as a row owns its items from its first one.
 

@@ -29,13 +29,13 @@ const TOKEN: &str = "the-token";
 const ROOM: i64 = -100;
 
 // A receiver over a scratch database, its rounds standing as working everywhere, reaching one road that holds
-// the room, with the chat agent registered.
+// the room, with the default answerer registered.
 async fn stood() -> (Scratch, Router, Arc<StandInChat>, Standing, TempDir) {
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER));
   let standing = standing(scratch.db(), DataRoot::new(data.path()), [road.clone()].to_vec());
-  let mut agent = registration(AGENT, SENDER, [ADDRESS].to_vec(), None, true);
+  let mut agent = registration(AGENT, SENDER, [ADDRESS].to_vec(), None);
 
   agent.row.insert("role".to_owned(), json!("chat"));
   standing.agency.registering([agent].to_vec());

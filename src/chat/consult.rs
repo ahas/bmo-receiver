@@ -141,7 +141,7 @@ pub async fn consult_block(receiver: &Receiver, own: &str, now_ms: i64) -> Resul
     .await
     .ok()
     .map(|one| one.name)
-    .unwrap_or(receiver.deployment().agent.clone());
+    .unwrap_or(receiver.default_answerer());
   let items = receiver.units().job.items().await.unwrap_or_default();
   let mut listed_items: Vec<String> = vec![];
 

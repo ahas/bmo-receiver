@@ -1,5 +1,5 @@
 //! The tool host's catalogue as the receiver hears it (docs/boundary-api.md, 「The tool host」; docs/wake.md, 「The
-//! tool host's changes」): a change becomes one riding fact for each chat agent whose standing tool session holds
+//! tool host's changes」): a change becomes one riding fact for each supervisor whose standing tool session holds
 //! one of its namespaces, a placing that replaced another version reads as updated, and a cursor the host no longer
 //! holds is answered by hearing the stream again with none.
 
@@ -64,8 +64,8 @@ fn a_change_reads_its_entries_and_a_replacing_placement_reads_as_updated() {
 
 #[test]
 fn a_change_concerns_each_supervisor_whose_standing_session_holds_one_of_its_namespaces() {
-  let chat = registration("agent-a", "Agent A", vec![], None, true);
-  let other = registration("agent-b", "Agent B", vec![], None, false);
+  let chat = registration("agent-a", "Agent A", vec![], None);
+  let other = registration("agent-b", "Agent B", vec![], None);
 
   // A role's run holds a tool session too, and is told nothing: only the supervisors are listed.
   let agents = [chat, other];
@@ -111,8 +111,8 @@ async fn each_event_is_one_riding_fact_per_agent_and_a_stale_cursor_hears_the_st
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![]);
-  let chat = registration("agent-a", "Agent A", vec![], None, true);
-  let other = registration("agent-b", "Agent B", vec![], None, false);
+  let chat = registration("agent-a", "Agent A", vec![], None);
+  let other = registration("agent-b", "Agent B", vec![], None);
 
   standing.agency.registering(vec![chat, other]);
 

@@ -134,7 +134,7 @@ async fn rows_handed_across_a_reconnect_to_no_standing_conversation_are_handed_a
   let rooms = Recorded::default();
   let mut last = 0;
 
-  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None)]);
 
   let lost = queue(scratch.db(), AGENT, OWNER, "a research result", &Queued::default())
     .await

@@ -1,6 +1,6 @@
 //! What the agency tells of its jobs' runs (docs/wake.md, 「What the agency's events wake」): a job's run
 //! that answered on a lesser model, named by its role and its repository with the checkout it ran in beside
-//! it, voiced to the owner by the chat agent.
+//! it, voiced to the owner by the default answerer.
 
 use futures_util::future::BoxFuture;
 use receiver_policy::fill_marks;

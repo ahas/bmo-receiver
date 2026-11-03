@@ -116,7 +116,7 @@ impl Config {
     Database::connect(options).await.map_err(|why| format!("the database: {why}"))
   }
 
-  /// The deployment's names, with the words a room calls the chat agent by read off its registration.
+  /// The deployment's names, with the words a room calls the configured agent by read off its registration.
   pub fn deployment(&self, call_names: Vec<String>) -> Deployment {
     Deployment {
       owner_id: self.owner,

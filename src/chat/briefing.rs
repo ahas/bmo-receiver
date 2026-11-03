@@ -234,7 +234,7 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
     .try_get("", "sender_name")
     .map_err(|why| NotReceived::from(crate::Fault::from(why)))?;
   let deployment = receiver.deployment();
-  // A line the receiver archived names its agent; one under the chat agent's own sender name is the chat agent's.
+  // A line the receiver archived names its agent; one under the deployment's sender name is the configured agent's.
   let agent = agent.or_else(|| {
     (sender.as_deref() == Some(deployment.sender_name.as_str())).then(|| deployment.agent.clone())
   });

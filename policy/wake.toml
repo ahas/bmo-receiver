@@ -1,6 +1,6 @@
 # The wake's declared lengths (docs/room-files.md, 「Who a file wakes」).
 
-# How far back a person's file is read as leading up to the words of theirs that woke the chat agent, in
+# How far back a person's file is read as leading up to the words of theirs that woke the default answerer, in
 # seconds: long enough to type the request about a file just posted, short enough that a file of the day
 # before is nobody's request.
 file_lead_seconds = 120

@@ -28,7 +28,7 @@ const VOICE: &str = "voice-a";
 const ROOM: i64 = -500;
 
 fn voiced(voice: Option<&str>) -> receiver_ports::agency::Agent {
-  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
 
   if let Some(voice) = voice {
     agent.row.insert("voice".to_owned(), json!(voice));

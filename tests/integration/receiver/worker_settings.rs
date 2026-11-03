@@ -33,7 +33,7 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "lastMessageAt": 1_000,
         "pinned": false,
         "senders": [OWNER],
-        "companions": [],
+        "supervisors": [],
         "ownerRoom": false,
         "registered": true,
         "workRoom": 7,
@@ -52,7 +52,7 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "lastMessageAt": null,
         "pinned": false,
         "senders": [],
-        "companions": [],
+        "supervisors": [],
         "ownerRoom": false,
         "registered": false,
         "workRoom": OWNER,
@@ -70,9 +70,12 @@ async fn a_rooms_answerers_are_read_as_the_wake_judges_them() {
   front
     .standing
     .agency
-    .registering([registration(AGENT, "Agent A", ["a"].to_vec(), None, true)].to_vec());
+    .registering([registration(AGENT, "Agent A", ["a"].to_vec(), None)].to_vec());
   scratch
-    .run(r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES (7, 'agent-a')"#, vec![])
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (7, 'agent-a')"#,
+      vec![],
+    )
     .await;
 
   assert_eq!(
@@ -82,7 +85,7 @@ async fn a_rooms_answerers_are_read_as_the_wake_judges_them() {
       json!({
         "default": AGENT,
         "voice": AGENT,
-        "items": [{ "agentName": AGENT, "companion": false }],
+        "items": [{ "agentName": AGENT, "defaultAnswerer": true }],
         "more": false,
       }),
     ),

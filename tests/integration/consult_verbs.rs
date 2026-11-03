@@ -49,7 +49,7 @@ async fn rooms() -> (Scratch, tempfile::TempDir, Standing) {
   );
   scratch
     .run(
-      r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2), ($1, $3), ($4, $2)"#,
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2), ($1, $3), ($4, $2)"#,
       vec![SHARED.into(), "agent-a".into(), "agent-b".into(), ALONE.into()],
     )
     .await;

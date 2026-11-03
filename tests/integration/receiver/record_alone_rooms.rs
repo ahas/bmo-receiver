@@ -31,16 +31,14 @@ const NUMBERED: i64 = -9000000000002;
 const TITLED: i64 = -180;
 
 // A receiver over a scratch database, judging by its own wake, whose one chat service nothing listens for, and the
-// three rooms, each with the chat agent as its one answerer.
+// three rooms, each with the default answerer as its one answerer.
 async fn stood() -> (Scratch, TempDir, Standing, Arc<StandInChat>, Router) {
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let road = Arc::new(StandInChat::new("road-a").down());
   let standing = woken(standing(scratch.db(), DataRoot::new(data.path()), vec![road.clone()]));
 
-  standing
-    .agency
-    .registering(vec![registration(AGENT, SENDER, vec![ADDRESS], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, SENDER, vec![ADDRESS], None)]);
 
   for chat_id in [CHOSEN, NUMBERED, TITLED] {
     scratch
@@ -51,7 +49,7 @@ async fn stood() -> (Scratch, TempDir, Standing, Arc<StandInChat>, Router) {
       .await;
     scratch
       .run(
-        r#"INSERT INTO "room_answerers" ("chat_id", "agent") VALUES ($1, $2)"#,
+        r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2)"#,
         vec![chat_id.into(), AGENT.into()],
       )
       .await;

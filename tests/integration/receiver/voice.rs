@@ -18,7 +18,7 @@ use crate::integration::common::queue::{Front, Kicked, TOKEN, post};
 use crate::integration::common::units::{AGENT, standing};
 
 /// The front standing as the receiver for an owner, hearing its news in a stream of its own the test reads, and
-/// registering the chat agent with the voice given.
+/// registering the default answerer with the voice given.
 async fn bench(voice: Value) -> (Scratch, Front, Events) {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
@@ -31,7 +31,7 @@ async fn bench(voice: Value) -> (Scratch, Front, Events) {
       label: Some("Agent A".into()),
       awake: true,
       brain_folder: None,
-      row: json!({ "voice": voice, "defaultAnswerer": true }).as_object().unwrap().clone(),
+      row: json!({ "voice": voice }).as_object().unwrap().clone(),
     }]
     .to_vec(),
   );

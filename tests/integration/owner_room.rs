@@ -58,7 +58,7 @@ async fn the_command_stands_the_room_up_once_on_the_record_alone() {
     .texts(&format!(r#"SELECT "provider" FROM "room_providers" WHERE "chat_id" = {room}"#))
     .await;
   let answerers = scratch
-    .texts(&format!(r#"SELECT "agent" FROM "room_answerers" WHERE "chat_id" = {room}"#))
+    .texts(&format!(r#"SELECT "supervisor" FROM "room_supervisors" WHERE "chat_id" = {room}"#))
     .await;
   let title = scratch
     .texts(&format!(r#"SELECT "title" FROM "chat_titles" WHERE "chat_id" = {room}"#))
@@ -70,9 +70,9 @@ async fn the_command_stands_the_room_up_once_on_the_record_alone() {
     .await;
 
   assert_eq!(providers, vec!["record".to_owned()], "the record is its one provider");
-  assert_eq!(answerers, vec![AGENT.to_owned()]);
+  assert!(answerers.is_empty(), "the room names no supervisor, so the default answerer answers it");
   assert_eq!(title, vec!["the owner's room".to_owned()]);
-  assert_eq!(numbered.len(), 1, "the chat agent holds a number of the console's own");
+  assert_eq!(numbered.len(), 1, "the configured agent holds a number of the console's own");
   assert!(numbered[0].parse::<i64>().unwrap() < 0);
 
   let (again, made) = stand_up(scratch.db(), AGENT, "another title").await.unwrap();

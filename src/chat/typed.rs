@@ -1,4 +1,4 @@
-//! A line a person typed into the chat agent's program, as the round that composes it reads it (docs/bmo-window.md,
+//! A line a person typed into the default answerer's program, as the round that composes it reads it (docs/bmo-window.md,
 //! 「A line typed into the program」).
 //!
 //! The line is the owner's — it carries no sender, and only he reaches the program — and it is read in his
@@ -42,7 +42,7 @@ pub fn context(composed: &str) -> String {
   format!("{lead}\n\n{composed}")
 }
 
-// The chat agent's conversations compose a line typed into its program.
+// The default answerer's conversations compose a line typed into its program.
 impl Typing for Conversations {
   fn typed_line<'a>(
     &'a self,

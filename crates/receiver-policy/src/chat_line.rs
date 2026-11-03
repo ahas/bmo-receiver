@@ -11,7 +11,7 @@ pub struct Persona {
   pub room_header: String,
 }
 
-/// The lines the roster of the owner's private chat names its members under: the other chat agents, each a
+/// The lines the roster of the owner's private chat names its members under: the other supervisors, each a
 /// supervisor of the agency's, and the roles work is handed off as.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

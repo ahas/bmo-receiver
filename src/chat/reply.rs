@@ -148,7 +148,7 @@ async fn carry(
   };
   let mut request = ChatSendRequest::new(chat_id, send.clone());
   request.reply_to_message_id = reply.reply_to;
-  let agent = reply.agent.clone().unwrap_or_else(|| receiver.deployment().agent.clone());
+  let agent = reply.agent.clone().unwrap_or_else(|| receiver.default_answerer());
   // The answer as the room keeps it, which goes on to the room's other providers as the same send, its fold
   // with it.
   let line = KeptLine {

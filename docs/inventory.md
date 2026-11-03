@@ -57,7 +57,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 | `lines/` | 17 | bmo-agency |
 | `worker_session/` | 4 | bmo-agency |
 | `run_log/` | 6 | bmo-agency |
-| `companion/` guard, handoff, overtaken, run, sessions | 5 | bmo-agency |
+| the added supervisors' folder: guard, handoff, overtaken, run, sessions | 5 | bmo-agency |
 | `conversational.rs`, `host_run.rs`, `stand_in.rs`, `doctor.rs` | 4 | bmo-agency |
 | `watches/mod.rs`, `live_runs.rs`, `links.rs` | 3 | bmo-agency |
 | `gates/` | 22 | bmo-gate |
@@ -106,8 +106,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 | Member | Stands here as | Carried by |
 |---|---|---|
 | own: `chat-round`, `roads`, `wake`, `talk`, `restart`, `second-asks`, `consult`, `handover`, `files`, `code-review`, `queue` | `policy/` of the same names | build-3 (Copy the receiver's policy) |
-| shared, the keys the receiver acts on: `chat-health`, `chat-line`, `rest`, `resident-turn`, `companion-runner`, `run-lines`, `roles`, `keepalive`, `providers` | `policy/` of the same names, the old `providers/` folder become one `providers.toml` | build-3 |
-| `companions.toml` | `policy/companions.toml`: the name pattern and the added icon, which the S6 enumeration missed and the companion roster reads | build-3 |
+| shared, the keys the receiver acts on: `chat-health`, `chat-line`, `rest`, `resident-turn`, `run-lines`, `roles`, `keepalive`, `providers` | `policy/` of the same names, the old `providers/` folder become one `providers.toml` | build-3 |
 | `commands.toml` | `policy/commands.toml`: the phrases the owner's commands are matched by, the polite endings and the option suffixes | build-2 (Turn room words into codes) |
 | the loader | `crates/receiver-policy`, one module per file, held to the folder by its load test | build-3 |
 
@@ -120,7 +119,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `agent_catalogue` | the roster line in `policy/chat-line.toml`, written with the `{owner}` and `{agent}` marks |
 | `chat_health` | `FixedLine::Compacting`, `CompactFailed`, `ProviderDown`, `HealthFact::FoldFailed`, the turn openings of kind `fold` and `fold-deferred` |
 | `chat_turn` | `RunTitle::Chat`, `RunTitle::Fold` |
-| `companions` | `CompanionRefusal`, `CompanionFact::RoomTakenBack`, `FixedLine::CompanionEngineError` |
+| the added supervisors' words | `SupervisorRefusal`, `SupervisorFact::RoomTakenBack` |
 | `consult` | `ConsultRefusal`, with the `said` and `number` lines moved to `policy/consult.toml` |
 | `draws` | `FixedLine::Draw` with its line, asked and result fields |
 | `owner_sends` | `OwnerSendRefusal`, `FileUnsent` with a per-file reason, sizes in bytes |
@@ -133,7 +132,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `talk` | `TalkRefusal`, with bmo-job's `resting`, `limit` and `outage` at bmo-job's statuses |
 | `voice` | `VoiceRefusal`, the briefing title as `RunTitle::VoiceBriefing` |
 | `word_chain` | not taken: it belongs to the launches the room-calls crate does not carry |
-| `control_answers`, `draws` outside S7 | `CompanionRefusal::Action`, read by the companion roster |
+| `control_answers`, `draws` outside S7 | `SupervisorRefusal::Action`, read by the supervisor routes |
 
 ## S8 — the old files holding Korean literals
 
@@ -155,7 +154,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `tests/integration/receiver/wake.rs`, the colocated `wake/question` and `wake/rest` modules | `tests/integration/wake.rs`, `tests/integration/wake/question.rs`, `tests/integration/wake/rest.rs` | build-7 |
 | the colocated modules of `chat/conversation`, `mid_turn`, `window`, `shape`, `room`, `context`, `records`, `form`, `text`, `dashes`, `js`, `web_address` | `tests/` of those names | build-8 |
 | `tests/integration/private_thread.rs` | of the same name | build-8 |
-| the colocated modules of `chat/ask`, `progress`, `again`, `companion/words`, and the promises reading | `tests/ask.rs`, `tests/progress.rs`, `tests/draft.rs`, `tests/companion_words.rs`, `tests/promises.rs` | build-9 |
+| the colocated modules of `chat/ask`, `progress`, `again`, and the promises reading | `tests/ask.rs`, `tests/progress.rs`, `tests/draft.rs`, `tests/promises.rs` | build-9 |
 | `tests/integration/stop_notice.rs` | of the same name | build-9 |
 | `tests/integration/chat_tool.rs` (the consult block test), `receiver/talk.rs`, `talk_verbs.rs` (the consult tests), `chat/talk`'s colocated module | `tests/integration/consult_block.rs`, `tests/integration/talks.rs`, `tests/integration/consult_verbs.rs`, `tests/talk.rs` | build-10 |
 | `tests/integration/verbs_messages.rs`, `verbs_draws.rs`, `receiver/owner_sends.rs`, `receiver/owner_words.rs` | of the same names | build-11 |
@@ -190,7 +189,7 @@ build-1 and implemented by the task named here.
 | the chat protocol's hand-overs | 4 | build-6, through `bmo-chat-client` |
 | the cache warmer's ping hook | 1 | build-12 |
 | the agency's hooks answered | 3 | build-12 |
-| the receiver's own: sends, consult, the owner's words, say, events, live, health, room removal, openings, voice, companions | — | build-6, build-10, build-11, build-13 |
+| the receiver's own: sends, consult, the owner's words, say, events, live, health, room removal, openings, voice, supervisors | — | build-6, build-10, build-11, build-13 |
 | the console's reads, under `/console/` | 8 | build-12 |
 
 ## S12 — the ports out

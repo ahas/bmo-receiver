@@ -1,5 +1,5 @@
 //! A room's round carried whole (docs/wake.md, 「The room's queue and the round」; docs/bmo-window.md, 「Every
-//! road into the agent」): the owner's words filed in his chat wake the chat agent's conversations, the round
+//! road into the agent」): the owner's words filed in his chat wake the default answerer's conversations, the round
 //! composes its turn and carries it into the agency's session, its answer goes back to the room, and words that
 //! come into the room while the turn works and that the turn does not take wait, and the round's closing check
 //! shows them before its message goes out. Words a turn takes while it works move its turn in the live picture on
@@ -30,7 +30,7 @@ use crate::integration::common::units::{
 /// What the session's every turn ends with.
 const ANSWER: &str = "Here is what was asked.";
 
-/// The session the chat agent's turns go on.
+/// The session the default answerer's turns go on.
 const SESSION: &str = "agent-a@room";
 
 const FIRST: &str = "the first words";
@@ -77,7 +77,7 @@ fn timings() -> Timings {
   }
 }
 
-// The chat agent's documents a room's block cannot go out without, under the data root.
+// The default answerer's documents a room's block cannot go out without, under the data root.
 fn documents(data: &Path) {
   let chat = data.join("prompts").join("chat");
 
@@ -151,9 +151,7 @@ impl Round {
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings, AGENT);
 
-    standing
-      .agency
-      .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+    standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
     standing.agency.carrying_on(session.clone());
     receiver.hold_runner(Arc::new(runner.clone()));
 
@@ -374,9 +372,7 @@ async fn a_turn_hands_the_agency_no_base_persona_even_where_the_deployment_keeps
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 
-  standing
-    .agency
-    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
   standing.agency.carrying_on(session.clone());
   receiver.hold_runner(Arc::new(runner.clone()));
   receiver.message(&said(1, FIRST), &Context::default(), owners_room()).await.unwrap();
@@ -503,7 +499,7 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   );
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
-  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
 
   agent.row.insert("sessionScope".to_owned(), serde_json::json!("agent"));
   standing.agency.registering(vec![agent]);
@@ -569,9 +565,7 @@ async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_
   let cap = CHAT_ROUND.archived_messages as i64;
   let unread = cap + 3;
 
-  standing
-    .agency
-    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
   standing.agency.carrying_on(session.clone());
   receiver.hold_runner(Arc::new(runner.clone()));
   scratch
@@ -624,9 +618,7 @@ async fn folds_after_a_round(folds_itself: bool) -> Vec<String> {
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 
-  standing
-    .agency
-    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
   standing.agency.carrying_on(session.clone());
   receiver.hold_runner(Arc::new(runner.clone()));
   receiver.message(&said(1, FIRST), &Context::default(), owners_room()).await.unwrap();
@@ -685,9 +677,7 @@ async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet
     private_to: None,
   };
 
-  standing
-    .agency
-    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
   standing.agency.carrying_on(session.clone());
   receiver.hold_runner(Arc::new(runner.clone()));
 
@@ -727,7 +717,7 @@ async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet
 #[tokio::test]
 async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_his() {
   const LAB: i64 = -9_000_000_000_003;
-  const AGENT_LINE: &str = "an added agent's answer in the room";
+  const AGENT_LINE: &str = "a supervisor's answer in the room";
 
   let scratch = Scratch::new().await;
 
@@ -752,9 +742,7 @@ async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_hi
     private_to: None,
   };
 
-  standing
-    .agency
-    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None, true)]);
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
   standing.agency.carrying_on(session.clone());
   receiver.hold_runner(Arc::new(runner.clone()));
 
@@ -772,7 +760,7 @@ async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_hi
   })
   .await;
 
-  // While it stands, an added agent's answer is filed in the room and the owner speaks again: one round takes both.
+  // While it stands, a supervisor's answer is filed in the room and the owner speaks again: one round takes both.
   let line = receiver.speech().kept(LAB, AGENT_LINE, None, Some("agent-b"), None).await.unwrap();
 
   receiver.filed(LAB, line, "record", lab).await.unwrap();

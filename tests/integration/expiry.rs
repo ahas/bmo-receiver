@@ -61,7 +61,7 @@ fn agent_standing(scratch: &Scratch, data: &std::path::Path, session: &Arc<Stand
   std::fs::write(prompts.join(&CHAT_LINE.capabilities.document), "What the agent can do.").unwrap();
 
   let standing = woken(unrun(scratch.db(), DataRoot::new(data), vec![chat], deployment()));
-  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None, true);
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
 
   agent.row.insert("sessionScope".to_owned(), json!("agent"));
   standing.agency.registering(vec![agent]);

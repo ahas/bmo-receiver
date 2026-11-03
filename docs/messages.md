@@ -119,7 +119,7 @@ and when a room sees it typing.
 
 ## Words handed to the room's supervisor
 
-Every message a room receives comes from that room's supervisor, the chat agent that answers it. Anything else
+Every message a room receives comes from that room's supervisor, the one that answers it. Anything else
 that wants something said there hands the words to that supervisor, and the supervisor says it in its own turn.
 
 - **A send is carried only in its supervisor's own round.** `POST /sends` carries an act as asked where its asker

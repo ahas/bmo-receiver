@@ -37,8 +37,13 @@ export type HandoffWritten = Schemas["HandoffWritten"];
 export type VoiceBriefing = Schemas["VoiceBriefing"];
 export type VoiceBriefingSwitch = Schemas["VoiceBriefingSwitch"];
 export type LineReading = Schemas["LineReading"];
-export type CompanionRequest = Schemas["CompanionRequest"];
-export type Companions = Schemas["Companions"];
+export type SupervisorRequest = Schemas["SupervisorRequest"];
+export type SupervisorAdded = Schemas["SupervisorAdded"];
+export type AddedRoom = Schemas["AddedRoom"];
+export type SupervisorReset = Schemas["SupervisorReset"];
+export type SupervisorRoom = Schemas["SupervisorRoom"];
+export type DefaultAnswerer = Schemas["DefaultAnswerer"];
+export type RoomSupervisors = Schemas["RoomSupervisors"];
 export type PinnedRooms = Schemas["PinnedRooms"];
 export type PinRooms = Schemas["PinRooms"];
 export type PinRoom = Schemas["PinRoom"];
@@ -376,18 +381,50 @@ export function receiverClient(options: ReceiverOptions) {
       );
     },
 
-    /** `POST /companions`. */
-    async addCompanion(body: CompanionRequest): Promise<Companions> {
-      return answered(await client.POST("/companions", { body }));
+    /** `POST /supervisors`. */
+    async addSupervisor(body: SupervisorRequest): Promise<SupervisorAdded> {
+      return answered(await client.POST("/supervisors", { body }));
     },
 
-    /** `DELETE /companions/{companionName}`. */
-    async removeCompanion(companionName: string, by?: string): Promise<Companions> {
-      return answered(
-        await client.DELETE("/companions/{companionName}", {
-          params: { path: { companionName }, query: by ? { by } : {} },
+    /** `DELETE /supervisors/{supervisorName}`. */
+    async removeSupervisor(
+      supervisorName: string,
+      options: { by?: string; forgetBrain?: boolean; force?: boolean } = {},
+    ): Promise<void> {
+      answered(
+        await client.DELETE("/supervisors/{supervisorName}", {
+          params: { path: { supervisorName }, query: options },
         }),
       );
+    },
+
+    /** `POST /supervisors/{supervisorName}/resets`. */
+    async resetSupervisor(supervisorName: string, body: SupervisorReset): Promise<unknown> {
+      return answered(
+        await client.POST("/supervisors/{supervisorName}/resets", { params: { path: { supervisorName } }, body }),
+      );
+    },
+
+    /** `GET /supervisors/{supervisorName}/rooms`. */
+    async supervisorRooms(supervisorName: string): Promise<Page<SupervisorRoom>> {
+      return answered(
+        await client.GET("/supervisors/{supervisorName}/rooms", { params: { path: { supervisorName } } }),
+      );
+    },
+
+    /** `GET /default-answerer`. */
+    async defaultAnswerer(): Promise<DefaultAnswerer> {
+      return answered(await client.GET("/default-answerer"));
+    },
+
+    /** `PUT /default-answerer`. */
+    async setDefaultAnswerer(body: DefaultAnswerer): Promise<DefaultAnswerer> {
+      return answered(await client.PUT("/default-answerer", { body }));
+    },
+
+    /** `PUT /rooms/{roomId}/supervisors`. */
+    async setRoomSupervisors(roomId: number, body: RoomSupervisors): Promise<RoomSupervisors> {
+      return answered(await client.PUT("/rooms/{roomId}/supervisors", { params: { path: { roomId } }, body }));
     },
 
     /** `GET /rounds/drafts`: what each named round's draft process wrote. */
