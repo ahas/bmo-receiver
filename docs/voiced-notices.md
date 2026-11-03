@@ -44,7 +44,9 @@ agent that answers the room says the line.
 
 - **Through the instruction queue, always.** A notice is a queued instruction row, never a direct hand-off to a
   live session: the queue holds a row while its chat is silenced, where a direct hand-off into a silenced chat
-  would be lost. bmo-job queues its notices with `POST /rooms/{chat}/notices`, the brain its owner notices with
+  would be lost. The agency queues the job queue's notices with `POST /instructions`, and its owner notices — an
+  idle queue, a job's question past its due time, a job that failed in another room — with
+  `POST /owner/notices`; the brain its owner notices with
   `POST /owner/notices`.
 - **Delivered at once, unless it rides.** The instruction pass delivers pending rows on its regular tick; a
   notice queued through a route or by the receiver itself also asks for a pass straight away, so it does not wait
@@ -150,7 +152,9 @@ agent that answers the room says the line.
   4. **The report is told once.** The ending fact names the room that heard a line of it, so the agent does not
      tell that room again.
   5. A fact with no report in it is an ending the agent tells by itself, from what the fact says.
-  6. bmo-job decides which room the fact goes to and queues it; the receiver delivers it by the rules standing
+  6. The agency decides which room the fact goes to — the room of the supervisor that ordered the item, up the
+     chain of items it was raised from (its `docs/agent-control.md`, 「An item's change is told to its
+     orderer」) — and queues it; the receiver delivers it by the rules standing
      when it is delivered.
 - **Background runs.** A digest or person-book run that failed, a person-book sort that gave up on a room, a rule
   candidate awaiting approval, a paused digest, a voice briefing that failed, a job that died without reporting:
@@ -324,5 +328,4 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
-| A job's question to the owner, and the job's answers when the owner talks it over | A numbered form the owner answers by number; its options, and what the job says about them, reach the owner exactly as the job wrote them. bmo-job sends them. |
 | Pass-through content (search, browse and say results) | An agent, or whoever set it, already wrote it. |

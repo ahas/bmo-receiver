@@ -30,8 +30,10 @@ flowchart TB
 
 ## The agent's queue
 
-- **A unit that wants the agent's attention queues an instruction.** bmo-job posts `POST /owner/instructionsions` and
-  `POST /rooms/{roomId}/notices`, bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own producers (its rest, fallback and
+- **A unit that wants the agent's attention queues an instruction.** The agency posts `POST /instructions` and
+  `POST /owner/notices` for the job queue: a job's end, and each change of an item or a job told to the
+  supervisor that ordered the work or to the owner (the agency's `docs/agent-control.md`, 「An item's change is
+  told to its orderer」); bmo-job calls no unit. bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own producers (its rest, fallback and
   failure notices, its fold, the agency's events) write the row themselves. The instruction store is the one
   writer of the table.
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
@@ -64,23 +66,18 @@ is written.
 | A quiet instruction arriving while a turn works | instruction pass | instruction table | `push` | joins the working one | the pushed rows' |
 | A room's words arriving while a round's turn works | room queue | room queue | `push` | joins the working one, the agent judging each message | — |
 | A room's words no push put in: arriving between the round's turns, refused by the turn, or for a turn that takes no words while it works | room queue | room queue | `question` | under the round's next question or its closing check (`docs/drafting.md`, 「What came in meanwhile」) | — |
-| A job's ending, its report and state facts | bmo-job | instruction table | `round` | opens | `job-ended` |
-| A work order's held, resuming, stalled, stopped and paused stages | bmo-job | instruction table | `round` | opens | — |
-| A job quiet for five minutes | bmo-job | instruction table | `round` | opens | — |
-| A worker standing empty with work waiting for five minutes | bmo-job | instruction table | `round` | opens | `queue-changed` |
-| The queue standing open after a pause or a deploy hold | bmo-job | instruction table | `round` | opens | `queue-changed` |
-| The queue standing open at start-up | bmo-job | instruction table | `round` | rides, for the restart's while | `queue-changed` |
-| A row a job raised | bmo-job | instruction table | `round` | opens | `queue-changed` |
-| A dead job's notice and its failure order | bmo-job | instruction table | `round` | opens | `job-ended` on the notice |
+| A job's end and its report, a dead pane's among them | the agency's `POST /instructions` | instruction table | `round` | opens | `job-ended` |
+| A change of an item or a job told to the supervisor that ordered it: an item awaiting a launch or an approval, an item its paused queue holds or one no checkout takes, an item moved under its running job or closed by another, a job waiting for a road or a slot, an ended job's item left unclosed | the agency's `POST /instructions` | instruction table | `round` | opens | the item's own, named by its kind (the agency's `docs/agent-control.md`, 「An item's change is told to its orderer」) |
+| A job's question, for the supervisor that ordered the job to put to the owner, withdrawn once a reply settles it | the agency's `POST /instructions` | instruction table | `round` | opens | `question-awaits-answer` |
+| An idle queue, a job's question past its due time, a job that failed in another room | the agency's `POST /owner/notices` | instruction table | `round` | opens | — |
 | A failure order for a broken run of the agent's own | the conversation's failure check | instruction table | `round` | opens | — |
-| An unfinished note's strands handed to the agent | bmo-job | instruction table | `round` | opens | — |
-| A deployment gone live, and every way one stops short | bmo-job | instruction table | `round` | opens | `deployed` |
 | The back-up line after a deployment | start-up | instruction table | `round` | rides, for the restart's while | — |
 | The back-up line after a restart no deployment announced | start-up | instruction table | `round` | opens | — |
 | The deployment briefing: the deployments since the owner was last briefed, asking the agent to brief him (`docs/wake.md`, 「Quiet instructions」) | the round's start | instruction table | `round` | rides, the owner's next round | — |
 | The line after a fold | the conversation's fold | instruction table | `round` | opens | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
 | A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
+| A deployment gone live, and every way one stops short | the testbed's deployment | instruction table | `round` | opens | `deployed` |
 | A tool call `bmo use` ran on its own come to its end: a reminder's moment, a watch's check holding, a long draw (`docs/reminders.md`) | bmo-cli's `use` unit | instruction table | `round` | opens | — |
 | A search's, a browse's and a remote browser's result | bmo-artifact's instructions | instruction table | `round` | opens | — |
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
@@ -104,8 +101,6 @@ is written.
   - Words in a room the default answerer does not answer, one other agents answer alone, never reach it: the
     receiver wakes those agents and no lane of this queue. A room the owner shares with another agent is a
     room's words like any other, in the first row.
-  - A job's question is posted in the owner's chat as the agent's message and waits for the owner's answer; the
-    agent's session is not asked.
   - The fold itself is a command to the agent's program, not words to the agent.
   - A line a person types into the agent's program is that person's turn, which the receiver does not ask for;
     the window only composes what goes with it (「A line typed into the program」 below).
@@ -186,7 +181,7 @@ round.
 - **The producer decides, per row.** A row is queued either to open a turn or to ride, and a rider names how
   long it rides (for good, or until a moment after which it opens a turn itself) and whose rounds may carry it:
   its own room's alone, or any room's its session answers. The queue keeps no list of which roads ride; each
-  producer says so on the row it writes (`rides_until` on bmo-job's instructions).
+  producer says so on the row it writes (`ridesUntil` on the routes that queue one).
 - **What rides:**
   - A document reload rides for good, in a round of any room its session answers. The new text is read with the
     session's next turn, which is when it is first needed; a session that never speaks again never needs it. A
@@ -195,7 +190,6 @@ round.
   - The back-up line after a deployment rides for the restart's while, three minutes, so the deployment's own
     outcome fact, which follows within seconds, opens the one turn and the line goes in with it. A deployment
     that tells no outcome leaves the line to open its own turn when the while is up.
-  - The queue standing open at start-up rides for the same while, into the same turn.
   - A change of the tool host's tools rides for good, in a round of any room the default answerer's session answers
     (`docs/wake.md`, 「Quiet instructions」).
   - The deployment briefing rides the owner's next round, written just before that round asks for its riders, for
@@ -203,12 +197,12 @@ round.
     the owner's chat and does not carry it.
 - **What never rides:** anything the owner must not hear late (a job's ending, a failure, a road that moved or
   closed, a question or a stop, a deployment's outcome, a result somebody asked for) and anything that is the machine's only wake for work to
-  move: a queue standing empty with work waiting, a job gone quiet. Those turns often do their work in tool
+  move: an item awaiting its launch or its approval, a job waiting for a road or a slot. Those turns often do their work in tool
   calls and say nothing, so a `<<SKIP>>` there is not an idle turn.
 - **How a rider gets in.** The instruction pass hands a rider over at the start of a round that may carry it
   (the round asks the pass for its riders before it takes anything) and never on its own tick while the rider
   still rides. A rider past its while is handed like any other row.
-- **Owner-only lines keep to the owner's room.** The restart's back line, the queue at start-up and the deployment
+- **Owner-only lines keep to the owner's room.** The restart's back line and the deployment
   briefing ride only the owner's own rounds, since a line for the owner said in a group room is said to the
   wrong people.
 - **What stays the same for a rider:** it is still a row of the instruction table, it carries its events like any
