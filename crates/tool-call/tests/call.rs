@@ -2,10 +2,54 @@
 //! the record, an answer written as the protocol writes one, and the units found under the data root.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
+use std::process::Command;
 
 use serde_json::json;
 
 use tool_call::{Answer, Asked, Session, agency, differences, read_handed, read_handed_with};
+
+// The variable naming, in the process started for one test, the file its run marks once it passed.
+const ALONE: &str = "BMO_TOOL_CALL_ALONE";
+
+// A test that reads the unit variables the calling shell holds run alone in a process of its own, with those
+// variables removed, so what it reads is its data root's alone.
+struct AloneRun(PathBuf);
+
+impl Drop for AloneRun {
+  fn drop(&mut self) {
+    if !std::thread::panicking() {
+      std::fs::write(&self.0, "").unwrap();
+    }
+  }
+}
+
+fn alone(test: &str) -> Option<AloneRun> {
+  if let Some(mark) = std::env::var_os(ALONE) {
+    return Some(AloneRun(mark.into()));
+  }
+
+  let mark = std::env::temp_dir().join(format!("bmo-tool-call-alone-{}-{test}", std::process::id()));
+
+  let _ = std::fs::remove_file(&mark);
+
+  let ran = Command::new(std::env::current_exe().unwrap())
+    .args([test, "--exact", "--nocapture"])
+    .env(ALONE, &mark)
+    .env_remove("AGENCY_CONTROL_PORT")
+    .env_remove("AGENCY_CONTROL_TOKEN")
+    .output()
+    .unwrap();
+  let said = format!("{}{}", String::from_utf8_lossy(&ran.stdout), String::from_utf8_lossy(&ran.stderr));
+
+  assert!(ran.status.success(), "{test} failed in a process of its own:\n{said}");
+  assert!(
+    std::fs::remove_file(&mark).is_ok(),
+    "{test} did not run in a process of its own:\n{said}"
+  );
+
+  None
+}
 
 #[test]
 fn a_call_is_read_with_its_record_and_another_protocol_or_shape_is_refused() {
@@ -115,6 +159,9 @@ fn an_answer_is_written_as_the_protocol_writes_one() {
 
 #[test]
 fn the_agency_is_found_in_the_data_roots_env_file_or_at_its_own_port() {
+  let Some(_run) = alone("call::the_agency_is_found_in_the_data_roots_env_file_or_at_its_own_port") else {
+    return;
+  };
   let data = tempfile::tempdir().unwrap();
 
   assert_eq!(
