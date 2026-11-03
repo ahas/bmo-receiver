@@ -251,6 +251,12 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
   draft step is where the agent meets it. Whether the agent reads is its own choice, and nothing counts
   or holds it to having read. The only hard rule stands in the draft process's `facts` question: nothing unread is
   spoken of as fact.
+- **Then the due line, where the brain says a consolidation is due.** The receiver asks the turn's agent's brain
+  whether one is (`docs/boundary-api.md`, 「The brain」), and where it answers `consolidationDue` true the index
+  block carries one more line after the hint (`chat-round.toml`, `[index]`, `due`): the brain says a
+  consolidation is due. The draft process's `memory` question consolidates on it in that round
+  (`docs/drafting.md`, 「The questions」); a turn whose brain does not answer, or answers false, carries no such
+  line. A new session's walk takes the index line's place and leaves the due line standing after it.
 - **The counts are the gate's** (`GET /reference/index`, `docs/boundary-api.md`, 「The gate」): its `unread`, what
   the session's loads do not hold, and its `hint`, one line of what changed in the last three days. A piece the
   session already loaded is counted out of its group. Where the gate serves no index, the counts are taken over

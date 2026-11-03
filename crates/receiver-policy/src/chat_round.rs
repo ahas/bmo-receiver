@@ -330,6 +330,8 @@ pub struct Index {
   pub group: String,
   pub group_hint: String,
   pub hint: String,
+  /// The line the block gains where the turn's agent's brain says a consolidation is due.
+  pub due: String,
   pub system_documents: String,
   pub room_rules: String,
   pub knowledge: String,

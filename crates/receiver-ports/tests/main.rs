@@ -5,6 +5,7 @@
 mod stand_in;
 
 mod agency;
+mod brain;
 mod chat;
 mod gate;
 mod http;

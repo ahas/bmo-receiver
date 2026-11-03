@@ -1,7 +1,8 @@
-//! A room's full session folded (docs/unified-bmo.md, 「Session compaction」): the fold is a command to the
+//! A room's full session folded (docs/wake.md, 「The room's queue and the round」): the fold is a command to the
 //! agent's program, carried by the agency, not words to the agent; the room is told before and after, in the
 //! session's own words where it can be asked and as a fixed line where it cannot; and a fold that did not happen
-//! is told to the room and to the owner once per cause, while the same cause stands no line is said again.
+//! is told to the room and to the owner once per cause, while the same cause stands no line is said again. A fold
+//! the agency answered is reported to the agent's brain.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -195,6 +196,11 @@ pub async fn compact(
   match folded {
     Ok(()) => {
       failures.settle(chat_id);
+
+      // The brain's marks of what it handed the session clear with the fold (docs/wake.md).
+      if let Some(session) = session {
+        super::consolidation::report_fold(receiver, agent, session).await;
+      }
 
       // The folded session keeps its name and loses its detail: what it was handed in full goes again.
       if let Err(why) = super::context::forget_documents(receiver, session).await {

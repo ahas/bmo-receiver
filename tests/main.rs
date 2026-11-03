@@ -7,6 +7,7 @@ mod archived;
 mod ask;
 mod backlog;
 mod cli;
+mod config;
 mod context;
 mod conversation;
 mod dashes;

@@ -320,12 +320,14 @@ name = "supervisor"
 # of its one line, a group with how many of its entries the session has not read ({count}) and, where the gate
 # gives one, what changed in it lately ({hint}), the hint the line closes on, and the walk a new session's first
 # turn carries: its head, each room by its {chat} and {title}, and the words for a room whose counts the gate does
-# not give yet.
+# not give yet. `due` is the line the block gains, after the hint, where the turn's agent's brain says a
+# consolidation is due.
 [index]
 head = "BRAIN — entries this session has not read:"
 group = "{group} {count}"
 group_hint = "{group} {count} ({hint})"
 hint = "Look one up only when your answer needs it."
+due = "The brain says consolidation is due."
 system_documents = "documents"
 room_rules = "rules"
 knowledge = "knowledge"

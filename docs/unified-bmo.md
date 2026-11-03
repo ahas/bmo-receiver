@@ -204,9 +204,12 @@
   deployment that rewrites them moves and nothing a room or a turn fills in does.
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
   generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
-- **Before the old session is ended it writes its handoff,** whatever the reason. The receiver asks it one more
-  turn, the handover policy's `ask` instruction (`handover.toml`), naming the file it writes with its file tool:
-  `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」). The file
+- **Before the old session is ended it consolidates and writes its handoff,** whatever the reason. The receiver
+  asks it one more turn, the handover policy's `ask` instruction (`handover.toml`), naming the file it writes with
+  its file tool: `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's
+  folders」). The turn goes in one order, none of it said in any room: the brain's consolidation first (「The
+  brain's consolidation」 below), then the fold told to the brain with `brain_fold`, then the file, then the
+  exact skip. The file
   holds what the session was in the middle of and how far it got, the promises it made and what wakes them,
   the open threads of each room, what the next session must do first, and what it learned was wrong. The turn
   is waited on until it ends, however long it takes; a run that fails ends the session all the same. The turn
@@ -256,6 +259,28 @@
 - **Moving between rooms carries no summary of a room:** the room's block and its archived messages since the
   agent last answered there, up to the archived block's cap, are what a turn in another room reads, as every
   turn does.
+
+## The brain's consolidation
+
+The agent's brain consolidates at the two moments its design names and no other (the brain's `docs/design.md`,
+「Consolidation」): its unconsolidated episodes' importance reaching its threshold, and a session folded or handed
+off. The brain runs no pass of its own; the agent consolidates with its brain tool, and the receiver asks it to
+at those moments and tells the brain of a fold the agent is not asked about.
+
+- **A consolidation** is three calls of the agent's brain tool, in order: the unconsolidated episodes read,
+  most important first (`brain_unconsolidated`); what each one worth keeping comes to written as a fact, a
+  reflection or a correction (`brain_learn`), confirming, strengthening or replacing a standing fact that says
+  the same, as the brain's write judgement expects; and every episode read marked consolidated
+  (`brain_consolidated`), those that came to nothing among them, so none is read again.
+- **At a hand-off** the closing session consolidates what it holds, then tells the brain it folds
+  (`brain_fold`), then writes its handoff (「Replacing the session」 above).
+- **When the brain says it is due,** a turn's index block carries the due line (`docs/bmo-window.md`, 「What every
+  turn carries」), and the round's `memory` question consolidates in that turn, bounded to what the turn can
+  afford: the first episodes the brain answers, never all of them, and no `brain_fold` (`docs/drafting.md`,
+  「The questions」).
+- **At a fold the receiver asks of the session,** the agency's command and no words to the agent, the receiver
+  reports the fold to the brain itself once the agency answers it (`docs/wake.md`, 「The room's queue and the
+  round」); the agent is asked nothing, and its next due line covers what the fold left unconsolidated.
 
 ## Default access and per-room delegation
 

@@ -24,7 +24,7 @@ use serde_json::{Value, json};
 use crate::integration::common::Scratch;
 use crate::integration::common::session::StandInSession;
 use crate::integration::common::units::{
-  ADDRESS, AGENT, OWNER, ROUND_RUN, StandInChat, Standing, deployment, registration, unrun, woken,
+  ADDRESS, AGENT, BRAIN, OWNER, ROUND_RUN, StandInChat, Standing, deployment, registration, unrun, woken,
 };
 
 /// What the session's every turn ends with.
@@ -603,8 +603,9 @@ async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_
   assert!(prompt.find(&words(4)) < prompt.find(&words(unread)), "the carried stand in their order");
 }
 
-// A round on a session past every fold share, its program carrying its own fold or not: the folds asked of it.
-async fn folds_after_a_round(folds_itself: bool) -> Vec<String> {
+// A round on a session past every fold share, its program carrying its own fold or not: the folds asked of it, and
+// the folds reported to the agent's brain.
+async fn folds_after_a_round(folds_itself: bool) -> (Vec<String>, Vec<(i64, String)>) {
   let scratch = Scratch::new().await;
 
   crate::integration::common::session::no_drafting(scratch.db()).await;
@@ -628,21 +629,73 @@ async fn folds_after_a_round(folds_itself: bool) -> Vec<String> {
   .await;
 
   if !folds_itself {
-    until("the fold asked", || !standing.agency.folds.lock().unwrap().is_empty()).await;
+    until("the fold reported", || !standing.brain.folds().is_empty()).await;
   } else {
     tokio::time::sleep(Duration::from_millis(300)).await;
   }
 
-  standing.agency.folds.lock().unwrap().clone()
+  (standing.agency.folds.lock().unwrap().clone(), standing.brain.folds())
 }
 
 #[tokio::test]
 async fn a_session_whose_program_carries_its_own_fold_is_never_folded_by_the_receiver() {
-  assert_eq!(folds_after_a_round(false).await, vec![SESSION.to_owned()], "a full session is folded");
-  assert!(
-    folds_after_a_round(true).await.is_empty(),
-    "the program's own fold stands: none is asked"
+  let (asked, reported) = folds_after_a_round(false).await;
+
+  assert_eq!(asked, vec![SESSION.to_owned()], "a full session is folded");
+  assert_eq!(
+    reported,
+    vec![(BRAIN, SESSION.to_owned())],
+    "the fold is reported to the agent's brain under the session's id"
   );
+
+  let (asked, reported) = folds_after_a_round(true).await;
+
+  assert!(asked.is_empty(), "the program's own fold stands: none is asked");
+  assert!(reported.is_empty(), "a fold the receiver did not ask is reported by nobody here");
+}
+
+// The first prompt of a round of the owner's words, the agent's brain saying a consolidation is due or not.
+async fn first_prompt_with_due(due: bool) -> String {
+  let scratch = Scratch::new().await;
+
+  crate::integration::common::session::no_drafting(scratch.db()).await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+
+  documents(data.path());
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, ANSWER));
+  let receiver = standing.receiver.clone();
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+
+  *standing.brain.due.lock().unwrap() = due;
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+  receiver.message(&said(1, FIRST), &Context::default(), owners_room()).await.unwrap();
+  until("the round's end", || {
+    !session.prompts().is_empty() && runner.idle() && !session.working()
+  })
+  .await;
+
+  session.prompts()[0].clone()
+}
+
+#[tokio::test]
+async fn a_turn_says_a_consolidation_is_due_only_where_the_agent_s_brain_says_so() {
+  let due = &CHAT_ROUND.index.due;
+  let prompt = first_prompt_with_due(true).await;
+
+  assert!(prompt.contains(due.as_str()), "{prompt}");
+  assert!(
+    prompt.find(CHAT_ROUND.index.hint.as_str()) < prompt.find(due.as_str()),
+    "the due line stands after the index's hint: {prompt}"
+  );
+
+  let prompt = first_prompt_with_due(false).await;
+
+  assert!(!prompt.contains(due.as_str()), "{prompt}");
 }
 
 // The owner's words in a room that is not his private room, as the road hands them over.

@@ -25,3 +25,12 @@ fn a_wrapped_document_heads_itself_with_its_version() {
 
   assert!(named.contains("\"holds\":\"a reference document\""), "{named}");
 }
+
+#[test]
+fn the_due_line_follows_the_index_only_where_a_consolidation_is_due() {
+  use bmo_receiver::chat::window::due_block;
+  use receiver_policy::chat_round::CHAT_ROUND;
+
+  assert_eq!(due_block("the index".to_owned(), false), "the index");
+  assert_eq!(due_block("the index".to_owned(), true), format!("the index\n{}", CHAT_ROUND.index.due));
+}

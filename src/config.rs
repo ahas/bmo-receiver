@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use receiver_ports::agency::HttpAgency;
+use receiver_ports::brain::{BrainUnit, HttpBrain};
 use receiver_ports::chat::ChatServices;
 use receiver_ports::gate::HttpGate;
 use receiver_ports::hearing::{Hearing, HttpHearing};
@@ -35,6 +36,12 @@ pub const SETTINGS_FOLDER: &str = "BMO_RECEIVER_SETTINGS";
 
 /// The folder under the data root the brain's documents stand in, unless the configuration names another root.
 const BRAIN: &str = "brain";
+
+/// The brain's own file under the data root, naming where it answers, which stands in where the configuration
+/// names no `brain`, and the variables it names its address and token by.
+const BRAIN_ENV: &str = "env/brain.env";
+const BRAIN_ADDRESS: &str = "BRAIN_ADDRESS";
+const BRAIN_TOKEN: &str = "BRAIN_TOKEN";
 
 /// The configuration, key by key as the file writes it.
 #[derive(Clone, Debug, Deserialize)]
@@ -76,6 +83,9 @@ pub struct Config {
   /// The voice engine, where the deployment speaks briefings.
   #[serde(default)]
   pub voice: Option<Peer>,
+  /// The brain, where the deployment names it apart from the brain's own file under the data root.
+  #[serde(default)]
+  pub brain: Option<Peer>,
   #[serde(default)]
   pub roads: BTreeMap<String, Peer>,
 }
@@ -141,10 +151,35 @@ impl Config {
       web: Arc::new(HttpWeb::new(&self.web)),
       warmer: Arc::new(HttpWarmer::new(&self.warmer)),
       voice: self.voice.as_ref().map(|peer| Arc::new(HttpVoice::new(peer)) as Arc<dyn VoiceEngine>),
+      brain: self.brain().map(|peer| Arc::new(HttpBrain::new(&peer)) as Arc<dyn BrainUnit>),
       hearing: self.tool_host().map(|(socket, token)| {
         Arc::new(HttpHearing::new(socket, token, self.data_root.clone())) as Arc<dyn Hearing>
       }),
     }
+  }
+
+  /// Where the brain answers and the token it takes (docs/boundary-api.md, 「Configuration」): the `brain` the
+  /// configuration names, else the address and token the brain's own `env/brain.env` under the data root gives;
+  /// none where neither names an address.
+  pub fn brain(&self) -> Option<Peer> {
+    if let Some(peer) = &self.brain {
+      return Some(peer.clone());
+    }
+
+    let text = std::fs::read_to_string(self.data_root.join(BRAIN_ENV)).ok()?;
+    let value = |name: &str| {
+      text
+        .lines()
+        .filter_map(|line| line.split_once('='))
+        .find(|(key, _)| key.trim() == name)
+        .map(|(_, value)| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+    };
+
+    Some(Peer {
+      base: value(BRAIN_ADDRESS)?,
+      token: value(BRAIN_TOKEN).unwrap_or_default(),
+    })
   }
 
   /// The data root the configuration names, with the stores under it.

@@ -6,6 +6,7 @@ pub mod around;
 pub mod ask;
 pub mod briefing;
 pub mod cache;
+pub mod consolidation;
 pub mod consult;
 pub mod consult_say;
 pub mod context;

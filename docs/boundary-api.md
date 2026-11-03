@@ -35,8 +35,11 @@ root, where the brain's documents stand; the document tree, where the documents 
 stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's
 `.local/share` where it names none; the tool host's control socket, `tool_host_socket`, where it stands apart
 from the one 「The tool host」 below finds; the voice engine's base address and token under `voice`, where the
-deployment speaks briefings, a configuration without it speaking none; and each chat service's road name with its
-base address and token.
+deployment speaks briefings, a configuration without it speaking none; the brain's base address and token under
+`brain`, where the deployment names it apart from the brain's own `env/brain.env` under the data root
+(`BRAIN_ADDRESS` and `BRAIN_TOKEN`), which stands in where the configuration names none, a deployment with
+neither telling no turn of a due consolidation and reporting no fold (「The brain」 below); and each chat service's
+road name with its base address and token.
 
 ### The service and its commands
 
@@ -229,9 +232,29 @@ over them by path.
 
 ### The brain
 
-The receiver makes no call on the brain and holds no port to it. What the brain reads of the receiver it reads
-over this service's own routes (`docs/api.md`), and its documents stand under the brain root a document reload
-reads.
+Its `docs/boundary-api.md`, in camelCase and behind its token, at the `brain` the configuration names or the
+address its `env/brain.env` gives. The receiver reaches it for the two moments the brain's consolidation answers
+to (the brain's `docs/design.md`, 「Consolidation」) and for nothing the agent reads or writes itself: what the
+agent remembers it writes with its own brain tool, and what a turn is handed of the brain is the gate's choice
+(「The gate」 below).
+
+| Call | Route | Sends | Answers |
+|---|---|---|---|
+| the agent's brain | `GET /brains?agentKey=&limit=2` | the turn's agent | `items`, of which the receiver reads `id`: the one brain registered for the agent; none, or more than one, is read as no brain, and the calls below are not made |
+| whether a consolidation is due | `POST /brains/{brainId}/recall` | `words` empty and `record` false, with no room, speakers or session | `consolidationDue`, the one field read: a recall of no words hands nothing out, marks nothing and ends no row, so this is a reading of the brain's due state alone |
+| a fold reported | `POST /brains/{brainId}/folds` | `sessionKey`, the agency's id of the session folded | `clearedCount` |
+
+- **Due:** every turn the window composes asks it for the turn's agent, and where the brain answers
+  `consolidationDue` true the turn's index block carries the policy's due line (`docs/bmo-window.md`, 「What
+  every turn carries」). A call that fails leaves the line out and says why in the journal.
+- **The fold:** once the agency answers a fold the receiver asked of a session (`docs/wake.md`, 「The room's queue
+  and the round」), the receiver reports it for the session's agent, so the marks the brain keeps of what it
+  handed that session clear. A report that fails is said in the journal and changes nothing of the fold.
+- **Offered once.** A call on the brain is never offered again, a refused connection included: neither the due
+  line nor a fold's report is worth holding a turn or a fold for.
+
+What the brain reads of the receiver it reads over this service's own routes (`docs/api.md`), and its documents
+stand under the brain root a document reload reads.
 
 ### bmo-job
 
@@ -408,6 +431,12 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
   message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
   the release's `VERSION` file where it does not (「The deployments」).
+- **The brain** serves whether a consolidation is due only on a recall, so the receiver asks a recall of no words
+  for it alone; a reading of the due state of its own would stand in once the brain serves one. The brain's tool
+  reports a fold under the session key its record's `BMO_RUN_NAME` gives, a run's name, while the receiver
+  reports one under the agency's id of the session: until one of the brain and the agency states which key a
+  session's marks stand under, a session's marks set under one are not cleared by a fold reported under the
+  other.
 - **The agency's usage by turn** is read by round: every turn of the draft process goes out naming its round, as
   the round's own turn does, so the agency's ledger opens each under the round's name. No document of the agency
   states a per-turn usage record the console reads beside a round's draft rows yet.

@@ -1,8 +1,8 @@
 //! The one window every turn of the default answerer's session passes (docs/bmo-window.md): what a turn brought
 //! selected over for its core — the speakers' sheet heads, the room's due memories and the rows its events wake,
 //! with a user's own thread in their private room — each entry wrapped to go to a session in full once per version,
-//! and beside it the brain's index with its hint. The window hands the gate the
-//! turn's envelope and reads back what attaches.
+//! and beside it the brain's index with its hint, and the due line where the brain says a consolidation is due.
+//! The window hands the gate the turn's envelope and reads back what attaches.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -203,6 +203,15 @@ pub fn index_block(counts: &[(Group, usize)], hints: &HashMap<Group, String>) ->
   }
 
   format!("{} {}. {}", said.head, group_words(counts, hints).join(" · "), said.hint)
+}
+
+/// The index block with the due line after it, where the brain says a consolidation is due.
+pub fn due_block(index: String, due: bool) -> String {
+  if !due {
+    return index;
+  }
+
+  format!("{index}\n{}", CHAT_ROUND.index.due)
 }
 
 #[derive(Serialize)]
@@ -413,7 +422,8 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
 
   let mut selection = made(chat_id, core);
 
-  selection.index = index_block(&counts, &hints);
+  selection.index =
+    due_block(index_block(&counts, &hints), super::consolidation::due(receiver, material.agent).await);
   selection.counts = counts;
   selection.held = held;
   selection.thread_mark = thread_mark;

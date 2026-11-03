@@ -28,6 +28,7 @@ use futures_util::future::BoxFuture;
 use receiver_codes::{RoomRemovalRefusal, SettingFact};
 use receiver_policy::kept::KEPT;
 use receiver_ports::agency::{Agency, Agents};
+use receiver_ports::brain::BrainUnit;
 use receiver_ports::gate::Gate;
 use receiver_ports::hearing::Hearing;
 use receiver_ports::http::{Answer, PortFailure};
@@ -350,6 +351,9 @@ pub struct Units {
   pub voice: Option<Arc<dyn VoiceEngine>>,
   /// The listening tool, where the tool host stands: a deployment without it hears no voice note.
   pub hearing: Option<Arc<dyn Hearing>>,
+  /// The brain, where the deployment names it: a deployment without it tells no turn of a due consolidation and
+  /// reports no fold.
+  pub brain: Option<Arc<dyn BrainUnit>>,
 }
 
 /// The receiver: the database it keeps messages in, the deployment it answers for, the data root it keeps files

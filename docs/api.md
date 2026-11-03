@@ -598,9 +598,11 @@ and in this repository's delivery report.
 | the agency | supervisors, roles and repositories, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, the supervisors added and removed, a supervisor's reset, a run's log, a room forgotten, a session's loaded documents, the deployment's documents |
 | bmo-job | a room's holdings, the questions the owner answers in his chat, the items a turn filed, the queue moved |
 | the gate | a turn's reference, the brain's index, a room's judgements, a new supervisor's gate options |
+| the brain | the agent's brain, whether a consolidation is due for a turn, a session's fold reported |
 | the web unit | the account model: a sender's user, the checks, the grants, a fixed line rendered |
 | the cache warmer | the consumer and its one target, the chat touch |
 | each chat service | every provider route of the protocol, through `bmo-chat-client` |
 
 A call is offered again only where the connection was refused, every two seconds until the unit listens; a call
-that reached a listener is never offered again, and nothing bounds how long a unit takes to answer.
+that reached a listener is never offered again, and nothing bounds how long a unit takes to answer. A call on the
+brain is offered once, a refused connection ending it (`docs/boundary-api.md`, 「The brain」).

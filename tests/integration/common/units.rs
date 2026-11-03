@@ -24,6 +24,7 @@ use receiver_ports::agency::{
   OpenRun, Passed, Removal, Repository, ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine,
   RunningJob, Said, Scope, Session, SessionState, Turn, Written,
 };
+use receiver_ports::brain::BrainUnit;
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
 use receiver_ports::hearing::{Heard as HearingHeard, Hearing};
@@ -1548,6 +1549,48 @@ impl StandInVoice {
   }
 }
 
+/// The brain stand-in's number for every agent's one brain.
+pub const BRAIN: i64 = 9;
+
+/// The brain as a test sets it: every agent's brain is `BRAIN`, whether a consolidation is due is what the test
+/// says, and every fold reported is kept, by the brain and the session key.
+pub struct StandInBrain {
+  pub due: Mutex<bool>,
+  pub folds: Mutex<Vec<(i64, String)>>,
+}
+
+impl StandInBrain {
+  pub fn new() -> Self {
+    Self {
+      due: Mutex::new(false),
+      folds: Mutex::default(),
+    }
+  }
+
+  /// Every fold reported, in order.
+  pub fn folds(&self) -> Vec<(i64, String)> {
+    self.folds.lock().unwrap().clone()
+  }
+}
+
+impl BrainUnit for StandInBrain {
+  fn brain_of<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
+    Box::pin(async { Ok(Some(BRAIN)) })
+  }
+
+  fn due(&self, _brain: i64) -> BoxFuture<'_, Answer<bool>> {
+    let due = *self.due.lock().unwrap();
+
+    Box::pin(async move { Ok(due) })
+  }
+
+  fn fold<'a>(&'a self, brain: i64, session_key: &'a str) -> BoxFuture<'a, Answer<i64>> {
+    self.folds.lock().unwrap().push((brain, session_key.to_owned()));
+
+    Box::pin(async { Ok(0) })
+  }
+}
+
 /// The listening tool as a test sets it: what it hears, or the reason it does not, and every path it was handed.
 pub struct StandInHearing {
   answer: Mutex<Option<Result<HearingHeard, String>>>,
@@ -1729,6 +1772,7 @@ pub struct Standing {
   pub warmer: Arc<StandInWarmer>,
   pub voice: Arc<StandInVoice>,
   pub hearing: Arc<StandInHearing>,
+  pub brain: Arc<StandInBrain>,
 }
 
 /// The same standing, with the receiver's own wake in place of the recording one: the rule every message is
@@ -1774,6 +1818,7 @@ pub fn unrun(
   let warmer = Arc::new(StandInWarmer::new());
   let voice = Arc::new(StandInVoice::new());
   let hearing = Arc::new(StandInHearing::new());
+  let brain = Arc::new(StandInBrain::new());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
@@ -1784,6 +1829,7 @@ pub fn unrun(
     warmer: warmer.clone(),
     voice: Some(voice.clone()),
     hearing: Some(hearing.clone()),
+    brain: Some(brain.clone()),
   };
   // The stand-in agency's registrations move as a test sets them, so the receiver asks it on every read; a test of
   // the kept list keeps it itself.
@@ -1806,5 +1852,6 @@ pub fn unrun(
     warmer,
     voice,
     hearing,
+    brain,
   }
 }
