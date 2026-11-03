@@ -53,6 +53,12 @@ token = "warmer-token"
 base = "http://127.0.0.1:3290"
 token = "voice-token"
 
+# The brain, where the deployment names it apart from the brain's own env/brain.env under the data root; with
+# neither, no turn is told of a due consolidation and no fold is reported to it.
+[brain]
+base = "http://127.0.0.1:3230"
+token = "brain-token"
+
 # Each chat service's road, by its key, with its base address and token. The keys are the deployment's; nothing
 # in the receiver compares one to a literal.
 [roads.road-a]
