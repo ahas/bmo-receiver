@@ -27,7 +27,7 @@ resvg = "0.48.1"
 inventory = "0.3.24"
 # The bearer token a request carries, read off the headers of the receiver's own routes.
 headers = "0.4.1"
-pulldown-cmark = { version = "0.13.0", default-features = false }
+pulldown-cmark = { version = "0.13.6", default-features = false }
 # The shapes a text is cut by: the scaffolding, the markers, a wrapped document, a recording verb's call. The
 # Unicode classes stand on because a digit class is read over any script's words.
 regex = { version = "1.13.1", default-features = false, features = ["std", "unicode"] }
