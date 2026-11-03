@@ -267,11 +267,20 @@ The agent's brain consolidates at the two moments its design names and no other 
 off. The brain runs no pass of its own; the agent consolidates with its brain tool, and the receiver asks it to
 at those moments and tells the brain of a fold it asks of the session itself.
 
-- **A consolidation** is three calls of the agent's brain tool, in order: the unconsolidated episodes read,
-  most important first (`brain_unconsolidated`); what each one worth keeping comes to written as a fact, a
-  reflection or a correction (`brain_learn`), confirming, strengthening or replacing a standing fact that says
-  the same, as the brain's write judgement expects; and every episode read marked consolidated
-  (`brain_consolidated`), those that came to nothing among them, so none is read again.
+- **A consolidation** goes in four steps, in one turn: the unconsolidated episodes read, most important first
+  (`brain_unconsolidated`); what each one worth keeping comes to drafted, a fact, a reflection or a correction,
+  with the standing fact it would confirm, strengthen or close; each draft written (`brain_learn`), a
+  consequential one only once it passes the review below; and every episode read marked consolidated
+  (`brain_consolidated`), those that came to nothing among them, so none is read again, except the episodes of a
+  draft the review stopped for a contradiction, which stay unconsolidated.
+- **The review is for consequential drafts alone:** a draft that would close a live fact (`replaces`) or that
+  carries importance 8 or more. The agent reads again the episodes it rests on and the live fact it would close,
+  and asks itself three things: whether those episodes actually say or show the statement; whether it is the same
+  as a live fact, in which case it confirms or strengthens that fact rather than writing anew; and whether it
+  contradicts a live fact the episodes do not overturn, in which case it writes nothing and leaves those episodes
+  unconsolidated. Only a draft that passes is written; a draft below the bar is written as it stands. The review
+  is the agent's own second reading in the same turn: it costs reading, never a second model or a turn of its
+  own.
 - **At a hand-off** the closing session consolidates what it holds, then tells the brain it folds
   (`brain_fold`), then writes its handoff (「Replacing the session」 above).
 - **When the brain says it is due,** a turn's index block carries the due line (`docs/bmo-window.md`, 「What every
