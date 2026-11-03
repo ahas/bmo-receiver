@@ -32,8 +32,9 @@ send tool's (`docs/chat-mcp.md`). A session reaches it through the toolbook and 
 ## Setting one
 
 - **A reminder** is `bmo use bmo/wait --async` with `seconds` or `until`, the `note`, and `--memory` saying what
-  the agent meant to do then. A moment further away than a day needs `--max-seconds` past it, since the unit is
-  stopped at its longest run, one day unless that option names another.
+  the agent meant to do then. It names no span however far away its moment is: the call runs until the moment
+  comes or someone stops it, whether the tool host keeps it (the pocket unit's `docs/api.md`, `POST /use`) or the
+  caller's own unit does (bmo-cli's `docs/api.md`, 「The caller's own unit」).
 - **A watch** is `bmo use bmo/wait --async` with the `check`, the `note`, and `every` as it needs.
 - **A repeating reminder** is one reminder at a time: the turn its end opens sets the next.
 - **Cancelling one** is stopping its unit, `bmo-use-<id>` as `bmo use --async` answered it; the stop is that

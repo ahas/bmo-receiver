@@ -21,9 +21,9 @@ Remind yourself in ten minutes, in this room:
 
     bmo use bmo/wait --async --arg seconds=600 --arg note="Ask whether the build finished" --memory "They asked to be told before lunch"
 
-A moment more than a day away needs the unit to live past it:
+A moment days away is set the same way; nothing but the moment or a stop ends the wait:
 
-    bmo use bmo/wait --async --max-seconds 259200 --arg until=2026-10-26T09:00:00+09:00 --arg note="The meeting starts in an hour"
+    bmo use bmo/wait --async --arg until=2026-10-26T09:00:00+09:00 --arg note="The meeting starts in an hour"
 
 Wake when a file appears, checking every minute:
 
