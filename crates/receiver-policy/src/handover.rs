@@ -19,13 +19,14 @@ pub struct Transcript {
   pub answer: String,
 }
 
-/// The lines of a replacement: the instruction asking the closing session for its handoff file, and the three
-/// notes a new session is handed: the handoff, the transcript under its heading, and the word that nothing was
-/// recovered.
+/// The lines of a replacement: the instruction asking the closing session for its handoff file, the one asking a
+/// session about to be folded to consolidate its brain first, and the three notes a new session is handed: the
+/// handoff, the transcript under its heading, and the word that nothing was recovered.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Notes {
   pub ask: Vec<String>,
+  pub consolidate: Vec<String>,
   pub handed: Vec<String>,
   pub carried: Vec<String>,
   pub lost: Vec<String>,

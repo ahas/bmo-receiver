@@ -59,6 +59,8 @@ pub struct StandInSession {
   hide_situation: Mutex<bool>,
   // Whether the review gate's turn is answered with PASS and kept out of the test's list of prompts.
   hide_review: Mutex<bool>,
+  // The words a turn's prompt holds for the session to refuse it, as an agency that cannot carry it answers.
+  refusing: Mutex<Option<String>>,
 }
 
 impl StandInSession {
@@ -85,7 +87,14 @@ impl StandInSession {
       acting: Mutex::default(),
       hide_situation: Mutex::new(true),
       hide_review: Mutex::new(true),
+      refusing: Mutex::default(),
     }
+  }
+
+  /// A turn whose prompt holds `words` is refused, kept out of `prompts`.
+  pub fn refusing(self, words: &str) -> Self {
+    *self.refusing.lock().unwrap() = Some(words.to_owned());
+    self
   }
 
   /// The situation update's light turn answers its default and stays out of `prompts`, so a test about the draft
@@ -265,6 +274,20 @@ impl StandInSession {
 
   pub fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
     Box::pin(async move {
+      if self
+        .refusing
+        .lock()
+        .unwrap()
+        .as_ref()
+        .is_some_and(|words| turn.prompt.contains(words.as_str()))
+      {
+        return Err(receiver_ports::PortFailure::Answered {
+          url: format!("http://agency.invalid/sessions/{}/turns", self.id),
+          status: 503,
+          answer: None,
+        });
+      }
+
       let hidden_situation =
         *self.hide_situation.lock().unwrap() && turn.prompt.contains(&CHAT_ROUND.situation.previous);
       let hidden_review = *self.hide_review.lock().unwrap() && turn.prompt.contains(&DRAFTING.review.head);

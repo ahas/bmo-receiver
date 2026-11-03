@@ -1574,20 +1574,16 @@ impl StandInBrain {
 }
 
 impl BrainUnit for StandInBrain {
-  fn brain_of<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
-    Box::pin(async { Ok(Some(BRAIN)) })
-  }
-
-  fn due(&self, _brain: i64) -> BoxFuture<'_, Answer<bool>> {
+  fn due<'a>(&'a self, _agent: &'a str) -> BoxFuture<'a, Answer<Option<bool>>> {
     let due = *self.due.lock().unwrap();
 
-    Box::pin(async move { Ok(due) })
+    Box::pin(async move { Ok(Some(due)) })
   }
 
-  fn fold<'a>(&'a self, brain: i64, session_key: &'a str) -> BoxFuture<'a, Answer<i64>> {
-    self.folds.lock().unwrap().push((brain, session_key.to_owned()));
+  fn fold<'a>(&'a self, _agent: &'a str, session_key: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
+    self.folds.lock().unwrap().push((BRAIN, session_key.to_owned()));
 
-    Box::pin(async { Ok(0) })
+    Box::pin(async { Ok(Some(0)) })
   }
 }
 

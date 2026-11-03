@@ -36,7 +36,9 @@ close = "END OF QUIET INSTRUCTION"
 # The notes a session is handed: `ask`, the one more turn a session about to be replaced is asked, in order its
 # brain's consolidation, the fold told to its brain and then its handoff, `{path}` the file it writes; `handed`,
 # the new session's first lines where that file stands, `{path}` and its whole text `{note}`; `carried`, where
-# only the receiver's transcript of the old session stands, `{note}`; `lost`, the word that nothing was recovered.
+# only the receiver's transcript of the old session stands, `{note}`; `lost`, the word that nothing was recovered;
+# `consolidate`, the one quiet turn a session about to be folded is asked first, after which the receiver folds it
+# and tells the brain itself.
 [chat]
 ask = [
   "Quiet instruction from the system: this session is about to be closed, and a new session takes over every room you answer. It remembers nothing of this one but what you write now and what your brain holds.",
@@ -46,6 +48,11 @@ ask = [
   "Third, write your handoff for the new session with your file tool, to this file, whole: {path}",
   "The file holds, each under its own heading: what you were in the middle of and how far you got; every promise you made that is not yet kept, and what wakes you to keep it; the open threads of each room, by its chat id; what the next session must do first; and what you learned was wrong, so that it is not believed again.",
   "Write facts, ids, names and times as they stand, not a story of the conversation. Beyond your brain and this file, change nothing. Nothing about any of this is said in any room: once the file is written, output exactly <<SKIP>>.",
+]
+consolidate = [
+  "Quiet instruction from the system: this session is about to be folded, and the detail of its conversation will be gone. Before that, consolidate your brain with your tools.",
+  "Read the episodes not yet consolidated with brain_unconsolidated, most important first, and take the first the brain answers: as many as this turn can afford, never all of them. For each one worth keeping, write what it comes to with brain_learn: a fact, a reflection or a correction, in English; where a live fact already says the same, confirm it, strengthen it or replace it rather than writing it again, as brain_similar shows you. Then mark every episode you read consolidated with brain_consolidated, those that came to nothing among them, so none is read again.",
+  "Do not call brain_fold: the system tells the brain of the fold itself. Beyond your brain, change nothing. Nothing about any of this is said in any room: once you are done, output exactly <<SKIP>>.",
 ]
 handed = [
   "Quiet instruction from the system: your previous session was closed and this is a new one.",

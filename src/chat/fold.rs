@@ -1,8 +1,9 @@
 //! A room's full session folded (docs/wake.md, 「The room's queue and the round」): the fold is a command to the
 //! agent's program, carried by the agency, not words to the agent; the room is told before and after, in the
 //! session's own words where it can be asked and as a fixed line where it cannot; and a fold that did not happen
-//! is told to the room and to the owner once per cause, while the same cause stands no line is said again. A fold
-//! the agency answered is reported to the agent's brain.
+//! is told to the room and to the owner once per cause, while the same cause stands no line is said again. Before
+//! the fold the session is asked one quiet turn to consolidate its brain, and a fold the agency answered is
+//! reported to the agent's brain.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -184,6 +185,12 @@ pub async fn compact(
     && let Some(said) = words(receiver, conversations, agent, chat_id, folding.room, &folding.recent).await
   {
     let _ = receiver.speech().say(chat_id, &said).await;
+  }
+
+  // The session consolidates its brain first, a fold being one of the brain's two triggers; the fold goes ahead
+  // whatever became of that turn (docs/unified-bmo.md, 「The brain's consolidation」).
+  if let Some(session) = session {
+    super::consolidation::before_fold(receiver, agent, session, chat_id).await;
   }
 
   let held_session = session.unwrap_or_default();

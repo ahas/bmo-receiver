@@ -1,7 +1,11 @@
-//! The brain's port: the agent's brain found, whether a consolidation is due, and a session's fold reported
-//! (`docs/boundary-api.md`, 「The brain」; the brain's `docs/boundary-api.md`). Bodies are camelCase, behind the
-//! bearer token the configuration holds for it. Every call is offered once: a refused connection ends it.
+//! The brain's port: whether a consolidation is due for an agent, and a session's fold reported to the agent's
+//! brain (`docs/boundary-api.md`, 「The brain」; the brain's `docs/boundary-api.md`). Bodies are camelCase, behind
+//! the bearer token the configuration holds for it. Every call is offered once: a refused connection ends it.
+//! The agent's brain is kept by the agent's name once a lookup found it, and let go where the brain answers a
+//! call on it 404, so the next call looks it up again.
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use futures_util::future::BoxFuture;
@@ -19,16 +23,10 @@ struct Page {
   items: Vec<Brain>,
 }
 
-/// A recall of no words, unrecorded: it hands nothing out, marks nothing and ends no row.
-#[derive(Serialize)]
-struct Unworded {
-  words: &'static str,
-  record: bool,
-}
-
+/// The brain's consolidation state, of which the receiver reads whether one is due.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Due {
+struct Consolidation {
   consolidation_due: bool,
 }
 
@@ -44,22 +42,21 @@ struct Folded {
   cleared_count: i64,
 }
 
-/// Every call the receiver makes on the brain.
+/// Every call the receiver makes on the brain, each for an agent's one brain; none where the agent has none, or
+/// more than one.
 pub trait BrainUnit: Send + Sync {
-  /// The one brain registered for the agent's key; none where it has none, or more than one.
-  fn brain_of<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
+  /// Whether the agent's brain says a consolidation is due.
+  fn due<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<bool>>>;
 
-  /// Whether the brain's unconsolidated episodes have reached its threshold, as a recall answers it.
-  fn due(&self, brain: i64) -> BoxFuture<'_, Answer<bool>>;
-
-  /// A session's fold reported under its key; the marks it cleared.
-  fn fold<'a>(&'a self, brain: i64, session_key: &'a str) -> BoxFuture<'a, Answer<i64>>;
+  /// A session's fold reported to the agent's brain under its key; the marks it cleared.
+  fn fold<'a>(&'a self, agent: &'a str, session_key: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
 }
 
-/// The brain over HTTP.
+/// The brain over HTTP, with the agents' brains it has found.
 #[derive(Debug, Clone)]
 pub struct HttpBrain {
   caller: Caller,
+  brains: Arc<Mutex<HashMap<String, i64>>>,
 }
 
 impl HttpBrain {
@@ -72,42 +69,70 @@ impl HttpBrain {
   }
 
   pub fn with_caller(caller: Caller) -> Self {
-    Self { caller }
+    Self {
+      caller,
+      brains: Arc::default(),
+    }
+  }
+
+  fn kept(&self) -> std::sync::MutexGuard<'_, HashMap<String, i64>> {
+    self.brains.lock().unwrap_or_else(PoisonError::into_inner)
+  }
+
+  // The agent's one brain: the one kept, else the one a lookup finds, kept from then on.
+  async fn brain_of(&self, agent: &str) -> Answer<Option<i64>> {
+    if let Some(id) = self.kept().get(agent) {
+      return Ok(Some(*id));
+    }
+
+    let query = [("agentKey", agent.to_owned()), ("limit", "2".to_owned())];
+    let page: Page = self.caller.get(&["brains"], &query).await?;
+    let [brain] = page.items.as_slice() else {
+      return Ok(None);
+    };
+
+    self.kept().insert(agent.to_owned(), brain.id);
+
+    Ok(Some(brain.id))
+  }
+
+  // A call on the agent's brain's answer: a 404 lets the kept brain go.
+  fn settled<T>(&self, agent: &str, answer: Answer<T>) -> Answer<Option<T>> {
+    match answer {
+      Ok(answer) => Ok(Some(answer)),
+      Err(failure) if failure.status() == Some(404) => {
+        self.kept().remove(agent);
+
+        Ok(None)
+      }
+      Err(failure) => Err(failure),
+    }
   }
 }
 
 impl BrainUnit for HttpBrain {
-  fn brain_of<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
+  fn due<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<Option<bool>>> {
     Box::pin(async move {
-      let query = [("agentKey", agent.to_owned()), ("limit", "2".to_owned())];
-      let page: Page = self.caller.get(&["brains"], &query).await?;
-
-      Ok(match page.items.as_slice() {
-        [brain] => Some(brain.id),
-        _ => None,
-      })
-    })
-  }
-
-  fn due(&self, brain: i64) -> BoxFuture<'_, Answer<bool>> {
-    Box::pin(async move {
-      let brain = brain.to_string();
-      let asked = Unworded {
-        words: "",
-        record: false,
+      let Some(brain) = self.brain_of(agent).await? else {
+        return Ok(None);
       };
-      let due: Due = self.caller.post(&["brains", &brain, "recall"], &asked).await?;
+      let brain = brain.to_string();
+      let read: Answer<Consolidation> = self.caller.get(&["brains", &brain, "consolidation"], &[]).await;
 
-      Ok(due.consolidation_due)
+      Ok(self.settled(agent, read)?.map(|read| read.consolidation_due))
     })
   }
 
-  fn fold<'a>(&'a self, brain: i64, session_key: &'a str) -> BoxFuture<'a, Answer<i64>> {
+  fn fold<'a>(&'a self, agent: &'a str, session_key: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
     Box::pin(async move {
+      let Some(brain) = self.brain_of(agent).await? else {
+        return Ok(None);
+      };
       let brain = brain.to_string();
-      let folded: Folded = self.caller.post(&["brains", &brain, "folds"], &Fold { session_key }).await?;
+      let folded: Answer<Folded> =
+        self.caller.post(&["brains", &brain, "folds"], &Fold { session_key }).await;
 
-      Ok(folded.cleared_count)
+      Ok(self.settled(agent, folded)?.map(|folded| folded.cleared_count))
     })
   }
 }

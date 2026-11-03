@@ -265,7 +265,7 @@
 The agent's brain consolidates at the two moments its design names and no other (the brain's `docs/design.md`,
 「Consolidation」): its unconsolidated episodes' importance reaching its threshold, and a session folded or handed
 off. The brain runs no pass of its own; the agent consolidates with its brain tool, and the receiver asks it to
-at those moments and tells the brain of a fold the agent is not asked about.
+at those moments and tells the brain of a fold it asks of the session itself.
 
 - **A consolidation** is three calls of the agent's brain tool, in order: the unconsolidated episodes read,
   most important first (`brain_unconsolidated`); what each one worth keeping comes to written as a fact, a
@@ -278,9 +278,14 @@ at those moments and tells the brain of a fold the agent is not asked about.
   turn carries」), and the round's `memory` question consolidates in that turn, bounded to what the turn can
   afford: the first episodes the brain answers, never all of them, and no `brain_fold` (`docs/drafting.md`,
   「The questions」).
-- **At a fold the receiver asks of the session,** the agency's command and no words to the agent, the receiver
-  reports the fold to the brain itself once the agency answers it (`docs/wake.md`, 「The room's queue and the
-  round」); the agent is asked nothing, and its next due line covers what the fold left unconsolidated.
+- **At a fold the receiver asks of the session,** in this order: the room's words before the fold; one quiet
+  turn on the session, tools on, the handover policy's `consolidate` lines (`handover.toml`), in which the
+  session consolidates the first of its unconsolidated episodes, as many as the turn can afford and never all,
+  calls no `brain_fold`, says nothing in any room and answers exactly the skip; then the fold, the agency's
+  command; then, once the agency answers it, the fold reported to the brain by the receiver itself
+  (`docs/wake.md`, 「The room's queue and the round」). The fold never waits on the consolidation: where the
+  session cannot take the turn or the turn fails, the journal says the consolidation was skipped and the fold
+  goes ahead. A session whose program carries its own fold is asked none of this.
 
 ## Default access and per-room delegation
 

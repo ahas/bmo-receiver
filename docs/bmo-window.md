@@ -88,6 +88,7 @@ is written.
 | A talk from the console about an item or a document | `POST /talks` | — | `talk` | opens | — |
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
 | The words before a fold | the conversation's fold | — | `nap` | opens | — |
+| The consolidation before a fold: the session asked, tools on, to consolidate its brain and answer the skip (`docs/unified-bmo.md`, 「The brain's consolidation」) | the conversation's fold | — | none: the handover policy's `consolidate` lines with the room's block, composed by no window | opens, waited on before the fold | — |
 | A line a person types into the agent's program | the agency's `typed-line` hook | — | none: composed, never asked | the person's own turn of the program | — |
 | A later turn of the draft process inside a round, after the round's own turn that carries its first question: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
 
@@ -101,7 +102,8 @@ is written.
   - Words in a room the default answerer does not answer, one other agents answer alone, never reach it: the
     receiver wakes those agents and no lane of this queue. A room the owner shares with another agent is a
     room's words like any other, in the first row.
-  - The fold itself is a command to the agent's program, not words to the agent.
+  - The fold itself is a command to the agent's program, not words to the agent. It goes after the words before
+    it and the consolidation turn, and goes whether or not that turn could be carried.
   - A line a person types into the agent's program is that person's turn, which the receiver does not ask for;
     the window only composes what goes with it (「A line typed into the program」 below).
 

@@ -223,7 +223,9 @@ its rounds.
   session's fold ratio, and not otherwise. The ratio is the agency's, read with the session's state
   (`foldRatio`, the compaction threshold of the supervisor the session runs for); where the state
   names none, the resident turn policy's `fold_ratio` stands in.
-- **The fold is the agency's command, and the brain is told of it.** The receiver asks it of the session
+- **The fold is the agency's command, and the brain is told of it.** The session is first asked one quiet turn to
+  consolidate its brain (`docs/unified-bmo.md`, 「The brain's consolidation」), which the fold never waits on
+  past its end or its failure. The receiver then asks the fold of the session
   (`POST /sessions/{sessionId}/folds`), the program's own compaction, with no words to the agent; once the agency
   answers that the session folded, the receiver reports the fold to the agent's brain
   (`POST /brains/{brainId}/folds`, the session's id as its key, `docs/boundary-api.md`, 「The brain」), so what the

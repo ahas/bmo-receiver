@@ -603,9 +603,18 @@ async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_
   assert!(prompt.find(&words(4)) < prompt.find(&words(unread)), "the carried stand in their order");
 }
 
-// A round on a session past every fold share, its program carrying its own fold or not: the folds asked of it, and
-// the folds reported to the agent's brain.
-async fn folds_after_a_round(folds_itself: bool) -> (Vec<String>, Vec<(i64, String)>) {
+// What a round on a session past every fold share came to: the folds asked of it, the folds reported to the agent's
+// brain, the consolidation turns the session took, and how many folds had been asked when the first of them ran.
+struct Folded {
+  asked: Vec<String>,
+  reported: Vec<(i64, String)>,
+  consolidations: usize,
+  folds_before: Option<usize>,
+}
+
+// A round on a session past every fold share, its program carrying its own fold or not, the session refusing the
+// consolidation turn or not.
+async fn folds_after_a_round(folds_itself: bool, refuses: bool) -> Folded {
   let scratch = Scratch::new().await;
 
   crate::integration::common::session::no_drafting(scratch.db()).await;
@@ -615,7 +624,22 @@ async fn folds_after_a_round(folds_itself: bool) -> (Vec<String>, Vec<(i64, Stri
   documents(data.path());
 
   let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
-  let session = Arc::new(StandInSession::new(SESSION, ANSWER).full(folds_itself));
+  let consolidate = bmo_receiver::chat::consolidation::instruction();
+  let folds_before = Arc::new(std::sync::Mutex::new(None));
+  let seen = folds_before.clone();
+  let agency = standing.agency.clone();
+  let asked = consolidate.clone();
+  let mut session = StandInSession::new(SESSION, ANSWER).full(folds_itself).acting(move |turn| {
+    if turn.prompt.contains(&asked) {
+      seen.lock().unwrap().get_or_insert(agency.folds.lock().unwrap().len());
+    }
+  });
+
+  if refuses {
+    session = session.refusing(&consolidate);
+  }
+
+  let session = Arc::new(session);
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 
@@ -634,24 +658,44 @@ async fn folds_after_a_round(folds_itself: bool) -> (Vec<String>, Vec<(i64, Stri
     tokio::time::sleep(Duration::from_millis(300)).await;
   }
 
-  (standing.agency.folds.lock().unwrap().clone(), standing.brain.folds())
+  let consolidations = session.prompts().iter().filter(|prompt| prompt.contains(&consolidate)).count();
+  let folds_before = *folds_before.lock().unwrap();
+
+  Folded {
+    asked: standing.agency.folds.lock().unwrap().clone(),
+    reported: standing.brain.folds(),
+    consolidations,
+    folds_before,
+  }
 }
 
 #[tokio::test]
 async fn a_session_whose_program_carries_its_own_fold_is_never_folded_by_the_receiver() {
-  let (asked, reported) = folds_after_a_round(false).await;
+  let folded = folds_after_a_round(false, false).await;
 
-  assert_eq!(asked, vec![SESSION.to_owned()], "a full session is folded");
+  assert_eq!(folded.asked, vec![SESSION.to_owned()], "a full session is folded");
+  assert_eq!(folded.consolidations, 1, "the session is asked one consolidation turn");
+  assert_eq!(folded.folds_before, Some(0), "the consolidation turn runs before the fold");
   assert_eq!(
-    reported,
+    folded.reported,
     vec![(BRAIN, SESSION.to_owned())],
     "the fold is reported to the agent's brain under the session's id"
   );
 
-  let (asked, reported) = folds_after_a_round(true).await;
+  let folded = folds_after_a_round(true, false).await;
 
-  assert!(asked.is_empty(), "the program's own fold stands: none is asked");
-  assert!(reported.is_empty(), "a fold the receiver did not ask is reported by nobody here");
+  assert!(folded.asked.is_empty(), "the program's own fold stands: none is asked");
+  assert_eq!(folded.consolidations, 0, "nor is a consolidation turn");
+  assert!(folded.reported.is_empty(), "a fold the receiver did not ask is reported by nobody here");
+}
+
+#[tokio::test]
+async fn a_refused_consolidation_turn_never_holds_the_fold() {
+  let folded = folds_after_a_round(false, true).await;
+
+  assert_eq!(folded.consolidations, 0, "the refused turn was not taken");
+  assert_eq!(folded.asked, vec![SESSION.to_owned()], "the fold goes ahead");
+  assert_eq!(folded.reported, vec![(BRAIN, SESSION.to_owned())]);
 }
 
 // The first prompt of a round of the owner's words, the agent's brain saying a consolidation is due or not.

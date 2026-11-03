@@ -91,12 +91,14 @@ road name with its base address and token.
 ### The unit command
 
 `bmo-receiver` is the unit command bmo-cli finds (bmo-cli's `docs/api.md`, 「The unit command」). Asked `nouns`,
-it declares eight, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
+it declares ten, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
 the operations machine's:
 
 | Noun | Words | What it asks |
 |---|---|---|
 | `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to; `--by` names the chat that set it off, the turn's own room where none is named |
+| `room show` | `--room <id> --by <administrator>` | `GET /rooms/{roomId}/registration`, printed as lines: the mode, the providers and whether the list was chosen, whether the room is read-only and by which chat services, and the answerers |
+| `room mode` | `--room <id> --mode record-only\|avatar --by <administrator>` | `PUT /rooms/{roomId}/mode`, and the registration as it now stands printed as `room show` prints it |
 | `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is first asked as the act `speak`: outside the agent's own round that hands the voice note over as its words, and inside it the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the act `voice`, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it; `--spoken`, taken only with `--voice`, names the spoken words the voice synthesises in their place |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
@@ -241,15 +243,23 @@ agent remembers it writes with its own brain tool, and what a turn is handed of 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | the agent's brain | `GET /brains?agentKey=&limit=2` | the turn's agent | `items`, of which the receiver reads `id`: the one brain registered for the agent; none, or more than one, is read as no brain, and the calls below are not made |
-| whether a consolidation is due | `POST /brains/{brainId}/recall` | `words` empty and `record` false, with no room, speakers or session | `consolidationDue`, the one field read: a recall of no words hands nothing out, marks nothing and ends no row, so this is a reading of the brain's due state alone |
+| whether a consolidation is due | `GET /brains/{brainId}/consolidation` | | `unconsolidatedImportance`, `consolidationDue`, `threshold` and `unconsolidatedCount`, of which the receiver reads `consolidationDue`; a reading with no effect on the brain |
 | a fold reported | `POST /brains/{brainId}/folds` | `sessionKey`, the agency's id of the session folded | `clearedCount` |
 
+- **The agent's brain is kept for the process,** by the agent's name, once a lookup has found it: the next
+  call for the agent uses the kept id and asks no lookup. A call on a kept id that the brain answers 404 lets
+  the id go, so the next call for the agent looks it up again; a lookup that finds no brain keeps nothing.
 - **Due:** every turn the window composes asks it for the turn's agent, and where the brain answers
   `consolidationDue` true the turn's index block carries the policy's due line (`docs/bmo-window.md`, 「What
   every turn carries」). A call that fails leaves the line out and says why in the journal.
 - **The fold:** once the agency answers a fold the receiver asked of a session (`docs/wake.md`, 「The room's queue
   and the round」), the receiver reports it for the session's agent, so the marks the brain keeps of what it
   handed that session clear. A report that fails is said in the journal and changes nothing of the fold.
+- **The fold's key is the agency's id of the session.** A session's turns run under names of their own: the
+  agency names each turn of a chat session's run `chat:<room>:<moment>`, new with every turn, and hands it to
+  the turn's tools as `BMO_RUN_NAME`, which the brain's tool reports its own `brain_fold` under. No run's name
+  outlives its turn, so none names the session a fold ends; the session's id is the one key that stays the same
+  across its turns.
 - **Offered once.** A call on the brain is never offered again, a refused connection included: neither the due
   line nor a fold's report is worth holding a turn or a fold for.
 
@@ -431,12 +441,13 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
   message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
   the release's `VERSION` file where it does not (「The deployments」).
-- **The brain** serves whether a consolidation is due only on a recall, so the receiver asks a recall of no words
-  for it alone; a reading of the due state of its own would stand in once the brain serves one. The brain's tool
-  reports a fold under the session key its record's `BMO_RUN_NAME` gives, a run's name, while the receiver
-  reports one under the agency's id of the session: until one of the brain and the agency states which key a
-  session's marks stand under, a session's marks set under one are not cleared by a fold reported under the
-  other.
+- **The brain's `docs/boundary-api.md`** does not yet state `GET /brains/{brainId}/consolidation`; the receiver
+  reads it as 「The brain」 above states, `consolidationDue` among `unconsolidatedImportance`, `threshold` and
+  `unconsolidatedCount`, until it does.
+- **The brain's tool** reports its `brain_fold` under the turn's `BMO_RUN_NAME`, a name new with every turn of a
+  chat session, while the receiver reports a fold under the agency's id of the session (「The brain」 above): the
+  fold the agent reports at a hand-off clears the marks of no key that outlives its own turn, until the brain's
+  tool reports under a name the session keeps across its turns.
 - **The agency's usage by turn** is read by round: every turn of the draft process goes out naming its round, as
   the round's own turn does, so the agency's ledger opens each under the round's name. No document of the agency
   states a per-turn usage record the console reads beside a round's draft rows yet.
