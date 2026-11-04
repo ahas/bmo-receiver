@@ -10,8 +10,6 @@ use serde::Deserialize;
 pub struct Phrases {
   pub unmute: Vec<String>,
   pub mute: Vec<String>,
-  pub notice_rest_on: Vec<String>,
-  pub notice_rest_off: Vec<String>,
   pub notice_restart_on: Vec<String>,
   pub notice_restart_off: Vec<String>,
   pub photos_on: Vec<String>,

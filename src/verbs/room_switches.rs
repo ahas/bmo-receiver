@@ -4,7 +4,7 @@
 
 use sea_orm::DatabaseConnection;
 
-use crate::receiver::rows::{set_muted, set_notice, set_photo_look};
+use crate::receiver::rows::{set_muted, set_photo_look};
 use crate::store::settings;
 use crate::verbs::VerbError;
 use crate::{Fault, all, one, run};
@@ -38,60 +38,6 @@ pub async fn mute(
   set_muted(db, chat_id, user_id, on).await?;
 
   Ok(vec![if on { "muted" } else { "unmuted" }.to_owned()])
-}
-
-/// One of a room's operating notices: the rest and the restart.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Notice {
-  Rest,
-  Restart,
-}
-
-impl Notice {
-  fn kind(self) -> &'static str {
-    match self {
-      Notice::Rest => "rest",
-      Notice::Restart => "restart",
-    }
-  }
-}
-
-/// Each notice asked switched in the room, in the order asked, every one read before any is written. The
-/// rest notice stays on in the owner's own chat.
-pub async fn notice(
-  db: &DatabaseConnection,
-  chat_id: i64,
-  wanted: &[(Notice, String)],
-  owner_id: Option<i64>,
-) -> Result<Vec<String>, VerbError> {
-  let mut switches = Vec::new();
-
-  for (notice, value) in wanted {
-    let on = match value.as_str() {
-      "on" => true,
-      "off" => false,
-      other => return Err(VerbError::Refused(format!("--{} takes on or off, not {other}", notice.kind()))),
-    };
-
-    if *notice == Notice::Rest && !on && owner_id.is_none_or(|owner| owner == chat_id) {
-      return Err(VerbError::Refused(if owner_id.is_none() {
-        "the owner is not known, so the rest notice stays on: the owner is not configured".into()
-      } else {
-        "the rest notice stays on in the owner's chat".into()
-      }));
-    }
-
-    switches.push((*notice, on, value));
-  }
-
-  let mut said = vec![];
-
-  for (notice, on, value) in switches {
-    set_notice(db, chat_id, notice.kind(), on).await?;
-    said.push(format!("chat {chat_id}: {} notice {value}", notice.kind()));
-  }
-
-  Ok(said)
 }
 
 /// What `photos look` asks: looking, not looking, or a room's own word taken off again.

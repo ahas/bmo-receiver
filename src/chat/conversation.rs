@@ -291,22 +291,19 @@ pub trait Noting: Send + Sync {
   ) -> BoxFuture<'a, ()>;
   fn fold<'a>(
     &'a self,
-    conversations: &'a Conversations,
     receiver: &'a Receiver,
     agent: &'a str,
     chat_id: i64,
     held: &'a Held,
-    room: Room,
   ) -> BoxFuture<'a, ()>;
 }
 
-/// The health of the rooms' sessions as the conversations read it: whether a room has fallen silent, what a
-/// failed round is told of, a round that ended with nothing said at all, and the minute the failure orders are
-/// looked over on. Filled by the module that owns the health.
+/// The health of the rooms' sessions as the conversations read it: whether a room has fallen silent, the order a
+/// broken run raises, and the minute the failure orders are looked over on. Filled by the module that owns the
+/// health.
 pub trait Health: Send + Sync {
   fn silenced<'a>(&'a self, receiver: &'a Receiver, chat_id: i64) -> BoxFuture<'a, bool>;
   fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()>;
-  fn died<'a>(&'a self, receiver: &'a Receiver, chat_id: i64) -> BoxFuture<'a, ()>;
   fn orders(&self, receiver: &Receiver);
 }
 
@@ -1948,9 +1945,7 @@ impl Conversations {
       conv.in_flight = false;
     }
 
-    self
-      .maybe_fold(chat_id, room, held.session.as_deref(), ratio, fold_at, folds_itself)
-      .await;
+    self.maybe_fold(chat_id, held.session.as_deref(), ratio, fold_at, folds_itself).await;
     self.pump_pending(chat_id);
 
     Ok(())
@@ -2493,7 +2488,6 @@ impl Conversations {
     if final_round {
       self.close(chat_id).await;
       self.publish(waited(chat_id, message, Some("WAIT")));
-      self.0.health.died(&self.0.receiver, chat_id).await;
 
       return Ok(());
     }
@@ -2677,7 +2671,6 @@ impl Conversations {
   async fn maybe_fold(
     &self,
     chat_id: i64,
-    room: Room,
     session: Option<&str>,
     ratio: Option<f64>,
     fold_at: Option<f64>,
@@ -2731,7 +2724,7 @@ impl Conversations {
       let held = this.state().active.get(&chat_id).map(|conv| conv.held.clone());
 
       match held {
-        Some(held) => this.0.noting.fold(&this, &receiver, this.agent(), chat_id, &held, room).await,
+        Some(held) => this.0.noting.fold(&receiver, this.agent(), chat_id, &held).await,
         None => eprintln!("chat {chat_id}: no fold: the room's conversation ended before its fold began"),
       }
 

@@ -1,17 +1,15 @@
-//! The health of the rooms' sessions as the conversations read it (docs/voiced-notices.md, 「System notices」;
-//! docs/bmo-window.md, 「What stands in the window」): whether a room has fallen silent, what a stopped or failed
-//! round is told of its room, a round that ended with nothing said at all, and the failure order a broken run of
-//! the agent's own raises as a quiet instruction row — looked over on the health policy's minute, with the service's
-//! own line as the last resort where no session answers the order.
+//! The health of the rooms' sessions as the conversations read it (docs/voiced-notices.md, 「A broken run」;
+//! docs/bmo-window.md, 「What stands in the window」): whether a room has fallen silent, and the failure order a
+//! broken run of the agent's own raises as a quiet instruction row — looked over on the health policy's minute,
+//! with the service's own line as the last resort where no session answers the order. A round that stopped,
+//! failed or ended with nothing said sends no line to its room.
 
 use receiver_codes::FixedLine;
-use receiver_policy::chat_health::{CHAT_HEALTH, Notice};
+use receiver_policy::chat_health::CHAT_HEALTH;
 use receiver_policy::fill_marks;
 
 use super::conversation::{BoxFuture, Failure};
 use super::instructions::{Queued, queue as queue_row};
-use super::notices;
-use super::notices::Voiced;
 use crate::receiver::wake::rest::{resting, stand_in};
 use crate::receiver::{Receiver, rows};
 use crate::store::Fault;
@@ -29,27 +27,6 @@ pub async fn silenced(receiver: &Receiver, chat_id: i64) -> bool {
   let agent = receiver.default_answerer();
 
   resting(receiver).await.unwrap_or(false) && !stand_in(receiver, &agent).await.unwrap_or(false)
-}
-
-/// The notice a room hears of a round that stopped or failed, in the agent's own voice, with the cause the road
-/// gave where it gave one.
-async fn tell_health(receiver: &Receiver, chat_id: i64, said: &Notice, reason: Option<&str>) {
-  let base = said.fact.clone();
-  let fact = match reason.filter(|why| !why.trim().is_empty()) {
-    Some(why) => format!("{base} {why}"),
-    None => base,
-  };
-  let notice = Voiced {
-    fact,
-    intent: said.intent.clone(),
-    follow_up: said.follow_up.clone(),
-    optional: false,
-    kind: Some(said.kind.clone()),
-    events: vec![],
-    rides_ms: None,
-  };
-
-  let _ = notices::queue_notice(receiver, chat_id, &notice).await;
 }
 
 /// The order a broken run raises in its room, as a quiet instruction row the round opens on.
@@ -96,33 +73,25 @@ impl crate::chat::conversation::Health for RoomHealth {
     Box::pin(async move { silenced(receiver, chat_id).await })
   }
 
+  /// A stop is not a failure and says nothing; a broken run raises the order the agent investigates, and the
+  /// agent tells the owner in its own words.
   fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()> {
     Box::pin(async move {
+      if matches!(failure, Failure::Stopped) {
+        return;
+      }
+
       let reason = match failure {
         Failure::Transport(why) | Failure::Failed(why) | Failure::Engine { reason: why, .. } => {
           Some(why.as_str())
         }
         _ => None,
       };
-      let said = match failure {
-        Failure::Stopped => &CHAT_HEALTH.stopped,
-        _ => &CHAT_HEALTH.failed,
-      };
-
-      tell_health(receiver, chat_id, said, reason).await;
-
-      if matches!(failure, Failure::Stopped) {
-        return;
-      }
 
       if let Err(why) = raise_order(receiver, &self.0.default_answerer(), chat_id, reason).await {
         eprintln!("chat {chat_id}: the failure order: {}", why.detail);
       }
     })
-  }
-
-  fn died<'a>(&'a self, receiver: &'a Receiver, chat_id: i64) -> BoxFuture<'a, ()> {
-    Box::pin(async move { tell_health(receiver, chat_id, &CHAT_HEALTH.failed, None).await })
   }
 
   /// The rows just written are the room's next round's: the pass is handed to it now.

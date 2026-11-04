@@ -8,12 +8,11 @@ use receiver_policy::providers::Handover;
 use receiver_ports::gate::Judgement;
 use serde_json::json;
 
-use super::conversation::{BoxFuture, Conversations, Held, Noting, Reply, unified_session};
-use super::fold::{Failures, Folding, compact, hand_off, handover_of};
-use super::prompt::recent_lines;
+use super::conversation::{BoxFuture, Held, Noting, Reply, unified_session};
+use super::fold::{compact, hand_off, handover_of};
 use super::sentinels::{is_skip, is_wait};
 use crate::form::without_control_markers;
-use crate::receiver::{Receiver, Room};
+use crate::receiver::Receiver;
 use crate::rounds;
 use crate::run as execute;
 use crate::store::{Fault, settings};
@@ -109,20 +108,15 @@ pub async fn note_session(
   .map(drop)
 }
 
-/// The notes and the fold, as the conversations hold them. The fold's causes are held here, so a room hears of a
-/// fold that did not happen again only when what stopped it has changed.
+/// The notes and the fold, as the conversations hold them.
 #[derive(Clone)]
 pub struct Noter {
   pub receiver: Receiver,
-  pub failures: Failures,
 }
 
 impl Noter {
   pub fn new(receiver: Receiver) -> Self {
-    Noter {
-      receiver,
-      failures: Failures::new(),
-    }
+    Noter { receiver }
   }
 }
 
@@ -160,17 +154,12 @@ impl Noting for Noter {
 
   fn fold<'a>(
     &'a self,
-    conversations: &'a Conversations,
     receiver: &'a Receiver,
     agent: &'a str,
     chat_id: i64,
     held: &'a Held,
-    room: Room,
   ) -> BoxFuture<'a, ()> {
     Box::pin(async move {
-      let recent = recent_lines(receiver, receiver.owner_id(), chat_id).await.unwrap_or_default();
-      let folding = Folding { room, recent };
-
       // A full session its provider hands over by its own note is replaced at its next turn, not folded.
       if unified_session(receiver, agent).await && handover_of(receiver, agent).await == Handover::Handoff {
         hand_off(receiver, agent).await;
@@ -178,16 +167,7 @@ impl Noting for Noter {
         return;
       }
 
-      compact(
-        receiver,
-        conversations,
-        &self.failures,
-        agent,
-        chat_id,
-        held.session.as_deref(),
-        &folding,
-      )
-      .await;
+      compact(receiver, agent, chat_id, held.session.as_deref()).await;
     })
   }
 }

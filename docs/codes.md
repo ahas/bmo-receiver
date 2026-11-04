@@ -180,7 +180,6 @@ The refusals of the supervisor routes and of a room's list of supervisors (`docs
 
 | Code | Fields | When |
 |---|---|---|
-| `fold-failed` | `room`, `reason` | a room's fold did not happen; the owner hears why |
 | `handoff-lost` | `agent`, `reason` | an agent's session was replaced and neither its handoff nor a transcript of it could be carried to the new one; the owner hears it once |
 
 ### VoiceFact
@@ -199,8 +198,6 @@ session once the setting has changed, one waiting per setting.
 |---|---|---|
 | `chat-allowed` | | the owner allowed the room |
 | `photos-switched` | `on` | the owner switched opening the room's pictures, for this room alone |
-| `rest-notice-switched` | `on` | the owner switched the room's rest notice |
-| `rest-notice-kept` | | the owner asked to switch the rest notice off in the owner's own private chat, where it stays on |
 | `restart-notice-switched` | `on` | the owner switched the room's restart notice |
 | `member-muted` | `muted` | the owner muted or unmuted a member of the room |
 | `mute-target-missing` | | a mute or an unmute named nobody who can be: neither an answered person nor a number, or the owner or the agent |
@@ -227,8 +224,6 @@ session once the setting has changed, one waiting per setting.
 |---|---|---|
 | `rest-begins` | `until` (epoch seconds, or null) | a usage limit begins |
 | `provider-down` | | the provider stopped answering |
-| `compacting` | | a room's session is being folded and could not say so itself |
-| `compact-failed` | | a room's fold did not happen |
 | `run-broken` | `agent`, `cause`, `record` | a run broke and no session can answer the order about it |
 | `chat-denied` | | the owner shut the room |
 | `going-down-for-update` | `items` | the service stops for a deployment: a system notice |

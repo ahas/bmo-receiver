@@ -392,7 +392,7 @@ flowchart TD
 - **Every reading of the owner's room is that one room:** a briefing's room always, the room the system's other
   notices go to where `notices_room` names none, the room an instruction goes to where it names none, the room
   kept work whose room is gone reaches, the room a console talk and a line typed into the agent's program run as,
-  the room that is always served and always hears its rest notice, and `GET /owner`'s `room`. The owner as a
+  the room that is always served, and `GET /owner`'s `room`. The owner as a
   sender stays his number on each road; a room is never read off it.
 
 ## The room's situation

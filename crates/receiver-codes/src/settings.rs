@@ -15,11 +15,6 @@ pub enum SettingFact {
   PhotosSwitched {
     on: bool,
   },
-  RestNoticeSwitched {
-    on: bool,
-  },
-  /// The owner asked to switch the rest notice off in the owner's own private chat, where it stays on.
-  RestNoticeKept,
   RestartNoticeSwitched {
     on: bool,
   },
@@ -40,7 +35,6 @@ impl SettingFact {
     match self {
       Self::ChatAllowed => "chat-allowed",
       Self::PhotosSwitched { .. } => "photos",
-      Self::RestNoticeSwitched { .. } | Self::RestNoticeKept => "notice-rest",
       Self::RestartNoticeSwitched { .. } => "notice-restart",
       Self::MemberMuted { .. } | Self::MuteTargetMissing => "mute",
     }
@@ -64,17 +58,6 @@ impl std::fmt::Display for SettingFact {
       Self::PhotosSwitched { on: false } => f.write_str(
         "The owner switched photo viewing off for this chat alone: you know when a picture arrives here but do \
          not open it. Other chats are unchanged.",
-      ),
-      Self::RestNoticeKept => f.write_str(
-        "The owner asked to switch rest notices off in their own private chat. That cannot be done there, since \
-         it is how they learn why you have gone quiet everywhere else; the notices stay on.",
-      ),
-      Self::RestNoticeSwitched { on: true } => f.write_str(
-        "The owner switched rest notices on in this chat: you will say so here when you go to rest and when you \
-         come back.",
-      ),
-      Self::RestNoticeSwitched { on: false } => f.write_str(
-        "The owner switched rest notices off in this chat: when you go to rest, you go quietly here.",
       ),
       Self::RestartNoticeSwitched { on } => {
         write!(f, "The owner switched restart notices {} in this chat.", switched(*on))

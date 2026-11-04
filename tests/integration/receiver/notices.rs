@@ -19,7 +19,10 @@ fn the_frame_carries_the_fact_and_says_the_line_is_to_be_said_in_the_chats_own_l
 
 #[test]
 fn every_acknowledgement_of_one_setting_stands_under_one_kind() {
-  assert_eq!(kind(&SettingFact::RestNoticeKept), kind(&SettingFact::RestNoticeSwitched { on: true }));
+  assert_eq!(
+    kind(&SettingFact::RestartNoticeSwitched { on: false }),
+    kind(&SettingFact::RestartNoticeSwitched { on: true })
+  );
   assert_eq!(kind(&SettingFact::MuteTargetMissing), "setting:mute");
   assert_ne!(kind(&SettingFact::PhotosSwitched { on: true }), kind(&SettingFact::ChatAllowed));
 }

@@ -153,7 +153,7 @@ fn the_other_lines_carry_their_marks_and_numbers() {
   assert_eq!(WAKE.file_lead_seconds, 120);
   assert!(WAKE.file_lead_messages > 0);
   assert!(HANDOVER.transcript.answer.contains("{agent}"));
-  assert!(CHAT_HEALTH.failed.run_log.as_deref().is_some_and(|line| line.contains("{run}")));
+  assert!(CHAT_HEALTH.order.what.contains("{where}") && CHAT_HEALTH.order.check_seconds > 0);
   assert!(REST.threshold > 0.0 && REST.lift_check_seconds > 0);
   assert!(RESIDENT_TURN.fold_ratio > 0.0 && RESIDENT_TURN.fold_ratio < 1.0);
   assert!(!KEEPALIVE.prompt.is_empty());
@@ -180,8 +180,6 @@ fn every_command_has_its_plain_form_first() {
   let firsts = [
     (&phrases.unmute, "member:unmute"),
     (&phrases.mute, "member:mute"),
-    (&phrases.notice_rest_on, "notice:rest:on"),
-    (&phrases.notice_rest_off, "notice:rest:off"),
     (&phrases.notice_restart_on, "notice:restart:on"),
     (&phrases.notice_restart_off, "notice:restart:off"),
     (&phrases.photos_on, "photos:on"),

@@ -34,9 +34,9 @@ flowchart TB
   `POST /owner/notices` for the job queue: a job's end, and each change of an item or a job told to the
   supervisor that ordered the work or to the owner (the agency's `docs/agent-control.md`, 「An item's change is
   told to its orderer」); bmo-job's service calls no unit, and its `bmo job ask` queues a job's question from the
-  job's own process. bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own producers (its rest, fallback and
-  failure notices, its fold, the agency's events) write the row themselves. The instruction store is the one
-  writer of the table.
+  job's own process. bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own
+  producers (its rest and fallback notices, its failure orders, the agency's events) write the row themselves.
+  The instruction store is the one writer of the table.
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
   conversation; it is the only caller of the conversation's instruct. The console's instruct writes a row and
   brings the pass forward like any other producer.
@@ -75,7 +75,6 @@ is written.
 | The back-up line after a deployment | start-up | instruction table | `round` | rides, for the restart's while | — |
 | The back-up line after a restart no deployment announced | start-up | instruction table | `round` | opens | — |
 | The deployment briefing: the deployments since the owner was last briefed, asking the agent to brief him (`docs/wake.md`, 「Quiet instructions」) | the round's start | instruction table | `round` | rides, the owner's next round | — |
-| The line after a fold | the conversation's fold | instruction table | `round` | opens | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
 | A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
 | A deployment gone live, and every way one stops short | the testbed's deployment | instruction table | `round` | opens | `deployed` |
@@ -88,7 +87,6 @@ is written.
 | An instruction typed on the console | `POST /owner/instructions` | instruction table | `round` | opens | — |
 | A talk from the console about an item or a document | `POST /talks` | — | `talk` | opens | — |
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
-| The words before a fold | the conversation's fold | — | `nap` | opens | — |
 | The consolidation before a fold: the session asked, tools on, to consolidate its brain and answer the skip (`docs/unified-bmo.md`, 「The brain's consolidation」) | the conversation's fold | — | none: the handover policy's `consolidate` lines with the room's block, composed by no window | opens, waited on before the fold | — |
 | A line a person types into the agent's program | the agency's `typed-line` hook | — | none: composed, never asked | the person's own turn of the program | — |
 | A later turn of the draft process inside a round, after the round's own turn that carries its first question: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
@@ -103,8 +101,8 @@ is written.
   - Words in a room the default answerer does not answer, one other agents answer alone, never reach it: the
     receiver wakes those agents and no lane of this queue. A room the owner shares with another agent is a
     room's words like any other, in the first row.
-  - The fold itself is a command to the agent's program, not words to the agent. It goes after the words before
-    it and the consolidation turn, and goes whether or not that turn could be carried.
+  - The fold itself is a command to the agent's program, not words to the agent. It goes after the consolidation
+    turn, and goes whether or not that turn could be carried.
   - A line a person types into the agent's program is that person's turn, which the receiver does not ask for;
     the window only composes what goes with it (「A line typed into the program」 below).
 
@@ -128,7 +126,8 @@ that session without the room hearing it.
 - **A round settles the rows it took however it ended, except a room reply in a round that failed.** A round
   that failed for any reason but a stop asked of it gives its room replies back to pending, counting the failure
   on the row as a restart is counted, so the next pass hands them again; a reply given back the policy's
-  `restart_limit` times is settled with the round that failed last, whose failure notice and order still stand.
+  `restart_limit` times is settled with the round that failed last, whose failure order still stands. A stop
+  asked of a round raises no order at all.
   A round whose turn's end never reached it, because the agency's event stream ended first, reads the turn's
   end from the agency; where the agency no longer holds the turn the round has failed.
 - **Acted on as the owner's word in that chat.** The session may answer `<<SKIP>>` in any chat, the owner's
@@ -340,8 +339,8 @@ Beside the reference, a turn carries the room's messages since the agent last an
   words that came in meanwhile and no push put in as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It is composed like any turn,
-  so a row that has come due while the room was quiet is in front of the agent. Its answer goes to no room: what is due is done with tools, `say` for speaking.
-- **`nap`**: the one line before a fold, asked with the tools off.
+  so a row that has come due while the room was quiet is in front of the agent, and it carries the keepalive
+  prompt alone. Its answer goes to no room.
 
 ## The touch
 

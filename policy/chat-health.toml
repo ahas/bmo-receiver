@@ -1,7 +1,8 @@
-# What a room's session is told of its health (docs/voiced-notices.md): the facts, the intents and the lifetimes of
-# the notices a room or the owner hears in the agent's own voice, what a failure order names a broken chat turn
-# as, the fold, and the touch. The agency keeps its own copy of the parts it says itself; these are the parts the
-# receiver queues. `{name}` marks what each line carries.
+# What a room's session is told of its health (docs/voiced-notices.md): the facts and intents of the notices a
+# room or the owner hears in the agent's own voice, what a failure order names a broken chat turn as, and the chat
+# touch target as the receiver declares it. The agency keeps its own copy of the parts it says itself; these are the
+# parts the receiver queues. `{name}` marks what each line carries. A round that stopped, failed or ended with
+# nothing said sends no line to its room: only a broken run of the agent's own raises the order below.
 
 # The provider answered again after an outage.
 [outage_lifted]
@@ -16,39 +17,15 @@ fact = "The usage limit's rest is over: the window has reset and you answer agai
 intent = "say you are back from the rest and answering again."
 kind = "rest-lifted"
 
-# A turn somebody stopped, told to its room.
-[stopped]
-fact = "The answer you were writing for this chat was stopped from outside before it was finished. Nobody saw it and none of it is coming."
-intent = "tell the chat that the answer it was waiting for was cut off with no result."
-follow_up = "Nothing follows from that turn; whoever asked can ask again."
-kind = "run-stopped"
-
-# A round that died, told to its room; the owner's own chat is also told which run's log holds it ({run}).
-[failed]
-fact = "The answer you were writing for this chat ended without one: the round broke before anything of it could be read. Nobody saw an answer and none of it is coming."
-run_log = "What could not be read is in that run's own log, {run}."
-intent = "tell the chat that the round it was waiting on failed and left no answer."
-follow_up = "Nothing follows from that round; whoever asked can ask again. Do not say why it broke: that is being looked into elsewhere."
-kind = "run-failed"
-
 # What a failure order names a broken chat turn as, by where it was ({where}), and how often, in seconds, the
 # orders nobody took up are looked over for the receiver's own last line.
 [order]
 what = "a chat turn of your own in {where}"
 check_seconds = 60
 
-# A full session folded: what the session is asked for its line before the fold, and what it is handed to say
-# once it is awake again.
-[fold]
-prompt = "Quiet instruction from the system: your memory is full and is about to be folded up (compacted): you will keep the gist and lose the detail. Tell the room, in one short line in your own voice and in the room's language, that you are going to nap for a moment. Output only that line, nothing else."
-fact = "Your memory has just been folded up (compacted): you kept the gist and lost the detail, and you are awake again."
-intent = "tell the chat you woke up from your nap."
-kind = "compacted"
-
-# The cache warmer's touch of a quiet room's session: what it says beside its word where it carries reference,
-# and the chat touch target as the receiver declares it to the warmer.
+# The cache warmer's touch of a quiet room's session: the chat touch target as the receiver declares it to the
+# warmer. The touch carries the keepalive prompt and no instruction of its own, so it asks the session for no line.
 [touch]
-note = "This is a keepalive touch: nobody spoke and nothing arrived. Where the reference above holds something that is due now, act on it with your tools (the say tool, with the room named in chat, to speak in one), since what you answer here goes to no room and no tool finds a room of its own here. Otherwise answer exactly <<SKIP>>."
 label = "the default answerer's one session, in the room it last stood in"
 rank = 90
 idle_ms = 2400000

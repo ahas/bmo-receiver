@@ -287,8 +287,8 @@ at those moments and tells the brain of a fold it asks of the session itself.
   turn carries」), and the round's `memory` question consolidates in that turn, bounded to what the turn can
   afford: the first episodes the brain answers, never all of them, and no `brain_fold` (`docs/drafting.md`,
   「The questions」).
-- **At a fold the receiver asks of the session,** in this order: the room's words before the fold; one quiet
-  turn on the session, tools on, the handover policy's `consolidate` lines (`handover.toml`), in which the
+- **At a fold the receiver asks of the session,** in this order: one quiet turn on the session, tools on, the
+  handover policy's `consolidate` lines (`handover.toml`), in which the
   session consolidates the first of its unconsolidated episodes, as many as the turn can afford and never all,
   calls no `brain_fold`, says nothing in any room and answers exactly the skip; then the fold, the agency's
   command; then, once the agency answers it, the fold reported to the brain by the receiver itself

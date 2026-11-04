@@ -177,19 +177,20 @@ fn a_refusal_answers_its_code_its_status_and_an_english_sentence() {
 
 #[test]
 fn a_fact_is_its_code_and_fields_on_the_wire_and_english_for_its_agent() {
-  let fact = Fact::Health(HealthFact::FoldFailed {
-    room: "room-a".to_owned(),
-    reason: "the fold timed out".to_owned(),
+  let fact = Fact::Health(HealthFact::HandoffLost {
+    agent: "agent-a".to_owned(),
+    reason: "the window filled".to_owned(),
   });
 
-  assert_eq!(fact.code(), "fold-failed");
+  assert_eq!(fact.code(), "handoff-lost");
   assert_eq!(
     serde_json::to_value(&fact).unwrap(),
-    json!({ "code": "fold-failed", "room": "room-a", "reason": "the fold timed out" })
+    json!({ "code": "handoff-lost", "agent": "agent-a", "reason": "the window filled" })
   );
   assert_eq!(
     fact.to_string(),
-    "The fold of the session's context for the room room-a failed: the fold timed out"
+    "The session of agent-a was replaced (the window filled), and neither its handoff nor a transcript of it \
+     could be carried to the new session, which starts remembering none of the rooms' recent conversation"
   );
   assert_eq!(Fact::Voice(VoiceFact::BriefingOff).code(), "briefing-off");
   assert_eq!(

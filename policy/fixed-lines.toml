@@ -6,8 +6,6 @@
 [sentences.ko]
 rest-begins = "사용 한도에 걸려 한동안 답할 수 없어요. 한도가 풀리면 다시 답할게요."
 provider-down = "모델 제공처가 지금 응답하지 않아 답할 수 없어요. 돌아오면 다시 답할게요."
-compacting = "대화를 정리하는 중이에요. 잠시 뒤에 다시 답할게요."
-compact-failed = "대화 정리가 이번에는 되지 않았어요. 대화는 그대로 이어집니다."
 run-broken = "{agent}의 작업이 중간에 멈췄어요. {cause}"
 chat-denied = "이 방은 이제 듣지 않아요. 여기서 하는 말은 더 남기지 않습니다."
 going-down-for-update = "업데이트를 위해 잠시 내려갔다가 곧 돌아옵니다."
@@ -17,8 +15,6 @@ draw = "추첨 {number}번 결과: {result} (시드 {seed}, 다음 시드 약속
 [sentences.en]
 rest-begins = "A usage limit has been reached, so I cannot answer for a while. I will answer again once it lifts."
 provider-down = "The model provider is not answering right now, so I cannot answer. I will answer again once it is back."
-compacting = "I am tidying up this conversation. I will answer again in a moment."
-compact-failed = "Tidying up this conversation did not work this time. The conversation goes on as it was."
 run-broken = "The work of {agent} stopped partway. {cause}"
 chat-denied = "This room is no longer listened to. What is said here is no longer kept."
 going-down-for-update = "Going down for an update for a moment; back shortly."

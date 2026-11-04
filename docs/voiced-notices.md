@@ -32,8 +32,8 @@ agent that answers the room says the line.
   - its own words, never the fact text copied out;
   - no `<<WAIT>>` and no `<<REPLY>>`; `<<SKIP>>` only where the facts say the line is optional.
 - **Recipients and switches are the notice's own.** A voiced notice goes to exactly the chats the line is for,
-  under the per-chat switches (`notice:rest`, `notice:restart`), and the rest rule holds: a rest and its lifting
-  are told to the owner alone; a room hears only its compaction when its rest notice is on.
+  under the per-chat switch (`notice:restart`), and the rest rule holds: a rest and its lifting are told to the
+  owner alone, and a room's session folding says nothing to any room.
 - **Pass-through content is not a notice.** A search, browse or say result, or a session's own answer is already
   written by an agent and goes out as it is. A job's report is not among them: it is the worker's English to the
   agent, and the agent tells it (「A job's end」 below).
@@ -69,8 +69,7 @@ agent that answers the room says the line.
 - **Search and browse.** No script announces a search. The session that launches it says in the same turn, in
   its own voice, that it is looking something up, or stays silent where its room's persona wants a quiet lookup.
   The result returns later as a quiet instruction. A run somebody stopped hands back what it had written where
-  there is anything to hand back; with nothing written, the room hears one line saying the work was cut off
-  with no result and that nothing more is coming.
+  there is anything to hand back, and says nothing more.
 - **Deploy and restart.** The deployment's purpose says why this goes live now, and whether the work is finished
   or continues.
   1. Before the receiver stops for a deployment, the deployment records its purpose and the items going live,
@@ -105,7 +104,7 @@ agent that answers the room says the line.
      notice tells that release's outcome as it happened.
 - **Rest and fallback.** Going to rest is a fixed line (see below), said in the owner's notices room as the agency's
   `rest.changed` comes: `rest-begins` with its end for a limit, `provider-down` for an outage. Coming back
-  (the rest lifted, the outage over, the compaction done, the provider answering again, a stand-in taking over
+  (the rest lifted, the outage over, the provider answering again, a stand-in taking over
   or stepping down, a downgraded answer) is voiced. The agency publishes the stand-in's moves and a job's run's
   fall as events (`fallback.changed`, `worker.changed`) and the receiver queues each notice for the owner's
   notices room: the stand-in's provider and model, with the one before it where one stood, or the stand-in done; and
@@ -120,9 +119,10 @@ agent that answers the room says the line.
 - **A broken run.** A chat turn of the agent's own that died, or a job that failed while it worked, is handed to
   the agent's session in the owner's chat as an order: the facts read where it broke, and an instruction to find
   the cause and fix it at the root. The agent tells the owner in its own words; the receiver sends a fixed line
-  only when the agent cannot answer at all. A turn somebody stopped is the other case, and it goes the other
-  way: the room that was watching the agent type hears one voiced line saying the answer was cut off with no
-  result, the owner hears nothing at all, and nothing is recorded to recover from: a stop is not a failure.
+  only when the agent cannot answer at all. A round that failed, and a round that ended with nothing said, send
+  no line to their room. A turn somebody stopped says nothing anywhere: the room that was watching the agent
+  type hears nothing, the owner hears nothing at all, and nothing is recorded to recover from: a stop is not a
+  failure.
 - **A turn past its clock.** A supervisor's turn past its clock gets no
   holding line in any room: the console shows the answering agent at work. The order below is for a worker's job
   alone, in the notices room. A worker's turn that reached its bound (the agency's `overtime-request.created`) is
@@ -264,24 +264,17 @@ spoken, and the session writes what is said.
   path says」).
 - **No feature announcements.** A deployment tells no group room what the agent gained, and no room hears the
   deployment briefing; the owner's own chat hears the going down, the coming back and what went live.
-- **Two kinds of notice can be switched off per chat:**
-  - the *rest notices*: in a room, the compaction's going to sleep and waking, since a rest itself and its
-    lifting are told to the owner alone;
-  - the *restart notices*: going down, back up.
-- **Where they are switched:** inside the chat with `notice:rest:off` / `notice:rest:on` and
-  `notice:restart:off` / `notice:restart:on` (or the words of the policy for each), or from the shell with
-  `bmo room notice --chat <id> --rest on|off --restart on|off`, which refuses a value other than on or off before
-  it writes either.
-- **Both kinds are on unless switched off;** the setting is stored per chat in the receiver's database.
-- **The rest notice cannot be switched off in the owner's private chat,** because the owner has to know why the
-  agent has gone quiet everywhere; the restart notice there can.
-- **The infrastructure room** is switched off for both, and hears nothing of the agent's own state whatever those
-  switches say (`docs/rooms.md`, 「The infrastructure room」).
+- **The restart notice can be switched off per chat:** going down, back up.
+- **Where it is switched:** inside the chat with `notice:restart:off` / `notice:restart:on` (or the words of the
+  policy), which refuses a value other than on or off before it writes.
+- **It is on unless switched off;** the setting is stored per chat in the receiver's database.
+- **The infrastructure room** is switched off for it, and hears nothing of the agent's own state whatever the
+  switch says (`docs/rooms.md`, 「The infrastructure room」).
 
 ## A failure says why
 
-- **Every failure notice carries its cause** as a plain sentence under `cause`, beside what failed and what
-  follows. The session says it in its own words, so the owner hears why and not only that.
+- **Every failure order carries its cause** as a plain sentence under `cause`, beside what failed and what
+  follows. The agent reads it and says it in its own words, so the owner hears why and not only that.
 - **The run that failed owns its cause.** The unit that saw the failure writes the sentence, in English.
 - **No internal message is pasted.** An error's text, a stderr tail or a list of problems goes to the unit's
   journal or the run log, never into the fact, and never cut to a length mid-sentence.
@@ -324,8 +317,6 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | --- | --- |
 | `rest-begins` (a usage limit begins) | No model can answer while the limit holds. |
 | `provider-down` (the provider stopped answering) | No model can answer during the outage. |
-| `compacting` (a room's session is being folded) | The session about to be folded is asked for its own line first; the fixed line stands in only when it cannot answer. |
-| `compact-failed` (the fold did not happen) | The room was told it was going for a nap and nothing changed; the session it would be asked is the one that could not be folded. Said once per cause. |
 | `run-broken`, the last resort when a run broke and the agent cannot answer the order about it | No session is able to say it; it is composed out of what the broken run left. |
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |

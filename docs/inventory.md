@@ -117,7 +117,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | Old module | Became |
 |---|---|
 | `agent_catalogue` | the roster line in `policy/chat-line.toml`, written with the `{owner}` and `{agent}` marks |
-| `chat_health` | `FixedLine::Compacting`, `CompactFailed`, `ProviderDown`, `HealthFact::FoldFailed`, the turn openings of kind `fold` and `fold-deferred` |
+| `chat_health` | `FixedLine::ProviderDown`, the turn openings of kind `fold` and `fold-deferred` |
 | `chat_turn` | `RunTitle::Chat`, `RunTitle::Fold` |
 | the added supervisors' words | `SupervisorRefusal`, `SupervisorFact::RoomTakenBack` |
 | `consult` | `ConsultRefusal`, with the `said` and `number` lines moved to `policy/consult.toml` |

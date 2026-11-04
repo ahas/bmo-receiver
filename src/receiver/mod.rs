@@ -761,18 +761,6 @@ impl Receiver {
         rows::set_photo_look(db, chat_id, on).await?;
         SettingFact::PhotosSwitched { on }
       }
-      CommandKind::NoticeRestOn | CommandKind::NoticeRestOff => {
-        let on = command.kind == CommandKind::NoticeRestOn;
-
-        // The owner's own chat always hears the rest notice: it is how the owner learns why the agent has gone
-        // quiet everywhere else.
-        if !on && chat_id == self.owner_room() {
-          SettingFact::RestNoticeKept
-        } else {
-          rows::set_notice(db, chat_id, "rest", on).await?;
-          SettingFact::RestNoticeSwitched { on }
-        }
-      }
       CommandKind::NoticeRestartOn | CommandKind::NoticeRestartOff => {
         let on = command.kind == CommandKind::NoticeRestartOn;
 

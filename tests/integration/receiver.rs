@@ -285,42 +285,6 @@ async fn a_mute_names_the_person_answered_and_never_the_owner_or_the_agent() {
   );
 }
 
-#[tokio::test]
-async fn the_owners_own_chat_keeps_its_rest_notice() {
-  let (scratch, _data, standing) = stood(&[OWNER]).await;
-  let receiver = &standing.receiver;
-  let own = Room {
-    owner_room: true,
-    identity: Some(AGENT_NUMBER),
-    private_to: None,
-  };
-
-  receiver
-    .message(
-      &inbound(OWNER, 2, OWNER, COMMANDS.phrases.notice_rest_off.last().unwrap()),
-      &Context::default(),
-      own,
-    )
-    .await
-    .unwrap();
-
-  assert_eq!(
-    scratch
-      .count(r#"SELECT COUNT(*) FROM "chat_notices" WHERE "chat_id" = 42"#, vec![])
-      .await,
-    0
-  );
-  assert!(
-    text(
-      &scratch,
-      r#"SELECT "text" FROM "instructions" WHERE "chat_id" = 42 AND "kind" = 'setting:notice-rest'"#
-    )
-    .await
-    .unwrap()
-    .contains("the notices stay on")
-  );
-}
-
 fn file(id: &str, name: &str, mime: &str, bytes: &[u8]) -> MessageFile {
   MessageFile {
     id: id.into(),

@@ -215,8 +215,8 @@ its rounds.
   draft process, which makes the message (`docs/drafting.md`): the questions asked of the same
   session, the notes they establish first and the message last, the items and the checks on the final text
   (`docs/answer-checks.md`); the message is sent on the road the turn
-  answers on, then handed back to the receiver as filed. The round's session is noted, a failed round tells its room's health, and the failure orders are looked
-  over on the conversations' own clock.
+  answers on, then handed back to the receiver as filed. The round's session is noted, a failed round of the
+  agent's own raises its failure order, and the failure orders are looked over on the conversations' own clock.
 - **A room's words go into the working turn.** Words the room queue hands over while a turn of a round works, from
   the round's own turn to the question that writes the message, are pushed into that turn
   (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at it, with the quiet
@@ -237,14 +237,15 @@ its rounds.
 - **The fold is the agency's command, and the brain is told of it.** The session is first asked one quiet turn to
   consolidate its brain (`docs/unified-bmo.md`, 「The brain's consolidation」), which the fold never waits on
   past its end or its failure. The receiver then asks the fold of the session
-  (`POST /sessions/{sessionId}/folds`), the program's own compaction, with no words to the agent; once the agency
-  answers that the session folded, the receiver reports the fold to the agent's brain
+  (`POST /sessions/{sessionId}/folds`), the program's own compaction, with no words to the agent and nothing
+  said in any room before or after it; once the agency answers that the session folded, the receiver reports the
+  fold to the agent's brain
   (`POST /brains/{brainId}/folds`, the session's id as its key, `docs/boundary-api.md`, 「The brain」), so what the
   brain marked as handed to that session may attach to it again. A fold the agency refused is reported to nobody,
   and a session whose program carries its own fold is folded and reported by no one here.
 - **A session whose program carries its own fold is never folded by the receiver:** where the session's state
-  says so (`foldsItself`), no fold is judged or asked for it and no `fold-failed` is told, whatever its context;
-  the journal says it once for the session, "the program carries its fold".
+  says so (`foldsItself`), no fold is judged or asked for it, whatever its context; the journal says it once for
+  the session, "the program carries its fold".
 - **A round whose answer went out and whose session does not fold says why** in the service's journal, where
   the reason is other than a context under the share: no session held, no context the session's state names (a
   state that could not be read, with the agency's answer, among them), a fold of the room already under way, or

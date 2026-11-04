@@ -476,7 +476,7 @@ pub async fn set_photo_look(db: &DatabaseConnection, chat_id: i64, look: bool) -
   .map(drop)
 }
 
-/// One of the operating notices a room can switch off: `rest` or `restart`.
+/// One of the operating notices a room can switch off: the `restart` notice.
 pub async fn set_notice(db: &DatabaseConnection, chat_id: i64, kind: &str, on: bool) -> Result<(), Fault> {
   run(
     db,

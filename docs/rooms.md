@@ -31,8 +31,8 @@ command also has a plain form that is the same in every language, given below.
 - **What stands there is a report on work done to one of them,** put there by whoever did that work through a
   send; the receiver writes none of it by itself.
 - **What may never stand there is the agent's own news.** A job's report and a job that died without reporting go
-  to the owner instead of that room, the going to sleep and waking of a session are not said there at all, and
-  the rest and restart notices are the owner's.
+  to the owner instead of that room, a session's folding is not said in any room, and the rest, outage and
+  restart notices are the owner's.
 - **A person speaking in the room is another matter:** the agent answers there as it answers anywhere.
 
 ## Delegations
@@ -58,9 +58,8 @@ command also has a plain form that is the same in every language, given below.
 - **A notice and a picture go only where the room's providers say:** kept in the room's record and carried to the
   messengers its list names, never out on one the list does not name (`docs/receiver.md`, 「A room's chat
   providers」).
-- **The owner switches the room's rest notice and restart notice** on and off with `notice:rest:on|off` and
-  `notice:restart:on|off`, and whether the agent opens the pictures the room stores with `photos:on|off` (or the
-  words of the policy for each).
+- **The owner switches the room's restart notice** on and off with `notice:restart:on|off`, and whether the
+  agent opens the pictures the room stores with `photos:on|off` (or the words of the policy for each).
 
 ## Reply budget
 

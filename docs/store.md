@@ -38,7 +38,7 @@ takes it outright: the table holds no default agent.
 | `allowed_chats` | a room the receiver listens to | room |
 | `photo_chats` | a room's word on whether its agent opens the pictures it stores (`docs/pictures.md`) | room |
 | `muted_members` | a person muted in a room (`docs/rooms.md`) | room and person |
-| `chat_notices` | a room's rest or restart notice switched on or off (`docs/voiced-notices.md`) | room and kind |
+| `chat_notices` | a room's restart notice switched on or off (`docs/voiced-notices.md`) | room and kind |
 | `chat_reads` | the last message of a room the receiver has read | room |
 | `chat_titles` | a room's title | room |
 | `room_supervisors` | a supervisor a room names to answer it; a room naming none is answered by the supervisor its own private person owns, where one stands, and otherwise by the default answerer (`docs/api.md`, 「Supervisors」) | room and supervisor |

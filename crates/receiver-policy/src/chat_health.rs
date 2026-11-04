@@ -1,5 +1,6 @@
-//! What a room's session is told of its health (docs/voiced-notices.md): the notices a room or the owner hears
-//! in the agent's own voice, what a failure order names a broken chat turn as, the fold and the touch.
+//! What a room's session is told of its health (docs/voiced-notices.md): the notices the owner hears in the
+//! agent's own voice, what a failure order names a broken chat turn as, and the chat touch target as the receiver
+//! declares it to the cache warmer.
 
 use serde::Deserialize;
 
@@ -11,8 +12,6 @@ pub struct Notice {
   pub intent: String,
   #[serde(default)]
   pub follow_up: Option<String>,
-  #[serde(default)]
-  pub run_log: Option<String>,
   pub kind: String,
 }
 
@@ -24,22 +23,11 @@ pub struct Order {
   pub check_seconds: u64,
 }
 
-/// A full session folded: the session's line before it, and the notice after it.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Fold {
-  pub prompt: String,
-  pub fact: String,
-  pub intent: String,
-  pub kind: String,
-}
-
-/// The cache warmer's touch of a quiet room's session: its note, and the chat touch target as the receiver
-/// declares it to the warmer (docs/boundary-api.md, 「The cache warmer」).
+/// The cache warmer's touch of a quiet room's session, and the chat touch target as the receiver declares it to
+/// the warmer (docs/boundary-api.md, 「The cache warmer」).
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Touch {
-  pub note: String,
   pub label: String,
   pub rank: i64,
   pub idle_ms: i64,
@@ -56,10 +44,7 @@ pub struct Touch {
 pub struct ChatHealth {
   pub outage_lifted: Notice,
   pub rest_lifted: Notice,
-  pub stopped: Notice,
-  pub failed: Notice,
   pub order: Order,
-  pub fold: Fold,
   pub touch: Touch,
 }
 

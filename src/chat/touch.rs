@@ -8,7 +8,6 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
 use receiver_codes::SkipReason;
-use receiver_policy::chat_health::CHAT_HEALTH;
 use receiver_policy::keepalive::KEEPALIVE;
 use receiver_policy::providers::PROVIDERS;
 
@@ -237,15 +236,10 @@ pub async fn touch(
       };
     }
   };
-  let body = if selection.entries.is_empty() {
-    KEEPALIVE.prompt.clone()
-  } else {
-    format!("{}\n\n{}", CHAT_HEALTH.touch.note, KEEPALIVE.prompt)
-  };
   let asking = Asking {
     chat_id,
     session: String::new(),
-    prompt: composed(&selection, &body),
+    prompt: composed(&selection, &KEEPALIVE.prompt),
     via: None,
     privileged: last.privileged,
     answers: vec![],

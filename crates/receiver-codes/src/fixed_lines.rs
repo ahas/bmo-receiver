@@ -15,10 +15,6 @@ pub enum FixedLine {
   RestBegins { until: Option<i64> },
   /// The provider stopped answering.
   ProviderDown,
-  /// A room's session is being folded, where the session could not say so itself.
-  Compacting,
-  /// A room's fold did not happen.
-  CompactFailed,
   /// A run broke and no session can answer the order about it: the last resort, out of what the run left.
   RunBroken {
     agent: String,

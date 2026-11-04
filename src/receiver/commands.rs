@@ -12,8 +12,6 @@ pub enum CommandKind {
   Deny,
   Mute,
   Unmute,
-  NoticeRestOn,
-  NoticeRestOff,
   NoticeRestartOn,
   NoticeRestartOff,
   PhotosOn,
@@ -28,14 +26,12 @@ pub struct OwnerCommand {
 }
 
 // Each command with the phrases that say it. A kind the policy gives no phrase is never said in words.
-fn phrases() -> [(CommandKind, &'static [String]); 8] {
+fn phrases() -> [(CommandKind, &'static [String]); 6] {
   let said = &COMMANDS.phrases;
 
   [
     (CommandKind::Unmute, &said.unmute),
     (CommandKind::Mute, &said.mute),
-    (CommandKind::NoticeRestOn, &said.notice_rest_on),
-    (CommandKind::NoticeRestOff, &said.notice_rest_off),
     (CommandKind::NoticeRestartOn, &said.notice_restart_on),
     (CommandKind::NoticeRestartOff, &said.notice_restart_off),
     (CommandKind::PhotosOn, &said.photos_on),
