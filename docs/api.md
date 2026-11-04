@@ -117,7 +117,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
   people that have stood as a sender, `supervisors`, the names of the supervisors the room names to answer it, in
-  name order, empty where it names none and the default answerer answers it,
+  name order, empty where it names none,
   `ownerRoom`, `registered`, `workRoom`, where the news, questions and answers of work filed from it are told, and `mode`, the mode it was
   added in:
   - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
@@ -138,8 +138,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   in, so no mode makes it answer; what does is its chat service's own account standing in it.
 - **Any chat reads as a room.** One never registered reads as one whose registration is gone, and work filed from
   it reaches the owner's private room instead.
-- **The answerers** are the awake agents the room names, or the default answerer where it names none awake; `voice`
-  is the agent that speaks for the room.
+- **The answerers** listed are the awake agents the room names; `default` is the default answerer setting, and
+  `voice` is the agent that speaks for the room (`docs/voiced-notices.md`, 「The rule」).
 - **The figures' `agents`** hold each answering agent's `agentName`, messages, `lastAnswerAt`, the session it keeps
   for the room, the agency's row for it and the state of that session; `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` stand null until the agency answers a tally by agent and room.
@@ -538,12 +538,14 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   first and its draft process among them (`docs/wake.md`); what tells one from another is its own row at the
   agency and the rooms that name it here.
 - **A room names the supervisors that answer it,** the room's `supervisors`. A room that names none is answered by
-  the default answerer, and a room is added naming none, so the default answerer is also the supervisor a new room
-  gets. `PUT /rooms/{roomId}/supervisors` writes the whole list, each name one the agency registers; an empty list
-  hands the room back to the default answerer.
+  the supervisor the user it is a one-to-one with owns, where one stands, and otherwise by the default answerer;
+  a room is added naming none, so the default answerer is also the supervisor a new room gets. `PUT
+  /rooms/{roomId}/supervisors` writes the whole list, each name one the agency registers; an empty list hands
+  the room back to the supervisor its user owns where one stands, and otherwise to the default answerer.
 - **The default answerer is a setting of the receiver's,** naming one supervisor: the one that answers every room
-  naming none, says the system's own lines there, takes the console's talks, the warmer's touch and a line typed
-  into its program, and is told the owner's facts in his private room (`docs/wake.md`, 「Who reaches the
+  naming none that is no user's own private chat, and every such chat whose user owns no awake supervisor; it
+  says the system's own lines there, takes the console's talks, the warmer's touch and a line typed into its
+  program, and is told the owner's facts in his private room (`docs/wake.md`, 「Who reaches the
   session」). The store's settings hold it (`docs/store.md`, 「The settings」); a store holding none is seeded
   with the configuration's `agent` as the receiver starts. `PUT /default-answerer` names a supervisor the agency registers and is read by
   the next thing that asks who answers; the clocks the conversations keep (the health check and the restart's

@@ -6,8 +6,14 @@ its rounds.
 ## Who reaches the session
 
 - **A room's designated agents are the supervisors it names,** its `supervisors` (`docs/api.md`,
-  「Supervisors」). A room that names none has one, the default answerer, the supervisor the receiver's setting
-  names; it is alone there in the owner's private chat and in a user's own private chat.
+  「Supervisors」). A room that names none is answered by the supervisor whose registration names, as its
+  `ownerAccount`, the user the account model links the person's sender to, where the room's road says it is a
+  one-to-one with a person; the first by name answers where more than one supervisor names that user. Every
+  other room naming none, the owner's private chat among them, is answered by the default answerer, the
+  supervisor the receiver's setting names. A room naming none is answered alone in the owner's private chat
+  and in a user's own private chat.
+- **A user's own private chat whose person owns no awake supervisor falls back to the default answerer,** and
+  the journal says once for the room that the fallback was taken.
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
   rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
   agent with its own words.

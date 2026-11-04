@@ -3203,6 +3203,7 @@ async fn designated(receiver: &Receiver, agent: &str) -> wake::agents::Designate
       name: agent.to_owned(),
       call_names: Vec::new(),
       window_seconds: None,
+      owner_account: None,
       default_answerer: agent == receiver.default_answerer(),
     },
   }

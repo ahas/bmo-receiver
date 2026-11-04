@@ -16,13 +16,15 @@ use crate::secrets;
 use crate::{all, now_ms, one, run};
 
 /// One designated agent of a room: its registration name, the words a room calls it by, how long a room it
-/// answered keeps it listening where it keeps a window at all, and whether the default answerer setting names it,
-/// so it answers the rooms that name nobody.
+/// answered keeps it listening where it keeps a window at all, the account its registration names as its owner
+/// where it names one, and whether the default answerer setting names it, so it answers the rooms that name
+/// nobody of their own.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Designated {
   pub name: String,
   pub call_names: Vec<String>,
   pub window_seconds: Option<i64>,
+  pub owner_account: Option<i64>,
   pub default_answerer: bool,
 }
 
@@ -37,6 +39,7 @@ impl Designated {
       name: agent.name.clone(),
       call_names: named.map(trim).filter(|word| !word.is_empty()).collect(),
       window_seconds: count(&agent.row, "windowSeconds"),
+      owner_account: count(&agent.row, "ownerAccount"),
       default_answerer: agent.name == default,
     }
   }
@@ -122,6 +125,7 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
         name: receiver.default_answerer(),
         call_names: Vec::new(),
         window_seconds: None,
+        owner_account: None,
         default_answerer: true,
       }),
   )
@@ -155,9 +159,11 @@ pub async fn named_among(
   Ok(awake.iter().filter(|agent| named.contains(&agent.name)).cloned().collect())
 }
 
-/// Who answers in a room, and whether one of them answers it alone: a room that records one answerer, or one
-/// that records none and is a user's own private chat, the owner's or anyone else's, as the room's road declares
-/// it, which is the default answerer's.
+/// Who answers in a room, and whether one of them answers it alone: the awake agents the room records as its
+/// answerers; where it records none, the supervisor the room's private person owns where one stands, and
+/// otherwise the default answerer, which answers the owner's private chat and every room that is no one's own
+/// chat alike. A room that records none is answered alone where it is the owner's private chat or a user's own
+/// private chat.
 pub async fn room_designated(
   receiver: &Receiver,
   chat_id: i64,
@@ -165,36 +171,92 @@ pub async fn room_designated(
 ) -> Result<(Vec<Designated>, bool), NotReceived> {
   let answerers = named_designated(receiver, chat_id).await?;
 
-  if answerers.is_empty() {
-    let alone = room.owner_room || private_room(receiver, room.private_to).await?;
+  if !answerers.is_empty() {
+    let alone = answerers.len() == 1;
 
-    return Ok((vec![default_designated(receiver).await?], alone));
+    return Ok((answerers, alone));
   }
 
-  let alone = answerers.len() == 1;
+  let private = one_to_one_user(receiver, room).await?;
 
-  Ok((answerers, alone))
+  if let Some(user) = private.as_deref() {
+    if let Some(owner) = owned_by(receiver, user).await? {
+      return Ok((vec![owner], true));
+    }
+
+    said_fallback(chat_id, user);
+  }
+
+  let alone = room.owner_room || private.is_some();
+
+  Ok((vec![default_designated(receiver).await?], alone))
 }
 
-/// Whether a room is a user's own private chat: its road says it is a one-to-one with the road's own voice, with a
-/// person whose sender the account model links to a user.
-async fn private_room(receiver: &Receiver, private_to: Option<i64>) -> Result<bool, NotReceived> {
-  match private_to {
-    Some(person) => Ok(
-      asked("whose user the sender is", receiver.units.web.user_of_sender(person).await)
-        .flatten()
-        .is_some(),
-    ),
-    None => Ok(false),
+/// The supervisor a room's own private person owns, where the room is a user's one-to-one with the road's own
+/// voice and one of that user's supervisors is awake; none where the room is no one's own private chat or its
+/// person owns none.
+pub async fn private_answerer(
+  receiver: &Receiver,
+  chat_id: i64,
+) -> Result<Option<Designated>, NotReceived> {
+  let room = receiver.roads().room_facts(chat_id).await;
+  let Some(user) = one_to_one_user(receiver, room).await? else {
+    return Ok(None);
+  };
+
+  owned_by(receiver, &user).await
+}
+
+/// The user the account model links to the person a room is a one-to-one with, where its road says it is one and
+/// the room is not the owner's private chat.
+async fn one_to_one_user(receiver: &Receiver, room: Room) -> Result<Option<String>, NotReceived> {
+  if room.owner_room {
+    return Ok(None);
+  }
+
+  let Some(person) = room.private_to else {
+    return Ok(None);
+  };
+
+  Ok(asked("whose user the sender is", receiver.units.web.user_of_sender(person).await).flatten())
+}
+
+/// The awake supervisor whose registration names `user` as its owner; the first by name where more than one
+/// does.
+async fn owned_by(receiver: &Receiver, user: &str) -> Result<Option<Designated>, NotReceived> {
+  let Ok(account) = user.trim().parse::<i64>() else {
+    return Ok(None);
+  };
+
+  Ok(awake(receiver).await?.into_iter().find(|agent| agent.owner_account == Some(account)))
+}
+
+// The rooms whose private person owned no awake supervisor, so the journal says it once for each.
+static UNOWNED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<i64>>> =
+  std::sync::LazyLock::new(Default::default);
+
+/// The journal's line that a private room's person owns no awake supervisor, so the default answerer answers
+/// the room as it did before, said once for the room.
+fn said_fallback(chat_id: i64, user: &str) {
+  let first = UNOWNED.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(chat_id);
+
+  if first {
+    println!(
+      "bmo-receiver: chat {chat_id}: the user {user} of the private room owns no awake supervisor, so the default answerer answers it"
+    );
   }
 }
 
-/// Whether an agent answers in a room: a room that names it among its awake answerers, and for the default
-/// answerer every room that names nobody awake.
+/// Whether an agent answers in a room: a room that names it among its awake answerers; for a room that names
+/// nobody, the supervisor its private person owns where one stands, and otherwise the default answerer.
 pub async fn answers(receiver: &Receiver, agent: &str, chat_id: i64) -> Result<bool, NotReceived> {
   let named = named_designated(receiver, chat_id).await?;
 
   if named.is_empty() {
+    if let Some(owner) = private_answerer(receiver, chat_id).await? {
+      return Ok(owner.name == agent);
+    }
+
     return Ok(default_designated(receiver).await?.name == agent);
   }
 
@@ -208,7 +270,9 @@ pub async fn answerer(receiver: &Receiver, chat_id: i64) -> Result<Option<String
   Ok(named_designated(receiver, chat_id).await?.first().map(|agent| agent.name.clone()))
 }
 
-/// The agent that says the system's own lines in a room (docs/voiced-notices.md, 「The rule」).
+/// The agent that says the system's own lines in a room (docs/voiced-notices.md, 「The rule」): the first
+/// supervisor the room names where it names none of the default answerer's, the supervisor a private room's
+/// person owns where one stands, and otherwise the default answerer.
 pub async fn voice_of(receiver: &Receiver, chat_id: i64) -> Result<String, NotReceived> {
   let default = default_designated(receiver).await?;
   let named: Vec<String> = named_designated(receiver, chat_id)
@@ -217,9 +281,13 @@ pub async fn voice_of(receiver: &Receiver, chat_id: i64) -> Result<String, NotRe
     .map(|agent| agent.name.clone())
     .collect();
 
-  Ok(match named.first() {
-    Some(first) if !named.contains(&default.name) => first.clone(),
-    _ => default.name,
+  if let Some(first) = named.first() {
+    return Ok(if named.contains(&default.name) { default.name } else { first.clone() });
+  }
+
+  Ok(match private_answerer(receiver, chat_id).await? {
+    Some(owner) => owner.name,
+    None => default.name,
   })
 }
 

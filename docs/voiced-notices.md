@@ -17,9 +17,10 @@ agent that answers the room says the line.
 - **Every line the system says in a chat on its own account is a voiced notice.** The receiver does not send a
   sentence. It hands the room's voice a quiet instruction carrying the facts, and the session says it in one
   short line, in that room's voice and manner.
-- **The room's voice is the agent that answers it:** the default answerer in a room it answers (every room that names
-  nobody awake, and every room naming it among its answerers) and, in a room that names only other agents, the
-  first of them by name. The row is that agent's, which only
+- **The room's voice is the agent that answers it:** the supervisor a user's own private chat's person owns where
+  one stands; otherwise the default answerer in a room it answers (every room that names nobody awake, and every
+  room naming it among its answerers) and, in a room that names only other agents, the first of them by name. The
+  row is that agent's, which only
   its turns take, so a notice for a room the default answerer does not answer reaches the room rather than being let
   go as its.
 - **The caller owns its facts.** The code that knows what happened writes what the session is told: what

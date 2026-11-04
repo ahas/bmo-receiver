@@ -11,11 +11,13 @@ use std::sync::Arc;
 
 use bmo_chat_client::MessageFile;
 use bmo_receiver::data_root::DataRoot;
+use bmo_receiver::receiver::wake::agents;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use bmo_receiver::roads::added::{self, RoomMode};
 use receiver_policy::commands::COMMANDS;
 use receiver_ports::agency::{Rest, RestKind};
 use receiver_ports::job::{Chosen, Moved, OpenQuestion, Talked};
+use serde_json::json;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::units::{
@@ -342,6 +344,56 @@ async fn another_users_private_room_wakes_the_chat_agent_on_every_word_and_a_gro
       read_through: Some(false),
     }]
   );
+}
+
+#[tokio::test]
+async fn a_private_room_is_answered_by_the_supervisor_its_person_owns() {
+  let (_scratch, _data, standing) = stood(&[-141]).await;
+  let person = 9406;
+
+  standing.web.linking(person, "77".to_owned());
+
+  let mut owner = registration("agent-b", "Agent B", vec!["agent-b"], None);
+  owner.row.insert("ownerAccount".to_owned(), json!(77));
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), owner]);
+
+  let room = Room {
+    private_to: Some(person),
+    ..room()
+  };
+  let (answerers, alone) = agents::room_designated(&standing.receiver, -141, room).await.unwrap();
+
+  assert_eq!(answerers.len(), 1);
+  assert_eq!(answerers[0].name, "agent-b");
+  assert!(!answerers[0].default_answerer);
+  assert!(alone);
+}
+
+#[tokio::test]
+async fn a_private_room_whose_person_owns_no_supervisor_falls_back_to_the_default_answerer() {
+  let (_scratch, _data, standing) = stood(&[-142]).await;
+  let person = 9407;
+
+  standing.web.linking(person, "78".to_owned());
+
+  let mut another = registration("agent-b", "Agent B", vec![], None);
+  another.row.insert("ownerAccount".to_owned(), json!(79));
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), another]);
+
+  let room = Room {
+    private_to: Some(person),
+    ..room()
+  };
+  let (answerers, alone) = agents::room_designated(&standing.receiver, -142, room).await.unwrap();
+
+  assert_eq!(answerers.len(), 1);
+  assert_eq!(answerers[0].name, AGENT);
+  assert!(answerers[0].default_answerer);
+  assert!(alone);
 }
 
 #[tokio::test]

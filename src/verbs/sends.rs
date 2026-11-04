@@ -256,7 +256,14 @@ impl Sends {
     let agent = self.turn_agent.clone().unwrap_or_else(|| default.clone());
     let named = wake::agents::named_designated(&self.receiver, chat_id).await.ok();
     let answers = match named.as_deref() {
-      Some([]) => agent == default,
+      Some([]) => {
+        agent == default
+          || wake::agents::private_answerer(&self.receiver, chat_id)
+            .await
+            .ok()
+            .flatten()
+            .is_some_and(|owner| owner.name == agent)
+      }
       Some(named) => named.iter().any(|one| one.name == agent),
       None => agent == default,
     };
@@ -431,14 +438,21 @@ impl Sends {
   }
 }
 
-/// Whether an agent answers in a room: a room that names it among its awake answerers, and for the default
-/// answerer every room that names nobody.
+/// Whether an agent answers in a room: a room that names it among its awake answerers; for a room that names
+/// nobody, the supervisor its private person owns where one stands, and otherwise the default answerer.
 pub async fn answers(receiver: &Receiver, agent: &str, chat_id: i64) -> bool {
   let default = wake::agents::default_designated(receiver).await.ok();
   let named = wake::agents::named_designated(receiver, chat_id).await.ok();
 
   match named.as_deref() {
-    Some([]) => default.as_ref().is_some_and(|default| default.name == agent),
+    Some([]) => {
+      wake::agents::private_answerer(receiver, chat_id)
+        .await
+        .ok()
+        .flatten()
+        .is_some_and(|owner| owner.name == agent)
+        || default.as_ref().is_some_and(|default| default.name == agent)
+    }
     Some(named) => named.iter().any(|one| one.name == agent),
     None => default.as_ref().is_some_and(|default| default.name == agent),
   }
