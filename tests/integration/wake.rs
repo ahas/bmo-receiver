@@ -397,6 +397,42 @@ async fn a_private_room_whose_person_owns_no_supervisor_falls_back_to_the_defaul
 }
 
 #[tokio::test]
+async fn a_group_room_is_answered_by_the_supervisor_its_leader_names() {
+  let (scratch, _data, standing) = stood(&[-151]).await;
+
+  let mut leader = registration("agent-b", "Agent B", vec!["agent-b"], None);
+  leader.row.insert("ownerAccount".to_owned(), json!(77));
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), leader]);
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (-151, 'agent-b')"#,
+      vec![],
+    )
+    .await;
+
+  let (answerers, alone) = agents::room_designated(&standing.receiver, -151, room()).await.unwrap();
+
+  assert_eq!(answerers.iter().map(|one| one.name.as_str()).collect::<Vec<_>>(), ["agent-b"]);
+  assert!(alone);
+}
+
+#[tokio::test]
+async fn a_group_room_naming_no_supervisor_stays_with_the_default_answerer() {
+  let (_scratch, _data, standing) = stood(&[-152]).await;
+
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
+
+  let (answerers, alone) = agents::room_designated(&standing.receiver, -152, room()).await.unwrap();
+
+  assert_eq!(answerers.len(), 1);
+  assert_eq!(answerers[0].name, AGENT);
+  assert!(answerers[0].default_answerer);
+  assert!(!alone, "a group room naming nobody is not answered alone");
+}
+
+#[tokio::test]
 async fn the_chat_agents_own_words_filed_in_a_room_wake_nobody_and_a_later_word_in_its_open_window_does() {
   let (scratch, _data, standing) = stood(&[-134]).await;
 

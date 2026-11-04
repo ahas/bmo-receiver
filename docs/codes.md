@@ -146,6 +146,13 @@ family. No code carries a sentence in a room's language.
 | `avatar-unoffered` | 409 | `label` | a chat service on the room's list does not offer the avatar mode |
 | `room-takes-no-avatar` | 409 | `label`, `room` | a chat service says the room is never answered in, so it takes no avatar |
 
+### RoomReadRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `not-a-group` | 403 | `room` | the room is no group room, so no supervisor but its own answerers reads it |
+| `not-a-member` | 403 | `agent`, `room` | the supervisor's account is no member of the room |
+
 ### SupervisorRefusal
 
 The refusals of the supervisor routes and of a room's list of supervisors (`docs/api.md`, 「Supervisors」).

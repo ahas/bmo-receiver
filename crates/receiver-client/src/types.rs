@@ -1212,6 +1212,20 @@ pub struct Removal {
   pub could_not: Value,
 }
 
+/// The query of a supervisor's read of a group room's messages.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MemberRead {
+  /// The cursor message the reader holds: the page ends just before it.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub before: Option<i64>,
+  /// The cursor message the reader holds: the page begins just past it.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub after: Option<i64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub limit: Option<i64>,
+}
+
 /// The query of a room's message page.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

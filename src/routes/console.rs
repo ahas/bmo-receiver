@@ -103,7 +103,7 @@ fn failed(why: NotReceived) -> Refusal {
 }
 
 /// How many messages a page asks for, one more than it shows so the reader learns the gap was wider.
-fn window(limit: Option<i64>) -> i64 {
+pub(super) fn window(limit: Option<i64>) -> i64 {
   match limit {
     None | Some(0) => PAGE_SIZE + 1,
     Some(asked) => i64::min(asked, MAX_PAGE) + 1,
@@ -442,7 +442,11 @@ pub fn forwarded_from(forwarded: &Option<(i64, i64, String)>) -> Value {
 }
 
 /// The page's messages with the files each carried kept beside it, in the one message shape.
-async fn pages(receiver: &Receiver, room: i64, kept: Vec<reads::Page>) -> Result<Vec<Value>, Fault> {
+pub(super) async fn pages(
+  receiver: &Receiver,
+  room: i64,
+  kept: Vec<reads::Page>,
+) -> Result<Vec<Value>, Fault> {
   let mut lines: Vec<Value> = vec![];
 
   for mut page in kept {

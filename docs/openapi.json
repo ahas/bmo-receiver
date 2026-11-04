@@ -8140,6 +8140,87 @@
         ]
       }
     },
+    "/supervisors/{supervisorName}/rooms/{roomId}/messages": {
+      "get": {
+        "operationId": "supervisorRoomMessages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supervisorName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page3"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-a-group, not-a-member, not-found, failed"
+          }
+        },
+        "summary": "A group room's messages as a supervisor reads them: the room's answerer, or a member's own supervisor.",
+        "tags": [
+          "Supervisors"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-a-group",
+          "not-a-member",
+          "not-found",
+          "failed"
+        ]
+      }
+    },
     "/talks": {
       "post": {
         "operationId": "talk",

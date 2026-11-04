@@ -184,6 +184,17 @@ impl ReceiverClient {
     Self::answered(self.get(&["rooms", &room_id.to_string(), "messages"], query)).await
   }
 
+  /// `GET /supervisors/{supervisorName}/rooms/{roomId}/messages`.
+  pub async fn supervisor_room_messages(
+    &self,
+    supervisor: &str,
+    room_id: i64,
+    query: &MemberRead,
+  ) -> Answer<Page<Message>> {
+    Self::answered(self.get(&["supervisors", supervisor, "rooms", &room_id.to_string(), "messages"], query))
+      .await
+  }
+
   /// `GET /rooms/{roomId}/messages/{messageId}`.
   pub async fn message(&self, room_id: i64, message_id: i64) -> Answer<Message> {
     Self::answered(

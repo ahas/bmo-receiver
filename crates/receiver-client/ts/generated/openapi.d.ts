@@ -1279,6 +1279,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/supervisors/{supervisorName}/rooms/{roomId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A group room's messages as a supervisor reads them: the room's answerer, or a member's own supervisor. */
+        get: operations["supervisorRoomMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/talks": {
         parameters: {
             query?: never;
@@ -5468,6 +5485,42 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    supervisorRoomMessages: {
+        parameters: {
+            query?: {
+                before?: number;
+                after?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                supervisorName: string;
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page3"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-a-group, not-a-member, not-found, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

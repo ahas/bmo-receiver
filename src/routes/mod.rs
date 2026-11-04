@@ -205,6 +205,11 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("DELETE", "/supervisors/{supervisorName}", delete(supervisors::remove)),
     ("POST", "/supervisors/{supervisorName}/resets", post(supervisors::reset)),
     ("GET", "/supervisors/{supervisorName}/rooms", get(supervisors::rooms)),
+    (
+      "GET",
+      "/supervisors/{supervisorName}/rooms/{roomId}/messages",
+      get(supervisors::member_messages),
+    ),
     ("GET", "/default-answerer", get(supervisors::default_answerer)),
     ("PUT", "/default-answerer", put(supervisors::set_default_answerer)),
     ("PUT", "/rooms/{roomId}/supervisors", put(supervisors::name_room)),
