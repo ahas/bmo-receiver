@@ -45,7 +45,8 @@ agent that answers the room says the line.
 
 - **Through the instruction queue, always.** A notice is a queued instruction row, never a direct hand-off to a
   live session: the queue holds a row while its chat is silenced, where a direct hand-off into a silenced chat
-  would be lost. The agency queues the job queue's notices with `POST /instructions`, and its owner notices — an
+  would be lost. The agency queues the job queue's notices with `POST /instructions`, as `bmo job ask` does a job's
+  question from the job's own process, and its owner notices — an
   idle queue, a job's question past its due time, a job that failed in another room — with
   `POST /owner/notices`; the brain its owner notices with
   `POST /owner/notices`.

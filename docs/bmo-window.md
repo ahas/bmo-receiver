@@ -33,7 +33,8 @@ flowchart TB
 - **A unit that wants the agent's attention queues an instruction.** The agency posts `POST /instructions` and
   `POST /owner/notices` for the job queue: a job's end, and each change of an item or a job told to the
   supervisor that ordered the work or to the owner (the agency's `docs/agent-control.md`, 「An item's change is
-  told to its orderer」); bmo-job calls no unit. bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own producers (its rest, fallback and
+  told to its orderer」); bmo-job's service calls no unit, and its `bmo job ask` queues a job's question from the
+  job's own process. bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own producers (its rest, fallback and
   failure notices, its fold, the agency's events) write the row themselves. The instruction store is the one
   writer of the table.
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
@@ -68,7 +69,7 @@ is written.
 | A room's words no push put in: arriving between the round's turns, refused by the turn, or for a turn that takes no words while it works | room queue | room queue | `question` | under the round's next question or its closing check (`docs/drafting.md`, 「What came in meanwhile」) | — |
 | A job's end and its report, a dead pane's among them | the agency's `POST /instructions` | instruction table | `round` | opens | `job-ended` |
 | A change of an item or a job told to the supervisor that ordered it: an item awaiting a launch or an approval, an item its paused queue holds or one no checkout takes, an item moved under its running job or closed by another, a job waiting for a road or a slot, an ended job's item left unclosed | the agency's `POST /instructions` | instruction table | `round` | opens | the item's own, named by its kind (the agency's `docs/agent-control.md`, 「An item's change is told to its orderer」) |
-| A job's question, for the supervisor that ordered the job to put to the owner, withdrawn once a reply settles it | the agency's `POST /instructions` | instruction table | `round` | opens | `question-awaits-answer` |
+| A job's question, for the supervisor to put to the owner, withdrawn once a reply settles it | `POST /instructions`, from `bmo job ask` in the job's own process or from the agency for one asked any other way | instruction table | `round` | opens | `question-awaits-answer` |
 | An idle queue, a job's question past its due time, a job that failed in another room | the agency's `POST /owner/notices` | instruction table | `round` | opens | — |
 | A failure order for a broken run of the agent's own | the conversation's failure check | instruction table | `round` | opens | — |
 | The back-up line after a deployment | start-up | instruction table | `round` | rides, for the restart's while | — |
