@@ -14,6 +14,11 @@ its rounds.
   and in a user's own private chat.
 - **A user's own private chat whose person owns no awake supervisor falls back to the default answerer,** and
   the journal says once for the room that the fallback was taken.
+- **A group room is answered by its leader's BMO where it names one.** The console makes a group room naming the
+  supervisor of the person who made it, so that supervisor alone answers the room and no other member's does; a
+  group room naming none carries none, and the default answerer answers it. The journal says once for a group
+  room which BMO answers it. A member's own BMO reads the room without answering it (`docs/api.md`,
+  「Messages」).
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
   rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
   agent with its own words.

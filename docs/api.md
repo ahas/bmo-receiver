@@ -194,6 +194,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `GET /rooms/{roomId}/messages` | `before`, `after`, `limit`, `agentName`, `since`, `marked`, `unread`, `by`, `q` | a page of `Message` |
+| `GET /supervisors/{supervisorName}/rooms/{roomId}/messages` | `before`, `after`, `limit` | a page of `Message` |
 | `GET /rooms/{roomId}/messages/{messageId}` | | one `Message` |
 | `GET /rooms/{roomId}/pins` | | `items`, the room's pinned messages, newest pin first, each a `Message` |
 | `PUT /rooms/{roomId}/messages/{messageId}/reactions/mine` | `emoji` | the `Message` as it now stands |
@@ -219,6 +220,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **`q` searches the room:** the page holds only the messages whose words carry the text, case set aside and
   read as given (no pattern), newest page first and walked by `before`, each in the one message shape; `by`
   narrows it as it narrows any page, and a deleted message's cleared words carry nothing.
+- **A supervisor reads a group room's messages through its own route,** `GET
+  /supervisors/{supervisorName}/rooms/{roomId}/messages`, newest page first and walked by `before` or `after`.
+  The room's answerers read it, and so does a member's own supervisor where the account model links the
+  supervisor's `ownerAccount` to a sender that has stood in the room; a member's read writes nothing, so it
+  opens no window, wakes nobody and makes no answerer of the reader. A room that is the owner's private chat or
+  a one-to-one is refused 403 `not-a-group`, and a supervisor that is neither its answerer nor a member's is
+  refused 403 `not-a-member`; an unregistered name is 404 `unknown-supervisor`.
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
   `transcript` (the words heard in a voice note, or null), `voiceSeconds` (how long the recording ran, or null),

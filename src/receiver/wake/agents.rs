@@ -172,6 +172,10 @@ pub async fn room_designated(
   let answerers = named_designated(receiver, chat_id).await?;
 
   if !answerers.is_empty() {
+    if group_room(room) {
+      said_group_answerer(chat_id, &answerers, "the supervisors the room names");
+    }
+
     let alone = answerers.len() == 1;
 
     return Ok((answerers, alone));
@@ -188,8 +192,35 @@ pub async fn room_designated(
   }
 
   let alone = room.owner_room || private.is_some();
+  let default = default_designated(receiver).await?;
 
-  Ok((vec![default_designated(receiver).await?], alone))
+  if group_room(room) {
+    said_group_answerer(chat_id, std::slice::from_ref(&default), "the default answerer");
+  }
+
+  Ok((vec![default], alone))
+}
+
+/// Whether a room is a group room: neither the owner's private chat nor a one-to-one with a person.
+fn group_room(room: Room) -> bool {
+  !room.owner_room && room.private_to.is_none()
+}
+
+// The group rooms whose answerer the journal last named, so a change of it is said once more.
+static ANSWERED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<(i64, String)>>> =
+  std::sync::LazyLock::new(Default::default);
+
+/// The journal's line naming the BMO a group room is answered by, said once for the room and the answerer.
+fn said_group_answerer(chat_id: i64, answerers: &[Designated], whose: &str) {
+  let names = answerers.iter().map(|agent| agent.name.clone()).collect::<Vec<String>>().join(", ");
+  let first = ANSWERED
+    .lock()
+    .unwrap_or_else(std::sync::PoisonError::into_inner)
+    .insert((chat_id, format!("{names}:{whose}")));
+
+  if first {
+    println!("bmo-receiver: chat {chat_id}: the group room is answered by {names} ({whose})");
+  }
 }
 
 /// The supervisor a room's own private person owns, where the room is a user's one-to-one with the road's own

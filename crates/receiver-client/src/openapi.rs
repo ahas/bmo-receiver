@@ -1235,6 +1235,23 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/supervisors/{supervisorName}/rooms/{roomId}/messages",
+    "supervisorRoomMessages",
+    "Supervisors",
+    "A group room's messages as a supervisor reads them: the room's answerer, or a member's own supervisor.",
+    vec![
+      name_parameter("supervisorName"),
+      path_parameter("roomId"),
+      parameter("before", "integer", false),
+      parameter("after", "integer", false),
+      parameter("limit", "integer", false)
+    ],
+    None,
+    vec![(200, json_answer::<Page<Message>>(&mut generator))],
+    vec!["unauthorized", "not-a-group", "not-a-member", "not-found", "failed"]
+  );
+  add!(
+    "GET",
     "/default-answerer",
     "defaultAnswerer",
     "Supervisors",

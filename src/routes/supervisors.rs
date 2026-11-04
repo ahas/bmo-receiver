@@ -13,19 +13,42 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use receiver_codes::{RoomRemovalWarning, SupervisorFact, SupervisorRefusal};
+use receiver_codes::{RoomReadRefusal, RoomRemovalWarning, SupervisorFact, SupervisorRefusal};
 use receiver_policy::roads::ROADS;
 use receiver_ports::agency::{Agent, FieldRefusal, NewSupervisor, Removal};
 use receiver_ports::http::PortFailure;
 
 use sea_orm::DatabaseConnection;
 
-use crate::receiver::{Receiver, figures, reads};
+use crate::receiver::wake::agents;
+use crate::receiver::{NotReceived, Receiver, figures, reads};
 use crate::roads::record::{next_room, next_sender};
 use crate::room_record::{Facing, RoomHolding, Says};
-use crate::routes::{Accepted, Answered, Refusal, Served, answered, code, read, refused, store, unit};
+use crate::routes::{
+  Accepted, Answered, Refusal, Served, answered, code, query, read, refused, store, unit,
+};
 use crate::store::Fault;
 use crate::{all, one, run};
+
+use super::console;
+
+/// A read of a group room's messages: the cursor the reader holds and how many it asks for.
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MemberRead {
+  #[serde(default)]
+  before: Option<i64>,
+
+  #[serde(default)]
+  after: Option<i64>,
+
+  #[serde(default)]
+  limit: Option<i64>,
+}
+
+fn reached(why: NotReceived) -> Refusal {
+  refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string())
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -468,6 +491,75 @@ pub async fn rooms(State(served): State<Served>, Path(name): Path<String>) -> An
   }
 
   answered(json!({ "items": items, "more": false }))
+}
+
+/// `GET /supervisors/{supervisorName}/rooms/{roomId}/messages`: a group room's messages as a supervisor reads
+/// them. The supervisor that answers the room reads it, and so does a member's own supervisor where one of the
+/// member's senders has stood in the room. The read answers messages alone: it opens no window, wakes nobody and
+/// makes no answerer of the supervisor.
+pub async fn member_messages(
+  State(served): State<Served>,
+  Path((name, room)): Path<(String, i64)>,
+  raw: RawQuery,
+) -> Answered {
+  let asked = query::<MemberRead>(raw)?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  membership(&receiver, &name, room).await?;
+
+  let bound = console::window(asked.limit);
+  let found = match (asked.before, asked.after) {
+    (_, Some(after)) => reads::after(receiver.db(), room, after, bound).await,
+    (Some(before), None) => reads::before(receiver.db(), room, before, bound).await,
+    (None, None) => reads::latest(receiver.db(), room, bound).await,
+  }
+  .map_err(store)?;
+  let more = i64::try_from(found.len()).unwrap_or(0) == bound;
+  let kept = if !more {
+    found
+  } else if asked.after.is_some() && asked.before.is_none() {
+    found.into_iter().take(usize::try_from(bound - 1).unwrap_or(0)).collect()
+  } else {
+    found.into_iter().skip(1).collect()
+  };
+  let items = console::pages(&receiver, room, kept).await.map_err(store)?;
+
+  answered(json!({ "items": items, "more": more }))
+}
+
+/// Whether a supervisor may read a group room: the room is a group, and the supervisor answers it or belongs to
+/// an account one of whose senders has stood in the room.
+async fn membership(receiver: &Receiver, agent: &str, room: i64) -> Result<(), Refusal> {
+  let facts = receiver.roads().room_facts(room).await;
+
+  if facts.owner_room || facts.private_to.is_some() {
+    return Err(code(&RoomReadRefusal::NotAGroup { room }));
+  }
+
+  let (answerers, _) = agents::room_designated(receiver, room, facts).await.map_err(reached)?;
+
+  if answerers.iter().any(|one| one.name == agent) {
+    return Ok(());
+  }
+
+  let Some(registered) = agents::registered(receiver, agent).await.map_err(reached)? else {
+    return Err(code(&SupervisorRefusal::UnknownSupervisor {
+      supervisor: agent.to_owned(),
+    }));
+  };
+  let senders = match registered.owner_account {
+    Some(account) => receiver.units().web.senders_of_user(&account.to_string()).await.unwrap_or_default(),
+    None => Vec::new(),
+  };
+
+  if reads::spoken_in(receiver.db(), room, &senders).await.map_err(store)?.is_empty() {
+    return Err(code(&RoomReadRefusal::NotAMember {
+      agent: agent.to_owned(),
+      room,
+    }));
+  }
+
+  Ok(())
 }
 
 /// `GET /default-answerer`: the supervisor the setting names.

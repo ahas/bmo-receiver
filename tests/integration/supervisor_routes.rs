@@ -5,14 +5,18 @@
 //! that name the supervisor alone and beside another; and a room's list and the default answerer setting are
 //! read and written.
 
+use std::sync::Arc;
+
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 
 use receiver_ports::agency::{Agent, FieldRefusal, Repository};
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{Front, get, post, put, remove, stood};
-use crate::integration::common::units::{AGENT, OWNER};
+use crate::integration::common::queue::{Front, get, post, put, remove, stood, stood_on};
+use crate::integration::common::units::{AGENT, OWNER, StandInChat};
+
+use bmo_receiver::receiver::wake::agents;
 
 const ADDED: &str = "agent-d";
 const REPOSITORY: &str = "repo-a";
@@ -54,6 +58,62 @@ async fn naming(scratch: &Scratch) -> i64 {
   scratch
     .count(r#"SELECT COUNT(*) FROM "room_supervisors" WHERE "supervisor" = $1"#, vec![ADDED.into()])
     .await
+}
+
+#[tokio::test]
+async fn a_members_supervisor_reads_a_group_rooms_messages_without_answering_it() {
+  let scratch = Scratch::new().await;
+  let room = -151;
+  let member = 500;
+  let chat = Arc::new(StandInChat::new("road-a").holding(&[room]));
+  let front = stood_on(&scratch, OWNER, vec![chat]).await;
+
+  let mut reader = agent("agent-e", "Agent E");
+  reader.row.insert("ownerAccount".to_owned(), json!(88));
+  front.standing.agency.registering(vec![agent(AGENT, "Agent A"), reader]);
+  front.standing.web.linking(member, "88".to_owned());
+  scratch.message(room, 1, member).await;
+  scratch.message(room, 2, OWNER).await;
+
+  let (status, answer) = get(&front, &format!("/supervisors/agent-e/rooms/{room}/messages")).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+  assert_eq!(answer["items"].as_array().unwrap().len(), 2);
+
+  // Reading adds no answerer: the room is still the default answerer's.
+  let (answerers, _) = agents::room_designated(
+    &front.receiver(),
+    room,
+    bmo_receiver::receiver::Room {
+      owner_room: false,
+      identity: None,
+      private_to: None,
+    },
+  )
+  .await
+  .unwrap();
+
+  assert_eq!(answerers.len(), 1);
+  assert_eq!(answerers[0].name, AGENT);
+}
+
+#[tokio::test]
+async fn a_supervisor_whose_person_never_stood_in_the_room_reads_nothing_of_it() {
+  let scratch = Scratch::new().await;
+  let room = -152;
+  let chat = Arc::new(StandInChat::new("road-a").holding(&[room]));
+  let front = stood_on(&scratch, OWNER, vec![chat]).await;
+
+  let mut stranger = agent("agent-f", "Agent F");
+  stranger.row.insert("ownerAccount".to_owned(), json!(99));
+  front.standing.agency.registering(vec![agent(AGENT, "Agent A"), stranger]);
+  front.standing.web.linking(501, "99".to_owned());
+  scratch.message(room, 1, OWNER).await;
+
+  let (status, answer) = get(&front, &format!("/supervisors/agent-f/rooms/{room}/messages")).await;
+
+  assert_eq!(status, StatusCode::FORBIDDEN, "{answer}");
+  assert_eq!(answer["code"], "not-a-member");
 }
 
 #[tokio::test]

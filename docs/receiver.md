@@ -221,6 +221,10 @@ flowchart TD
   - `avatar` is a room answered as the user: the room's designated agents are woken by the one rule, and every
     send the receiver makes there that names no voice of its own, an answer, a line or a typing indicator, goes
     in the `human-avatar` voice, the account of the person the service reads.
+- **A group room names its leader's BMO where it names one,** one of the supervisors of the person who made the
+  room and no other member's; a group naming none carries none, and the default answerer answers it
+  (`docs/wake.md`, 「Who reaches the session」). A member's own supervisor reads the room's messages without
+  answering it (`docs/api.md`, 「Messages」).
 - **A room never added has no mode** and stands as the roads that handed it messages make it.
 
 ## Reading and changing a room's mode
