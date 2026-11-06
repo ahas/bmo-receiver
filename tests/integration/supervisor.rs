@@ -1,7 +1,8 @@
 //! A round's opening and what a turn carries of the brain (docs/wake.md, 「The room's queue and the round」;
 //! docs/bmo-window.md, 「What every turn carries」): words the open window alone let in are judged by the agent
-//! first, a skip there sending nothing and asking no gate, a named call goes straight to the round, and the turn
-//! carries the brain's index — unread counts by group, the session's reads counted out — and no piece's body.
+//! first, a skip there sending nothing and asking no gate, and a named call goes straight to the round. The
+//! brain's index — unread counts by group, the session's reads counted out — rides the room's block at session
+//! opening, never the turn, which carries no piece's body.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -16,7 +17,7 @@ use bmo_receiver::receiver::{Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::Load;
-use receiver_ports::gate::{Entry, Source};
+use receiver_ports::gate::{Entry, IndexGroup, Source};
 
 use crate::integration::common::Scratch;
 use crate::integration::common::session::StandInSession;
@@ -333,11 +334,48 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
       version: bun_hash("BODY OF A PERSON").to_string(),
     }],
   );
+  // The brain's index for the room and the session.
+  round.standing.gate.index.lock().unwrap().insert(
+    ROOM,
+    vec![
+      IndexGroup {
+        group: "system-documents".to_owned(),
+        unread: 0,
+        hint: None,
+        entries: vec![],
+      },
+      IndexGroup {
+        group: "room-rules".to_owned(),
+        unread: 0,
+        hint: None,
+        entries: vec![],
+      },
+      IndexGroup {
+        group: "knowledge".to_owned(),
+        unread: 0,
+        hint: None,
+        entries: vec![],
+      },
+      IndexGroup {
+        group: "people".to_owned(),
+        unread: 1,
+        hint: None,
+        entries: vec![],
+      },
+      IndexGroup {
+        group: "room-memories".to_owned(),
+        unread: 1,
+        hint: None,
+        entries: vec![],
+      },
+    ],
+  );
 
   round.hand(1, "agent-a what is due today", true).await;
   round.rounds_over(2).await;
 
   let prompts = round.session.prompts();
+  let block = &prompts[0];
   let prompt = &prompts[1];
   let index = &CHAT_ROUND.index;
 
@@ -365,12 +403,12 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
       && prompt.contains("[rooms/-500/people/31/sheet.md] (already loaded)"),
     "an entry the session holds at its version goes as a mark: {prompt}"
   );
-  assert!(prompt.contains(&format!("{} 1", index.room_memories)), "{prompt}");
-  assert!(prompt.contains(&format!("{} 0", index.knowledge)), "{prompt}");
-  assert!(prompt.contains(&index.hint));
+  assert!(block.contains(&format!("{} 1", index.room_memories)), "{block}");
+  assert!(block.contains(&format!("{} 0", index.knowledge)), "{block}");
+  assert!(block.contains(&index.hint));
   assert!(
-    prompt.find("agent-a what is due today") < prompt.find(&index.head),
-    "the index stands after the room's words"
+    !prompt.contains(&index.head) && !prompt.contains(&index.hint),
+    "the turn itself carries no index line: {prompt}"
   );
 }
 
@@ -399,15 +437,21 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
   round.hand(1, "agent-a what do the rules say", true).await;
   round.rounds_over(2).await;
 
-  let prompt = &round.session.prompts()[1];
+  let prompts = round.session.prompts();
+  let block = &prompts[0];
   let index = &CHAT_ROUND.index;
 
   assert!(
-    prompt.contains(&format!("{} 4 (2 entries changed in the last three days)", index.room_rules)),
-    "{prompt}"
+    block.contains(&format!("{} 4 (2 entries changed in the last three days)", index.room_rules)),
+    "{block}"
   );
-  assert!(prompt.contains(&format!("{} 7", index.knowledge)), "{prompt}");
-  assert!(prompt.contains(&index.hint), "the nudge stands in the turn");
+  assert!(block.contains(&format!("{} 7", index.knowledge)), "{block}");
+  assert!(block.contains(&index.hint), "the nudge stands in the room's block");
+  assert!(
+    !prompts[1].contains(&index.head) && !prompts[1].contains(&index.hint),
+    "the turn itself carries no index line: {}",
+    prompts[1]
+  );
 
   let asked = round.standing.gate.indexed.lock().unwrap().clone();
 

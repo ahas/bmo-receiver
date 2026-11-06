@@ -334,9 +334,10 @@ impl Carry {
 
     // The turn is composed for the session it goes on: a new one holds nothing yet, so the room's block and every
     // reference document go in full.
-    let (sent, send) = sent_prompt(receiver, Some(session.id.as_str()), Some(&room), true, &asking.prompt)
-      .await
-      .map_err(|why| Failure::Failed(why.detail))?;
+    let (sent, send) =
+      sent_prompt(receiver, Some(session.id.as_str()), Some(&room), true, agent, &asking.prompt)
+        .await
+        .map_err(|why| Failure::Failed(why.detail))?;
     let loaded = loaded_in(receiver, Some(session.id.as_str()))
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
@@ -347,16 +348,10 @@ impl Carry {
       names: super::context::core_names(&asking.prompt),
       loads: loaded,
     };
-    // A new session's first turn goes in one order: the handoff, then the room and its words, then the brain, walked
-    // once for every room the session answers.
+    // A new session's first turn opens on the handoff note, then the room's block with the brain's index at
+    // session opening, then the turn.
     let prompt = match note {
-      Some(note) => {
-        let walked = super::window::walked(receiver, chat_id, &sent, Some(session.id.as_str()), agent)
-          .await
-          .map_err(|why| Failure::Failed(why.detail))?;
-
-        format!("{note}\n\n{walked}")
-      }
+      Some(note) => format!("{note}\n\n{sent}"),
       None => sent,
     };
 

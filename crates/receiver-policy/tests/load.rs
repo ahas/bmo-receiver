@@ -88,7 +88,8 @@ fn the_rounds_lines_carry_their_marks() {
   );
   assert!(CHAT_ROUND.blocks.archived_left_out.contains("{count}"));
   assert!(CHAT_ROUND.shape.quoted.contains("{quote}"));
-  assert!(CHAT_ROUND.closing.woken.contains("{reason}"));
+  assert!(CHAT_ROUND.closing.rule.contains("<<WAIT>>"));
+  assert!(!CHAT_ROUND.index.rule.is_empty() && !CHAT_ROUND.queue_line.rule.is_empty());
   assert_eq!(CHAT_ROUND.situation.gap_messages, 200);
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
   assert!(SECOND_ASKS.errands.owed.contains("{count}"));
@@ -103,7 +104,7 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.lead.contains("{number}") && DRAFTING.lead.contains("{count}"));
   assert!(DRAFTING.opening.contains("{number}") && DRAFTING.opening.contains("{send}"));
   assert!(DRAFTING.lead.contains("{send}") && DRAFTING.send.contains("<<SEND>>"));
-  assert!(CHAT_ROUND.closing.questioned_owed.contains("{count}"));
+  assert!(CHAT_ROUND.closing.rule.contains("<<SKIP>>"));
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final"));
   // The room's block says what a send does and the voice a message is written in, once; a round's line carries

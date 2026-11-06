@@ -209,8 +209,8 @@ round.
   wrong people.
 - **What stays the same for a rider:** it is still a row of the instruction table, it carries its events like any
   row, it waits until a round takes it, and it is settled with the round that took it.
-- **A rider is not waiting behind a turn.** The queue line a round is handed counts only the rows that would
-  open a turn, and it stands in the turn only where something waits behind it.
+- **A rider is not waiting behind a turn.** Only a row that would open a turn waits behind one, and no turn
+  counts those rows now: the room's block states the agent's queue choice once.
 
 ## What every turn carries
 
@@ -242,27 +242,29 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
 version, then as a mark naming it while the session holds that version, in one reference block with a person's
 own thread.
 
-Beside the core, the turn carries the brain's index, and the agent reads anything more it needs itself:
+The brain's index is not carried by a turn. It rides the room's block, the session's system prompt, when the
+block goes in full — the session's opening on that room — and the agent reads anything more it needs itself:
 
-- **One line** — the system documents, the room's rules, knowledge, the people the brain knows and the room's
-  memories, each with how many entries of it this session has not read yet and, where the gate gives one, what
-  changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its version, by
-  the agency's record of the session's loads (`GET /session-loads/{sessionId}`), is read and counted out.
+- **One line, once** — the system documents, the room's rules, knowledge, the people the brain knows and the
+  room's memories, each with how many entries of it the session had not read when it opened and, where the gate
+  gives one, what changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its
+  version, by the agency's record of the session's loads (`GET /session-loads/{sessionId}`), is read and counted
+  out.
 - **Then one hint, never an order:** look one up only when the answer needs it, and otherwise just
-  answer. It closes the index line every turn carries, the draft process's first question among them, so the
-  draft step is where the agent meets it. Whether the agent reads is its own choice, and nothing counts
-  or holds it to having read. The only hard rule stands in the draft process's `facts` question: nothing unread is
-  spoken of as fact.
-- **Then the due line, where the brain says a consolidation is due.** The receiver asks the turn's agent's brain
-  whether one is (`docs/boundary-api.md`, 「The brain」), and where it answers `consolidationDue` true the index
-  block carries one more line after the hint (`chat-round.toml`, `[index]`, `due`): the brain says a
-  consolidation is due. The draft process's `memory` question consolidates on it in that round
-  (`docs/drafting.md`, 「The questions」); a turn whose brain does not answer, or answers false, carries no such
-  line. A new session's walk takes the index line's place and leaves the due line standing after it.
+  answer. It closes the index the opening block carries. Whether the agent reads is its own choice, and nothing
+  counts or holds it to having read. The only hard rule stands in the draft process's `facts` question: nothing
+  unread is spoken of as fact.
+- **Then the due line, where the brain said a consolidation was due at that opening.** The receiver asks the
+  agent's brain whether one is (`docs/boundary-api.md`, 「The brain」), and where it answers `consolidationDue`
+  true the line stands after the hint (`chat-round.toml`, `[index]`, `due`). The room's block also carries the
+  standing rule that the `memory` question consolidates when the brain has unconsolidated episodes
+  (`docs/drafting.md`, 「The questions」); a brain that does not answer, or answers false, carries no due line.
 - **The counts are the gate's** (`GET /reference/index`, `docs/boundary-api.md`, 「The gate」): its `unread`, what
   the session's loads do not hold, and its `hint`, one line of what changed in the last three days. A piece the
-  session already loaded is counted out of its group. Where the gate serves no index, the counts are taken over
-  the entries the selection answers, by their source, with no hint.
+  session already loaded is counted out of its group. Where the gate serves no index, the hint and the due line
+  stand with no group counted.
+- **No walk rides a turn.** A new session opens on its handoff note and then the room's block, whose own-room
+  index is the only one that turn carries; each later room's opening block carries that room's index in turn.
 - **A person's own thread** from the group rooms they share with the agent, handed to a turn in their private
   room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's. It is handed whole
   the first time and then only the lines added since the last line it handed, under the same path and a heading
@@ -277,8 +279,9 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
   the supervisor updates it before its judgement, the judgement reads it with the new lines, and the turn that
   writes the message reads it as that answer's instruction, ahead of the room's words. It is no reference document,
   it stands nowhere in the core, and it is not a brain memory; the note's text is the version the session holds.
-- **The block stands after the turn's words and instructions,** ahead of its closing lines, so a session reads
-  what came in before it decides whether to look anything up.
+- **The block stands after the turn's words and instructions,** ahead of the round's marker, so a session reads
+  what came in before it decides whether to look anything up. The turn carries no closing lines: the closing
+  rules, the queue rule and the brain's rule stand in the room's block.
 
 Beside the reference, a turn that opens a session or returns to a room carries the room's messages since the
 agent last answered there:
@@ -307,7 +310,7 @@ agent last answered there:
     instructions delivered meanwhile, in one paragraph: what arrived, the rule the agent judges each message by,
     the messages as a round's block renders them, each with its sender, its words and its number, the numbers
     named as added to the turn's scope, then the instructions in their own block. No piece goes in with it: the
-    round's index went in with its turn.
+    brain's index went in with the room's block at session opening.
   - **Only this room's words.** The push takes its messages from the room's own conversation, keyed by its chat
     id, and its quiet instructions from that same room's rows: another room's message or instruction never joins
     it, and the block names only this room's own message numbers. A test pins this isolation.
@@ -345,9 +348,9 @@ agent last answered there:
     (`docs/boundary-api.md`, 「The agency」).
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
   the first, which rides the round's own turn, an item or a check. It carries its round line and no question
-  text, which stands in the room's block, and no reference of its own: the core and the index went in with the
-  round's turn. A question, or the closing check once the message stands, carries the room's words that came in
-  meanwhile and no push put in as one block.
+  text, which stands in the room's block, and no reference of its own: the core went in with the round's turn
+  and the brain's index with the room's block at session opening. A question, or the closing check once the
+  message stands, carries the room's words that came in meanwhile and no push put in as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It is composed like any turn,
   so a row that has come due while the room was quiet is in front of the agent, and it carries the keepalive
@@ -392,8 +395,8 @@ flowchart TD
   run is opened on its way out:
   - the reference selected over the line, each document in full or as a mark as the session holds it, and the
     room's block where the session does not hold it;
-  - the queue line where anything waits behind the turn, the turn scope, the line itself as the one new message,
-    the owed-answer note taking `<<SKIP>>` away and the closing line forbidding `<<WAIT>>`;
+  - the turn scope and the line itself as the one new message; the closing rules, the queue rule and the
+    brain's rule stand in the room's block;
   - headed by a line saying the owner typed it into the program, that its number `#0` is no message of the
     archive, that the answer is read on that screen and goes to no room, and that a composition the program
     keeps in a file is read whole before answering.
@@ -450,10 +453,9 @@ flowchart TD
 
 ## Timing is the agent's
 
-- **The agent reads what is queued and chooses when to answer.** Every round's prompt says what waits behind it:
-  the room's words not yet taken, the instructions pending, the rooms waiting their turn. The agent answers now;
-  or sends a line first with `say` and goes on to the next; or answers `<<WAIT>>` to take the next words in with
-  these.
+- **The agent chooses when to answer.** The room's block states the choice once: answer now, send a line first
+  with `say` and go on to the next, or answer `<<WAIT>>` to take the next words in. A turn no longer counts what
+  waits behind it.
 - **No content judgement stands between the agent and any room.** A round sends what the agent wrote at the end
   of its draft process, held only to the code's own items and checks below and the words' form.
 - **The draft process asks the agent its questions** (`docs/drafting.md`): the round's turn names the first

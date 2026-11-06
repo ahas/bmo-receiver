@@ -49,12 +49,11 @@ pub struct Material<'a> {
 }
 
 /// A turn's selection: the entries it carries whole, what the gate answered and a person's thread; the block they
-/// go in as; the index block and its counts; and what the turn's log is told of them.
+/// go in as; and what the turn's log is told of them. The brain's index says nothing here: it rides the room's
+/// block when the session opens.
 #[derive(Clone, Debug, Default)]
 pub struct Selection {
   pub entries: Vec<Entry>,
-  pub index: String,
-  pub counts: Vec<(Group, usize)>,
   pub block: String,
   pub context: Vec<(String, String)>,
   /// Pieces that stand as held marks alone, by path and what they hold: a person's thread once its session has
@@ -391,17 +390,8 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
       vec![]
     }
   };
-  // The entries are what attaches without a pick, the turn's core, and go in whole with a person's thread; the agent
-  // reads anything more through the index. The counts are the gate's index for the session, a piece it already
-  // loaded counted out; where the gate serves none, they are counted over the selection's entries, with no hint.
-  let (counts, hints) = match gate_index(receiver, chat_id, material.session, material.agent).await {
-    Some(read) => read,
-    None => {
-      let loaded = super::context::loaded_in(receiver, material.session).await?;
-
-      (unread(&entries, &loaded), HashMap::new())
-    }
-  };
+  // The entries are what attaches without a pick, the turn's core, and go in whole with a person's thread; the
+  // agent reads anything more through the index, which rides the room's block when the session opens.
   let mut core = entries;
   let mut held = Vec::new();
   let mut thread_mark = None;
@@ -422,13 +412,24 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
 
   let mut selection = made(chat_id, core);
 
-  selection.index =
-    due_block(index_block(&counts, &hints), super::consolidation::due(receiver, material.agent).await);
-  selection.counts = counts;
   selection.held = held;
   selection.thread_mark = thread_mark;
 
   Ok(selection)
+}
+
+/// The brain's index as the room's block carries it when the session opens: the gate's counts and hints, and the
+/// due line where the brain says a consolidation is due. It is not carried by a turn.
+pub async fn opening_index(
+  receiver: &Receiver,
+  chat_id: i64,
+  session: Option<&str>,
+  agent: &str,
+) -> String {
+  // With no gate index the hint still stands, and the due line after it, while no group is counted.
+  let (counts, hints) = gate_index(receiver, chat_id, session, agent).await.unwrap_or_default();
+
+  due_block(index_block(&counts, &hints), super::consolidation::due(receiver, agent).await)
 }
 
 // The turn's core, each entry wrapped to go to the session once per version.
@@ -471,9 +472,10 @@ pub fn source_name(entry: &Entry) -> String {
     .unwrap_or_default()
 }
 
-/// A turn as the window composes it: the receiver's own block and the index, then what the turn is for.
+/// A turn as the window composes it: the receiver's own block, then what the turn is for. The brain's index
+/// rides the room's block when the session opens, never the turn.
 pub fn composed(selection: &Selection, body: &str) -> String {
-  [selection.block.as_str(), selection.index.as_str(), body]
+  [selection.block.as_str(), body]
     .iter()
     .filter(|part| !part.is_empty())
     .copied()

@@ -218,17 +218,18 @@ async fn the_next_fresh_sessions_first_turn_opens_on_the_kept_handoff_then_the_r
 
   let prompt = &session.prompts()[0];
   let note = prompt.find(NOTE).unwrap_or_else(|| panic!("the handoff is not carried: {prompt}"));
+  let brain = prompt
+    .find(&CHAT_ROUND.index.hint)
+    .unwrap_or_else(|| panic!("the brain's index is not in the room's block: {prompt}"));
   let missed = prompt
     .find(MISSED)
     .unwrap_or_else(|| panic!("the words said meanwhile are not carried: {prompt}"));
-  let brain = prompt
-    .find(&CHAT_ROUND.index.walk_head)
-    .unwrap_or_else(|| panic!("the brain is not walked: {prompt}"));
 
   assert!(
-    note < missed && missed < brain,
-    "the handoff, then the room's words, then the brain: {prompt}"
+    note < brain && brain < missed,
+    "the handoff, then the room's block with the brain's index, then the words: {prompt}"
   );
+  assert!(!prompt.contains(&CHAT_ROUND.index.walk_head), "no walk rides the turn: {prompt}");
   assert_eq!(
     settings::get(scratch.db(), &pending_key(AGENT)).await.unwrap(),
     None,

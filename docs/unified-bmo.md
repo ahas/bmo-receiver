@@ -41,11 +41,13 @@
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
   are English while the language an answer is written in is the agent's own judgement, never a line of the turn;
   and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there,
-  and so do what a round's one-word send permission means, the review's instruction and verdict wording, and the
-  situation-note instruction with its ceiling, so a round's turn names only which round it is and whether it may
-  send, a note turn carries only its mark, and the review turn carries only its mark and the material it reads.
-  The turn carries only what changes from turn to turn: the room and its facts, the blocks themselves and the
-  one-line states (the owed answer, the waiting window).
+  and so do what a round's one-word send permission means, the review's instruction and verdict wording, the
+  situation-note instruction with its ceiling, the closing rules (how a turn opens and closes, when a `<<WAIT>>`
+  is right, and that the owner's own words in his own chat are always answered), the queue rule and the brain's
+  rule, so a round's turn names only which round it is and whether it may send, a note turn carries only its
+  mark, and the review turn carries only its mark and the material it reads. The turn carries only what changes
+  from turn to turn: the room and its facts, the words themselves, the round's mark and the material the gate
+  attaches.
 - **Kept out of the system prompt:** each room's tone and traits, the group-room rules, the private chat's
   instructions and agent list, and the rules for what can be done in the room (a picture, a file, a reaction, a
   sticker, a voice briefing, pinning, an answer aimed at a message, a folded answer), which the room's chat
@@ -188,7 +190,8 @@
 - **A session past its cache lifetime is woken only by what someone waits on.** A room's own words and a room
   reply (`docs/wake.md`, 「Quiet instructions」: a research result, a delegate's or a worker's answer, a job's
   report, a reminder come due) open a round on it at once, and that round replaces it: the fresh session reads
-  the handoff document, the unread messages and the brain's index in that order. Nothing else opens a turn on
+  the handoff document, then the room's block with the brain's index at session opening, then the unread
+  messages of the turn. Nothing else opens a turn on
   it: no keepalive touch, no fold, no housekeeping instruction, no push and no spoken script
   (`docs/bmo-window.md`, 「The touch」; `docs/voiced-notices.md`), since waking it for those would have the
   provider read its whole prefix again for nothing. The lifetime is the one the agency's warm and cold
@@ -196,10 +199,9 @@
   `providers.toml` here.
 - **The head is what the session's cache stands on:** the common system prompt, which the agency composes and
   keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of
-  it, so no part of a turn is the head: not the room-switch block or its mark, the brain's index block, the turn's
-  scope line, the queue line, the room's facts, the words and instructions it carries or its closing lines, and
-  not a question, an item or a check of the draft process. A turn of any room on an unmoved head resumes the
-  session.
+  it, so no part of a turn is the head: not the room-switch block or its mark, its opening index, the turn's
+  scope line, the room's facts, or the words and instructions it carries, and not a question, an item or a
+  check of the draft process. A turn of any room on an unmoved head resumes the session.
 - **The agency says whether the head moved.** The session's state names why its prefix changed where the
   agency names it (`prefixChangeReason`, the agency's `docs/api.md`, 「Sessions」); each turn the receiver
   carries keeps the reason the state named, and a later turn whose state names another replaces the session.
@@ -250,14 +252,13 @@
   old session, the room's messages archived since the agent last answered there among them, so what arrived
   while the handover was under way and the old session never read stands right behind the handoff, up to the
   archived block's cap: the newest of them, with a line counting the older ones left in the room's archive
-  (`docs/bmo-window.md`, 「What every turn carries」); then the brain.
-- **The brain, once, for every room:** the new session walks the index once. In place of the turn's own index
-  block its first turn carries one for every room the agent's one session has answered in (`bmo_rooms`): each
-  room by its number and title with its groups' unread counts and hints as the gate's index gives them for the
-  new session (`GET /reference/index`), a room whose index the gate does not answer named for the agent to open
-  itself — and the index's one hint. It is a hint
-  and no obligation: the agent looks over what the brain holds before it answers where it judges that worth
-  doing.
+  (`docs/bmo-window.md`, 「What every turn carries」); the room's block carries the brain's index at that opening.
+- **The brain's index rides the room's block, not the turn.** The block goes in full when the session opens on
+  a room, and that opening block carries the room's groups with their unread counts and hints as the gate's
+  index gives them for the new session (`GET /reference/index`), and the index's one hint; where the brain says
+  a consolidation is due at that opening, the due line follows. No cross-room walk rides the first turn: the
+  handoff note carries what the old session was doing, and the agent opens the brain's index with its tools as
+  later rounds need it. It is a hint and no obligation.
 - **Only the one session is replaced this way.** The receiver judges a replacement only for an agent whose row
   keeps one session across its rooms; a room's own session is the agency's to resume.
 - **Moving between rooms carries no summary of a room:** the room's block and its archived messages since the
@@ -287,9 +288,9 @@ at those moments and tells the brain of a fold it asks of the session itself.
   own.
 - **At a hand-off** the closing session consolidates what it holds, then tells the brain it folds
   (`brain_fold`), then writes its handoff (「Replacing the session」 above).
-- **When the brain says it is due,** a turn's index block carries the due line (`docs/bmo-window.md`, 「What every
-  turn carries」), and the round's `memory` question consolidates in that turn, bounded to what the turn can
-  afford: the first episodes the brain answers, never all of them, and no `brain_fold` (`docs/drafting.md`,
+- **When the brain says it is due,** the room's block carries the due line at session opening
+  (`docs/bmo-window.md`, 「What every turn carries」), and the round's `memory` question consolidates in that
+  turn, bounded to what the turn can afford: the first episodes the brain answers, never all of them, and no `brain_fold` (`docs/drafting.md`,
   「The questions」).
 - **At a fold the receiver asks of the session,** in this order: one quiet turn on the session, tools on, the
   handover policy's `consolidate` lines (`handover.toml`), in which the

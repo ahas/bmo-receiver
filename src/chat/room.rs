@@ -535,6 +535,9 @@ pub async fn room_context(
     stages(receiver).await?,
     review_instruction(),
     situation_instruction(),
+    CHAT_ROUND.closing.rule.clone(),
+    CHAT_ROUND.index.rule.clone(),
+    CHAT_ROUND.queue_line.rule.clone(),
     said.voice.clone(),
   ];
 

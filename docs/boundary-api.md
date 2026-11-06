@@ -248,9 +248,10 @@ agent remembers it writes with its own brain tool, and what a turn is handed of 
 - **The agent's brain is kept for the process,** by the agent's name, once a lookup has found it: the next
   call for the agent uses the kept id and asks no lookup. A call on a kept id that the brain answers 404 lets
   the id go, so the next call for the agent looks it up again; a lookup that finds no brain keeps nothing.
-- **Due:** every turn the window composes asks it for the turn's agent, and where the brain answers
-  `consolidationDue` true the turn's index block carries the policy's due line (`docs/bmo-window.md`, 「What
-  every turn carries」). A call that fails leaves the line out and says why in the journal.
+- **Due:** when the room's block goes in full at a session's opening on that room, the window asks it for the
+  agent, and where the brain answers `consolidationDue` true the block's index carries the policy's due line
+  (`docs/bmo-window.md`, 「What every turn carries」). A call that fails leaves the line out and says why in the
+  journal.
 - **The fold:** once the agency answers a fold the receiver asked of a session (`docs/wake.md`, 「The room's queue
   and the round」), the receiver reports it for the session's agent, so the marks the brain keeps of what it
   handed that session clear. A report that fails is said in the journal and changes nothing of the fold.
@@ -278,7 +279,7 @@ receiver hands it the turn's envelope and the words on their way in and out, eve
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `records` | `entries`, each `path`, `text`, `source` and `holds?`: what attaches with no pick, which the gate hands the brain to count; the receiver puts each in the turn whole, as the turn's core |
-| a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`, each `slug`, `holds`, `path` and `memoryId?`; the receiver reads `group`, `unread` and `hint` into the turn's index and the walk, and an entry's `slug`, `holds`, `path` and `memoryId` into a round's reads (`docs/drafting.md`, 「The round log」) |
+| a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`, each `slug`, `holds`, `path` and `memoryId?`; the receiver reads `group`, `unread` and `hint` into the index the room's block carries when the session opens, and an entry's `slug`, `holds`, `path` and `memoryId` into a round's reads (`docs/drafting.md`, 「The round log」) |
 | a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |
 | a round's judgements attached | `POST /judgements/attached` | `roomId`, `messageId`, `since` in epoch milliseconds | 204 |
 

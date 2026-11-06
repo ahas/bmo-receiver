@@ -13,8 +13,9 @@ leaves.
   reference, reads an index or runs a gate; a skip ends the round there.
 - **The process establishes what the message needs first and writes the message last.** A round's turn goes to
   the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where
-  one is asked, and after the window's pregate: the core the gate attaches, the room's situation note and the
-  brain's index. The turn carries only the line naming the process's first round and whether that round writes
+  one is asked, and after the window's pregate: the core the gate attaches and the room's situation note. The
+  brain's index rides the room's block at session opening, never the turn. The turn carries only the line naming
+  the process's first round and whether that round writes
   the message or only notes; the question it answers, like every other question of the process, stands in the
   room's block, which the session is handed as its system prompt. The agent reads, finds the facts the message
   rests on and engraves what it establishes in the brain with its tools as it goes. The receiver then asks the
@@ -80,7 +81,7 @@ leaves.
 | `intent` | why the words were said and what the speaker wants; whether to answer is already decided, so this asks the reason |
 | `information` | what the message needs to know and what more must be read; where what the session holds falls short and the brain may hold it, the brain's index opened or searched and read |
 | `facts` | whether what the message rests on is true and where each fact came from: the system's live state read now from the service that owns it, nothing undecided spoken of as known, no variable guessed |
-| `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved; and where the turn's index carries the due line (`docs/bmo-window.md`, 「What every turn carries」), a consolidation in this turn: the first of the unconsolidated episodes the brain answers, as many as the turn can afford and never all of them, what each worth keeping comes to drafted, a consequential draft (one closing a live fact, or of importance 8 or more) reviewed by the agent's own second reading before it is written (`docs/unified-bmo.md`, 「The brain's consolidation」), each draft that passes written with `brain_learn`, and every one read marked with `brain_consolidated` but those of a draft the review stopped for a contradiction, with no `brain_fold` |
+| `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved; and where the opening block's index carries the due line and the brain has unconsolidated episodes (`docs/bmo-window.md`, 「What every turn carries」), a consolidation in this turn: the first of the unconsolidated episodes the brain answers, as many as the turn can afford and never all of them, what each worth keeping comes to drafted, a consequential draft (one closing a live fact, or of importance 8 or more) reviewed by the agent's own second reading before it is written (`docs/unified-bmo.md`, 「The brain's consolidation」), each draft that passes written with `brain_learn`, and every one read marked with `brain_consolidated` but those of a draft the review stopped for a contradiction, with no `brain_fold` |
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
 | `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, as this room's agent says it to this person, or send nothing; always the last |
 
@@ -97,9 +98,9 @@ leaves.
   time a session is handed its room's block. The block goes to a session once per version and by its mark after
   that, so a turn carries only what changes from round to round: which round it is and what that round may
   write.
-- **The first round rides the round's own turn:** the room's words and the round's closing lines as the window
-  composes them, the closing lines saying that the round below is to be answered, then the round's line. The
-  line is the policy's, the shortest that says both facts the block cannot: the place and count of the round,
+- **The first round rides the round's own turn:** the room's words as the window composes them, then the round's
+  line; the closing rules stand in the room's block. The line is the policy's, the shortest that says both facts
+  the block cannot: the place and count of the round,
   its name, and one word for its send permission (`send_open`, `SEND`, or `send_closed`, `NOTES`). Where the
   first round is the last, as a light turn's `final` is, it opens on the last round's line instead and its
   answer is the message, so the round is one turn.

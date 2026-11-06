@@ -51,8 +51,8 @@ pub struct Round<'a> {
   /// The owner's reader, where a reply's picture may be fetched on demand.
   pub reader: Option<&'a Roads>,
   pub round: Option<String>,
-  /// The turn carries the draft process's first question below its closing lines, and that question is not the
-  /// process's last: the closing lines ask for its answer rather than the message (docs/drafting.md).
+  /// The turn carries a draft round that is not the process's message round: a message round reads the room's
+  /// situation note first (docs/drafting.md).
   pub questioned: bool,
 }
 
@@ -266,7 +266,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   let db = receiver.db();
   let header = &CHAT_ROUND.header;
   let blocks = &CHAT_ROUND.blocks;
-  let closing = &CHAT_ROUND.closing;
   let chat_id = round.chat_id;
   let mut parts: Vec<String> = Vec::new();
   let mut context: Vec<(String, String)> = Vec::new();
@@ -309,10 +308,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   let scope_at = parts.len();
 
   parts.push(String::new());
-
-  if !round.queue_line.is_empty() {
-    parts.push(round.queue_line.to_owned());
-  }
 
   let shown: HashSet<i64> =
     archived.iter().chain(round.batch.iter()).map(|message| message.message_id).collect();
@@ -442,14 +437,13 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     parts.push(blocks.quiet_end.clone());
   }
 
-  // What the brain holds stands after the turn's words, so the session reads what came in before it decides
+  // What the gate attaches stands after the turn's words, so the session reads what came in before it decides
   // whether to look anything up; a person's own thread from their group rooms goes in beside it whole
-  // (docs/bmo-window.md, 「What every turn carries」).
-  for block in [&selection.block, &selection.index] {
-    if !block.is_empty() {
-      parts.push(String::new());
-      parts.push(block.clone());
-    }
+  // (docs/bmo-window.md, 「What every turn carries」). The brain's index and the closing rules stand in the
+  // room's block, never in the turn.
+  if !selection.block.is_empty() {
+    parts.push(String::new());
+    parts.push(selection.block.clone());
   }
 
   // A notice of the queue shows the other agents' work and the consult room beside it.
@@ -460,35 +454,9 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     parts.push(consult);
   }
 
-  // The owner's own words in his own chat are owed an answer whatever else the round carried.
-  let owed = if round.room.owner_room {
-    round.batch.iter().filter(|message| message.sender_id == Some(round.owner)).count()
-  } else {
-    0
-  };
-
-  if owed > 0 {
-    parts.push(String::new());
-    let owed_line = if round.questioned { &closing.questioned_owed } else { &closing.owed };
-
-    parts.push(fill_marks(owed_line, &[("count", &owed.to_string())]));
-  }
-
   // The language an answer is written in is the agent's own judgement, from the person and the room as the
-  // brain holds them; no line of the turn names one (docs/answer-checks.md).
-  if let Some(reason) = round.woken {
-    parts.push(String::new());
-    parts.push(fill_marks(&closing.woken, &[("reason", reason)]));
-  }
-
-  parts.push(String::new());
-  parts.push(match (round.questioned, round.force, owed > 0) {
-    (true, true, _) => closing.questioned_forced.clone(),
-    (true, false, _) => closing.questioned_waiting.clone(),
-    (false, true, true) => closing.forced_owed.clone(),
-    (false, true, false) => closing.forced.clone(),
-    (false, false, _) => closing.waiting.clone(),
-  });
+  // brain holds them; no line of the turn names one (docs/answer-checks.md). The closing rules stand in the
+  // room's block, never in the turn.
 
   // A reply whose target the prompt does not otherwise show pulls that message out of the archive on its own.
   let quoted: Vec<i64> = archived

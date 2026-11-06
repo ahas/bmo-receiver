@@ -262,9 +262,9 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
     "the first round opens on the owner's opening"
   );
   assert!(
-    turn_of(&prompts[0]).contains(&CHAT_ROUND.closing.questioned_waiting)
-      && !turn_of(&prompts[0]).contains(&CHAT_ROUND.closing.waiting),
-    "the turn's closing asks for the question's answer, not the message"
+    !turn_of(&prompts[0]).contains(&CHAT_ROUND.closing.rule)
+      && prompts[0].contains(&CHAT_ROUND.closing.rule),
+    "the closing rules stand in the room's block, never in the turn"
   );
   assert!(
     turn_of(&prompts[1]).contains("2/3 (information)")
@@ -1511,7 +1511,11 @@ async fn a_greeting_is_asked_the_last_question_alone_in_its_own_turn() {
   assert!(
     turn_of(&prompts[0]).contains("1/1 (final)") && !turn_of(&prompts[0]).contains(question("final"))
   );
-  assert!(prompts[0].contains(&CHAT_ROUND.closing.waiting), "its closing asks the message as ever");
+  assert!(
+    prompts[0].contains(&CHAT_ROUND.closing.rule)
+      && !turn_of(&prompts[0]).contains(&CHAT_ROUND.closing.rule),
+    "the closing rules stand in the block, not the turn"
+  );
   assert!(sent.len() == 1 && sent[0].contains("hello to you too"), "{sent:?}");
   assert_eq!(round.log().await, ["question final answered", "end  message"]);
 }

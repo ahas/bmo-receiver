@@ -2823,7 +2823,8 @@ impl Conversations {
     .await?;
     let room = room_context(&receiver, room_id, None).await?;
     let written = composed.prompt.clone();
-    let (sent, _) = sent_prompt(&receiver, Some(session_id), Some(&room), true, &written).await?;
+    let (sent, _) =
+      sent_prompt(&receiver, Some(session_id), Some(&room), true, self.agent(), &written).await?;
 
     remember_held(
       &receiver,

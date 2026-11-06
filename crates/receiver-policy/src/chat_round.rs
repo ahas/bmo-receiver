@@ -91,18 +91,8 @@ pub struct Shape {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Closing {
-  pub owed: String,
-  /// What the line calls the owner where the page shows no name of theirs.
-  pub owner: String,
-  pub woken: String,
-  pub forced_owed: String,
-  pub forced: String,
-  pub waiting: String,
-  /// The owed, forced and waiting lines of a turn that carries the draft process's first question, where that
-  /// question is not its last.
-  pub questioned_owed: String,
-  pub questioned_forced: String,
-  pub questioned_waiting: String,
+  /// The closing rules, said once in the room's block rather than as a reminder on every turn.
+  pub rule: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -153,6 +143,9 @@ pub struct QueueLine {
   pub instructions: String,
   pub rooms: String,
   pub waiting: String,
+  /// What the agent may do when words wait behind its turn, said once in the room's block; a turn carries no
+  /// queue counts.
+  pub rule: String,
 }
 
 /// The answer one room sent back to another, as a quiet instruction.
@@ -329,6 +322,8 @@ pub struct Supervisor {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Index {
+  /// The brain's standing rule, said in the room's block; a turn carries no index line.
+  pub rule: String,
   pub head: String,
   pub group: String,
   pub group_hint: String,

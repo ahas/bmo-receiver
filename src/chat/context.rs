@@ -209,6 +209,7 @@ pub async fn sent_prompt(
   session: Option<&str>,
   room: Option<&RoomContext>,
   restates: bool,
+  agent: &str,
   prompt: &str,
 ) -> Result<(String, Option<RoomSend>), Fault> {
   let prompt = opened(prompt, &loaded_in(receiver, session).await?);
@@ -220,7 +221,15 @@ pub async fn sent_prompt(
     RoomSend::Mark | RoomSend::Full => {
       forget_room(receiver.db(), session).await?;
 
-      let said = if send == RoomSend::Full { &room.text } else { &room.mark };
+      // The brain's index rides the room's block only when the block goes in full, which is the session's
+      // opening on this room; after that the mark keeps the block in force and the counts are not fresh.
+      let said = if send == RoomSend::Full {
+        let index = super::window::opening_index(receiver, room.chat_id, session, agent).await;
+
+        if index.is_empty() { room.text.clone() } else { format!("{}\n\n{index}", room.text) }
+      } else {
+        room.mark.clone()
+      };
 
       Ok((format!("{said}\n\n{prompt}"), Some(send)))
     }
