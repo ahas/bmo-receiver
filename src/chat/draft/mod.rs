@@ -1036,9 +1036,13 @@ impl Drafter {
 
     // The review first in the gate (docs/drafting.md, 「The review」): the message as it stands against the
     // room's words and the rules it carries. A rejection returns it to `final` with the reason, eight times at
-    // most; the eighth sends the last draft and the end row reports the reasons.
+    // most; the eighth sends the last draft and the end row reports the reasons. A rejection that names nothing
+    // to change, or gives the reason it gave last, is no guidance: it sends the draft as it stands.
     let mut reasons: Vec<String> = vec![];
     let mut eight = false;
+    let mut silent = false;
+    let mut repeated = false;
+    let mut previous: Option<String> = None;
     let mut reviews = 0;
 
     while receiver.review_gate() && reviews < 8 {
@@ -1081,6 +1085,22 @@ impl Drafter {
         eight = true;
         break;
       }
+
+      // A reason that names nothing is no guidance, and a reason that comes back unchanged means the revision
+      // is not converging. Either way another round would repeat itself, so the draft as it stands is sent.
+      if !names_a_change(&reason, &message.text) {
+        silent = true;
+        break;
+      }
+
+      let said = onespace(&reason);
+
+      if previous.as_deref() == Some(said.as_str()) {
+        repeated = true;
+        break;
+      }
+
+      previous = Some(said);
 
       let final_question = DRAFTING.questions.get("final").cloned().unwrap_or_default();
       let revise = fill_marks(&DRAFTING.review.revise, &[("reason", &reason)]);
@@ -1169,6 +1189,10 @@ impl Drafter {
 
     let detail = if eight {
       format!("{row}; review rejected eight times: {}", reasons.join(" | "))
+    } else if silent {
+      format!("{row}; the review gave no usable reason, so the last draft was sent")
+    } else if repeated {
+      format!("{row}; the review gave the same reason twice, so the last draft was sent")
     } else {
       row.to_owned()
     };
@@ -1219,6 +1243,19 @@ fn review_verdict(text: &str) -> (bool, String) {
     .unwrap_or_else(|| text.to_owned());
 
   (false, reason.trim().to_owned())
+}
+
+/// Whether a review's reason gives the revision something to change: it is neither empty nor the draft's own
+/// text repeated back.
+fn names_a_change(reason: &str, draft: &str) -> bool {
+  let reason = onespace(reason);
+
+  !reason.is_empty() && reason != onespace(draft)
+}
+
+/// The text with its runs of white space collapsed to one space and its ends trimmed.
+fn onespace(text: &str) -> String {
+  text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 impl Drafting for Drafter {

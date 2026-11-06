@@ -1243,6 +1243,52 @@ async fn a_rejected_message_is_written_again_with_the_reason() {
 }
 
 #[tokio::test]
+async fn a_review_that_rejects_with_the_draft_as_its_reason_does_not_loop() {
+  let session =
+    StandInSession::new(SESSION, "unscripted").answering(&["the message", "REJECT: the message"]);
+  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+  let log = round.log().await;
+  let end = round.scratch.texts(r#"SELECT "detail" FROM "draft_rounds" WHERE "kind" = 'end'"#).await;
+
+  assert_eq!(prompts.len(), 2, "no revision round follows a reason that names nothing: {prompts:#?}");
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the message"), "{sent:?}");
+  assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 1, "{log:?}");
+  assert!(end[0].contains("no usable reason"), "{end:?}");
+}
+
+#[tokio::test]
+async fn a_review_that_rejects_twice_with_the_same_reason_stops() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[
+    "the first message",
+    "REJECT: the date is missing",
+    "the second message",
+    "REJECT: the date is missing",
+  ]);
+  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(4).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+  let log = round.log().await;
+  let end = round.scratch.texts(r#"SELECT "detail" FROM "draft_rounds" WHERE "kind" = 'end'"#).await;
+
+  assert_eq!(prompts.len(), 4, "the loop stops at the second identical rejection: {prompts:#?}");
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the second message"), "{sent:?}");
+  assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 2, "{log:?}");
+  assert!(end[0].contains("same reason twice"), "{end:?}");
+}
+
+#[tokio::test]
 async fn a_turn_hands_its_material_once_and_later_rounds_carry_lines() {
   use receiver_ports::gate::{Entry, Source};
 

@@ -288,7 +288,8 @@ leaves.
   the agent skips deliberately; no turn has a time bound, no round has a cap, and no tool call is counted. A
   round that takes a long time still ends with its message, and a failing check gets the repair round it would
   get at any other time. The review's eight rejections are the one bound, and they send the last draft rather
-  than silence. Nothing else makes the room hear silence but an answer that says so.
+  than silence; a review that gives no guidance or repeats itself ends the review early the same way. Nothing
+  else makes the room hear silence but an answer that says so.
 - **Before `final` has run, no message stands:** an answer before the last is notes. A process that already has
   its message, from `final` or from a send marker, goes on to the closing check, the items and the checks below.
 - **A later question whose run failed** is passed over to `final`, asked at once; a `final` whose run failed
@@ -336,6 +337,11 @@ where it says something: neither empty nor a skip nor a wait.
   new draft is reviewed again, eight times at most. At the eighth rejection the last draft is sent, not
   withheld, and the round's end row reports the reasons in order. A review that gives no verdict is a rejection
   with its own words as the reason.
+- **A rejection that gives no guidance ends the review.** Where the reason is empty, or is the draft's own
+  text after trimming and collapsing white space, no revision round is asked: the draft as it stands is sent
+  and the end row says the review gave no usable reason. The same holds where two consecutive rejections carry
+  the same reason, since the revision is not converging; the draft as it stands is sent and the end row says
+  the review repeated itself. A reason names a change where it is not empty and not the draft itself.
 - **Every verdict and reason is written down.** A review question and its verdict are rows of the round log,
   `PASS` or `REJECT`, with the reason; the console reads them with the rest of the round.
 - **The format check runs after the review passes.** A format failure gets the repair round it had before; a
