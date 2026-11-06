@@ -276,7 +276,10 @@ async fn hand(receiver: &Receiver, rooms: &dyn Rooms, row: &Row, chat_id: i64) -
   .await?;
 
   let text = if row.restarts > 0 {
-    format!("{}\n\n{}", CHAT_ROUND.instructions.restarted, row.text)
+    format!(
+      "{}\n{}\n\n{}",
+      CHAT_ROUND.instructions.restarted_marker, CHAT_ROUND.instructions.restarted, row.text
+    )
   } else {
     row.text.clone()
   };

@@ -552,6 +552,17 @@ pub async fn room_context(
     CHAT_ROUND.closing.rule.clone(),
     CHAT_ROUND.index.rule.clone(),
     CHAT_ROUND.queue_line.rule.clone(),
+    fill_marks(&CHAT_ROUND.push.rule, &[("marker", &CHAT_ROUND.push.marker)]),
+    fill_marks(&CHAT_ROUND.relay.rule, &[("marker", &CHAT_ROUND.relay.marker)]),
+    fill_marks(&CHAT_ROUND.handed.rule, &[("marker", &CHAT_ROUND.handed.marker)]),
+    fill_marks(&CHAT_ROUND.console.rule, &[("marker", &CHAT_ROUND.console.marker)]),
+    fill_marks(&CHAT_ROUND.typed.rule, &[("marker", &CHAT_ROUND.typed.marker)]),
+    fill_marks(&CHAT_ROUND.voice.summary_rule, &[("marker", &CHAT_ROUND.voice.summary_marker)]),
+    fill_marks(&CHAT_ROUND.voice.reading_rule, &[("marker", &CHAT_ROUND.voice.reading_marker)]),
+    fill_marks(
+      &CHAT_ROUND.instructions.restarted_rule,
+      &[("marker", &CHAT_ROUND.instructions.restarted_marker)],
+    ),
     said.voice.clone(),
   ];
 

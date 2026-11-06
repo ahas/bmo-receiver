@@ -2217,7 +2217,11 @@ impl Conversations {
     let asking = Asking {
       chat_id,
       session: held.session.clone().unwrap_or_default(),
-      prompt: fill_marks(&CHAT_ROUND.voice.summary, &[("line", &sent.text)]),
+      prompt: format!(
+        "{}\n{}",
+        CHAT_ROUND.voice.summary_marker,
+        fill_marks(&CHAT_ROUND.voice.summary, &[("line", &sent.text)])
+      ),
       via: (!via.is_empty()).then(|| via.to_owned()),
       privileged: held.all_from_owner,
       answers: vec![],
@@ -2268,7 +2272,11 @@ impl Conversations {
     let asking = Asking {
       chat_id,
       session: String::new(),
-      prompt: fill_marks(&CHAT_ROUND.voice.reading, &[("line", line)]),
+      prompt: format!(
+        "{}\n{}",
+        CHAT_ROUND.voice.reading_marker,
+        fill_marks(&CHAT_ROUND.voice.reading, &[("line", line)])
+      ),
       via: None,
       privileged: false,
       answers: vec![],
@@ -2576,9 +2584,13 @@ impl Conversations {
     .await;
     println!("answer from chat {chat_id} relayed to chat {reply_to}");
 
-    let text = fill_marks(
-      &CHAT_ROUND.relay.answer,
-      &[("chat", &chat_id.to_string()), ("opening", &opening), ("answer", answer)],
+    let text = format!(
+      "{}\n{}",
+      CHAT_ROUND.relay.marker,
+      fill_marks(
+        &CHAT_ROUND.relay.answer,
+        &[("chat", &chat_id.to_string()), ("opening", &opening), ("answer", answer)],
+      )
     );
     let queued = super::instructions::Queued {
       sort: Some("relay"),
@@ -2971,7 +2983,6 @@ impl Follower {
       consumed,
       tools_allowed,
       reader: Some(conversations.0.receiver.roads()),
-      judged: true,
       announced: true,
     })
     .await;

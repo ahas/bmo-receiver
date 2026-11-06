@@ -75,14 +75,25 @@ pub fn composed_head() -> &'static str {
 
 static HEAD: LazyLock<String> = LazyLock::new(|| {
   let lines = format!(
-    "{}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
+    "{}\n{:?}\n{:?}\n{:?}",
     CHAT_ROUND.scope,
-    CHAT_ROUND.header,
-    CHAT_ROUND.kinds,
-    CHAT_ROUND.blocks,
-    CHAT_ROUND.closing,
-    CHAT_ROUND.queue_line,
-    CHAT_ROUND.push,
+    (
+      &CHAT_ROUND.header,
+      &CHAT_ROUND.kinds,
+      &CHAT_ROUND.blocks,
+      &CHAT_ROUND.closing,
+      &CHAT_ROUND.queue_line,
+      &CHAT_ROUND.push,
+      &CHAT_ROUND.relay,
+      &CHAT_ROUND.handed,
+      &CHAT_ROUND.console,
+      &CHAT_ROUND.typed,
+      &CHAT_ROUND.voice,
+    ),
+    // `Instructions` carries clocks as well as lines; only the lines that stand in the room's block move the
+    // head.
+    CHAT_ROUND.instructions.restarted_marker,
+    CHAT_ROUND.instructions.restarted_rule,
   );
 
   format!("{:x}", Sha256::digest(lines.as_bytes()))

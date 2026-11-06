@@ -129,11 +129,13 @@ that wants something said there hands the words to that supervisor, and the supe
   the agent answers. A round's own answer is the other way a supervisor speaks, and asks nothing of this.
 - **Every other send is handed over, and nothing reaches the room on that call.** A command at a shell, a job's
   run, a worker, a runner, a unit's own process, a script or a turn's tool call that failed over to the shell asks
-  the same route, and the receiver queues a quiet instruction carrying what was asked: who handed it, the command
-  or unit it came through where the asker names one (`from`), the room, the act and its arguments (the words,
-  the pictures, the files, the voice note, the reaction, the pin, the sticker, the draw or the fixed line) and the
-  road it named. The asker is answered with one line naming the agent it was handed to, and the instruction's
-  number as `handed`.
+  the same route, and the receiver queues a quiet instruction marked as words handed to the supervisor and
+  carrying what was asked as data: who handed it, the command or unit it came through where the asker names one
+  (`from`), the room, the act and its arguments (the words, the pictures, the files, the voice note, the
+  reaction, the pin, the sticker, the draw or the fixed line) and the road it named. The rule the marker stands
+  for — that every message a room receives comes from its supervisor, and that it says the words there in its own
+  turn or answers `<<SKIP>>` — stands in the room's block. The asker is answered with one line naming the agent
+  it was handed to, and the instruction's number as `handed`.
 - **Who it is handed to:** the asker's own agent where that agent answers the room (a supervisor's shell outside
   its round, a process of its own past its turn), and the room's voice otherwise (`docs/voiced-notices.md`,
   「The rule」).

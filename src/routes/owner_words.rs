@@ -16,15 +16,17 @@ use crate::receiver::{Receiver, rows, wake};
 use crate::routes::say::known;
 use crate::secrets;
 
-// The instruction the words go in as.
+// The instruction the words go in as: the console's marker and the owner's text as data.
 fn instruction(text: &str) -> String {
-  CHAT_ROUND
+  let body = CHAT_ROUND
     .console
     .instruction
     .iter()
     .map(|line| fill_marks(line, &[("text", text)]))
     .collect::<Vec<String>>()
-    .join("\n")
+    .join("\n");
+
+  format!("{}\n{body}", CHAT_ROUND.console.marker)
 }
 
 #[derive(Deserialize)]

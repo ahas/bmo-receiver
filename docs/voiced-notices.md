@@ -210,11 +210,12 @@ spoken, and the session writes what is said.
   carried quiet instructions and no message of anyone; it sent a line, so a `<<SKIP>>` or a `<<WAIT>>` is not
   spoken; the switch is on; and its agent has a voice.
 - **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one light
-  turn once the line has gone out and before the round lets go of the room. The instruction carries the line as
-  the facts, and asks for what is to be heard: a one-line title saying what the briefing is about, in the agent's
-  own words for this briefing, then one or two sentences of the line's gist as a spoken script, never the line
-  read out, every notice of the turn covered in its newest state (`policy/chat-round.toml`, `[voice]`,
-  `summary`). Its answer goes to no road and stands in no room.
+  turn once the line has gone out and before the round lets go of the room. The instruction is marked and
+  carries the line as the facts; what the marker asks for — a one-line title saying what the briefing is about,
+  in the agent's own words for this briefing, then one or two sentences of the line's gist as a spoken script,
+  never the line read out, every notice of the turn covered in its newest state — stands in the room's block
+  (`policy/chat-round.toml`, `[voice]`, `summary_marker`, `summary_rule`). Its answer goes to no road and stands
+  in no room.
 - **A session that gives no summary has its line's opening spoken:** the first sentence, or the first two where
   the first is short, with no title. An answer of `<<SKIP>>`, an empty answer and a failed turn are each this case.
 - **The receiver carries the facts to the engine:** `POST /briefings` of kind `summary`, in the agent's voice,
@@ -235,8 +236,9 @@ spoken, and the session writes what is said.
 - **Nothing is made before it is asked for.** The receiver asks the engine for the line's full reading
   (`GET /briefings` by room, line and kind): one waiting or speaking answers `making`, one done answers `ready`.
   Where there is none, or the last one failed, it answers `making` at once and asks the line's agent, in one light
-  turn of its session in the line's room, for the whole line as a spoken script (`policy/chat-round.toml`,
-  `[voice]`, `reading`), every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
+  turn of its session in the line's room, for the whole line as a spoken script: the turn is marked and carries
+  the line as data, and what the marker asks for stands in the room's block (`policy/chat-round.toml`, `[voice]`,
+  `reading_marker`, `reading_rule`), every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
   `full`; a session that gives no script, or one past its cache lifetime, which is never woken for it
   (`docs/unified-bmo.md`, 「Replacing the session」), has the line spoken as it stands. While the script is being written an
   ask answers `making` with no briefing yet; once launched, the answer names the briefing, whose sound the engine

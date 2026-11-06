@@ -17,6 +17,7 @@ use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::instructions::{Queued, deliver_pending, queue, requeue_interrupted};
 use bmo_receiver::chat::mid_turn::{Push, paragraph};
+use bmo_receiver::chat::room::room_context;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
@@ -1782,7 +1783,7 @@ async fn read_mark(round: &Drafting) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn a_push_carries_the_room_s_words_and_the_instructions_in_one_paragraph() {
+async fn a_push_carries_the_room_s_words_and_the_instructions_as_data_under_a_marker() {
   const INSTRUCTION: &str = "a quiet instruction from the service";
 
   let session = StandInSession::new(SESSION, "unscripted");
@@ -1801,7 +1802,6 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_in_one_paragraph()
     consumed: Some(1),
     tools_allowed: true,
     reader: None,
-    judged: true,
     announced: true,
   })
   .await
@@ -1810,17 +1810,31 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_in_one_paragraph()
   let push = &CHAT_ROUND.push;
   let at = |part: &str| text.find(part).unwrap_or_else(|| panic!("{part:?} stands in {text}"));
 
-  assert!(text.contains(&push.judge), "the rule each message is judged by: {text}");
-  assert!(text.contains(&push.heed), "how the instructions are taken: {text}");
-  assert!(text.contains("<<SEPARATE #<number>>>") && text.contains("<<DONE #<number>>>"), "{text}");
+  assert!(text.starts_with(&push.marker), "the marker names the push: {text}");
+  assert!(
+    text.contains(&fill_marks(&push.messages, &[("count", "1")]))
+      && text.contains(&fill_marks(&push.instructions, &[("count", "1")])),
+    "what arrived stands as data: {text}"
+  );
   assert!(text.contains(SHORT) && text.contains("tester"), "the message with its sender: {text}");
   assert!(
     text.contains(&fill_marks(&push.scope, &[("ids", "[2]")])),
     "its number joins the scope: {text}"
   );
-  assert!(at(&push.judge) < at(SHORT), "the rule stands before the words");
+  assert!(!text.contains(&push.rule), "no instruction sentence stands in the turn: {text}");
+  assert!(
+    !text.contains("<<SEPARATE #<number>>>") && !text.contains("<<DONE #<number>>>"),
+    "the marks are the room block's to name: {text}"
+  );
   assert!(at(SHORT) < at(INSTRUCTION), "the messages stand before the instructions");
   assert_eq!(built.instructions, INSTRUCTION);
+
+  let block = room_context(receiver, OWNER, None).await.unwrap().text;
+
+  assert!(
+    block.contains(&fill_marks(&push.rule, &[("marker", &push.marker)])),
+    "the room's block carries what the marker means"
+  );
 }
 
 /// A room that is not the owner's private chat, on the same chat service.
@@ -2025,7 +2039,9 @@ async fn words_pushed_with_no_mark_are_the_round_s_own_and_shown_no_more() {
 
   assert_eq!(pushes.len(), 1, "{pushes:?}");
   assert!(
-    pushes[0].2.contains(SHORT) && pushes[0].2.contains(&CHAT_ROUND.push.judge),
+    pushes[0].2.contains(SHORT)
+      && pushes[0].2.contains(&CHAT_ROUND.push.marker)
+      && !pushes[0].2.contains(&CHAT_ROUND.push.rule),
     "{}",
     pushes[0].2
   );
@@ -2100,7 +2116,11 @@ async fn words_pushed_into_a_later_question_are_the_round_s_and_stand_under_no_q
   let pushes = round.standing.agency.pushes.lock().unwrap().clone();
 
   assert!(pushes[0].2.contains(BETWEEN), "{}", pushes[0].2);
-  assert!(!pushes[0].2.contains(&CHAT_ROUND.push.heed), "a later question takes no instruction");
+  assert!(
+    !pushes[0].2.contains(&CHAT_ROUND.push.rule),
+    "a later question takes no instruction in its turn: {}",
+    pushes[0].2
+  );
   assert!(!prompts[2].contains(BETWEEN), "the third question does not carry them again");
   assert_eq!(prompts.len(), 3, "the words call no round of their own");
   assert_eq!(round.sent().len(), 1);

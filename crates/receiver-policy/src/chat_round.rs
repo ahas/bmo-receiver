@@ -24,10 +24,16 @@ pub struct Kinds {
 #[serde(deny_unknown_fields)]
 pub struct Voice {
   pub emotions: Vec<String>,
-  /// The quiet instruction a notice turn's summary is asked in, `{line}` the line the turn sent.
+  /// The marker a notice turn's summary carries, the line it reads as data, and the rule the marker stands for
+  /// in the room's block, `{line}` the line the turn sent.
+  pub summary_marker: String,
   pub summary: String,
-  /// The quiet instruction a line's full reading is asked in, `{line}` the line.
+  pub summary_rule: String,
+  /// The marker a line's full reading carries, the line it reads as data, and the rule the marker stands for in
+  /// the room's block, `{line}` the line.
+  pub reading_marker: String,
   pub reading: String,
+  pub reading_rule: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -148,11 +154,14 @@ pub struct QueueLine {
   pub rule: String,
 }
 
-/// The answer one room sent back to another, as a quiet instruction.
+/// The answer one room sent back to another, as a quiet instruction: its marker, its data and the rule the
+/// marker stands for in the room's block.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Relay {
+  pub marker: String,
   pub answer: String,
+  pub rule: String,
 }
 
 /// A send asked outside its agent's own round, handed to the room's supervisor as an order: who handed it, each
@@ -161,6 +170,9 @@ pub struct Relay {
 #[serde(deny_unknown_fields)]
 pub struct Handed {
   pub sort: String,
+  /// The marker the handed words carry, and the rule it stands for in the room's block.
+  pub marker: String,
+  pub rule: String,
   pub job: String,
   pub agent: String,
   pub nobody: String,
@@ -177,17 +189,17 @@ pub struct Handed {
   pub answered: String,
 }
 
-/// The paragraph words pushed into a working turn are wrapped in.
+/// What words pushed into a working turn carry: the marker that names the push, what arrived as data, and the
+/// rule the room's block carries for a turn marked with it.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Push {
-  pub note: String,
-  pub judge: String,
-  pub heed: String,
+  pub marker: String,
   pub messages: String,
   pub instructions: String,
   pub joined: String,
   pub scope: String,
+  pub rule: String,
 }
 
 /// How often a working turn is offered the words that came for its room, and how long it is offered none after
@@ -215,7 +227,11 @@ pub struct Instructions {
   pub watch_ms: u64,
   pub cold_wake_gap_ms: i64,
   pub restart_limit: i64,
+  /// The marker a row given back by a restart carries, its line as data, and the rule the marker stands for in
+  /// the room's block.
+  pub restarted_marker: String,
   pub restarted: String,
+  pub restarted_rule: String,
   pub room_removed: String,
 }
 
@@ -238,7 +254,11 @@ pub struct Typing {
 #[serde(deny_unknown_fields)]
 pub struct Console {
   pub sort: String,
+  /// The marker the owner's console words carry, their text as data, and the rule the marker stands for in the
+  /// room's block.
+  pub marker: String,
   pub instruction: Vec<String>,
+  pub rule: String,
 }
 
 /// A line typed into the default answerer's program: the number it is shown under and the lead ahead of its round.
@@ -247,7 +267,11 @@ pub struct Console {
 pub struct Typed {
   pub number: i64,
   pub nameless: String,
+  /// The marker a typed line's turn carries, the lead as data, and the rule the marker stands for in the room's
+  /// block.
+  pub marker: String,
   pub lead: String,
+  pub rule: String,
 }
 
 #[derive(Debug, Deserialize)]

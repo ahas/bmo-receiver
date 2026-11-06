@@ -1,10 +1,10 @@
 //! Words that arrive while a round's turn is working, put into that turn at its next look rather than held for
 //! the next round (the agency's `docs/agent-control.md`, 「Words that arrive while a turn is working」;
-//! docs/bmo-window.md, 「The openings」, `push`): the one paragraph they go in as — what arrived, that only what is
-//! written after it goes out, the rule each message is judged by and how the instructions are taken, the messages
-//! and instructions formatted and cleaned exactly as a round's own are. The same paragraph, without the rule the
-//! room's block already states, stands under a question of the draft process for the words no push put in
-//! (docs/drafting.md, 「What came in meanwhile」).
+//! docs/bmo-window.md, 「The openings」, `push`): the one paragraph they go in as — the short marker that names the
+//! push and what arrived, as data; the rule the marker stands for, how each message is judged and how the
+//! instructions are taken, stands in the room's block. The messages and instructions are formatted and cleaned
+//! exactly as a round's own are. The same data, without the marker, stands under a question of the draft process
+//! for the words no push put in (docs/drafting.md, 「What came in meanwhile」).
 
 use std::collections::HashSet;
 
@@ -35,11 +35,8 @@ pub struct Push<'a> {
   pub consumed: Option<i64>,
   pub tools_allowed: bool,
   pub reader: Option<&'a Roads>,
-  /// Whether the paragraph carries the rule each message is judged by: a push into a working turn does, and a
-  /// block under a question leans on the rules the room's block states.
-  pub judged: bool,
-  /// Whether the paragraph opens on the note saying what arrived. A push into a working turn does; a block the
-  /// draft process shows carries the messages as data, its rule standing in the room's block.
+  /// Whether the paragraph opens on the marker and the counts saying what arrived. A push into a working turn
+  /// does; a block the draft process shows carries the messages as data, with no marker of its own.
   pub announced: bool,
 }
 
@@ -51,9 +48,9 @@ pub struct Paragraph {
   pub reference: Vec<String>,
 }
 
-/// The paragraph's opening: what arrived and that only what is written after it goes out; then, where messages
-/// came and `judged` asks for it, the rule each is judged by, and where instructions came, how they are taken.
-pub fn note(messages: usize, instructions: usize, judged: bool) -> String {
+/// The paragraph's opening, as data: the marker that names the push and what arrived. What the marker means
+/// stands in the room's block.
+pub fn note(messages: usize, instructions: usize) -> String {
   let push = &CHAT_ROUND.push;
   let mut what = vec![];
 
@@ -65,17 +62,11 @@ pub fn note(messages: usize, instructions: usize, judged: bool) -> String {
     what.push(fill_marks(&push.instructions, &[("count", &instructions.to_string())]));
   }
 
-  let mut note = vec![fill_marks(&push.note, &[("what", &what.join(&push.joined))])];
-
-  if judged && messages > 0 {
-    note.push(push.judge.clone());
+  if what.is_empty() {
+    return String::new();
   }
 
-  if instructions > 0 {
-    note.push(push.heed.clone());
-  }
-
-  note.join(" ")
+  format!("{}\n{}", push.marker, what.join(&push.joined))
 }
 
 /// The paragraph the push's words go into the working turn as.
@@ -90,7 +81,7 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
     shown: &shown,
   };
   let mut parts = if push.announced {
-    vec![note(sends(push.messages).len(), push.instructions.len(), push.judged)]
+    vec![note(sends(push.messages).len(), push.instructions.len())]
   } else {
     vec![]
   };

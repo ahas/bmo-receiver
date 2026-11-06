@@ -265,9 +265,10 @@ flowchart TD
     caption beside it, and handed to the room's other providers as a voice message with that caption. The
     console records it; no reading of it is made, so what it says stands only in the recording. A call with
     no file, more than one, or one that is no sound is refused 400, and a file past the ceiling 413.
-- **`POST /owner/instructions` says the owner's words to a room's session**, framed as the owner speaking from the console,
-  read for secret-shaped runs first (`docs/messages.md`, 「Secrets taken out」) and delivered as a quiet instruction, so the room sees nothing but the answer it leads to; a chat the archive has
-  never seen is refused.
+- **`POST /owner/instructions` says the owner's words to a room's session**, marked as the owner speaking from the
+  console and carrying his text as data, read for secret-shaped runs first (`docs/messages.md`, 「Secrets taken
+  out」) and delivered as a quiet instruction, with the rule the marker stands for in the room's block, so the
+  room sees nothing but the answer it leads to; a chat the archive has never seen is refused.
 
 ## The event stream
 

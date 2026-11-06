@@ -631,7 +631,6 @@ impl Run<'_> {
       consumed: self.held.last_consumed_id,
       tools_allowed: drafted.tools_allowed,
       reader: Some(receiver.roads()),
-      judged: false,
       announced: false,
     })
     .await;

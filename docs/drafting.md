@@ -221,9 +221,10 @@ leaves.
 
 - **Words that come while a question works go into that turn.** From the round's own turn to the question that
   writes the message, words the room queue hands over while a turn of the process works are pushed into it at its
-  next look (`docs/bmo-window.md`, `push`): the agent's program takes them between tool calls, and the agent judges
-  each against the answer it is making. The round's own turn takes the quiet instructions delivered meanwhile in
-  the same paragraph; a later question takes the room's words alone.
+  next look (`docs/bmo-window.md`, `push`): the paragraph carries the push's marker and the words as data, what
+  the marker means standing in the room's block, and the agent's program takes them between tool calls. The
+  round's own turn takes the quiet instructions delivered meanwhile in the same paragraph; a later question
+  takes the room's words alone.
 - **What no push put in reaches the agent at a question boundary.** Words that came between two turns, words a
   turn refused or whose provider takes no words while it works, and words that came while the push was held back
   wait in the room's buffer. Each time an answer of the process comes back, the receiver takes what waited since

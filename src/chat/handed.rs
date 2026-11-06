@@ -147,9 +147,13 @@ pub async fn hand(
   asked: &str,
 ) -> Result<Handing, NotReceived> {
   let asked = secrets::redacted(asked);
-  let text = fill_marks(
-    &CHAT_ROUND.handed.instruction,
-    &[("room", &chat_id.to_string()), ("who", &who(asker)), ("asked", &asked)],
+  let text = format!(
+    "{}\n{}",
+    CHAT_ROUND.handed.marker,
+    fill_marks(
+      &CHAT_ROUND.handed.instruction,
+      &[("room", &chat_id.to_string()), ("who", &who(asker)), ("asked", &asked)],
+    )
   );
   let summary = asked.lines().next().unwrap_or_default().to_owned();
   let queued = Queued {

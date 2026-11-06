@@ -39,7 +39,7 @@ pub fn message(text: &str, room: i64, owner: i64, name: &str, at_ms: i64) -> Inb
 pub fn context(composed: &str) -> String {
   let lead = fill_marks(&CHAT_ROUND.typed.lead, &[("number", &CHAT_ROUND.typed.number.to_string())]);
 
-  format!("{lead}\n\n{composed}")
+  format!("{}\n{lead}\n\n{composed}", CHAT_ROUND.typed.marker)
 }
 
 // The default answerer's conversations compose a line typed into its program.

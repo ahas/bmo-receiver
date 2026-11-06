@@ -307,9 +307,10 @@ agent last answered there:
 - **`push`**: what came for the room while a turn of its round works, put into that turn at its next look, where
   the agent's program takes it between tool calls.
   - **What it carries.** The room's words the room queue handed over since the turn went out, and the quiet
-    instructions delivered meanwhile, in one paragraph: what arrived, the rule the agent judges each message by,
-    the messages as a round's block renders them, each with its sender, its words and its number, the numbers
-    named as added to the turn's scope, then the instructions in their own block. No piece goes in with it: the
+    instructions delivered meanwhile, in one paragraph: the short marker that names the push, what arrived as
+    data, the messages as a round's block renders them, each with its sender, its words and its number, the
+    numbers named as added to the turn's scope, then the instructions in their own block. No instruction
+    sentence stands in it: what the marker means stands in the room's block. No piece goes in with it: the
     brain's index went in with the room's block at session opening.
   - **Only this room's words.** The push takes its messages from the room's own conversation, keyed by its chat
     id, and its quiet instructions from that same room's rows: another room's message or instruction never joins
@@ -326,13 +327,13 @@ agent last answered there:
   - **The round's privilege holds.** The room's words go in only where they keep the round's standing, read as
     the question boundary reads it (`docs/drafting.md`, 「What came in meanwhile」); the others wait and open the
     round after.
-  - **The judgement is the agent's.** The paragraph says the words arrived while this answer was being made and
-    that each is judged on its own: a message that asks something new or changes what was asked is answered in
+  - **The judgement is the agent's.** The room's block says, for the marker, that the words arrived while this
+    answer was being made and that each is judged on its own: a message that asks something new or changes what was asked is answered in
     the reply being made, a cancellation or a correction heeded at once, the work it cancels stopped and the
     reply saying so; a message that needs an answer of its own that does not fit this reply is held with
     `<<SEPARATE #<number>>>`; a message that only continues or restates what this reply already answers is set
-    aside with `<<DONE #<number>>>`. It also says that only what is written after it goes out, so the reply is
-    written whole after it whatever the agent decides.
+    aside with `<<DONE #<number>>>`. The block also says that only what is written after the marker goes out,
+    so the reply is written whole after it whatever the agent decides.
   - **How the round settles each pushed message.** A pushed message is shown to the round as one under a
     question is, and the round settles it by the marks its answers set (`docs/drafting.md`, 「What came in
     meanwhile」): one marked neither way is the round's own, answered or heeded by its message, the read mark
@@ -397,9 +398,10 @@ flowchart TD
     room's block where the session does not hold it;
   - the turn scope and the line itself as the one new message; the closing rules, the queue rule and the
     brain's rule stand in the room's block;
-  - headed by a line saying the owner typed it into the program, that its number `#0` is no message of the
-    archive, that the answer is read on that screen and goes to no room, and that a composition the program
-    keeps in a file is read whole before answering.
+  - headed by a marker and, as data, the line saying the owner typed it into the program and that its number
+    `#0` is no message of the archive; the rule the marker stands for — that the answer is read on that screen
+    and goes to no room, and that a composition the program keeps in a file is read whole before answering —
+    stands in the room's block.
 - **How it reaches the model:** the agency asks the `typed-line` hook with the line and the session, and the
   program puts the composition beside the line as the hook's added context; the model reads the line as typed
   and the composition carrying it, never the composition alone.

@@ -24,6 +24,7 @@ use crate::integration::common::units::{
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
 use bmo_receiver::verbs::asked_sends::shell_asker;
+use receiver_policy::chat_round::CHAT_ROUND;
 use room_calls::sends::{Act, Asked, SayInput};
 
 const TOKEN: &str = "the-token";
@@ -137,9 +138,13 @@ async fn a_say_a_command_asks_outside_any_turn_becomes_an_order_for_the_rooms_su
   let (agent, room, sort, text) = &orders[0];
 
   assert_eq!((agent.as_str(), *room, sort.as_str()), (AGENT, ROOM, "handed"));
+  assert!(text.starts_with(&CHAT_ROUND.handed.marker), "{text}");
   assert!(text.contains("a line: The build is green."), "{text}");
   assert!(text.contains("a process outside any agent's turn, through bmo room say"), "{text}");
-  assert!(text.contains("your rule for handed lines"), "{text}");
+  assert!(
+    !text.contains(&CHAT_ROUND.handed.rule),
+    "the turn carries only the marker and its data; the rule stands in the room's block: {text}"
+  );
 }
 
 #[tokio::test]

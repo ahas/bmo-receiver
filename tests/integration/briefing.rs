@@ -14,6 +14,8 @@ use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::fill_marks;
 use serde_json::json;
 use tempfile::tempdir;
 
@@ -299,7 +301,20 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
   let prompts = owner.session.prompts();
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
-  assert!(prompts[1].contains("spoken to the owner as a voice briefing"), "{}", prompts[1]);
+  assert!(
+    prompts[0].contains(&fill_marks(
+      &CHAT_ROUND.voice.summary_rule,
+      &[("marker", &CHAT_ROUND.voice.summary_marker)]
+    )),
+    "the room's block says what the marker asks for: {}",
+    prompts[0]
+  );
+  assert!(
+    prompts[1].contains(&CHAT_ROUND.voice.summary_marker)
+      && !prompts[1].contains(&CHAT_ROUND.voice.summary_rule),
+    "the summary turn carries the marker and its line, no instruction: {}",
+    prompts[1]
+  );
   assert!(prompts[1].contains("The nightly backup finished."));
 
   let briefed = owner.standing.voice.briefed();
