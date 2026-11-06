@@ -282,16 +282,19 @@ room = "the room"
 archive = "the room's archive"
 
 # The room's situation note, updated by one light turn in every round with words, before its judgement or its own
-# turn (docs/drafting.md, 「The situation note」), the owner's private chat included: the most the note may hold,
-# what the update is asked, and the lines the note as it stands and the messages that came in since it last read
-# the room's record stand under.
+# turn (docs/drafting.md, 「The situation note」), the owner's private chat included: the instruction the room's
+# block carries once per session, the mark the note turn carries, and the lines the note as it stands and the
+# messages that came in since it last read the room's record stand under.
 [situation]
 ceiling_chars = 600
 # The most messages that may stand between the note's mark and the newest before the update reads the newest this
 # many alone instead of the whole gap, so a room left long is caught up from its latest words; 0 reads every
 # message since the mark.
 gap_messages = 200
-head = "This round writes the room's situation note and nothing else: nothing written here is sent to the room, nobody is answered and no reply is written. Write an analysis of the room as it stands now, from the note as it stands and the messages that came in since it was written: what this room is about, what has been talked about and settled so far, who is talking with whom, who waits on whom, what you have yourself been asked or promised, and what is still to be done. Then judge the new lines against that state: what they change, and how it is best answered — the course to take, never the message itself. Never copy a message and never restate your own answer: write an analysis in your own words, not a sentence from the room, and write no first-person claim that you replied, sent, attached, fixed or answered anything, whether it is fresh in your words or copied from the room. Only a message the room's record holds counts as sent, and where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
+# What the note turn is asked, said once in the room's block (the session's system prompt); {ceiling} is the most
+# the note may hold.
+instruction = "The situation-note turn writes the room's situation note and nothing else: nothing written in it is sent to the room, nobody is answered and no reply is written. Write an analysis of the room as it stands now, from the note as it stands and the messages that came in since it was written: what this room is about, what has been talked about and settled so far, who is talking with whom, who waits on whom, what you have yourself been asked or promised, and what is still to be done. Then judge the new lines against that state: what they change, and how it is best answered — the course to take, never the message itself. Never copy a message and never restate your own answer: write an analysis in your own words, not a sentence from the room, and write no first-person claim that you replied, sent, attached, fixed or answered anything, whether it is fresh in your words or copied from the room. Only a message the room's record holds counts as sent, and where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
+marker = "SITUATION NOTE — write the room's note."
 previous = "The room's situation note as it stands:"
 front = "The room's state and the course this answer takes, as the note round left them, ahead of the room's words:"
 none = "There is no situation note for this room yet."

@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use regex::Regex;
@@ -486,7 +487,19 @@ async fn stages(receiver: &Receiver) -> Result<String, Fault> {
     }
   }
 
+  // The send clause a round's line now carries only as a permission word: what a send does and the voice a
+  // message is written in stand here once.
+  parts.push(fill_marks(&DRAFTING.send, &[("voice", &DRAFTING.voice)]));
+
   Ok(parts.join("\n"))
+}
+
+// The situation-note instruction, as the room's block carries it (docs/drafting.md, 「The situation note」): the
+// policy's text with its character ceiling.
+fn situation_instruction() -> String {
+  let said = &CHAT_ROUND.situation;
+
+  fill_marks(&said.instruction, &[("ceiling", &said.ceiling_chars.to_string())])
 }
 
 /// The room's block a turn in a room carries, answering on the road it was asked on where that road reaches
@@ -512,6 +525,7 @@ pub async fn room_context(
     said.replaces.clone(),
     said.process.clone(),
     stages(receiver).await?,
+    situation_instruction(),
     said.voice.clone(),
   ];
 

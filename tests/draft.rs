@@ -10,6 +10,7 @@ use bmo_receiver::chat::draft::{Plan, question_words, read_answer, record_errand
 use bmo_receiver::chat::prompt::Scope;
 use bmo_receiver::receiver::Inbound;
 use receiver_policy::drafting::DRAFTING;
+use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
 
 fn scope() -> Scope {
@@ -81,7 +82,7 @@ fn an_item_closes_on_the_turn_s_scope_and_what_waits() {
 }
 
 #[test]
-fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
+fn a_round_names_its_place_and_whether_it_may_send() {
   let plan = Plan {
     questions: [("information", "what?"), ("facts", "true?"), ("final", "write it")]
       .map(|(name, text)| (name.to_owned(), text.to_owned()))
@@ -93,24 +94,21 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
   let second = question_words("facts", 2, 3, &plan.send_line(1));
   let last = question_words("final", 3, 3, &plan.send_line(2));
 
-  assert!(first.contains("question 1 of 3 (intent)"));
+  assert_eq!(first, "Round 1/3 (intent): NOTES");
+  assert_eq!(second, "Round 2/3 (facts): SEND");
+  assert_eq!(last, "Round 3/3 (final): SEND");
   assert!(!first.contains("why?"), "a turn carries no question text: {first}");
-  assert!(!first.contains("TURN SCOPE"), "a later question carries no turn scope: {first}");
-  assert!(
-    first.contains("writes no message of its own") && !first.contains("<<SEND>>"),
-    "a question before the message question writes no message: {first}"
-  );
-  assert!(!first.contains(&DRAFTING.voice), "a notes question asks for no voice: {first}");
-  assert!(
-    second.contains("begin the answer with <<SEND>>"),
-    "a send is read from facts on: {second}"
-  );
-  assert!(last.contains("3 of 3 (final)") && last.contains("the message"));
+  assert!(!first.contains("TURN SCOPE"), "a later round carries no turn scope: {first}");
   assert!(!plan.send_open(0) && plan.send_open(1) && plan.send_open(2));
+  assert!(DRAFTING.send.contains("<<SEND>>") && DRAFTING.send.contains("reviewed before it goes out"));
+  assert!(
+    fill_marks(&DRAFTING.send, &[("voice", &DRAFTING.voice)]).contains(&DRAFTING.voice),
+    "what a send does and the voice it carries stand in the block"
+  );
 }
 
 #[test]
-fn every_question_whose_answer_may_be_the_message_asks_for_the_rooms_voice_and_notes_stay_notes() {
+fn the_rooms_voice_stands_in_the_block_and_notes_stay_notes() {
   let plan = Plan {
     questions: [("information", "what?"), ("facts", "true?"), ("final", "write it")]
       .map(|(name, text)| (name.to_owned(), text.to_owned()))
@@ -123,41 +121,33 @@ fn every_question_whose_answer_may_be_the_message_asks_for_the_rooms_voice_and_n
   let last = question_words("final", 3, 3, &plan.send_line(2));
 
   assert!(DRAFTING.voice.contains("voice") && DRAFTING.voice.contains("never as notes"));
-  assert!(
-    facts.contains(&DRAFTING.voice),
-    "the send-from question asks for the room's voice: {facts}"
-  );
-  assert!(last.contains(&DRAFTING.voice), "the last question asks for it: {last}");
-  assert!(DRAFTING.questions["final"].contains("your persona sets"), "final's own text says so");
   assert!(DRAFTING.voice.contains("your persona sets") && DRAFTING.voice.contains("register"));
-  assert!(!notes.contains(&DRAFTING.voice), "a notes question says nothing of the voice: {notes}");
   assert!(
-    !plan.first_words().unwrap_or_default().contains(&DRAFTING.voice),
-    "the first question, before the send-from one, names no voice; a message sent there is still the message"
+    fill_marks(&DRAFTING.send, &[("voice", &DRAFTING.voice)]).contains(&DRAFTING.voice),
+    "the block says the voice once"
   );
+  assert!(DRAFTING.questions["final"].contains("your persona sets"), "final's own text says so");
+
+  for words in [notes, facts, last, plan.first_words().unwrap_or_default()] {
+    assert!(!words.contains(&DRAFTING.voice), "no turn repeats the voice: {words}");
+  }
 }
 
 #[test]
-fn the_first_question_opens_on_the_opening_unless_it_is_the_last() {
+fn the_first_round_and_the_single_light_round_are_one_word_apart_from_the_block() {
   let plan = |names: &[&str]| Plan {
     questions: names.iter().map(|name| ((*name).to_owned(), format!("ask {name}"))).collect(),
     ..Plan::default()
   };
   let three = plan(&["intent", "information", "final"]);
   let one = plan(&["final"]);
-  let head = DRAFTING.opening.split('{').next().unwrap_or_default();
 
   assert!(three.questioned() && !one.questioned() && !Plan::default().questioned());
-  assert!(three.first_words().is_some_and(|words| {
-    words.contains(head)
-      && words.contains(&DRAFTING.voice)
-      && words.contains("1 of 3 (intent)")
-      && !words.contains("ask intent")
-  }));
+  assert_eq!(three.first_words().as_deref(), Some("Round 1/3 (intent): SEND"));
+  assert_eq!(one.first_words().as_deref(), Some("Round 1/1 (final): SEND"));
   assert!(
-    one
-      .first_words()
-      .is_some_and(|words| words.contains("1 of 1 (final)") && !words.contains(head))
+    !three.first_words().unwrap_or_default().contains("ask intent"),
+    "the question text stands in the block"
   );
   assert_eq!(Plan::default().first_words(), None);
 }
@@ -263,13 +253,15 @@ fn a_round_turn_carries_only_its_place_never_the_stage_s_instruction_text() {
   let three = plan(&["intent", "information", "final"]).first_words().unwrap();
   let process = &receiver_policy::chat_line::CHAT_LINE.room.process;
 
-  // The text a round adds to a turn is its place, its send line and, where its answer may be the message, the
-  // room's voice: a few hundred characters at most. The question's own text never rides it.
-  assert!(one.trim().chars().count() <= 350, "{} characters: {one}", one.chars().count());
-  assert!(three.trim().chars().count() <= 650, "{} characters: {three}", three.chars().count());
+  // The text a round adds to a turn is its place, its name and one word of send permission: a few dozen
+  // characters at most. The question's own text, what a send does and the voice never ride it.
+  assert!(one.trim().chars().count() <= 60, "{} characters: {one}", one.chars().count());
+  assert!(three.trim().chars().count() <= 60, "{} characters: {three}", three.chars().count());
   assert!(!one.contains(&DRAFTING.questions["final"]), "{one}");
   assert!(!three.contains(&DRAFTING.questions["intent"]), "{three}");
-  assert!(three.contains("1 of 3 (intent)") && one.contains("1 of 1 (final)"));
+  assert!(!one.contains(&DRAFTING.voice) && !three.contains(&DRAFTING.voice));
+  assert_eq!(three, "Round 1/3 (intent): SEND");
+  assert_eq!(one, "Round 1/1 (final): SEND");
 
   for rule in [
     "<<DONE #<number>>>",
@@ -295,20 +287,27 @@ fn a_later_round_carries_its_place_and_permission_never_the_question_text() {
   let notes = question_words("facts", 1, 2, &plan.send_line(0));
   let message = question_words("final", 2, 2, &plan.send_line(1));
 
-  assert!(notes.contains("1 of 2 (facts)") && notes.contains("may write the message"), "{notes}");
+  assert_eq!(notes, "Round 1/2 (facts): SEND");
+  assert_eq!(message, "Round 2/2 (final): SEND");
   assert!(!notes.contains(&DRAFTING.questions["facts"]), "{notes}");
-  assert!(message.contains("2 of 2 (final)") && !message.contains(&DRAFTING.questions["final"]));
+  assert!(!message.contains(&DRAFTING.questions["final"]));
   assert!(!notes.contains("TURN SCOPE") && !message.contains("TURN SCOPE"));
+
+  let sending = Plan {
+    send_from_at: 1,
+    ..plan
+  };
+  let notes_only = question_words("facts", 1, 2, &sending.send_line(0));
+
+  assert_eq!(notes_only, "Round 1/2 (facts): NOTES");
 }
 
 #[test]
-fn the_message_question_is_named_for_the_message_and_never_for_its_place_in_the_process() {
-  let lead = &DRAFTING.last_lead;
-
-  assert!(lead.contains("The message question"), "{lead}");
-  assert!(!lead.contains("last question"), "{lead}");
-  assert!(lead.contains("reviewed before it goes out"), "{lead}");
-  assert!(!lead.contains("sent to the room as you write it"), "{lead}");
+fn a_message_round_is_named_by_its_stage_and_the_block_says_what_a_send_does() {
+  assert_eq!(DRAFTING.last_lead, "Round {number}/{count} ({name}): {send}");
+  assert!(!DRAFTING.last_lead.contains("The message question"), "{}", DRAFTING.last_lead);
+  assert!(DRAFTING.send.contains("reviewed before it goes out"), "{}", DRAFTING.send);
+  assert!(DRAFTING.send.contains("<<SEND>>"), "{}", DRAFTING.send);
   assert!(!DRAFTING.send_open.contains("sent to this room as written"), "{}", DRAFTING.send_open);
   assert!(
     !DRAFTING.send_closed.contains("sent to this room as written"),

@@ -74,20 +74,18 @@ impl Plan {
     at >= self.send_from_at
   }
 
-  /// What a question's turn says of the send marker: that a send is read at this question, or from which
-  /// question on it is.
+  /// The one-word permission a round's line carries: that a send is read at this round, or that it writes notes
+  /// only. What a send does stands in the room's block.
   pub fn send_line(&self, at: usize) -> String {
     if self.send_open(at) {
-      return fill_marks(&DRAFTING.send_open, &[("voice", &DRAFTING.voice)]);
+      DRAFTING.send_open.clone()
+    } else {
+      DRAFTING.send_closed.clone()
     }
-
-    let name = self.questions.get(self.send_from_at).map(|(name, _)| name.as_str()).unwrap_or_default();
-
-    fill_marks(&DRAFTING.send_closed, &[("from", &(self.send_from_at + 1).to_string()), ("name", name)])
   }
 
-  /// What the first round adds to the round's turn, where the process asks any: its line, naming its place, its
-  /// name and what it may write. The question's own text stands in the room's block, never in the turn. The
+  /// What the first round adds to the round's turn, where the process asks any: its place, its name and whether
+  /// it may send. The question's own text and what a send does stand in the room's block, never in the turn. The
   /// turn's own scope stands in it already.
   pub fn first_words(&self) -> Option<String> {
     let (name, _) = self.questions.first()?;
@@ -97,13 +95,7 @@ impl Plan {
 
     Some(fill_marks(
       lead,
-      &[
-        ("number", "1"),
-        ("count", &count.to_string()),
-        ("name", name),
-        ("send", &send),
-        ("voice", &DRAFTING.voice),
-      ],
+      &[("number", "1"), ("count", &count.to_string()), ("name", name), ("send", &send)],
     ))
   }
 }
@@ -122,8 +114,8 @@ pub fn read_answer(text: &str) -> (String, Answered) {
   }
 }
 
-/// The line of a later round: its place, its name and what it may write. The question's own text stands in the
-/// room's block, never in the turn.
+/// The line of a later round: its place, its name and whether it may send. The question's own text and what a
+/// send does stand in the room's block, never in the turn.
 pub fn question_words(name: &str, number: usize, count: usize, send: &str) -> String {
   let lead = if number == count { &DRAFTING.last_lead } else { &DRAFTING.lead };
 
@@ -134,7 +126,6 @@ pub fn question_words(name: &str, number: usize, count: usize, send: &str) -> St
       ("count", &count.to_string()),
       ("name", name),
       ("send", send),
-      ("voice", &DRAFTING.voice),
     ],
   )
 }
@@ -779,7 +770,16 @@ impl Drafter {
       held,
       drafted,
       spoken: drafted.reply.run.clone().into_iter().collect(),
-      asked: plan.questions.first().map(|(_, text)| text.clone()).into_iter().collect(),
+      // The format check forbids the process's own lines in the final text: the question texts and the round
+      // lines each as they were asked.
+      asked: {
+        let mut asked: Vec<String> =
+          plan.questions.first().map(|(_, text)| text.clone()).into_iter().collect();
+
+        asked.extend(plan.first_words());
+
+        asked
+      },
       latest: drafted.reply.clone(),
       log: Log::new(conversations, drafted.round, chat, agent),
       shown: drafted.pushed.to_vec(),
@@ -837,6 +837,7 @@ impl Drafter {
       let mut words = question_words(name, number, count, &send);
 
       run.asked.push(text.clone());
+      run.asked.push(words.clone());
 
       // The room's words that waited since the last answer stand under this question.
       let block = run.arrived().await;

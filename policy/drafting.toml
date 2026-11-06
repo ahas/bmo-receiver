@@ -2,24 +2,22 @@
 # turn, the table that says which, the lines a question turn is written in and the longest final text. The
 # console's rows and texts stand over these (`GET`/`PUT /draft-processes`, `GET`/`PUT /draft-questions`).
 
-# The lines a question turn is written in. A turn names only which round it is and what that round may write; the
-# question's own text is assembled into the room's block (the session's system prompt) from `[questions]` below
-# and the console's rows. `opening` opens the first round, which rides the round's own turn, where it is not also
-# the last. `lead` opens every later round but the last, `last_lead` the last; `{number}` is the round's place,
-# `{count}` how many the process asks and `{name}` the question's name. `{send}` in the opening and the lead is
-# `send_open` where a send is read at the round and `send_closed` where it is not, `{from}` and `{name}` there the
-# place and the name of the round a send is read from. `waiting` closes every later round but the last, `{ids}`
-# the messages waiting for the round. `arrived` opens the one closing check asked once the message stands, where
-# messages arrived after the last round went out. An answer opening on <<SEND>> is the message, what follows the
-# marker, wherever it stands; <<SKIP>> anywhere in an answer ends the process with nothing sent; <<DONE #<number>>>
-# and <<SEPARATE #<number>>> mark a message shown to the round as needing no answer or as answered in a round of
-# its own. `{voice}` in `send_open`, `last_lead` and `arrived` is `voice`: an answer that may be the message is
-# written in the voice the persona sets for the person answered, not as notes.
-opening = "This round's question {number} of {count} ({name}), the first. {send}"
-lead = "The process asks question {number} of {count} ({name}). {send}"
-send_open = "This round may write the message itself: begin the answer with <<SEND>> where what you now hold is enough, what follows it is the message, reviewed before it goes out, and the questions end there. {voice}"
-send_closed = "This round writes no message of its own: answer with notes the message round builds on."
-last_lead = "The message question, {number} of {count} ({name}). Your answer to it is the message: it is reviewed before it goes out. <<SKIP>> sends nothing. {voice}"
+# The lines a round turn is written in. A turn shows only which round it is and whether that round may send; the
+# question's own text, what a send does and the voice a message is written in are assembled into the room's block
+# (the session's system prompt). `opening` opens the first round, which rides the round's own turn, `lead` every
+# later round but the last, `last_lead` the last; `{number}` is the round's place, `{count}` how many the process
+# asks, `{name}` the question's name, and `{send}` the permission `send_open` or `send_closed`. `waiting` closes
+# every later round but the last, `{ids}` the messages waiting for the round. `arrived` opens the one closing
+# check asked once the message stands, where messages arrived after the last round went out. An answer opening on
+# <<SEND>> is the message, what follows the marker, wherever it stands; <<SKIP>> anywhere in an answer ends the
+# process with nothing sent; <<DONE #<number>>> and <<SEPARATE #<number>>> mark a message shown to the round as
+# needing no answer or as answered in a round of its own. `{voice}` in `send` and `arrived` is `voice`: an answer
+# that may be the message is written in the voice the persona sets for the person answered, not as notes.
+opening = "Round {number}/{count} ({name}): {send}"
+lead = "Round {number}/{count} ({name}): {send}"
+send_open = "SEND"
+send_closed = "NOTES"
+last_lead = "Round {number}/{count} ({name}): {send}"
 waiting = "Messages waiting in the room: {ids}. They are shown with the next question; do not answer them now."
 arrived = "Messages arrived after your last answer and before the message went out. The message as it stands is shown below, then the messages that arrived, each with its number. Answer with the message as it should now go out, whole: it takes the standing message's place, so write all of it, not only what changes or what it adds, its fold mark with it where it is to fold under the rule for folding you were given. Answer with nothing but the marks to send the standing message unchanged. <<DONE #<number>>> marks a message that needs no answer, <<SEPARATE #<number>>> one to be answered in a round of its own after this one, <<REPLY #<number>>> the one your message answers where it is to go out as a reply to it, under the rule for replies you were given; <<SKIP>> sends nothing. {voice}"
 standing = "The message as it stands:"
@@ -31,6 +29,9 @@ voice = "Write what may be the message as the message itself, in the voice your 
 # A round's turn names only which round it is and whether that round writes the message or notes only.
 stages_head = "THE DRAFT PROCESS — WHAT EACH ROUND ASKS. A round's turn names the round it is and whether that round writes the message or only notes; the question it answers stands below by its name."
 stage = "{name}: {text}"
+# What a round's one-word send permission means, and the voice a message is written in, said once here instead of
+# in every round's turn.
+send = "SENDING FROM A ROUND — a round's line ends in SEND where that round may write the message itself, and NOTES where it writes notes only and the message is written at the message round. Where the round may send: begin the answer with <<SEND>> where what you now hold is enough; what follows it is the message, reviewed before it goes out, and the process ends there. {voice}"
 
 # The review the gate asks before a message goes out (docs/drafting.md, 「The review」): it reads the draft against
 # the room's words and the rules and knowledge the round carries, and answers PASS, or REJECT with a reason. A

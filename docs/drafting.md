@@ -99,16 +99,16 @@ leaves.
   write.
 - **The first round rides the round's own turn:** the room's words and the round's closing lines as the window
   composes them, the closing lines saying that the round below is to be answered, then the round's line. The
-  line is the policy's: the place and count of the round, its name, and whether a send is read there
-  (`send_open`) or that the round writes notes only (`send_closed`). Where the first round is the last, as a
-  light turn's `final` is, it opens on the last round's line instead and its answer is the message, so the
-  round is one turn.
-- **Every later round goes out as one more turn** opening on the process's lead line, naming the round's place
-  and count and whether a send is read there; then the turn's scope; then the block of messages that arrived
-  since the last answer, where any did (「What came in meanwhile」 below). Every round but the message round
-  closes on the messages still waiting and that they are shown with the next round; the message round opens on
-  its own line, that its answer is the message and that the message is reviewed before it goes out. No turn
-  carries a question's text: that stands in the room's block. The lines are the policy's (`drafting.toml`).
+  line is the policy's, the shortest that says both facts the block cannot: the place and count of the round,
+  its name, and one word for its send permission (`send_open`, `SEND`, or `send_closed`, `NOTES`). Where the
+  first round is the last, as a light turn's `final` is, it opens on the last round's line instead and its
+  answer is the message, so the round is one turn.
+- **Every later round goes out as one more turn** opening on the process's lead line, naming the round's place,
+  name and send permission; then the turn's scope; then the block of messages that arrived since the last
+  answer, where any did (「What came in meanwhile」 below). Every round but the message round closes on the
+  messages still waiting and that they are shown with the next round. No turn carries a question's text, what a
+  send does, or that the message is reviewed: those stand in the room's block. The lines are the policy's
+  (`drafting.toml`).
 - **No gate is asked for a later round:** the turn carries no reference of its own, and no judgement is
   written for it.
 
@@ -123,19 +123,19 @@ leaves.
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
 - **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the round from which the process
-  asks for the message, and that round's line says that a complete message may be written now; a send before it
-  is the message too, and the process ends there. Where the agent does not send, the questions that establish the
-  facts are asked before anything is written. The default row asks for a send at `final` alone: every round
-  before it says it writes no message of its own, and its answer is notes for the message the last round
+  asks for the message; that round's line carries `SEND`, and the room's block says what a send does. A send
+  before it is the message too, and the process ends there. Where the agent does not send, the questions that
+  establish the facts are asked before anything is written. The default row asks for a send at `final` alone:
+  every round before it carries `NOTES` in its line, and its answer is notes for the message the last round
   writes. A light turn's list asks for a send at its first round whatever the row names.
-- **A round whose answer may be the message asks for it in the persona's voice.** At the `sendFrom` round and
-  every one after it, `final` among them, and at the closing check, the round's line says that an answer that
-  becomes the message is written as the message itself, in the voice the agent's persona sets for the person it
-  answers, its register toward them included, and in their language, never as notes or a report
-  (`drafting.toml`, `voice`); the line says so in every such turn, so the voice holds however long the session
-  runs. The receiver carries no register of its own and names no person's register: that is the persona's. A
-  message sent before `sendFrom` is written as the message itself and in that voice, though the line there names
-  no voice; an answer that is not sent stays notes.
+- **A round whose answer may be the message asks for it in the persona's voice.** The room's block says once,
+  in the send instruction beside the stage lines, that an answer that becomes the message is written as the
+  message itself, in the voice the agent's persona sets for the person it answers, its register toward them
+  included, and in their language, never as notes or a report (`drafting.toml`, `send`, `voice`); it holds
+  however long the session runs, and the closing check carries the voice line again where a message already
+  stands. The receiver carries no register of its own and names no person's register: that is the persona's. A
+  message sent before `sendFrom` is written as the message itself and in that voice; an answer that is not sent
+  stays notes.
 - **The policy's one row is the default for every agent** (`drafting.toml`): `information`, `facts`, `memory`,
   `promises` and `final`, in that order; a send is asked for at `final` alone; every light turn is `final` alone; 120
   seconds a turn is the journal's note; 12 characters make a light turn. A deployment that still carries the old
@@ -178,8 +178,11 @@ leaves.
   agent's long-term memory: the brain's `situation` rows are rules for a situation, while this note is written and
   read by the receiver alone. It is no reference document and stands nowhere in the turn's core: the judgement
   reads it under its own line, and the turn that writes the message reads it as that answer's instruction.
-- **One light turn a round, in every room, reading only what the note has not.** The update turn carries the note
-  as it stands and the room's messages that came in since the note last read the record, in the policy's words;
+- **One light turn a round, in every room, reading only what the note has not.** The note's instruction stands
+  in the room's block, the session's system prompt, beside the draft process's stages, assembled from the
+  situation policy with its ceiling rendered into the text (`chat-round.toml`, `[situation]`, `instruction`,
+  `ceiling_chars`). The turn itself carries only a short mark that this is the note turn (`marker`), the note as
+  it stands and the room's messages that came in since the note last read the record, under the policy's labels;
   its answer is the note, and the row of the last message it read to is kept with it. Where the room has no note
   yet, it carries the latest messages the policy names (`recent_messages`, 30) and takes its first position at the
   newest of them. It runs for every round with words, the owner's private chat included, before that round's
@@ -191,14 +194,15 @@ leaves.
   round's draft, so both read the same note.
 - **The note is the message round's instruction.** The note advises how the next answer is to be given, so the
   turn that writes the message carries it first, above the room's words, under the policy's front line; the room's
-  words follow and the turn's question closes it. It is no reference piece: a turn that is not writing the message
+  words follow and the round's line closes it. It is no reference piece: a turn that is not writing the message
   is not handed it, and the note never stands among the core's documents.
 - **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
-  the policy's `cut`; the update prompt names the ceiling, and the ceiling leaves room for the state, what came in
-  and the course to take together. The extra cost is one light turn a round with words: the
+  the policy's `cut`; the instruction in the room's block names the ceiling, and the ceiling leaves room for the
+  state, what came in and the course to take together. The extra cost is one light turn a round with words: the
   note it reads, under the ceiling, and the room's messages since the note last read the record, which on a room
   keeping up is the round's own words. A room with no note yet pays the `recent_messages` window once. The fixed
-  room context stands in that turn and the round's, so the update turn is the larger part of the extra.
+  room context stands in that turn and the round's; the note's instruction is part of that block, handed once per
+  session rather than carried by every note turn.
 - **The console reads the note beside each judgement.** The note stands on every message the round judged, with
   whether that round wrote it afresh (`docs/api.md`, the `Message`'s `situation`), so a message's judgement record
   says what the room's situation was as the round read it; the owner's private chat's messages carry it too. A room

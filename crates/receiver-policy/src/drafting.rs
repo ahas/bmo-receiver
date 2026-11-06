@@ -56,9 +56,9 @@ pub struct Drafting {
   pub opening: String,
   pub lead: String,
   pub last_lead: String,
-  /// What the opening and the lead say of the send marker: that a send is read at this question, or from which
-  /// question on it is.
+  /// The one-word permission a round's line carries: that a send is read at this round.
   pub send_open: String,
+  /// The one-word permission a round's line carries: that this round writes notes only.
   pub send_closed: String,
   pub waiting: String,
   /// The closing check's opening, asked once the message stands where messages arrived after the last question.
@@ -72,6 +72,8 @@ pub struct Drafting {
   pub stages_head: String,
   /// One stage instruction in the room's block, `{name}` the question and `{text}` its catalogue text.
   pub stage: String,
+  /// What a round's send permission means and the voice a message is written in, said once in the room's block.
+  pub send: String,
   /// The review the gate asks before a message goes out.
   pub review: Review,
   /// The questions, by name.

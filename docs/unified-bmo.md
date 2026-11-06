@@ -40,10 +40,11 @@
   the system, is acted on as the owner's word and may be answered with `<<SKIP>>`; that a reference block outranks
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
   are English while the language an answer is written in is the agent's own judgement, never a line of the turn;
-  and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there
-  too, so a round's turn names only which round it is and what that round may write. The turn carries only what
-  changes from turn to turn: the room and its facts, the blocks themselves and the one-line states (the owed
-  answer, the waiting window).
+  and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there,
+  and so do what a round's one-word send permission means and the situation-note instruction with its ceiling,
+  so a round's turn names only which round it is and whether it may send, and a note turn carries only its mark.
+  The turn carries only what changes from turn to turn: the room and its facts, the blocks themselves and the
+  one-line states (the owed answer, the waiting window).
 - **Kept out of the system prompt:** each room's tone and traits, the group-room rules, the private chat's
   instructions and agent list, and the rules for what can be done in the room (a picture, a file, a reaction, a
   sticker, a voice briefing, pinning, an answer aimed at a message, a folded answer), which the room's chat

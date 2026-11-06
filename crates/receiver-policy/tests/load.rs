@@ -102,15 +102,17 @@ fn the_rounds_lines_carry_their_marks() {
 fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(DRAFTING.lead.contains("{number}") && DRAFTING.lead.contains("{count}"));
   assert!(DRAFTING.opening.contains("{number}") && DRAFTING.opening.contains("{send}"));
-  assert!(DRAFTING.lead.contains("{send}") && DRAFTING.send_open.contains("<<SEND>>"));
+  assert!(DRAFTING.lead.contains("{send}") && DRAFTING.send.contains("<<SEND>>"));
   assert!(CHAT_ROUND.closing.questioned_owed.contains("{count}"));
   assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final"));
-  // Every line whose answer may be the message carries the room's voice; the closed send line, a notes one, does not.
-  for line in [&DRAFTING.send_open, &DRAFTING.last_lead, &DRAFTING.arrived] {
+  // The room's block says what a send does and the voice a message is written in, once; a round's line carries
+  // only its one-word permission.
+  for line in [&DRAFTING.send, &DRAFTING.arrived] {
     assert!(line.contains("{voice}"), "{line}");
   }
-  assert!(!DRAFTING.send_closed.contains("{voice}") && !DRAFTING.voice.is_empty());
+  assert!(!DRAFTING.send_open.contains("{voice}") && !DRAFTING.send_closed.contains("{voice}"));
+  assert!(!DRAFTING.last_lead.contains("{voice}") && !DRAFTING.voice.is_empty());
 
   // The room's block names the marks a message that arrived meanwhile takes, once for every question, and so does
   // the closing check; the lead lines name only a question's place.

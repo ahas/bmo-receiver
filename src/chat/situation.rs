@@ -5,7 +5,6 @@
 //! reads it as that answer's instruction.
 
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::fill_marks;
 use sea_orm::DatabaseConnection;
 
 use std::sync::LazyLock;
@@ -122,12 +121,11 @@ pub fn catch_up(gap: usize, standing: i64) -> bool {
   gap > 0 && standing > i64::try_from(gap).unwrap_or(i64::MAX)
 }
 
-/// The one turn that updates the note: the note as it stands and the room's messages that came in since the note
-/// last read the room's record.
+/// The one turn that updates the note: its short mark, the note as it stands and the room's messages that came in
+/// since the note last read the room's record. What the turn is asked stands in the room's block.
 pub fn update_prompt(old: Option<&str>, lines: &[String]) -> String {
   let said = &CHAT_ROUND.situation;
-  let head = fill_marks(&said.head, &[("ceiling", &said.ceiling_chars.to_string())]);
-  let mut parts = vec![head, String::new(), said.previous.clone()];
+  let mut parts = vec![said.marker.clone(), String::new(), said.previous.clone()];
 
   parts.push(old.map(str::to_owned).unwrap_or_else(|| said.none.clone()));
   parts.push(String::new());

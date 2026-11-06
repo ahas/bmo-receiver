@@ -8,6 +8,8 @@ use serde_json::json;
 use crate::integration::common::Scratch;
 use crate::integration::common::queue::{get, stood};
 use bmo_receiver::chat::situation::{note_from_answer, update_prompt};
+use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::fill_marks;
 
 const ROOM: i64 = -5_200;
 const OTHER: i64 = -5_201;
@@ -117,13 +119,23 @@ fn a_gap_past_the_policys_bound_is_read_as_its_newest_messages_alone() {
 }
 
 #[test]
-fn the_note_prompt_bans_copying_and_first_person_claims() {
+fn the_note_turn_carries_its_mark_and_the_block_carries_the_instruction() {
   let prompt = update_prompt(None, &[]);
+  let instruction = fill_marks(
+    &CHAT_ROUND.situation.instruction,
+    &[("ceiling", &CHAT_ROUND.situation.ceiling_chars.to_string())],
+  );
 
-  assert!(prompt.contains("nothing written here is sent to the room"), "{prompt}");
-  assert!(prompt.contains("what this room is about"), "{prompt}");
-  assert!(prompt.contains("how it is best answered"), "{prompt}");
-  assert!(prompt.contains("Never copy a message"), "{prompt}");
-  assert!(prompt.contains("never restate your own answer"), "{prompt}");
-  assert!(prompt.contains("write no first-person claim"), "{prompt}");
+  assert!(prompt.contains(&CHAT_ROUND.situation.marker), "{prompt}");
+  assert!(
+    !prompt.contains("nothing written in it is sent to the room"),
+    "the instruction is not repeated in the turn: {prompt}"
+  );
+  assert!(instruction.contains("nothing written in it is sent to the room"), "{instruction}");
+  assert!(instruction.contains("what this room is about"), "{instruction}");
+  assert!(instruction.contains("how it is best answered"), "{instruction}");
+  assert!(instruction.contains("Never copy a message"), "{instruction}");
+  assert!(instruction.contains("never restate your own answer"), "{instruction}");
+  assert!(instruction.contains("write no first-person claim"), "{instruction}");
+  assert!(instruction.contains("under 600 characters"), "{instruction}");
 }

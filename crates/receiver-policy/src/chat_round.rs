@@ -297,7 +297,10 @@ pub struct Situation {
   /// The most messages between the note's mark and the newest before the update reads the newest this many alone;
   /// 0 reads every message since the mark.
   pub gap_messages: usize,
-  pub head: String,
+  /// What the note turn is asked, said once in the room's block rather than in the turn.
+  pub instruction: String,
+  /// The short mark the note turn itself carries.
+  pub marker: String,
   pub previous: String,
   /// The line the message round reads the note under, ahead of the room's words.
   pub front: String,
