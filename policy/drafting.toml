@@ -33,12 +33,13 @@ stage = "{name}: {text}"
 # in every round's turn.
 send = "SENDING FROM A ROUND — a round's line ends in SEND where that round may write the message itself, and NOTES where it writes notes only and the message is written at the message round. Where the round may send: begin the answer with <<SEND>> where what you now hold is enough; what follows it is the message, reviewed before it goes out, and the process ends there. {voice}"
 
-# The review the gate asks before a message goes out (docs/drafting.md, 「The review」): it reads the draft against
-# the room's words and the rules and knowledge the round carries, and answers PASS, or REJECT with a reason. A
+# The review the gate asks before a message goes out (docs/drafting.md, 「The review」): the short mark its turn
+# carries, the instruction the room's block carries, the lines its turn shows, and the verdict it answers. A
 # rejection returns the draft to the final question with that reason, eight times at most; the eighth sends the
 # last draft and the end row names the reasons in order.
 [review]
-head = "REVIEW THE MESSAGE BEFORE IT GOES OUT. Read it against the room's words and the rules and knowledge below. Answer PASS alone when it is right to send as it stands. Answer REJECT: <one short reason> when it is not, naming the one thing that must change; do not rewrite the message here."
+marker = "REVIEW THE MESSAGE BEFORE IT GOES OUT."
+instruction = "WHEN THE ROUND IS THE REVIEW — read the draft against the room's words and the rules and knowledge it carries. Answer {pass} alone when it is right to send as it stands. Answer {reject} when it is not, naming the one thing that must change, and nothing else; do not rewrite the message here."
 draft = "The message as it stands:"
 words = "The room's words:"
 rules = "The rules and knowledge this round carries:"

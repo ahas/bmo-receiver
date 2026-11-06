@@ -1147,7 +1147,7 @@ async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
   let log = round.log().await;
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
-  assert!(prompts[1].contains(&DRAFTING.review.head), "{}", prompts[1]);
+  assert!(prompts[1].contains(&DRAFTING.review.marker), "{}", prompts[1]);
   assert!(prompts[1].contains("The room's words #1 were handed in this turn"), "{}", prompts[1]);
   assert!(prompts[1].contains("the message"), "the draft: {}", prompts[1]);
   assert_eq!(sent.len(), 1);
@@ -1191,9 +1191,22 @@ async fn a_five_round_process_reviews_and_sends_without_repeating_questions_or_a
   );
 
   let review = &prompts[5];
+  let verdict = fill_marks(
+    &DRAFTING.review.instruction,
+    &[("pass", &DRAFTING.review.pass), ("reject", &DRAFTING.review.reject)],
+  );
 
-  assert!(review.contains(&DRAFTING.review.head), "{review}");
+  assert!(review.contains(&DRAFTING.review.marker), "{review}");
   assert!(review.contains("the message"), "the draft: {review}");
+  assert!(
+    !review.contains("Answer PASS") && !review.contains("do not rewrite the message here"),
+    "the verdict wording stands in the room's block, not the review turn: {review}"
+  );
+  assert!(
+    prompts[0].contains(&verdict),
+    "the room's block carries the review instruction: {}",
+    prompts[0]
+  );
 
   for name in FIVE {
     assert!(!review.contains(question(name)), "the review repeats {name}: {review}");
@@ -1662,6 +1675,108 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_in_one_paragraph()
   assert!(at(&push.judge) < at(SHORT), "the rule stands before the words");
   assert!(at(SHORT) < at(INSTRUCTION), "the messages stand before the instructions");
   assert_eq!(built.instructions, INSTRUCTION);
+}
+
+/// A room that is not the owner's private chat, on the same chat service.
+fn lab_room() -> Room {
+  Room {
+    owner_room: false,
+    identity: Some(IDENTITY),
+    private_to: None,
+  }
+}
+
+// One of the owner's words in a room that is not his private chat.
+fn said_in(chat_id: i64, message_id: i64, text: &str) -> Inbound {
+  Inbound {
+    chat_id,
+    ..said(message_id, text)
+  }
+}
+
+#[tokio::test]
+async fn a_push_carries_only_its_own_rooms_words_and_instructions() {
+  const LAB: i64 = -9_000_000_000_042;
+  const IN_OWNER: i64 = 10;
+  const OWNER_LATER: i64 = 11;
+  const IN_LAB: i64 = 20;
+  const OWNER_WORDS: &str = "the owner's room's later words";
+  const OWNER_INSTRUCTION: &str = "an instruction for the owner's room";
+  const LAB_INSTRUCTION: &str = "an instruction for the lab room";
+  const LAB_WORDS: &str = "the lab room's words";
+
+  let scratch = Scratch::new().await;
+
+  crate::integration::common::session::no_drafting(scratch.db()).await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(
+    StandInChat::new("road-a")
+      .owners(OWNER)
+      .holding(&[LAB])
+      .agent_in(OWNER, IDENTITY)
+      .agent_in(LAB, IDENTITY),
+  );
+
+  documents(data.path());
+
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+  let session = Arc::new(StandInSession::new(SESSION, "the answer").holding_turn(1));
+  let receiver = standing.receiver.clone();
+  // The first look comes late enough that both rooms' words and instructions are already waiting.
+  let looking = Timings {
+    look: Duration::from_millis(150),
+    ..timings()
+  };
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), looking, AGENT);
+
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
+  standing.agency.carrying_on(session.clone());
+  receiver.hold_runner(Arc::new(runner.clone()));
+
+  // The owner's room works on a turn held open, so a push reaches it while it works.
+  receiver
+    .message(&said(IN_OWNER, ASKED), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until("the owner's turn working", || session.working()).await;
+
+  // Words that come into the owner's room while its turn works, and another room on the same service and the
+  // same agent with a message and a quiet instruction of its own.
+  receiver
+    .message(&said(OWNER_LATER, OWNER_WORDS), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  receiver
+    .message(&said_in(LAB, IN_LAB, LAB_WORDS), &Context::default(), lab_room())
+    .await
+    .unwrap();
+
+  let conversations = runner.of(AGENT);
+
+  conversations.instruct(LAB, LAB_INSTRUCTION.to_owned(), None, None, vec![]).await;
+  conversations.instruct(OWNER, OWNER_INSTRUCTION.to_owned(), None, None, vec![]).await;
+
+  until("the push", || !standing.agency.pushes.lock().unwrap().is_empty()).await;
+
+  let pushes = standing.agency.pushes.lock().unwrap().clone();
+  let pushed = &pushes[0].2;
+
+  assert!(pushed.contains(OWNER_WORDS), "its own later words are pushed: {pushed}");
+  assert!(pushed.contains(OWNER_INSTRUCTION), "its own instruction is pushed: {pushed}");
+  assert!(!pushed.contains(LAB_INSTRUCTION), "another room's instruction never joins: {pushed}");
+  assert!(!pushed.contains(LAB_WORDS), "another room's words never join: {pushed}");
+  assert!(
+    !pushed.contains(&format!("#{IN_LAB}")),
+    "no other room's message number is named: {pushed}"
+  );
+  assert!(pushed.contains(&format!("#{OWNER_LATER}")), "its own message number is named: {pushed}");
+  assert!(
+    pushed.contains(&fill_marks(&CHAT_ROUND.push.scope, &[("ids", &format!("[{OWNER_LATER}]"))])),
+    "the scope names only this room's ids: {pushed}"
+  );
+
+  // The held turn is left standing: the test's runtime drops it, and the other room's pump, still waiting on the
+  // one turn, never reaches the first-launch pacing that would slow the rest of the suite.
 }
 
 #[tokio::test]

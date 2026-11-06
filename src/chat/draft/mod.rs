@@ -393,9 +393,9 @@ impl Run<'_> {
     paths
   }
 
-  // The review prompt (docs/drafting.md, 「The review」): the message as it stands, the room's words and the rules
-  // and knowledge the round carries. The question texts stand in the room's block, and a round's answers and notes
-  // are its own, so neither is repeated here.
+  // The review prompt (docs/drafting.md, 「The review」): its short mark, the message as it stands, the room's words
+  // and the rules and knowledge the round carries. What the review is asked, its verdict line among it, stands in
+  // the room's block, and a round's answers and notes are its own, so neither is repeated here.
   fn review_prompt(&self, message: &str) -> String {
     let said = &DRAFTING.review;
     // What the main round handed is a line; what was not handed, or arrived since, is the body.
@@ -436,15 +436,14 @@ impl Run<'_> {
       .collect();
 
     format!(
-      "{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}\n\n{}",
-      said.head,
+      "{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}",
+      said.marker,
       said.draft,
       message,
       said.words,
       words.join("\n"),
       said.rules,
       rules.join("\n\n"),
-      render_verdict(&said.pass, &said.reject),
     )
   }
 
@@ -1178,11 +1177,6 @@ impl Drafter {
 
     Ok(run.made(&message.text))
   }
-}
-
-/// The two words the review answer uses, as the policy names them.
-fn render_verdict(pass: &str, reject: &str) -> String {
-  format!("Answer {pass} or {reject}, and nothing else.")
 }
 
 /// Whether a message the agent itself sent follows the owner's directive in the room's record: the only thing that

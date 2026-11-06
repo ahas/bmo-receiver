@@ -32,7 +32,10 @@ pub struct Process {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Review {
-  pub head: String,
+  /// The short mark the review turn carries.
+  pub marker: String,
+  /// What the review is asked, said once in the room's block; `{pass}` and `{reject}` are the verdicts below.
+  pub instruction: String,
   pub draft: String,
   pub words: String,
   pub rules: String,

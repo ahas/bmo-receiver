@@ -41,8 +41,9 @@
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
   are English while the language an answer is written in is the agent's own judgement, never a line of the turn;
   and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there,
-  and so do what a round's one-word send permission means and the situation-note instruction with its ceiling,
-  so a round's turn names only which round it is and whether it may send, and a note turn carries only its mark.
+  and so do what a round's one-word send permission means, the review's instruction and verdict wording, and the
+  situation-note instruction with its ceiling, so a round's turn names only which round it is and whether it may
+  send, a note turn carries only its mark, and the review turn carries only its mark and the material it reads.
   The turn carries only what changes from turn to turn: the room and its facts, the blocks themselves and the
   one-line states (the owed answer, the waiting window).
 - **Kept out of the system prompt:** each room's tone and traits, the group-room rules, the private chat's

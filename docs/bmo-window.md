@@ -308,6 +308,9 @@ agent last answered there:
     the messages as a round's block renders them, each with its sender, its words and its number, the numbers
     named as added to the turn's scope, then the instructions in their own block. No piece goes in with it: the
     round's index went in with its turn.
+  - **Only this room's words.** The push takes its messages from the room's own conversation, keyed by its chat
+    id, and its quiet instructions from that same room's rows: another room's message or instruction never joins
+    it, and the block names only this room's own message numbers. A test pins this isolation.
   - **Which turns take it.** The round's own turn takes the room's words and the quiet instructions; a later
     question of the draft process before its message stands takes the room's words alone, the instructions
     waiting for the round after. The closing check, an item, the review and a check on the final text take no

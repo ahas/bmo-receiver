@@ -290,7 +290,8 @@ impl StandInSession {
 
       let hidden_situation =
         *self.hide_situation.lock().unwrap() && turn.prompt.contains(&CHAT_ROUND.situation.previous);
-      let hidden_review = *self.hide_review.lock().unwrap() && turn.prompt.contains(&DRAFTING.review.head);
+      let hidden_review =
+        *self.hide_review.lock().unwrap() && turn.prompt.contains(&DRAFTING.review.marker);
       let hidden = hidden_situation || hidden_review;
       let number = {
         let mut turns = self.turns.lock().unwrap();

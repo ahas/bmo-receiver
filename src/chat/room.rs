@@ -494,6 +494,14 @@ async fn stages(receiver: &Receiver) -> Result<String, Fault> {
   Ok(parts.join("\n"))
 }
 
+// The review's instruction, as the room's block carries it (docs/drafting.md, 「The review」): what the review
+// reads and the verdict words it answers.
+fn review_instruction() -> String {
+  let said = &DRAFTING.review;
+
+  fill_marks(&said.instruction, &[("pass", &said.pass), ("reject", &said.reject)])
+}
+
 // The situation-note instruction, as the room's block carries it (docs/drafting.md, 「The situation note」): the
 // policy's text with its character ceiling.
 fn situation_instruction() -> String {
@@ -525,6 +533,7 @@ pub async fn room_context(
     said.replaces.clone(),
     said.process.clone(),
     stages(receiver).await?,
+    review_instruction(),
     situation_instruction(),
     said.voice.clone(),
   ];
