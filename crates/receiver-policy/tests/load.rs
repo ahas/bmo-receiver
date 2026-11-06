@@ -90,6 +90,10 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(CHAT_ROUND.shape.quoted.contains("{quote}"));
   assert!(CHAT_ROUND.closing.rule.contains("<<WAIT>>"));
   assert!(!CHAT_ROUND.index.rule.is_empty() && !CHAT_ROUND.queue_line.rule.is_empty());
+  for word in ["quiet memory", "memory_done", "memory_update"] {
+    assert!(CHAT_ROUND.index.memories.contains(word), "{word}");
+  }
+  assert!(CHAT_ROUND.index.memories.contains("{chat}"));
   assert_eq!(CHAT_ROUND.situation.gap_messages, 200);
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
   assert!(SECOND_ASKS.data.owed.contains("{count}"));

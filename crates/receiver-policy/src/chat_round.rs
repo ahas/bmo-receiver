@@ -352,6 +352,8 @@ pub struct Supervisor {
 pub struct Index {
   /// The brain's standing rule, said in the room's block; a turn carries no index line.
   pub rule: String,
+  /// The rule for the memories entry a turn carries, said in the room's block, `{chat}` the room.
+  pub memories: String,
   pub head: String,
   pub group: String,
   pub group_hint: String,

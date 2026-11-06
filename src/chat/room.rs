@@ -557,6 +557,7 @@ pub async fn room_context(
     situation_instruction(),
     CHAT_ROUND.closing.rule.clone(),
     CHAT_ROUND.index.rule.clone(),
+    fill_marks(&CHAT_ROUND.index.memories, &[("chat", &chat_id.to_string())]),
     CHAT_ROUND.queue_line.rule.clone(),
     fill_marks(&CHAT_ROUND.push.rule, &[("marker", &CHAT_ROUND.push.marker)]),
     fill_marks(&CHAT_ROUND.relay.rule, &[("marker", &CHAT_ROUND.relay.marker)]),

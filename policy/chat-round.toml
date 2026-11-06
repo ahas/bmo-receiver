@@ -320,11 +320,14 @@ name = "supervisor"
 # gives one, what changed in it lately ({hint}), the hint the line closes on, and the walk a new session's first
 # turn carries: its head, each room by its {chat} and {title}, and the words for a room whose counts the gate does
 # not give yet. `due` is the line the block gains, after the hint, where the turn's agent's brain says a
-# consolidation is due.
+# consolidation is due. `memories` is the rule for the memories entry a turn carries, with `{chat}` the room.
 [index]
 # The brain's standing rule, said in the room's block. The counts and the due line ride the room block of the
 # session's opening turn only; a turn carries no index line.
 rule = "THE BRAIN — it holds documents, rules, knowledge, people and memories. Open its index or search it with your tools when an answer needs it, and never speak of what you have not read as fact. When the brain has unconsolidated episodes, the memory round consolidates them as that question says."
+# The memories rule, said in the room's block: how the entry a turn carries is read, and how an item is checked off
+# or a state moved. The entry itself carries only its head, its rows and their data.
+memories = "THE MEMORIES A TURN CARRIES — they are your own quiet memory: do not recite them, and do not bring an item up unless someone asks about it; act on them when their time comes. Once an item is kept, or dropped by the person it was for, check it off: memory_done with chat {chat}, memory <id> and text '<how it ended>'. A state goes on from where it stands: as it moves, rewrite it with memory_update, memory <id> and action '<where it stands now>'; once it ends, is called off or has plainly stopped, release it with memory_done."
 head = "BRAIN — entries this session has not read:"
 group = "{group} {count}"
 group_hint = "{group} {count} ({hint})"

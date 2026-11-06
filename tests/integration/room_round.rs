@@ -18,6 +18,7 @@ use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
+use receiver_policy::fill_marks;
 use receiver_ports::agency::Said;
 use serde_json::{Value, json};
 
@@ -557,6 +558,10 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   assert!(
     prompt.contains(&CHAT_ROUND.index.rule),
     "the brain's rule stands in the block: {prompt}"
+  );
+  assert!(
+    prompt.contains(&fill_marks(&CHAT_ROUND.index.memories, &[("chat", &OWNER.to_string())])),
+    "the memories rule stands in the block: {prompt}"
   );
   assert!(!prompt.contains(&CHAT_ROUND.index.walk_head), "no walk rides the turn: {prompt}");
 }

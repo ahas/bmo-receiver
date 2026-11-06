@@ -43,11 +43,11 @@
   and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there,
   and so do what a round's one-word send permission means, the review's instruction and verdict wording, the
   situation-note instruction with its ceiling, the closing rules (how a turn opens and closes, when a `<<WAIT>>`
-  is right, and that the owner's own words in his own chat are always answered), the queue rule and the brain's
-  rule, so a round's turn names only which round it is and whether it may send, a note turn carries only its
-  mark, and the review turn carries only its mark and the material it reads. The turn carries only what changes
-  from turn to turn: the room and its facts, the words themselves, the round's mark and the material the gate
-  attaches.
+  is right, and that the owner's own words in his own chat are always answered), the queue rule, the brain's
+  rule and the memories rule, so a round's turn names only which round it is and whether it may send, a note turn
+  carries only its mark, and the review turn carries only its mark and the material it reads. The turn carries
+  only what changes from turn to turn: the room and its facts, the words themselves, the round's mark and the
+  material the gate attaches.
 - **Kept out of the system prompt:** each room's tone and traits, the group-room rules, the private chat's
   instructions and agent list, and the rules for what can be done in the room (a picture, a file, a reaction, a
   sticker, a voice briefing, pinning, an answer aimed at a message, a folded answer), which the room's chat

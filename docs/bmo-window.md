@@ -279,6 +279,11 @@ block goes in full — the session's opening on that room — and the agent read
   the supervisor updates it before its judgement, the judgement reads it with the new lines, and the turn that
   writes the message reads it as that answer's instruction, ahead of the room's words. It is no reference document,
   it stands nowhere in the core, and it is not a brain memory; the note's text is the version the session holds.
+- **The memories entry carries data alone.** How it is read stands in the room's block (`chat-round.toml`,
+  `[index]`, `memories`): that these are the agent's own quiet memory, never recited and never brought up unless
+  someone asks, acted on when their time comes; how an item is checked off with `memory_done`; and how a state is
+  moved with `memory_update`, or released when it ends. The entry itself carries only its head, its rows and the
+  line on those not carried.
 - **The block stands after the turn's words and instructions,** ahead of the round's marker, so a session reads
   what came in before it decides whether to look anything up. The turn carries no closing lines: the closing
   rules, the queue rule and the brain's rule stand in the room's block.
@@ -396,8 +401,8 @@ flowchart TD
   run is opened on its way out:
   - the reference selected over the line, each document in full or as a mark as the session holds it, and the
     room's block where the session does not hold it;
-  - the turn scope and the line itself as the one new message; the closing rules, the queue rule and the
-    brain's rule stand in the room's block;
+  - the turn scope and the line itself as the one new message; the closing rules, the queue rule, the
+    brain's rule and the memories rule stand in the room's block;
   - headed by a marker and, as data, the line saying the owner typed it into the program and that its number
     `#0` is no message of the archive; the rule the marker stands for — that the answer is read on that screen
     and goes to no room, and that a composition the program keeps in a file is read whole before answering —
