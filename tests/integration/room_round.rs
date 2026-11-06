@@ -21,6 +21,7 @@ use receiver_policy::consult::CONSULT;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
+use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_policy::tool_host::TOOL_HOST;
 use receiver_ports::agency::Said;
 use serde_json::{Value, json};
@@ -579,6 +580,12 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
     fill_marks(&HANDOVER.chat.handed_rule, &[("marker", &HANDOVER.chat.handed_marker)]),
     fill_marks(&HANDOVER.chat.carried_rule, &[("marker", &HANDOVER.chat.carried_marker)]),
     fill_marks(&HANDOVER.chat.lost_rule, &[("marker", &HANDOVER.chat.lost_marker)]),
+    SECOND_ASKS.errands.owed.clone(),
+    SECOND_ASKS.errands.owner_directive.clone(),
+    SECOND_ASKS.errands.record.clone(),
+    SECOND_ASKS.errands.wake.clone(),
+    SECOND_ASKS.errands.rule.clone(),
+    SECOND_ASKS.errands.format.clone(),
   ];
 
   for rule in &rules {

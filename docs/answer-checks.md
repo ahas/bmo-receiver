@@ -19,8 +19,10 @@ is written in is the agent's rule, not a check; nothing on the send path reads i
   turn's scope and the ids of the messages waiting for the next turn; the rule itself stands in the room's
   block (`policy/second-asks.toml`, `[errands]` and `[data]`). It is a turn of the process: its answer is
   written in the round log under the item's or the check's name (`docs/drafting.md`, 「The round log」), and no
-  judgement is written for it at the gate. A run of it that failed leaves the text as it stood, and a stop ends
-  the round.
+  judgement is written for it at the gate. The `record`, `wake` and `rule` items answer the short mark `CHECK`
+  and write no message, so the message that stands goes out unchanged; `owed` and `owner_directive` are asked
+  only where no message stands and answer with the message itself. A run of it that failed leaves the text as
+  it stood, and a stop ends the round.
 
 ## The language an answer goes out in
 
@@ -56,15 +58,15 @@ is written in is the agent's rule, not a check; nothing on the send path reads i
     by the word after the binary, the binary being the word `bmo` standing alone or ending a path however the
     path was written.
   - **An answer that promised with nothing written** is asked once more, the `record` item, to record the
-    promise and write the answer again, saying where it went where that is a note or an item, and saying nothing
-    about where it went where the place is the agent's memories, which are quiet in every room; a turn whose
-    tools are off is asked to take the promise out instead. The second writing is the answer where it says
-    something; otherwise the first one stands.
+    promise. The round answers the short mark `CHECK` and writes no message: the message that stands goes out
+    unchanged, and nothing about where the promise was recorded is said in any room. A turn whose tools are off
+    cannot record one and only answers `CHECK`.
   - **A promise to act once something happens** (to report back when something is done, to do one thing after
     another finishes) stands only where a turn of the process set what wakes the agent when it does: a watch, or
     a memory carrying an event or a check to wait on. An answer that made one with nothing set is asked once more,
-    the `wake` item, to set it, the same way. The receiver answers the brain whether a text waits on a happening
-    by the same reading (`POST /promises/waits`).
+    the `wake` item, to set it, the same way: it answers `CHECK` and the message that stands goes out unchanged.
+    The receiver answers the brain whether a text waits on a happening by the same reading
+    (`POST /promises/waits`).
 
 ## A rule the owner sets stands on a row
 
@@ -74,6 +76,7 @@ is written in is the agent's rule, not a check; nothing on the send path reads i
   somebody to do something and carries the reach of a rule with it: a word of time to come, or a condition
   pointed at a manner, as the policy lists them. A request for this once carries neither and is not one.
   - **Where the owner set one and no turn of the process filed a rule**, the session is asked once, the `rule`
-    item, to file it as a situation memory and write the answer again saying so. Once and no more: where it
-    still files nothing the answer stands, and the rule is not invented for the owner. A turn whose tools are off
+    item, to file it as a situation memory. The round answers `CHECK` and writes no message: the message that
+    stands goes out unchanged, and nothing about the rule is said in any room. Once and no more: where it still
+    files nothing the message stands, and the rule is not invented for the owner. A turn whose tools are off
     cannot file one and is not asked.

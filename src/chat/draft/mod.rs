@@ -1,8 +1,9 @@
 //! The draft process (docs/drafting.md): a round's message is made by asking its session the questions its row of
 //! the table names, one turn each, the first riding the round's own turn; every answer before the last is notes,
 //! and the last answer, or one that opens on the send marker, is the message. Then come the items the code's
-//! readings call for and the checks on the final text, each asked once as one more turn. Every turn is written in
-//! the round log.
+//! readings call for and the checks on the final text, each asked once as one more turn. A recording item answers
+//! the short mark `CHECK` and writes no message, so the message that stands goes out unchanged. Every turn is
+//! written in the round log.
 
 pub mod checks;
 pub mod log;
@@ -1001,7 +1002,9 @@ impl Drafter {
       return Ok(run.made(SKIP));
     };
 
-    // The items the code's readings call for.
+    // The items the code's readings call for. Each asks only for the recording: its answer is the short mark
+    // `CHECK`, never a new message, so the message that stands goes out unchanged (docs/drafting.md, 「The items
+    // after the message」).
     for item in [Item::Record, Item::Wake, Item::Rule] {
       let errand = match item {
         Item::Record => (promises_later(&message.text)
@@ -1029,18 +1032,7 @@ impl Drafter {
       let asked = run.ask(Kind::Item, item.word(), &words(&errand, drafted.scope, &drafted.pending)).await;
 
       match asked {
-        Ok(Some((answer, read))) => {
-          if read == Answered::Skip {
-            run.end(Ended::Skip, row, now_ms() - drafted.began).await;
-
-            return Ok(run.made(SKIP));
-          }
-
-          if usable(&answer.text) {
-            message = answer;
-          }
-        }
-        Ok(None) => {}
+        Ok(_) => {}
         Err(failure) => {
           run.give_back_shown();
 

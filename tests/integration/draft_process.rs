@@ -1033,7 +1033,7 @@ async fn a_skip_in_the_second_question_sends_nothing() {
     turn_of(&prompts[2])
   );
   assert!(
-    !turn_of(&prompts[2]).contains("Write this turn's answer to the owner now"),
+    !turn_of(&prompts[2]).contains("No message stands yet: answer the owner now with the message"),
     "the instruction stands in the room's block: {}",
     turn_of(&prompts[2])
   );
@@ -1155,7 +1155,7 @@ async fn a_note_claiming_a_reply_does_not_skip_the_owners_directive() {
     turn_of(&prompts[2])
   );
   assert!(
-    !turn_of(&prompts[2]).contains("Write this turn's answer to the owner now"),
+    !turn_of(&prompts[2]).contains("No message stands yet: answer the owner now with the message"),
     "the instruction stands in the room's block: {}",
     turn_of(&prompts[2])
   );
@@ -1671,8 +1671,7 @@ async fn words_that_came_while_the_second_question_worked_stand_under_the_third(
 #[tokio::test]
 async fn a_promise_is_an_item_of_the_process_and_no_asking_of_its_own() {
   let promise = fixture("promises-waiting.txt");
-  let session =
-    StandInSession::new(SESSION, "unscripted").answering(&[&promise, "the message, with the watch set"]);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise, "CHECK"]);
   let round = Drafting::new(session, &[], &[], 150).await;
 
   round.hear(1, ASKED).await;
@@ -1698,10 +1697,23 @@ async fn a_promise_is_an_item_of_the_process_and_no_asking_of_its_own() {
     turn_of(&prompts[1])
   );
   assert!(
+    !turn_of(&prompts[1]).contains("write this turn's answer again"),
+    "the item asks for no new message: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
     prompts[0].contains(&SECOND_ASKS.errands.wake),
     "the room's block carries the item's rule"
   );
-  assert!(sent.len() == 1 && sent[0].contains("the message, with the watch set"), "{sent:?}");
+  assert!(
+    prompts[0].contains("Answer `CHECK` once it is set."),
+    "the block asks for the short mark alone"
+  );
+  assert!(
+    sent.len() == 1 && sent[0].contains(&promise),
+    "the message that stands goes out unchanged: {sent:?}"
+  );
+  assert!(!sent[0].contains("CHECK"), "the short mark is no message: {sent:?}");
   assert_eq!(round.log().await, ["turn turn answered", "item wake answered", "end  message"]);
 
   let stages: Vec<String> = round
@@ -1716,6 +1728,51 @@ async fn a_promise_is_an_item_of_the_process_and_no_asking_of_its_own() {
     !stages.iter().any(|stage| stage.ends_with("-again")),
     "no second asking writes a judgement of its own: {stages:?}"
   );
+}
+
+#[tokio::test]
+async fn a_promise_from_now_on_is_recorded_without_writing_the_message_again() {
+  let promise = fixture("promises-recorded.txt");
+  let rewritten = "the promise, written again";
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise, rewritten]);
+  let round = Drafting::new(session, &[], &[], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 2);
+  assert!(
+    turn_of(&prompts[1]).contains("ITEM: record."),
+    "the turn names the item: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    turn_of(&prompts[1]).contains("Tools are on for this turn."),
+    "the turn carries its data: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    !turn_of(&prompts[1]).contains("write this turn's answer again"),
+    "the item asks for no new message: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    prompts[0].contains(&SECOND_ASKS.errands.record),
+    "the room's block carries the item's rule"
+  );
+  assert!(
+    prompts[0].contains("Answer `CHECK` once it is recorded."),
+    "the block asks for the short mark alone"
+  );
+  assert!(
+    sent.len() == 1 && sent[0].contains(&promise),
+    "the message that stands goes out unchanged: {sent:?}"
+  );
+  assert!(!sent[0].contains(rewritten), "a rewritten message from the item is ignored: {sent:?}");
+  assert_eq!(round.log().await, ["turn turn answered", "item record answered", "end  message"]);
 }
 
 #[tokio::test]

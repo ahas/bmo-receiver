@@ -302,14 +302,19 @@ leaves.
 
 The code's own readings of the message are items of the process, asked once the message stands (the last
 question's answer, or the answer a send marker opened) and after the closing check where one was asked
-(「What came in meanwhile」 above), each asked once as one more turn of the same session, its answer the message
-where it says something: neither empty nor a skip nor a wait. The turn carries only the marker naming the item
-or the check and the data its rule reads; the rule itself stands in the room's block (`second-asks.toml`,
-`[errands]`, `[data]`).
+(「What came in meanwhile」 above), each asked once as one more turn of the same session. The turn carries only
+the marker naming the item or the check and the data its rule reads; the rule itself stands in the room's block
+(`second-asks.toml`, `[errands]`, `[data]`).
+
+The `record`, `wake` and `rule` items ask only for the recording: their answer is the short mark `CHECK`, never a
+message, and the message that stands goes out unchanged with nothing about the recording said in any room. `owed`
+and `owner_directive`, asked only where no message stands yet, answer with the message itself.
 
 - **`owed`:** where the process ended with no message and the round read the owner's own words in the owner's
   own chat, the session is asked once more with the silence withdrawn (`docs/wake.md`, 「The owner's own chat is
   always answered」); a skip again sends nothing.
+- **`owner_directive`:** where the owner's words of the turn have no sent answer, the session is asked once more
+  for it.
 - **`record`:** the message promises what the agent will do from now on and no turn of the process wrote it down
   (`docs/answer-checks.md`, 「A promise stands on a record」).
 - **`wake`:** the message promises to act once something happens and no turn of the process set what wakes the
