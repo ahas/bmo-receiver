@@ -2975,6 +2975,7 @@ impl Follower {
       round: &round,
       messages: &messages,
       instructions: &instructions,
+      instruction_ids: &ids,
       events: &events,
       holds: &holds,
       consumed,

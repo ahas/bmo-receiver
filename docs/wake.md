@@ -312,6 +312,10 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
     the next round anything else opens, which carries it; waking a cold session for it would pay its whole
     prefix again for nothing. The keepalive touch is no row and never wakes such a session either
     (`docs/bmo-window.md`, 「The touch」).
+- **A row keeps the unit or source that published it.** `POST /instructions` may name it as `publisher`; where
+  the row carries none, the receiver takes the first word of its `kind` and keeps that with the row, and a row
+  naming neither stands as `the system`. The turn the row reaches names what it kept (`docs/bmo-window.md`,
+  「Quiet instruction」).
 - **A pending room reply is an obligation the receiver keeps until a round has taken it.** It carries no age and
   nothing lets it go for having waited. The pass looks at every pending row on each tick, at every opening of
   the agency's event stream (「What the agency's events wake」 below) and as the receiver starts, and hands each

@@ -1763,6 +1763,12 @@ export interface components {
             /** @default null */
             kind: string | null;
             /**
+             * @description The unit or source that published the row, kept with it and named in every turn it rides; a row naming none
+             *     is read by the first word of its kind.
+             * @default null
+             */
+            publisher: string | null;
+            /**
              * Format: int64
              * @default null
              */

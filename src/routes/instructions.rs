@@ -80,6 +80,9 @@ struct Instruction {
   via: Option<String>,
   #[serde(default)]
   run: Option<i64>,
+  /// The unit that published it, kept with the row and named in every turn it rides.
+  #[serde(default)]
+  publisher: Option<String>,
 }
 
 /// One notice as a room voices it.
@@ -182,6 +185,7 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     summary: asked.summary.as_deref(),
     via: asked.via.as_deref(),
     run_id: asked.run,
+    publisher: asked.publisher.as_deref(),
   };
 
   if let Some(removed) = room.removed {

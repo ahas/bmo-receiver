@@ -25,6 +25,7 @@ mod personal_data;
 mod progress;
 mod promises;
 mod quiet;
+mod quiet_frame;
 mod records;
 mod relay;
 mod repository;

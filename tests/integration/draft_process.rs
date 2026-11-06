@@ -1846,6 +1846,19 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_as_data_under_a_ma
   let session = StandInSession::new(SESSION, "unscripted");
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
   let receiver = &round.standing.receiver;
+  let id = queue(
+    receiver.db(),
+    AGENT,
+    OWNER,
+    INSTRUCTION,
+    &Queued {
+      kind: Some("test-notice"),
+      sort: Some("notice"),
+      ..Queued::default()
+    },
+  )
+  .await
+  .unwrap();
   let built = paragraph(&Push {
     receiver,
     agent: AGENT,
@@ -1854,6 +1867,7 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_as_data_under_a_ma
     round: "round-a",
     messages: &[said(2, SHORT)],
     instructions: &[INSTRUCTION.to_owned()],
+    instruction_ids: &[id],
     events: &[],
     holds: &Default::default(),
     consumed: Some(1),
@@ -1884,13 +1898,163 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_as_data_under_a_ma
     "the marks are the room block's to name: {text}"
   );
   assert!(at(SHORT) < at(INSTRUCTION), "the messages stand before the instructions");
-  assert_eq!(built.instructions, INSTRUCTION);
+  assert!(
+    built
+      .instructions
+      .contains(&fill_marks(&CHAT_ROUND.instructions.source, &[("publisher", "test")]))
+      && built.instructions.contains(INSTRUCTION),
+    "the instruction names its publisher and keeps its words: {}",
+    built.instructions
+  );
 
   let block = room_context(receiver, OWNER, None).await.unwrap().text;
 
   assert!(
     block.contains(&fill_marks(&push.rule, &[("marker", &push.marker)])),
     "the room's block carries what the marker means"
+  );
+}
+
+#[tokio::test]
+async fn three_identical_quiet_notices_ride_one_block_naming_the_unit_that_published_them() {
+  const NOTE: &str = "the research model has waited twenty minutes for its card";
+
+  let round = Drafting::new(StandInSession::new(SESSION, "unscripted"), &["final"], &["final"], 150).await;
+  let receiver = &round.standing.receiver;
+  let mut ids = vec![];
+
+  for _ in 0..3 {
+    let id = queue(
+      receiver.db(),
+      AGENT,
+      OWNER,
+      NOTE,
+      &Queued {
+        kind: Some("research-restore:flash-next"),
+        sort: Some("notice"),
+        ..Queued::default()
+      },
+    )
+    .await
+    .unwrap();
+
+    // A newer row of the same kind replaces a pending one; these three arrived in the same turn.
+    round
+      .scratch
+      .run(r#"UPDATE "instructions" SET "delivered_at" = 1 WHERE "id" = $1"#, vec![id.into()])
+      .await;
+    ids.push(id);
+  }
+
+  let instructions = vec![NOTE.to_owned(); 3];
+  let built = paragraph(&Push {
+    receiver,
+    agent: AGENT,
+    owner: OWNER,
+    chat_id: OWNER,
+    round: "round-a",
+    messages: &[],
+    instructions: &instructions,
+    instruction_ids: &ids,
+    events: &[],
+    holds: &Default::default(),
+    consumed: None,
+    tools_allowed: true,
+    reader: None,
+    announced: true,
+  })
+  .await
+  .unwrap();
+
+  assert_eq!(built.text.matches(NOTE).count(), 1, "the notice stands once: {}", built.text);
+  assert!(
+    built
+      .text
+      .contains(&fill_marks(&CHAT_ROUND.instructions.source, &[("publisher", "research")])),
+    "the research unit is named: {}",
+    built.text
+  );
+  assert!(
+    built.text.contains(&fill_marks(
+      &CHAT_ROUND.instructions.subject_times,
+      &[("name", "research"), ("id", "flash-next"), ("count", "3")],
+    )),
+    "how many arrived is said once: {}",
+    built.text
+  );
+  assert_eq!(
+    round.scratch.texts(r#"SELECT "publisher" FROM "instructions" ORDER BY "id""#).await,
+    ["research", "research", "research"],
+    "each row keeps its publisher"
+  );
+}
+
+#[tokio::test]
+async fn the_same_quiet_words_for_two_items_name_each_item_once() {
+  const NOTE: &str = "the job of an item ended";
+
+  let round = Drafting::new(StandInSession::new(SESSION, "unscripted"), &["final"], &["final"], 150).await;
+  let receiver = &round.standing.receiver;
+  let mut ids = vec![];
+
+  for item in [11, 12] {
+    ids.push(
+      queue(
+        receiver.db(),
+        AGENT,
+        OWNER,
+        NOTE,
+        &Queued {
+          kind: Some(&format!("job-ended:{item}")),
+          events: vec![format!("job-ended:#{item}")],
+          sort: Some("job"),
+          ..Queued::default()
+        },
+      )
+      .await
+      .unwrap(),
+    );
+  }
+
+  let instructions = vec![NOTE.to_owned(); 2];
+  let built = paragraph(&Push {
+    receiver,
+    agent: AGENT,
+    owner: OWNER,
+    chat_id: OWNER,
+    round: "round-a",
+    messages: &[],
+    instructions: &instructions,
+    instruction_ids: &ids,
+    events: &[],
+    holds: &Default::default(),
+    consumed: None,
+    tools_allowed: true,
+    reader: None,
+    announced: true,
+  })
+  .await
+  .unwrap();
+
+  assert_eq!(built.text.matches(NOTE).count(), 1, "the words stand once: {}", built.text);
+  assert!(
+    built
+      .text
+      .contains(&fill_marks(&CHAT_ROUND.instructions.subject, &[("name", "job"), ("id", "#11")])),
+    "item 11 is named: {}",
+    built.text
+  );
+  assert!(
+    built
+      .text
+      .contains(&fill_marks(&CHAT_ROUND.instructions.subject, &[("name", "job"), ("id", "#12")])),
+    "item 12 is named: {}",
+    built.text
+  );
+  assert!(
+    !built.text.contains(&CHAT_ROUND.instructions.repeat),
+    "different items are no unchanged repeat: {}",
+    built.text
   );
 }
 

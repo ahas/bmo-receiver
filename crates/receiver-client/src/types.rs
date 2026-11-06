@@ -636,6 +636,10 @@ pub struct InstructionRequest {
   pub via: Option<String>,
   #[serde(default)]
   pub run: Option<i64>,
+  /// The unit or source that published the row, kept with it and named in every turn it rides; a row naming none
+  /// is read by the first word of its kind.
+  #[serde(default)]
+  pub publisher: Option<String>,
 }
 
 /// Whether somebody waits on an instruction (docs/wake.md, 「Quiet instructions」).

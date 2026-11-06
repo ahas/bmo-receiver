@@ -16,6 +16,8 @@ use bmo_receiver::hearing::Hearing;
 use bmo_receiver::receiver::{Inbound, Room};
 use bmo_receiver::{now_ms, one};
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::fill_marks;
 use serde_json::json;
 
 use crate::integration::common::Scratch;
@@ -167,6 +169,18 @@ impl Rounds {
     id
   }
 
+  // A quiet instruction whose row names its kind, so the turn names the kind's first word as its publisher.
+  async fn instruct_under(&self, text: &str, kind: &str) -> i64 {
+    let queued = Queued {
+      kind: Some(kind),
+      ..Queued::default()
+    };
+    let id = queue(self.standing.receiver.db(), ADDED, OWNER, text, &queued).await.unwrap();
+
+    self.added.instruct(OWNER, text.to_owned(), Some(id), None, vec![]).await;
+    id
+  }
+
   async fn settled(&self) {
     until("the rounds' end", || self.runner.idle() && !self.session.working()).await;
   }
@@ -207,6 +221,24 @@ async fn another_supervisors_round_is_the_default_answerers_round() {
     "its answer goes out: {:?}",
     rounds.sent()
   );
+}
+
+#[tokio::test]
+async fn a_round_s_quiet_block_names_the_unit_that_published_the_row() {
+  let rounds = Rounds::on(StandInSession::new(SESSION, ANSWER)).await;
+  const NOTE: &str = "the research unit has waited twenty minutes for its card";
+
+  rounds.instruct_under(NOTE, "research-restore:flash-next").await;
+  rounds.settled().await;
+
+  let prompts = rounds.session.prompts();
+  let prompt = prompts.first().expect("the instruction opens a turn");
+
+  assert!(
+    prompt.contains(&fill_marks(&CHAT_ROUND.instructions.source, &[("publisher", "research")])),
+    "the published unit is named: {prompt}"
+  );
+  assert!(prompt.contains(NOTE), "the notice keeps its words: {prompt}");
 }
 
 #[tokio::test]

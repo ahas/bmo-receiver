@@ -238,6 +238,19 @@ restarted_marker = "HANDED BEFORE."
 restarted = "This instruction was handed to you before, and the round that took it did not end: the service restarted or the round failed."
 restarted_rule = "WHEN A QUIET INSTRUCTION IS MARKED {marker} — part of it may already be done: look at what is there before you repeat anything that has an effect."
 room_removed = "This came back from work started in room {room}, whose registration has been removed; nothing goes to that room, so it is told here."
+# The line a quiet instruction opens on: the unit that published its row, and what the row knows of the agent and
+# room it is for, joined by `parts`. Only the parts the row knows are written.
+source = "from {publisher}"
+agent = "agent {agent}"
+room = "room {room}"
+parts = " · "
+# The line naming one item a notice is for, and its count where the same notice arrived for it more than once.
+subject = "{name} {id}"
+subject_times = "{name} {id} ({count} times)"
+# The line under a notice that arrived unchanged more than once and names no item to tell the copies apart.
+repeat = "the same notice arrived {count} times"
+# The publisher a row is shown as where it carries none and its kind names none.
+unknown_publisher = "the system"
 
 # The words a restart left unread, read back as the process that holds the conversations starts: how long the
 # start settles before they are read, in milliseconds.

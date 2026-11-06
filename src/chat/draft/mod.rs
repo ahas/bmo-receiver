@@ -627,6 +627,7 @@ impl Run<'_> {
       round: drafted.round,
       messages: &took,
       instructions: &[],
+      instruction_ids: &[],
       events: &[],
       holds: &self.holds,
       consumed: self.held.last_consumed_id,

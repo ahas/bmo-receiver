@@ -28,6 +28,8 @@ pub struct Push<'a> {
   pub round: &'a str,
   pub messages: &'a [Inbound],
   pub instructions: &'a [String],
+  /// The rows the instructions came as, in the same order.
+  pub instruction_ids: &'a [i64],
   pub events: &'a [TurnEvent],
   /// What the round already holds, by path.
   pub holds: &'a HashSet<String>,
@@ -101,11 +103,15 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
   }
 
   // A push carries no piece: the round's index went in with its turn (docs/bmo-window.md, 「The openings」).
-  let instructions = push.instructions.join("\n\n");
+  let mut instructions = push.instructions.join("\n\n");
 
   if !push.instructions.is_empty() {
+    let notices =
+      super::instructions::notices(receiver.db(), push.instruction_ids, push.instructions).await;
+
+    instructions = super::instructions::shown(&notices).text;
     parts.push(String::new());
-    parts.push(fill_marks(&blocks.quiet, &[("count", &push.instructions.len().to_string())]));
+    parts.push(fill_marks(&blocks.quiet, &[("count", &notices.len().to_string())]));
     parts.push(instructions.clone());
     parts.push(blocks.quiet_end.clone());
   }

@@ -431,9 +431,11 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   }
 
   if !round.instructions.is_empty() {
+    let notices = super::instructions::notices(db, round.instruction_ids, round.instructions).await;
+
     parts.push(String::new());
-    parts.push(fill_marks(&blocks.quiet, &[("count", &round.instructions.len().to_string())]));
-    parts.push(instructions.clone());
+    parts.push(fill_marks(&blocks.quiet, &[("count", &notices.len().to_string())]));
+    parts.push(super::instructions::shown(&notices).text);
     parts.push(blocks.quiet_end.clone());
   }
 

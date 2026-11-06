@@ -53,6 +53,7 @@ pub async fn raise_order(
     summary: reason,
     via: None,
     run_id: None,
+    publisher: Some("receiver"),
   };
 
   queue_row(receiver.db(), agent, chat_id, &text, &row).await.map(drop)

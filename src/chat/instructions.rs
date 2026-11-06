@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::fill_marks;
 use sea_orm::{DatabaseConnection, TransactionTrait, Value};
 use tokio::sync::Notify;
 
@@ -199,6 +200,230 @@ async fn pending(db: &DatabaseConnection) -> Result<Vec<Row>, Fault> {
   }
 
   Ok(read)
+}
+
+/// One quiet instruction as a turn names it: the words the row handed over, the unit that published it, and what
+/// the row knows of the agent and room it is for and the item it names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Notice {
+  pub id: i64,
+  pub text: String,
+  pub publisher: String,
+  pub agent: String,
+  pub room: i64,
+  /// The item a row names: its label and the identifier as it is shown, a number with its `#` or a name.
+  pub subject: Option<(String, String)>,
+}
+
+/// The publisher a row that carries none is read as: the first word of its kind, or the policy's name for a row
+/// that names nothing.
+pub fn publisher_of(kind: Option<&str>) -> String {
+  let said = &CHAT_ROUND.instructions;
+  let head = kind
+    .map(str::trim)
+    .filter(|kind| !kind.is_empty())
+    .map(|kind| kind.split([':', '-', '_']).next().unwrap_or_default().trim())
+    .filter(|head| head.chars().count() >= 2 && !head.chars().all(|one| one.is_ascii_digit()));
+
+  head.map_or_else(|| said.unknown_publisher.clone(), str::to_owned)
+}
+
+// The item a row names, as a label and the identifier it is shown under: the tail of its events, else of its
+// kind, else its run.
+fn subject_of(kind: Option<&str>, events: Option<&str>, run: Option<i64>) -> Option<(String, String)> {
+  let named = |key: &str| {
+    let (name, id) = key.trim().split_once(':')?;
+    let id = id.trim().trim_start_matches('#');
+    let name = name.split(['-', '_']).next()?.trim();
+
+    (name.chars().count() >= 2 && !id.is_empty()).then(|| {
+      let id = id.parse::<i64>().map_or_else(|_| id.to_owned(), |id| format!("#{id}"));
+
+      (name.to_owned(), id)
+    })
+  };
+
+  events
+    .into_iter()
+    .flat_map(|text| text.split(','))
+    .find_map(named)
+    .or_else(|| kind.and_then(named))
+    .or_else(|| run.map(|run| ("run".to_owned(), format!("#{run}"))))
+}
+
+/// The notices the rows number, paired with the words each was handed over as: the row's own publisher, agent,
+/// room and item where it still stands, and a notice read from the words alone where it does not.
+pub async fn notices(db: &DatabaseConnection, ids: &[i64], texts: &[String]) -> Vec<Notice> {
+  if texts.is_empty() {
+    return vec![];
+  }
+
+  let mut held: Vec<Held> = vec![];
+
+  if !ids.is_empty() {
+    let numbered = (1..=ids.len()).map(|at| format!("${at}")).collect::<Vec<_>>().join(", ");
+    let values: Vec<Value> = ids.iter().map(|id| (*id).into()).collect();
+
+    if let Ok(rows) = all(
+      db,
+      &format!(
+        r#"SELECT "id", "agent", "chat_id", "kind", "events", "run_id", "publisher"
+           FROM "instructions" WHERE "id" IN ({numbered})"#
+      ),
+      values,
+    )
+    .await
+    {
+      for row in rows {
+        held.push(Held {
+          id: row.try_get("", "id").unwrap_or_default(),
+          agent: row.try_get("", "agent").unwrap_or_default(),
+          room: row.try_get("", "chat_id").unwrap_or_default(),
+          kind: row.try_get("", "kind").ok().flatten(),
+          events: row.try_get("", "events").ok().flatten(),
+          run: row.try_get("", "run_id").ok().flatten(),
+          publisher: row.try_get("", "publisher").ok().flatten(),
+        });
+      }
+    }
+  }
+
+  texts
+    .iter()
+    .enumerate()
+    .map(|(at, text)| {
+      let id = ids.get(at).copied().unwrap_or_default();
+
+      match held.iter().find(|row| row.id == id) {
+        Some(row) => Notice {
+          id,
+          text: text.clone(),
+          publisher: row
+            .publisher
+            .clone()
+            .map(|publisher| publisher.trim().to_owned())
+            .filter(|publisher| !publisher.is_empty())
+            .unwrap_or_else(|| publisher_of(row.kind.as_deref())),
+          agent: row.agent.clone(),
+          room: row.room,
+          subject: subject_of(row.kind.as_deref(), row.events.as_deref(), row.run),
+        },
+        None => Notice {
+          id,
+          text: text.clone(),
+          publisher: publisher_of(None),
+          agent: String::new(),
+          room: 0,
+          subject: None,
+        },
+      }
+    })
+    .collect()
+}
+
+// A row the composition reads for what it knows of a notice, its words taken from what was handed over.
+struct Held {
+  id: i64,
+  agent: String,
+  room: i64,
+  kind: Option<String>,
+  events: Option<String>,
+  run: Option<i64>,
+  publisher: Option<String>,
+}
+
+/// The quiet instructions as a turn carries them: one block a publisher and its words, a repeated notice once
+/// with how many arrived, and one line for each item a repeated notice is for.
+pub struct Shown {
+  pub text: String,
+}
+
+pub fn shown(notices: &[Notice]) -> Shown {
+  let mut groups: Vec<Group<'_>> = vec![];
+
+  for notice in notices {
+    match groups.iter_mut().find(|group| {
+      group.publisher == notice.publisher.as_str()
+        && group.agent == notice.agent.as_str()
+        && group.room == notice.room
+        && group.text == notice.text.as_str()
+    }) {
+      Some(group) => group.add(notice),
+      None => groups.push(Group::new(notice)),
+    }
+  }
+
+  Shown {
+    text: groups.iter().map(Group::block).collect::<Vec<_>>().join("\n\n"),
+  }
+}
+
+struct Group<'a> {
+  publisher: &'a str,
+  agent: &'a str,
+  room: i64,
+  text: &'a str,
+  subjects: Vec<((String, String), usize)>,
+  plain: usize,
+}
+
+impl<'a> Group<'a> {
+  fn new(notice: &'a Notice) -> Self {
+    let mut group = Group {
+      publisher: &notice.publisher,
+      agent: &notice.agent,
+      room: notice.room,
+      text: &notice.text,
+      subjects: vec![],
+      plain: 0,
+    };
+
+    group.add(notice);
+
+    group
+  }
+
+  fn add(&mut self, notice: &Notice) {
+    match &notice.subject {
+      Some(subject) => match self.subjects.iter_mut().find(|(held, _)| held == subject) {
+        Some((_, count)) => *count += 1,
+        None => self.subjects.push((subject.clone(), 1)),
+      },
+      None => self.plain += 1,
+    }
+  }
+
+  fn block(&self) -> String {
+    let said = &CHAT_ROUND.instructions;
+    let mut line = vec![fill_marks(&said.source, &[("publisher", self.publisher)])];
+
+    if !self.agent.trim().is_empty() {
+      line.push(fill_marks(&said.agent, &[("agent", self.agent)]));
+    }
+
+    if self.room != 0 {
+      line.push(fill_marks(&said.room, &[("room", &self.room.to_string())]));
+    }
+
+    let mut lines = vec![line.join(&said.parts), self.text.to_owned()];
+
+    for ((name, id), count) in &self.subjects {
+      lines.push(if *count > 1 {
+        fill_marks(
+          &said.subject_times,
+          &[("name", name), ("id", id.as_str()), ("count", &count.to_string())],
+        )
+      } else {
+        fill_marks(&said.subject, &[("name", name), ("id", id.as_str())])
+      });
+    }
+
+    if self.plain > 1 {
+      lines.push(fill_marks(&said.repeat, &[("count", &self.plain.to_string())]));
+    }
+
+    lines.join("\n")
+  }
 }
 
 async fn discard(db: &DatabaseConnection, id: i64) -> Result<(), Fault> {
@@ -548,6 +773,8 @@ pub struct Queued<'a> {
   pub via: Option<&'a str>,
   /// The run whose result it is, which a call waiting on that run takes it by.
   pub run_id: Option<i64>,
+  /// The unit that published it, kept with the row; where it names none the first word of its kind is kept.
+  pub publisher: Option<&'a str>,
 }
 
 // How a row rides as its column keeps it: not at all, its own room's rounds, or any room's its session answers.
@@ -584,10 +811,16 @@ pub async fn queue(
       .await?;
   }
 
+  let publisher = queued
+    .publisher
+    .map(str::trim)
+    .filter(|publisher| !publisher.is_empty())
+    .map(str::to_owned)
+    .unwrap_or_else(|| publisher_of(queued.kind));
   let written = one(
     &transaction,
-    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id", "cause")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id", "cause", "publisher")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING "id""#,
     vec![
       agent.into(),
@@ -604,6 +837,7 @@ pub async fn queue(
       Value::Bool(Some(queued.agent_only)),
       queued.run_id.into(),
       cause_of(queued).word().into(),
+      publisher.into(),
     ],
   )
     .await?;

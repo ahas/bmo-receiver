@@ -112,6 +112,14 @@ A quiet instruction is a row of the instruction table handed to a chat's own ses
 that session without the room hearing it.
 
 - **Its own block in the prompt,** marked the way the message blocks are; nobody in the room sent it or sees it.
+- **The row keeps its publisher.** A row's `publisher` names the unit or source that published it; a row that
+  carries none is named by the first word of its `kind`, and a row that names neither is `the system`
+  (`chat-round.toml`, `[instructions]`, `unknown_publisher`). The block opens on that publisher and what the row
+  knows of the agent and room it is for (`source`, `agent`, `room`), beside the notice's own words.
+- **A repeated notice is one block.** Rows with the same publisher, agent, room and words are carried once.
+  Where they name no item, the block says how many arrived (`repeat`); where they name one, its line carries the
+  count (`subject_times`). Where the same words come for different items, the words stand once and one line
+  names each item with its identifier (`subject`).
 - **Some are for the agent alone.** A row marked `agent_only` is a record the agent reads and no room hears: a
   round carrying only such rows is a quiet turn whose reply is dropped, and no room message is sent. The tool
   list's notes, a failure order of a broken run, a run past its clock and a document reload are marked so; a

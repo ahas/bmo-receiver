@@ -1174,6 +1174,14 @@
               "null"
             ]
           },
+          "publisher": {
+            "default": null,
+            "description": "The unit or source that published the row, kept with it and named in every turn it rides; a row naming none\nis read by the first word of its kind.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "ridesUntil": {
             "default": null,
             "format": "int64",
@@ -1231,7 +1239,8 @@
           "agentOnly",
           "ridesUntil",
           "via",
-          "run"
+          "run",
+          "publisher"
         ],
         "type": "object"
       },

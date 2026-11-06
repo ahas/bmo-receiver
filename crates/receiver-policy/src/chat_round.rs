@@ -244,6 +244,19 @@ pub struct Instructions {
   pub restarted: String,
   pub restarted_rule: String,
   pub room_removed: String,
+  /// The line a quiet instruction opens on: the unit that published its row, and what the row knows of the agent
+  /// and room it is for, joined by `parts`.
+  pub source: String,
+  pub agent: String,
+  pub room: String,
+  pub parts: String,
+  /// The line naming one item a notice is for, and its count where the same notice arrived for it more than once.
+  pub subject: String,
+  pub subject_times: String,
+  /// The line under a notice that arrived unchanged more than once.
+  pub repeat: String,
+  /// The publisher a row is shown as where it carries none and its kind names none.
+  pub unknown_publisher: String,
 }
 
 /// The words a restart left unread, read back at the start.
