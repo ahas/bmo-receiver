@@ -2972,6 +2972,7 @@ impl Follower {
       tools_allowed,
       reader: Some(conversations.0.receiver.roads()),
       judged: true,
+      announced: true,
     })
     .await;
     let mut state = conversations.state();

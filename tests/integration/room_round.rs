@@ -197,10 +197,15 @@ fn shown_in_the_closing_check(round: &Round) {
     round.pushes()
   );
   assert_eq!(prompts.len(), 2, "the closing check is the round's one more turn");
+  assert!(prompts[1].contains(&DRAFTING.arrived_marker), "{}", prompts[1]);
   assert!(
-    prompts[1].contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
-    "{}",
+    !prompts[1].contains("Answer with the message as it should now go out"),
+    "the closing check's instruction stands in the room's block: {}",
     prompts[1]
+  );
+  assert!(
+    prompts[0].contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
+    "the room's block carries the closing check's rule"
   );
   assert!(prompts[1].contains(LATER), "the closing check shows the words said meanwhile");
 }

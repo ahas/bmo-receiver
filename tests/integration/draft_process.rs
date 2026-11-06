@@ -1022,8 +1022,23 @@ async fn a_skip_in_the_second_question_sends_nothing() {
   assert_eq!(prompts.len(), 3, "the last question is never asked: {prompts:#?}");
   assert!(!prompts.iter().any(|prompt| turn_of(prompt).contains("(final)")));
   assert!(
-    prompts[2].contains(&SECOND_ASKS.errands.owed[..40]),
-    "the owner's chat is asked over the skip"
+    turn_of(&prompts[2]).contains("ITEM: owed."),
+    "the owner's chat is asked over the skip: {}",
+    turn_of(&prompts[2])
+  );
+  assert!(
+    turn_of(&prompts[2]).contains("Owner's messages in this turn: 1."),
+    "the turn carries its data: {}",
+    turn_of(&prompts[2])
+  );
+  assert!(
+    !turn_of(&prompts[2]).contains("Write this turn's answer to the owner now"),
+    "the instruction stands in the room's block: {}",
+    turn_of(&prompts[2])
+  );
+  assert!(
+    prompts[0].contains(&SECOND_ASKS.errands.owed),
+    "the room's block carries the item's rule"
   );
   assert!(round.sent().is_empty(), "nothing goes out");
   assert_eq!(
@@ -1129,7 +1144,20 @@ async fn a_note_claiming_a_reply_does_not_skip_the_owners_directive() {
     "the note the draft read claims the reply: {}",
     prompts[1]
   );
-  assert!(prompts[2].contains(&SECOND_ASKS.errands.owed[..40]), "{}", prompts[2]);
+  assert!(
+    prompts[0].contains(&SECOND_ASKS.errands.owed),
+    "the room's block carries the item's rule"
+  );
+  assert!(
+    turn_of(&prompts[2]).contains("ITEM: owed."),
+    "the turn names the item: {}",
+    turn_of(&prompts[2])
+  );
+  assert!(
+    !turn_of(&prompts[2]).contains("Write this turn's answer to the owner now"),
+    "the instruction stands in the room's block: {}",
+    turn_of(&prompts[2])
+  );
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("the corrected answer"), "{sent:?}");
 }
@@ -1218,6 +1246,19 @@ async fn a_five_round_process_reviews_and_sends_without_repeating_questions_or_a
     prompts[0].contains(&DRAFTING.review.revise),
     "the room's block carries the revision instruction: {}",
     prompts[0]
+  );
+  assert!(
+    prompts[0].contains(&DRAFTING.waiting_rule)
+      && prompts[0].contains(&SECOND_ASKS.later)
+      && prompts[0].contains(&SECOND_ASKS.items_head)
+      && prompts[0].contains(&SECOND_ASKS.errands.owed),
+    "the room's block carries the waiting rule and the items' rules: {}",
+    prompts[0]
+  );
+  assert!(
+    !prompts.iter().any(|prompt| turn_of(prompt).contains(&DRAFTING.waiting_rule)
+      || turn_of(prompt).contains(&SECOND_ASKS.later)),
+    "no turn repeats a rule the block carries"
   );
 
   for name in FIVE {
@@ -1560,9 +1601,18 @@ async fn a_failing_answer_after_the_old_ceiling_gets_its_repair_round() {
 
   assert_eq!(prompts.len(), 2, "the check is asked despite the old clock: {prompts:#?}");
   assert!(
-    prompts[1].contains(&SECOND_ASKS.errands.format),
-    "the format check's errand: {}",
-    prompts[1]
+    turn_of(&prompts[1]).contains("CHECK: format."),
+    "the check's turn names it: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    !turn_of(&prompts[1]).contains("Write the message again"),
+    "the instruction stands in the room's block: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    prompts[0].contains(&SECOND_ASKS.errands.format),
+    "the room's block carries the check's rule"
   );
   assert_eq!(sent.len(), 1);
   assert!(sent[0].contains("the repaired message"), "{sent:?}");
@@ -1631,7 +1681,25 @@ async fn a_promise_is_an_item_of_the_process_and_no_asking_of_its_own() {
   let sent = round.sent();
 
   assert_eq!(prompts.len(), 2);
-  assert!(prompts[1].contains(&SECOND_ASKS.errands.wake[..40]), "{}", prompts[1]);
+  assert!(
+    turn_of(&prompts[1]).contains("ITEM: wake."),
+    "the turn names the item: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    turn_of(&prompts[1]).contains("The room: 42."),
+    "the turn carries its data: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    !turn_of(&prompts[1]).contains("set it now, in this run"),
+    "the instruction stands in the room's block: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    prompts[0].contains(&SECOND_ASKS.errands.wake),
+    "the room's block carries the item's rule"
+  );
   assert!(sent.len() == 1 && sent[0].contains("the message, with the watch set"), "{sent:?}");
   assert_eq!(round.log().await, ["turn turn answered", "item wake answered", "end  message"]);
 
@@ -1734,6 +1802,7 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_in_one_paragraph()
     tools_allowed: true,
     reader: None,
     judged: true,
+    announced: true,
   })
   .await
   .unwrap();
@@ -1928,9 +1997,7 @@ async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
   assert!(prompts[1].contains(SHORT), "the last question shows them: {}", prompts[1]);
   assert_eq!(prompts.len(), 3, "the words marked separate open one round of their own, a light one");
   assert!(
-    prompts[2].contains(SHORT)
-      && !prompts[2]
-        .contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
+    prompts[2].contains(SHORT) && !prompts[2].contains(&DRAFTING.arrived_marker),
     "{}",
     prompts[2]
   );
@@ -2060,10 +2127,18 @@ async fn words_said_during_the_last_question_stand_in_the_closing_check_before_t
 
   assert_eq!(prompts.len(), 3, "the closing check is one more turn, and the words open no round");
   assert!(
-    prompts[2].contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]))
-      && prompts[2].contains(SHORT),
+    prompts[2].contains(&DRAFTING.arrived_marker) && prompts[2].contains(SHORT),
     "{}",
     prompts[2]
+  );
+  assert!(
+    !turn_of(&prompts[2]).contains("Answer with the message as it should now go out"),
+    "the closing check's instruction stands in the room's block: {}",
+    turn_of(&prompts[2])
+  );
+  assert!(
+    prompts[0].contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
+    "the room's block carries the closing check's rule"
   );
   assert!(
     sent.len() == 1 && sent[0].contains("the first message"),

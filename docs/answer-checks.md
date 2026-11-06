@@ -15,9 +15,10 @@ is written in is the agent's rule, not a check; nothing on the send path reads i
   waiting on something, of a condition and of a manner, and the volitional and imperative endings
   (`policy/second-asks.toml`), and the Hangul syllable block a word is told by (`policy/scripts.toml`). These are words of the room's language the code matches on, and so data. So is
   every errand an item or a check sends, in English as every agent's text is.
-- **An item or a check goes back to the same session** with the round's reference, the turn's scope, the
-  check's errand and the messages waiting for the next turn. It is a turn of the process: its answer is written
-  in the round log under the item's or the check's name (`docs/drafting.md`, 「The round log」), and no
+- **An item or a check goes back to the same session** with a marker naming it, the data its rule reads, the
+  turn's scope and the ids of the messages waiting for the next turn; the rule itself stands in the room's
+  block (`policy/second-asks.toml`, `[errands]` and `[data]`). It is a turn of the process: its answer is
+  written in the round log under the item's or the check's name (`docs/drafting.md`, 「The round log」), and no
   judgement is written for it at the gate. A run of it that failed leaves the text as it stood, and a stop ends
   the round.
 

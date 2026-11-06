@@ -38,6 +38,9 @@ pub struct Push<'a> {
   /// Whether the paragraph carries the rule each message is judged by: a push into a working turn does, and a
   /// block under a question leans on the rules the room's block states.
   pub judged: bool,
+  /// Whether the paragraph opens on the note saying what arrived. A push into a working turn does; a block the
+  /// draft process shows carries the messages as data, its rule standing in the room's block.
+  pub announced: bool,
 }
 
 /// The paragraph a push goes in as, the instructions as the session reads them, and the paths of what the
@@ -86,7 +89,11 @@ pub async fn paragraph(push: &Push<'_>) -> Result<Paragraph, Fault> {
     fetch_on_demand: fetch,
     shown: &shown,
   };
-  let mut parts = vec![note(sends(push.messages).len(), push.instructions.len(), push.judged)];
+  let mut parts = if push.announced {
+    vec![note(sends(push.messages).len(), push.instructions.len(), push.judged)]
+  } else {
+    vec![]
+  };
 
   if !push.messages.is_empty() {
     let lines = reading(push.tools_allowed).lines(push.messages).await?;

@@ -17,12 +17,21 @@ pub struct Errands {
   pub length: Option<String>,
   pub format: String,
   pub record: String,
-  pub record_off: String,
-  pub record_on: String,
   pub wake: String,
-  pub wake_off: String,
-  pub wake_on: String,
   pub rule: String,
+}
+
+/// The data an item's or a check's turn carries, and the marker that names it.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Data {
+  pub item: String,
+  pub check: String,
+  pub owed: String,
+  pub owner_directive: String,
+  pub tools_on: String,
+  pub tools_off: String,
+  pub room: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,7 +63,9 @@ pub struct Language {
 pub struct SecondAsks {
   pub next_turn: String,
   pub later: String,
+  pub items_head: String,
   pub errands: Errands,
+  pub data: Data,
   pub reading: Reading,
   /// Language thresholds a deployment set before the send path stopped reading language: read and ignored.
   #[serde(default)]

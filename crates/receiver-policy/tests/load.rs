@@ -92,9 +92,10 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(!CHAT_ROUND.index.rule.is_empty() && !CHAT_ROUND.queue_line.rule.is_empty());
   assert_eq!(CHAT_ROUND.situation.gap_messages, 200);
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
-  assert!(SECOND_ASKS.errands.owed.contains("{count}"));
-  assert!(SECOND_ASKS.errands.wake_on.contains("{chat}"));
-  assert!(SECOND_ASKS.errands.rule.contains("{chat}"));
+  assert!(SECOND_ASKS.data.owed.contains("{count}"));
+  assert!(SECOND_ASKS.data.room.contains("{chat}"));
+  assert!(SECOND_ASKS.errands.wake.contains("the room id the turn shows"));
+  assert!(SECOND_ASKS.errands.rule.contains("the room id the turn shows"));
   assert_eq!(SECOND_ASKS.reading.pledge_final, 8);
   assert!(!SECOND_ASKS.errands.format.is_empty());
 }

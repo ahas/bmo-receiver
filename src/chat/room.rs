@@ -12,6 +12,7 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
+use receiver_policy::second_asks::SECOND_ASKS;
 use regex::Regex;
 use serde_json::Value;
 
@@ -458,38 +459,50 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
 }
 
 // The draft process's stage instructions, as the room's block carries them (docs/drafting.md, 「The questions」):
-// the head, then one line for each question the process's row may ask, ordinary or light, from the catalogue with
-// the console's rows over it.
+// the head and one line for each question the process's row may ask, ordinary or light, from the catalogue with
+// the console's rows over it; then what a waiting line means and the rules of the items and checks that follow
+// the message, which stand here whether the row asks a question or none.
 async fn stages(receiver: &Receiver) -> Result<String, Fault> {
   let db = receiver.db();
+  let mut parts = vec![];
   let row = super::draft::table::rows(db).await?.into_iter().next();
-  let Some(row) = row else {
-    return Ok(String::new());
-  };
-  let catalogue = super::draft::table::questions(db).await?;
-  let mut names = row.rounds.clone();
 
-  for name in &row.light {
-    if !names.contains(name) {
-      names.push(name.clone());
+  if let Some(row) = row {
+    let catalogue = super::draft::table::questions(db).await?;
+    let mut names = row.rounds.clone();
+
+    for name in &row.light {
+      if !names.contains(name) {
+        names.push(name.clone());
+      }
+    }
+
+    if !names.is_empty() {
+      parts.push(DRAFTING.stages_head.clone());
+
+      for name in names {
+        if let Some(question) = catalogue.iter().find(|question| question.name == name) {
+          parts.push(fill_marks(&DRAFTING.stage, &[("name", &name), ("text", &question.text)]));
+        }
+      }
+
+      // The send clause a round's line now carries only as a permission word: what a send does and the voice a
+      // message is written in stand here once.
+      parts.push(fill_marks(&DRAFTING.send, &[("voice", &DRAFTING.voice)]));
     }
   }
 
-  if names.is_empty() {
-    return Ok(String::new());
-  }
-
-  let mut parts = vec![DRAFTING.stages_head.clone()];
-
-  for name in names {
-    if let Some(question) = catalogue.iter().find(|question| question.name == name) {
-      parts.push(fill_marks(&DRAFTING.stage, &[("name", &name), ("text", &question.text)]));
-    }
-  }
-
-  // The send clause a round's line now carries only as a permission word: what a send does and the voice a
-  // message is written in stand here once.
-  parts.push(fill_marks(&DRAFTING.send, &[("voice", &DRAFTING.voice)]));
+  // The lines a turn carries only as data, and the rules the items and checks that follow the message follow.
+  parts.push(DRAFTING.waiting_rule.clone());
+  parts.push(SECOND_ASKS.later.clone());
+  parts.push(SECOND_ASKS.items_head.clone());
+  parts.push(SECOND_ASKS.errands.owed.clone());
+  parts.push(SECOND_ASKS.errands.owner_directive.clone());
+  parts.push(SECOND_ASKS.errands.record.clone());
+  parts.push(SECOND_ASKS.errands.wake.clone());
+  parts.push(SECOND_ASKS.errands.rule.clone());
+  parts.push(fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]));
+  parts.push(SECOND_ASKS.errands.format.clone());
 
   Ok(parts.join("\n"))
 }

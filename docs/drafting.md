@@ -107,9 +107,10 @@ leaves.
 - **Every later round goes out as one more turn** opening on the process's lead line, naming the round's place,
   name and send permission; then the turn's scope; then the block of messages that arrived since the last
   answer, where any did (「What came in meanwhile」 below). Every round but the message round closes on the
-  messages still waiting and that they are shown with the next round. No turn carries a question's text, what a
-  send does, or that the message is reviewed: those stand in the room's block. The lines are the policy's
-  (`drafting.toml`).
+  line naming the messages still waiting; the block says they are shown with the next round and are not
+  answered now. No turn carries a question's text, an instruction about how to answer it, what a send does, or
+  that the message is reviewed: those stand in the room's block. The lines are the policy's (`drafting.toml`,
+  `second-asks.toml`).
 - **No gate is asked for a later round:** the turn carries no reference of its own, and no judgement is
   written for it.
 
@@ -235,7 +236,8 @@ leaves.
   words carry his privilege.
 - **Once the message stands, one closing check.** Where words waited when the message came to stand — the answer
   to `final`, or one a send marker opened — the session is asked once more before the items and the checks: the
-  policy's `arrived` line, the message as it stands, then the block. The answer, marks taken out, is the whole
+  marker that names the check (`arrived_marker`), the message as it stands, then the block of what arrived. What
+  the check does stands in the room's block (`arrived`). The answer, marks taken out, is the whole
   message as it should now go out, answering the words that arrived as well, and it takes the standing message's
   place: nothing is joined to anything, so no part of the message goes out twice. An answer that is nothing but
   marks sends the standing message unchanged, a wait leaves it too, and a skip sends nothing; the marks keep their
@@ -300,7 +302,9 @@ leaves.
 The code's own readings of the message are items of the process, asked once the message stands (the last
 question's answer, or the answer a send marker opened) and after the closing check where one was asked
 (「What came in meanwhile」 above), each asked once as one more turn of the same session, its answer the message
-where it says something: neither empty nor a skip nor a wait.
+where it says something: neither empty nor a skip nor a wait. The turn carries only the marker naming the item
+or the check and the data its rule reads; the rule itself stands in the room's block (`second-asks.toml`,
+`[errands]`, `[data]`).
 
 - **`owed`:** where the process ended with no message and the round read the owner's own words in the owner's
   own chat, the session is asked once more with the silence withdrawn (`docs/wake.md`, 「The owner's own chat is
@@ -429,9 +433,9 @@ where it says something: neither empty nor a skip nor a wait.
 - **The supervisor prompt opens on the shape of a turn and its rounds.** Before its own head it carries one short
   line naming a **turn** as one pass over a room's words and a **round** as one question inside it, this round's rule
   (`<<SKIP>>` or one short line, and no other action), and, for the later rounds, only the rulebook each follows:
-  the room block's draft process, the review's own line and each item's errand. It names them there so the agent
-  knows which rule applies at each round without the prompt repeating texts that stand elsewhere; the judgement
-  head follows, and the draft process's rules stay in the room block.
+  the room block's draft process, the review's own line and each item's rule there. It names them there so the
+  agent knows which rule applies at each round without the prompt repeating texts that stand elsewhere; the
+  judgement head follows, and the draft process's rules stay in the room block.
 
 ## The routes
 

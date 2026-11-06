@@ -2,7 +2,6 @@
 //! light turn」): the skip standing in an answer, whether a turn is light, and the checks a final text passes.
 
 use receiver_policy::drafting::DRAFTING;
-use receiver_policy::second_asks::SECOND_ASKS;
 
 use super::super::sentinels::SKIP;
 use crate::form::without_control_markers;
@@ -66,7 +65,7 @@ pub fn own_lines(asked: &[String]) -> Vec<String> {
     &DRAFTING.lead,
     &DRAFTING.last_lead,
     &DRAFTING.waiting,
-    &DRAFTING.arrived,
+    &DRAFTING.arrived_marker,
   ]
   .into_iter()
   .filter_map(|line| fixed_head(line));
@@ -90,11 +89,10 @@ pub fn failing(text: &str, reading: &Reading) -> Vec<Check> {
   failed
 }
 
-/// The errand a failed check asks the session with, naming what is wrong in the text.
+/// The turn a failed check asks the session with: the marker that names it. What the check does with the text
+/// stands in the room's block.
 pub fn errand(check: Check, _text: &str, _reading: &Reading) -> String {
-  let errands = &SECOND_ASKS.errands;
-
   match check {
-    Check::Format => errands.format.clone(),
+    Check::Format => super::check_words("format"),
   }
 }

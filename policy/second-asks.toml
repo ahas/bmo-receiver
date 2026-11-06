@@ -3,31 +3,41 @@
 # owner's words by, which are words of the room's language and so data, and every line it says. `{name}` marks
 # what each line carries.
 
-# The lines every item and check closes on, after its errand and the turn's scope: the messages waiting for
-# the next turn, and that they are not acted on now.
+# The lines every item and check closes on, after its data and the turn's scope: the ids of the messages waiting
+# for the next turn. What is done with them stands in the room's block (`later`).
 next_turn = "NEXT TURN MESSAGE IDS: "
-later = "Later messages will be delivered in the next turn; do not act on them now."
+later = "Messages that arrived and wait for the next turn are not acted on now; they are shown with the next turn."
 
-# The errands, one to a check.
+# The head the room's block carries over the rules of the items and checks that follow the message. A turn marked
+# ITEM or CHECK names the rule here that applies to it; the turn itself carries only that marker and data.
+items_head = "THE ITEMS AND CHECKS THAT FOLLOW THE MESSAGE — a turn marked ITEM or CHECK names the rule here that applies to it."
+
+# The rules an item or a check follows, said once in the room's block (docs/answer-checks.md). A turn marked with
+# the item's name carries only the data the rule reads, under `[data]`.
 [errands]
-# A turn that carried {count} of the owner's own messages and answered with silence.
-owed = "Your answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. This turn carried {count} message(s) from the owner, in the owner's own private chat, which is always answered. Write this turn's answer to the owner now. <<SKIP>> and <<WAIT>> are not available."
+# A turn that carried the owner's own messages and answered with silence.
+owed = "ITEM owed — the answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. The turn says how many of the owner's own messages it carried, in the owner's own private chat, which is always answered. Write this turn's answer to the owner now. <<SKIP>> and <<WAIT>> are not available."
 # A turn carrying the owner's words with no message in the room's record answering them: a note or an earlier draft
 # is not a sent answer.
-owner_directive = "The owner's words stand in this turn and no message the room's record holds answers them. A draft, a note or an earlier turn of this session that the record does not hold is not a sent answer, and nothing was sent. Write this turn's answer to the owner's words now. <<SKIP>> and <<WAIT>> are not available."
+owner_directive = "ITEM owner_directive — the owner's words stand in this turn and no message the room's record holds answers them. A draft, a note or an earlier turn of this session that the record does not hold is not a sent answer, and nothing was sent. Write this turn's answer to the owner's words now. <<SKIP>> and <<WAIT>> are not available."
 # A final text carrying the process's own lines.
-format = "The message you wrote carries the process's own lines: a question you were asked, or the head of a block of messages. Nothing went out. Write the message again as the room is to read it, with none of them. <<WAIT>> is not available."
-# A promise with nothing recorded: the rule, then the form for a turn with its tools off or on.
-record = "Your answer promises something about what you will do from now on, and nothing went out: this turn wrote nothing down, and a promise kept only in this session is gone the moment the session is replaced. A promise to behave a certain way only for this session is not allowed either. "
-record_off = "Tools are off for this turn, so nothing can be recorded: write this turn's answer again without the promise. Say the same thing otherwise. <<SKIP>> and <<WAIT>> are not available."
-record_on = "Record it now, in this run, with your own tools: a way of working or a standard as a note (note_add), something to do later as a memory (memory_add, type promise, check or followup), what you are to do whenever a situation comes back as a situation memory (memory_add, type situation), a change to code or to a manual as a TODO row (todo_add, or todo_append onto the row that already stands). Then write this turn's answer again. Where it went to a note or a TODO row, say so, naming the room's note or the row by its number. Where it went to your memories and nowhere else, say nothing at all about where it went: your memories are quiet in every room, so make the promise and stop. Where the sentence was not a promise about the future at all, only something done in this very turn, write the same answer again unchanged. <<SKIP>> and <<WAIT>> are not available."
-# A promise to act once something happens with nothing set to wake: the rule, then the form for a turn
-# with its tools off or on; {chat} is the room.
-wake = "Your answer promises to act once something has happened and nothing went out: this turn set nothing that wakes you when it happens, and nothing wakes you by itself, so the promise would be kept by nobody. "
-wake_off = "Tools are off for this turn, so nothing can be set: write this turn's answer again without the promise. Say the same thing otherwise. <<SKIP>> and <<WAIT>> are not available."
-wake_on = "Set it now, in this run. Where what you wait for is a deployment, a job's end or the queue changing, write the promise as a memory waiting on that event: memory_add with chat {chat}, type promise, action '<what, for whom>' and on <deployed[:<item>]|job-ended[:<item>]|queue-changed>. Anything else (a unit on another machine ending, a file or a result appearing) takes a check that comes true when it happens, set with the memory in one call: memory_add with chat {chat}, type promise, action '<what, for whom>', until '<check>' and name '<short name>'. Then write this turn's answer again, saying nothing about how you will be woken. Where the sentence was not such a promise at all, write the same answer again unchanged. <<SKIP>> and <<WAIT>> are not available."
-# The owner set what is done from a situation on and the turn filed no rule; {chat} is the room.
-rule = "The owner has just set what you are to do from a situation on and this turn filed no situation rule. A rule kept only in this session is gone the moment the session is replaced, and the next time that situation comes it will not be there. File it now, in this run: memory_add with chat {chat}, type situation, condition '<when>' and action '<what>', with by and message naming who said it and where. The condition is the half a later situation is judged against, so write it as the situation rather than as this one turn; the action is what you are to do then. A rule that takes the place of one already standing is filed with replaces, and slug '<name>' gives it a name of its own. A rule tied to no room at all is filed with global instead of chat, and then it names no room, nobody and no id. Then write this turn's answer again, saying the rule was filed. Where what the owner said was not a rule for later at all, only a request for this once, write the same answer again unchanged. <<SKIP>> and <<WAIT>> are not available."
+format = "CHECK format — the message you wrote carries the process's own lines: a question that was asked, or the head of a block of messages. Nothing went out. Write the message again as the room is to read it, with none of them. <<WAIT>> is not available."
+# A promise with nothing recorded, for a turn whose tools are on or off.
+record = "ITEM record — the answer promises something about what will be done from now on, and nothing went out: this turn wrote nothing down, and a promise kept only in this session is gone the moment the session is replaced. A promise to behave a certain way only for this session is not allowed either. Where the turn says tools are on, record it now, in this run, with the tools: a way of working or a standard as a note (note_add), something to do later as a memory (memory_add, type promise, check or followup), what is to be done whenever a situation comes back as a situation memory (memory_add, type situation), a change to code or to a manual as a TODO row (todo_add, or todo_append onto the row that already stands). Then write this turn's answer again. Where it went to a note or a TODO row, say so, naming the room's note or the row by its number. Where it went to the memories and nowhere else, say nothing at all about where it went: the memories are quiet in every room, so make the promise and stop. Where the sentence was not a promise about the future at all, only something done in this very turn, write the same answer again unchanged. Where the turn says tools are off, nothing can be recorded: write this turn's answer again without the promise. Say the same thing otherwise. <<SKIP>> and <<WAIT>> are not available."
+# A promise to act once something happens with nothing set to wake, for a turn whose tools are on or off.
+wake = "ITEM wake — the answer promises to act once something has happened and nothing went out: this turn set nothing that wakes the agent when it happens, and nothing wakes it by itself, so the promise would be kept by nobody. Where the turn says tools are on, set it now, in this run. Where what is waited for is a deployment, a job's end or the queue changing, write the promise as a memory waiting on that event: memory_add with chat <the room id the turn shows>, type promise, action '<what, for whom>' and on <deployed[:<item>]|job-ended[:<item>]|queue-changed>. Anything else (a unit on another machine ending, a file or a result appearing) takes a check that comes true when it happens, set with the memory in one call: memory_add with chat <the room id the turn shows>, type promise, action '<what, for whom>', until '<check>' and name '<short name>'. Then write this turn's answer again, saying nothing about how the waking is set. Where the sentence was not such a promise at all, write the same answer again unchanged. Where the turn says tools are off, nothing can be set: write this turn's answer again without the promise. Say the same thing otherwise. <<SKIP>> and <<WAIT>> are not available."
+# The owner set what is done from a situation on and the turn filed no rule.
+rule = "ITEM rule — the owner has just set what is to be done from a situation on and this turn filed no situation rule. A rule kept only in this session is gone the moment the session is replaced, and the next time that situation comes it will not be there. File it now, in this run: memory_add with chat <the room id the turn shows>, type situation, condition '<when>' and action '<what>', with by and message naming who said it and where. The condition is the half a later situation is judged against, so write it as the situation rather than as this one turn; the action is what is to be done then. A rule that takes the place of one already standing is filed with replaces, and slug '<name>' gives it a name of its own. A rule tied to no room at all is filed with global instead of chat, and then it names no room, nobody and no id. Then write this turn's answer again, saying the rule was filed. Where what the owner said was not a rule for later at all, only a request for this once, write the same answer again unchanged. <<SKIP>> and <<WAIT>> are not available."
+
+# The data an item's or a check's turn carries, and the marker that names it. No instruction stands here.
+[data]
+item = "ITEM: {name}."
+check = "CHECK: {name}."
+owed = "Owner's messages in this turn: {count}."
+owner_directive = "The owner's words in this turn have no sent answer."
+tools_on = "Tools are on for this turn."
+tools_off = "Tools are off for this turn."
+room = "The room: {chat}."
 
 # The words a sentence is read by, each a regular expression both sides compile as it stands. A pattern
 # said to be followed by no syllable is matched only where no Korean syllable comes right after it, which

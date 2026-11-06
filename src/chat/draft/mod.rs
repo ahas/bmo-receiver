@@ -40,15 +40,14 @@ use checks::{Check, Reading, failing, has_skip, light, own_lines};
 use log::{Answered, Ended, Kind, Log};
 use table::{resolve, rows};
 
-/// What an item or a check goes out with beside its errand: the turn's scope, the messages waiting for the next
-/// turn, and that they are not acted on now.
-pub fn words(errand: &str, scope: &Scope, pending: &[i64]) -> String {
+/// What an item or a check goes out with beside its marker and data: the turn's scope and the ids of the
+/// messages waiting for the next turn. What is done with them stands in the room's block.
+pub fn words(marker: &str, scope: &Scope, pending: &[i64]) -> String {
   format!(
-    "{errand}\n{}\n{}{}\n{}",
+    "{marker}\n{}\n{}{}",
     scope_line(scope),
     SECOND_ASKS.next_turn,
     stringify(&pending).unwrap_or_default(),
-    SECOND_ASKS.later,
   )
 }
 
@@ -135,15 +134,11 @@ pub fn waiting_line(pending: &[i64]) -> String {
   fill_marks(&DRAFTING.waiting, &[("ids", &stringify(&pending).unwrap_or_default())])
 }
 
-/// The closing check's turn (docs/drafting.md, 「Once the message stands, one closing check」): its line, the message
-/// as it stands under its head, then the block of what arrived.
+/// The closing check's turn (docs/drafting.md, 「Once the message stands, one closing check」): its marker, the
+/// message as it stands under its head, then the block of what arrived. What the check does stands in the room's
+/// block.
 pub fn closing_words(standing: &str, block: &str) -> String {
-  format!(
-    "{}\n\n{}\n{}\n\n{block}",
-    fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]),
-    DRAFTING.standing,
-    standing.trim()
-  )
+  format!("{}\n\n{}\n{}\n\n{block}", DRAFTING.arrived_marker, DRAFTING.standing, standing.trim())
 }
 
 /// An answer that says something: not empty, not a skip and not a wait.
@@ -151,21 +146,35 @@ pub fn usable(text: &str) -> bool {
   !text.is_empty() && !is_skip(text) && !is_wait(text)
 }
 
-pub fn record_errand(tools: bool) -> String {
-  let errands = &SECOND_ASKS.errands;
+/// An item's turn: the marker that names it and the data its rule reads.
+pub fn item_words(name: &str, data: &[String]) -> String {
+  let marker = fill_marks(&SECOND_ASKS.data.item, &[("name", name)]);
 
-  format!("{}{}", errands.record, if tools { &errands.record_on } else { &errands.record_off })
+  std::iter::once(marker).chain(data.iter().cloned()).collect::<Vec<_>>().join("\n")
+}
+
+/// A check's turn: the marker that names it.
+pub fn check_words(name: &str) -> String {
+  fill_marks(&SECOND_ASKS.data.check, &[("name", name)])
+}
+
+/// Whether the turn's tools are on, as the data line an item reads it by.
+pub fn tools_line(tools: bool) -> String {
+  if tools {
+    SECOND_ASKS.data.tools_on.clone()
+  } else {
+    SECOND_ASKS.data.tools_off.clone()
+  }
+}
+
+pub fn record_errand(tools: bool) -> String {
+  item_words("record", &[tools_line(tools)])
 }
 
 pub fn wake_errand(tools: bool, chat_id: i64) -> String {
-  let errands = &SECOND_ASKS.errands;
-  let form = if tools {
-    fill_marks(&errands.wake_on, &[("chat", &chat_id.to_string())])
-  } else {
-    errands.wake_off.clone()
-  };
+  let room = fill_marks(&SECOND_ASKS.data.room, &[("chat", &chat_id.to_string())]);
 
-  format!("{}{form}", errands.wake)
+  item_words("wake", &[tools_line(tools), room])
 }
 
 // Whether the process's runs wrote something down, of one kind where one is named; a watch is not among what any
@@ -623,6 +632,7 @@ impl Run<'_> {
       tools_allowed: drafted.tools_allowed,
       reader: Some(receiver.roads()),
       judged: false,
+      announced: false,
     })
     .await;
 
@@ -964,9 +974,11 @@ impl Drafter {
     // asked once more, whatever the time. So is any round carrying an owner's directive with no sent answer.
     if message.is_none() && (owed > 0 || directed) {
       let errand = if owed > 0 {
-        fill_marks(&SECOND_ASKS.errands.owed, &[("count", &owed.to_string())])
+        let count = fill_marks(&SECOND_ASKS.data.owed, &[("count", &owed.to_string())]);
+
+        item_words("owed", &[count])
       } else {
-        SECOND_ASKS.errands.owner_directive.clone()
+        item_words("owner_directive", std::slice::from_ref(&SECOND_ASKS.data.owner_directive))
       };
 
       match run.ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending)).await {
@@ -1006,7 +1018,11 @@ impl Drafter {
             .any(|said| said.sender_id == Some(owner) && sets_rule_later(&said.text));
 
           (drafted.tools_allowed && set_one && !recorded(receiver, agent, &run.spoken, Some("rule")).await)
-            .then(|| fill_marks(&SECOND_ASKS.errands.rule, &[("chat", &chat.to_string())]))
+            .then(|| {
+              let room = fill_marks(&SECOND_ASKS.data.room, &[("chat", &chat.to_string())]);
+
+              item_words("rule", &[room])
+            })
         }
       };
       let Some(errand) = errand else { continue };

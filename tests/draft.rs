@@ -75,10 +75,10 @@ fn an_item_closes_on_the_turn_s_scope_and_what_waits() {
   let said = words("Do it again.", &scope(), &[8, 9]);
 
   assert!(said.starts_with("Do it again.\n"));
-  assert!(said.contains(&format!("\n{}[8,9]\n", SECOND_ASKS.next_turn)));
-  assert!(said.ends_with(&SECOND_ASKS.later));
-  assert!(record_errand(false).ends_with(&SECOND_ASKS.errands.record_off));
-  assert!(wake_errand(true, -5).contains("chat -5"));
+  assert!(said.contains(&format!("\n{}[8,9]", SECOND_ASKS.next_turn)));
+  assert!(!said.contains(&SECOND_ASKS.later), "the rule stands in the room's block: {said}");
+  assert_eq!(record_errand(false), "ITEM: record.\nTools are off for this turn.");
+  assert!(wake_errand(true, -5).contains("The room: -5."));
 }
 
 #[test]
@@ -190,7 +190,8 @@ fn the_check_reads_the_process_s_own_lines_and_no_length() {
   assert_eq!(failing("short", &reading), vec![]);
   assert_eq!(failing(&"x".repeat(10_000), &reading), vec![], "no length bound");
   assert_eq!(failing("why was it said?", &reading), vec![Check::Format]);
-  assert!(errand(Check::Format, "anything", &reading).contains("process's own lines"));
+  assert_eq!(errand(Check::Format, "anything", &reading), "CHECK: format.");
+  assert!(SECOND_ASKS.errands.format.contains("process's own lines"));
 }
 
 #[test]
@@ -329,7 +330,12 @@ fn the_closing_check_shows_the_message_as_it_stands_and_asks_for_it_whole() {
 
   let turn = closing_words("  the message as it stands  ", "#7: words that came");
 
+  assert!(turn.starts_with(&DRAFTING.arrived_marker), "{turn}");
   assert!(turn.contains(&format!("{}\nthe message as it stands\n", DRAFTING.standing)), "{turn}");
   assert!(turn.ends_with("#7: words that came"), "{turn}");
+  assert!(
+    !turn.contains("Answer with the message as it should now go out"),
+    "the instruction stands in the room's block: {turn}"
+  );
   assert!(DRAFTING.arrived.contains("whole") && !DRAFTING.arrived.contains("sent after it"));
 }

@@ -66,8 +66,13 @@ pub struct Drafting {
   pub send_open: String,
   /// The one-word permission a round's line carries: that this round writes notes only.
   pub send_closed: String,
+  /// The ids of the messages waiting for the next turn, as data.
   pub waiting: String,
-  /// The closing check's opening, asked once the message stands where messages arrived after the last question.
+  /// What to do with the messages waiting, said once in the room's block.
+  pub waiting_rule: String,
+  /// The marker that names the closing check's turn.
+  pub arrived_marker: String,
+  /// What the closing check does, said once in the room's block.
   pub arrived: String,
   /// The head the closing check shows the message as it stands under.
   pub standing: String,
