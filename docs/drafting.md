@@ -321,9 +321,10 @@ where it says something: neither empty nor a skip nor a wait.
 
 ## The review
 
-- **The gate's first turn reviews the message before it goes out.** It reads the draft against the room's words,
-  what the round asked and established, and the rules and knowledge the round carries, and answers `PASS` alone,
-  or `REJECT: <one short reason>` naming the one thing that must change.
+- **The gate's first turn reviews the message before it goes out.** It reads the draft against the room's words
+  and the rules and knowledge the round carries, and answers `PASS` alone, or `REJECT: <one short reason>`
+  naming the one thing that must change. It is handed no list of the questions the rounds were asked: those
+  stand in the room's block, and a round's answers and notes are its own.
 - **A rejection returns to the draft.** The final question is asked again with the reason in its words, and the
   new draft is reviewed again, eight times at most. At the eighth rejection the last draft is sent, not
   withheld, and the round's end row reports the reasons in order. A review that gives no verdict is a rejection

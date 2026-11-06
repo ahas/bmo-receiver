@@ -1092,6 +1092,55 @@ async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
 }
 
 #[tokio::test]
+async fn a_five_round_process_reviews_and_sends_without_repeating_questions_or_an_empty_waiting_line() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[
+    "notes one",
+    "notes two",
+    "notes three",
+    "notes four",
+    "the message",
+    "PASS",
+  ]);
+  let round = Drafting::new_reviewing(session, FIVE, &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(6).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+  let log = round.log().await;
+
+  assert_eq!(prompts.len(), 6, "five rounds and the review: {prompts:#?}");
+
+  for (at, name) in FIVE.iter().enumerate() {
+    assert!(turn_of(&prompts[at]).contains(&format!("{} of 5 ({name})", at + 1)), "{}", prompts[at]);
+    assert!(
+      !turn_of(&prompts[at]).contains(question(name)),
+      "the stage text stays in the room's block: {}",
+      turn_of(&prompts[at])
+    );
+  }
+
+  assert!(
+    !prompts.iter().any(|prompt| prompt.contains("Messages waiting in the room: []")),
+    "a round with nothing waiting says nothing of waiting"
+  );
+
+  let review = &prompts[5];
+
+  assert!(review.contains(&DRAFTING.review.head), "{review}");
+  assert!(review.contains("the message"), "the draft: {review}");
+
+  for name in FIVE {
+    assert!(!review.contains(question(name)), "the review repeats {name}: {review}");
+  }
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the message"), "{sent:?}");
+  assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
+}
+
+#[tokio::test]
 async fn a_rejected_message_is_written_again_with_the_reason() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&[
     "the first message",

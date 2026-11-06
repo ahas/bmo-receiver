@@ -33,14 +33,13 @@ stages_head = "THE DRAFT PROCESS — WHAT EACH ROUND ASKS. A round's turn names 
 stage = "{name}: {text}"
 
 # The review the gate asks before a message goes out (docs/drafting.md, 「The review」): it reads the draft against
-# the room's words, what the round asked and established, and the rules and knowledge the round carries, and
-# answers PASS, or REJECT with a reason. A rejection returns the draft to the final question with that reason,
-# eight times at most; the eighth sends the last draft and the end row names the reasons in order.
+# the room's words and the rules and knowledge the round carries, and answers PASS, or REJECT with a reason. A
+# rejection returns the draft to the final question with that reason, eight times at most; the eighth sends the
+# last draft and the end row names the reasons in order.
 [review]
-head = "REVIEW THE MESSAGE BEFORE IT GOES OUT. Read it against the room's words, what this round asked and established, and the rules and knowledge below. Answer PASS alone when it is right to send as it stands. Answer REJECT: <one short reason> when it is not, naming the one thing that must change; do not rewrite the message here."
+head = "REVIEW THE MESSAGE BEFORE IT GOES OUT. Read it against the room's words and the rules and knowledge below. Answer PASS alone when it is right to send as it stands. Answer REJECT: <one short reason> when it is not, naming the one thing that must change; do not rewrite the message here."
 draft = "The message as it stands:"
 words = "The room's words:"
-notes = "What this round asked and established:"
 rules = "The rules and knowledge this round carries:"
 handed = "[{path}] (handed in this turn)"
 room_handed = "The room's words {ids} were handed in this turn; only the lines after them are new."

@@ -402,8 +402,9 @@ impl Run<'_> {
     paths
   }
 
-  // The review prompt (docs/drafting.md, 「The review」): the message as it stands, the room's words, what this
-  // round asked and established as questions and the draft, and the rules and knowledge the round carries.
+  // The review prompt (docs/drafting.md, 「The review」): the message as it stands, the room's words and the rules
+  // and knowledge the round carries. The question texts stand in the room's block, and a round's answers and notes
+  // are its own, so neither is repeated here.
   fn review_prompt(&self, message: &str) -> String {
     let said = &DRAFTING.review;
     // What the main round handed is a line; what was not handed, or arrived since, is the body.
@@ -442,17 +443,14 @@ impl Run<'_> {
         }
       })
       .collect();
-    let asked = self.asked.join("\n");
 
     format!(
-      "{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}\n\n{}",
+      "{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}\n\n{}",
       said.head,
       said.draft,
       message,
       said.words,
       words.join("\n"),
-      said.notes,
-      asked,
       said.rules,
       rules.join("\n\n"),
       render_verdict(&said.pass, &said.reject),
@@ -848,7 +846,12 @@ impl Drafter {
       }
 
       if !last {
-        words = format!("{words}\n{}", waiting_line(&conversations.pending(chat)));
+        let pending = conversations.pending(chat);
+
+        // Nothing waits on most rounds; the line rides only when something does.
+        if !pending.is_empty() {
+          words = format!("{words}\n{}", waiting_line(&pending));
+        }
       }
 
       // The message round reads the room's situation note first (docs/drafting.md, 「The situation note」).
@@ -1032,8 +1035,8 @@ impl Drafter {
     }
 
     // The review first in the gate (docs/drafting.md, 「The review」): the message as it stands against the
-    // room's words, what the round established and the rules it carries. A rejection returns it to `final` with
-    // the reason, eight times at most; the eighth sends the last draft and the end row reports the reasons.
+    // room's words and the rules it carries. A rejection returns it to `final` with the reason, eight times at
+    // most; the eighth sends the last draft and the end row reports the reasons.
     let mut reasons: Vec<String> = vec![];
     let mut eight = false;
     let mut reviews = 0;
