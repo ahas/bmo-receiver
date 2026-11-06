@@ -15,8 +15,8 @@ use std::time::Duration;
 use bmo_receiver::chat::instructions::{Rooms, deliver_pending};
 use bmo_receiver::chat::restart::say_stop;
 use bmo_receiver::command::{
-  self, ConsultArgs, DrawWord, PhotoArgs, PinArgs, ReactArgs, RegistrationArgs, SayArgs, StickerArgs,
-  TalkArgs,
+  self, ConsultArgs, DrawWord, HandoffArgs, PhotoArgs, PinArgs, ReactArgs, RegistrationArgs, SayArgs,
+  StickerArgs, TalkArgs,
 };
 use bmo_receiver::config::{self, Config};
 use bmo_receiver::receiver::handover::routes as handover_routes;
@@ -125,6 +125,8 @@ enum Command {
     #[command(subcommand)]
     word: DrawWord,
   },
+  /// An agent's standing session asked for its handoff file ahead of a fresh one, through the running receiver.
+  Handoff(HandoffArgs),
 }
 
 #[derive(Subcommand)]
@@ -477,6 +479,7 @@ async fn main() -> ExitCode {
     Command::Sticker(args) => Ok(answered(command::sticker(&config, cli.via.clone(), args).await)),
     Command::Consult(args) => Ok(answered(command::consult(&config, args).await)),
     Command::Draw { word } => Ok(answered(command::draw(&config, cli.via.clone(), word).await)),
+    Command::Handoff(args) => Ok(answered(command::handoff(&config, args).await)),
     Command::Routes | Command::Nouns | Command::Import { .. } => {
       unreachable!("routes, nouns and the import are answered before the configuration is read")
     }

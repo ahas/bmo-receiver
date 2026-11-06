@@ -91,7 +91,7 @@ road name with its base address and token.
 ### The unit command
 
 `bmo-receiver` is the unit command bmo-cli finds (bmo-cli's `docs/api.md`, 「The unit command」). Asked `nouns`,
-it declares nine, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
+it declares ten, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
 the operations machine's:
 
 | Noun | Words | What it asks |
@@ -105,7 +105,11 @@ the operations machine's:
 | `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
 | `consult` | `room [<room>]`, `state`, or `say <words> [--reply <id>]`, each with `[--agent <name>]` | `room` and `state` read the store; `say` asks `POST /consult-lines` under the agent's own name, which hands the line to that agent outside its own round |
 | `draw` | `draw --chat <id> --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
+| `handoff` | `handoff <agent> --reason <words> [--room <id>]` | `POST /handoffs/{agentName}`: the agent's standing session asked for its handoff file ahead of a fresh session, waited on until its turn ends; prints the file it wrote and its size, or that it wrote nothing; a refusal is the route's own sentence |
 
+- **`handoff` puts no words into a room.** It asks the route the agency asks before it opens a fresh session for an
+  agent that had one (`docs/api.md`, 「Handoffs」), prints what came of it, and changes nothing of a room's
+  conversation, its logs or its runs; the note the route writes is kept for the fresh session's first turn.
 - **A send is asked as the shell's turn:** the room, the agent whose turn the process works in, the chat that set
   it off (the turn's own room where `--by` names none), whether a job asks and the noun it came through are read
   from the environment and the words, and the running receiver carries it on its own lines.

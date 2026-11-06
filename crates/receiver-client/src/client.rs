@@ -561,6 +561,21 @@ impl ReceiverClient {
     Self::answered(self.send(Method::POST, &["talks"], talk)).await
   }
 
+  /// `POST /handoffs/{agentName}`: the file the agent's standing session wrote, or none where it wrote nothing.
+  pub async fn hand_off(&self, agent_name: &str, asked: &HandoffAsked) -> Answer<Option<HandoffWritten>> {
+    let answer = Self::sent(self.send(Method::POST, &["handoffs", agent_name], asked)).await?;
+
+    if answer.status() == StatusCode::NO_CONTENT {
+      return Ok(None);
+    }
+
+    let bytes = answer.bytes().await.map_err(|why| ClientFailure::Unreadable(why.to_string()))?;
+
+    serde_json::from_slice(&bytes)
+      .map(Some)
+      .map_err(|why| ClientFailure::Unreadable(why.to_string()))
+  }
+
   /// `POST /events`.
   pub async fn publish_event(&self, event: &PublishedEvent) -> Answer<Created> {
     Self::answered(self.send(Method::POST, &["events"], event)).await
