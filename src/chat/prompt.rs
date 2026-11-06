@@ -475,7 +475,11 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   let front = match round.questioned {
     true => None,
     false => match super::situation::read(db, chat_id).await {
-      Ok(Some(note)) => Some(format!("{}\n{note}", CHAT_ROUND.situation.front)),
+      Ok(Some(note)) => Some(format!(
+        "{}\n{}",
+        CHAT_ROUND.situation.front,
+        super::situation::note_block(chat_id, &note)
+      )),
       Ok(None) => None,
       Err(why) => {
         eprintln!("bmo-receiver: the room's situation note could not be read: {why}");

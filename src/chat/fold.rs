@@ -45,6 +45,13 @@ pub async fn compact(receiver: &Receiver, agent: &str, chat_id: i64, session: Op
         eprintln!("the folded session's loads were not forgotten for chat {chat_id}: {}", why.detail);
       }
 
+      if let Err(why) = super::situation::forget(receiver.db(), session).await {
+        eprintln!(
+          "the folded session's note versions were not forgotten for chat {chat_id}: {}",
+          why.detail
+        );
+      }
+
       true
     }
     Err(reason) => {

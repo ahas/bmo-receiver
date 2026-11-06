@@ -314,10 +314,21 @@ async fn a_line_that_resumes_an_earlier_thread_with_the_agent_is_answered_with_i
   );
   assert!(prompts[1].starts_with(&CHAT_ROUND.supervisor.marker), "{}", prompts[1]);
   assert!(prompts[1].contains("now ask when it will arrive"), "{}", prompts[1]);
+  assert!(
+    prompts[1]
+      .contains("They asked you to send the file; you promised it, and now ask when it will arrive."),
+    "the judgement carries the note whole: {}",
+    prompts[1]
+  );
   assert!(prompts[2].contains("TURN SCOPE"), "{}", prompts[2]);
   assert!(
-    prompts[2].contains("now ask when it will arrive"),
-    "the round's draft carries the note: {}",
+    prompts[2].contains(&CHAT_ROUND.situation.unchanged),
+    "the note rides as its marker: {}",
+    prompts[2]
+  );
+  assert!(
+    !prompts[2].contains("They asked you to send the file; you promised it"),
+    "the note is not repeated: {}",
     prompts[2]
   );
 }
@@ -426,6 +437,50 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
 }
 
 #[tokio::test]
+async fn an_unchanged_note_and_memory_reference_ride_a_later_turn_as_marks() {
+  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&[
+    "the room is quiet",
+    "the first answer",
+    "<<SKIP>>",
+    "the second answer",
+  ]))
+  .await;
+
+  *round.standing.gate.entries.lock().unwrap() = vec![Entry {
+    path: "memories/-500".to_owned(),
+    text: "BODY OF THE DUE MEMORIES".to_owned(),
+    source: Source::Memory,
+    fragment: None,
+    holds: None,
+  }];
+
+  round.hand(1, "first words", true).await;
+  round.rounds_over(2).await;
+  round.hand(2, "second words", true).await;
+  round.rounds_over(4).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 4, "{prompts:#?}");
+  assert!(prompts[1].contains("BODY OF THE DUE MEMORIES"), "{}", prompts[1]);
+  assert!(prompts[1].contains("the room is quiet"), "{}", prompts[1]);
+  assert!(
+    prompts[3].contains("[memories/-500] (already loaded)"),
+    "the memory reference rides as its mark: {}",
+    prompts[3]
+  );
+  assert!(
+    !prompts[3].contains("BODY OF THE DUE MEMORIES"),
+    "the memory reference is not repeated: {}",
+    prompts[3]
+  );
+  assert!(
+    !prompts[2].contains("the room is quiet") && !prompts[3].contains("the room is quiet"),
+    "the unchanged note is not repeated into the later turns: {prompts:#?}"
+  );
+}
+
+#[tokio::test]
 async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_counted_out_there() {
   use receiver_ports::gate::IndexGroup;
 
@@ -498,8 +553,13 @@ async fn a_line_that_asks_the_agent_is_answered_with_the_situation_note() {
   assert!(prompts[1].contains("They asked you to send the file."), "{}", prompts[1]);
   assert!(prompts[2].contains("TURN SCOPE"), "{}", prompts[2]);
   assert!(
-    prompts[2].contains("They asked you to send the file."),
-    "the round's draft carries the note: {}",
+    prompts[2].contains(&CHAT_ROUND.situation.unchanged),
+    "the note rides as its marker: {}",
+    prompts[2]
+  );
+  assert!(
+    !prompts[2].contains("They asked you to send the file."),
+    "the note is not repeated: {}",
     prompts[2]
   );
   assert_eq!(

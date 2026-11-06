@@ -198,6 +198,10 @@ impl Carry {
       eprintln!("{agent}: the ended session's room block was not forgotten: {}", why.detail);
     }
 
+    if let Err(why) = super::situation::forget(db, Some(old)).await {
+      eprintln!("{agent}: the ended session's note versions were not forgotten: {}", why.detail);
+    }
+
     if let Err(why) = forget_state(db, agent, old).await {
       eprintln!("{agent}: the ended session's cache record was not forgotten: {}", why.detail);
     }
@@ -334,7 +338,7 @@ impl Carry {
 
     // The turn is composed for the session it goes on: a new one holds nothing yet, so the room's block and every
     // reference document go in full.
-    let (sent, send) =
+    let (sent, send, notes) =
       sent_prompt(receiver, Some(session.id.as_str()), Some(&room), true, agent, &asking.prompt)
         .await
         .map_err(|why| Failure::Failed(why.detail))?;
@@ -477,6 +481,12 @@ impl Carry {
         asking.thread_mark.clone(),
       )
       .await;
+
+      for note in &notes {
+        if let Err(why) = super::situation::keep(db, &session.id, note).await {
+          eprintln!("chat {chat_id}: the situation note's version was not kept: {}", why.detail);
+        }
+      }
 
       let _ = remember(
         db,

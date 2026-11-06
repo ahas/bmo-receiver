@@ -211,13 +211,14 @@ pub async fn sent_prompt(
   restates: bool,
   agent: &str,
   prompt: &str,
-) -> Result<(String, Option<RoomSend>), Fault> {
+) -> Result<(String, Option<RoomSend>, Vec<super::situation::NoteMark>), Fault> {
   let prompt = opened(prompt, &loaded_in(receiver, session).await?);
-  let Some(room) = room.filter(|_| restates) else { return Ok((prompt, None)) };
+  let (prompt, notes) = super::situation::resolve(receiver.db(), session, &prompt).await;
+  let Some(room) = room.filter(|_| restates) else { return Ok((prompt, None, notes)) };
   let send = room_send(receiver, session, room).await?;
 
   match send {
-    RoomSend::None => Ok((prompt, Some(send))),
+    RoomSend::None => Ok((prompt, Some(send), notes)),
     RoomSend::Mark | RoomSend::Full => {
       forget_room(receiver.db(), session).await?;
 
@@ -231,7 +232,7 @@ pub async fn sent_prompt(
         room.mark.clone()
       };
 
-      Ok((format!("{said}\n\n{prompt}"), Some(send)))
+      Ok((format!("{said}\n\n{prompt}"), Some(send), notes))
     }
   }
 }

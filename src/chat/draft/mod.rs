@@ -866,7 +866,11 @@ impl Drafter {
 
       // The message round reads the room's situation note first (docs/drafting.md, 「The situation note」).
       if last && let Ok(Some(note)) = super::situation::read(receiver.db(), chat).await {
-        words = format!("{}\n{note}\n\n{words}", CHAT_ROUND.situation.front);
+        words = format!(
+          "{}\n{}\n\n{words}",
+          CHAT_ROUND.situation.front,
+          super::situation::note_block(chat, &note)
+        );
       }
 
       run.log.start(number, count, name);
@@ -923,7 +927,11 @@ impl Drafter {
       let mut words = closing_words(&standing.text, &block);
 
       if let Ok(Some(note)) = super::situation::read(receiver.db(), chat).await {
-        words = format!("{}\n{note}\n\n{words}", CHAT_ROUND.situation.front);
+        words = format!(
+          "{}\n{}\n\n{words}",
+          CHAT_ROUND.situation.front,
+          super::situation::note_block(chat, &note)
+        );
       }
 
       match run.ask(Kind::Item, "arrived", &words).await {

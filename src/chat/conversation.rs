@@ -2061,7 +2061,7 @@ impl Conversations {
     };
     let lines = reading.lines(&messages).await.map_err(|why| Failure::Failed(why.detail))?;
     let old = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
-    let prompt = super::situation::update_prompt(old.as_deref(), &lines);
+    let prompt = super::situation::update_prompt(chat_id, old.as_deref(), &lines);
     let asking = Asking {
       chat_id,
       session: held.session.clone().unwrap_or_default(),
@@ -2143,7 +2143,7 @@ impl Conversations {
 
     if let Some(note) = &note {
       parts.push(said.situation.clone());
-      parts.push(note.clone());
+      parts.push(super::situation::note_block(chat_id, note));
       parts.push(String::new());
     }
 
@@ -2832,7 +2832,7 @@ impl Conversations {
     .await?;
     let room = room_context(&receiver, room_id, None).await?;
     let written = composed.prompt.clone();
-    let (sent, _) =
+    let (sent, _, _) =
       sent_prompt(&receiver, Some(session_id), Some(&room), true, self.agent(), &written).await?;
 
     remember_held(

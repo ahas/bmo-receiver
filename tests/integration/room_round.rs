@@ -494,6 +494,7 @@ async fn a_conversation_closing_its_window_before_the_end_tells_the_window_close
 async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the_note() {
   const NOTE: &str = "the note the replaced session left";
   const MISSED: &str = "words said around the handover";
+  const STATE: &str = "the room's state the old session held";
 
   let scratch = Scratch::new().await;
 
@@ -532,6 +533,19 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
       vec![SESSION.into(), OWNER.into()],
     )
     .await;
+  // The old session had read this room's state note; the replacement carries it whole again.
+  scratch
+    .run(
+      r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at") VALUES ($1, $2, 0)"#,
+      vec![OWNER.into(), STATE.into()],
+    )
+    .await;
+  scratch
+    .run(
+      r#"INSERT INTO "bmo_session_notes" ("session_id", "chat_id", "fingerprint") VALUES ($1, $2, $3)"#,
+      vec![SESSION.into(), OWNER.into(), bmo_receiver::js::bun_hash(STATE).to_string().into()],
+    )
+    .await;
   scratch
     .run(
       r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
@@ -549,6 +563,14 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   assert!(
     prompt.contains(NOTE),
     "the note rides at the head of the new session's first turn: {prompt}"
+  );
+  assert!(
+    prompt.contains(STATE),
+    "the new session's first turn carries the room's state whole: {prompt}"
+  );
+  assert!(
+    !prompt.contains(&CHAT_ROUND.situation.unchanged),
+    "the state note is no marker on a handoff's first turn: {prompt}"
   );
   assert!(prompt.contains("Archived messages since your last reply"), "{prompt}");
   assert!(prompt.contains(MISSED), "what the agent never read reaches the new session: {prompt}");

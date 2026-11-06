@@ -1051,7 +1051,7 @@ async fn a_skip_in_the_second_question_sends_nothing() {
 #[test]
 fn the_note_turn_carries_only_its_mark_the_note_and_the_messages() {
   let lines = vec!["#1 tester: hello".to_owned()];
-  let prompt = bmo_receiver::chat::situation::update_prompt(Some("the standing note"), &lines);
+  let prompt = bmo_receiver::chat::situation::update_prompt(OWNER, Some("the standing note"), &lines);
 
   assert!(prompt.starts_with(&CHAT_ROUND.situation.marker), "{prompt}");
   assert!(prompt.contains(&CHAT_ROUND.situation.previous), "{prompt}");

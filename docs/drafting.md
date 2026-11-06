@@ -185,7 +185,11 @@ leaves.
   situation policy with its ceiling rendered into the text (`chat-round.toml`, `[situation]`, `instruction`,
   `ceiling_chars`). The turn itself carries only a short mark that this is the note turn (`marker`), the note as
   it stands and the room's messages that came in since the note last read the record, under the policy's labels;
-  its answer is the note, and the row of the last message it read to is kept with it. Where the room has no note
+  its answer is the note, and the row of the last message it read to is kept with it. The note as it stands goes
+  whole where the session has not read that version, and as the policy's one-line marker where it has: a session's
+  first turn, a handoff or a fold carries it whole, and a later turn only when the note changed
+  (`chat-round.toml`, `[situation]`, `unchanged`; the version is the note's text, kept under
+  `bmo_session_notes`, `docs/store.md`). Where the room has no note
   yet, it carries the latest messages the policy names (`recent_messages`, 30) and takes its first position at the
   newest of them. It runs for every round with words, the owner's private chat included, before that round's
   judgement or its own turn. A turn that answers `<<SKIP>>` or `<<WAIT>>`, or nothing, leaves the note's words as

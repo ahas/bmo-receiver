@@ -298,6 +298,8 @@ previous = "The room's situation note as it stands:"
 front = "The room's state and the course this answer takes, as the note round left them, ahead of the room's words:"
 none = "There is no situation note for this room yet."
 since = "The room's messages since the note was written:"
+# The one-line marker a turn carries in the note's place where the session already read this version of it.
+unchanged = "The room's situation note is unchanged since you last read it."
 cut = "…"
 # A first-person claim in the room's language that a reply, fix, attachment or send happened: the note may hold
 # none, fresh or copied.

@@ -120,7 +120,7 @@ fn a_gap_past_the_policys_bound_is_read_as_its_newest_messages_alone() {
 
 #[test]
 fn the_note_turn_carries_its_mark_and_the_block_carries_the_instruction() {
-  let prompt = update_prompt(None, &[]);
+  let prompt = update_prompt(42, None, &[]);
   let instruction = fill_marks(
     &CHAT_ROUND.situation.instruction,
     &[("ceiling", &CHAT_ROUND.situation.ceiling_chars.to_string())],

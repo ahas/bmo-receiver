@@ -278,7 +278,10 @@ block goes in full — the session's opening on that room — and the agent read
 - **The room's situation** is the receiver's own note, one row a room (`docs/drafting.md`, 「The situation note」):
   the supervisor updates it before its judgement, the judgement reads it with the new lines, and the turn that
   writes the message reads it as that answer's instruction, ahead of the room's words. It is no reference document,
-  it stands nowhere in the core, and it is not a brain memory; the note's text is the version the session holds.
+  it stands nowhere in the core, and it is not a brain memory. The note's text is the version the session holds: a
+  turn carries it whole on a session's first turn, after a handoff or a fold, and whenever the note changed since
+  the session last read it; otherwise it carries the policy's one-line marker that the note is unchanged
+  (`chat-round.toml`, `[situation]`, `unchanged`), kept under `bmo_session_notes` (`docs/store.md`).
 - **The memories entry carries data alone.** How it is read stands in the room's block (`chat-round.toml`,
   `[index]`, `memories`): that these are the agent's own quiet memory, never recited and never brought up unless
   someone asks, acted on when their time comes; how an item is checked off with `memory_done`; and how a state is

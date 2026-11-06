@@ -336,6 +336,8 @@ pub struct Situation {
   pub none: String,
   /// The line the messages that came in since the note last read the room's record stand under.
   pub since: String,
+  /// The one-line marker a turn carries in the note's place where the session already read this version of it.
+  pub unchanged: String,
   pub cut: String,
   /// A first-person claim in the room's language that a reply, fix, attachment or send happened.
   pub claim: String,

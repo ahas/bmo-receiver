@@ -250,8 +250,9 @@
   the span of the last one, so a road whose program cannot keep its session shows in the journal instead of
   asking turn after turn.
 - **The first turn goes in one order: the handoff, then the room, then the brain.** First the note above; then
-  the room's block, in full since the new session holds nothing yet, and the turn as it would have gone to the
-  old session, the room's messages archived since the agent last answered there among them, so what arrived
+  the room's block, in full since the new session holds nothing yet, and the room's state note in full, since the
+  new session holds no version of it (`docs/bmo-window.md`, 「What every turn carries」), and the turn as it would
+  have gone to the old session, the room's messages archived since the agent last answered there among them, so what arrived
   while the handover was under way and the old session never read stands right behind the handoff, up to the
   archived block's cap: the newest of them, with a line counting the older ones left in the room's archive
   (`docs/bmo-window.md`, 「What every turn carries」); the room's block carries the brain's index at that opening.
