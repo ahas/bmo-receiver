@@ -1102,12 +1102,11 @@ impl Drafter {
 
       previous = Some(said);
 
-      let final_question = DRAFTING.questions.get("final").cloned().unwrap_or_default();
-      let revise = fill_marks(&DRAFTING.review.revise, &[("reason", &reason)]);
-      let question = format!("{final_question}\n\n{revise}");
+      // The revision turn carries the reason as data; what to do with it stands in the room's block.
+      let reason_shown = fill_marks(&DRAFTING.review.reason, &[("reason", &reason)]);
 
       match run
-        .ask(Kind::Question, "final", &words(&question, drafted.scope, &drafted.pending))
+        .ask(Kind::Question, "final", &words(&reason_shown, drafted.scope, &drafted.pending))
         .await
       {
         Ok(Some((answer, read))) => {

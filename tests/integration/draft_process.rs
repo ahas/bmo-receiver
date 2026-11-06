@@ -1148,6 +1148,11 @@ async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(prompts[1].contains(&DRAFTING.review.marker), "{}", prompts[1]);
+  assert!(
+    !prompts[1].contains("WHEN THE ROUND IS THE REVIEW"),
+    "the review turn carries no instruction sentence: {}",
+    prompts[1]
+  );
   assert!(prompts[1].contains("The room's words #1 were handed in this turn"), "{}", prompts[1]);
   assert!(prompts[1].contains("the message"), "the draft: {}", prompts[1]);
   assert_eq!(sent.len(), 1);
@@ -1199,12 +1204,19 @@ async fn a_five_round_process_reviews_and_sends_without_repeating_questions_or_a
   assert!(review.contains(&DRAFTING.review.marker), "{review}");
   assert!(review.contains("the message"), "the draft: {review}");
   assert!(
-    !review.contains("Answer PASS") && !review.contains("do not rewrite the message here"),
-    "the verdict wording stands in the room's block, not the review turn: {review}"
+    !review.contains("Answer PASS")
+      && !review.contains("do not rewrite the message here")
+      && !review.contains("WHEN THE ROUND IS THE REVIEW"),
+    "the verdict wording and the instruction stand in the room's block, not the review turn: {review}"
   );
   assert!(
     prompts[0].contains(&verdict),
     "the room's block carries the review instruction: {}",
+    prompts[0]
+  );
+  assert!(
+    prompts[0].contains(&DRAFTING.review.revise),
+    "the room's block carries the revision instruction: {}",
     prompts[0]
   );
 
@@ -1236,6 +1248,21 @@ async fn a_rejected_message_is_written_again_with_the_reason() {
 
   assert_eq!(prompts.len(), 4, "{prompts:#?}");
   assert!(prompts[2].contains("the date is missing"), "{}", prompts[2]);
+  assert!(
+    !prompts[2].contains(question("final")),
+    "the revision turn repeats no question text: {}",
+    prompts[2]
+  );
+  assert!(
+    !prompts[2].contains("Write the message again"),
+    "the revision instruction stands in the room's block: {}",
+    prompts[2]
+  );
+  assert!(
+    prompts[0].contains(&DRAFTING.review.revise),
+    "the room's block carries the revision instruction: {}",
+    prompts[0]
+  );
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("the second message"), "{sent:?}");
   assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 1, "{log:?}");

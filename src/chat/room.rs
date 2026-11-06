@@ -494,12 +494,13 @@ async fn stages(receiver: &Receiver) -> Result<String, Fault> {
   Ok(parts.join("\n"))
 }
 
-// The review's instruction, as the room's block carries it (docs/drafting.md, 「The review」): what the review
-// reads and the verdict words it answers.
+// The review's instructions, as the room's block carries them (docs/drafting.md, 「The review」): what the review
+// reads, the verdict words it answers, and what a revision round does with the reason it is shown.
 fn review_instruction() -> String {
   let said = &DRAFTING.review;
+  let review = fill_marks(&said.instruction, &[("pass", &said.pass), ("reject", &said.reject)]);
 
-  fill_marks(&said.instruction, &[("pass", &said.pass), ("reject", &said.reject)])
+  format!("{review}\n{}", said.revise)
 }
 
 // The situation-note instruction, as the room's block carries it (docs/drafting.md, 「The situation note」): the

@@ -33,13 +33,15 @@ stage = "{name}: {text}"
 # in every round's turn.
 send = "SENDING FROM A ROUND — a round's line ends in SEND where that round may write the message itself, and NOTES where it writes notes only and the message is written at the message round. Where the round may send: begin the answer with <<SEND>> where what you now hold is enough; what follows it is the message, reviewed before it goes out, and the process ends there. {voice}"
 
-# The review the gate asks before a message goes out (docs/drafting.md, 「The review」): the short mark its turn
-# carries, the instruction the room's block carries, the lines its turn shows, and the verdict it answers. A
+# The review the gate asks before a message goes out (docs/drafting.md, 「The review」): the marker that names its
+# turn, the instructions the room's block carries, the lines its turn shows, and the verdict it answers. A
 # rejection returns the draft to the final question with that reason, eight times at most; the eighth sends the
-# last draft and the end row names the reasons in order.
+# last draft and the end row names the reasons in order. A round's turn carries data only: the instruction for a
+# revision stands in the room's block, and the turn carries the reason under `reason`.
 [review]
-marker = "REVIEW THE MESSAGE BEFORE IT GOES OUT."
+marker = "REVIEW ROUND."
 instruction = "WHEN THE ROUND IS THE REVIEW — read the draft against the room's words and the rules and knowledge it carries. Answer {pass} alone when it is right to send as it stands. Answer {reject} when it is not, naming the one thing that must change, and nothing else; do not rewrite the message here."
+revise = "WHEN THE REVIEW HAS REJECTED THE MESSAGE — write the message again, changing what the reason shown names and keeping the rest. Your answer is the message."
 draft = "The message as it stands:"
 words = "The room's words:"
 rules = "The rules and knowledge this round carries:"
@@ -47,7 +49,7 @@ handed = "[{path}] (handed in this turn)"
 room_handed = "The room's words {ids} were handed in this turn; only the lines after them are new."
 pass = "PASS"
 reject = "REJECT: <reason>"
-revise = "The review rejected the message. Reason: {reason}\n\nWrite the message again, changing what that reason names and keeping the rest. Your answer is the message."
+reason = "The review rejected the message. Reason: {reason}"
 
 # The questions, by name, as the owner set them. `final` is always the last question of a process.
 [questions]

@@ -32,10 +32,12 @@ pub struct Process {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Review {
-  /// The short mark the review turn carries.
+  /// The marker that names the review round, with no instruction.
   pub marker: String,
   /// What the review is asked, said once in the room's block; `{pass}` and `{reject}` are the verdicts below.
   pub instruction: String,
+  /// What a revision round does, said once in the room's block.
+  pub revise: String,
   pub draft: String,
   pub words: String,
   pub rules: String,
@@ -43,7 +45,8 @@ pub struct Review {
   pub room_handed: String,
   pub pass: String,
   pub reject: String,
-  pub revise: String,
+  /// The label a revision turn carries its reason under: data, with no instruction.
+  pub reason: String,
 }
 
 #[derive(Debug, Deserialize)]

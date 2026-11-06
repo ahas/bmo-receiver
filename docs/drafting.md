@@ -327,16 +327,17 @@ where it says something: neither empty nor a skip nor a wait.
 
 ## The review
 
-- **The gate's first turn reviews the message before it goes out.** What the review reads and the verdict it
-  answers stand in the room's block beside the draft stages (`drafting.toml`, `[review]`, `instruction`): it
-  reads the draft against the room's words and the rules and knowledge the round carries, and answers `PASS`
-  alone, or `REJECT: <one short reason>` naming the one thing that must change, and nothing else. The review
-  turn itself carries only its short mark, the draft, the room's words and the rules it carries
-  (`marker`); it is handed no list of the questions the rounds were asked and no verdict wording.
-- **A rejection returns to the draft.** The final question is asked again with the reason in its words, and the
-  new draft is reviewed again, eight times at most. At the eighth rejection the last draft is sent, not
-  withheld, and the round's end row reports the reasons in order. A review that gives no verdict is a rejection
-  with its own words as the reason.
+- **The gate's first turn reviews the message before it goes out.** What the review reads, the verdict it
+  answers and what a revision round does with the reason stand in the room's block beside the draft stages
+  (`drafting.toml`, `[review]`, `instruction` and `revise`): it reads the draft against the room's words and
+  the rules and knowledge the round carries, and answers `PASS` alone, or `REJECT: <one short reason>` naming
+  the one thing that must change, and nothing else. The review turn itself carries only the marker that names
+  the round, the draft, the room's words and the rules it carries (`marker`, `draft`, `words`, `rules`); it is
+  handed no instruction sentence, no list of the questions the rounds were asked and no verdict wording.
+- **A rejection returns to the draft.** The final question is asked again, its turn carrying only the reason
+  the review gave, and the new draft is reviewed again, eight times at most. At the eighth rejection the last
+  draft is sent, not withheld, and the round's end row reports the reasons in order. A review that gives no
+  verdict is a rejection with its own words as the reason.
 - **A rejection that gives no guidance ends the review.** Where the reason is empty, or is the draft's own
   text after trimming and collapsing white space, no revision round is asked: the draft as it stands is sent
   and the end row says the review gave no usable reason. The same holds where two consecutive rejections carry
