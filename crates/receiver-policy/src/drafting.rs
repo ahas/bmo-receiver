@@ -68,6 +68,11 @@ pub struct Drafting {
   pub standing: String,
   /// What a question whose answer may be the message says of its voice: the room's, never notes.
   pub voice: String,
+  /// The head the room's block carries over the stage instructions, which the session is handed as its system
+  /// prompt.
+  pub stages_head: String,
+  /// One stage instruction in the room's block, `{name}` the question and `{text}` its catalogue text.
+  pub stage: String,
   /// The review the gate asks before a message goes out.
   pub review: Review,
   /// The questions, by name.

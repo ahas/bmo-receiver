@@ -89,11 +89,12 @@ fn a_question_names_its_place_and_the_last_says_it_is_the_message() {
     send_from_at: 1,
     ..Plan::default()
   };
-  let first = question_words("intent", "why?", 1, 3, &plan.send_line(0));
-  let second = question_words("facts", "true?", 2, 3, &plan.send_line(1));
-  let last = question_words("final", "write it", 3, 3, &plan.send_line(2));
+  let first = question_words("intent", 1, 3, &plan.send_line(0));
+  let second = question_words("facts", 2, 3, &plan.send_line(1));
+  let last = question_words("final", 3, 3, &plan.send_line(2));
 
-  assert!(first.contains("question 1 of 3 (intent)") && first.ends_with("\n\nwhy?"));
+  assert!(first.contains("question 1 of 3 (intent)"));
+  assert!(!first.contains("why?"), "a turn carries no question text: {first}");
   assert!(!first.contains("TURN SCOPE"), "a later question carries no turn scope: {first}");
   assert!(
     first.contains("writes no message of its own") && !first.contains("<<SEND>>"),
@@ -117,9 +118,9 @@ fn every_question_whose_answer_may_be_the_message_asks_for_the_rooms_voice_and_n
     send_from_at: 1,
     ..Plan::default()
   };
-  let notes = question_words("information", "what?", 1, 3, &plan.send_line(0));
-  let facts = question_words("facts", &DRAFTING.questions["facts"], 2, 3, &plan.send_line(1));
-  let last = question_words("final", &DRAFTING.questions["final"], 3, 3, &plan.send_line(2));
+  let notes = question_words("information", 1, 3, &plan.send_line(0));
+  let facts = question_words("facts", 2, 3, &plan.send_line(1));
+  let last = question_words("final", 3, 3, &plan.send_line(2));
 
   assert!(DRAFTING.voice.contains("voice") && DRAFTING.voice.contains("never as notes"));
   assert!(
@@ -148,7 +149,10 @@ fn the_first_question_opens_on_the_opening_unless_it_is_the_last() {
 
   assert!(three.questioned() && !one.questioned() && !Plan::default().questioned());
   assert!(three.first_words().is_some_and(|words| {
-    words.contains(head) && words.contains(&DRAFTING.voice) && words.ends_with("\n\nask intent")
+    words.contains(head)
+      && words.contains(&DRAFTING.voice)
+      && words.contains("1 of 3 (intent)")
+      && !words.contains("ask intent")
   }));
   assert!(
     one
@@ -247,19 +251,25 @@ fn a_set_names_known_questions_ending_in_the_last_and_bounds_its_numbers() {
 }
 
 #[test]
-fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_block() {
+fn a_round_turn_carries_only_its_place_never_the_stage_s_instruction_text() {
   let plan = |names: &[&str]| Plan {
-    questions: names.iter().map(|name| ((*name).to_owned(), String::new())).collect(),
+    questions: names
+      .iter()
+      .map(|name| ((*name).to_owned(), DRAFTING.questions[*name].clone()))
+      .collect(),
     ..Plan::default()
   };
   let one = plan(&["final"]).first_words().unwrap();
   let three = plan(&["intent", "information", "final"]).first_words().unwrap();
   let process = &receiver_policy::chat_line::CHAT_LINE.room.process;
 
-  // The template a question adds to a turn is its place, its send line and, where its answer may be the message,
-  // the room's voice: a few hundred characters at most.
+  // The text a round adds to a turn is its place, its send line and, where its answer may be the message, the
+  // room's voice: a few hundred characters at most. The question's own text never rides it.
   assert!(one.trim().chars().count() <= 350, "{} characters: {one}", one.chars().count());
   assert!(three.trim().chars().count() <= 650, "{} characters: {three}", three.chars().count());
+  assert!(!one.contains(&DRAFTING.questions["final"]), "{one}");
+  assert!(!three.contains(&DRAFTING.questions["intent"]), "{three}");
+  assert!(three.contains("1 of 3 (intent)") && one.contains("1 of 1 (final)"));
 
   for rule in [
     "<<DONE #<number>>>",
@@ -268,9 +278,27 @@ fn a_question_turn_carries_only_its_place_the_fixed_rules_stand_in_the_rooms_blo
     "live state",
     "ask nothing of you and change nothing",
   ] {
-    assert!(!one.contains(rule) && !three.contains(rule), "{rule} stands in a question's turn");
+    assert!(!one.contains(rule) && !three.contains(rule), "{rule} stands in a round's turn");
     assert!(process.contains(rule), "{rule} stands in the room's block");
   }
+}
+
+#[test]
+fn a_later_round_carries_its_place_and_permission_never_the_question_text() {
+  let plan = Plan {
+    questions: ["facts", "final"]
+      .map(|name| (name.to_owned(), DRAFTING.questions[name].clone()))
+      .to_vec(),
+    send_from_at: 0,
+    ..Plan::default()
+  };
+  let notes = question_words("facts", 1, 2, &plan.send_line(0));
+  let message = question_words("final", 2, 2, &plan.send_line(1));
+
+  assert!(notes.contains("1 of 2 (facts)") && notes.contains("may write the message"), "{notes}");
+  assert!(!notes.contains(&DRAFTING.questions["facts"]), "{notes}");
+  assert!(message.contains("2 of 2 (final)") && !message.contains(&DRAFTING.questions["final"]));
+  assert!(!notes.contains("TURN SCOPE") && !message.contains("TURN SCOPE"));
 }
 
 #[test]

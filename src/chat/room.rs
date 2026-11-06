@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use regex::Regex;
 use serde_json::Value;
@@ -455,6 +456,39 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
   Ok(lines.join("\n"))
 }
 
+// The draft process's stage instructions, as the room's block carries them (docs/drafting.md, 「The questions」):
+// the head, then one line for each question the process's row may ask, ordinary or light, from the catalogue with
+// the console's rows over it.
+async fn stages(receiver: &Receiver) -> Result<String, Fault> {
+  let db = receiver.db();
+  let row = super::draft::table::rows(db).await?.into_iter().next();
+  let Some(row) = row else {
+    return Ok(String::new());
+  };
+  let catalogue = super::draft::table::questions(db).await?;
+  let mut names = row.rounds.clone();
+
+  for name in &row.light {
+    if !names.contains(name) {
+      names.push(name.clone());
+    }
+  }
+
+  if names.is_empty() {
+    return Ok(String::new());
+  }
+
+  let mut parts = vec![DRAFTING.stages_head.clone()];
+
+  for name in names {
+    if let Some(question) = catalogue.iter().find(|question| question.name == name) {
+      parts.push(fill_marks(&DRAFTING.stage, &[("name", &name), ("text", &question.text)]));
+    }
+  }
+
+  Ok(parts.join("\n"))
+}
+
 /// The room's block a turn in a room carries, answering on the road it was asked on where that road reaches
 /// the room, and the line that restates it.
 pub async fn room_context(
@@ -477,6 +511,7 @@ pub async fn room_context(
     fill_marks(&said.name, &[("title", &title)]),
     said.replaces.clone(),
     said.process.clone(),
+    stages(receiver).await?,
     said.voice.clone(),
   ];
 

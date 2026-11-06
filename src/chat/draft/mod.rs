@@ -86,14 +86,16 @@ impl Plan {
     fill_marks(&DRAFTING.send_closed, &[("from", &(self.send_from_at + 1).to_string()), ("name", name)])
   }
 
-  /// What the first question adds to the round's turn, where the process asks any: the opening, or the last
-  /// question's line where it is also the last, then the question. The turn's own scope stands in it already.
+  /// What the first round adds to the round's turn, where the process asks any: its line, naming its place, its
+  /// name and what it may write. The question's own text stands in the room's block, never in the turn. The
+  /// turn's own scope stands in it already.
   pub fn first_words(&self) -> Option<String> {
-    let (name, text) = self.questions.first()?;
+    let (name, _) = self.questions.first()?;
     let count = self.questions.len();
     let lead = if count == 1 { &DRAFTING.last_lead } else { &DRAFTING.opening };
     let send = self.send_line(0);
-    let lead = fill_marks(
+
+    Some(fill_marks(
       lead,
       &[
         ("number", "1"),
@@ -102,9 +104,7 @@ impl Plan {
         ("send", &send),
         ("voice", &DRAFTING.voice),
       ],
-    );
-
-    Some(format!("{lead}\n\n{text}"))
+    ))
   }
 }
 
@@ -122,11 +122,12 @@ pub fn read_answer(text: &str) -> (String, Answered) {
   }
 }
 
-/// The opening of a later question turn: the lead naming its place and what it says of the send marker, then
-/// the question and the turn's scope.
-pub fn question_words(name: &str, text: &str, number: usize, count: usize, send: &str) -> String {
+/// The line of a later round: its place, its name and what it may write. The question's own text stands in the
+/// room's block, never in the turn.
+pub fn question_words(name: &str, number: usize, count: usize, send: &str) -> String {
   let lead = if number == count { &DRAFTING.last_lead } else { &DRAFTING.lead };
-  let lead = fill_marks(
+
+  fill_marks(
     lead,
     &[
       ("number", &number.to_string()),
@@ -135,9 +136,7 @@ pub fn question_words(name: &str, text: &str, number: usize, count: usize, send:
       ("send", send),
       ("voice", &DRAFTING.voice),
     ],
-  );
-
-  format!("{lead}\n\n{text}")
+  )
 }
 
 /// The line every question but the last closes on: the messages still waiting, shown with the next question.
@@ -837,7 +836,7 @@ impl Drafter {
       let last = number == count;
       let (name, text) = &plan.questions[at];
       let send = plan.send_line(at);
-      let mut words = question_words(name, text, number, count, &send);
+      let mut words = question_words(name, number, count, &send);
 
       run.asked.push(text.clone());
 

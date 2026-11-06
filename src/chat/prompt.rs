@@ -9,6 +9,7 @@ use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 use serde::Serialize;
 
+use super::cache::{self, Route};
 use super::conversation::unified_session;
 use super::shape::Reading;
 use super::window::{self, Material, Selection};
@@ -121,17 +122,77 @@ async fn chat_kind(receiver: &Receiver, room: Room) -> Result<&'static str, Faul
   Ok(&kinds.group)
 }
 
-// What the session missed since it last answered, which only the first call of a round carries; the batch's own
-// messages are shown a few lines further on.
-async fn archived(receiver: &Receiver, round: &Round<'_>) -> Result<Vec<Inbound>, Fault> {
-  if !round.first_call {
+// Whether the turn opens on a session that does not hold the room's conversation: a handover, to a session the
+// agency never opened or one this turn will replace, or a return to a room the agent's one session has not
+// answered in (docs/drafting.md, 「The questions」; docs/unified-bmo.md, 「Moving between rooms」).
+async fn opening_turn(
+  receiver: &Receiver,
+  round: &Round<'_>,
+  standing: Option<&str>,
+) -> Result<bool, Fault> {
+  let state = match standing {
+    Some(session) => receiver.units().agency.state(session).await.unwrap_or_default(),
+    None => Default::default(),
+  };
+
+  if !state.generation.as_i64().is_some_and(|generation| generation > 0) {
+    return Ok(true);
+  }
+
+  if !unified_session(receiver, round.agent).await {
+    return Ok(false);
+  }
+
+  let seen = match standing {
+    Some(session) => one(
+      receiver.db(),
+      r#"SELECT 1 AS "one" FROM "bmo_session_rooms" WHERE "session_id" = $1 AND "chat_id" = $2"#,
+      vec![session.into(), round.chat_id.into()],
+    )
+    .await?
+    .is_some(),
+    None => false,
+  };
+
+  if !seen {
+    return Ok(true);
+  }
+
+  // A session this turn replaces is a handover too, though the old one still stands and holds this room.
+  let asked = Route {
+    provider: state.provider.clone().unwrap_or_default(),
+    model: state.model.clone().unwrap_or_default(),
+    effort: String::new(),
+    account: None,
+    session: standing.map(str::to_owned),
+    transcript: None,
+  };
+
+  Ok(
+    cache::reset_reason(receiver.db(), round.agent, &asked, &state)
+      .await
+      .ok()
+      .flatten()
+      .is_some(),
+  )
+}
+
+// What the session missed since it last answered, which only a turn that opens or returns carries; the batch's
+// own messages are shown a few lines further on.
+async fn archived(
+  receiver: &Receiver,
+  round: &Round<'_>,
+  standing: Option<&str>,
+  opening: bool,
+) -> Result<Vec<Inbound>, Fault> {
+  if !opening {
     return Ok(vec![]);
   }
 
   let db = receiver.db();
   let last_read = rows::last_read(db, round.chat_id).await?;
   let unified = unified_session(receiver, round.agent).await;
-  let seen = match round.session {
+  let seen = match standing {
     Some(session) if unified => one(
       db,
       r#"SELECT 1 AS "one" FROM "bmo_session_rooms" WHERE "session_id" = $1 AND "chat_id" = $2"#,
@@ -209,7 +270,21 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   let chat_id = round.chat_id;
   let mut parts: Vec<String> = Vec::new();
   let mut context: Vec<(String, String)> = Vec::new();
-  let unread: Vec<Inbound> = archived(receiver, round)
+  // The session the turn goes on, which the index counts the read entries out by and which says whether the
+  // session already holds the conversation: the one the round holds, else the one the agency stands for the
+  // agent, which a start writes nothing of.
+  let standing = match round.session {
+    Some(session) => Some(session.to_owned()),
+    None => {
+      let unified = unified_session(receiver, round.agent).await;
+      let scope = super::ask::scope_of(unified, chat_id);
+
+      receiver.units().agency.start(round.agent, scope).await.ok().map(|session| session.id)
+    }
+  };
+  // The archived block rides only the turn that opens a session or returns to a room, not an ordinary round.
+  let opening = round.first_call && opening_turn(receiver, round, standing.as_deref()).await?;
+  let unread: Vec<Inbound> = archived(receiver, round, standing.as_deref(), opening)
     .await?
     .into_iter()
     .filter(|message| !round.pending.contains(&message.message_id))
@@ -280,17 +355,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     shown: &recent.iter().map(|message| message.message_id).collect(),
   };
   let recent_lines = plain.lines(&recent).await?;
-  // The session the turn goes on, which the index counts the read entries out by: the one the round holds, else
-  // the one the agency stands for the agent, which a start writes nothing of.
-  let standing = match round.session {
-    Some(session) => Some(session.to_owned()),
-    None => {
-      let unified = unified_session(receiver, round.agent).await;
-      let scope = super::ask::scope_of(unified, chat_id);
-
-      receiver.units().agency.start(round.agent, scope).await.ok().map(|session| session.id)
-    }
-  };
   let selection = window::select(
     receiver,
     &Material {

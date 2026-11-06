@@ -495,7 +495,9 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
 
   let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
   let session = Arc::new(
-    StandInSession::new(SESSION, ANSWER).acting(crate::integration::common::session::writing_handoff(NOTE)),
+    StandInSession::new(SESSION, ANSWER)
+      .at_generation(3)
+      .acting(crate::integration::common::session::writing_handoff(NOTE)),
   );
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
@@ -512,6 +514,14 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   )
   .await
   .unwrap();
+  // The standing session has answered in this room before; the turn is a handover all the same, and the
+  // messages behind the note ride it.
+  scratch
+    .run(
+      r#"INSERT INTO "bmo_session_rooms" ("session_id", "chat_id") VALUES ($1, $2)"#,
+      vec![SESSION.into(), OWNER.into()],
+    )
+    .await;
   scratch
     .run(
       r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")

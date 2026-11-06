@@ -14,12 +14,13 @@ leaves.
 - **The process establishes what the message needs first and writes the message last.** A round's turn goes to
   the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where
   one is asked, and after the window's pregate: the core the gate attaches, the room's situation note and the
-  brain's index. The turn carries,
-  with the room's words and the index, the process's first question, and asks no answer:
-  the agent reads, finds the facts the message rests on and engraves what it establishes in the brain with its
-  tools as it goes. The receiver then asks the same session the process's further questions, one turn each, in
-  order; every answer but the last is the agent's notes, and the answer to the last question is the message.
-  Nothing stands as a message before then.
+  brain's index. The turn carries only the line naming the process's first round and whether that round writes
+  the message or only notes; the question it answers, like every other question of the process, stands in the
+  room's block, which the session is handed as its system prompt. The agent reads, finds the facts the message
+  rests on and engraves what it establishes in the brain with its tools as it goes. The receiver then asks the
+  same session the process's further rounds, one turn each, in order, each carrying its own round line and no
+  question text; every answer but the last is the agent's notes, and the answer to the last round is the
+  message. Nothing stands as a message before then.
 - **A round's notes are what it read, what it established and what is still unknown.** The facts themselves go
   to the brain during the round, by the agent's own tools; the notes go to the round log (「The round log」
   below), so the brain and the draft record both hold what the round established.
@@ -83,28 +84,32 @@ leaves.
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
 | `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, as this room's agent says it to this person, or send nothing; always the last |
 
-- **The process's fixed rules stand in the room's block, not in a turn:** that the message is written last, that
-  it is reviewed before it goes out and that a review which rejects it returns it to be written again, that
-  an answer before the last is notes of what was read, the facts established and engraved in the brain, each with
-  its source, and what is still unknown, the confidence rule and the source rule above, that nothing is hedged,
-  that `<<SKIP>>` ends the process and is for words that ask nothing and change nothing, so a person's telling the
-  agent something of themselves, which it keeps, is answered in the same round, that a draft or a note is not a
-  message the room has heard and never the reason for a skip, and the marks a message that arrived meanwhile takes (`chat-line.toml`,
-  `[room]`, `process`). The room's block goes to a session once per version and by its mark after that, so a
-  turn carries only what changes from question to question.
-- **The first question rides the round's own turn:** the room's words and the round's closing lines as the window
-  composes them, the closing lines saying that the question below is to be answered, then the question's opening
-  and the question. The opening is the policy's: the place and count of the question, that it is the first and
-  freest, and whether a send is read at this question (`send_open`) or that it writes no message (`send_closed`). Where the first question is
-  the last, as a light turn's `final` is, it opens on the last question's line instead and its answer is the
-  message, so the round is one turn.
-- **Every later question goes out as one more turn** opening on the process's lead line, naming the question's
-  place and count and whether a send is read at this question; then the question; then the turn's scope; then
-  the block of messages that arrived since the last answer, where any did (「What came in meanwhile」 below). Every
-  question but the message question closes on the messages still waiting and that they are shown with the next
-  question; the message question opens on its own line, that its answer is the message and that the message is
-  reviewed before it goes out. The lines are the policy's (`drafting.toml`).
-- **No gate is asked for a later question:** the turn carries no reference of its own, and no judgement is
+- **The process's fixed rules and each question's own text stand in the room's block, not in a turn:** that the
+  message is written last, that it is reviewed before it goes out and that a review which rejects it returns it
+  to be written again, that an answer before the last is notes of what was read, the facts established and
+  engraved in the brain, each with its source, and what is still unknown, the confidence rule and the source
+  rule above, that nothing is hedged, that `<<SKIP>>` ends the process and is for words that ask nothing and
+  change nothing, so a person's telling the agent something of themselves, which it keeps, is answered in the
+  same round, that a draft or a note is not a message the room has heard and never the reason for a skip, and
+  the marks a message that arrived meanwhile takes (`chat-line.toml`, `[room]`, `process`). The room's block
+  also carries the catalogue's texts for the questions the process asks, assembled from the same policy rows the
+  console edits (`drafting.toml`, `[questions]`; 「The routes」 below), so a console row takes effect the next
+  time a session is handed its room's block. The block goes to a session once per version and by its mark after
+  that, so a turn carries only what changes from round to round: which round it is and what that round may
+  write.
+- **The first round rides the round's own turn:** the room's words and the round's closing lines as the window
+  composes them, the closing lines saying that the round below is to be answered, then the round's line. The
+  line is the policy's: the place and count of the round, its name, and whether a send is read there
+  (`send_open`) or that the round writes notes only (`send_closed`). Where the first round is the last, as a
+  light turn's `final` is, it opens on the last round's line instead and its answer is the message, so the
+  round is one turn.
+- **Every later round goes out as one more turn** opening on the process's lead line, naming the round's place
+  and count and whether a send is read there; then the turn's scope; then the block of messages that arrived
+  since the last answer, where any did (「What came in meanwhile」 below). Every round but the message round
+  closes on the messages still waiting and that they are shown with the next round; the message round opens on
+  its own line, that its answer is the message and that the message is reviewed before it goes out. No turn
+  carries a question's text: that stands in the room's block. The lines are the policy's (`drafting.toml`).
+- **No gate is asked for a later round:** the turn carries no reference of its own, and no judgement is
   written for it.
 
 ## The process table
@@ -117,14 +122,14 @@ leaves.
     wherever it stands; empty for the first;
   - `light`, the questions of a light turn (「A light turn」 below);
   - `lightChars`, how short the room's words must be for a turn to be light;
-- **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the question from which the process
-  asks for the message, and the question's line says that a complete message may be written now; a send before it
+- **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the round from which the process
+  asks for the message, and that round's line says that a complete message may be written now; a send before it
   is the message too, and the process ends there. Where the agent does not send, the questions that establish the
-  facts are asked before anything is written. The default row asks for a send at `final` alone: every question
-  before it says it writes no message of its own, and its answer is notes for the message the last question
-  writes. A light turn's list asks for a send at its first question whatever the row names.
-- **A question whose answer may be the message asks for it in the persona's voice.** At the `sendFrom` question and
-  every one after it, `final` among them, and at the closing check, the question's line says that an answer that
+  facts are asked before anything is written. The default row asks for a send at `final` alone: every round
+  before it says it writes no message of its own, and its answer is notes for the message the last round
+  writes. A light turn's list asks for a send at its first round whatever the row names.
+- **A round whose answer may be the message asks for it in the persona's voice.** At the `sendFrom` round and
+  every one after it, `final` among them, and at the closing check, the round's line says that an answer that
   becomes the message is written as the message itself, in the voice the agent's persona sets for the person it
   answers, its register toward them included, and in their language, never as notes or a report
   (`drafting.toml`, `voice`); the line says so in every such turn, so the voice holds however long the session

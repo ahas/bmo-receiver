@@ -89,7 +89,7 @@ is written.
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
 | The consolidation before a fold: the session asked, tools on, to consolidate its brain and answer the skip (`docs/unified-bmo.md`, 「The brain's consolidation」) | the conversation's fold | — | none: the handover policy's `consolidate` lines with the room's block, composed by no window | opens, waited on before the fold | — |
 | A line a person types into the agent's program | the agency's `typed-line` hook | — | none: composed, never asked | the person's own turn of the program | — |
-| A later turn of the draft process inside a round, after the round's own turn that carries its first question: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
+| A later turn of the draft process inside a round, after the round's own turn that names its first round: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
 
 - **The session handover** is not a turn. The note a replaced session leaves rides at the head of whichever
   turn first goes out on the new session, and that turn came through the window like every other: it goes whole,
@@ -280,8 +280,15 @@ Beside the core, the turn carries the brain's index, and the agent reads anythin
 - **The block stands after the turn's words and instructions,** ahead of its closing lines, so a session reads
   what came in before it decides whether to look anything up.
 
-Beside the reference, a turn carries the room's messages since the agent last answered there:
+Beside the reference, a turn that opens a session or returns to a room carries the room's messages since the
+agent last answered there:
 
+- **Only where it opens or returns:** the archived block rides the turn that opens a session holding nothing (a
+  handover, whether the session was replaced or the agency opened it fresh) and the first turn in a room the
+  agent's one session has not answered in (a return). An ordinary round, whose session already holds the
+  conversation and whose room's situation note covers what came in, carries no archived block; the words that
+  arrived after its last answer and were not noted still stand under the next question or the closing check
+  (`docs/drafting.md`, 「What came in meanwhile」).
 - **At most a set number of them:** the archived block carries the newest unread messages in their order, as
   many as the chat round's policy sets (`archived_messages`, 100 by default). Where more were unread, the block
   says in one line how many older ones it left out and that they stand in the room's archive, where the agent's
@@ -334,9 +341,10 @@ Beside the reference, a turn carries the room's messages since the agent last an
     `waiting` or `refused` go back to the front of what waits, and a `waiting` turn is offered nothing more
     (`docs/boundary-api.md`, 「The agency」).
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): a question after
-  the first, which rides the round's own turn, an item or a check. It carries no reference of its own: the core and
-  the index went in with the round's turn. A question, or the closing check once the message stands, carries the room's
-  words that came in meanwhile and no push put in as one block.
+  the first, which rides the round's own turn, an item or a check. It carries its round line and no question
+  text, which stands in the room's block, and no reference of its own: the core and the index went in with the
+  round's turn. A question, or the closing check once the message stands, carries the room's words that came in
+  meanwhile and no push put in as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. It is composed like any turn,
   so a row that has come due while the room was quiet is in front of the agent, and it carries the keepalive
@@ -445,9 +453,9 @@ flowchart TD
   these.
 - **No content judgement stands between the agent and any room.** A round sends what the agent wrote at the end
   of its draft process, held only to the code's own items and checks below and the words' form.
-- **The draft process asks the agent its questions** (`docs/drafting.md`): the round's turn carries the first,
-  the agent establishes what the message needs before it writes it, and what it answers is its own; no model
-  judges the answer.
+- **The draft process asks the agent its questions** (`docs/drafting.md`): the round's turn names the first
+  round, each question's own text stands in the room's block, the agent establishes what the message needs
+  before it writes it, and what it answers is its own; no model judges the answer.
 - **The mechanical checks stay in code,** on every round, as the process's items and checks: an owed answer to
   the owner's words, a promise with nothing recorded, a promise to act once something happens with nothing set
   to wake the agent when it does, a rule the owner set and nothing filed, then the review and the final text's
