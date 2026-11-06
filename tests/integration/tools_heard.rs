@@ -11,6 +11,7 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::tools_heard::{concerned, hear, instruction};
 use futures_util::future::BoxFuture;
 use futures_util::{StreamExt, stream};
+use receiver_policy::tool_host::TOOL_HOST;
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::tool_host::{Change, Entry, StandingSession, ToolEvent, ToolEvents, ToolHost};
 
@@ -58,8 +59,25 @@ fn a_change_reads_its_entries_and_a_replacing_placement_reads_as_updated() {
   assert!(removed.contains("no longer serves sample"), "{removed}");
 
   for text in [&placed, &updated, &removed] {
-    assert!(text.contains("bmo use <tool> --describe"), "{text}");
+    assert!(text.starts_with(&TOOL_HOST.marker), "the marker names the notice: {text}");
+    assert!(!text.contains("bmo use <tool> --describe"), "the reading rule is in the block: {text}");
+    assert!(!text.contains("Nothing needs saying in any room"), "the block carries the rule: {text}");
   }
+}
+
+#[test]
+fn two_changes_in_one_turn_do_not_repeat_the_instruction() {
+  let first = instruction(&event(1, "tool.placed", "sample", &["bmo"], false));
+  let second = instruction(&event(2, "tool.removed", "other", &["web"], false));
+  let turn = format!("{first}\n{second}");
+
+  assert_eq!(turn.matches(&TOOL_HOST.marker).count(), 2, "each change carries its marker");
+  assert!(turn.contains("now serves sample") && turn.contains("no longer serves other"), "{turn}");
+  assert!(!turn.contains("bmo use <tool> --describe"), "the reading rule is not repeated: {turn}");
+  assert!(
+    !turn.contains("Nothing needs saying in any room"),
+    "the block carries the rule once: {turn}"
+  );
 }
 
 #[test]
@@ -173,6 +191,11 @@ async fn each_event_is_one_riding_fact_per_agent_and_a_stale_cursor_hears_the_st
     ]
   );
   assert!(rows[0].2.contains("an updated sample"), "{}", rows[0].2);
+  assert!(rows[0].2.starts_with(&TOOL_HOST.marker), "the marker names the notice: {}", rows[0].2);
+  assert!(
+    rows.iter().all(|row| !row.2.contains("bmo use <tool> --describe")),
+    "the reading rule stands in the block, not in a notice"
+  );
   assert!(
     rows.iter().all(|row| row.1 == OWNER && row.4 == 2),
     "each rides any room's round of its session"

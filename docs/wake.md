@@ -349,12 +349,13 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
 ### The tool host's changes
 
 - **A tool placed on the tool host or taken from it is told to each supervisor it concerns,** as the host
-  publishes it (`docs/boundary-api.md`, 「The tool host」): one instruction a supervisor whose standing tool session
+  publishes it (`docs/boundary-api.md`, 「The tool host」): one notice a supervisor whose standing tool session
   holds one of the event's namespaces, nothing to an agent whose session holds none of them.
-- **The instruction is a fact** in the tool host policy's words (`policy/tool-host.toml`): which tool was placed,
-  updated (a placing that replaced another version of it) or removed, each entry by its full name, how it is
-  reached (`call` or `act`) and the first sentence of its description; that a tool is read with
-  `bmo use <tool> --describe` before it is called; and that nothing needs saying in any room.
+- **The notice is a marker and a fact** in the tool host policy's words (`policy/tool-host.toml`): the short
+  marker that names it, then which tool was placed, updated (a placing that replaced another version of it) or
+  removed, each entry by its full name, how it is reached (`call` or `act`) and the first sentence of its
+  description. The rule the marker stands for — that a tool is read with `bmo use <tool> --describe` before it
+  is called, and that nothing needs saying in any room — stands once in the room's block, never in the notice.
 - **It rides and wakes nobody** (`docs/bmo-window.md`, 「Rows that ride」): it is queued in the owner's notices room
   under the kind `tools-changed:<agent>:<tool>`, so a later change of the same tool replaces the agent's one not
   yet handed over, and rides for good in a round of any room the agent's session answers. It is marked as an

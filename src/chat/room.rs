@@ -15,6 +15,7 @@ use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
 use receiver_policy::second_asks::SECOND_ASKS;
+use receiver_policy::tool_host::TOOL_HOST;
 use regex::Regex;
 use serde_json::Value;
 
@@ -565,6 +566,7 @@ pub async fn room_context(
     fill_marks(&CONSULT.work.rule, &[("marker", &CONSULT.work.marker)]),
     fill_marks(&CHAT_ROUND.notice.rule, &[("marker", &CHAT_ROUND.notice.marker)]),
     fill_marks(&CHAT_ROUND.notice.optional_rule, &[("marker", &CHAT_ROUND.notice.optional_marker)]),
+    fill_marks(&TOOL_HOST.rule, &[("marker", &TOOL_HOST.marker)]),
     fill_marks(&HANDOVER.chat.ask_rule, &[("marker", &HANDOVER.chat.ask_marker)]),
     fill_marks(&HANDOVER.chat.consolidate_rule, &[("marker", &HANDOVER.chat.consolidate_marker)]),
     fill_marks(&HANDOVER.chat.handed_rule, &[("marker", &HANDOVER.chat.handed_marker)]),

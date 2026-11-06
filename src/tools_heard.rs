@@ -1,8 +1,9 @@
 //! The tool host's catalogue as the receiver hears it (docs/boundary-api.md, 「The tool host」; docs/wake.md,
 //! 「Quiet instructions」): the host's event stream heard for as long as the service runs, resumed after the last
 //! event read and opened afresh where the host holds that event no longer, and each tool placed, updated or
-//! removed told to every supervisor whose standing tool session holds one of its namespaces, as a fact that rides
-//! the agent's next round in any room and wakes nobody.
+//! removed told to every supervisor whose standing tool session holds one of its namespaces, as a marker and a
+//! fact that ride the agent's next round in any room and wake nobody. The rule the marker stands for, including
+//! how a tool is read before it is called, stands once in the room's block.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,8 +21,9 @@ const REMOVED: &str = "tool.removed";
 // The status the host answers a cursor it holds no event after.
 const GONE: u16 = 410;
 
-/// The fact a supervisor is told of a change: what became of the tool and each entry with how it is reached and
-/// its summary, then the reading rule and that nothing needs saying.
+/// The notice a supervisor is told of a change: the marker naming it, then the fact of what became of the tool
+/// and each entry with how it is reached and its summary. The rule the marker stands for stands once in the
+/// room's block, never in the notice.
 pub fn instruction(event: &ToolEvent) -> String {
   let said = &*TOOL_HOST;
   let change = &event.data;
@@ -45,7 +47,7 @@ pub fn instruction(event: &ToolEvent) -> String {
   };
   let fact = fill_marks(line, &[("tool", &change.tool), ("entries", &entries)]);
 
-  format!("{fact}\n\n{}\n{}", said.read_first, said.nothing_said)
+  format!("{}\n{fact}", said.marker)
 }
 
 /// The supervisors a change concerns: each supervisor of the agency's whose standing tool session holds one

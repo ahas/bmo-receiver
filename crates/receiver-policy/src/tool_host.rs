@@ -1,6 +1,6 @@
 //! What the receiver hears of the tool host's catalogue and tells the supervisors of it (docs/boundary-api.md,
-//! 「The tool host」; docs/wake.md, 「Quiet instructions」): the stream's clocks, and the words a tool placed, updated
-//! or removed is told in.
+//! 「The tool host」; docs/wake.md, 「Quiet instructions」): the stream's clocks, the marker and rule of a change's
+//! notice, and the words a tool placed, updated or removed is told in.
 
 use serde::Deserialize;
 
@@ -12,14 +12,14 @@ pub struct ToolHost {
   pub kind: String,
   pub sort: String,
   pub summary: String,
+  pub marker: String,
+  pub rule: String,
   pub placed: String,
   pub updated: String,
   pub removed: String,
   pub entry: String,
   pub joint: String,
   pub no_entries: String,
-  pub read_first: String,
-  pub nothing_said: String,
 }
 
 crate::part!(pub TOOL_HOST: ToolHost = "tool-host.toml");

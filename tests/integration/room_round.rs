@@ -21,6 +21,7 @@ use receiver_policy::consult::CONSULT;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
+use receiver_policy::tool_host::TOOL_HOST;
 use receiver_ports::agency::Said;
 use serde_json::{Value, json};
 
@@ -570,6 +571,7 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
   let rules = [
     fill_marks(&CHAT_ROUND.notice.rule, &[("marker", &CHAT_ROUND.notice.marker)]),
     fill_marks(&CHAT_ROUND.notice.optional_rule, &[("marker", &CHAT_ROUND.notice.optional_marker)]),
+    fill_marks(&TOOL_HOST.rule, &[("marker", &TOOL_HOST.marker)]),
     CONSULT.windows.rule.clone(),
     fill_marks(&CONSULT.work.rule, &[("marker", &CONSULT.work.marker)]),
     fill_marks(&HANDOVER.chat.ask_rule, &[("marker", &HANDOVER.chat.ask_marker)]),
