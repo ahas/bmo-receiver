@@ -4,8 +4,9 @@
 
 use crate::integration::common::Scratch;
 use crate::integration::common::units::standing;
-use bmo_receiver::chat::consult::{consult_block, window_states};
+use bmo_receiver::chat::consult::{consult_block, window_line, window_states};
 use bmo_receiver::data_root::DataRoot;
+use receiver_policy::consult::CONSULT;
 use receiver_ports::agency::Agent;
 use receiver_ports::job::ItemRow;
 use serde_json::{Value, json};
@@ -89,8 +90,35 @@ async fn an_agents_consult_block_shows_the_others_work_and_not_her_own() {
 
   let block = consult_block(&standing.receiver, OTHER, 1_790_000_100_000).await.unwrap().unwrap();
 
+  assert!(block.starts_with(&CONSULT.work.marker), "{block}");
   assert!(block.contains("#900"), "{block}");
   assert!(!block.contains("- #901 "), "{block}");
+  assert!(
+    !block.contains(&CONSULT.work.rule) && !block.contains("call it by name"),
+    "no instruction sentence stands in the turn: {block}"
+  );
+}
+
+#[tokio::test]
+async fn a_window_line_carries_its_state_and_no_call_instruction() {
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![]);
+
+  standing.agency.registering(registered());
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2), ($1, $3)"#,
+      vec![ROOM.into(), OTHER.into(), "chat-a".into()],
+    )
+    .await;
+
+  let states = window_states(&standing.receiver, ROOM).await;
+  let closed = states.iter().find(|state| state.agent == OTHER).unwrap();
+  let line = window_line(closed, "chat-a", 1_790_000_100_000);
+
+  assert!(line.contains("closed"), "{line}");
+  assert!(!line.contains("call it by name"), "the rule stands in the block: {line}");
 }
 
 #[tokio::test]

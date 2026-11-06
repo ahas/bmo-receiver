@@ -143,7 +143,7 @@ pub fn instruction(deployed: &[Deployed]) -> String {
     .collect();
   let fact = fill_marks(&said.fact, &[("deployed", &clauses.join(&said.joiner))]);
 
-  format!("{fact}\n\nWhat this is for: {}\n\nWhat follows: {}", said.intent, said.follow_up)
+  crate::receiver::notices::frame(&fact, &said.intent, Some(&said.follow_up), false)
 }
 
 /// Where the units' deploy roots stand, which leaves the briefing unwritten where it names none.

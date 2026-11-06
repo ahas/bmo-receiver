@@ -88,9 +88,8 @@ pub fn window_line(state: &WindowState, own: &str, now_ms: i64) -> String {
   }
 
   let keeps = if state.open_until.is_none() { lines.keeps_none.as_ref() } else { "" };
-  let call = if mine { "" } else { lines.call.as_ref() };
 
-  fill_marks(&lines.closed, &[("who", &who), ("keeps", keeps), ("call", call)])
+  fill_marks(&lines.closed, &[("who", &who), ("keeps", keeps)])
 }
 
 /// The windows of a room more than one agent answers, as every turn there shows them; none for a room one agent
@@ -182,7 +181,7 @@ pub async fn consult_block(receiver: &Receiver, own: &str, now_ms: i64) -> Resul
     None => fill_marks(&work.room_bare, &[("chat", &room.to_string())]),
   };
 
-  let mut lines = vec![work.heading.clone()];
+  let mut lines = vec![work.marker.clone(), work.heading.clone()];
 
   if listed_items.is_empty() {
     lines.push(work.nothing.clone());
@@ -196,7 +195,6 @@ pub async fn consult_block(receiver: &Receiver, own: &str, now_ms: i64) -> Resul
 
   lines.push(fill_marks(&work.room, &[("room", &room_name)]));
   lines.extend(states.iter().map(|state| window_line(state, own, now_ms)));
-  lines.push(work.settle.clone());
   lines.push(work.closing.clone());
 
   Ok(Some(lines.join("\n")))

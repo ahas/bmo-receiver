@@ -26,11 +26,12 @@ agent that answers the room says the line.
 - **The caller owns its facts.** The code that knows what happened writes what the session is told: what
   happened, who asked for it, whether anything follows, as a code with its fields. There is no shared table of
   wordings; the only shared piece is the frame around the facts.
-- **The frame** asks the session for:
-  - the room's language, plain text, one short line, in this room's manner;
-  - nothing about models, code, prompts, hosts or other internals, unless the chat is the owner's private chat;
-  - its own words, never the fact text copied out;
-  - no `<<WAIT>>` and no `<<REPLY>>`; `<<SKIP>>` only where the facts say the line is optional.
+- **The frame is a marker and data.** The turn opens on `NOTICE.`, or `NOTICE, MAY SKIP.` where the line may be
+  left unsaid, then the facts whole, then what the line is for and what follows it. It carries no instruction
+  sentence: the room's block says, for each marker, that the session says the line in the room's language, plain
+  text, one short line, in this room's manner; that it says nothing about models, code, prompts, hosts or other
+  internals unless the chat is the owner's private chat; that it uses its own words, never copying the fact text
+  out; and that it answers no `<<WAIT>>` or `<<REPLY>>`, and `<<SKIP>>` only under the optional marker.
 - **Recipients and switches are the notice's own.** A voiced notice goes to exactly the chats the line is for,
   under the per-chat switch (`notice:restart`), and the rest rule holds: a rest and its lifting are told to the
   owner alone, and a room's session folding says nothing to any room.

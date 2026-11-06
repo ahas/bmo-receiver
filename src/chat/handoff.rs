@@ -39,14 +39,9 @@ pub fn folder(root: &Path, agent: &str) -> PathBuf {
 /// The instruction a closing session writes its handoff to `path` by.
 pub fn instruction(path: &Path) -> String {
   let path = path.display().to_string();
+  let chat = &HANDOVER.chat;
 
-  HANDOVER
-    .chat
-    .ask
-    .iter()
-    .map(|line| fill_marks(line, &[("path", &path)]))
-    .collect::<Vec<_>>()
-    .join("\n")
+  format!("{}\n{}", chat.ask_marker, fill_marks(&chat.ask, &[("path", &path)]))
 }
 
 /// The handoff written at `path`, where it stands and is not empty, copied to the newest beside it.
@@ -121,19 +116,21 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
 
 /// The note a new session's first turn opens with, in the handover policy's lines.
 pub fn carried_note(note: &Note) -> String {
-  let lines = &HANDOVER.chat;
-  let filled = |lines: &[String], marks: &[(&str, &str)]| {
-    lines.iter().map(|line| fill_marks(line, marks)).collect::<Vec<_>>().join("\n")
-  };
+  let chat = &HANDOVER.chat;
 
   match note {
     Note::Handed(handoff) => {
       let path = handoff.path.display().to_string();
+      let block = fill_marks(&chat.handed, &[("path", &path), ("note", handoff.text.trim_end())]);
 
-      filled(&lines.handed, &[("path", &path), ("note", handoff.text.trim_end())])
+      format!("{}\n{block}", chat.handed_marker)
     }
-    Note::Carried(transcript) => filled(&lines.carried, &[("note", transcript.trim_end())]),
-    Note::Lost => lines.lost.join("\n"),
+    Note::Carried(transcript) => {
+      let block = fill_marks(&chat.carried, &[("note", transcript.trim_end())]);
+
+      format!("{}\n{block}", chat.carried_marker)
+    }
+    Note::Lost => format!("{}\n{}", chat.lost_marker, chat.lost),
   }
 }
 

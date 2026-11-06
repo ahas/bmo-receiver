@@ -10,8 +10,10 @@ use std::sync::LazyLock;
 
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::consult::CONSULT;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
+use receiver_policy::handover::HANDOVER;
 use receiver_policy::second_asks::SECOND_ASKS;
 use regex::Regex;
 use serde_json::Value;
@@ -559,6 +561,15 @@ pub async fn room_context(
     CHAT_ROUND.index.rule.clone(),
     fill_marks(&CHAT_ROUND.index.memories, &[("chat", &chat_id.to_string())]),
     CHAT_ROUND.queue_line.rule.clone(),
+    CONSULT.windows.rule.clone(),
+    fill_marks(&CONSULT.work.rule, &[("marker", &CONSULT.work.marker)]),
+    fill_marks(&CHAT_ROUND.notice.rule, &[("marker", &CHAT_ROUND.notice.marker)]),
+    fill_marks(&CHAT_ROUND.notice.optional_rule, &[("marker", &CHAT_ROUND.notice.optional_marker)]),
+    fill_marks(&HANDOVER.chat.ask_rule, &[("marker", &HANDOVER.chat.ask_marker)]),
+    fill_marks(&HANDOVER.chat.consolidate_rule, &[("marker", &HANDOVER.chat.consolidate_marker)]),
+    fill_marks(&HANDOVER.chat.handed_rule, &[("marker", &HANDOVER.chat.handed_marker)]),
+    fill_marks(&HANDOVER.chat.carried_rule, &[("marker", &HANDOVER.chat.carried_marker)]),
+    fill_marks(&HANDOVER.chat.lost_rule, &[("marker", &HANDOVER.chat.lost_marker)]),
     fill_marks(&CHAT_ROUND.push.rule, &[("marker", &CHAT_ROUND.push.marker)]),
     fill_marks(&CHAT_ROUND.relay.rule, &[("marker", &CHAT_ROUND.relay.marker)]),
     fill_marks(&CHAT_ROUND.handed.rule, &[("marker", &CHAT_ROUND.handed.marker)]),

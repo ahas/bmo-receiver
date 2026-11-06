@@ -197,7 +197,16 @@ messages = "{count} new message(s) from this same room"
 instructions = "{count} quiet instruction(s) from the service you run inside"
 joined = " and "
 scope = "Message numbers added to this turn: {ids}"
-rule = "WHEN A TURN IS MARKED {marker} — words came for this room while the answer was being made, and only what is written after the marker goes out; nothing written before it is sent, so whatever is decided below, write the whole reply after it. Judge each new message on its own, by its number: where it asks something new or changes what was asked, answer it in this same reply; a cancellation or a correction is heeded at once, the work it cancels stopped and the reply saying so. Where it needs an answer of its own that does not fit this reply, hold it with <<SEPARATE #<number>>>: it stays unanswered now and opens the next turn as this room's question. Where it only continues or restates what this reply already answers, set it aside with <<DONE #<number>>>: it is read and gets no answer of its own. A message marked neither way is one this reply answers. Take the quiet instructions into this same answer, not into a reply of their own."
+rule = "WHEN A TURN IS MARKED {marker} — words came for this room while the answer was being made, and only what is written after the marker goes out; nothing written before it is sent, so whatever is decided on it, write the whole reply after it. Judge each new message on its own, by its number: where it asks something new or changes what was asked, answer it in this same reply; a cancellation or a correction is heeded at once, the work it cancels stopped and the reply saying so. Where it needs an answer of its own that does not fit this reply, hold it with <<SEPARATE #<number>>>: it stays unanswered now and opens the next turn as this room's question. Where it only continues or restates what this reply already answers, set it aside with <<DONE #<number>>>: it is read and gets no answer of its own. A message marked neither way is one this reply answers. Take the quiet instructions into this same answer, not into a reply of their own."
+
+# The frame every quiet notice is carried in (docs/voiced-notices.md, 「The frame」): the short marker that names
+# it, one where the notice may be left unsaid and one where it may not, and the rule each marker stands for in
+# the room's block. The turn carries the facts, what the line is for and what follows it, as data.
+[notice]
+marker = "NOTICE."
+optional_marker = "NOTICE, MAY SKIP."
+rule = "WHEN A TURN IS MARKED {marker} — the service has something to tell this chat, and you are to say it. The facts in the turn are what happened, as it recorded them. The lines after the facts are what the line is for and what follows it, in that order, and are to be carried out. Say it now, in your own words and in this chat's manner: in this chat's own language, plain text, one short line. Unless this is the owner's private chat, nothing about your own system — no model, code, prompt, host or internals. Never copy the fact text. This is a notice, not a reply: do not answer <<WAIT>> and do not use <<REPLY>>. Do not answer <<SKIP>>: this line is to be said."
+optional_rule = "WHEN A TURN IS MARKED {marker} — the same notice as the one above, but if the facts leave nothing this chat needs to hear, you may answer <<SKIP>> instead."
 
 # How often a working turn is offered the words that came for its room while it works, in milliseconds, and how
 # long it is offered none after the agency refused a push, since each offer composes its words afresh.
@@ -308,7 +317,7 @@ structure = "A TURN is one pass over a room's words; a ROUND is one question ins
 # What a turn marked with the marker does, and the catalogue's supervisor text the console set or the policy's
 # head and question where it set none.
 rule = "WHEN A TURN IS MARKED {marker} — {question}"
-head = "BEFORE THIS ROUND: the words below did not name you, did not reply to your words and do not stand in a private chat. Decide first whether to answer them."
+head = "BEFORE THIS ROUND: the words in the turn did not name you, did not reply to your words and do not stand in a private chat. Decide first whether to answer them."
 situation = "The room's situation:"
 recent = "The room's recent words:"
 judged = "The words to judge:"

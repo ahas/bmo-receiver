@@ -39,11 +39,14 @@ flowchart TD
 
 ## What an agent is shown
 
-- **Other agents' work, read only.** The block lists every item that is not finished, merged or set aside and
-  belongs to another agent: its number, its owner, whether it waits on the owner's approval, its status line and
-  its title, at most thirty, with the count of the rest. The items are read from bmo-job.
+- **Other agents' work, read only.** The block opens on its short marker, then lists every item that is not
+  finished, merged or set aside and belongs to another agent: its number, its owner, whether it waits on the
+  owner's approval, its status line and its title, at most thirty, with the count of the rest. The items are read
+  from bmo-job. What the marker asks — that the work is read only, that an overlap is settled with its agent in
+  the consult room, and what a closed window there means — stands in the room's block.
 - **The consult room and each agent's window there,** by the receiver's own record: open with the time left,
-  closed, or kept by no window at all, which reads as closed. The one reading the block is marked as itself.
+  closed, or kept by no window at all, which reads as closed. The one reading the block is marked as itself;
+  that a closed window of another agent is opened by calling that agent by name stands in the room's block.
 - **Where the block stands:**
   - in a turn carrying a notice of the queue (a job ended, or the queue changed: an approval, a pause lifted, a
     checkout freed) after the notice, for whichever agent the notice is for;

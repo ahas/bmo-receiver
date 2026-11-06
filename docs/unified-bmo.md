@@ -211,11 +211,11 @@
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
   generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
 - **Before the old session is ended it consolidates and writes its handoff,** whatever the reason. The receiver
-  asks it one more turn, the handover policy's `ask` instruction (`handover.toml`), naming the file it writes with
-  its file tool: `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's
-  folders」). The turn goes in one order, none of it said in any room: the brain's consolidation first (「The
-  brain's consolidation」 below), then the fold told to the brain with `brain_fold`, then the file, then the
-  exact skip. The file
+  asks it one more turn marked `HANDOFF ASK.` and naming, as data, the file it writes with its file tool:
+  `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」); the rule
+  for the turn stands in the room's block (`handover.toml`, `ask_rule`). The turn goes in one order, none of it
+  said in any room: the brain's consolidation first (「The brain's consolidation」 below), then the fold told to
+  the brain with `brain_fold`, then the file, then the exact skip. The file
   holds what the session was in the middle of and how far it got, the promises it made and what wakes them,
   the open threads of each room, what the next session must do first, and what it learned was wrong. The turn
   is waited on until it ends, however long it takes; a run that fails ends the session all the same. The turn
@@ -223,12 +223,14 @@
   replacement is made in, or the room the agency's asking named, and the owner's private chat where neither
   names one.
   A file that stands and is not empty is copied to `handoffs/<agent>/latest.md`, the newest handoff.
-- **The new session's first turn carries the note at its head:** the handoff file's path and its whole content,
-  so the session can read it again with its file tool.
-- **Where the old session wrote nothing,** the note is the transcript the receiver keeps of what the session
-  answered in each room, the tail of it kept on the road the session stands on, carried under its own heading.
-- **Only where neither stands** does the first turn open on the `lost` lines, saying memory could not be
-  restored; the whole old context is never read again. The owner's private chat is then queued one notice
+- **The new session's first turn carries the note at its head:** `HANDOFF.`, then the handoff file's path and its
+  whole content in its block, so the session can read it again with its file tool; the rule the marker stands for
+  is in the room's block.
+- **Where the old session wrote nothing,** the note is `WHAT YOU ANSWERED BEFORE.` with the transcript the
+  receiver keeps of what the session answered in each room, the tail of it kept on the road the session stands
+  on, in its own block.
+- **Only where neither stands** does the first turn open on `NEW SESSION.` saying memory could not be restored;
+  the whole old context is never read again. The owner's private chat is then queued one notice
   (`handoff-lost`, `docs/codes.md`) that the handoff could not be recovered.
 - **The owner's word to start afresh is spent** by the replacement it asked for: one word, one replacement.
 - **No fresh session opens without its handoff, whoever opens it.** Where the agency is about to open a fresh
@@ -292,9 +294,10 @@ at those moments and tells the brain of a fold it asks of the session itself.
   (`docs/bmo-window.md`, 「What every turn carries」), and the round's `memory` question consolidates in that
   turn, bounded to what the turn can afford: the first episodes the brain answers, never all of them, and no `brain_fold` (`docs/drafting.md`,
   「The questions」).
-- **At a fold the receiver asks of the session,** in this order: one quiet turn on the session, tools on, the
-  handover policy's `consolidate` lines (`handover.toml`), in which the
-  session consolidates the first of its unconsolidated episodes, as many as the turn can afford and never all,
+- **At a fold the receiver asks of the session,** in this order: one quiet turn on the session, tools on, carrying
+  the `CONSOLIDATE.` marker with the room's block, whose rule (`handover.toml`, `consolidate_rule`) says what the
+  turn is: the session consolidates the first of its unconsolidated episodes, as many as the turn can afford and
+  never all,
   calls no `brain_fold`, says nothing in any room and answers exactly the skip; then the fold, the agency's
   command; then, once the agency answers it, the fold reported to the brain by the receiver itself
   (`docs/wake.md`, 「The room's queue and the round」). The fold never waits on the consolidation: where the

@@ -35,54 +35,37 @@ close = "END OF QUIET INSTRUCTION"
 
 # The notes a session is handed: `ask`, the one more turn a session about to be replaced is asked, in order its
 # brain's consolidation, the fold told to its brain and then its handoff, `{path}` the file it writes; `handed`,
-# the new session's first lines where that file stands, `{path}` and its whole text `{note}`; `carried`, where
+# the new session's first block where that file stands, `{path}` and its whole text `{note}`; `carried`, where
 # only the receiver's transcript of the old session stands, `{note}`; `lost`, the word that nothing was recovered;
 # `consolidate`, the one quiet turn a session about to be folded is asked first, after which the receiver folds it
-# and tells the brain itself.
+# and tells the brain itself. Each carries a short marker and its data, and the rule the marker stands for is said
+# once in the room's block, which is where the instruction itself lives.
 [chat]
-ask = [
-  "Quiet instruction from the system: this session is about to be closed, and a new session takes over every room you answer. It remembers nothing of this one but what you write now and what your brain holds.",
-  "Do these in this order, with your tools.",
-  "First, consolidate your brain. Read the episodes not yet consolidated with brain_unconsolidated, most important first. For each one worth keeping, draft what it comes to: a fact, a reflection or a correction, in English, with the live fact it would confirm, strengthen or replace, as brain_similar shows you.",
-  "Review a draft before you write it where it would replace a live fact or carries importance 8 or more. The review is your own second reading, here in this turn: it costs reading, not a second model. Read again the episodes the draft rests on and the live fact it would close, and ask yourself three things. Do those episodes actually say or show it? Is it the same as a live fact? Then confirm or strengthen that fact rather than writing it anew. Does it contradict a live fact that those episodes do not overturn? Then write nothing for it and leave those episodes unconsolidated. Write only a draft that passes; a draft below that bar is written as it stands.",
-  "Write each draft with brain_learn. Then mark every episode you read consolidated with brain_consolidated, those that came to nothing among them, so none is read again; leave out only the episodes of a draft the review stopped for a contradiction.",
-  "Second, tell your brain this session folds, with brain_fold.",
-  "Third, write your handoff for the new session with your file tool, to this file, whole: {path}",
-  "The file holds, each under its own heading: what you were in the middle of and how far you got; every promise you made that is not yet kept, and what wakes you to keep it; the open threads of each room, by its chat id; what the next session must do first; and what you learned was wrong, so that it is not believed again.",
-  "Write facts, ids, names and times as they stand, not a story of the conversation. Beyond your brain and this file, change nothing. Nothing about any of this is said in any room: once the file is written, output exactly <<SKIP>>.",
-]
-consolidate = [
-  "Quiet instruction from the system: this session is about to be folded, and the detail of its conversation will be gone. Before that, consolidate your brain with your tools.",
-  "Read the episodes not yet consolidated with brain_unconsolidated, most important first, and take the first the brain answers: as many as this turn can afford, never all of them. For each one worth keeping, draft what it comes to: a fact, a reflection or a correction, in English, with the live fact it would confirm, strengthen or replace, as brain_similar shows you.",
-  "Review a draft before you write it where it would replace a live fact or carries importance 8 or more. The review is your own second reading, here in this turn: it costs reading, not a second model. Read again the episodes the draft rests on and the live fact it would close, and ask yourself three things. Do those episodes actually say or show it? Is it the same as a live fact? Then confirm or strengthen that fact rather than writing it anew. Does it contradict a live fact that those episodes do not overturn? Then write nothing for it and leave those episodes unconsolidated. Write only a draft that passes; a draft below that bar is written as it stands.",
-  "Write each draft with brain_learn. Then mark every episode you read consolidated with brain_consolidated, those that came to nothing among them, so none is read again; leave out only the episodes of a draft the review stopped for a contradiction.",
-  "Do not call brain_fold: the system tells the brain of the fold itself. Beyond your brain, change nothing. Nothing about any of this is said in any room: once you are done, output exactly <<SKIP>>.",
-]
-handed = [
-  "Quiet instruction from the system: your previous session was closed and this is a new one.",
-  "Before it closed, that session wrote its handoff for you to this file: {path}. Its whole text stands below. Take it as your own memory of what you were doing; where it is silent you do not recall, and you say so plainly rather than inventing. Read the file again with your file tool whenever you need it.",
-  "Who the people here are does not come from this: that reaches you through the reference material attached to each round, as always.",
-  "The replacement itself is said in no room: answer the rest of this turn as it asks.",
-  "",
-  "YOUR HANDOFF ({path}):",
-  "{note}",
-  "END OF HANDOFF",
-]
-carried = [
-  "Quiet instruction from the system: your previous session was closed and this is a new one, and it left no handoff.",
-  "Below is the tail of what that session answered in each room, as the receiver kept it. Take it as your own memory of the rooms' recent conversation. It holds your answers alone, so it is thinner than what you would remember: where it is silent you do not recall, and you say so plainly rather than inventing.",
-  "Who the people here are does not come from this: that reaches you through the reference material attached to each round, as always.",
-  "The replacement itself is said in no room: answer the rest of this turn as it asks.",
-  "",
-  "WHAT YOU ANSWERED BEFORE:",
-  "{note}",
-  "END OF WHAT YOU ANSWERED",
-]
-lost = [
-  "Quiet instruction from the system: your previous session was closed and this is a new one.",
-  "What that session was in the middle of could not be recovered, so you remember none of this room's recent conversation. If someone refers to something you cannot place, say plainly that you have lost the thread and ask.",
-  "The replacement itself is said in no room: answer the rest of this turn as it asks.",
-]
+# The handoff asked of the closing session: the marker, the file path as data, and the rule the marker stands for
+# in the room's block.
+ask_marker = "HANDOFF ASK."
+ask = "File: {path}"
+ask_rule = "WHEN A TURN IS MARKED {marker} — this session is about to be closed, and a new session takes over every room you answer. It remembers nothing of this one but what you write now and what your brain holds. Do these in this order, with your tools. First, consolidate your brain. Read the episodes not yet consolidated with brain_unconsolidated, most important first. For each one worth keeping, draft what it comes to: a fact, a reflection or a correction, in English, with the live fact it would confirm, strengthen or replace, as brain_similar shows you. Review a draft before you write it where it would replace a live fact or carries importance 8 or more. The review is your own second reading, here in this turn: it costs reading, not a second model. Read again the episodes the draft rests on and the live fact it would close, and ask yourself three things. Do those episodes actually say or show it? Is it the same as a live fact? Then confirm or strengthen that fact rather than writing it anew. Does it contradict a live fact that those episodes do not overturn? Then write nothing for it and leave those episodes unconsolidated. Write only a draft that passes; a draft below that bar is written as it stands. Write each draft with brain_learn. Then mark every episode you read consolidated with brain_consolidated, those that came to nothing among them, so none is read again; leave out only the episodes of a draft the review stopped for a contradiction. Second, tell your brain this session folds, with brain_fold. Third, write your handoff for the new session with your file tool, to the file path the turn shows, whole. The file holds, each under its own heading: what you were in the middle of and how far you got; every promise you made that is not yet kept, and what wakes you to keep it; the open threads of each room, by its chat id; what the next session must do first; and what you learned was wrong, so that it is not believed again. Write facts, ids, names and times as they stand, not a story of the conversation. Beyond your brain and this file, change nothing. Nothing about any of this is said in any room: once the file is written, output exactly <<SKIP>>."
+
+# The consolidation asked before a fold: the marker and the rule, with no data of its own.
+consolidate_marker = "CONSOLIDATE."
+consolidate_rule = "WHEN A TURN IS MARKED {marker} — this session is about to be folded, and the detail of its conversation will be gone. Before that, consolidate your brain with your tools. Read the episodes not yet consolidated with brain_unconsolidated, most important first, and take the first the brain answers: as many as this turn can afford, never all of them. For each one worth keeping, draft what it comes to: a fact, a reflection or a correction, in English, with the live fact it would confirm, strengthen or replace, as brain_similar shows you. Review a draft before you write it where it would replace a live fact or carries importance 8 or more. The review is your own second reading, here in this turn: it costs reading, not a second model. Read again the episodes the draft rests on and the live fact it would close, and ask yourself three things. Do those episodes actually say or show it? Is it the same as a live fact? Then confirm or strengthen that fact rather than writing it anew. Does it contradict a live fact that those episodes do not overturn? Then write nothing for it and leave those episodes unconsolidated. Write only a draft that passes; a draft below that bar is written as it stands. Write each draft with brain_learn. Then mark every episode you read consolidated with brain_consolidated, those that came to nothing among them, so none is read again; leave out only the episodes of a draft the review stopped for a contradiction. Do not call brain_fold: the system tells the brain of the fold itself. Beyond your brain, change nothing. Nothing about any of this is said in any room: once you are done, output exactly <<SKIP>>."
+
+# The new session's first turn where a handoff stands: the marker, the handoff block as data, and the rule.
+handed_marker = "HANDOFF."
+handed = "YOUR HANDOFF ({path}):\n{note}\nEND OF HANDOFF"
+handed_rule = "WHEN A TURN IS MARKED {marker} — your previous session was closed and this is a new one. Before it closed, that session wrote its handoff for you to the file the turn shows; its whole text stands in the handoff block the turn carries. Take it as your own memory of what you were doing; where it is silent you do not recall, and you say so plainly rather than inventing. Read the file again with your file tool whenever you need it. Who the people here are does not come from this: that reaches you through the reference material attached to each round, as always. The replacement itself is said in no room: answer the rest of this turn as it asks."
+
+# The new session's first turn where only the transcript stands: the marker, the transcript block as data, and the
+# rule.
+carried_marker = "WHAT YOU ANSWERED BEFORE."
+carried = "WHAT YOU ANSWERED BEFORE:\n{note}\nEND OF WHAT YOU ANSWERED"
+carried_rule = "WHEN A TURN IS MARKED {marker} — your previous session was closed and this is a new one, and it left no handoff. What stands in the transcript block the turn carries is the tail of what that session answered in each room, as the receiver kept it. Take it as your own memory of the rooms' recent conversation. It holds your answers alone, so it is thinner than what you would remember: where it is silent you do not recall, and you say so plainly rather than inventing. Who the people here are does not come from this: that reaches you through the reference material attached to each round, as always. The replacement itself is said in no room: answer the rest of this turn as it asks."
+
+# The new session's first turn where nothing was recovered: the marker, the fact as data, and the rule.
+lost_marker = "NEW SESSION."
+lost = "What the previous session was in the middle of could not be recovered."
+lost_rule = "WHEN A TURN IS MARKED {marker} — your previous session was closed and this is a new one. Nothing of this room's recent conversation could be recovered. If someone refers to something you cannot place, say plainly that you have lost the thread and ask. The replacement itself is said in no room: answer the rest of this turn as it asks."
 
 # The notice the owner's private chat is queued where the handoff could not be recovered: what it is for and the
 # kind it stands under, one at a time.

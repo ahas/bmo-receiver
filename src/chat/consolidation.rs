@@ -28,9 +28,10 @@ pub async fn due(receiver: &Receiver, agent: &str) -> bool {
   }
 }
 
-/// The instruction a session about to be folded consolidates its brain by.
+/// The instruction a session about to be folded consolidates its brain by: its marker, with the rule in the
+/// room's block.
 pub fn instruction() -> String {
-  HANDOVER.chat.consolidate.join("\n")
+  format!("{}\n", HANDOVER.chat.consolidate_marker)
 }
 
 /// The session about to be folded asked one quiet turn to consolidate its brain, answering `chat_id` with that

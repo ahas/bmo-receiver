@@ -13,15 +13,18 @@ pub struct Windows {
   pub hears: String,
   pub closed: String,
   pub keeps_none: String,
-  pub call: String,
   pub minutes: String,
   pub seconds: String,
+  /// What a closed window of another agent means, said once in the room's block.
+  pub rule: String,
 }
 
 /// The other agents' work, and the consult room.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Work {
+  /// The marker the block carries, its lines as data, and the rule the marker stands for in the room's block.
+  pub marker: String,
   pub heading: String,
   pub nothing: String,
   pub item: String,
@@ -31,7 +34,7 @@ pub struct Work {
   pub room: String,
   pub room_titled: String,
   pub room_bare: String,
-  pub settle: String,
+  pub rule: String,
   pub closing: String,
 }
 

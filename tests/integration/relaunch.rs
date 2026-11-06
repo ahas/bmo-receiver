@@ -14,6 +14,7 @@ use bmo_receiver::chat::conversation::Hooks;
 use bmo_receiver::chat::relaunch::{Briefings, deployments, instruction};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
+use receiver_policy::restart::RESTART;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::units::{AGENT, OWNER, deployment, unrun};
@@ -46,13 +47,11 @@ fn named(at: i64) -> String {
 
 // The instruction around the facts.
 fn brief(fact: &str) -> String {
-  format!(
-    "{fact}\n\nWhat this is for: tell the owner, in his private room, what went live: each deployment's unit, \
-     version, message or subject, commit and the moment it went live.\n\nWhat follows: Write the brief now, in the \
-     owner's language and in your own words: one short paragraph naming each deployment with the unit, version, \
-     message or subject, commit and moment above, and nothing of what a release carries beyond them. Do not mention \
-     tools or other internals. Do not answer <<SKIP>>: the owner is to hear it. Where this turn also carries the \
-     owner's own words, answer him first and give the brief after."
+  bmo_receiver::receiver::notices::frame(
+    fact,
+    &RESTART.briefing.intent,
+    Some(&RESTART.briefing.follow_up),
+    false,
   )
 }
 

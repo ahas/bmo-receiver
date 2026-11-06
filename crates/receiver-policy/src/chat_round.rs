@@ -202,6 +202,17 @@ pub struct Push {
   pub rule: String,
 }
 
+/// The frame a quiet notice is carried in: the markers that name it, and the rules they stand for in the room's
+/// block.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Notice {
+  pub marker: String,
+  pub optional_marker: String,
+  pub rule: String,
+  pub optional_rule: String,
+}
+
 /// How often a working turn is offered the words that came for its room, and how long it is offered none after
 /// the agency refused a push.
 #[derive(Debug, Deserialize)]
@@ -293,6 +304,7 @@ pub struct ChatRound {
   pub relay: Relay,
   pub handed: Handed,
   pub push: Push,
+  pub notice: Notice,
   pub pushing: Pushing,
   pub progress: Progress,
   pub typing: Typing,

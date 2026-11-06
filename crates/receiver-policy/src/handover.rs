@@ -19,17 +19,27 @@ pub struct Transcript {
   pub answer: String,
 }
 
-/// The lines of a replacement: the instruction asking the closing session for its handoff file, the one asking a
-/// session about to be folded to consolidate its brain first, and the three notes a new session is handed: the
-/// handoff, the transcript under its heading, and the word that nothing was recovered.
+/// The markers and data of a replacement, with the rules they stand for in the room's block: the instruction
+/// asking the closing session for its handoff file, the one asking a session about to be folded to consolidate
+/// its brain first, and the three notes a new session is handed: the handoff, the transcript under its heading,
+/// and the word that nothing was recovered.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Notes {
-  pub ask: Vec<String>,
-  pub consolidate: Vec<String>,
-  pub handed: Vec<String>,
-  pub carried: Vec<String>,
-  pub lost: Vec<String>,
+  pub ask_marker: String,
+  pub ask: String,
+  pub ask_rule: String,
+  pub consolidate_marker: String,
+  pub consolidate_rule: String,
+  pub handed_marker: String,
+  pub handed: String,
+  pub handed_rule: String,
+  pub carried_marker: String,
+  pub carried: String,
+  pub carried_rule: String,
+  pub lost_marker: String,
+  pub lost: String,
+  pub lost_rule: String,
 }
 
 /// The notice the owner is queued where nothing of a replaced session could be carried over.

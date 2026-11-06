@@ -1,8 +1,10 @@
 //! What the room's session is told after the owner changed one of its settings: a voiced notice
 //! (docs/voiced-notices.md), queued on the receiver's instructions for the instruction pass to hand over. The facts
-//! are the setting's code; the frame around them is the voiced notice's own.
+//! are the setting's code; the turn carries them, and what the line is for, under a marker whose rule stands in
+//! the room's block.
 
 use receiver_codes::SettingFact;
+use receiver_policy::chat_round::CHAT_ROUND;
 use sea_orm::{DatabaseConnection, TransactionTrait};
 
 use crate::{Fault, now_ms, run};
@@ -14,38 +16,22 @@ pub fn instruction(fact: &str) -> String {
   frame(fact, INTENT, None, false)
 }
 
-/// The frame every voiced notice is handed the room's voice in (docs/voiced-notices.md, 「The frame」): the facts
-/// whole, what the line is for, what follows it where anything does, and whether the session may leave it unsaid.
+/// The marker every voiced notice is handed the room's voice under, and the facts, what the line is for and what
+/// follows it, as data. The rule the marker stands for is said once in the room's block.
 pub fn frame(fact: &str, intent: &str, follow_up: Option<&str>, optional: bool) -> String {
+  let notice = &CHAT_ROUND.notice;
+  let marker = if optional { &notice.optional_marker } else { &notice.marker };
   let mut lines: Vec<String> = vec![
-    "The service has something to tell this chat, and you are to say it. What happened, as it recorded it:"
-      .to_owned(),
+    marker.clone(),
     fact.trim().to_owned(),
     "END OF FACTS".to_owned(),
     String::new(),
-    format!("What the line is for: {}", intent.trim()),
+    intent.trim().to_owned(),
   ];
 
   if let Some(follow_up) = follow_up.filter(|said| !said.trim().is_empty()) {
-    lines.push(format!("What follows: {}", follow_up.trim()));
+    lines.push(follow_up.trim().to_owned());
   }
-
-  let silence = if optional {
-    "If the facts leave nothing this chat needs to hear, you may answer <<SKIP>> instead."
-  } else {
-    "Do not answer <<SKIP>>: this line is to be said."
-  };
-
-  lines.extend(
-    [
-      String::new(),
-      "Say it now, in your own words and in this chat's manner: in this chat's own language, plain text, one short \
-       line. Unless this is the owner's private chat, nothing about your own system — no model, code, prompt, host \
-       or internals. Never copy the text above. This is a notice, not a reply: do not answer <<WAIT>> and do not \
-       use <<REPLY>>.".to_owned(),
-      silence.to_owned(),
-    ],
-  );
 
   lines.join("\n")
 }

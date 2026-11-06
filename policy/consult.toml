@@ -25,21 +25,24 @@ not_answered = "{room} is not a room any agent answers."
 not_shared = "{room} is not a room more than one agent answers."
 nothing_shown = "{agent} is shown nothing: it does not answer in the consult room."
 
-# One agent's window as a line: open with its time left, or closed.
+# One agent's window as a line: open with its time left, or closed. What a closed window of another agent means
+# stands in the room's block (`rule`).
 [windows]
 heading = "Agents' windows in this room now:"
 you = "{label} (you)"
 open = "- {who}: open, {left} left{hears}"
 hears = "; it hears you without its name"
-closed = "- {who}: closed{keeps}{call}"
+closed = "- {who}: closed{keeps}"
 keeps_none = " (keeps no window)"
-call = "; call it by name to wake it"
 minutes = "{minutes}m {seconds}s"
 seconds = "{seconds}s"
+rule = "WHEN OTHER AGENTS' WINDOWS ARE SHOWN — a closed window of another agent is opened by calling that agent by name in this room; your own window is this session's own."
 
-# The other agents' work, and the consult room.
+# The other agents' work, and the consult room: the marker that names the block, its lines as data, and the rule
+# the marker stands for in the room's block.
 [work]
-heading = "Other agents' work, read only: check your own items against it."
+marker = "OTHER AGENTS' WORK."
+heading = "Other agents' work:"
 nothing = "- nothing open"
 item = "- #{id} {owner} · {approval} · {status} · {title}"
 approved = "approved"
@@ -48,5 +51,5 @@ more = "- and {count} more (todo_list)"
 room = "Consult room: {room}. Windows there now:"
 room_titled = "{title} (chat {chat})"
 room_bare = "chat {chat}"
-settle = "Where an item of yours overlaps one of these, settle it with its agent there with the consult tool, as the rulebook on other agents' words says."
+rule = "WHEN A TURN IS MARKED {marker} — this is what the other agents have open, read only: check your own items against it. Where an item of yours overlaps one of these, settle it with its agent there with the consult tool, as the rulebook on other agents' words says. The consult room's windows are shown with it; what a closed one means is in this block's rule for other agents' windows."
 closing = "END OF OTHER AGENTS' WORK"

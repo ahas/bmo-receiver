@@ -87,7 +87,7 @@ is written.
 | An instruction typed on the console | `POST /owner/instructions` | instruction table | `round` | opens | — |
 | A talk from the console about an item or a document | `POST /talks` | — | `talk` | opens | — |
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
-| The consolidation before a fold: the session asked, tools on, to consolidate its brain and answer the skip (`docs/unified-bmo.md`, 「The brain's consolidation」) | the conversation's fold | — | none: the handover policy's `consolidate` lines with the room's block, composed by no window | opens, waited on before the fold | — |
+| The consolidation before a fold: the session asked, tools on, to consolidate its brain and answer the skip (`docs/unified-bmo.md`, 「The brain's consolidation」) | the conversation's fold | — | none: the handover policy's `CONSOLIDATE.` marker with the room's block, composed by no window | opens, waited on before the fold | — |
 | A line a person types into the agent's program | the agency's `typed-line` hook | — | none: composed, never asked | the person's own turn of the program | — |
 | A later turn of the draft process inside a round, after the round's own turn that names its first round: a question, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file) or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
 

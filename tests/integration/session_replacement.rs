@@ -12,6 +12,7 @@ use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
+use receiver_policy::handover::HANDOVER;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::session::StandInSession;
@@ -153,9 +154,14 @@ async fn two_rounds_of_a_room_on_an_unmoved_head_go_on_the_one_session() {
   assert_ne!(prompts[0], prompts[1]);
   assert!(prompts[0].contains("TURN SCOPE") && prompts[1].contains("TURN SCOPE"));
   assert!(unified.standing.agency.ended().is_empty(), "no session was ended");
+
+  let notes = [&HANDOVER.chat.handed_marker, &HANDOVER.chat.carried_marker, &HANDOVER.chat.lost_marker];
+
   assert!(
-    prompts.iter().all(|prompt| !prompt.contains("previous session was closed")),
-    "no turn is told of a replacement: {prompts:?}"
+    prompts
+      .iter()
+      .all(|prompt| notes.iter().all(|marker| !prompt.starts_with(marker.as_str()))),
+    "no turn opens on a replacement note: {prompts:?}"
   );
 }
 
@@ -208,7 +214,14 @@ async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_ses
 
   assert_eq!(prompts.len(), 3, "{prompts:?}");
 
-  // The old session was asked, before it was ended, to write its handoff at a file under the data root.
+  // The old session was asked, before it was ended, to write its handoff at a file under the data root, under
+  // the marker alone: the rule stands in the room's block.
+  assert!(prompts[1].starts_with(&HANDOVER.chat.ask_marker), "{}", prompts[1]);
+  assert!(
+    !prompts[1].contains("First, consolidate your brain"),
+    "no instruction sentence stands in the ask turn: {}",
+    prompts[1]
+  );
   let path =
     crate::integration::common::session::handoff_path(&prompts[1]).expect("the handoff names its file");
   let folder = unified.data.path().join("handoffs").join(AGENT);
@@ -227,6 +240,7 @@ async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_ses
   // The new session's first turn opens on the file's path and its whole text, ahead of the round's own words.
   let first = &prompts[2];
 
+  assert!(first.starts_with(&HANDOVER.chat.handed_marker), "{first}");
   assert!(first.contains(&path) && first.contains(NOTE), "{first}");
   assert!(first.find(NOTE) < first.find("the second words"), "{first}");
   assert!(!first.contains("could not be recovered"), "{first}");
@@ -245,6 +259,7 @@ async fn a_session_that_writes_no_handoff_leaves_the_transcript_of_what_it_answe
   let first = prompts.last().unwrap();
 
   assert_eq!(prompts.len(), 3, "{prompts:?}");
+  assert!(first.starts_with(&HANDOVER.chat.carried_marker), "{first}");
   assert!(first.contains("WHAT YOU ANSWERED BEFORE"), "{first}");
   assert!(first.contains(&format!("{AGENT} (room {OWNER}): {ANSWER}")), "{first}");
   assert!(!first.contains("could not be recovered"), "{first}");
@@ -268,7 +283,8 @@ async fn nothing_is_recovered_only_where_neither_a_handoff_nor_a_transcript_stan
   let first = prompts.last().unwrap();
 
   assert_eq!(prompts.len(), 2, "the handoff was asked, then the round: {prompts:?}");
-  assert!(first.contains("could not be recovered"), "{first}");
+  assert!(first.starts_with(&HANDOVER.chat.lost_marker), "{first}");
+  assert!(first.contains(&HANDOVER.chat.lost), "{first}");
 
   let told = unified.lost_notices().await;
 

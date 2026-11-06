@@ -12,6 +12,7 @@ use sha2::{Digest, Sha256};
 
 use receiver_codes::SessionReason;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::consult::CONSULT;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
 use receiver_policy::providers::PROVIDERS;
@@ -74,28 +75,30 @@ pub fn composed_head() -> &'static str {
 }
 
 static HEAD: LazyLock<String> = LazyLock::new(|| {
-  let lines = format!(
-    "{}\n{:?}\n{:?}\n{:?}",
-    CHAT_ROUND.scope,
-    (
-      &CHAT_ROUND.header,
-      &CHAT_ROUND.kinds,
-      &CHAT_ROUND.blocks,
-      &CHAT_ROUND.closing,
-      &CHAT_ROUND.queue_line,
-      &CHAT_ROUND.push,
-      &CHAT_ROUND.relay,
-      &CHAT_ROUND.handed,
-      &CHAT_ROUND.console,
-      &CHAT_ROUND.typed,
-      &CHAT_ROUND.voice,
-      &CHAT_ROUND.supervisor,
-    ),
-    // `Instructions` carries clocks as well as lines; only the lines that stand in the room's block move the
-    // head.
-    CHAT_ROUND.instructions.restarted_marker,
-    CHAT_ROUND.instructions.restarted_rule,
-  );
+  let mut sections = vec![
+    format!("{:?}", CHAT_ROUND.header),
+    format!("{:?}", CHAT_ROUND.kinds),
+    format!("{:?}", CHAT_ROUND.blocks),
+    format!("{:?}", CHAT_ROUND.closing),
+    format!("{:?}", CHAT_ROUND.queue_line),
+    format!("{:?}", CHAT_ROUND.push),
+    format!("{:?}", CHAT_ROUND.relay),
+    format!("{:?}", CHAT_ROUND.handed),
+    format!("{:?}", CHAT_ROUND.console),
+    format!("{:?}", CHAT_ROUND.typed),
+    format!("{:?}", CHAT_ROUND.voice),
+    format!("{:?}", CHAT_ROUND.supervisor),
+    format!("{:?}", CHAT_ROUND.notice),
+    format!("{:?}", CONSULT),
+    format!("{:?}", HANDOVER),
+  ];
+
+  // `Instructions` carries clocks as well as lines; only the lines that stand in the room's block move the
+  // head.
+  sections.push(CHAT_ROUND.instructions.restarted_marker.clone());
+  sections.push(CHAT_ROUND.instructions.restarted_rule.clone());
+
+  let lines = format!("{}\n{}", CHAT_ROUND.scope, sections.join("\n"));
 
   format!("{:x}", Sha256::digest(lines.as_bytes()))
 });
