@@ -541,12 +541,18 @@ pub async fn room_context(
   let elsewhere = (road.key != home.key).then_some(&home);
   let title = serde_json::to_string(&rows::chat_title(receiver.db(), chat_id).await?).unwrap_or_default();
   let server = server_facts(receiver).await;
+  let supervisor = super::draft::table::supervisor_text(receiver.db()).await?;
   let mut parts = vec![
     fill_marks(&said.head, &[("chat", &chat_id.to_string()), ("kind", kind)]),
     fill_marks(&said.name, &[("title", &title)]),
     said.replaces.clone(),
     said.process.clone(),
     stages(receiver).await?,
+    CHAT_ROUND.supervisor.structure.clone(),
+    fill_marks(
+      &CHAT_ROUND.supervisor.rule,
+      &[("marker", &CHAT_ROUND.supervisor.marker), ("question", &supervisor)],
+    ),
     review_instruction(),
     situation_instruction(),
     CHAT_ROUND.closing.rule.clone(),

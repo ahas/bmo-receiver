@@ -182,11 +182,14 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
     prompts[0]
   );
 
-  let opening = prompts[1].find("Decide first, briefly.\n");
-
   assert!(
-    opening.is_some() && opening < prompts[1].find(&CHAT_ROUND.supervisor.recent),
-    "the judging turn opens on the set text: {}",
+    prompts[0].contains("Decide first, briefly."),
+    "the room's block carries the set supervisor text: {}",
+    prompts[0]
+  );
+  assert!(
+    prompts[1].starts_with(&CHAT_ROUND.supervisor.marker) && !prompts[1].contains("Decide first, briefly."),
+    "the judging turn carries the marker, not the question: {}",
     prompts[1]
   );
   assert!(!prompts[1].contains(&CHAT_ROUND.supervisor.question));
@@ -239,11 +242,16 @@ async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing
   assert_eq!(prompts.len(), 2, "the update and the judgement are the round's turns: {prompts:#?}");
   assert!(
     prompts[0].contains(&CHAT_ROUND.situation.previous)
-      && !prompts[0].contains(&CHAT_ROUND.supervisor.question),
-    "the first turn updates the note: {}",
+      && !prompts[0].contains(&CHAT_ROUND.supervisor.situation),
+    "the first turn updates the note, not the judgement: {}",
     prompts[0]
   );
-  assert!(prompts[1].contains(&CHAT_ROUND.supervisor.question), "{}", prompts[1]);
+  assert!(
+    prompts[0].contains(&CHAT_ROUND.supervisor.question),
+    "the room's block carries the judgement's question: {}",
+    prompts[0]
+  );
+  assert!(prompts[1].starts_with(&CHAT_ROUND.supervisor.marker), "{}", prompts[1]);
   assert!(prompts[1].contains("did anyone see the match last night"));
   assert!(prompts[1].contains("They talked about the match."));
   assert!(!prompts[1].contains("TURN SCOPE") && !prompts[1].contains(&CHAT_ROUND.index.head));
@@ -299,7 +307,12 @@ async fn a_line_that_resumes_an_earlier_thread_with_the_agent_is_answered_with_i
     "the update turn reads the earlier thread's note: {}",
     prompts[0]
   );
-  assert!(prompts[1].contains(&CHAT_ROUND.supervisor.question), "{}", prompts[1]);
+  assert!(
+    prompts[0].contains(&CHAT_ROUND.supervisor.question),
+    "the room's block carries the judgement's question: {}",
+    prompts[0]
+  );
+  assert!(prompts[1].starts_with(&CHAT_ROUND.supervisor.marker), "{}", prompts[1]);
   assert!(prompts[1].contains("now ask when it will arrive"), "{}", prompts[1]);
   assert!(prompts[2].contains("TURN SCOPE"), "{}", prompts[2]);
   assert!(

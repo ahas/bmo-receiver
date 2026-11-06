@@ -2138,11 +2138,8 @@ impl Conversations {
     };
     let recent_lines = reading.lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
     let judged_lines = reading.lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
-    let opening = super::draft::table::supervisor_text(receiver.db())
-      .await
-      .map_err(|why| Failure::Failed(why.detail))?;
     let note = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
-    let mut parts = vec![said.structure.clone(), String::new(), opening, String::new()];
+    let mut parts = vec![said.marker.clone(), String::new()];
 
     if let Some(note) = &note {
       parts.push(said.situation.clone());

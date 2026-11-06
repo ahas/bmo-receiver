@@ -199,10 +199,11 @@ its rounds.
   alone — none of them names the agent (「The names and the window」), replies to its words or stands in a private
   chat — opens with one light turn updating the room's situation note from the new lines (`docs/drafting.md`,
   「The situation note」), then with the agent's own judgement of whether to answer, before every pregate. The
-  judgement is one light turn of the same session opening on the draft catalogue's `supervisor` text (the round
-  policy's head and question, `chat-round.toml`, `[supervisor]`, where the console set none; `docs/drafting.md`,
-  「The routes」), then the note the update turn wrote, the room's recent words in the room shape and the words
-  being judged — whether they are said to it or want its answer. Neither turn carries a reference or an index,
+  judgement is one light turn of the same session carrying a marker, the note the update turn wrote, the room's
+  recent words in the room shape and the words being judged as data — whether they are said to it or want its
+  answer. What the marker asks is the draft catalogue's `supervisor` text (the round policy's head and question,
+  `chat-round.toml`, `[supervisor]`, where the console set none; `docs/drafting.md`, 「The routes」), said in the
+  room's block. Neither turn carries a reference or an index,
   and nothing of either passes any gate. `<<SKIP>>` ends the round there: nothing is sent, the words are
   read and the window keeps the time it had, as a skipped round leaves it. Any other answer opens the ordinary
   round, its reference and its draft process. A round with a named call, a reply, words of a

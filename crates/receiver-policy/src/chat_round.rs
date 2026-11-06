@@ -333,6 +333,10 @@ pub struct Situation {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Supervisor {
+  /// The marker the judgement turn carries, and the rule it stands for in the room's block, `{question}` its
+  /// catalogue text.
+  pub marker: String,
+  pub rule: String,
   pub structure: String,
   pub head: String,
   pub situation: String,

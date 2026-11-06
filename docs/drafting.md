@@ -431,12 +431,13 @@ or the check and the data its rule reads; the rule itself stands in the room's b
 
 ## The supervisor's opening
 
-- **The supervisor prompt opens on the shape of a turn and its rounds.** Before its own head it carries one short
-  line naming a **turn** as one pass over a room's words and a **round** as one question inside it, this round's rule
-  (`<<SKIP>>` or one short line, and no other action), and, for the later rounds, only the rulebook each follows:
-  the room block's draft process, the review's own line and each item's rule there. It names them there so the
-  agent knows which rule applies at each round without the prompt repeating texts that stand elsewhere; the
-  judgement head follows, and the draft process's rules stay in the room block.
+- **The room's block carries the shape of a turn and its rounds.** One short line names a **turn** as one pass over
+  a room's words and a **round** as one question inside it, this round's rule (`<<SKIP>>` or one short line, and
+  no other action), and, for the later rounds, only the rulebook each follows: the room block's draft process,
+  the review's own line and each item's rule there. It names them there so the agent knows which rule applies at
+  each round without the prompt repeating texts that stand elsewhere. The judgement turn itself carries a marker
+  and the room's note and words as data; the block says what the marker asks, the judgement's head and question
+  with it.
 
 ## The routes
 
@@ -454,7 +455,8 @@ or the check and the data its rule reads; the rule itself stands in the room's b
   /draft-questions/{name}`** sets a question's text, a name being a lowercase word of letters, digits and
   dashes, and a text at most 4,000 characters and not empty.
 - **The catalogue holds the agent's first judgement too,** first of all, named `supervisor`: its text is what the
-  judging turn opens on, the round policy's head and question as one text where the console set none
-  (`chat-round.toml`, `[supervisor]`), and the room's recent words and the words judged stand after it. It is set
-  like any question, and no list of the table may name it, since it is asked before any process.
+  room's block says the judgement asks, the round policy's head and question as one text where the console set
+  none (`chat-round.toml`, `[supervisor]`, `rule`), and the judgement turn carries the marker, the room's note,
+  its recent words and the words judged as data. It is set like any question, and no list of the table may name
+  it, since it is asked before any process.
 - A change reaches the next round that reads the table; no round under way changes.

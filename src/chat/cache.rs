@@ -89,6 +89,7 @@ static HEAD: LazyLock<String> = LazyLock::new(|| {
       &CHAT_ROUND.console,
       &CHAT_ROUND.typed,
       &CHAT_ROUND.voice,
+      &CHAT_ROUND.supervisor,
     ),
     // `Instructions` carries clocks as well as lines; only the lines that stand in the room's block move the
     // head.
