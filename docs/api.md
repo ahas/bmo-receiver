@@ -350,6 +350,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `say`** answers once the line is on its way: the receiver puts the words through the room's gates and into
   the room apart from the call, opens the room's window for the agent that said it, and tells the chat that set
   it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.
+- **A photo send** is one picture or several as one album: each `url` is a web address or a file under the data
+  root, with an optional `label` drawn into it, and an optional `caption`. A web address goes as it stands for the
+  road to fetch; a file is read here and goes as its bytes. An address that is neither is refused before anything
+  goes, and every picture that did not go is named with why. A picture kept in the room is filed under its
+  message (`docs/pictures.md`, 「A picture an agent sent」).
 - **A file send** is one document, or several files as one album: each file a `path` on this machine and an
   optional `name`, with an optional `caption`. The bytes go to the verb the room's road declares, `document` for
   one file and `album` for several; a file a room's folder holds goes only into that room, and a job sends none.

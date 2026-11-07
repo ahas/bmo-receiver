@@ -3,10 +3,13 @@
 //! the bot, and the news told back to the chat that set a line off. The launcher of the test's own stands in for
 //! the binary's, since the run's rows and its log are the agency's.
 
+use std::io::Cursor;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use bmo_chat_client::ChatSend;
+use bmo_chat_client::{
+  AlbumItem, ChatCapability, ChatSend, ChatSent, FileItem, MissedPicture, MissedPictureReason,
+};
 use futures_util::future::BoxFuture;
 use tempfile::tempdir;
 
@@ -286,6 +289,138 @@ async fn a_picture_the_road_does_not_perform_is_refused_in_one_sentence() {
   };
 
   assert_eq!(why, verb_refusal("the road-b road", "album"), "{why}");
+}
+
+// A scratch receiver over a data root of the test's own, reaching one road that holds the room and declares the
+// album send, with the sends those two stand on.
+async fn picturing_road() -> (Scratch, Arc<StandInChat>, DataRoot, tempfile::TempDir, Sends) {
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let root = DataRoot::new(data.path());
+  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).canning(&[ChatCapability::Album]));
+  let standing = standing(scratch.db(), root.clone(), [road.clone()].to_vec());
+  let sends = Sends::new(standing.receiver.clone(), None, None);
+
+  (scratch, road, root, data, sends)
+}
+
+fn png() -> Vec<u8> {
+  let mut out = Cursor::new(Vec::new());
+
+  image::RgbImage::from_pixel(8, 8, image::Rgb([10, 200, 30]))
+    .write_to(&mut out, image::ImageFormat::Png)
+    .unwrap();
+  out.into_inner()
+}
+
+#[tokio::test]
+async fn a_picture_under_the_data_root_goes_as_its_bytes_and_is_kept_under_its_message() {
+  let (scratch, road, root, _data, sends) = picturing_road().await;
+  let picture = png();
+  let folder = root.collected().join(ROOM.to_string());
+
+  std::fs::create_dir_all(&folder).unwrap();
+  let path = folder.join("drawing.png");
+  std::fs::write(&path, &picture).unwrap();
+
+  let pictures = [Picture {
+    url: path.to_string_lossy().into_owned(),
+    label: None,
+  }]
+  .to_vec();
+  let lines = photo(&sends, &root, ROOM, &pictures, Some("the drawing"), None, false).await.unwrap();
+
+  assert_eq!(lines, ["sent".to_owned()].to_vec());
+  assert_eq!(
+    road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
+    [ChatSend::Album {
+      items: [AlbumItem::File(FileItem {
+        name: "drawing.png".to_owned(),
+        mime: "image/png".to_owned(),
+        bytes: picture.clone(),
+      })]
+      .to_vec(),
+      caption: Some("the drawing".to_owned()),
+    }]
+    .to_vec(),
+    "a file under the data root goes as its bytes, not as a path the road cannot read"
+  );
+
+  let stored = scratch
+    .texts(&format!(
+      r#"SELECT COALESCE("image_path", '') FROM "messages" WHERE "chat_id" = {ROOM} AND "message_id" = 900"#
+    ))
+    .await
+    .concat();
+
+  assert!(stored.ends_with(&format!("images/{ROOM}/900.jpg")), "{stored}");
+  assert_eq!(std::fs::read(&stored).unwrap(), picture, "the picture sent is the picture kept");
+}
+
+#[tokio::test]
+async fn a_picture_outside_the_data_root_or_missing_there_is_refused_before_anything_goes() {
+  let (_scratch, road, root, _data, sends) = picturing_road().await;
+  let outside = tempdir().unwrap();
+  let outside_path = outside.path().join("drawing.png");
+
+  std::fs::write(&outside_path, png()).unwrap();
+
+  let pictures = [Picture {
+    url: outside_path.to_string_lossy().into_owned(),
+    label: None,
+  }]
+  .to_vec();
+  let Err(VerbError::Refused(why)) = photo(&sends, &root, ROOM, &pictures, None, None, false).await else {
+    panic!("a file outside the data root may not be sent");
+  };
+  assert!(why.contains("outside the data folder"), "{why}");
+
+  let pictures = [Picture {
+    url: root.collected().join(ROOM.to_string()).join("gone.png").to_string_lossy().into_owned(),
+    label: None,
+  }]
+  .to_vec();
+  let Err(VerbError::Refused(why)) = photo(&sends, &root, ROOM, &pictures, None, None, false).await else {
+    panic!("a file that is not there may not be sent");
+  };
+  assert!(why.contains("no such file"), "{why}");
+  assert!(road.sent().is_empty(), "nothing went out");
+}
+
+#[tokio::test]
+async fn a_picture_the_road_did_not_take_is_said_with_why_and_the_send_fails() {
+  let (_scratch, road, root, _data, sends) = picturing_road().await;
+  let picture = png();
+  let folder = root.collected().join(ROOM.to_string());
+
+  std::fs::create_dir_all(&folder).unwrap();
+  std::fs::write(folder.join("drawing.png"), &picture).unwrap();
+  *road.answer.lock().unwrap() = Some(ChatSent {
+    message_id: None,
+    missed: [MissedPicture {
+      address: "drawing.png".to_owned(),
+      reason: MissedPictureReason::Platform {
+        detail: "the platform refused it".to_owned(),
+      },
+    }]
+    .to_vec(),
+  });
+
+  let pictures = [Picture {
+    url: folder.join("drawing.png").to_string_lossy().into_owned(),
+    label: None,
+  }]
+  .to_vec();
+  let Err(VerbError::Partly { lines, refusal }) =
+    photo(&sends, &root, ROOM, &pictures, None, None, false).await
+  else {
+    panic!("no picture went, so the send says so");
+  };
+  let said = lines.join("\n");
+
+  assert_eq!(refusal, "no picture was sent");
+  assert!(said.contains("not sent as pictures (1)"), "{said}");
+  assert!(said.contains("the platform refused it"), "{said}");
 }
 
 #[tokio::test]

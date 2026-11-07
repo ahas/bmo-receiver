@@ -9,12 +9,11 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, FileItem};
+use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, FileItem, MissedPictureReason};
 use room_calls::procedures;
 use room_calls::reading::count_text;
 use room_calls::turn::AGENT_VARIABLE as TURN_AGENT;
 use serde_json::{Map, Value};
-use sha2::{Digest, Sha256};
 
 use receiver_codes::RunTitle;
 use receiver_policy::chat_round::CHAT_ROUND;
@@ -612,9 +611,21 @@ pub struct Picture {
   pub label: Option<String>,
 }
 
+/// One picture as it stands before a road carries it: a web address the road fetches for itself, or the bytes of
+/// a file under the data root, read here so the road needs no reach into this machine's data root.
+enum PictureSource {
+  Web(String),
+  Kept {
+    name: String,
+    mime: String,
+    bytes: Vec<u8>,
+  },
+}
+
 /// One picture, or several as one album: none that a room keeps goes into another room or out of a job, the
 /// road is asked before anything is uploaded, a label is drawn in where one is named, and what did not go is
-/// said by address with why.
+/// said by address with why. A web address goes as it stands; a file under the data root is read here and goes
+/// as its bytes, since no road reaches this machine's data root. Anything else is refused before anything goes.
 pub async fn photo(
   sends: &Sends,
   data_root: &DataRoot,
@@ -648,29 +659,34 @@ pub async fn photo(
 
   let road = sends.road(chat_id, "album").await?;
   let mut unlabelled: Vec<String> = vec![];
-  let mut sending: Vec<String> = vec![];
+  let mut items: Vec<AlbumItem> = vec![];
 
   for (url, label) in &pictures {
-    if label.is_empty() {
-      sending.push(url.clone());
-      continue;
+    let source = picture_source(data_root, url).await?;
+
+    // The path a relative address resolved to may stand in another room's store, which the first check could
+    // not read from the address as it was written.
+    if let PictureSource::Kept { .. } = &source
+      && let Some(refusal) = resolved_room_refusal(data_root, url, chat_id, &stores, job)
+    {
+      return Err(VerbError::Refused(refusal));
     }
 
-    match labelled_file(data_root, url, label).await {
-      Some(path) => sending.push(path.to_string_lossy().into_owned()),
-      None => {
-        unlabelled.push(url.clone());
-        sending.push(url.clone());
+    if !label.is_empty() {
+      if let Some(item) = labelled_item(&source, label).await {
+        items.push(AlbumItem::File(item));
+        continue;
       }
+
+      unlabelled.push(url.clone());
     }
+
+    items.push(match source {
+      PictureSource::Web(address) => AlbumItem::Address { address },
+      PictureSource::Kept { name, mime, bytes } => AlbumItem::File(FileItem { name, mime, bytes }),
+    });
   }
 
-  let items: Vec<AlbumItem> = sending
-    .iter()
-    .map(|url| AlbumItem::Address {
-      address: url.clone(),
-    })
-    .collect();
   let sent = sends
     .send(
       &road,
@@ -1015,28 +1031,131 @@ pub async fn fixed_line(
   Ok(vec![format!("said the fixed line {code} in chat {chat_id}")])
 }
 
-/// Where labelled pictures are kept: under the data root, since a room is only ever sent a file that stands
-/// there. One file per picture-and-label pair, so the same product labelled twice is one file.
-pub fn labelled_directory(data_root: &DataRoot) -> PathBuf {
-  data_root.path().join("labelled")
+// One picture resolved: a web address as it stands, or a file under the data root read into bytes. An address
+// that is neither is refused with the reason the pictures policy names.
+async fn picture_source(data_root: &DataRoot, address: &str) -> Result<PictureSource, VerbError> {
+  if crate::web_address::is_web_address(address) {
+    return Ok(PictureSource::Web(address.to_owned()));
+  }
+
+  let path =
+    kept_path(data_root, address).map_err(|reason| VerbError::Refused(format!("{address}: {reason}")))?;
+  let bytes = tokio::fs::read(&path)
+    .await
+    .map_err(|why| VerbError::Refused(format!("{address} could not be read: {why}")))?;
+  let name = path
+    .file_name()
+    .map(|name| name.to_string_lossy().into_owned())
+    .filter(|name| !name.trim().is_empty())
+    .unwrap_or_else(|| FILES.unnamed.clone());
+  let mime = mime_guess::from_path(&name)
+    .first()
+    .map(|kind| kind.essence_str().to_owned())
+    .unwrap_or_else(|| "application/octet-stream".to_owned());
+
+  Ok(PictureSource::Kept { name, mime, bytes })
 }
 
-// A picture named by address or kept file, labelled and written down. None where the picture could not be
-// reached or the label said nothing.
-async fn labelled_file(data_root: &DataRoot, address: &str, label: &str) -> Option<PathBuf> {
-  let bytes = fetched(address).await.ok()?;
+// Where the file an address names stands under the data root, every link followed, or why it may not be sent.
+// A relative path is read against the folder that holds the data root, then the data root itself, then the
+// working folder, so `data/collected/...` names the same file however the receiver was started.
+fn kept_path(data_root: &DataRoot, address: &str) -> Result<PathBuf, MissedPictureReason> {
+  let path = Path::new(address);
+  let root = data_root.path().canonicalize().unwrap_or_else(|_| absolute_lexical(data_root.path()));
+  let candidates: Vec<PathBuf> = if path.is_absolute() {
+    vec![path.to_path_buf()]
+  } else {
+    let mut candidates = vec![];
+
+    if let Some(parent) = data_root.path().parent() {
+      candidates.push(parent.join(path));
+    }
+
+    candidates.push(data_root.path().join(path));
+
+    if let Ok(cwd) = std::env::current_dir() {
+      candidates.push(cwd.join(path));
+    }
+
+    candidates
+  };
+
+  for candidate in candidates {
+    match candidate.canonicalize() {
+      Ok(real) if real.starts_with(&root) => {
+        return if real.is_file() { Ok(real) } else { Err(MissedPictureReason::MissingFile) };
+      }
+      Ok(_) => {}
+      Err(_) if absolute_lexical(&candidate).starts_with(&root) => {
+        return Err(MissedPictureReason::MissingFile);
+      }
+      Err(_) => {}
+    }
+  }
+
+  Err(if path.is_absolute() || address.contains('/') {
+    MissedPictureReason::OutsideDataRoot
+  } else {
+    MissedPictureReason::NotAnAddress
+  })
+}
+
+fn absolute_lexical(path: &Path) -> PathBuf {
+  if path.is_absolute() {
+    return path.to_path_buf();
+  }
+
+  std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+// The room a resolved file stands in, refused where it is another room's or a job sends it.
+fn resolved_room_refusal(
+  data_root: &DataRoot,
+  address: &str,
+  chat_id: i64,
+  stores: &[PathBuf],
+  job: bool,
+) -> Option<String> {
+  let path = kept_path(data_root, address).ok()?;
+
+  room_file_refusal(&path.to_string_lossy(), chat_id, stores, job)
+}
+
+// A picture with its word drawn into it, as the JPEG bytes the road carries. None where it could not be read,
+// was no picture, or the label said nothing, so the caller sends the picture as it stands instead.
+async fn labelled_item(source: &PictureSource, label: &str) -> Option<FileItem> {
+  let bytes = match source {
+    PictureSource::Web(address) => fetched(address).await.ok()?,
+    PictureSource::Kept { bytes, .. } => bytes.clone(),
+  };
+
+  if bytes.is_empty() {
+    return None;
+  }
+
   let wording = label.to_owned();
   let drawn = tokio::task::spawn_blocking(move || labels::labelled(&bytes, &wording)).await.ok()?;
-  let labelled = drawn.ok()??;
-  let digest = Sha256::new().chain_update(address).chain_update("\0").chain_update(label).finalize();
-  let name: String = digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()[..32].to_owned();
-  let directory = labelled_directory(data_root);
-  let path = directory.join(format!("{name}.jpg"));
+  let jpeg = drawn.ok()??;
 
-  std::fs::create_dir_all(&directory).ok()?;
-  std::fs::write(&path, labelled).ok()?;
+  Some(FileItem {
+    name: labelled_name(source),
+    mime: "image/jpeg".to_owned(),
+    bytes: jpeg,
+  })
+}
 
-  Some(path)
+fn labelled_name(source: &PictureSource) -> String {
+  let name = match source {
+    PictureSource::Web(address) => address.rsplit('/').next().unwrap_or_default().to_owned(),
+    PictureSource::Kept { name, .. } => name.clone(),
+  };
+  let stem = Path::new(&name)
+    .file_stem()
+    .map(|stem| stem.to_string_lossy().into_owned())
+    .filter(|stem| !stem.trim().is_empty())
+    .unwrap_or_else(|| "picture".to_owned());
+
+  format!("{stem}.jpg")
 }
 
 /// One line to the owner, word for word and at once, where a line nobody asked for goes in his chat — its

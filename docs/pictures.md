@@ -21,18 +21,20 @@ receiver keeps the pictures and decides what a session is shown.
 - **If nothing can go the caption and the web addresses go as plain text** rather than losing the answer. A path
   on this machine is never put in that text, since it is nothing to the room, and where no web address is left
   nothing is sent at all.
-- **A `--url` that is neither a web address nor a file under the data root is refused** before anything goes.
+- **A `--url` that is neither a web address nor a file under the data root is refused** before anything goes. A
+  relative path is read against the folder that holds the data root, the data root itself and the working folder,
+  in that order. A web address goes as it stands and the chat service fetches it; a file is read here and handed
+  over as its bytes, so a chat service needs no reach into this machine's data root.
 
 ## A picture an agent sent
 
-- **A picture an agent sent is kept like a picture it received.** Once a picture is in the room, the receiver
-  fetches it back through the chat service (`POST /media`) and stores it as `images/<chatId>/<messageId>.jpg`, one
-  file and one archive row per picture, and the row points at it.
-- **An album of six leaves six rows,** each naming the album's first picture as its album, which the console draws
-  as one group, and the row's text is the caption or the picture placeholder exactly as a received picture's is.
-- **A picture that could not be kept leaves the address in the row's text instead,** since that is then the only
-  record of what the picture was, and keeping never fails a send: the picture is already in the room by the time
-  it runs.
+- **A picture an agent sent is kept like a picture it received.** The bytes handed over with the send are filed
+  under the message the send is kept as, the first as `images/<chatId>/<messageId>.jpg` and an album's later
+  pictures as `<messageId>-1.jpg` and on, and the row points at the first.
+- **A web address is the chat service's to fetch:** nothing of it is read here, so it is not filed unless the
+  picture is handed over with the send.
+- **A picture the road said did not go is left out of the archive,** and keeping never fails a send: the picture
+  is already in the room by the time it runs. An album keeps the pictures that went, in their order.
 - **A row that holds an address and no picture** is repaired by `bmo archive photo-repair`, which reads the
   address out of each such row, redraws what it finds as JPEG laid on white and files it under the message. It
   prints what it would try and writes nothing without `--write`, and it leaves the text of a repaired row alone.

@@ -8,7 +8,8 @@
 //! where the road is that one.
 
 use bmo_chat_client::{
-  ChatCapability, ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure, MissedPicture,
+  AlbumItem, ChatCapability, ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure, MessageFile,
+  MissedPicture,
 };
 
 use receiver_codes::SendRefusal;
@@ -22,7 +23,7 @@ use crate::Fault;
 use std::sync::Arc;
 
 use crate::receiver::speech::KeptLine;
-use crate::receiver::{Receiver, speech, wake};
+use crate::receiver::{Receiver, files, speech, wake};
 use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, added, record};
 use crate::verbs::{Launch, NoLaunch, VerbError};
@@ -211,14 +212,54 @@ impl Sends {
     let kept = self.receiver.speech().kept_carrying(&line, Carried::Send(request.send.clone())).await;
 
     match kept {
-      Ok(message_id) if matches!(request.send, ChatSend::Sticker { .. }) => {
-        if let Err(why) = record::mark_sticker(self.receiver.db(), chat_id, message_id).await {
+      Ok(message_id) => {
+        if let Err(why) = self.keep_sent_pictures(request, message_id, &sent.missed).await {
+          eprintln!("chat {chat_id}: a picture sent on {key} was not kept: {}", why.detail);
+        }
+
+        if matches!(request.send, ChatSend::Sticker { .. })
+          && let Err(why) = record::mark_sticker(self.receiver.db(), chat_id, message_id).await
+        {
           eprintln!("chat {chat_id}: the sticker sent on {key} was not marked: {}", why.detail);
         }
       }
-      Ok(_) => {}
       Err(why) => eprintln!("chat {chat_id}: a send on {key} was not kept: {why}"),
     }
+  }
+
+  // The pictures a send handed over as bytes, kept under the record row its message stands as, so a picture an
+  // agent sent is kept as one it received is. A picture the road said did not go is left out. Keeping never fails
+  // a send: the picture is already in the room by the time it runs.
+  async fn keep_sent_pictures(
+    &self,
+    request: &ChatSendRequest,
+    message_id: i64,
+    missed: &[MissedPicture],
+  ) -> Result<(), Fault> {
+    let ChatSend::Album { items, .. } = &request.send else {
+      return Ok(());
+    };
+    let files: Vec<MessageFile> = items
+      .iter()
+      .filter_map(|item| match item {
+        AlbumItem::File(file) if !missed.iter().any(|one| one.address == file.name) => Some(MessageFile {
+          id: file.name.clone(),
+          name: file.name.clone(),
+          mime: file.mime.clone(),
+          bytes: file.bytes.clone(),
+          kind: None,
+        }),
+        _ => None,
+      })
+      .collect();
+
+    if files.is_empty() {
+      return Ok(());
+    }
+
+    files::keep_pictures(self.receiver.db(), self.receiver.data_root(), request.room_id, message_id, &files)
+      .await
+      .map(drop)
   }
 
   // A read-only room refused before any road is chosen, so nothing is sent or kept there.
@@ -350,6 +391,10 @@ impl Sends {
       voice: None,
     };
     let message_id = record::keep(self.receiver.db(), self.receiver.news(), line).await.map_err(kept)?;
+
+    if let Err(why) = self.keep_sent_pictures(request, message_id, &[]).await {
+      eprintln!("chat {}: a picture kept in the record was not kept: {}", request.room_id, why.detail);
+    }
 
     if matches!(request.send, ChatSend::Sticker { .. }) {
       record::mark_sticker(self.receiver.db(), request.room_id, message_id)

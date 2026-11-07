@@ -95,7 +95,7 @@ pub async fn keep(
 
   for file in files {
     if kind_of(&file.mime) == "image" {
-      if picture(db, data_root, inbound, file, pictures).await? {
+      if picture(db, data_root, inbound.chat_id, inbound.message_id, file, pictures).await? {
         pictures += 1;
       }
 
@@ -108,19 +108,41 @@ pub async fn keep(
   Ok(())
 }
 
+/// The pictures a send handed over as bytes, kept under the record row its message stands as, the first as
+/// `<message>.jpg` and its path on the row: how many were kept. Keeping a sent picture never fails the send, so
+/// the caller says in the journal why one was not kept.
+pub async fn keep_pictures(
+  db: &DatabaseConnection,
+  data_root: &DataRoot,
+  chat_id: i64,
+  message_id: i64,
+  files: &[MessageFile],
+) -> Result<usize, Fault> {
+  let mut pictures = 0;
+
+  for file in files.iter().filter(|file| kind_of(&file.mime) == "image") {
+    if picture(db, data_root, chat_id, message_id, file, pictures).await? {
+      pictures += 1;
+    }
+  }
+
+  Ok(pictures)
+}
+
 // One picture filed under its message, the first as `<message>.jpg` and its path on the row: whether it was kept.
 async fn picture(
   db: &DatabaseConnection,
   data_root: &DataRoot,
-  inbound: &Inbound,
+  chat_id: i64,
+  message_id: i64,
   file: &MessageFile,
   before: usize,
 ) -> Result<bool, Fault> {
   let name = match before {
-    0 => format!("{}.jpg", inbound.message_id),
-    n => format!("{}-{n}.jpg", inbound.message_id),
+    0 => format!("{message_id}.jpg"),
+    n => format!("{message_id}-{n}.jpg"),
   };
-  let path = room_path(&data_root.images(), inbound.chat_id).join(name);
+  let path = room_path(&data_root.images(), chat_id).join(name);
   let filed = &ROADS.pictures;
   let keeping = Keeping {
     threshold_bytes: filed.kept_threshold_bytes,
@@ -131,16 +153,16 @@ async fn picture(
   let kept = match tokio::task::spawn_blocking(move || pictures::kept(bytes, keeping)).await {
     Ok(kept) => kept,
     Err(why) => {
-      eprintln!("bmo-receiver: the picture of message {} was not kept: {why}", inbound.message_id);
-      image_state(db, inbound, "failed").await?;
+      eprintln!("bmo-receiver: the picture of message {message_id} was not kept: {why}");
+      image_state(db, chat_id, message_id, "failed").await?;
 
       return Ok(false);
     }
   };
 
   if let Err(why) = written(&path, &kept).await {
-    eprintln!("bmo-receiver: the picture of message {} was not kept: {why}", inbound.message_id);
-    image_state(db, inbound, "failed").await?;
+    eprintln!("bmo-receiver: the picture of message {message_id} was not kept: {why}");
+    image_state(db, chat_id, message_id, "failed").await?;
 
     return Ok(false);
   }
@@ -151,8 +173,8 @@ async fn picture(
       r#"UPDATE "messages" SET "image_path" = $1, "image_state" = 'stored' WHERE "chat_id" = $2 AND "message_id" = $3"#,
       vec![
         path.to_string_lossy().into_owned().into(),
-        inbound.chat_id.into(),
-        inbound.message_id.into(),
+        chat_id.into(),
+        message_id.into(),
       ],
     )
     .await?;
@@ -162,11 +184,16 @@ async fn picture(
 }
 
 // What the message's own row says of the picture it carried, where keeping it failed.
-async fn image_state(db: &DatabaseConnection, inbound: &Inbound, state: &str) -> Result<(), Fault> {
+async fn image_state(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+  state: &str,
+) -> Result<(), Fault> {
   run(
     db,
     r#"UPDATE "messages" SET "image_state" = $1 WHERE "chat_id" = $2 AND "message_id" = $3"#,
-    vec![state.into(), inbound.chat_id.into(), inbound.message_id.into()],
+    vec![state.into(), chat_id.into(), message_id.into()],
   )
   .await
   .map(drop)
