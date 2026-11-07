@@ -65,8 +65,9 @@
   - **What a version is:** the whole block as composed for the turn (the room's rules or the owner's
     instructions, the roster, the road it answers on, the room's tone and traits). Any change to any of them is
     a new version and goes in full.
-  - **After a new session, a session fold** or anything that changes the block, it goes in full again; a fold
-    empties the record of what the session holds, and a new session has none.
+  - **After a new session, a session fold, a new generation the agency opens under the session** or anything
+    that changes the block, it goes in full again; a fold, a new generation and a new session empty the record
+    of what the session holds.
   - Two records stand in the receiver's database, both written only after the answer succeeds under the session
     that answered, so they survive restarts and a failed call is never recorded as having delivered the settings:
     the room whose block the session read last, and each room's version the session was sent in full. A session
@@ -74,14 +75,15 @@
 - **Reference documents:**
   - Every reference document the gate hands is loaded in full once per session per version, and recorded the
     same way only after success, in the agency's record of the session's loads (`PUT /session-loads/{sessionId}`).
-  - That record is not emptied by a room switch; only a new session and a session fold empty it
-    (`DELETE /session-loads/{sessionId}`).
+  - That record is not emptied by a room switch; only a new session, a session fold and a new generation the
+    agency opens under the session empty it (`DELETE /session-loads/{sessionId}`).
   - **A person's own thread** is the receiver's own document, not the gate's: a session is handed it whole on its
     first turn in the person's private room, then only the lines added since the last line it was handed, under a
     heading saying so; a turn with no new line attaches nothing and its draft record lists the piece as `held`. The
     last line handed is kept for that session, not the room: a session continued across a restart keeps it and
-    gets only the added lines, while a new or replaced session, a fold's included, starts again from the whole
-    thread. The mark is let go only when that session is replaced or folds.
+    gets only the added lines, while a new or replaced session, a fold's included, and a new generation the agency
+    opens under it start again from the whole thread. The mark is let go when that session is replaced or folds,
+    and when a new generation opens under it.
 - **A road with no session** needs the context on every request; the agency carries it as that road's line
   declares.
 
@@ -210,6 +212,13 @@
   deployment that rewrites them moves and nothing a room or a turn fills in does.
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
   generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
+- **A generation the agency opens under the session is a handover the receiver did not make.** The session's
+  state names the generation its turns stand in. A turn whose state names a generation past the one this session
+  last answered on, or names the session gone where one was answered on, releases what the ended generation held
+  before its prompt is composed: the loads, the room block, the note versions and the cache record, and the fold
+  reported to the brain so the marks it handed that session clear (`docs/boundary-api.md`, 「The brain」). A plain
+  turn releases nothing, and neither does a session resumed after the agency's restart or a deploy, nor a return
+  to another room of the one session across rooms.
 - **Before the old session is ended it consolidates and writes its handoff,** whatever the reason. The receiver
   asks it one more turn marked `HANDOFF ASK.` and naming, as data, the file it writes with its file tool:
   `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」); the rule

@@ -20,11 +20,12 @@ use receiver_policy::handover::HANDOVER;
 use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
 use receiver_ports::http::PortFailure;
 
-use super::cache::{Leaving, Route, forget_state, remember, reset_reason, spend_force, transcript};
-use super::context::{RoomSend, State, forget_documents, loaded_in, remember_held, sent_prompt, states};
+use super::cache::{Leaving, Route, remember, reset_reason, spend_force, transcript};
+use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
   Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
 };
+use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
 use super::progress::{RunProgress, picture_of};
 use super::room::{RoomContext, room_context};
@@ -190,21 +191,7 @@ impl Carry {
 
     // The ended session's loads, its room's block and its cache record go with it; the one started next holds
     // nothing yet.
-    if let Err(why) = forget_documents(receiver, Some(old)).await {
-      eprintln!("{agent}: the ended session's loads were not forgotten: {}", why.detail);
-    }
-
-    if let Err(why) = super::context::forget_room(db, Some(old)).await {
-      eprintln!("{agent}: the ended session's room block was not forgotten: {}", why.detail);
-    }
-
-    if let Err(why) = super::situation::forget(db, Some(old)).await {
-      eprintln!("{agent}: the ended session's note versions were not forgotten: {}", why.detail);
-    }
-
-    if let Err(why) = forget_state(db, agent, old).await {
-      eprintln!("{agent}: the ended session's cache record was not forgotten: {}", why.detail);
-    }
+    generation::forget(receiver, agent, old).await;
 
     if let Err(why) = spend_force(db, agent).await {
       eprintln!("{agent}: the word to start afresh was not spent: {}", why.detail);
@@ -302,7 +289,9 @@ impl Carry {
 
     // A session the agency has just started is not opened until its first turn, so a state it answers
     // "not opened" for is the fresh session's, with no provider or model to resume yet.
-    let standing = agency.state(&started_id).await.unwrap_or_default();
+    let read = agency.state(&started_id).await;
+    let standing = read.clone().unwrap_or_default();
+    let opened = Standing::of(&read);
 
     // The one session an agent keeps across its rooms, where its head or its road moved, is asked for its
     // handoff, let go here and started again, the note it left riding at the head of the new one's first turn
@@ -322,6 +311,7 @@ impl Carry {
     } else {
       None
     };
+    let replacing = reason.is_some();
     let (session, note, replaced): (Session, Option<String>, Vec<SessionReason>) = match reason {
       None => (started, None, vec![]),
       Some(reason) => {
@@ -330,6 +320,31 @@ impl Carry {
         (again.0, Some(again.1), vec![reason])
       }
     };
+
+    // A generation the agency opened under the session it handed over is no replacement of the receiver's: what
+    // the ended generation held is released before this turn is composed, and the fold reported to the brain so
+    // the marks it handed that generation clear (docs/unified-bmo.md, 「Replacing the session」). A session the
+    // receiver replaced has been released already.
+    let answered = if replacing {
+      None
+    } else {
+      generation::answered_on(db, agent, &session.id).await.unwrap_or_else(|why| {
+        eprintln!("{agent}: session {}'s generation was not read: {}", session.id, why.detail);
+
+        None
+      })
+    };
+    let released = !replacing && generation::changed(answered, opened);
+
+    if released {
+      generation::release(receiver, agent, &session.id).await;
+
+      if let Err(why) = generation::keep(db, agent, &session.id, opened.released()).await {
+        eprintln!("{agent}: session {}'s generation was not written down: {}", session.id, why.detail);
+      }
+    }
+
+    let answered = if released { opened.released() } else { answered };
     // A handoff the agency asked for before it opened a fresh session is that session's note; a session it
     // resumed lets it go (docs/unified-bmo.md, 「Replacing the session」).
     let fresh = !standing.generation.as_i64().is_some_and(|generation| generation > 0);
@@ -458,13 +473,23 @@ impl Carry {
 
     // A session's first turn opens it as the agency carries the turn; a state it has not answered for
     // yet is read as the fresh session's, with nothing of a request behind it.
-    let standing = match agency.state(&session.id).await {
-      Ok(standing) => standing,
+    let ended_read = agency.state(&session.id).await;
+    let standing = match &ended_read {
+      Ok(standing) => standing.clone(),
       Err(why) => {
         eprintln!("chat {chat_id}: the state of session {} was not read after its turn: {why}", session.id);
         Default::default()
       }
     };
+
+    // The generation the session answered on is kept for the next turn: one the agency opened while this turn
+    // ran is the next turn's to release (docs/unified-bmo.md, 「Replacing the session」).
+    let marker = generation::after(answered, opened, Standing::of(&ended_read).at(), replacing);
+
+    if let Err(why) = generation::keep(db, agent, &session.id, marker).await {
+      eprintln!("{agent}: session {}'s generation was not written down: {}", session.id, why.detail);
+    }
+
     let ended: Value = ended.clone().unwrap_or(Value::Null);
     let answer = ended.get("answer").and_then(Value::as_str).unwrap_or_default();
     let outcome = ended.get("outcome").and_then(Value::as_str).unwrap_or_default();

@@ -32,6 +32,7 @@ mod room_removal;
 mod room_round;
 mod routes;
 mod scratch_runs;
+mod session_generation;
 mod session_loads;
 mod session_replacement;
 mod situation;

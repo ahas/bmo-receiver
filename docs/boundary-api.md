@@ -258,7 +258,9 @@ agent remembers it writes with its own brain tool, and what a turn is handed of 
   journal.
 - **The fold:** once the agency answers a fold the receiver asked of a session (`docs/wake.md`, 「The room's queue
   and the round」), the receiver reports it for the session's agent, so the marks the brain keeps of what it
-  handed that session clear. A report that fails is said in the journal and changes nothing of the fold.
+  handed that session clear. The receiver reports the same fold when it releases a generation the agency opened
+  under a session (`docs/unified-bmo.md`, 「Replacing the session」): the marks of the generation that ended clear
+  with it. A report that fails is said in the journal and changes nothing of the fold.
 - **The fold's key is the agency's id of the session.** A session's turns run under names of their own: the
   agency names each turn of a chat session's run `chat:<room>:<moment>`, new with every turn, and hands it to
   the turn's tools as `BMO_RUN_NAME`, which the brain's tool reports its own `brain_fold` under. No run's name
