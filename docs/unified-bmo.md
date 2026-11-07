@@ -221,7 +221,8 @@
   `system-prompt-changed` for the one session across rooms, whose state names no higher generation. A turn that
   finds the state past the generation this session last answered on, the session gone where one was answered on,
   or the agency's announcement of the session on its stream releases what the ended generation held before its
-  prompt is composed: the room block, the note versions and the cache record, and the fold reported to the brain
+  prompt is composed: the room block, the note versions, the cache record and the count of what the round log says
+  it read (`docs/drafting.md`, 「The round log」), and the fold reported to the brain
   so the marks it handed that session clear (`docs/boundary-api.md`, 「The brain」). The session's loads are the
   agency's, and it releases them as it opens the generation; the receiver deletes them only where they still
   stand, since a turn it composed against the ended generation may have written them back after that. A plain

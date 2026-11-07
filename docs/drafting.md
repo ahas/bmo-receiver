@@ -417,11 +417,16 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   draft log read them.
 - **The end row names the session the round's turn ran on and what that session had read in this room before
   it,** its `session` (null where the turn ran on none) and its `loaded`: the pieces the room's earlier rounds of the
-  same session read in full. `loaded` is the `loaded` of the end row of the same room and the same session written
-  last before it, plus that row's reads whose `how` is `attached` or `read`; a `held` read counts nothing, and where
-  no such row stands, or the turn ran on no session, it is 0. So no count carries across sessions, a new session starting
-  at 0, and the console's 브레인 figure reads as the running count, `loaded` and then `+` this round's full reads.
-  Every row but the end carries neither.
+  same generation of that session read in full. `session` is the agency's id of the session, which a new
+  generation keeps, so the generation is told by a cut: wherever the receiver releases what an ended generation
+  held (`docs/unified-bmo.md`, 「Replacing the session」), as a session it replaced or a generation the agency
+  opened under it, it marks the round log's last row as the session's cut (`loaded_cut:<session>`,
+  `docs/store.md`). `loaded` is the `loaded` of the end row of the same room and the same session written last
+  before it and after that session's cut, plus that row's reads whose `how` is `attached` or `read`; a `held` read
+  counts nothing, and where no such row stands, or the turn ran on no session, it is 0. So no count carries across
+  sessions or generations: a new session, and a new generation of the same session, start at 0, and the console's
+  브레인 figure reads as the running count, `loaded` and then `+` this round's full reads. Every row but the end
+  carries neither.
 - **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
   answer opened on `<<SEND>>` and became the message, `skip` or `failed`.
 - **The process's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where

@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 
 use crate::chat::conversation::Conversations;
 use crate::receiver::Receiver;
-use crate::store::Fault;
+use crate::store::{Fault, settings};
 use crate::{all, now_ms, one, run};
 
 /// A question of the process told as it starts, before its answer (docs/drafting.md, 「The round log」): its
@@ -310,18 +310,41 @@ impl Row<'_> {
   }
 }
 
-/// How many pieces the room's earlier rounds of the session read in full before a round (docs/drafting.md, 「The
-/// round log」): the latest earlier end's own count and its reads that went in full, a held one counting nothing; 0
-/// where no end of the room and session stands or the round ran on no session.
+/// Where the round log's last row as a session's ended generation was released is kept: the end rows after it
+/// alone count what the session's present generation read (docs/drafting.md, 「The round log」).
+pub fn cut_key(session: &str) -> String {
+  format!("loaded_cut:{session}")
+}
+
+/// A session's ended generation cut off from the count: the round log's last row written down as its cut, so the
+/// next round of the session in any room counts from 0.
+pub async fn cut<C: ConnectionTrait>(db: &C, session: &str) -> Result<(), Fault> {
+  let last = one(db, r#"SELECT COALESCE(MAX("id"), 0) AS "last" FROM "draft_rounds""#, vec![])
+    .await?
+    .map(|row| row.try_get::<i64>("", "last"))
+    .transpose()?
+    .unwrap_or_default();
+
+  settings::set(db, &cut_key(session), &last.to_string()).await
+}
+
+/// How many pieces the room's earlier rounds of the session's present generation read in full before a round
+/// (docs/drafting.md, 「The round log」): the latest earlier end after the session's cut, its own count and its
+/// reads that went in full, a held one counting nothing; 0 where no such end of the room and session stands or the
+/// round ran on no session.
 pub async fn loaded<C: ConnectionTrait>(db: &C, chat_id: i64, session: Option<&str>) -> Result<i64, Fault> {
   let Some(session) = session else {
     return Ok(0);
   };
+  let after = settings::get(db, &cut_key(session))
+    .await?
+    .and_then(|held| held.parse::<i64>().ok())
+    .unwrap_or_default();
   let latest = one(
     db,
     r#"SELECT "loaded", "reads" FROM "draft_rounds"
-         WHERE "chat_id" = $1 AND "session" = $2 AND "kind" = 'end' ORDER BY "id" DESC LIMIT 1"#,
-    vec![chat_id.into(), session.into()],
+         WHERE "chat_id" = $1 AND "session" = $2 AND "kind" = 'end' AND "id" > $3 ORDER BY "id" DESC LIMIT 1"#,
+    vec![chat_id.into(), session.into(), after.into()],
   )
   .await?;
   let Some(latest) = latest else {

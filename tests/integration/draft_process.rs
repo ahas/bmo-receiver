@@ -2751,6 +2751,47 @@ async fn the_end_row_counts_what_its_session_read_in_full_in_the_room_before_it(
   assert_eq!((&told[0]["session"], &told[0]["loaded"]), (&end["session"], &end["loaded"]), "{told:?}");
 }
 
+#[tokio::test]
+async fn a_new_generation_of_the_same_session_counts_from_nothing() {
+  let session = StandInSession::new(SESSION, "the message");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let full = serde_json::json!([{"path": "knowledge/plans", "holds": null, "how": "attached"}]);
+
+  // The ended generation's rounds in the room, then its release as a handover replaces it: the agency's id of the
+  // session stays the same.
+  earlier_end(&round, "the old generation", OWNER, SESSION, 347, full).await;
+  bmo_receiver::chat::generation::forget(&round.standing.receiver, AGENT, SESSION).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let (end, _) = answered_rows(&round).await;
+
+  assert_eq!(
+    (&end["session"], &end["loaded"]),
+    (&serde_json::json!(SESSION), &serde_json::json!(0)),
+    "the new generation's first round has read nothing before it: {end}"
+  );
+}
+
+#[tokio::test]
+async fn a_generations_rounds_after_its_cut_count_and_those_before_it_do_not() {
+  let session = StandInSession::new(SESSION, "the message");
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let full = serde_json::json!([{"path": "knowledge/plans", "holds": null, "how": "read"}]);
+
+  earlier_end(&round, "the old generation", OWNER, SESSION, 347, full.clone()).await;
+  bmo_receiver::chat::generation::forget(&round.standing.receiver, AGENT, SESSION).await;
+  earlier_end(&round, "the new generation's first", OWNER, SESSION, 0, full).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let (end, _) = answered_rows(&round).await;
+
+  assert_eq!(end["loaded"], serde_json::json!(1), "only the new generation's round counts: {end}");
+}
+
 fn pinned(sent: &[String]) -> Option<i64> {
   sent
     .first()
