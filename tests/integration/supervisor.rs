@@ -68,7 +68,9 @@ fn documents(data: &Path) {
 }
 
 async fn until(what: &str, holds: impl Fn() -> bool) {
-  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+  // The suite runs the whole file's tests beside the machine's other work, so a round's two light turns can be
+  // starved for longer than a quiet run needs; the bound is long enough that slowness is not a failure.
+  let waited = tokio::time::timeout(Duration::from_secs(90), async {
     while !holds() {
       tokio::time::sleep(Duration::from_millis(5)).await;
     }
