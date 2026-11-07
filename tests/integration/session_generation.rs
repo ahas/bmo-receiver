@@ -186,6 +186,29 @@ impl Round {
     tokio::time::sleep(Duration::from_millis(100)).await;
   }
 
+  /// The owner's words on a session whose turn the agency hands over as it works: the agency's event says a
+  /// generation opened under it, and the turn runs on.
+  async fn round_handed_over(&self, message_id: i64) {
+    let before = self.session.prompts().len();
+
+    self
+      .standing
+      .receiver
+      .message(&said(OWNER, message_id, "the words"), &Context::default(), owners_room())
+      .await
+      .unwrap();
+    until("the round's turn", || self.session.working()).await;
+    self
+      .session
+      .told("system-prompt-changed", json!({ "session": self.session.id, "run": "run-1" }));
+    self.session.let_go();
+    until("the round's end", || {
+      self.session.prompts().len() > before && self.runner.idle() && !self.session.working()
+    })
+    .await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+  }
+
   /// The read marks the round logs build, the end row of each round in order.
   async fn reads(&self) -> Vec<Value> {
     self
@@ -298,6 +321,36 @@ async fn a_return_to_another_room_of_the_one_session_releases_nothing() {
       .get(UNIFIED_SESSION)
       .is_some_and(|loads| loads.iter().any(|load| load.path.starts_with("room-context/"))),
     "the one session keeps what it holds across rooms"
+  );
+}
+
+#[tokio::test]
+async fn a_generation_the_agency_announces_for_the_one_session_across_rooms_is_released() {
+  let round = Round::new(StandInSession::new(UNIFIED_SESSION, ANSWER).holding_the_first(), true).await;
+
+  round.round_handed_over(1).await;
+  assert!(round.folds().is_empty(), "the turn the handover opened releases nothing itself");
+
+  // The one session across rooms names no higher generation, so the agency's word carries the handover to the
+  // next turn, which releases it once.
+  round.round(2).await;
+
+  assert_eq!(
+    round.folds(),
+    [(BRAIN, UNIFIED_SESSION.to_owned())],
+    "the announced generation's handouts clear"
+  );
+  assert_eq!(
+    how_of(&round.reads().await[1], PIECE).as_deref(),
+    Some("attached"),
+    "the turn after the handover holds nothing"
+  );
+
+  round.round(3).await;
+  assert_eq!(
+    round.folds(),
+    [(BRAIN, UNIFIED_SESSION.to_owned())],
+    "the announced generation is released once"
   );
 }
 

@@ -213,10 +213,12 @@
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
   generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
 - **A generation the agency opens under the session is a handover the receiver did not make.** The session's
-  state names the generation its turns stand in. A turn whose state names a generation past the one this session
-  last answered on, or names the session gone where one was answered on, releases what the ended generation held
-  before its prompt is composed: the loads, the room block, the note versions and the cache record, and the fold
-  reported to the brain so the marks it handed that session clear (`docs/boundary-api.md`, 「The brain」). A plain
+  state names the generation its turns stand in, and the agency announces the handover on the event stream as
+  `system-prompt-changed` for the one session across rooms, whose state names no higher generation. A turn that
+  finds the state past the generation this session last answered on, the session gone where one was answered on,
+  or the agency's announcement of the session on its stream releases what the ended generation held before its
+  prompt is composed: the loads, the room block, the note versions and the cache record, and the fold reported to
+  the brain so the marks it handed that session clear (`docs/boundary-api.md`, 「The brain」). A plain
   turn releases nothing, and neither does a session resumed after the agency's restart or a deploy, nor a return
   to another room of the one session across rooms.
 - **Before the old session is ended it consolidates and writes its handoff,** whatever the reason. The receiver

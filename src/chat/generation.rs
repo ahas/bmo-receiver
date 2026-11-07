@@ -39,6 +39,10 @@ pub async fn forget(receiver: &Receiver, agent: &str, session: &str) {
 pub async fn release(receiver: &Receiver, agent: &str, session: &str) {
   super::consolidation::report_fold(receiver, agent, session).await;
   forget(receiver, agent, session).await;
+
+  if let Err(why) = settle(receiver.db(), agent, session).await {
+    eprintln!("{agent}: session {session}'s coming generation was not settled: {}", why.detail);
+  }
 }
 
 /// Where the generation a session last answered on is kept, under the agent and the session's id.
@@ -67,6 +71,28 @@ pub async fn keep(
   };
 
   settings::set(db, &key(agent, session), &generation.to_string()).await
+}
+
+/// Where a generation the agency said it was opening under a session is kept until the turn after it.
+pub fn pending_key(agent: &str, session: &str) -> String {
+  format!("{agent}_generation_pending:{session}")
+}
+
+/// Whether the agency said it was opening a generation under the session and no turn has released it yet.
+pub async fn pending(db: &impl ConnectionTrait, agent: &str, session: &str) -> Result<bool, Fault> {
+  Ok(settings::get(db, &pending_key(agent, session)).await?.is_some())
+}
+
+/// The agency's word that a generation opened under the session kept for the next turn, which releases it. The
+/// session's state names a higher generation where the agency keeps one per room; the one session across rooms
+/// names none, so its handover is heard on the agency's event stream alone.
+pub async fn expect(db: &impl ConnectionTrait, agent: &str, session: &str) -> Result<(), Fault> {
+  settings::set(db, &pending_key(agent, session), "1").await
+}
+
+/// The kept word let go, by the turn that released the generation it named.
+pub async fn settle(db: &impl ConnectionTrait, agent: &str, session: &str) -> Result<(), Fault> {
+  settings::forget(db, &pending_key(agent, session)).await
 }
 
 /// What a read of a session's state says of the generation its turn goes on.

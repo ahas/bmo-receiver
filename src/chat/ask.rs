@@ -334,7 +334,16 @@ impl Carry {
         None
       })
     };
-    let released = !replacing && generation::changed(answered, opened);
+    let expected = if replacing {
+      false
+    } else {
+      generation::pending(db, agent, &session.id).await.unwrap_or_else(|why| {
+        eprintln!("{agent}: session {}'s coming generation was not read: {}", session.id, why.detail);
+
+        false
+      })
+    };
+    let released = !replacing && (expected || generation::changed(answered, opened));
 
     if released {
       generation::release(receiver, agent, &session.id).await;
@@ -342,6 +351,8 @@ impl Carry {
       if let Err(why) = generation::keep(db, agent, &session.id, opened.released()).await {
         eprintln!("{agent}: session {}'s generation was not written down: {}", session.id, why.detail);
       }
+    } else if replacing && let Err(why) = generation::settle(db, agent, &session.id).await {
+      eprintln!("{agent}: session {}'s coming generation was not settled: {}", session.id, why.detail);
     }
 
     let answered = if released { opened.released() } else { answered };
@@ -375,7 +386,7 @@ impl Carry {
     };
 
     let turn = turn_of(asking, &session, &room, &prompt);
-    let kinds: Vec<&'static str> = vec!["turn.created", "turn.ended"];
+    let kinds: Vec<&'static str> = vec!["turn.created", "turn.ended", "system-prompt-changed"];
     let mut stream = agency.events(&kinds).await.map_err(fault_of)?;
 
     // The turn is sent apart, so the room's picture of it can be drawn from the run's log while it works.
@@ -422,6 +433,14 @@ impl Carry {
             turning = body.get("turnId").and_then(Value::as_i64);
           } else if mine && kind == "turn.ended" {
             ended = Some(body.clone());
+          } else if mine
+            && kind == "system-prompt-changed"
+            && let Err(why) = generation::expect(db, agent, &session.id).await
+          {
+            eprintln!(
+              "{agent}: session {}'s coming generation was not written down: {}",
+              session.id, why.detail
+            );
           }
         }
         Some(Err(why)) => return Err(fault_of(why)),
