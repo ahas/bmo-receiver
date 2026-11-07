@@ -8,16 +8,21 @@ use receiver_ports::agency::SessionState;
 use receiver_ports::http::PortFailure;
 
 use super::cache::forget_state;
-use super::context::forget_documents;
 use crate::receiver::Receiver;
 use crate::store::{Fault, settings};
 
-/// What a session that ended or was handed over no longer holds: its loads, the room blocks it read, the note
-/// versions it was handed, and the cache record of its head (docs/unified-bmo.md, 「Replacing the session」).
+/// What a session that ended or was handed over no longer holds: the room blocks it read, the note versions it
+/// was handed, and the cache record of its head (docs/unified-bmo.md, 「Replacing the session」). The agency
+/// releases the loads as it opens the generation, so a record already emptied is not deleted again; a turn the
+/// receiver composed against the ended generation may have written its loads back after that, and those are the
+/// receiver's to clear.
 pub async fn forget(receiver: &Receiver, agent: &str, session: &str) {
   let db = receiver.db();
+  let loads = super::context::loaded_in(receiver, Some(session)).await;
 
-  if let Err(why) = forget_documents(receiver, Some(session)).await {
+  if loads.map(|loads| !loads.is_empty()).unwrap_or(true)
+    && let Err(why) = super::context::forget_documents(receiver, Some(session)).await
+  {
     eprintln!("{agent}: session {session}'s loads were not forgotten: {}", why.detail);
   }
 

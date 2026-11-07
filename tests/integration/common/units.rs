@@ -892,6 +892,8 @@ pub struct StandInAgency {
   pub down: Mutex<bool>,
   // Each session's loaded documents, as the last keep left them.
   pub loads: Mutex<BTreeMap<String, Vec<Load>>>,
+  // Every session whose loads it was asked to forget, in order.
+  pub loads_forgotten: Mutex<Vec<String>>,
   // Every session it was asked to end, in order.
   pub ends: Mutex<Vec<String>>,
   /// The events it keeps, as its page of kept events answers them.
@@ -933,6 +935,7 @@ impl StandInAgency {
       listed: Mutex::default(),
       down: Mutex::default(),
       loads: Mutex::default(),
+      loads_forgotten: Mutex::default(),
       ends: Mutex::default(),
       kept: Mutex::default(),
     }
@@ -951,6 +954,11 @@ impl StandInAgency {
   /// Each session's loaded documents, as the last keep left them.
   pub fn loaded(&self) -> BTreeMap<String, Vec<Load>> {
     self.loads.lock().unwrap().clone()
+  }
+
+  /// Every session whose loads it was asked to forget, in order.
+  pub fn loads_forgotten(&self) -> Vec<String> {
+    self.loads_forgotten.lock().unwrap().clone()
   }
 
   /// The sessions it lists, each with the state it answers for it.
@@ -1241,6 +1249,7 @@ impl Agency for StandInAgency {
   }
 
   fn forget_loads<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<()>> {
+    self.loads_forgotten.lock().unwrap().push(session.to_owned());
     self.loads.lock().unwrap().remove(session);
 
     Box::pin(async { Ok(()) })

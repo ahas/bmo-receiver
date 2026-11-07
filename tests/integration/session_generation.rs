@@ -186,8 +186,15 @@ impl Round {
     tokio::time::sleep(Duration::from_millis(100)).await;
   }
 
-  /// The owner's words on a session whose turn the agency hands over as it works: the agency's event says a
-  /// generation opened under it, and the turn runs on.
+  /// The agency opening a generation under the session: its state names it, and its own record of the session's
+  /// loads goes as the generation opens.
+  fn opens_generation(&self, generation: i64) {
+    self.session.now_at(Some(generation));
+    self.standing.agency.loads.lock().unwrap().remove(&self.session.id);
+  }
+
+  /// The owner's words on a session whose turn the agency hands over as it works: the agency says a generation
+  /// opened under it, its loads gone with the generation, and the turn runs on.
   async fn round_handed_over(&self, message_id: i64) {
     let before = self.session.prompts().len();
 
@@ -198,6 +205,7 @@ impl Round {
       .await
       .unwrap();
     until("the round's turn", || self.session.working()).await;
+    self.standing.agency.loads.lock().unwrap().remove(&self.session.id);
     self
       .session
       .told("system-prompt-changed", json!({ "session": self.session.id, "run": "run-1" }));
@@ -260,8 +268,8 @@ async fn a_generation_the_agency_opens_releases_the_session_once_and_the_round_l
   assert!(round.folds().is_empty(), "the first generation releases nothing: {:?}", round.folds());
   assert_eq!(how_of(&round.reads().await[0], PIECE).as_deref(), Some("attached"));
 
-  // The agency opens a generation under the session as it hands it over.
-  round.session.now_at(Some(2));
+  // The agency opens a generation under the session as it hands it over, releasing its loads there.
+  round.opens_generation(2);
   round.round(2).await;
 
   assert_eq!(
@@ -273,6 +281,11 @@ async fn a_generation_the_agency_opens_releases_the_session_once_and_the_round_l
     how_of(&round.reads().await[1], PIECE).as_deref(),
     Some("attached"),
     "the first turn of the new generation holds nothing"
+  );
+  assert!(
+    round.standing.agency.loads_forgotten().is_empty(),
+    "the agency releases the loads as the generation opens; the receiver does not delete them again: {:?}",
+    round.standing.agency.loads_forgotten()
   );
 
   // The generation is answered on from then on: a turn on it releases nothing, and what it holds stands again.
@@ -355,7 +368,7 @@ async fn a_generation_the_agency_announces_for_the_one_session_across_rooms_is_r
 }
 
 #[tokio::test]
-async fn the_release_forgets_what_the_ended_generation_held_and_reports_the_fold() {
+async fn the_release_forgets_the_receivers_records_and_reports_the_fold() {
   use bmo_receiver::chat::cache::{active_route, state_key};
   use bmo_receiver::store::settings;
 
@@ -383,6 +396,10 @@ async fn the_release_forgets_what_the_ended_generation_held_and_reports_the_fold
       .await,
     1
   );
+
+  // The agency released the session's loads as it opened the generation; the receiver does not delete an
+  // already-empty record again.
+  round.standing.agency.loads.lock().unwrap().remove(SESSION);
 
   generation::release(&round.standing.receiver, AGENT, SESSION).await;
 
@@ -414,8 +431,9 @@ async fn the_release_forgets_what_the_ended_generation_held_and_reports_the_fold
     "the cache record it was opened against is gone"
   );
   assert!(
-    !round.standing.agency.loaded().contains_key(SESSION),
-    "the agency's record of its loads is gone"
+    round.standing.agency.loads_forgotten().is_empty(),
+    "the receiver does not delete loads the agency already released: {:?}",
+    round.standing.agency.loads_forgotten()
   );
   assert_eq!(round.folds(), [(BRAIN, SESSION.to_owned())], "the fold is reported to the brain");
 
