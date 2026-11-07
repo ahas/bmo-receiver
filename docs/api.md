@@ -343,6 +343,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `began` is at or before its agent's reset point, the agency's as the receiver reads it then, is refused before
   anything else, its `refusal` (a consult line's code `overtaken`, 409) telling the turn to end (`docs/wake.md`,
   「An agent's reset」).
+- **A voice briefing turn sends nothing.** While the receiver carries a notice turn's summary or a line's full
+  reading for an agent in a room, a send that agent asks into that room, of any act and from no job, is refused
+  `briefing-turn`, its `refusal` saying that the turn's answer is the script itself and nothing is sent into the
+  room from it (`docs/voiced-notices.md`, 「The summary of a notice turn」).
 - **A `say`** answers once the line is on its way: the receiver puts the words through the room's gates and into
   the room apart from the call, opens the room's window for the agent that said it, and tells the chat that set
   it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.

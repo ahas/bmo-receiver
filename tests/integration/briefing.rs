@@ -1,11 +1,14 @@
 //! The voice briefing (docs/voiced-notices.md, 「The voice briefing」; docs/api.md, 「The voice briefing」): its two
 //! switches moved one at a time and the whole one told to the owner, a line's full reading launched once and then
 //! answered as it stands, its refusals, and a notice turn of the owner's chat summarised by its own session and
-//! handed to the voice engine while a round somebody spoke in is not.
+//! handed to the voice engine while a round somebody spoke in is not, and no send of the agent's into the room
+//! carried while its briefing turn is.
 
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::body::{Body, to_bytes};
+use axum::extract::Request;
 use axum::http::StatusCode;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::briefing::{line_opening, summary_of};
@@ -13,11 +16,15 @@ use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
+use bmo_receiver::routes::routes;
+use receiver_codes::SendRefusal;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
-use serde_json::json;
+use room_calls::sends::{Act, Asked, Asker, SayInput, SpeakInput};
+use serde_json::{Value, json};
 use tempfile::tempdir;
+use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::queue::{get, post, put, stood};
@@ -417,4 +424,145 @@ async fn a_lines_full_reading_is_the_script_its_agents_session_writes_sent_as_wr
     SCRIPT,
     "the script goes to the engine exactly as written"
   );
+}
+
+const TOKEN: &str = "the-token";
+
+// A send the agent's session asks into `room` from a turn of its in the owner's chat, as its tools ask it, and
+// what the receiver answered.
+async fn sent(owner: &Owner, room: i64, act: Act) -> Value {
+  let asker = Asker {
+    room: Some(room),
+    via: Some("road-a".to_owned()),
+    agent_name: Some(AGENT.to_owned()),
+    by: Some(format!("chat:{OWNER}")),
+    ..Asker::default()
+  };
+  let request = Request::post("/sends")
+    .header("authorization", format!("Bearer {TOKEN}"))
+    .body(Body::from(serde_json::to_string(&Asked { asker, act }).unwrap()))
+    .unwrap();
+  let answer = routes(owner.standing.receiver.clone(), TOKEN).oneshot(request).await.unwrap();
+
+  assert_eq!(answer.status(), StatusCode::OK);
+  serde_json::from_slice(&to_bytes(answer.into_body(), usize::MAX).await.unwrap()).unwrap()
+}
+
+fn say(text: &str) -> Act {
+  Act::Say(SayInput {
+    chat: None,
+    via: None,
+    text: text.to_owned(),
+    reply: false,
+    reply_to: None,
+  })
+}
+
+fn speak(text: &str) -> Act {
+  Act::Speak(SpeakInput {
+    chat: None,
+    via: None,
+    voice: VOICE.to_owned(),
+    text: text.to_owned(),
+    spoken: None,
+    reply_to: None,
+  })
+}
+
+fn briefing_refusal(room: i64) -> String {
+  SendRefusal::BriefingTurn {
+    agent: AGENT.to_owned(),
+    room,
+  }
+  .to_string()
+}
+
+#[tokio::test]
+async fn a_send_the_agent_asks_into_the_room_during_its_summary_turn_is_refused_and_no_other_is() {
+  const LINE: &str = "The nightly backup finished.";
+
+  let owner = Owner::new(
+    StandInSession::new("agent-a@agent", "unused")
+      .answering(&[LINE, "Backup done\nThe backup finished overnight."])
+      .holding_turn(2),
+    Some(VOICE),
+  )
+  .await;
+
+  owner.runner.of(AGENT).instruct(OWNER, LINE.to_owned(), None, None, vec![]).await;
+  until("the summary turn working", || {
+    owner.session.prompts().len() == 2 && owner.session.working()
+  })
+  .await;
+  assert!(owner.session.prompts()[1].contains(&CHAT_ROUND.voice.summary_marker));
+
+  for act in [say(LINE), speak(LINE)] {
+    let answer = sent(&owner, OWNER, act).await;
+
+    assert_eq!(answer["refusal"], json!(briefing_refusal(OWNER)), "{answer}");
+    assert_eq!(answer["lines"], json!([]));
+    assert!(answer.get("handed").is_none() && answer.get("own").is_none(), "{answer}");
+  }
+
+  let elsewhere = sent(&owner, ROOM, say("Elsewhere.")).await;
+
+  assert_ne!(
+    elsewhere["refusal"],
+    json!(briefing_refusal(ROOM)),
+    "another room's send is judged as every send is: {elsewhere}"
+  );
+  assert_ne!(elsewhere["refusal"], json!(briefing_refusal(OWNER)));
+
+  owner.session.let_go();
+  owner.over(2).await;
+
+  let after = sent(&owner, OWNER, say("Later.")).await;
+
+  assert!(
+    after.get("refusal").is_none() && after["handed"].is_i64(),
+    "once the turn ended the send is handed over as any send outside a round: {after}"
+  );
+  assert_eq!(owner.standing.voice.briefed().len(), 1);
+
+  let kept = owner.scratch.texts(r#"SELECT "text" FROM "messages" ORDER BY "message_id""#).await;
+
+  assert_eq!(
+    kept.iter().filter(|text| text.contains(LINE)).count(),
+    1,
+    "the line stands once, with no second message of it: {kept:?}"
+  );
+}
+
+#[tokio::test]
+async fn a_send_the_agent_asks_into_the_lines_room_during_its_reading_turn_is_refused_until_it_ends() {
+  let owner = Owner::new(
+    StandInSession::new("agent-a@agent", "The backup finished overnight.").holding_the_first(),
+    Some(VOICE),
+  )
+  .await;
+
+  owner
+    .scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via", "agent_name")
+         VALUES ($1, 31, 7, 'Agent A', 1760000000000, 'Backup: done.', 'road-a', $2)"#,
+      vec![OWNER.into(), AGENT.into()],
+    )
+    .await;
+  // A line of its own, since a reading being written is held by its room and line across the process.
+  bmo_receiver::chat::briefing::reading(&owner.standing.receiver, OWNER, 31)
+    .await
+    .unwrap();
+  until("the reading turn working", || owner.session.working()).await;
+
+  let answer = sent(&owner, OWNER, speak("Backup: done.")).await;
+
+  assert_eq!(answer["refusal"], json!(briefing_refusal(OWNER)), "{answer}");
+
+  owner.session.let_go();
+  until("the reading taken", || !owner.standing.voice.briefed().is_empty()).await;
+
+  let after = sent(&owner, OWNER, say("Later.")).await;
+
+  assert!(after.get("refusal").is_none() && after["handed"].is_i64(), "{after}");
 }

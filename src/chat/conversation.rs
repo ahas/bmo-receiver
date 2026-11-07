@@ -599,6 +599,8 @@ struct Inner {
   timings: Timings,
   state: Mutex<State>,
   turn: tokio::sync::Mutex<()>,
+  // The rooms a voice briefing turn of the agent's is being carried in.
+  briefings: Arc<super::briefing_turn::BriefingTurns>,
   carrying: Arc<dyn Carrying>,
   drafting: Arc<dyn Drafting>,
   sending: Arc<dyn Sending>,
@@ -631,6 +633,7 @@ impl Conversations {
       timings,
       state: Mutex::new(State::default()),
       turn: tokio::sync::Mutex::new(()),
+      briefings: Arc::default(),
     }))
   }
 
@@ -1233,6 +1236,12 @@ impl Conversations {
   /// Whether a round of the agent's is working in the room now, from its first turn to the send of its answer.
   pub fn in_round(&self, chat_id: i64) -> bool {
     self.state().active.get(&chat_id).is_some_and(|conv| conv.in_flight)
+  }
+
+  /// Whether a voice briefing turn of the agent's, a notice turn's summary or a line's full reading, is being
+  /// carried in the room now.
+  pub fn in_briefing(&self, chat_id: i64) -> bool {
+    self.0.briefings.in_flight(chat_id)
   }
 
   /// Whether a room has fallen silent: the rest closes it and nothing else would answer it.
@@ -2227,7 +2236,12 @@ impl Conversations {
       thread_mark: None,
     };
     let follower = Follower::new(self, chat_id);
-    let answer = match self.0.carrying.carry(&asking, held, &follower).await {
+    let briefing = self.0.briefings.carrying(chat_id);
+    let carried = self.0.carrying.carry(&asking, held, &follower).await;
+
+    drop(briefing);
+
+    let answer = match carried {
       Ok(reply) => {
         held.context_tokens = reply.context_tokens.or(held.context_tokens);
         held.session = reply.session.clone().or(held.session.clone());
@@ -2282,8 +2296,10 @@ impl Conversations {
       thread_mark: None,
     };
     let follower = Follower::new(self, chat_id);
+    let briefing = self.0.briefings.carrying(chat_id);
     let carried = self.0.carrying.carry(&asking, &held, &follower).await;
 
+    drop(briefing);
     follower.finish();
 
     match carried {

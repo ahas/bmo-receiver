@@ -217,6 +217,12 @@ spoken, and the session writes what is said.
   never the line read out, every notice of the turn covered in its newest state — stands in the room's block
   (`policy/chat-round.toml`, `[voice]`, `summary_marker`, `summary_rule`). Its answer goes to no road and stands
   in no room.
+- **The answer is the script, and the turn sends nothing.** The voice of a line is that line's own briefing, which
+  the console pairs with the line on its chip, never a message of its own. The marker's rule says tools are off
+  for the turn and nothing is sent into any room from it: no talk, no send, no voice note. The receiver holds to
+  it: while it carries the summary turn of an agent in a room, every send that agent asks into that room is
+  refused `briefing-turn` (`docs/codes.md`, 「SendRefusal」), whatever its act, and nothing reaches the room. A send
+  of the agent's into another room, a job's, and any send once the turn has ended are judged as every send is.
 - **A session that gives no summary has its line's opening spoken:** the first sentence, or the first two where
   the first is short, with no title. An answer of `<<SKIP>>`, an empty answer and a failed turn are each this case.
 - **The receiver carries the facts to the engine:** `POST /briefings` of kind `summary`, in the agent's voice,
@@ -244,6 +250,9 @@ spoken, and the session writes what is said.
   (`docs/unified-bmo.md`, 「Replacing the session」), has the line spoken as it stands. While the script is being written an
   ask answers `making` with no briefing yet; once launched, the answer names the briefing, whose sound the engine
   serves.
+- **The reading turn sends nothing either.** Its marker's rule says tools are off for the turn and nothing is
+  sent into any room from it, and while the receiver carries it, every send its agent asks into the line's room is
+  refused `briefing-turn`, as during a summary turn.
 - **It is kept on the line** by the engine, so a later ask answers `ready` at once. It goes to no road and no
   listener plays it by itself.
 - **It asks the switch and the voice** like every briefing: switched off, it is refused `switched-off`; an agent

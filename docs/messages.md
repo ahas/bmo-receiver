@@ -127,6 +127,9 @@ that wants something said there hands the words to that supervisor, and the supe
   off (the asker's `by`, `chat:<room>`): the round's own turn and every later question of its draft process, in
   which the send tool's entries and the shell verbs of that turn run. The room it sends into may be another room
   the agent answers. A round's own answer is the other way a supervisor speaks, and asks nothing of this.
+- **A voice briefing turn is no round to send from.** The light turn that writes a line's summary or full reading
+  answers with the script alone, and a send its agent asks into that room meanwhile is refused `briefing-turn`
+  (`docs/voiced-notices.md`, 「The summary of a notice turn」).
 - **Every other send is handed over, and nothing reaches the room on that call.** A command at a shell, a job's
   run, a worker, a runner, a unit's own process, a script or a turn's tool call that failed over to the shell asks
   the same route, and the receiver queues a quiet instruction marked as words handed to the supervisor and

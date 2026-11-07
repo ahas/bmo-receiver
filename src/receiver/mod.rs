@@ -282,6 +282,13 @@ pub trait Runner: Send + Sync {
   fn in_round(&self, _agent: &str, _chat_id: i64) -> bool {
     false
   }
+
+  /// Whether a voice briefing turn of the agent's is being carried in the room now, in which no send of the
+  /// agent's into the room is carried (docs/voiced-notices.md, 「The summary of a notice turn」); none is where no
+  /// conversations stand.
+  fn in_briefing(&self, _agent: &str, _chat_id: i64) -> bool {
+    false
+  }
 }
 
 /// The conversations where none stand: no turn is taken.

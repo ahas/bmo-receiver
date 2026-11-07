@@ -52,6 +52,12 @@ pub enum SendRefusal {
   /// A job asked to send a room's file, which a check never takes.
   #[error("a job never sends a file a room keeps; make the material for the check yourself")]
   JobSendsRoomFile,
+  /// The agent's session asked a send into a room while the receiver carries its voice briefing turn there.
+  #[error(
+    "this is a voice briefing turn of {agent} in the room {room}: its answer is the script itself, and nothing is \
+     sent into the room from it; answer with the script alone, with no talk, send or voice note"
+  )]
+  BriefingTurn { agent: String, room: i64 },
 }
 
 impl SendRefusal {
@@ -69,7 +75,8 @@ impl SendRefusal {
       | Self::Sticker { .. }
       | Self::NoPicture { .. }
       | Self::SpeakerRefused { .. }
-      | Self::Unnumbered { .. } => StatusCode::CONFLICT,
+      | Self::Unnumbered { .. }
+      | Self::BriefingTurn { .. } => StatusCode::CONFLICT,
     }
   }
 }

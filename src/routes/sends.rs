@@ -8,7 +8,8 @@
 //! service that stands without one, it is turned away before the words are put on the disk.
 //!
 //! Only a send asked in its agent's own round is carried; every other is handed to the room's supervisor as an
-//! order, and nothing goes out on that call (docs/messages.md, 「Words handed to the room's supervisor」).
+//! order, and nothing goes out on that call (docs/messages.md, 「Words handed to the room's supervisor」). A send
+//! an agent asks into a room its voice briefing turn is being carried in is refused before either.
 
 use axum::{
   body::Bytes,
@@ -22,6 +23,7 @@ use room_calls::sends::{Act, Asked};
 use room_calls::turn::NO_ROOM;
 
 use super::{Answered, Served, answered, query, read, refused};
+use crate::chat::briefing_turn;
 use crate::chat::cut_off;
 use crate::chat::handed;
 use crate::receiver::Receiver;
@@ -126,6 +128,10 @@ pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
 
   if let Some(refusal) = cut_off::overtaken(&receiver, &asked.asker).await {
+    return answered(json!({ "lines": [], "refusal": refusal }));
+  }
+
+  if let Some(refusal) = briefing_turn::refused(&receiver, &asked.asker) {
     return answered(json!({ "lines": [], "refusal": refusal }));
   }
 

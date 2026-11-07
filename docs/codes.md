@@ -116,6 +116,7 @@ family. No code carries a sentence in a room's language.
 | `file-not-kept` | 502 | `name` | a file the send went with could not be kept beside its message |
 | `other-rooms-file` | 403 | `room` | a file of another room's folder |
 | `job-sends-room-file` | 403 | | a job asked to send a room's file |
+| `briefing-turn` | 409 | `agent`, `room` | the agent's session asked a send into the room while the receiver carries its voice briefing turn there, whose answer is the script itself |
 
 ### RoomGrantRefusal
 

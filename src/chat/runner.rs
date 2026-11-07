@@ -129,6 +129,10 @@ impl crate::receiver::Runner for Runner {
   fn in_round(&self, agent: &str, chat_id: i64) -> bool {
     self.standing(agent).is_some_and(|conversations| conversations.in_round(chat_id))
   }
+
+  fn in_briefing(&self, agent: &str, chat_id: i64) -> bool {
+    self.standing(agent).is_some_and(|conversations| conversations.in_briefing(chat_id))
+  }
 }
 
 // A talk goes to the default answerer's conversations as the setting stands when it comes.
