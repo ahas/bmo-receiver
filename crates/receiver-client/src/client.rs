@@ -576,6 +576,11 @@ impl ReceiverClient {
       .map_err(|why| ClientFailure::Unreadable(why.to_string()))
   }
 
+  /// `POST /handovers/{agentName}`: the agent's one session hands over at its next turn.
+  pub async fn hand_over(&self, agent_name: &str, asked: &HandoverAsked) -> Answer<HandoverPending> {
+    Self::answered(self.send(Method::POST, &["handovers", agent_name], asked)).await
+  }
+
   /// `POST /events`.
   pub async fn publish_event(&self, event: &PublishedEvent) -> Answer<Created> {
     Self::answered(self.send(Method::POST, &["events"], event)).await

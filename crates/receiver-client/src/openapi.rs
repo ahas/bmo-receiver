@@ -1009,6 +1009,17 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "upstream-failed"]
   );
   add!(
+    "POST",
+    "/handovers/{agentName}",
+    "handOver",
+    "Handovers",
+    "An agent's one session asked to hand over at its next turn: it writes its handoff note and a fresh session opens on it.",
+    vec![name_parameter("agentName")],
+    Some(generator.subschema_for::<HandoverAsked>()),
+    vec![(202, json_answer::<HandoverPending>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "conflict", "upstream-failed"]
+  );
+  add!(
     "GET",
     "/voice-briefing",
     "voiceBriefing",

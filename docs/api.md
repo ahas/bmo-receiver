@@ -42,7 +42,7 @@ of its own.
 | 401 | `unauthorized` | the token is missing or wrong |
 | 403 | `forbidden` | the asker may not do this, as the account model says |
 | 404 | `no-route` | no route answers this method and path |
-| 404 | `not-found` | the room, message, instruction or run named does not exist |
+| 404 | `not-found` | the room, message, instruction, run or agent named does not exist |
 | 409 | `conflict` | the request contradicts what stands; the answer carries the refusal's own code |
 | 413 | `too-large` | a file is past the ceiling a road takes |
 | 429 | `limit` | a talk's provider limit is reached |
@@ -485,6 +485,25 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   session: it answers 200 with the file that one kept where it is still kept, else 204, and the journal counts
   the askings in a row.
 - **A failure to reach the agency** answers 502 `upstream-failed`.
+
+## Handovers
+
+| Route | Body | Answers |
+|---|---|---|
+| `POST /handovers/{agentName}` | `reason` | 202 `agentName`, `sessionReason` (`asked`): the agent's one session hands over at its next turn |
+
+- **A handover is asked for the agent's one session across its rooms** (`docs/unified-bmo.md`, 「Replacing the
+  session」). The route writes the word to start that session afresh with the reason `asked` and answers at once;
+  it runs no turn itself, so an agent may ask it of its own session from inside its own turn. The agent's next
+  turn, in whichever room, replaces the session as every replacement does: the old session writes its handoff
+  file, is ended, and the new session's first turn opens on the note.
+- **`reason`** is a non-empty English sentence saying why, for the receiver's journal; an empty one is refused
+  400 `bad-request`. The journal holds one line naming the agent and the reason.
+- **An agent with no opened session** is given the word all the same, and its next turn spends it in the one
+  replacement. A second asking before that turn writes the same word again, so one replacement answers both.
+- **An agent the agency does not register** is refused 404 `not-found`, **one that keeps a session in each room**
+  409 `conflict`, since a room's own session is the agency's to resume, and **a failure to reach the agency** 502
+  `upstream-failed`.
 
 ## Rounds
 

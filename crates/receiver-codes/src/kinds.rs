@@ -45,6 +45,8 @@ pub enum SessionReason {
   DowngradeForced,
   /// The session filled its window, and its provider hands it over by its own note rather than a fold.
   Full,
+  /// A handover was asked for the session.
+  Asked,
 }
 
 /// What opened a turn of a room that no person's words opened, as the console's verdicts show it.

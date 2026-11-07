@@ -1,14 +1,14 @@
 //! The nouns this repository's unit command declares to `bmo` (bmo-cli's `docs/api.md`, 「The unit command」;
 //! docs/boundary-api.md, 「The unit command」): the sends a shell asks the running receiver for through
 //! `POST /sends`, a line in the consult room through `POST /consult-lines`, the consult room read or set, the
-//! fair draw made or checked, and an agent's standing session asked for its handoff file through
-//! `POST /handoffs/{agentName}`. Every noun runs on the operations machine, since the receiver, its store and the
+//! fair draw made or checked, and an agent's one session asked to hand over at its next turn through
+//! `POST /handovers/{agentName}`. Every noun runs on the operations machine, since the receiver, its store and the
 //! rooms it answers are that machine's.
 
 use std::io::Read;
 
 use clap::{Args, Subcommand};
-use receiver_client::{HandoffAsked, ReceiverClient, RoomMode, RoomRegistration};
+use receiver_client::{HandoverAsked, ReceiverClient, RoomMode, RoomRegistration};
 use room_calls::bot::Service;
 use room_calls::sends::{
   Act, ConsultInput, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
@@ -205,18 +205,14 @@ pub enum DrawWord {
   Verify(VerifyArgs),
 }
 
-/// The words of `handoff`: the agent whose standing session is asked to write its handoff file ahead of a fresh
-/// one, why, and the room it keeps that session in where it keeps one in each room.
+/// The words of `handoff`: the agent whose one session hands over at its next turn, and why.
 #[derive(Args, Debug)]
 pub struct HandoffArgs {
-  /// The agent whose standing session is asked.
+  /// The agent whose session hands over.
   pub agent: String,
-  /// Why a fresh session is coming, in a short English sentence.
+  /// Why the session hands over, in a short English sentence for the receiver's journal.
   #[arg(long)]
   pub reason: String,
-  /// The room whose session is asked, where the agent keeps one in each room.
-  #[arg(long)]
-  pub room: Option<i64>,
 }
 
 /// The words given, or those on standard input where none are.
@@ -478,9 +474,9 @@ pub async fn draw(config: &Config, via: Option<String>, word: DrawWord) -> Resul
   }
 }
 
-/// `handoff`: the agent's standing session asked for its handoff file through `POST /handoffs/{agentName}`, the
-/// answer the route gives printed: the file it wrote and its size, or that it wrote nothing. Nothing of a room's
-/// conversation, its logs or its runs is changed; the route writes the note and the fresh session opens on it.
+/// `handoff`: the agent's one session asked to hand over through `POST /handovers/{agentName}`, answered at once
+/// with no turn run, so an agent may run it on itself inside its own turn. At its next turn the session writes its
+/// handoff note and a fresh session opens on it; nothing of a room's conversation, its logs or its runs is changed.
 pub async fn handoff(config: &Config, args: HandoffArgs) -> Result<Vec<String>, VerbError> {
   let agent = args.agent.trim();
   let reason = args.reason.trim();
@@ -489,25 +485,18 @@ pub async fn handoff(config: &Config, args: HandoffArgs) -> Result<Vec<String>, 
     return Err(VerbError::Refused("handoff: an agent name is required".to_owned()));
   }
 
-  let asked = HandoffAsked {
+  let asked = HandoverAsked {
     reason: reason.to_owned(),
-    room: args.room,
   };
-  let written = client(config)?
-    .hand_off(agent, &asked)
+  let pending = client(config)?
+    .hand_over(agent, &asked)
     .await
     .map_err(|why| VerbError::Refused(why.to_string()))?;
-  let asked_line = format!("handoff {agent}: asked ({reason})");
 
-  Ok(match written {
-    Some(written) => {
-      vec![asked_line, format!("handoff {agent}: wrote {} ({} bytes)", written.path, written.bytes)]
-    }
-    None => vec![
-      asked_line,
-      format!("handoff {agent}: wrote nothing: no standing session was asked, or it wrote no file"),
-    ],
-  })
+  Ok(vec![format!(
+    "handoff {}: handover asked ({reason}); it happens at the session's next turn",
+    pending.agent_name
+  )])
 }
 
 /// `draw draw`: the request read and the send asked of `POST /sends`.

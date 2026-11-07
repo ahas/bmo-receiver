@@ -36,6 +36,8 @@ export type Talk = Schemas["Talk"];
 export type TalkAnswer = Schemas["TalkAnswer"];
 export type HandoffAsked = Schemas["HandoffAsked"];
 export type HandoffWritten = Schemas["HandoffWritten"];
+export type HandoverAsked = Schemas["HandoverAsked"];
+export type HandoverPending = Schemas["HandoverPending"];
 export type VoiceBriefing = Schemas["VoiceBriefing"];
 export type VoiceBriefingSwitch = Schemas["VoiceBriefingSwitch"];
 export type LineReading = Schemas["LineReading"];
@@ -362,6 +364,11 @@ export function receiverClient(options: ReceiverOptions) {
       const result = await client.POST("/handoffs/{agentName}", { params: { path: { agentName } }, body });
 
       return result.response.status === 204 ? (answered(result), null) : answered(result);
+    },
+
+    /** `POST /handovers/{agentName}`: the agent's one session hands over at its next turn. */
+    async handOver(agentName: string, body: HandoverAsked): Promise<HandoverPending> {
+      return answered(await client.POST("/handovers/{agentName}", { params: { path: { agentName } }, body }));
     },
 
     /** `GET /voice-briefing`. */

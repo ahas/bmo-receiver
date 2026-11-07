@@ -1051,6 +1051,34 @@
         ],
         "type": "object"
       },
+      "HandoverAsked": {
+        "description": "A handover asked for an agent's one session: why, for the receiver's journal.",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "HandoverPending": {
+        "description": "A handover written for an agent's one session, which its next turn carries out: the agent, and the reason the\nreplacement goes by.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          },
+          "sessionReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agentName",
+          "sessionReason"
+        ],
+        "type": "object"
+      },
       "Health": {
         "description": "`GET /health`.",
         "properties": {
@@ -4108,6 +4136,64 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "upstream-failed"
+        ]
+      }
+    },
+    "/handovers/{agentName}": {
+      "post": {
+        "operationId": "handOver",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoverAsked"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverPending"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed"
+          }
+        },
+        "summary": "An agent's one session asked to hand over at its next turn: it writes its handoff note and a fresh session opens on it.",
+        "tags": [
+          "Handovers"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "conflict",
           "upstream-failed"
         ]
       }

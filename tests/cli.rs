@@ -163,6 +163,20 @@ fn every_noun_reads_as_the_command_bmo_dispatches() {
 }
 
 #[test]
+fn the_handoff_help_says_the_session_hands_over_at_its_next_turn() {
+  let help = run(&["handoff", "--help"]);
+  let words = said(&help);
+
+  assert!(help.status.success(), "the help was refused: {words}");
+  assert!(
+    words
+      .contains("hands over at its next turn: it writes its handoff note and a fresh session opens on it"),
+    "{words}"
+  );
+  assert!(!words.contains("--room"), "the handover is the agent's, not a room's: {words}");
+}
+
+#[test]
 fn the_routes_command_prints_the_table_once_each() {
   let printed = run(&["routes"]);
   let words = said(&printed);

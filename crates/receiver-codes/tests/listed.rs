@@ -242,6 +242,7 @@ fn a_fixed_line_is_its_code_and_fields_and_says_whether_it_is_a_system_notice() 
 fn a_kind_is_its_kebab_case_word() {
   assert_eq!(serde_json::to_value(SessionReason::DowngradeForced).unwrap(), json!("downgrade-forced"));
   assert_eq!(SessionReason::NoPrefix.to_string(), "no-prefix");
+  assert_eq!(SessionReason::Asked.to_string(), "asked");
   assert_eq!(
     serde_json::to_value(RunTitle::VoiceBriefing {
       room: "room-a".to_owned()

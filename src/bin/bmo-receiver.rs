@@ -125,7 +125,7 @@ enum Command {
     #[command(subcommand)]
     word: DrawWord,
   },
-  /// An agent's standing session asked for its handoff file ahead of a fresh one, through the running receiver.
+  /// The agent's session hands over at its next turn: it writes its handoff note and a fresh session opens on it.
   Handoff(HandoffArgs),
 }
 

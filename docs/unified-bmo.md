@@ -189,6 +189,10 @@
   A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
   folded: the owner's word to start it afresh is written for it, with the reason `full`, and its next turn
   replaces it.
+- **A handover asked for is the same word.** `POST /handovers/{agentName}` (`docs/api.md`, 「Handovers」), which
+  the `handoff` command asks (`docs/boundary-api.md`, 「The unit command」), writes the owner's word to start the
+  agent's one session afresh with the reason `asked`, and runs no turn: the agent may ask it of its own session
+  from inside its own turn, and its next turn, in whichever room, replaces the session through the handoff below.
 - **A session past its cache lifetime is woken only by what someone waits on.** A room's own words and a room
   reply (`docs/wake.md`, 「Quiet instructions」: a research result, a delegate's or a worker's answer, a job's
   report, a reminder come due) open a round on it at once, and that round replaces it: the fresh session reads

@@ -836,6 +836,22 @@ pub struct HandoffWritten {
   pub bytes: u64,
 }
 
+/// A handover asked for an agent's one session: why, for the receiver's journal.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HandoverAsked {
+  pub reason: String,
+}
+
+/// A handover written for an agent's one session, which its next turn carries out: the agent, and the reason the
+/// replacement goes by.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HandoverPending {
+  pub agent_name: String,
+  pub session_reason: String,
+}
+
 /// The voice briefing's two switches: the whole briefing, and whether a summary plays by itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

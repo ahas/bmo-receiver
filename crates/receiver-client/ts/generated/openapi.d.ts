@@ -196,6 +196,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/handovers/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An agent's one session asked to hand over at its next turn: it writes its handoff note and a fresh session opens on it. */
+        post: operations["handOver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1720,6 +1737,18 @@ export interface components {
             bytes: number;
             path: string;
         };
+        /** @description A handover asked for an agent's one session: why, for the receiver's journal. */
+        HandoverAsked: {
+            reason: string;
+        };
+        /**
+         * @description A handover written for an agent's one session, which its next turn carries out: the agent, and the reason the
+         *     replacement goes by.
+         */
+        HandoverPending: {
+            agentName: string;
+            sessionReason: string;
+        };
         /** @description `GET /health`. */
         Health: {
             ready: boolean;
@@ -3022,6 +3051,41 @@ export interface operations {
                 content?: never;
             };
             /** @description A refusal or failure: unauthorized, bad-request, upstream-failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    handOver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverAsked"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverPending"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;

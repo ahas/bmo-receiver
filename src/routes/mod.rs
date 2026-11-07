@@ -12,6 +12,7 @@ mod drafts;
 mod events;
 mod figures;
 mod handoffs;
+mod handovers;
 mod hooks;
 mod instructions;
 mod message_acts;
@@ -181,6 +182,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/consult-lines", get(block)),
     ("POST", "/talks", post(talk)),
     ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
+    ("POST", "/handovers/{agentName}", post(handovers::hand_over)),
     ("GET", "/voice-briefing", get(briefing::switches)),
     ("PUT", "/voice-briefing", put(briefing::switch)),
     ("POST", "/rooms/{roomId}/messages/{messageId}/reading", post(briefing::reading)),
