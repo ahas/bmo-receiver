@@ -16,8 +16,8 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 use room_calls::sends::{
-  FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput,
-  StickerInput, VoiceInput,
+  FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
+  VoiceInput,
 };
 use room_calls::turn::NO_ROOM;
 use send_tool::{ENTRIES, call};

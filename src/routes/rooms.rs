@@ -432,7 +432,11 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   let receiver: Receiver = (*served.receiver).clone();
   let key = asked.provider.as_deref().unwrap_or_default();
   let Some(mode) = asked.mode else {
-    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "A room added on a chat service names its mode."));
+    return Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      "A room added on a chat service names its mode.",
+    ));
   };
   let Some(service) = receiver.roads().chats().road(key) else {
     return Err(refused(
@@ -486,9 +490,7 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   }
 
   let title = asked.title.filter(|title| !title.trim().is_empty()).or(held.title);
-  let made = added::add(receiver.db(), room, key, mode, title.as_deref())
-    .await
-    .map_err(store)?;
+  let made = added::add(receiver.db(), room, key, mode, title.as_deref()).await.map_err(store)?;
 
   if !made {
     return Err(code(&RoomAdditionRefusal::RoomAdded { room }));

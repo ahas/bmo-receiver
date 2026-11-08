@@ -149,7 +149,9 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
       }
 
       let body = json!({ "title": input.title, "supervisors": members });
-      receiver.answered(client.post(format!("{}/rooms", receiver.base)).json(&body), "/rooms").await
+      receiver
+        .answered(client.post(format!("{}/rooms", receiver.base)).json(&body), "/rooms")
+        .await
     }
     "room_list" => {
       let input: ListInput = match read(name, arguments) {
@@ -171,7 +173,9 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
       let body = json!({ "supervisors": input.supervisors });
       let path = format!("/rooms/{}/supervisors", input.room_id);
 
-      receiver.answered(client.put(format!("{}{path}", receiver.base)).json(&body), &path).await
+      receiver
+        .answered(client.put(format!("{}{path}", receiver.base)).json(&body), &path)
+        .await
     }
     other => Answer::failure(format!("this executable holds no entry {other}")),
   }
