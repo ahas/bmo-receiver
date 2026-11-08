@@ -331,8 +331,10 @@ pub async fn contacts(State(served): State<Served>, Path(key): Path<String>, raw
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Adding {
-  provider: String,
-  mode: RoomMode,
+  #[serde(default)]
+  provider: Option<String>,
+  #[serde(default)]
+  mode: Option<RoomMode>,
   #[serde(default)]
   room_id: Option<i64>,
   #[serde(default)]
@@ -341,6 +343,9 @@ struct Adding {
   contact_ids: Option<Vec<i64>>,
   #[serde(default)]
   title: Option<String>,
+  /// The supervisors an agent room answers: a room created on the record alone, with no chat service.
+  #[serde(default)]
+  supervisors: Option<Vec<String>>,
 }
 
 /// What a room to add is chosen as: a room of the account, or a conversation to start.
@@ -418,9 +423,17 @@ async fn started(
 /// refused, and nothing is written.
 pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Adding>(&body)?;
+
+  if asked.provider.is_none() {
+    return agent_room(served, asked).await;
+  }
+
   let chosen = asked.chosen()?;
   let receiver: Receiver = (*served.receiver).clone();
-  let key = asked.provider.as_str();
+  let key = asked.provider.as_deref().unwrap_or_default();
+  let Some(mode) = asked.mode else {
+    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "A room added on a chat service names its mode."));
+  };
   let Some(service) = receiver.roads().chats().road(key) else {
     return Err(refused(
       StatusCode::BAD_REQUEST,
@@ -442,7 +455,7 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
     })
   };
 
-  if !added::offered(&declared).contains(&asked.mode) {
+  if !added::offered(&declared).contains(&mode) {
     return Err(avatar_unsupported());
   }
 
@@ -468,12 +481,12 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
     }));
   }
 
-  if !added::takes(&held, asked.mode) {
+  if !added::takes(&held, mode) {
     return Err(avatar_unsupported());
   }
 
   let title = asked.title.filter(|title| !title.trim().is_empty()).or(held.title);
-  let made = added::add(receiver.db(), room, key, asked.mode, title.as_deref())
+  let made = added::add(receiver.db(), room, key, mode, title.as_deref())
     .await
     .map_err(store)?;
 
@@ -483,6 +496,69 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
 
   // The service has just said what it holds; what was kept of the room before is read again.
   receiver.roads().forget_room(room);
+
+  Ok((StatusCode::CREATED, axum::Json(room_read(&receiver, room).await?)))
+}
+
+/// A room on the record alone: an agent room with its answering agents, and no chat service behind it. The
+/// room API creates it as any other, so an agent room is not a messenger's concern: its members wake by a
+/// call by name or a reply to their words, and the owner reads it as any room.
+async fn agent_room(served: Served, asked: Adding) -> Accepted {
+  let bad = |why: &str| refused(StatusCode::BAD_REQUEST, "bad-request", why);
+
+  if asked.room_id.is_some() || asked.contact_id.is_some() || asked.contact_ids.is_some() {
+    return Err(bad("An agent room names no messenger room and no contact."));
+  }
+
+  let title = asked
+    .title
+    .as_deref()
+    .map(str::trim)
+    .filter(|title| !title.is_empty())
+    .ok_or_else(|| bad("An agent room needs a title."))?
+    .to_owned();
+  let members = asked.supervisors.unwrap_or_default();
+
+  if members.is_empty() {
+    return Err(bad("An agent room names the agents that answer it."));
+  }
+
+  let receiver: Receiver = (*served.receiver).clone();
+
+  for name in &members {
+    super::supervisors::registered(&receiver, name).await?;
+  }
+
+  let room = crate::roads::record::next_room(receiver.db()).await.map_err(store)?;
+  let record = Road::Record.key().to_owned();
+
+  crate::run(
+    receiver.db(),
+    r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ($1, $2, $3, $4)"#,
+    vec![record.clone().into(), room.to_string().into(), room.into(), title.clone().into()],
+  )
+  .await
+  .map_err(store)?;
+  providers::choose(receiver.db(), room, std::slice::from_ref(&record))
+    .await
+    .map_err(store)?;
+  crate::run(
+    receiver.db(),
+    r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES ($1, $2) ON CONFLICT ("chat_id") DO UPDATE SET "title" = excluded."title""#,
+    vec![room.into(), title.into()],
+  )
+  .await
+  .map_err(store)?;
+
+  for name in members {
+    crate::run(
+      receiver.db(),
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2) ON CONFLICT DO NOTHING"#,
+      vec![room.into(), name.into()],
+    )
+    .await
+    .map_err(store)?;
+  }
 
   Ok((StatusCode::CREATED, axum::Json(room_read(&receiver, room).await?)))
 }

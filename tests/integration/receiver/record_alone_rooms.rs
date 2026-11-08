@@ -125,6 +125,32 @@ async fn the_owners_words_in_a_room_on_the_record_alone_wake_its_answerer_and_as
 }
 
 #[tokio::test]
+async fn a_room_naming_no_provider_is_an_agent_room_on_the_record_alone() {
+  let (_scratch, _data, standing, _road, port) = stood().await;
+  let body = json!({ "title": "Agents", "supervisors": [AGENT] });
+  let request = Request::post("/rooms")
+    .header("authorization", format!("Bearer {TOKEN}"))
+    .header("content-type", "application/json")
+    .body(Body::from(body.to_string()))
+    .unwrap();
+  let answer = port.clone().oneshot(request).await.unwrap();
+
+  assert_eq!(answer.status(), StatusCode::CREATED);
+
+  let written = to_bytes(answer.into_body(), usize::MAX).await.unwrap();
+  let room: Value = serde_json::from_slice(&written).unwrap();
+  let id = room["id"].as_i64().unwrap();
+
+  assert_eq!(room["title"], json!("Agents"));
+  assert_eq!(room["supervisors"], json!([AGENT]));
+
+  let roads = standing.receiver.roads();
+
+  assert!(roads.record_alone(id).await, "the room stands on the record alone");
+  assert_eq!(roads.own(id).await, Some(Road::Record));
+}
+
+#[tokio::test]
 async fn a_room_a_road_may_hold_still_asks_that_road() {
   let (_scratch, _data, standing, road, port) = stood().await;
 

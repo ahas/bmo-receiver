@@ -168,7 +168,7 @@ async fn naming(db: &DatabaseConnection, name: &str) -> Result<Vec<(i64, i64)>, 
 }
 
 /// The supervisor the agency registers under the name, or the refusal of a name it does not.
-async fn registered(receiver: &Receiver, name: &str) -> Result<Agent, Refusal> {
+pub(super) async fn registered(receiver: &Receiver, name: &str) -> Result<Agent, Refusal> {
   receiver.units().agency.supervisor(name).await.map_err(unit)?.ok_or_else(|| {
     code(&SupervisorRefusal::UnknownSupervisor {
       supervisor: name.to_owned(),

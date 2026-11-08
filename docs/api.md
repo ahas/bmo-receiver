@@ -88,7 +88,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `GET /rooms` | | a page of `Room`, the pinned ones first |
-| `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title | 201, the `Room` added |
+| `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title. With no `provider`, `title` and `supervisors`, the agents that answer it, make an agent room on the record alone, with no chat service behind it | 201, the `Room` added |
 | `GET /rooms/{roomId}` | | one `Room` |
 | `GET /rooms/{roomId}/registration` | `by` (the administrator) | the room's registration: `mode`, `providers` and `chosen`, `answerers`, `readOnly`, and `readOnlyBy`, the chat services reading it in the owner's account alone |
 | `PUT /rooms/{roomId}/registration` | `by` (the administrator); `mode`, `avatar` or `record-only` | the registration as it now stands |
@@ -184,6 +184,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
     refuses 409 `start-refused` with its sentence; a room the service does not say is its own 409 `room-unknown`;
     and a room already added 409 `room-added`. A service that does not answer is 502 `upstream-failed` on each
     route.
+- **A body naming no `provider`, a `title` and the `supervisors` that answer it** makes an agent room: the
+  receiver numbers it in the record's own range, sets its one provider to the record, writes its title and its
+  answering agents, and answers the room as it stands. No chat service stands behind it, and its members wake
+  by a call by name or a reply to their words as those of any room do.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
