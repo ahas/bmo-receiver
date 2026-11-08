@@ -151,8 +151,6 @@ that wants something said there hands the words to that supervisor, and the supe
   and the spoken words where given) before anything is synthesised. Outside the asker's own round it is handed
   like any other act, so the supervisor speaks it in its own voice; in the asker's own round the receiver answers
   `own` and sends nothing, and the command makes the note and sends it as `voice`.
-- **A line in the consult room is handed the same way** to the agent it would be said under, in the consult room
-  (`docs/consult.md`, 「The consult tool」).
 - **A person's own words are not handed:** what the owner puts in a room from the console, forwards there or does
   to a message is his own (`docs/receiver.md`, 「The owner's words」), and a line the receiver says as the service
   is the system's own (`docs/voiced-notices.md`, 「System notices」 and 「Lines that stay fixed」).

@@ -44,7 +44,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 | Old member | Stands here as | Carried by |
 |---|---|---|
 | `tools/send/tool.toml`, `Cargo.toml`, `src/lib.rs`, `src/main.rs` | of the same names under `tools/send/` | build-15 (Port the send tool) |
-| its eight schemas: `say`, `consult`, `photo`, `remind`, `react`, `pin`, `sticker`, `random_draw` | the JSON files under `tools/send/` of every one but `remind`, which stands nowhere: no reminder is set through the receiver | build-15 |
+| its seven schemas: `say`, `photo`, `remind`, `react`, `pin`, `sticker`, `random_draw` | the JSON files under `tools/send/` of every one but `remind`, which stands nowhere: no reminder is set through the receiver | build-15 |
 | — | `crates/tool-call/`, the call protocol the tool speaks: the S3 enumeration counted only the tool's own files, and the old shared tool crate is a forbidden dependency, so the protocol stands as a crate of this repository | build-15 |
 | — | `tests/send.rs`, one schema and route test per entry, and the manifest held to the executable | build-15 |
 
@@ -105,7 +105,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 
 | Member | Stands here as | Carried by |
 |---|---|---|
-| own: `chat-round`, `roads`, `wake`, `talk`, `restart`, `second-asks`, `consult`, `handover`, `files`, `code-review`, `queue` | `policy/` of the same names | build-3 (Copy the receiver's policy) |
+| own: `chat-round`, `roads`, `wake`, `talk`, `restart`, `second-asks`, `handover`, `files`, `code-review`, `queue` | `policy/` of the same names | build-3 (Copy the receiver's policy) |
 | shared, the keys the receiver acts on: `chat-health`, `chat-line`, `rest`, `resident-turn`, `run-lines`, `roles`, `keepalive`, `providers` | `policy/` of the same names, the old `providers/` folder become one `providers.toml` | build-3 |
 | `commands.toml` | `policy/commands.toml`: the phrases the owner's commands are matched by, the polite endings and the option suffixes | build-2 (Turn room words into codes) |
 | the loader | `crates/receiver-policy`, one module per file, held to the folder by its load test | build-3 |
@@ -120,7 +120,6 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `chat_health` | `FixedLine::ProviderDown`, the turn openings of kind `fold` and `fold-deferred` |
 | `chat_turn` | `RunTitle::Chat`, `RunTitle::Fold` |
 | the added supervisors' words | `SupervisorRefusal`, `SupervisorFact::RoomTakenBack` |
-| `consult` | `ConsultRefusal`, with the `said` and `number` lines moved to `policy/consult.toml` |
 | `draws` | `FixedLine::Draw` with its line, asked and result fields |
 | `owner_sends` | `OwnerSendRefusal`, `FileUnsent` with a per-file reason, sizes in bytes |
 | `providers` | `SkipReason::ProviderOff` |
@@ -156,7 +155,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `tests/integration/private_thread.rs` | of the same name | build-8 |
 | the colocated modules of `chat/ask`, `progress`, `again`, and the promises reading | `tests/ask.rs`, `tests/progress.rs`, `tests/draft.rs`, `tests/promises.rs` | build-9 |
 | `tests/integration/stop_notice.rs` | of the same name | build-9 |
-| `tests/integration/chat_tool.rs` (the consult block test), `receiver/talk.rs`, `talk_verbs.rs` (the consult tests), `chat/talk`'s colocated module | `tests/integration/consult_block.rs`, `tests/integration/talks.rs`, `tests/integration/consult_verbs.rs`, `tests/talk.rs` | build-10 |
+| `receiver/talk.rs` and `chat/talk`'s colocated module | `tests/integration/talks.rs`, `tests/talk.rs` | build-10 |
 | `tests/integration/verbs_messages.rs`, `verbs_draws.rs`, `receiver/owner_sends.rs`, `receiver/owner_words.rs` | of the same names | build-11 |
 | the colocated modules of `verbs/turn`, `verbs/draws`, `verbs/room_files`, `chat/room-acts` | `tests/turn.rs`, `tests/draws.rs`, `tests/room_files.rs`, `crates/room-calls/tests/` | build-11 |
 | `tests/integration/receiver/job_queue.rs`, `receiver/worker_settings.rs`, the `common/queue` helper, and a contract test per sibling document | `tests/integration/contracts.rs` and `tests/integration/common/queue.rs` | build-12 |
@@ -169,7 +168,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 
 `docs/boundary-api.md` and the area documents, written to the present tense and free of personal and machine
 detail, by build-1 (Write the boundary document): `receiver.md`, `bmo-window.md`, `wake.md`,
-`voiced-notices.md`, `answer-checks.md`, `consult.md`, `random-draw.md`, `messages.md`, `room-files.md`,
+`voiced-notices.md`, `answer-checks.md`, `random-draw.md`, `messages.md`, `room-files.md`,
 `pictures.md`, `chat-mcp.md`, `rooms.md`, `reminders.md` (delivery only), `unified-bmo.md`, and `policy.md`.
 `docs/codes.md` came with build-2, `docs/store.md` with build-4, `docs/wording.md` with build-16.
 
@@ -189,7 +188,7 @@ build-1 and implemented by the task named here.
 | the chat protocol's hand-overs | 4 | build-6, through `bmo-chat-client` |
 | the cache warmer's ping hook | 1 | build-12 |
 | the agency's hooks answered | 3 | build-12 |
-| the receiver's own: sends, consult, the owner's words, say, events, live, health, room removal, openings, voice, supervisors | — | build-6, build-10, build-11, build-13 |
+| the receiver's own: sends, the owner's words, say, events, live, health, room removal, openings, voice, supervisors | — | build-6, build-10, build-11, build-13 |
 | the console's reads, under `/console/` | 8 | build-12 |
 
 ## S12 — the ports out
@@ -215,7 +214,6 @@ speaks through the sends.
 | Member | Why it stands here | Carried by |
 |---|---|---|
 | `crates/tool-call/` | the tool host's call protocol, which the S3 enumeration counted only as the tool's own files | build-15 |
-| `src/verbs/consult.rs` | the consult verbs, which the old `verbs/` enumeration named `talks.rs` for this unit but not `consult.rs`, that `talks.rs` calls | build-10 |
 | `src/receiver/labels.rs` | the label drawn into a picture's own band, which the file rules of build-18 need | build-18 |
 | `src/receiver/reads.rs` | the room reads another unit asks of them, which the owed contracts of build-12 answer | build-12 |
 | `src/routes/hooks.rs`, `src/routes/mod.rs` | the token check, the refusal shape and the route table every route shares | build-10, reworked by build-14 |

@@ -81,7 +81,7 @@ is written.
 | A tool call `bmo use` ran on its own come to its end: a reminder's moment, a watch's check holding, a long draw (`docs/reminders.md`) | bmo-cli's `use` unit | instruction table | `round` | opens | — |
 | A search's, a browse's and a remote browser's result | bmo-artifact's instructions | instruction table | `round` | opens | — |
 | A say run's report, and an answer relayed back to the room that asked | the receiver's sends, the conversation | instruction table | `round` | opens | — |
-| Words handed to the room's supervisor: a send asked outside its own round (`docs/messages.md`, 「Words handed to the room's supervisor」) | `POST /sends`, `POST /consult-lines` | instruction table | `round` | opens | — |
+| Words handed to the room's supervisor: a send asked outside its own round (`docs/messages.md`, 「Words handed to the room's supervisor」) | `POST /sends` | instruction table | `round` | opens | — |
 | Voice and digest notices | the units that run them | instruction table | `round` | opens | — |
 | A run past its clock | the agency's events | instruction table | `round` | opens | — |
 | An instruction typed on the console | `POST /owner/instructions` | instruction table | `round` | opens | — |

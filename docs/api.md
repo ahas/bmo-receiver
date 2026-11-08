@@ -343,9 +343,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   to the room's supervisor」). `from` names the command or unit the words came through, which the handed words
   carry. A `speak` sends nothing either way: in the asker's own round it answers `own` true and no lines, and the
   command sends the note it makes as `voice`.
-- **`began`** is the moment the asking turn took its words, in epoch milliseconds. A send, or a consult line, whose
+- **`began`** is the moment the asking turn took its words, in epoch milliseconds. A send whose
   `began` is at or before its agent's reset point, the agency's as the receiver reads it then, is refused before
-  anything else, its `refusal` (a consult line's code `overtaken`, 409) telling the turn to end (`docs/wake.md`,
+  anything else, its `refusal` (code `overtaken`, 409) telling the turn to end (`docs/wake.md`,
   「An agent's reset」).
 - **A voice briefing turn sends nothing.** While the receiver carries a notice turn's summary or a line's full
   reading for an agent in a room, a send that agent asks into that room, of any act and from no job, is refused
@@ -407,8 +407,6 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /consult-lines` | `agent`, `text`, `replyTo?`, `began?`, `by?`, `job?`, `from?` | `room`, `id`, `lines`: each agent's window in the consult room; where the agent's round is not working in the room `by` names, or a job asks, the line is handed to that agent in the consult room instead, answered `lines` and `handed`, the instruction's number |
-| `GET /consult-lines` | `agentName` | `block`, what the agent is shown of the other agents' work, or null |
 
 ## Talks
 

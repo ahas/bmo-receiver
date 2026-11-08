@@ -103,7 +103,6 @@ the operations machine's:
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
 | `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
-| `consult` | `room [<room>]`, `state`, or `say <words> [--reply <id>]`, each with `[--agent <name>]` | `room` and `state` read the store; `say` asks `POST /consult-lines` under the agent's own name, which hands the line to that agent outside its own round |
 | `draw` | `draw --chat <id> --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
 | `handoff` | `handoff <agent> --reason <words>` | `POST /handovers/{agentName}`: the agent's one session hands over at its next turn, writing its handoff note and a fresh session opening on it; prints one line that the handover is asked and happens at the next turn; a refusal is the route's own sentence |
 
@@ -172,7 +171,7 @@ room's matter.
 |---|---|---|---|
 | the supervisors | `GET /supervisors` | | `items`, every supervisor with its row's fields — its `label`, `aliases`, `sessionScope`, `turnShape`, `defaultAnswerer`, `repository`, `voice`, and the `provider`, `model` and `effort` its last turn went out on — and `more`; every supervisor listed stands, and is read as awake; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
 | a supervisor | `GET /supervisors/{supervisorName}` | | the supervisor's row as the list answers it, of which the receiver reads `seeded`, whether the deployment seeds it; 404 where no supervisor has the name, read as none. Asked afresh, never kept, before a supervisor is taken out (`docs/api.md`, 「Supervisors」) |
-| a supervisor's reset point | `GET /supervisors/{supervisorName}/reset-point` | | `supervisor` and `resetPoint`, the moment in epoch milliseconds its last reset cut its turns off at, or null where it was never reset; 404 where no supervisor has the name, read as none. Asked afresh, never kept, by every send and every consult line for its agent's reset point (`docs/wake.md`, 「An agent's reset」) |
+| a supervisor's reset point | `GET /supervisors/{supervisorName}/reset-point` | | `supervisor` and `resetPoint`, the moment in epoch milliseconds its last reset cut its turns off at, or null where it was never reset; 404 where no supervisor has the name, read as none. Asked afresh, never kept, by every send for its agent's reset point (`docs/wake.md`, 「An agent's reset」) |
 | the roles | `GET /roles` | | `roles`, each its `name`, `label`, `description` and `bundles` (each its `name`), which the owner's roster and a role's send read |
 | the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which a supervisor added on the console is checked against |
 | a stand-in | `GET /stand-in?agent=` | | `answers`, whether a stand-in answers the agent while the rest closes its road |

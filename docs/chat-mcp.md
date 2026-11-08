@@ -10,7 +10,6 @@ and watches are `docs/reminders.md`'s. The other tools of the catalogue are thei
 - **`say`**: words into the turn's room, or the room `chat` names, on the turn's road or the one `via` names,
   with an optional `replyTo` naming the message in the room the line replies to;
   `reply` asks for an answer back.
-- **`consult`**: one line in the consult room under the calling agent's own name (`docs/consult.md`).
 - **`photo`**: one picture or an album, each `url` with an optional `label`, a `caption` (`docs/pictures.md`) and
   an optional `replyTo` naming the message it replies to.
 - **`file`**: one file from this machine, or several as one album, each a `path` and an optional `name`, with a
@@ -43,13 +42,12 @@ needs its road to perform, so the room's block names the sending entries a room'
   the refusal it ended in; anywhere else (a job's call, a worker's, a call made outside any round) it hands the act
   to the room's supervisor and answers the line saying so (`docs/messages.md`, 「Words handed to the room's
   supervisor」).
-- **`consult`** asks `POST /consult-lines` with the turn's agent, the words, the consult room's message it
   answers, the moment the turn took its words, the chat that set it off and whether a job asks, which the
   receiver says or hands over the same way; a call made outside any agent's turn is refused here, since there is
   no agent to speak as.
 - **An overtaken turn sends nothing.** The receiver reads the agent's reset point from the agency's reset-point read as
-  each send or consult line asks, beside the one it keeps from the agency's cut-off (`docs/wake.md`, 「An agent's
-  reset」), and refuses a send or a consult line whose `began` is at or before that point, before anything else is
+  each send asks, beside the one it keeps from the agency's cut-off (`docs/wake.md`, 「An agent's
+  reset」), and refuses a send whose `began` is at or before that point, before anything else is
   read, the refusal telling the turn to end without another call.
 - **Where each unit is found:** the receiver's address and token from the call's environment
   (`RECEIVER_ADDRESS`, `RECEIVER_TOKEN`), else from `env/receiver.env` under the data root, which the receiver's
@@ -96,7 +94,7 @@ needs its road to perform, so the room's block names the sending entries a room'
 ## The verbs beside it
 
 The receiver's command line carries the same sends: `bmo room say`, `bmo talk`, `bmo photo`, `bmo react`,
-`bmo pin`, `bmo sticker`, `bmo consult say` and `bmo draw draw` (docs/boundary-api.md, 「The unit command」).
+`bmo pin`, `bmo sticker` and `bmo draw draw` (docs/boundary-api.md, 「The unit command」).
 Each asks the receiver the same way, from its own shell's turn, so a tool and a command cannot send differently:
 in a shell of the supervisor's own working round a command sends as that supervisor, and for a person, a job, a
 script or a turn whose tool call failed it hands the words to the room's supervisor, who says them in its own
