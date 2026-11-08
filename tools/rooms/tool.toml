@@ -1,0 +1,39 @@
+# The rooms an agent opens, reads and names its answerers for: a room on the record alone, with no chat
+# service behind it, its supervisors, and the rooms a supervisor answers. The owner reads such a room as any
+# room; its members wake by a call by name or a reply to their words.
+
+[tool]
+name = "rooms"
+protocol = 1
+language = "rust"
+build = 'cargo build --release -p rooms-tool && cp "$BMO_CARGO_TARGET/release/rooms-tool" "$BMO_TOOL_OUT/"'
+check = 'cargo test -p rooms-tool'
+run = ["rooms-tool"]
+timeout = 60
+
+[[entry]]
+namespace = "bmo"
+name = "room_open"
+description = "Open an agent room on the record alone, with the agents that answer it; the owner reads it as any room."
+manual = "manual.md"
+input = "open.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+
+[[entry]]
+namespace = "bmo"
+name = "room_list"
+description = "The rooms a supervisor answers, each with its number and its title."
+manual = "manual.md"
+input = "list.json"
+hints = { read_only = true }
+capabilities = ["room.tools"]
+
+[[entry]]
+namespace = "bmo"
+name = "room_supervisors"
+description = "Name the whole list of supervisors that answer a room."
+manual = "manual.md"
+input = "supervisors.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]

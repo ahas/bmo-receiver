@@ -2488,6 +2488,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rooms-tool"
+version = "0.1.0-rev.1"
+dependencies = [
+ "reqwest",
+ "room-calls",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tool-call",
+]
+
+[[package]]
 name = "roxmltree"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

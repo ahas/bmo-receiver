@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "supervisors"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The room's title, as a person reads it."
+    },
+    "supervisors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The supervisors that answer it; the calling agent is added where it names none."
+    }
+  }
+}

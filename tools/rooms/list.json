@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "supervisor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The supervisor whose rooms are read; the calling agent where none is given."
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["roomId", "supervisors"],
+  "properties": {
+    "roomId": {
+      "type": "integer",
+      "description": "The room, by its number."
+    },
+    "supervisors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The whole list of supervisors that answer it."
+    }
+  }
+}

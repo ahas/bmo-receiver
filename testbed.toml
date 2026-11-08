@@ -46,7 +46,7 @@ command = "cargo fmt --all --check"
 
 # The service's binary and each tool's executable go into a release's bin/.
 [build]
-binaries = ["bmo-receiver", "send-tool", "wait-tool"]
+binaries = ["bmo-receiver", "rooms-tool", "send-tool", "wait-tool"]
 
 # The receiver's own deploy tree, and the data root it shares with the services that read its files. The
 # configuration stands under the data root as env/receiver.toml, and each release links to it as settings.toml,
@@ -91,7 +91,7 @@ id = "place-tools"
 phase = "before-flip"
 command = '''
 set -eu
-for tool in send wait; do
+for tool in rooms send wait; do
   rm -rf "tools/$tool/.placed"
   mkdir -p "tools/$tool/.placed"
   cp "bin/$tool-tool" "tools/$tool/tool.toml" "tools/$tool/"*.json "tools/$tool/.placed/"
@@ -110,6 +110,7 @@ phase = "after-health"
 command = '''
 set -eu
 put="$HOME/.local/share/bmo-pocket/deploy/bin/bmo-pocket"
+"$put" put --service receiver --placed --allow room.tools tools/rooms/.placed
 "$put" put --service receiver --placed --allow room.tools --allow room.chat --allow room.send tools/send/.placed
 "$put" put --service receiver --placed --allow room.tools tools/wait/.placed
 '''
