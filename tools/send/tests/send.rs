@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 use room_calls::sends::{
-  ConsultInput, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput,
+  FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput,
   StickerInput, VoiceInput,
 };
 use room_calls::turn::NO_ROOM;
@@ -165,31 +165,6 @@ async fn a_send_carries_the_reply_target_the_tool_names() {
   let (_, body) = asked_of(&book);
 
   assert_eq!(body["input"]["replyTo"], 20620);
-}
-
-#[tokio::test]
-async fn consult_is_asked_of_the_receivers_consult_route_under_the_turns_agent() {
-  let book = Book::default();
-  let base = stood(book.clone()).await;
-  let data = tempdir().unwrap();
-  write_env(data.path(), base);
-  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
-
-  let answered = call(&session, "consult", json!({ "text": "we take the second one", "reply": 12 })).await;
-
-  assert_eq!(schema_of("consult.json"), input_schema::<ConsultInput>());
-  assert!(!answered.is_error, "{}", answered.plain());
-  let (route, body) = asked_of(&book);
-
-  assert_eq!(route.as_str(), "/consult-lines");
-  assert_eq!(
-    body,
-    json!({
-      "agent": "agent-a", "text": "we take the second one", "replyTo": 12, "began": 1_000,
-      "by": format!("chat:{ROOM}"),
-    }),
-    "the turn's room goes with the line, so the receiver can tell the agent's own round",
-  );
 }
 
 #[tokio::test]
@@ -488,10 +463,6 @@ async fn a_call_outside_any_room_or_any_agents_turn_is_refused_without_asking() 
   let nowhere = call(&session, "say", json!({ "text": "hello" })).await;
 
   assert!(nowhere.is_error && nowhere.plain().contains(NO_ROOM));
-
-  let no_agent = call(&session, "consult", json!({ "text": "hello" })).await;
-
-  assert!(no_agent.is_error && no_agent.plain().contains("outside any agent's turn"));
   assert!(book.taken.lock().unwrap().is_empty());
 }
 

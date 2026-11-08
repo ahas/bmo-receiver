@@ -1,5 +1,5 @@
 //! The sends the agents make into rooms, the entries of the `send` tool (docs/chat-mcp.md, 「Its entries」;
-//! 「How a call runs」): a line said in a room or in the consult room, a picture or an album, a file or an album
+//! 「How a call runs」): a line said in a room, a picture or an album, a file or an album
 //! of files, a voice note, a reaction, a pin, a sticker, a fair draw and a fixed line. Every entry asks the
 //! running receiver for the send, as the `bmo` commands doing the same sends ask it. A call reads its turn
 //! afresh from the session's record and refuses one its agent's reset overtook before it asks anything, and
@@ -10,8 +10,8 @@ use serde_json::{Value, json};
 use room_calls::{
   bot::Service,
   sends::{
-    Act, Asker, ConsultInput, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput,
-    SayInput, StickerInput, Unsent, VoiceInput, ask, ask_consult,
+    Act, Asker, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput,
+    StickerInput, Unsent, VoiceInput, ask,
   },
   turn::{NO_ROOM, Turn},
 };
@@ -51,13 +51,6 @@ pub const ENTRIES: &[Entry] = &[
     "Put a line in a room, through the output gates, without waiting for it.",
     "say.json",
     input_schema::<SayInput>,
-    None,
-  ),
-  entry(
-    "consult",
-    "Say a line in the consult room under your own name, to settle work of yours that overlaps another agent's; answers with each agent's window there.",
-    "consult.json",
-    input_schema::<ConsultInput>,
     None,
   ),
   entry(
@@ -134,12 +127,6 @@ async fn send(receiver: &Service, turn: &Turn, chat: Option<i64>, via: Option<St
   said(ask(receiver, &room_calls::sends::Asked { asker, act }).await)
 }
 
-/// A line said in the consult room under the calling agent's own name; a call outside any agent's turn has no
-/// agent to speak as and is refused before the receiver is asked.
-async fn consulted(receiver: &Service, turn: &Turn, input: ConsultInput) -> Answer {
-  said(ask_consult(receiver, turn.agent.as_deref(), &Asker::of_turn(turn, None), &input).await)
-}
-
 fn read<T: serde::de::DeserializeOwned>(name: &str, arguments: Value) -> Result<T, Answer> {
   serde_json::from_value(arguments)
     .map_err(|why| Answer::failure(format!("invalid arguments: {name}: {why}")))
@@ -157,11 +144,6 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
         let input: SayInput = read(name, arguments)?;
 
         send(&receiver, &turn, input.chat, input.via.clone(), Act::Say(input)).await
-      }
-      "consult" => {
-        let input: ConsultInput = read(name, arguments)?;
-
-        consulted(&receiver, &turn, input).await
       }
       "photo" => {
         let input: PhotoInput = read(name, arguments)?;

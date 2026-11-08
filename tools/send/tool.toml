@@ -1,7 +1,7 @@
 # The sends the agents make into rooms, each asking the running receiver for the send through its routes, as the
-# `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): a line said in a room or in
-# the consult room, a picture or an album, a file or an album of files, a voice note, a reaction, a pin, a
-# sticker, a fair draw and a fixed line. Every entry is unbounded: a call ends with the receiver's answer or its
+# `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): a line said in a room, a
+# picture or an album, a file or an album of files, a voice note, a reaction, a pin, a sticker, a fair draw and a
+# fixed line. Every entry is unbounded: a call ends with the receiver's answer or its
 # connection failing, so the tool's `timeout`, which the manifest format asks of every tool, bounds no call. The
 # crate's own test holds every entry here to the Rust tool answering it.
 
@@ -25,18 +25,6 @@ unbounded = true
 
 [entry.facts]
 verb = "text"
-
-[[entry]]
-namespace = "bmo"
-name = "consult"
-description = "Say a line in the consult room under your own name, to settle work of yours that overlaps another agent's; answers with each agent's window there."
-input = "consult.json"
-hints = { open_world = true }
-capabilities = ["room.tools"]
-unbounded = true
-
-[entry.bundle."room.chat"]
-shown = ["text", "reply"]
 
 [[entry]]
 namespace = "bmo"

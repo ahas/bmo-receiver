@@ -13,10 +13,9 @@ use super::cache::{self, Route};
 use super::conversation::unified_session;
 use super::shape::Reading;
 use super::window::{self, Material, Selection};
-use crate::chat::consult::{consult_block, room_windows_block, tells_of_queue};
 use crate::receiver::{Inbound, Receiver, Room, rows};
 use crate::roads::Roads;
-use crate::{Fault, now_ms, one};
+use crate::{Fault, one};
 
 use receiver_ports::gate::TurnEvent;
 
@@ -338,11 +337,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     ),
   });
 
-  // In a room more than one agent answers, each one's window there.
-  if let Some(windows) = room_windows_block(receiver, chat_id, round.agent, now_ms()).await? {
-    parts.push(windows);
-  }
-
   let plain = Reading {
     receiver,
     owner: round.owner,
@@ -446,14 +440,6 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   if !selection.block.is_empty() {
     parts.push(String::new());
     parts.push(selection.block.clone());
-  }
-
-  // A notice of the queue shows the other agents' work and the consult room beside it.
-  if tells_of_queue(round.events)
-    && let Some(consult) = consult_block(receiver, round.agent, now_ms()).await?
-  {
-    parts.push(String::new());
-    parts.push(consult);
   }
 
   // The language an answer is written in is the agent's own judgement, from the person and the room as the

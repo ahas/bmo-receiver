@@ -10,7 +10,6 @@ mod alone_runs;
 mod avatars;
 mod brain_contract;
 mod briefing;
-mod consult_block;
 mod consult_verbs;
 mod contracts;
 mod data_root;

@@ -17,7 +17,6 @@ use bmo_receiver::events::Events;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::consult::CONSULT;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
@@ -595,8 +594,6 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
     fill_marks(&CHAT_ROUND.notice.rule, &[("marker", &CHAT_ROUND.notice.marker)]),
     fill_marks(&CHAT_ROUND.notice.optional_rule, &[("marker", &CHAT_ROUND.notice.optional_marker)]),
     fill_marks(&TOOL_HOST.rule, &[("marker", &TOOL_HOST.marker)]),
-    CONSULT.windows.rule.clone(),
-    fill_marks(&CONSULT.work.rule, &[("marker", &CONSULT.work.marker)]),
     fill_marks(&HANDOVER.chat.ask_rule, &[("marker", &HANDOVER.chat.ask_marker)]),
     fill_marks(&HANDOVER.chat.consolidate_rule, &[("marker", &HANDOVER.chat.consolidate_marker)]),
     fill_marks(&HANDOVER.chat.handed_rule, &[("marker", &HANDOVER.chat.handed_marker)]),
