@@ -229,35 +229,3 @@ async fn a_spoken_talk_is_handed_as_its_words_and_in_its_own_round_is_left_to_th
     "{text}"
   );
 }
-
-#[tokio::test]
-async fn a_consult_line_outside_the_agents_round_is_handed_to_it_in_the_consult_room() {
-  let (scratch, port, road, standing, _data) = stood().await;
-
-  scratch
-    .run(
-      r#"INSERT INTO "settings" ("key", "value") VALUES ('consult_room', $1)"#,
-      vec![ROOM.to_string().into()],
-    )
-    .await;
-  standing.taken.standing_idle();
-
-  let (status, answer) = asked(
-    &port,
-    "/consult-lines",
-    json!({ "agent": AGENT, "text": "Shall we split it?", "from": "bmo consult say" }),
-  )
-  .await;
-
-  assert_eq!(status, StatusCode::OK, "{answer:?}");
-  assert_eq!(answer["room"], json!(ROOM), "{answer:?}");
-  assert_eq!(answer["id"], Value::Null, "{answer:?}");
-  assert!(answer["handed"].as_i64().is_some(), "{answer:?}");
-  assert!(road.sent().is_empty(), "nothing reached the consult room");
-
-  let orders = orders(&scratch).await;
-
-  assert_eq!((orders[0].0.as_str(), orders[0].1), (AGENT, ROOM));
-  assert!(orders[0].3.contains("a line in the consult room under your own name"), "{orders:?}");
-  assert!(orders[0].3.contains("Shall we split it?"), "{orders:?}");
-}

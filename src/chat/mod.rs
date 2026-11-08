@@ -8,8 +8,6 @@ pub mod briefing;
 pub mod briefing_turn;
 pub mod cache;
 pub mod consolidation;
-pub mod consult;
-pub mod consult_say;
 pub mod context;
 pub mod conversation;
 pub mod cut_off;

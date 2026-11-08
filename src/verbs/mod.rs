@@ -7,7 +7,6 @@
 //! receiver holds only the words to be said.
 
 pub mod asked_sends;
-pub mod consult;
 pub mod draws;
 pub mod messages;
 pub mod photo_repair;

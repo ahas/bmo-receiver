@@ -7,7 +7,6 @@ pub mod chat_health;
 pub mod chat_line;
 pub mod chat_round;
 pub mod commands;
-pub mod consult;
 pub mod drafting;
 pub mod files;
 pub mod fixed_lines;

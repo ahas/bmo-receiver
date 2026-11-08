@@ -7,7 +7,6 @@ mod avatars;
 mod brain;
 mod briefing;
 mod console;
-mod consult;
 mod drafts;
 mod events;
 mod figures;
@@ -47,7 +46,6 @@ use receiver_ports::http::PortFailure;
 
 use crate::Fault;
 use crate::receiver::Receiver;
-use crate::routes::consult::{block, consult_say};
 use crate::routes::owner_words::instruct;
 use crate::routes::say::{say, say_file};
 use crate::routes::sends::sends;
@@ -178,8 +176,6 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("POST", "/sends", post(sends)),
     ("POST", "/owner/messages", post(say)),
     ("POST", "/owner/message-files", post(say_file)),
-    ("POST", "/consult-lines", post(consult_say)),
-    ("GET", "/consult-lines", get(block)),
     ("POST", "/talks", post(talk)),
     ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
     ("POST", "/handovers/{agentName}", post(handovers::hand_over)),

@@ -12,7 +12,6 @@ use sha2::{Digest, Sha256};
 
 use receiver_codes::SessionReason;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::consult::CONSULT;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
 use receiver_policy::providers::PROVIDERS;
@@ -89,7 +88,6 @@ static HEAD: LazyLock<String> = LazyLock::new(|| {
     format!("{:?}", CHAT_ROUND.voice),
     format!("{:?}", CHAT_ROUND.supervisor),
     format!("{:?}", CHAT_ROUND.notice),
-    format!("{:?}", CONSULT),
     format!("{:?}", HANDOVER),
   ];
 

@@ -12,7 +12,6 @@ use super::ask::Carry;
 use super::conversation::{Asking, BoxFuture, Conversations, Failure, Follower, Talking};
 use super::window::{Material, composed, select};
 
-use crate::chat::consult::label_of;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver};
 
@@ -349,5 +348,10 @@ impl Talking for Conversations {
 
 /// The default answerer's registered label, which its own words are called by.
 async fn agent_label(receiver: &Receiver, agent: &str) -> String {
-  label_of(receiver, agent).await
+  receiver
+    .agents()
+    .await
+    .ok()
+    .and_then(|listed| listed.agents.iter().find(|one| one.name == agent).and_then(|one| one.label.clone()))
+    .unwrap_or_else(|| agent.to_owned())
 }

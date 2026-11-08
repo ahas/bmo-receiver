@@ -5,7 +5,6 @@ use receiver_policy::chat_health::CHAT_HEALTH;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::commands::COMMANDS;
-use receiver_policy::consult::CONSULT;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::files::FILES;
 use receiver_policy::fill_marks;
@@ -33,7 +32,7 @@ const POLICY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy");
 /// Every part, by its file, read here so a file that does not read as its type fails this test.
 fn parts() -> Vec<&'static str> {
   let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS);
-  let _ = (&*CONSULT, &*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS);
+  let _ = (&*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
   let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING, &*QUIET);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES);
@@ -43,7 +42,6 @@ fn parts() -> Vec<&'static str> {
     "chat-line.toml",
     "chat-round.toml",
     "commands.toml",
-    "consult.toml",
     "drafting.toml",
     "files.toml",
     "fixed-lines.toml",
@@ -152,9 +150,6 @@ fn the_talks_name_the_owner_and_the_agent_by_their_marks() {
 
 #[test]
 fn the_other_lines_carry_their_marks_and_numbers() {
-  assert!(CONSULT.work.item.contains("{title}"));
-  assert!(CONSULT.windows.open.contains("{left}"));
-  assert!(CONSULT.said.contains("{number}") && CONSULT.number.contains("{id}"));
   assert_eq!(FILES.largest_bytes, 50 * 1024 * 1024);
   assert!(RESTART.deployed.purpose.contains("{purpose}"));
   assert_eq!(RESTART.ride_minutes, 3);

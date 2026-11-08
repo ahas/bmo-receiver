@@ -1,6 +1,6 @@
 //! The nouns this repository's unit command declares to `bmo` (bmo-cli's `docs/api.md`, 「The unit command」;
 //! docs/boundary-api.md, 「The unit command」): the sends a shell asks the running receiver for through
-//! `POST /sends`, a line in the consult room through `POST /consult-lines`, the consult room read or set, the
+//! `POST /sends`, the rooms and their messages, the
 //! fair draw made or checked, and an agent's one session asked to hand over at its next turn through
 //! `POST /handovers/{agentName}`. Every noun runs on the operations machine, since the receiver, its store and the
 //! rooms it answers are that machine's.
@@ -9,21 +9,19 @@ use std::io::Read;
 
 use clap::{Args, Subcommand};
 use receiver_client::{HandoverAsked, ReceiverClient, RoomMode, RoomRegistration};
-use room_calls::bot::Service;
 use room_calls::sends::{
-  Act, ConsultInput, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
+  Act, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
 };
 use serde_json::{Map, Value};
 
 use crate::config::Config;
-use crate::receiver::Receiver;
 use crate::tool_env::base_address;
 use crate::verbs::draws::{self, Claim, Claimed};
-use crate::verbs::{VerbError, asked_sends, consult, messages, turn};
+use crate::verbs::{VerbError, asked_sends, messages};
 
 /// The nouns `bmo` dispatches to this command, each marked `home`: the receiver's rooms, its consult room, the
 /// draws its store keeps and the sessions it hands over are the operations machine's.
-pub const NOUNS: [&str; 10] = [
+pub const NOUNS: [&str; 9] = [
   "room say\thome",
   "room registration\thome",
   "talk\thome",
@@ -31,7 +29,6 @@ pub const NOUNS: [&str; 10] = [
   "react\thome",
   "pin\thome",
   "sticker\thome",
-  "consult\thome",
   "draw\thome",
   "handoff\thome",
 ];
@@ -135,36 +132,6 @@ pub struct StickerArgs {
   pub emoji: Option<String>,
   #[arg(long, conflicts_with_all = ["chat", "emoji"])]
   pub list: bool,
-}
-
-/// The words of `consult`: the room read or set, the block an agent is shown, or a line said.
-#[derive(Args, Debug)]
-pub struct ConsultArgs {
-  #[command(subcommand)]
-  pub word: ConsultWord,
-  /// The agent the line or the block is; the one the calling run names where none is.
-  #[arg(long, global = true)]
-  pub agent: Option<String>,
-}
-
-/// The verbs of `consult`.
-#[derive(Subcommand, Debug)]
-pub enum ConsultWord {
-  /// The consult room as it is set, or with a room named set anew to it.
-  Room {
-    /// The room, by number or title.
-    room: Option<String>,
-  },
-  /// The block an agent is shown of the other agents' work, as it would read it now.
-  State,
-  /// One line said in the consult room under the agent's own name.
-  Say {
-    /// The words.
-    text: String,
-    /// The consult room's message these words answer, by its number.
-    #[arg(long)]
-    reply: Option<i64>,
-  },
 }
 
 /// The words of `draw draw`: a draw made in a room, as the tool makes it.
@@ -427,45 +394,6 @@ pub async fn sticker(
   .await
 }
 
-/// `consult`: the consult room read or set and the block an agent is shown from the store, and a line said
-/// through `POST /consult-lines`.
-pub async fn consult(config: &Config, args: ConsultArgs) -> Result<Vec<String>, VerbError> {
-  let wanted = args.agent.or_else(turn::agent);
-
-  match args.word {
-    ConsultWord::Room { room } => {
-      let receiver = store(config).await?;
-
-      consult::room(&receiver, room.as_deref()).await.map_err(VerbError::Refused)
-    }
-    ConsultWord::State => {
-      let Some(agent) = wanted else {
-        return Err(VerbError::Refused(
-          "consult state: no agent is named: run this inside an agent's turn, or name one with --agent <name>"
-            .to_owned(),
-        ));
-      };
-      let receiver = store(config).await?;
-
-      Ok(consult::state(&receiver, &agent).await)
-    }
-    ConsultWord::Say { text, reply } => {
-      let Some(agent) = wanted else {
-        return Err(VerbError::Refused(
-          "consult say: no agent is named: run this inside an agent's turn, or name one with --agent <name>"
-            .to_owned(),
-        ));
-      };
-      let input = ConsultInput { text, reply };
-      let asker = asked_sends::shell_turn("consult say");
-
-      asked_sends::said(
-        room_calls::sends::ask_consult(&Service::of(&config.data_root), Some(&agent), &asker, &input).await,
-      )
-    }
-  }
-}
-
 /// `draw`: a draw made in a room through `POST /sends`, or one checked against the method and the store.
 pub async fn draw(config: &Config, via: Option<String>, word: DrawWord) -> Result<Vec<String>, VerbError> {
   match word {
@@ -533,12 +461,4 @@ async fn draw_checked(config: &Config, args: VerifyArgs) -> Result<Vec<String>, 
   };
 
   draws::judged(draws::verify_published(&claim))
-}
-
-/// The receiver's store read as a short-lived command reads it: the configuration's database connected, and
-/// the receiver standing on it for the verbs that read a room's own record.
-async fn store(config: &Config) -> Result<Receiver, VerbError> {
-  let db = config.connect().await.map_err(VerbError::Refused)?;
-
-  Ok(config.receiver(db, Vec::new()))
 }

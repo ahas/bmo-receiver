@@ -7,7 +7,7 @@ use std::process::{Command, Output};
 use bmo_receiver::routes::served;
 
 // The commands the binary declares, as its subcommands' names come to.
-const COMMANDS: [&str; 19] = [
+const COMMANDS: [&str; 18] = [
   "serve",
   "routes",
   "deliver-waiting",
@@ -24,13 +24,12 @@ const COMMANDS: [&str; 19] = [
   "react",
   "pin",
   "sticker",
-  "consult",
   "draw",
   "handoff",
 ];
 
 // What the help lists: the commands, and the built-in `help` beside them.
-const LISTED: [&str; 20] = [
+const LISTED: [&str; 19] = [
   "serve",
   "routes",
   "deliver-waiting",
@@ -47,14 +46,13 @@ const LISTED: [&str; 20] = [
   "react",
   "pin",
   "sticker",
-  "consult",
   "draw",
   "handoff",
   "help",
 ];
 
 // The nouns `bmo` dispatches to this command, each on the operations machine.
-const NOUNS: [&str; 10] = [
+const NOUNS: [&str; 9] = [
   "room say\thome",
   "room registration\thome",
   "talk\thome",
@@ -62,7 +60,6 @@ const NOUNS: [&str; 10] = [
   "react\thome",
   "pin\thome",
   "sticker\thome",
-  "consult\thome",
   "draw\thome",
   "handoff\thome",
 ];
@@ -137,7 +134,7 @@ fn the_nouns_bmo_dispatches_are_declared_one_a_line() {
 
 #[test]
 fn every_noun_reads_as_the_command_bmo_dispatches() {
-  let nouns: [&[&str]; 10] = [
+  let nouns: [&[&str]; 9] = [
     &["room", "say"],
     &["room", "registration"],
     &["talk"],
@@ -145,7 +142,6 @@ fn every_noun_reads_as_the_command_bmo_dispatches() {
     &["react"],
     &["pin"],
     &["sticker"],
-    &["consult"],
     &["draw"],
     &["handoff"],
   ];

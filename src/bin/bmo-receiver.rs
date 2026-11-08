@@ -15,8 +15,8 @@ use std::time::Duration;
 use bmo_receiver::chat::instructions::{Rooms, deliver_pending};
 use bmo_receiver::chat::restart::say_stop;
 use bmo_receiver::command::{
-  self, ConsultArgs, DrawWord, HandoffArgs, PhotoArgs, PinArgs, ReactArgs, RegistrationArgs, SayArgs,
-  StickerArgs, TalkArgs,
+  self, DrawWord, HandoffArgs, PhotoArgs, PinArgs, ReactArgs, RegistrationArgs, SayArgs, StickerArgs,
+  TalkArgs,
 };
 use bmo_receiver::config::{self, Config};
 use bmo_receiver::receiver::handover::routes as handover_routes;
@@ -118,8 +118,6 @@ enum Command {
   Pin(PinArgs),
   /// One of the deployment's stickers, or the set listed, through the running receiver.
   Sticker(StickerArgs),
-  /// The consult room read or set, the block an agent is shown, or a line said there.
-  Consult(ConsultArgs),
   /// The fair draw made in a room or checked.
   Draw {
     #[command(subcommand)]
@@ -477,7 +475,6 @@ async fn main() -> ExitCode {
     Command::React(args) => Ok(answered(command::react(&config, cli.via.clone(), args).await)),
     Command::Pin(args) => Ok(answered(command::pin(&config, cli.via.clone(), args).await)),
     Command::Sticker(args) => Ok(answered(command::sticker(&config, cli.via.clone(), args).await)),
-    Command::Consult(args) => Ok(answered(command::consult(&config, args).await)),
     Command::Draw { word } => Ok(answered(command::draw(&config, cli.via.clone(), word).await)),
     Command::Handoff(args) => Ok(answered(command::handoff(&config, args).await)),
     Command::Routes | Command::Nouns | Command::Import { .. } => {
