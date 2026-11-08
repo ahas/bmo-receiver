@@ -36,7 +36,6 @@ macro_rules! refused {
 }
 
 pub mod avatars;
-pub mod consult;
 pub mod draws;
 pub mod fixed_lines;
 pub mod health;
@@ -55,7 +54,6 @@ pub mod talk;
 pub mod voice;
 
 pub use avatars::AvatarRefusal;
-pub use consult::ConsultRefusal;
 pub use draws::{DrawAsked, DrawLine, DrawResult};
 pub use fixed_lines::FixedLine;
 pub use health::HealthFact;
@@ -89,8 +87,6 @@ pub enum ReceiverError {
   #[error(transparent)]
   Supervisor(#[from] SupervisorRefusal),
   #[error(transparent)]
-  Consult(#[from] ConsultRefusal),
-  #[error(transparent)]
   OwnerSend(#[from] OwnerSendRefusal),
   #[error(transparent)]
   RoomAddition(#[from] RoomAdditionRefusal),
@@ -114,7 +110,6 @@ impl ReceiverError {
   fn inner(&self) -> &dyn Refused {
     match self {
       Self::Supervisor(refusal) => refusal,
-      Self::Consult(refusal) => refusal,
       Self::OwnerSend(refusal) => refusal,
       Self::RoomAddition(refusal) => refusal,
       Self::RoomGrant(refusal) => refusal,

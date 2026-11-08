@@ -24,13 +24,6 @@ family. No code carries a sentence in a room's language.
 
 ## Refusals
 
-### ConsultRefusal
-
-| Code | Status | Fields | When |
-|---|---|---|---|
-| `no-agent` | 400 | | the call was made outside any agent's turn |
-| `overtaken` | 409 | `agent` | the calling turn began at or before its agent's reset point |
-
 ### MessageActRefusal
 
 | Code | Status | Fields | When |
