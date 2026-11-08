@@ -222,6 +222,13 @@ impl Sends {
         {
           eprintln!("chat {chat_id}: the sticker sent on {key} was not marked: {}", why.detail);
         }
+
+        // The line reaches the room's other agents as every message filed in it does.
+        let room = self.receiver.roads().room_facts(chat_id).await;
+
+        if let Err(why) = self.receiver.filed(chat_id, message_id, key, room).await {
+          eprintln!("chat {chat_id}: a send on {key} was not handed to the receiver: {why}");
+        }
       }
       Err(why) => eprintln!("chat {chat_id}: a send on {key} was not kept: {why}"),
     }
@@ -400,6 +407,14 @@ impl Sends {
       record::mark_sticker(self.receiver.db(), request.room_id, message_id)
         .await
         .map_err(kept)?;
+    }
+
+    // The line reaches the room's other agents as every message filed in it does: a call by name or a reply to
+    // one of their words wakes them there (docs/wake.md, 「Who is woken」).
+    let room = self.receiver.roads().room_facts(request.room_id).await;
+
+    if let Err(why) = self.receiver.filed(request.room_id, message_id, Road::Record.key(), room).await {
+      eprintln!("chat {}: a send was not handed to the receiver: {why}", request.room_id);
     }
 
     let delivery = Delivery {
