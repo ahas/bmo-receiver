@@ -501,6 +501,11 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(await client.PUT("/draft-questions/{name}", { params: { path: { name } }, body }));
     },
 
+    /** `DELETE /draft-questions/{name}`. */
+    async removeDraftQuestion(name: string): Promise<void> {
+      answered(await client.DELETE("/draft-questions/{name}", { params: { path: { name } } }));
+    },
+
     /** `PUT /pinned-rooms`. */
     async pinRooms(body: PinRooms): Promise<PinnedRooms> {
       return answered(await client.PUT("/pinned-rooms", { body }));

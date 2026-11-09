@@ -584,6 +584,7 @@ impl Carry {
             transcript: None,
           },
           moved: standing.prefix_change_reason.clone(),
+          process: room.process.clone(),
           resumed: replaced.is_empty().then_some(started_id),
           cache_reads: standing.context.get("cacheReadTokens").and_then(Value::as_i64),
           input: standing.context.get("inputTokens").and_then(Value::as_i64),

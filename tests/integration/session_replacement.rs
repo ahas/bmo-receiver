@@ -318,3 +318,85 @@ async fn a_full_session_handed_over_by_its_note_is_replaced_at_its_next_turn_thr
   assert!(prompts[2].contains(NOTE), "{}", prompts[2]);
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }
+
+// The process row every turn reads, as the console sets it.
+async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str], light_chars: u32) {
+  use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
+
+  let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
+
+  set(
+    unified.scratch.db(),
+    &Process {
+      provider: ANY.to_owned(),
+      tier: ANY.to_owned(),
+      agent: ANY.to_owned(),
+      rounds: named(rounds),
+      send_from: String::new(),
+      light: vec![],
+      off: named(off),
+      light_chars,
+      ceiling_seconds: 0,
+      past_ceiling: PastCeiling::Send,
+      set: true,
+    },
+  )
+  .await
+  .unwrap();
+}
+
+#[tokio::test]
+async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() {
+  use bmo_receiver::chat::cache::{active_route, reset_reason};
+  use receiver_codes::SessionReason;
+
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  unified.round(1, "the first words").await;
+  assert!(unified.standing.agency.ended().is_empty());
+
+  // A question asked that was not: the block's stage lines are no longer the ones the session read.
+  process_row(&unified, &["final"], &[], 12).await;
+
+  let db = unified.scratch.db();
+  let route = active_route(db, AGENT).await.unwrap().expect("the first round kept its road");
+  let state = unified.standing.receiver.units().agency.state(SESSION).await.unwrap_or_default();
+
+  assert_eq!(
+    reset_reason(db, AGENT, &route, &state).await.unwrap(),
+    Some(SessionReason::Process),
+    "the replacement names the process"
+  );
+  unified.round(2, "the second words").await;
+
+  let ended = unified.standing.agency.ended();
+
+  assert_eq!(ended, [SESSION], "the session that read the instructions as they were is replaced");
+
+  unified.round(3, "the third words").await;
+  assert_eq!(unified.standing.agency.ended(), ended, "instructions that stand replace nothing more");
+}
+
+#[tokio::test]
+async fn a_change_that_leaves_the_process_instructions_as_they_were_replaces_nothing() {
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  process_row(&unified, &["information", "final"], &[], 12).await;
+  unified.round(1, "the first words").await;
+
+  // A light bound is no line of the block.
+  process_row(&unified, &["information", "final"], &[], 40).await;
+  unified.round(2, "the second words").await;
+  assert!(unified.standing.agency.ended().is_empty(), "a light bound replaces nothing");
+
+  // A question switched off and on again before the session's next turn leaves the block as it was.
+  process_row(&unified, &["information", "final"], &["information"], 40).await;
+  process_row(&unified, &["information", "final"], &[], 40).await;
+  unified.round(3, "the third words").await;
+  assert!(unified.standing.agency.ended().is_empty(), "a change set back replaces nothing");
+
+  // Switched off, it leaves the block, and the session that read its line is replaced.
+  process_row(&unified, &["information", "final"], &["information"], 40).await;
+  unified.round(4, "the fourth words").await;
+  assert_eq!(unified.standing.agency.ended(), [SESSION]);
+}

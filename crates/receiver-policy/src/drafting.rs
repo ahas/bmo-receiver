@@ -16,6 +16,9 @@ pub struct Process {
   /// The question of `rounds` from whose answer on a send is read; empty for the first.
   pub send_from: String,
   pub light: Vec<String>,
+  /// The questions of those lists that are switched off: each keeps its place and is not asked.
+  #[serde(default)]
+  pub off: Vec<String>,
   pub light_chars: u32,
   /// A time ceiling a row set before rounds were left without one: read and ignored.
   #[serde(default)]

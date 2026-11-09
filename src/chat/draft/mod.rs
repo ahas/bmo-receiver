@@ -732,13 +732,10 @@ impl Drafter {
       };
     };
     let is_light = light(batch, instructions, process.light_chars);
-    let list = if is_light { &process.light } else { &process.rounds };
+    // A question the row has switched off keeps its place in its list and is not asked.
+    let list = process.asked(if is_light { &process.light } else { &process.rounds });
     // A light turn reads a send from its first question whatever the row names.
-    let send_from_at = if is_light {
-      0
-    } else {
-      list.iter().position(|name| name == &process.send_from).unwrap_or(0)
-    };
+    let send_from_at = if is_light { 0 } else { process.send_from_at() };
     let catalogue = table::questions(receiver.db()).await.unwrap_or_default();
     let questions = list
       .iter()

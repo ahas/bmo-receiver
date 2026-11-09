@@ -587,6 +587,13 @@
             "minimum": 0,
             "type": "integer"
           },
+          "off": {
+            "description": "The questions of `rounds` and `light` that are switched off: each keeps its place and is not asked.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "pastCeiling": {
             "description": "`send` or `skip`.",
             "type": "string"
@@ -621,6 +628,7 @@
           "rounds",
           "sendFrom",
           "light",
+          "off",
           "lightChars",
           "ceilingSeconds",
           "pastCeiling",
@@ -647,6 +655,14 @@
             "minimum": 0,
             "type": "integer"
           },
+          "off": {
+            "default": [],
+            "description": "The questions of `rounds` and `light` that are switched off; left out for none.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "pastCeiling": {
             "description": "`send` or `skip`.",
             "type": "string"
@@ -667,6 +683,7 @@
           "rounds",
           "sendFrom",
           "light",
+          "off",
           "lightChars",
           "ceilingSeconds",
           "pastCeiling"
@@ -3921,6 +3938,44 @@
       }
     },
     "/draft-questions/{name}": {
+      "delete": {
+        "operationId": "removeDraftQuestion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, conflict, failed"
+          }
+        },
+        "summary": "The console's text of a question taken away.",
+        "tags": [
+          "Drafts"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "conflict",
+          "failed"
+        ]
+      },
       "put": {
         "operationId": "setDraftQuestion",
         "parameters": [

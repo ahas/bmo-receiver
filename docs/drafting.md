@@ -98,10 +98,19 @@ leaves.
   the message, while what it writes last in a turn is that turn's answer and never shown as progress
   (`chat-line.toml`, `[room]`, `process`; `docs/receiver.md`, 「The event stream」). The room's block
   also carries the catalogue's texts for the questions the process asks, assembled from the same policy rows the
-  console edits (`drafting.toml`, `[questions]`; 「The routes」 below), so a console row takes effect the next
-  time a session is handed its room's block. The block goes to a session once per version and by its mark after
-  that, so a turn carries only what changes from round to round: which round it is and what that round may
-  write.
+  console edits (`drafting.toml`, `[questions]`; 「The routes」 below); a question the row has switched off
+  stands in no line of it (「The process table」 below). The block goes to a session once per version and by its
+  mark after that, so a turn carries only what changes from round to round: which round it is and what that
+  round may write.
+- **A session reads one set of instructions for the process, never two.** The process's part of the room's
+  block is the same in every room: its fixed rules, the stage lines, what a send does, the rules of the items
+  and the checks, the agent's first judgement and the review's instructions. Where it is no longer what the last turn of an agent's one session
+  across rooms carried, that session is not handed the new text beside the old: it is replaced through its
+  handoff before its next turn, with the reason `process`, and the fresh session reads the block as it now
+  stands (`docs/unified-bmo.md`, 「Replacing the session」). A change that leaves that part of the block as it
+  was — a light bound, the text of a question no list asks — replaces nothing, and neither does a change set
+  back before the session's next turn. A session an agent keeps in each room is the agency's to resume, and
+  reads the changed block in full as a new version.
 - **The first round rides the round's own turn:** the room's words as the window composes them, then the round's
   line; the closing rules stand in the room's block. The line is the policy's, the shortest that says both facts
   the block cannot: the place and count of the round,
@@ -127,9 +136,20 @@ leaves.
   - `sendFrom`, the question of `rounds` from which the process asks for the message, a send being honored
     wherever it stands; empty for the first;
   - `light`, the questions of a light turn (「A light turn」 below);
+  - `off`, the questions of those lists that are switched off: each keeps its place in its list and is not
+    asked;
   - `lightChars`, how short the room's words must be for a turn to be light;
+- **A question switched off is not part of the process until it is switched on again.** A turn is asked its
+  list without the questions `off` names, in the list's order: the round lines count only the questions asked,
+  the room's block carries no line for one switched off, and no row of the round log is written for it.
+  Switching it on again asks it at the place it kept. `final` writes the message and is never switched off, so
+  a list that holds questions always asks at least that one. `off` names only questions the row's lists hold: a
+  name neither list holds is dropped as the row is set, so a question taken out of both lists leaves `off`
+  with them.
 - **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the round from which the process
-  asks for the message; that round's line carries `SEND`, and the room's block says what a send does. A send
+  asks for the message; that round's line carries `SEND`, and the room's block says what a send does. Where
+  `sendFrom` names a question that is switched off, the process asks for the message from the first question
+  asked after its place. A send
   before it is the message too, and the process ends there. Where the agent does not send, the questions that
   establish the facts are asked before anything is written. The default row asks for a send at `final` alone:
   every round before it carries `NOTES` in its line, and its answer is notes for the message the last round
@@ -462,8 +482,9 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 - **`GET /draft-processes`** answers every row of the table, the policy's and the console's, each with its
   `source`: `set` where the console set it, `default` where the policy's stands.
 - **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a row, `*` standing for any in each place, and
-  answers it as it now stands. A list naming a question the catalogue does not hold, a list that holds questions
-  and does not end in `final` or holds it before the end, a `sendFrom` that is not empty and names no question
+  answers it as it now stands. `off` is left out for none. A list naming a question the catalogue does not hold,
+  a list that holds questions and does not end in `final` or holds it before the end, an `off` that names
+  `final`, a `sendFrom` that is not empty and names no question
   of `rounds`, a turn's note outside 1 to 3,600 seconds, or a light bound outside 0 to 1,000 characters is refused
   `bad-request`, and nothing is written. A row that still carries `turnSeconds`, `ceilingSeconds` or
   `pastCeiling` loads with them ignored.
@@ -472,9 +493,16 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 - **`GET /draft-questions`** answers the catalogue, each question with its `source`; **`PUT
   /draft-questions/{name}`** sets a question's text, a name being a lowercase word of letters, digits and
   dashes, and a text at most 4,000 characters and not empty.
+- **`DELETE /draft-questions/{name}`** takes the console's text of a question away. A question the console
+  added leaves the catalogue; one the policy holds stands again in the policy's text, and so does the agent's
+  first judgement. A question the console added that a list of the table still names is refused `conflict`,
+  since the list would name nothing: it is taken out of the lists first. A name the console set no text for is
+  `not-found`.
 - **The catalogue holds the agent's first judgement too,** first of all, named `supervisor`: its text is what the
   room's block says the judgement asks, the round policy's head and question as one text where the console set
   none (`chat-round.toml`, `[supervisor]`, `rule`), and the judgement turn carries the marker, the room's note,
   its recent words and the words judged as data. It is set like any question, and no list of the table may name
   it, since it is asked before any process.
-- A change reaches the next round that reads the table; no round under way changes.
+- A change reaches the next round that reads the table; no round under way changes. Where it changes the
+  process's part of the room's block, an agent's one session is replaced before its next turn (「The
+  questions」 above).

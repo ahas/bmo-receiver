@@ -554,13 +554,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body | Answers |
 |---|---|---|
 | `GET /draft-processes` | | a page of `DraftProcess`: the policy's one row, or the console's row of its own key |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `lightChars`; `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `off?`, `lightChars`; `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
 | `GET /draft-questions` | | a page of `DraftQuestion` |
 | `PUT /draft-questions/{name}` | `text` | the `DraftQuestion` as it now stands |
+| `DELETE /draft-questions/{name}` | | 204; `not-found` where the console set no text of the name, `conflict` where a list still names a question the console added |
 
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
-  names of the questions an ordinary and a light turn are asked, in order; `sendFrom`, the question of `rounds`
+  names of the questions an ordinary and a light turn are asked, in order; `off`, the questions of those lists
+  that are switched off, each keeping its place and not asked; `sendFrom`, the question of `rounds`
   from whose answer on a send is read, empty for the first; `lightChars`; no turn bound stands; and `source`,
   `set` where the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process
   table」). A
@@ -571,10 +573,16 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   judgement of whether to answer opens on (`docs/drafting.md`, 「The routes」), set like any question; a list that
   names it is refused `bad-request`.
 - **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
-  hold, where a list that holds questions does not end in `final` or holds it before its end, where `sendFrom` is
+  hold, where a list that holds questions does not end in `final` or holds it before its end, where `off` names
+  `final`, where `sendFrom` is
   not empty and names no question of `rounds`, where a turn's note is outside 1 to 3,600 seconds or the light
   bound is outside 0 to 1,000 characters, and where a question's name is not a lowercase word of letters, digits
-  and dashes of at most 40 characters or its text is empty or past 4,000 characters.
+  and dashes of at most 40 characters or its text is empty or past 4,000 characters. A name `off` holds that
+  neither list holds is dropped, and the answer carries `off` as it now stands.
+- **A question's text taken away** leaves the catalogue where the console added the question, and stands again
+  in the policy's text where the policy holds it.
+- **A set or a removal that changes the instructions a session reads for the process** has the agent's one
+  session replaced through its handoff before its next turn (`docs/drafting.md`, 「The questions」).
 
 ## Supervisors
 

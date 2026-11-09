@@ -1212,6 +1212,17 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "failed"]
   );
   add!(
+    "DELETE",
+    "/draft-questions/{name}",
+    "removeDraftQuestion",
+    "Drafts",
+    "The console's text of a question taken away.",
+    vec![name_parameter("name")],
+    None,
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "not-found", "conflict", "failed"]
+  );
+  add!(
     "POST",
     "/supervisors",
     "addSupervisor",

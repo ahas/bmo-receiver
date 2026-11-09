@@ -658,6 +658,11 @@ impl ReceiverClient {
     Self::answered(self.send(Method::PUT, &["draft-questions", name], question)).await
   }
 
+  /// `DELETE /draft-questions/{name}`.
+  pub async fn remove_draft_question(&self, name: &str) -> Answer<()> {
+    Self::nothing(self.request(Method::DELETE, &["draft-questions", name])).await
+  }
+
   /// `POST /supervisors`.
   pub async fn add_supervisor(&self, supervisor: &SupervisorRequest) -> Answer<SupervisorAdded> {
     Self::answered(self.send(Method::POST, &["supervisors"], supervisor)).await

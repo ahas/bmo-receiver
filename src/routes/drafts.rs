@@ -21,6 +21,9 @@ pub struct ProcessSet {
   #[serde(default)]
   send_from: String,
   light: Vec<String>,
+  /// The questions of the lists that are switched off; left out for none.
+  #[serde(default)]
+  off: Vec<String>,
   light_chars: u32,
   /// A row set before rounds were left without a ceiling may carry this; it is read and ignored.
   #[serde(default)]
@@ -75,6 +78,7 @@ pub async fn set_process(
     rounds: asked.rounds,
     send_from: asked.send_from,
     light: asked.light,
+    off: asked.off,
     light_chars: asked.light_chars,
     ceiling_seconds: asked.ceiling_seconds.unwrap_or(0),
     past_ceiling,
@@ -85,6 +89,8 @@ pub async fn set_process(
   if let Some(why) = table::refusal(&process, &catalogue) {
     return Err(bad(&why));
   }
+
+  let process = process.settled();
 
   table::set(db, &process).await.map_err(store)?;
 
@@ -136,6 +142,36 @@ pub async fn set_question(State(served): State<Served>, Path(name): Path<String>
     }
     .member(),
   )
+}
+
+/// The console's text of a question taken away: one the console added leaves the catalogue, and one the policy
+/// holds stands again in the policy's text. A question the console added that a list still names is refused.
+pub async fn remove_question(State(served): State<Served>, Path(name): Path<String>) -> Accepted {
+  let db = served.receiver.db();
+
+  if !table::policy_holds(&name) {
+    let rows = table::rows(db).await.map_err(store)?;
+
+    if rows.iter().any(|row| row.rounds.contains(&name) || row.light.contains(&name)) {
+      return Err(refused(
+        StatusCode::CONFLICT,
+        "conflict",
+        &format!("A list of the draft process table still names the question {name}."),
+      ));
+    }
+  }
+
+  let gone = table::remove_question(db, &name).await.map_err(store)?;
+
+  if !gone {
+    return Err(refused(
+      StatusCode::NOT_FOUND,
+      "not-found",
+      &format!("The console set no text for the question {name}."),
+    ));
+  }
+
+  Ok((StatusCode::NO_CONTENT, axum::Json(json!({}))))
 }
 
 /// For a room and the rounds named, every row each round's draft process wrote.

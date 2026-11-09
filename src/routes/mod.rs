@@ -199,6 +199,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ),
     ("GET", "/draft-questions", get(drafts::questions)),
     ("PUT", "/draft-questions/{name}", put(drafts::set_question)),
+    ("DELETE", "/draft-questions/{name}", delete(drafts::remove_question)),
     ("POST", "/supervisors", post(supervisors::add)),
     ("DELETE", "/supervisors/{supervisorName}", delete(supervisors::remove)),
     ("POST", "/supervisors/{supervisorName}/resets", post(supervisors::reset)),

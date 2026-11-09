@@ -66,9 +66,9 @@ impl PastCeiling {
   }
 }
 
-/// A row of the table: its key, each part a name or `*`, the questions of an ordinary and of a light turn, the
-/// question a send is read from, the light bound, the ceiling and what is done past it, and whether the console
-/// set it.
+/// A row of the table: its key, each part a name or `*`, the questions of an ordinary and of a light turn, those
+/// of them switched off, the question a send is read from, the light bound, the ceiling and what is done past it,
+/// and whether the console set it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Process {
   pub provider: String,
@@ -78,10 +78,12 @@ pub struct Process {
   /// The question of `rounds` from whose answer on a send is read; empty for the first.
   pub send_from: String,
   pub light: Vec<String>,
+  /// The questions of the two lists that are switched off: each keeps its place in its list and is not asked.
+  pub off: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
   pub past_ceiling: PastCeiling,
-  /// How long one turn runs before the room is told the agent is still at work, in seconds.
+  /// Whether the console set the row.
   pub set: bool,
 }
 
@@ -94,11 +96,45 @@ impl Process {
       rounds: row.rounds.clone(),
       send_from: row.send_from.clone(),
       light: row.light.clone(),
+      off: row.off.clone(),
       light_chars: row.light_chars,
       ceiling_seconds: row.ceiling_seconds.unwrap_or(0),
       past_ceiling: row.past_ceiling.as_deref().and_then(PastCeiling::of).unwrap_or(PastCeiling::Send),
       set: false,
     }
+    .settled()
+  }
+
+  /// The row with `off` naming only questions its lists hold, each once and in the lists' order: a name neither
+  /// list holds is dropped.
+  pub fn settled(mut self) -> Self {
+    let mut off: Vec<String> = vec![];
+
+    for name in self.rounds.iter().chain(&self.light) {
+      if self.off.contains(name) && !off.contains(name) {
+        off.push(name.clone());
+      }
+    }
+
+    self.off = off;
+
+    self
+  }
+
+  /// The questions of one of the row's lists a turn is asked: the list without those switched off, in its order.
+  pub fn asked(&self, list: &[String]) -> Vec<String> {
+    list.iter().filter(|name| !self.off.contains(name)).cloned().collect()
+  }
+
+  /// Where, among the questions an ordinary turn is asked, the process asks for the message: the place of the
+  /// question a send is read from, or of the first question asked after it where that one is switched off; the
+  /// first where the row names none.
+  pub fn send_from_at(&self) -> usize {
+    let Some(named) = self.rounds.iter().position(|name| name == &self.send_from) else {
+      return 0;
+    };
+
+    self.asked(&self.rounds[..named]).len()
   }
 
   fn key(&self) -> (&str, &str, &str) {
@@ -126,6 +162,7 @@ impl Process {
       "rounds": self.rounds,
       "sendFrom": self.send_from,
       "light": self.light,
+      "off": self.off,
       "lightChars": self.light_chars,
       "ceilingSeconds": self.ceiling_seconds,
       "pastCeiling": self.past_ceiling.word(),
@@ -164,6 +201,7 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
     rounds: names(&text("rounds")?),
     send_from: text("send_from")?,
     light: names(&text("light")?),
+    off: names(&text("off")?),
     light_chars: u32::try_from(number("light_chars")?).unwrap_or(0),
     ceiling_seconds: u32::try_from(number("ceiling_seconds")?).unwrap_or(0),
     past_ceiling: PastCeiling::of(&text("past_ceiling")?).unwrap_or(PastCeiling::Send),
@@ -176,13 +214,16 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
 pub async fn rows<C: ConnectionTrait>(db: &C) -> Result<Vec<Process>, Fault> {
   let read = all(
     db,
-    r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "light", "light_chars", "ceiling_seconds",
-            "past_ceiling"
+    r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "light", "off", "light_chars",
+            "ceiling_seconds", "past_ceiling"
          FROM "draft_processes" ORDER BY "provider", "tier", "agent""#,
     vec![],
   )
   .await?;
-  let set = read.iter().map(set_row).collect::<Result<Vec<Process>, Fault>>()?;
+  let set = read
+    .iter()
+    .map(|row| set_row(row).map(Process::settled))
+    .collect::<Result<Vec<Process>, Fault>>()?;
   let Some(default) = DRAFTING.process.first().map(Process::of_policy) else {
     return Ok(vec![]);
   };
@@ -277,6 +318,10 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
     }
   }
 
+  if process.off.iter().any(|name| name == LAST) {
+    return Some(format!("off names {LAST}, which writes the message and is never switched off."));
+  }
+
   if !process.send_from.is_empty() && !process.rounds.contains(&process.send_from) {
     return Some(format!(
       "sendFrom names the question {}, which rounds does not hold.",
@@ -317,11 +362,12 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
   run(
     db,
     r#"INSERT INTO "draft_processes"
-         ("provider", "tier", "agent", "rounds", "send_from", "light", "light_chars", "ceiling_seconds",
+         ("provider", "tier", "agent", "rounds", "send_from", "light", "off", "light_chars", "ceiling_seconds",
           "past_ceiling", "set_at")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT ("provider", "tier", "agent") DO UPDATE SET
          "rounds" = EXCLUDED."rounds", "send_from" = EXCLUDED."send_from", "light" = EXCLUDED."light",
+         "off" = EXCLUDED."off",
          "light_chars" = EXCLUDED."light_chars", "ceiling_seconds" = EXCLUDED."ceiling_seconds",
          "past_ceiling" = EXCLUDED."past_ceiling",
          "set_at" = EXCLUDED."set_at""#,
@@ -332,6 +378,7 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
       listed(&process.rounds).into(),
       process.send_from.clone().into(),
       listed(&process.light).into(),
+      listed(&process.off).into(),
       i64::from(process.light_chars).into(),
       i64::from(process.ceiling_seconds).into(),
       process.past_ceiling.word().into(),
@@ -369,4 +416,17 @@ pub async fn set_question<C: ConnectionTrait>(db: &C, name: &str, text: &str) ->
   )
   .await
   .map(drop)
+}
+
+/// Whether the policy's catalogue holds a question of the name, the agent's own judgement among them: one whose
+/// text stands again in the policy's once the console's is taken away.
+pub fn policy_holds(name: &str) -> bool {
+  name == SUPERVISOR || DRAFTING.questions.contains_key(name)
+}
+
+/// The console's text of a question taken away; whether there was one.
+pub async fn remove_question<C: ConnectionTrait>(db: &C, name: &str) -> Result<bool, Fault> {
+  let gone = run(db, r#"DELETE FROM "draft_questions" WHERE "name" = $1"#, vec![name.into()]).await?;
+
+  Ok(gone > 0)
 }

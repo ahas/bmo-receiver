@@ -152,3 +152,81 @@ async fn a_route_whose_needs_are_not_met_names_what_is_missing() {
     ),
   );
 }
+
+#[tokio::test]
+async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let row = "/draft-processes/*/*/*";
+  let set = |rounds: Value, off: Value| json!({ "rounds": rounds, "light": ["final"], "off": off, "lightChars": 12 });
+
+  // A question switched off keeps its place; a name no list holds is dropped.
+  let (status, body) =
+    put(&front, row, set(json!(["information", "facts", "final"]), json!(["facts", "intent"]))).await;
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  assert_eq!(body["rounds"], json!(["information", "facts", "final"]));
+  assert_eq!(body["off"], json!(["facts"]));
+
+  let (_, page) = get(&front, "/draft-processes").await;
+
+  assert_eq!(page["items"][0]["off"], json!(["facts"]), "{page}");
+
+  // A set that names no `off` switches nothing off.
+  let (status, body) = put(
+    &front,
+    row,
+    json!({ "rounds": ["information", "final"], "light": ["final"], "lightChars": 12 }),
+  )
+  .await;
+
+  assert_eq!((status, &body["off"]), (StatusCode::OK, &json!([])), "{body}");
+
+  let (status, body) = put(&front, row, set(json!(["information", "final"]), json!(["final"]))).await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
+
+  // A question the console added is taken away once no list names it.
+  let (status, _) = put(&front, "/draft-questions/tone", json!({ "text": "Is the tone right?" })).await;
+
+  assert_eq!(status, StatusCode::OK);
+
+  let (status, _) = put(&front, row, set(json!(["tone", "final"]), json!([]))).await;
+
+  assert_eq!(status, StatusCode::OK);
+
+  let (status, body) = remove(&front, "/draft-questions/tone").await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::CONFLICT, "conflict"), "{body}");
+
+  let (status, _) = put(&front, row, set(json!(["final"]), json!([]))).await;
+
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(remove(&front, "/draft-questions/tone").await.0, StatusCode::NO_CONTENT);
+
+  let (status, body) = remove(&front, "/draft-questions/tone").await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::NOT_FOUND, "not-found"), "{body}");
+
+  let names = |page: &Value| -> Vec<String> {
+    page["items"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|one| format!("{} {}", one["name"].as_str().unwrap(), one["source"].as_str().unwrap()))
+      .collect()
+  };
+  let (_, page) = get(&front, "/draft-questions").await;
+
+  assert!(!names(&page).iter().any(|one| one.starts_with("tone ")), "{page}");
+
+  // A question the policy holds stands again in the policy's text, a list naming it or not.
+  let (status, _) = put(&front, "/draft-questions/final", json!({ "text": "Write it now." })).await;
+
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(remove(&front, "/draft-questions/final").await.0, StatusCode::NO_CONTENT);
+
+  let (_, page) = get(&front, "/draft-questions").await;
+
+  assert!(names(&page).contains(&"final default".to_owned()), "{page}");
+}

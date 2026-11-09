@@ -254,6 +254,7 @@ session once the setting has changed, one waiting per setting.
 | `downgrade-forced` | the model was replaced on its own |
 | `full` | the session filled its window and its provider hands it over by its own note rather than a fold |
 | `asked` | a handover was asked for the session (`POST /handovers/{agentName}`) |
+| `process` | the draft process's instructions the session was handed changed (`docs/drafting.md`, 「The questions」) |
 
 ### TurnOpening
 

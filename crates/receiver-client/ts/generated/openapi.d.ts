@@ -155,7 +155,8 @@ export interface paths {
         /** A question's text set by the console. */
         put: operations["setDraftQuestion"];
         post?: never;
-        delete?: never;
+        /** The console's text of a question taken away. */
+        delete: operations["removeDraftQuestion"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1564,6 +1565,8 @@ export interface components {
             light: string[];
             /** Format: uint32 */
             lightChars: number;
+            /** @description The questions of `rounds` and `light` that are switched off: each keeps its place and is not asked. */
+            off: string[];
             /** @description `send` or `skip`. */
             pastCeiling: string;
             /** @description A provider's key, or `*` for any. */
@@ -1583,6 +1586,11 @@ export interface components {
             light: string[];
             /** Format: uint32 */
             lightChars: number;
+            /**
+             * @description The questions of `rounds` and `light` that are switched off; left out for none.
+             * @default []
+             */
+            off: string[];
             /** @description `send` or `skip`. */
             pastCeiling: string;
             rounds: string[];
@@ -2944,6 +2952,35 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    removeDraftQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, not-found, conflict, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

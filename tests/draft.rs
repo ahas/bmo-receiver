@@ -51,6 +51,7 @@ fn row(provider: &str, tier: &str, agent: &str, rounds: &[&str]) -> Process {
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
     send_from: String::new(),
     light: vec!["final".to_owned()],
+    off: vec![],
     light_chars: 12,
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
@@ -213,6 +214,41 @@ fn the_most_specific_row_is_read() {
     ["facts", "final"]
   );
   assert_eq!(resolve(&rows, Some("provider-a"), None, "agent-b").unwrap().rounds, ["memory", "final"]);
+}
+
+#[test]
+fn a_question_switched_off_keeps_its_place_and_is_not_asked() {
+  let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect::<Vec<String>>();
+  let switched = |off: &[&str], from: &str| {
+    Process {
+      off: named(off),
+      send_from: from.to_owned(),
+      ..row(ANY, ANY, ANY, &["information", "facts", "memory", "final"])
+    }
+    .settled()
+  };
+  let process = switched(&["memory", "intent", "facts", "facts"], "");
+
+  assert_eq!(
+    process.off,
+    ["facts", "memory"],
+    "only questions of the lists, once, in the lists' order"
+  );
+  assert_eq!(process.rounds, ["information", "facts", "memory", "final"], "each keeps its place");
+  assert_eq!(process.asked(&process.rounds), ["information", "final"]);
+  assert_eq!(process.asked(&process.light), ["final"]);
+  assert_eq!(refusal(&process, &catalogue()), None);
+  assert!(
+    refusal(&switched(&["final"], ""), &catalogue()).is_some(),
+    "the question that writes the message is never switched off"
+  );
+
+  // A send is asked for from the question named, or from the first asked after it where that one is off.
+  assert_eq!(switched(&[], "memory").send_from_at(), 2);
+  assert_eq!(switched(&["facts"], "memory").send_from_at(), 1);
+  assert_eq!(switched(&["memory"], "memory").send_from_at(), 2, "final, the first asked after it");
+  assert_eq!(switched(&["facts", "memory"], "facts").send_from_at(), 1);
+  assert_eq!(switched(&["facts"], "").send_from_at(), 0);
 }
 
 #[test]

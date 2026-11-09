@@ -1114,6 +1114,8 @@ pub struct DraftProcess {
   /// The question of `rounds` from whose answer on a send is read; empty for the first.
   pub send_from: String,
   pub light: Vec<String>,
+  /// The questions of `rounds` and `light` that are switched off: each keeps its place and is not asked.
+  pub off: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
   /// `send` or `skip`.
@@ -1131,6 +1133,9 @@ pub struct DraftProcessSet {
   #[serde(default)]
   pub send_from: String,
   pub light: Vec<String>,
+  /// The questions of `rounds` and `light` that are switched off; left out for none.
+  #[serde(default)]
+  pub off: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
   /// `send` or `skip`.

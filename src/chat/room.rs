@@ -16,7 +16,9 @@ use receiver_policy::handover::HANDOVER;
 use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_policy::tool_host::TOOL_HOST;
 use regex::Regex;
+use sea_orm::DatabaseConnection;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use crate::Fault;
 use crate::js;
@@ -55,12 +57,14 @@ pub fn read_required(path: &Path) -> Result<String, Fault> {
   )
 }
 
-/// The room's block and the line that restates it.
+/// The room's block, the line that restates it, and the fingerprint of the draft process's part of the block,
+/// which a session is replaced on where it changes (docs/unified-bmo.md, 「Replacing the session」).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RoomContext {
   pub chat_id: i64,
   pub text: String,
   pub mark: String,
+  pub process: String,
 }
 
 // A heading of the capability document naming the verb it is about and what that verb is called.
@@ -464,16 +468,16 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
 // the head and one line for each question the process's row may ask, ordinary or light, from the catalogue with
 // the console's rows over it; then what a waiting line means and the rules of the items and checks that follow
 // the message, which stand here whether the row asks a question or none.
-async fn stages(receiver: &Receiver) -> Result<String, Fault> {
-  let db = receiver.db();
+async fn stages(db: &DatabaseConnection) -> Result<String, Fault> {
   let mut parts = vec![];
   let row = super::draft::table::rows(db).await?.into_iter().next();
 
   if let Some(row) = row {
     let catalogue = super::draft::table::questions(db).await?;
-    let mut names = row.rounds.clone();
+    // A question the row has switched off is not asked, so the block carries no line for it.
+    let mut names = row.asked(&row.rounds);
 
-    for name in &row.light {
+    for name in &row.asked(&row.light) {
       if !names.contains(name) {
         names.push(name.clone());
       }
@@ -526,6 +530,34 @@ fn situation_instruction() -> String {
   fill_marks(&said.instruction, &[("ceiling", &said.ceiling_chars.to_string())])
 }
 
+/// The draft process's part of the room's block, the same in every room (docs/drafting.md, 「The questions」): the
+/// process's fixed rules, the stage lines, the agent's first judgement and the review's instructions, in the order
+/// the block carries them.
+pub async fn process_part(db: &DatabaseConnection) -> Result<Vec<String>, Fault> {
+  let supervisor = super::draft::table::supervisor_text(db).await?;
+
+  Ok(vec![
+    CHAT_LINE.room.process.clone(),
+    stages(db).await?,
+    CHAT_ROUND.supervisor.structure.clone(),
+    fill_marks(
+      &CHAT_ROUND.supervisor.rule,
+      &[("marker", &CHAT_ROUND.supervisor.marker), ("question", &supervisor)],
+    ),
+    review_instruction(),
+  ])
+}
+
+/// The fingerprint of the process's part of the block as its parts stand.
+pub fn process_mark_of(parts: &[String]) -> String {
+  format!("{:x}", Sha256::digest(parts.join("\n\n").as_bytes()))
+}
+
+/// The fingerprint of the process's part of the block as it stands now.
+pub async fn process_mark(db: &DatabaseConnection) -> Result<String, Fault> {
+  Ok(process_mark_of(&process_part(db).await?))
+}
+
 /// The room's block a turn in a room carries, answering on the road it was asked on where that road reaches
 /// the room, and the line that restates it.
 pub async fn room_context(
@@ -543,19 +575,16 @@ pub async fn room_context(
   let elsewhere = (road.key != home.key).then_some(&home);
   let title = serde_json::to_string(&rows::chat_title(receiver.db(), chat_id).await?).unwrap_or_default();
   let server = server_facts(receiver).await;
-  let supervisor = super::draft::table::supervisor_text(receiver.db()).await?;
+  let process = process_part(receiver.db()).await?;
+  let process_mark = process_mark_of(&process);
   let mut parts = vec![
     fill_marks(&said.head, &[("chat", &chat_id.to_string()), ("kind", kind)]),
     fill_marks(&said.name, &[("title", &title)]),
     said.replaces.clone(),
-    said.process.clone(),
-    stages(receiver).await?,
-    CHAT_ROUND.supervisor.structure.clone(),
-    fill_marks(
-      &CHAT_ROUND.supervisor.rule,
-      &[("marker", &CHAT_ROUND.supervisor.marker), ("question", &supervisor)],
-    ),
-    review_instruction(),
+  ];
+
+  parts.extend(process);
+  parts.extend([
     situation_instruction(),
     CHAT_ROUND.closing.rule.clone(),
     CHAT_ROUND.index.rule.clone(),
@@ -581,7 +610,7 @@ pub async fn room_context(
       &[("marker", &CHAT_ROUND.instructions.restarted_marker)],
     ),
     said.voice.clone(),
-  ];
+  ]);
 
   if kind == "group" {
     parts.push(read_required(&trees.agent_dir("chat").join(&said.group_document))?);
@@ -608,5 +637,6 @@ pub async fn room_context(
     chat_id,
     text: joined(parts, "\n\n"),
     mark: fill_marks(&said.mark, &[("chat", &chat_id.to_string()), ("kind", kind), ("title", &title)]),
+    process: process_mark,
   })
 }

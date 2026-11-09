@@ -39,6 +39,7 @@ pub mod m20261102_000032_instruction_causes;
 pub mod m20261103_000033_room_supervisors;
 pub mod m20261106_000034_session_notes;
 pub mod m20261106_000035_instruction_publisher;
+pub mod m20261109_000036_draft_off;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -84,6 +85,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261103_000033_room_supervisors::Migration),
       Box::new(m20261106_000034_session_notes::Migration),
       Box::new(m20261106_000035_instruction_publisher::Migration),
+      Box::new(m20261109_000036_draft_off::Migration),
     ]
   }
 }

@@ -449,6 +449,7 @@ async fn drafting_row(
       rounds: named(rounds),
       send_from: send_from.to_owned(),
       light: named(light),
+      off: vec![],
       light_chars: 12,
       ceiling_seconds,
       past_ceiling,

@@ -28,6 +28,7 @@ async fn a_turns_loads_are_laid_over_the_ones_its_session_held_and_another_sessi
     chat_id: ROOM,
     text: "the room's block".to_owned(),
     mark: "m".to_owned(),
+    process: String::new(),
   };
   let block = load(&format!("room-context/{ROOM}"), &fingerprint(&room));
 

@@ -47,6 +47,8 @@ pub enum SessionReason {
   Full,
   /// A handover was asked for the session.
   Asked,
+  /// The draft process's instructions the session was handed changed.
+  Process,
 }
 
 /// What opened a turn of a room that no person's words opened, as the console's verdicts show it.

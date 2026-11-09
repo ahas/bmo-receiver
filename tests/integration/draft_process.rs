@@ -852,6 +852,7 @@ async fn old_console_rows_fall_to_the_policy_one_row() {
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
     send_from: "facts".to_owned(),
     light: vec!["final".to_owned()],
+    off: vec![],
     light_chars: 12,
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
@@ -871,6 +872,54 @@ async fn old_console_rows_fall_to_the_policy_one_row() {
     (ANY, ANY, ANY)
   );
   assert_eq!(rows[0].rounds, FIVE);
+}
+
+#[tokio::test]
+async fn a_question_switched_off_is_not_asked_and_stands_in_no_line_of_the_block() {
+  use bmo_receiver::chat::draft::table;
+
+  let session =
+    StandInSession::new(SESSION, "unscripted").answering(&["notes", "promises kept", "the message"]);
+  let round = Drafting::new(session, FIVE, &["final"], 150).await;
+  let mut row = table::rows(round.scratch.db()).await.unwrap().remove(0);
+
+  row.off = vec!["facts".to_owned(), "memory".to_owned()];
+  table::set(round.scratch.db(), &row).await.unwrap();
+
+  round.hear(1, ASKED).await;
+  round.ended(3).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 3, "{prompts:#?}");
+  assert!(turn_of(&prompts[0]).contains("1/3 (information)"), "{}", turn_of(&prompts[0]));
+  assert!(turn_of(&prompts[1]).contains("2/3 (promises)"), "{}", turn_of(&prompts[1]));
+  assert!(turn_of(&prompts[2]).contains("3/3 (final)"), "{}", turn_of(&prompts[2]));
+  assert!(prompts[0].contains(&format!("information: {}", question("information"))));
+  assert!(prompts[0].contains(&format!("promises: {}", question("promises"))));
+
+  for off in ["facts", "memory"] {
+    assert!(
+      !prompts[0].contains(&format!("{off}: {}", question(off))),
+      "the block carries no line for {off}"
+    );
+  }
+
+  assert_eq!(
+    round.log().await,
+    [
+      "question information answered",
+      "question promises answered",
+      "question final answered",
+      "end  message"
+    ]
+  );
+  assert_eq!(
+    table::rows(round.scratch.db()).await.unwrap()[0].rounds,
+    FIVE,
+    "a question switched off keeps its place"
+  );
+  assert!(round.sent()[0].contains("the message"));
 }
 
 #[tokio::test]

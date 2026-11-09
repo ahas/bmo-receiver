@@ -183,7 +183,8 @@
 ## Replacing the session
 
 - **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
-  effort, or another login), the cache lifetime its provider declares passed (`providers.toml`, `cache_minutes`,
+  effort, or another login), the draft process's instructions it was handed changed, the cache lifetime its
+  provider declares passed (`providers.toml`, `cache_minutes`,
   else `keepalive_idle_minutes`), or the owner asked for a fresh
   start. The agency carries the replacement as the session's provider declares.
   A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
@@ -214,6 +215,14 @@
   Where the agency names none, the receiver's own measure stands in: the fingerprint of the fixed lines every
   round's turn is written in (the round policy's header, block, closing, queue and push lines), which a
   deployment that rewrites them moves and nothing a room or a turn fills in does.
+- **The draft process's instructions are read once by a session.** The process's part of the room's block —
+  its fixed rules, the stage lines of the questions the process asks, what a send does, the rules of the items
+  and the checks, the agent's first judgement and the review's instructions (`docs/drafting.md`, 「The
+  questions」) — is the same in every room, and it is what tells the session how each round is answered. The receiver keeps, with what it knows of
+  the session's cache, the fingerprint of that part as the session's last turn carried it; a turn that finds
+  it another replaces the session, with the reason `process`, so no session holds the instructions as they
+  were beside the instructions as they are. It is not the head: the agency's prefix stands unmoved, and the
+  replacement is the receiver's own. A record that kept no fingerprint has nothing to compare.
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
   generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
 - **A generation the agency opens under the session is a handover the receiver did not make.** The session's
