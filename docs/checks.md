@@ -31,3 +31,15 @@ names.
   case kept), `anywhere` (matched anywhere, as a Korean name takes its particles with no space) and
   `allowed` (terms of another unit's protocol that hold a name, set aside first). Where the variable names
   no file, the names are not checked and the run says so.
+
+## The deployment gate
+
+- **The testbed's deployment gate reads the checkout's own tree, as it stands, not the tree of the commit
+  being deployed** (the testbed's `docs/deploy.md`, 「What the deploy run does」): its declared setup, the
+  static check and the suite run in the checkout over the range from the commit live before, and only then is
+  the release prepared at the commit. A checkout holding a change not yet whole therefore fails a deployment
+  even where the commit's own tree passes; a deployment is handed over from a checkout that stands whole.
+- **What the gate runs is the declaration's own steps and suite** (`testbed.toml`): the quick sweeps,
+  `cargo check --workspace --all-targets`, `cargo clippy --workspace --all-targets --locked -- -D warnings`,
+  `cargo fmt --all --check`, the workspace suite and the client's check, over the change since the commit
+  live before.
