@@ -84,7 +84,7 @@ pub struct Page {
   pub via: Option<String>,
   pub agent_name: Option<String>,
   pub voice: Option<String>,
-  /// `sticker` for a sticker kept on the record, none for any other.
+  /// `sticker` for a sticker kept on the record, `thinking` for a working turn's thinking, none for any other.
   pub kind: Option<String>,
   pub edited_at: Option<i64>,
   pub deleted_at: Option<i64>,

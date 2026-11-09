@@ -502,6 +502,7 @@ pub async fn forward(
     name: &name,
     agent: None,
     voice: None,
+    kind: None,
   };
   let copy = record::keep(receiver.db(), receiver.news(), kept).await.map_err(store)?;
 

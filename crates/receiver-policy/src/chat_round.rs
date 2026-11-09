@@ -229,12 +229,13 @@ pub struct Progress {
   pub gap_ms: u64,
 }
 
-/// A working supervisor's thinking sent into the owner's private chat while its turn works: the marker each
-/// message opens on, and the most characters of a block carried, an ellipsis marking the cut.
+/// A working supervisor's thinking sent into the owner's private chat while its turn works: the kind the room's
+/// record keeps its message under, which a reader draws the label from, and the most characters of a block
+/// carried, an ellipsis marking the cut.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Thinking {
-  pub marker: String,
+  pub kind: String,
   pub ceiling_chars: usize,
 }
 

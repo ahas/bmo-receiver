@@ -117,11 +117,12 @@ pub async fn save_message(
   message: &Inbound,
   agent_name: Option<&str>,
   voice: Option<&str>,
+  kind: Option<&str>,
 ) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "image_state", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "image_state", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice", "kind")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        ON CONFLICT ("chat_id", "message_id") DO UPDATE SET "sender_id" = excluded."sender_id", "sender_name" = excluded."sender_name",
          "sent_at" = excluded."sent_at", "text" = excluded."text", "image_path" = excluded."image_path",
          "image_state" = COALESCE(excluded."image_state", "messages"."image_state"),
@@ -129,7 +130,7 @@ pub async fn save_message(
          "voice_seconds" = COALESCE(excluded."voice_seconds", "messages"."voice_seconds"),
          "voice_state" = COALESCE(excluded."voice_state", "messages"."voice_state"),
          "reply_to_message_id" = excluded."reply_to_message_id", "via" = excluded."via", "answer_seconds" = NULL, "round" = NULL, "album" = excluded."album",
-         "agent_name" = excluded."agent_name", "voice" = excluded."voice""#,
+         "agent_name" = excluded."agent_name", "voice" = excluded."voice", "kind" = COALESCE(excluded."kind", "messages"."kind")"#,
     vec![
       message.chat_id.into(),
       message.message_id.into(),
@@ -147,6 +148,7 @@ pub async fn save_message(
       message.album.into(),
       agent_name.into(),
       voice.into(),
+      kind.into(),
     ],
   )
   .await

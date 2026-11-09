@@ -327,9 +327,10 @@ flowchart TD
   of that number, the kept action at place `i` being number `droppedActions + i`. The picture keeps nothing after
   the turn; the run's lines stay in the agency's log under the runs a message names, where they are read again.
 - **A working supervisor's thinking goes into the owner's private chat as its own messages** while the turn
-  works (`chat-round.toml`, `[thinking]`): each thinking block the run writes is sent as a text message opening
-  on the policy's marker (`THINKING.`), as it stands and in its own language with its secret-shaped runs taken
-  out, and cut at the policy's ceiling with an ellipsis marking the cut. It is sent off the turn's path, so
+  works (`chat-round.toml`, `[thinking]`): each thinking block the run writes is sent as a text message as it
+  stands, in its own language with its secret-shaped runs taken out, and cut at the policy's ceiling with an
+  ellipsis marking the cut. Its words carry no label: the message the room's record keeps carries the policy's
+  kind (`thinking`), which a reader such as the console draws the label from. It is sent off the turn's path, so
   nothing waits on the chat service. Only the
   owner's private chat is sent to: thinking can quote private or other-room material and a group room holds other
   people. These messages are never the turn's answer and no part of what the round's answer is judged by; the

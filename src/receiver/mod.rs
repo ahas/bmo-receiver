@@ -703,7 +703,7 @@ impl Receiver {
       rows::set_chat_title(&self.db, inbound.chat_id, title).await?;
     }
 
-    rows::save_message(&self.db, inbound, None, None).await?;
+    rows::save_message(&self.db, inbound, None, None, None).await?;
     self.told_kept(inbound);
 
     Ok(())

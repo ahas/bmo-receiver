@@ -101,11 +101,12 @@ fn text_of(request: &ChatSendRequest) -> &str {
   }
 }
 
-fn thinking_sends(chat: &StandInChat) -> Vec<ChatSendRequest> {
+/// Every send into a room that is not the answer: the thinking messages, which carry no label in their words.
+fn thinking_sends(chat: &StandInChat, chat_id: i64) -> Vec<ChatSendRequest> {
   chat
     .sent()
     .into_iter()
-    .filter(|request| text_of(request).starts_with(&CHAT_ROUND.thinking.marker))
+    .filter(|request| request.room_id == chat_id && text_of(request) != ANSWER)
     .collect()
 }
 
@@ -224,7 +225,7 @@ impl Round {
 }
 
 #[tokio::test]
-async fn a_working_turns_thinking_goes_into_the_owners_chat_marked_and_cut() {
+async fn a_working_turns_thinking_goes_into_the_owners_chat_cut_and_marked_in_the_record() {
   const SHORT: &str = "weighing what the room asked";
   const LONG: &str = "thinking a very long thought";
   // Assembled at run time, so no tracked file holds a secret-shaped value.
@@ -237,18 +238,19 @@ async fn a_working_turns_thinking_goes_into_the_owners_chat_marked_and_cut() {
   round.thought(2, &long);
   round.thought(3, &format!("the key {secret} is in the file"));
 
-  let marker = CHAT_ROUND.thinking.marker.clone();
+  until("the thinking to go out while the turn works", || {
+    thinking_sends(&round.chat, OWNER).len() == 3
+  })
+  .await;
 
-  until("the thinking to go out while the turn works", || thinking_sends(&round.chat).len() == 3).await;
-
-  let sent = thinking_sends(&round.chat);
+  let sent = thinking_sends(&round.chat, OWNER);
 
   assert_eq!(sent[0].room_id, OWNER, "the owner's private chat alone");
-  assert_eq!(text_of(&sent[0]), format!("{marker}\n{SHORT}"));
+  assert_eq!(text_of(&sent[0]), SHORT, "the words carry no label of their own");
   assert!(round.session.working(), "the thinking went out while the turn worked");
   assert!(text_of(&sent[1]).ends_with('…'), "a long block is cut and the cut marked");
   assert!(
-    text_of(&sent[1]).chars().count() <= marker.chars().count() + 1 + CHAT_ROUND.thinking.ceiling_chars + 1,
+    text_of(&sent[1]).chars().count() <= CHAT_ROUND.thinking.ceiling_chars + 1,
     "the block is cut at the ceiling"
   );
   assert!(
@@ -262,7 +264,19 @@ async fn a_working_turns_thinking_goes_into_the_owners_chat_marked_and_cut() {
   assert_eq!(answer.len(), 1, "the answer goes out once, as before");
   assert_eq!(answer[0].room_id, OWNER);
 
-  // The answer alone is an answer: the thinking rows are messages, never the turn's answer or its wait.
+  // The words carry no label; the room's record marks each thinking message with the policy's kind, and the
+  // answer alone is an answer.
+  assert_eq!(
+    round
+      .scratch
+      .count(
+        r#"SELECT count(*) FROM "messages" WHERE "chat_id" = $1 AND "kind" = $2"#,
+        vec![OWNER.into(), CHAT_ROUND.thinking.kind.clone().into()],
+      )
+      .await,
+    3,
+    "each thinking message is kept under the thinking kind"
+  );
   assert_eq!(
     round
       .scratch
@@ -278,12 +292,12 @@ async fn a_working_turns_thinking_goes_into_the_owners_chat_marked_and_cut() {
     round
       .scratch
       .count(
-        r#"SELECT count(*) FROM "messages" WHERE "chat_id" = $1 AND "text" = $2"#,
+        r#"SELECT count(*) FROM "messages" WHERE "chat_id" = $1 AND "text" = $2 AND "kind" IS NULL"#,
         vec![OWNER.into(), ANSWER.into()],
       )
       .await,
     1,
-    "the answer as it was asked for stands in the record"
+    "the answer as it was asked for stands in the record, under no thinking kind"
   );
 }
 
@@ -296,12 +310,27 @@ async fn a_turn_in_another_room_sends_no_thinking() {
   round.run(OTHER, a_group(), 2, "agent-a, what is new in this room").await;
 
   assert!(
-    thinking_sends(&round.chat).is_empty(),
+    thinking_sends(&round.chat, OTHER).is_empty(),
     "no thinking goes into a group room: {:?}",
     round.chat.sent()
   );
+  assert_eq!(
+    round
+      .scratch
+      .count(
+        r#"SELECT count(*) FROM "messages" WHERE "chat_id" = $1 AND "kind" = $2"#,
+        vec![OTHER.into(), CHAT_ROUND.thinking.kind.clone().into()],
+      )
+      .await,
+    0,
+    "no thinking message stands in the group room's record"
+  );
   assert!(
-    round.chat.sent().iter().any(|request| text_of(request) == ANSWER),
+    round
+      .chat
+      .sent()
+      .iter()
+      .any(|request| request.room_id == OTHER && text_of(request) == ANSWER),
     "the answer still goes out"
   );
 }

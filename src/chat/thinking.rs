@@ -1,7 +1,7 @@
 //! A working supervisor's thinking, sent into the owner's private chat as its own messages while the turn works
-//! (docs/receiver.md, 「The event stream」): each block as the run wrote it, under the policy's marker, cut past its
-//! ceiling, and never the turn's answer. Only the owner's private chat is sent to, since thinking can quote private
-//! or other-room material and a group room holds other people.
+//! (docs/receiver.md, 「The event stream」): each block as the run wrote it, the record marking it with the policy's
+//! kind, cut past its ceiling, and never the turn's answer. Only the owner's private chat is sent to, since
+//! thinking can quote private or other-room material and a group room holds other people.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use tokio::sync::mpsc;
@@ -24,9 +24,13 @@ impl Thoughts {
 
     tokio::spawn(async move {
       while let Some(text) = rx.recv().await {
-        let said = marked(&text);
+        let said = cut(&text);
+        let kind = &CHAT_ROUND.thinking.kind;
 
-        if reply::send_thinking(&receiver, chat_id, via.as_deref(), &agent, &said).await.is_none() {
+        if reply::send_thinking(&receiver, chat_id, via.as_deref(), &agent, &said, kind)
+          .await
+          .is_none()
+        {
           eprintln!("chat {chat_id}: a thinking block was not sent");
         }
       }
@@ -45,11 +49,10 @@ impl Thoughts {
   }
 }
 
-/// A thinking block as the room reads it: the policy's marker, then the block as it stands with its secret-shaped
-/// runs taken out, cut at the ceiling with the cut marked.
-fn marked(text: &str) -> String {
-  let thinking = &CHAT_ROUND.thinking;
+/// A thinking block as the room reads it: the block as it stands with its secret-shaped runs taken out, cut at the
+/// ceiling with the cut marked. The record marks the message itself; no label is written into the words.
+fn cut(text: &str) -> String {
   let text = crate::secrets::redacted(text);
 
-  format!("{}\n{}", thinking.marker, clip(&text, thinking.ceiling_chars))
+  clip(&text, CHAT_ROUND.thinking.ceiling_chars)
 }

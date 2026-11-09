@@ -38,7 +38,8 @@ pub enum NotSaid {
 }
 
 /// A line the room's record keeps as an agent's: its room and words, the message it answers, the road it was
-/// already sent on with the number that road gave it, the agent whose words it holds, and the voice it went out in.
+/// already sent on with the number that road gave it, the agent whose words it holds, the voice it went out in,
+/// and the kind the record keeps it under where it is not an ordinary message.
 #[derive(Clone, Copy)]
 pub struct KeptLine<'a> {
   pub chat_id: i64,
@@ -47,6 +48,7 @@ pub struct KeptLine<'a> {
   pub sent: Option<(&'a str, Option<i64>)>,
   pub agent: Option<&'a str>,
   pub voice: Option<ChatVoice>,
+  pub kind: Option<&'a str>,
 }
 
 /// What saying a line stands on: the database a record keeps it in, the deployment it speaks for, the units its
@@ -177,6 +179,7 @@ impl Speech {
       sent,
       agent,
       voice,
+      kind: None,
     };
 
     self.kept_carrying(&said, Carried::words(text)).await
@@ -193,6 +196,7 @@ impl Speech {
       sent,
       agent,
       voice,
+      kind,
     } = *said;
     let roads = &self.units.roads;
     // The words are the speaking agent's: under its own number in the room, the room's road's or else the
@@ -237,6 +241,7 @@ impl Speech {
       name: &name,
       agent,
       voice: voice.as_deref(),
+      kind,
     };
 
     let message_id = record::keep(&self.db, self.news.as_ref(), kept).await?;

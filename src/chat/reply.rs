@@ -139,6 +139,7 @@ pub async fn send_thinking(
   via: Option<&str>,
   agent: &str,
   text: &str,
+  kind: &str,
 ) -> Option<i64> {
   let send = ChatSend::Text {
     text: text.to_owned(),
@@ -156,6 +157,7 @@ pub async fn send_thinking(
         sent: None,
         agent: Some(agent),
         voice: None,
+        kind: Some(kind),
       };
 
       receiver.speech().kept_carrying(&line, Carried::Send(send)).await.ok()
@@ -174,6 +176,7 @@ pub async fn send_thinking(
         sent: Some((&key, number)),
         agent: Some(agent),
         voice: None,
+        kind: Some(kind),
       };
 
       // The line is in the room either way; a record that could not keep it is said in the journal.
@@ -217,6 +220,7 @@ async fn carry(
     sent: None,
     agent: Some(&agent),
     voice: None,
+    kind: None,
   };
   // The number the answer went out as, and the number the room keeps it under.
   let numbers = match road {

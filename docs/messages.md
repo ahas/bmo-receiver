@@ -123,11 +123,14 @@ and when a room sees it typing.
 
 - **The receiver sends a supervisor's thinking into the owner's private chat as its own messages while the turn
   works** (`chat-round.toml`, `[thinking]`; `docs/receiver.md`, 「The event stream」): each thinking block the run
-  writes goes out as it stands, in its own language and untranslated, opening on the policy's marker and cut at
-  the policy's ceiling with an ellipsis marking the cut; its secret-shaped runs are taken out as any message's
-  are. It goes out on the road the turn answers on, off the
-  turn's path, so the turn never waits on the chat service, and it is kept in the room's record as an agent's
-  message like any other send.
+  writes goes out as it stands, in its own language and untranslated, with no label written into its words, and
+  cut at the policy's ceiling with an ellipsis marking the cut; its secret-shaped runs are taken out as any
+  message's are. It goes out on the road the turn answers on, off the turn's path, so the turn never waits on the
+  chat service, and it is kept in the room's record as an agent's message like any other send.
+- **The record marks the message, not its words.** The message the record keeps carries the policy's kind
+  (`thinking`, `chat-round.toml`, `[thinking]`), and a reader such as the console draws its label from that kind;
+  the chat service's message carries the thinking alone. `Message.kind` answers it beside `sticker`
+  (`docs/api.md`, 「Messages」).
 - **Thinking is never the turn's answer.** The answer is the turn's own last words, sent as every answer is and
   judged as it is; a thinking message is no part of it, is never taken as the round's answer, and does not carry
   the answer's wait.
