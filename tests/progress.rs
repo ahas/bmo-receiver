@@ -335,3 +335,77 @@ fn a_progress_line_is_redacted_cut_and_only_the_last_few_are_kept() {
   );
   assert_ne!(read.drawn(), RunProgress::default().drawn());
 }
+
+// A road whose program keeps its own record is filed by the agency as lines already told apart, each holding its
+// words and no usage (docs/receiver.md, 「The event stream」).
+fn filed_all(mut progress: RunProgress, lines: &[Value]) -> RunProgress {
+  for line in lines {
+    if let Some(read) = progress.filed(line.as_object().unwrap()) {
+      progress = read;
+    }
+  }
+
+  progress
+}
+
+#[test]
+fn lines_filed_already_told_apart_move_the_phase_the_call_and_the_estimates() {
+  let thinking = filed_all(
+    RunProgress::default(),
+    &[json!({ "id": 1, "kind": "thinking", "text": "weighing what the room asked" })],
+  );
+
+  assert_eq!((thinking.phase, thinking.tool.as_deref()), ("thinking", None));
+  assert!(thinking.thinking_tokens.is_some_and(|tokens| tokens > 0));
+  assert_eq!(thinking.written_tokens, None);
+
+  let calling = filed_all(
+    thinking,
+    &[
+      json!({ "id": 2, "kind": "text", "text": "Reading the plan first." }),
+      json!({ "id": 3, "kind": "tool", "name": "Bash", "text": "ls docs", "ref": "call-1" }),
+    ],
+  );
+
+  assert_eq!((calling.phase, calling.tool.as_deref()), ("tool", Some("Bash")));
+  assert_eq!(tools(&calling), [(Some("Bash"), None)]);
+  assert_eq!(
+    calling.said.iter().map(|line| line.text.as_str()).collect::<Vec<_>>(),
+    ["Reading the plan first."]
+  );
+  assert!(calling.written_tokens.is_some_and(|tokens| tokens > 0));
+
+  let settled = filed_all(
+    calling.clone(),
+    &[
+      json!({ "id": 4, "kind": "tool-result", "text": "ran 12 ms", "ref": "call-1", "state": "succeeded" }),
+    ],
+  );
+
+  assert_eq!(tools(&settled), [(Some("Bash"), Some("succeeded"))]);
+
+  let answering =
+    filed_all(settled, &[json!({ "id": 5, "kind": "text", "text": "Here is what was asked." })]);
+
+  assert_eq!((answering.phase, answering.tool.as_deref()), ("writing", None));
+  // The turn's last words are its answer and no progress line.
+  assert_eq!(answering.said.len(), 1);
+  // Nothing of the session's fullness or a request's spend is stated on such a road.
+  assert_eq!((answering.context_tokens, answering.spent.clone()), (None, None));
+}
+
+#[test]
+fn a_failed_line_and_a_line_of_no_such_kind_move_nothing() {
+  let start = RunProgress::default();
+
+  for line in [
+    json!({ "id": 1, "kind": "text", "text": "a refused request", "state": "failed" }),
+    json!({ "id": 2, "kind": "thinking", "text": "a refused thought", "state": "failed" }),
+    json!({ "id": 3, "kind": "end", "text": "ended" }),
+    json!({ "id": 4, "kind": "note", "text": "a word of the bot's own" }),
+    json!({ "id": 5, "text": "no kind at all" }),
+    json!({ "id": 6, "kind": "tool-result", "text": "ran", "ref": "no-such-call", "state": "succeeded" }),
+  ] {
+    assert_eq!(start.filed(line.as_object().unwrap()), None, "{line}");
+  }
+}

@@ -195,6 +195,59 @@ impl RunProgress {
     found.then_some(changed)
   }
 
+  /// One line the agency filed already told apart — a thinking block, words, a call or a call's result — against
+  /// what is already known; none where it is no such line. Such a line names what it is and holds no usage, so the
+  /// phase and the call are read off the line itself and what the turn thought and wrote is counted by estimate
+  /// (docs/receiver.md, 「The event stream」).
+  pub fn filed(&self, line: &serde_json::Map<String, Value>) -> Option<Self> {
+    let word = |name: &str| line.get(name).and_then(Value::as_str);
+    let text = word("text").unwrap_or_default();
+    let failed = word("state") == Some("failed");
+    let reference = word("ref").or_else(|| word("reference"));
+
+    match word("kind")? {
+      "thinking" if !failed => Some(Self {
+        phase: "thinking",
+        tool: None,
+        thinking_tokens: added(self.thinking_tokens, estimated(text)),
+        ..self.clone()
+      }),
+      "text" if !failed => {
+        let read = Self {
+          phase: "writing",
+          tool: None,
+          written_tokens: added(self.written_tokens, estimated(text)),
+          ..self.clone()
+        };
+
+        Some(read.after_line(&Line {
+          kind: "text",
+          text: text.to_owned(),
+          ..Line::default()
+        }))
+      }
+      "tool" => {
+        let name = word("name").map(str::to_owned);
+        let read = Self {
+          phase: "tool",
+          tool: name.clone(),
+          written_tokens: added(self.written_tokens, estimated(text)),
+          ..self.clone()
+        };
+
+        Some(read.after_line(&Line {
+          kind: "tool",
+          text: text.to_owned(),
+          name,
+          reference: reference.map(str::to_owned),
+          ..Line::default()
+        }))
+      }
+      "tool-result" => self.with_result(reference?, word("state")),
+      _ => None,
+    }
+  }
+
   /// One line of the record or the stream against what is already known; none where it says nothing new.
   pub fn read(&self, line: &str) -> Option<Self> {
     let trimmed = trim(line);

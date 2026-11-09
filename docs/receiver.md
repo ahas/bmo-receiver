@@ -310,6 +310,14 @@ flowchart TD
   already holds: the phase, the tool being called, the thinking and the tokens each request spent, the written
   estimate, and how full the session stands. A pane program's `progress` line carries the turn's spend so far,
   which is set where it stands rather than added to; its `answer` line carries the turn's whole spend the same way.
+  - **A line the agency filed already told apart is read as what it names.** A road whose program keeps its own
+    record is filed as lines of a kind — a thinking block, words, a call, a call's result — each holding its words
+    and no usage. A thinking line puts the turn at thinking and words at writing; a call puts it at the tool the
+    line names and stands in the picture's actions, the words held before it becoming progress lines; a result
+    settles the call it answers. What the turn thought and wrote is counted by estimate, from those lines'
+    length, and how full the session stands and what each request spent stay unknown on such a road until the
+    turn ends.
+
   The log is read as each of the turn's events comes and once every look the pushing policy sets
   (`chat-round.toml`, `[pushing]`), so what the run writes reaches the picture within that look, and a picture that
   changed goes out at once. A look whose read fails leaves the picture as it stands until the next; a read an

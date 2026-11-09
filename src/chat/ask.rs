@@ -502,7 +502,9 @@ impl Carry {
             .map(str::to_owned)
             .unwrap_or_else(|| serde_json::to_string(&line).unwrap_or_default());
 
-          if let Some(read) = picture.read(&text) {
+          // A line holding a record or an event is read as that; one the agency filed already told apart, as what
+          // it names.
+          if let Some(read) = picture.read(&text).or_else(|| picture.filed(&line)) {
             picture = read;
           }
 
