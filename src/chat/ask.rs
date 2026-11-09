@@ -6,8 +6,8 @@
 //! fresh one's first turn. What the turn's run leaves in the agency's log is drawn into the room's picture of
 //! the turn as it goes.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{LazyLock, Mutex, PoisonError};
+use std::collections::HashMap;
+use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
 use futures_util::StreamExt;
@@ -36,12 +36,9 @@ use crate::room_record::RoomForget;
 use crate::rounds;
 use crate::run_lines::thinking_of;
 
-// The least a room's first launch since this process started is spaced from another room's: several sessions
+// The least a room's first launch since the receiver started is spaced from another room's: several sessions
 // starting from cold at once is the shape of abuse.
 const LAUNCH_GAP: Duration = Duration::from_secs(10);
-
-static PACING: LazyLock<tokio::sync::Mutex<(HashSet<i64>, i64)>> =
-  LazyLock::new(|| tokio::sync::Mutex::new((HashSet::new(), 0)));
 
 static OPENED: Mutex<u64> = Mutex::new(0);
 
@@ -54,10 +51,10 @@ pub fn chat_run_name(chat_id: i64) -> String {
   format!("chat:{chat_id}:{}:{}", now_ms(), *opened)
 }
 
-// A room whose registration is removed is a room this process has not launched for, should it come again.
-fn forget_room(_: &Receiver, room: i64) -> BoxFuture<'_, ()> {
+// A room whose registration is removed is a room the receiver has not launched for, should it come again.
+fn forget_room(receiver: &Receiver, room: i64) -> BoxFuture<'_, ()> {
   Box::pin(async move {
-    let _ = PACING.lock().await.0.remove(&room);
+    let _ = receiver.launches().lock().await.rooms.remove(&room);
   })
 }
 
@@ -66,21 +63,21 @@ crate::room_forget!(RoomForget {
   forget: forget_room,
 });
 
-/// The first run of each room since this process started, spaced from the first run of any other room: each first
-/// launch takes the next free moment on one schedule and waits for it alone, so a room already launched, and every
-/// other room's launch, never waits behind it (docs/bmo-window.md, 「Quiet instruction」).
-async fn pace_first_launch(chat_id: i64) {
+/// The first run of each room since the receiver started, spaced from the first run of any other room: each first
+/// launch takes the next free moment on the receiver's one schedule and waits for it alone, so a room already
+/// launched, and every other room's launch, never waits behind it (docs/bmo-window.md, 「Quiet instruction」).
+async fn pace_first_launch(receiver: &Receiver, chat_id: i64) {
   let wait = {
-    let mut pacing = PACING.lock().await;
+    let mut launches = receiver.launches().lock().await;
 
-    if !pacing.0.insert(chat_id) {
+    if !launches.rooms.insert(chat_id) {
       return;
     }
 
     let now = now_ms();
-    let slot = (pacing.1 + LAUNCH_GAP.as_millis() as i64).max(now);
+    let slot = (launches.last + LAUNCH_GAP.as_millis() as i64).max(now);
 
-    pacing.1 = slot;
+    launches.last = slot;
     slot - now
   };
 
@@ -302,7 +299,7 @@ impl Carry {
     let thoughts = (chat_id == receiver.owner_room())
       .then(|| Thoughts::start(receiver.clone(), chat_id, asking.via.clone(), held.agent.clone()));
 
-    pace_first_launch(chat_id).await;
+    pace_first_launch(receiver, chat_id).await;
 
     let unified = unified_session(receiver, agent).await;
     let scope = scope_of(unified, chat_id);

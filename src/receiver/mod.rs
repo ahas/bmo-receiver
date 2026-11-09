@@ -257,6 +257,14 @@ pub trait Pass: Send + Sync {
 /// the message as admitted by the open window alone where that was its only ground; whether
 /// anything stood to take it. And everything the agent keeps of a room, forgotten as the room's registration is
 /// removed.
+/// The first launches a receiver has given: the rooms launched for, and the moment the last of them was given, in
+/// epoch milliseconds.
+#[derive(Debug, Default)]
+pub struct Launches {
+  pub rooms: std::collections::HashSet<i64>,
+  pub last: i64,
+}
+
 pub trait Runner: Send + Sync {
   fn hand<'a>(
     &'a self,
@@ -391,6 +399,9 @@ pub struct Receiver {
   typing: Arc<OnceLock<Arc<dyn Typing>>>,
   touching: Arc<OnceLock<Arc<dyn Touching>>>,
   place: Arc<OnceLock<Arc<str>>>,
+  // The rooms this receiver has launched for and the moment the last first launch was given, by which a room's
+  // first launch is spaced from another room's (docs/bmo-window.md, 「Quiet instruction」).
+  launches: Arc<tokio::sync::Mutex<Launches>>,
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
   // stands the receiver without that turn.
   situation_updates: bool,
@@ -450,9 +461,15 @@ impl Receiver {
       typing: Arc::default(),
       touching: Arc::default(),
       place: Arc::default(),
+      launches: Arc::default(),
       situation_updates: true,
       review_gate: true,
     }
+  }
+
+  /// The rooms this receiver has launched for and the moment the last first launch was given.
+  pub fn launches(&self) -> &tokio::sync::Mutex<Launches> {
+    &self.launches
   }
 
   /// The same receiver, with the situation update turn on or off.
