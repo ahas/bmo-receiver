@@ -62,7 +62,7 @@ pub const ENTRIES: &[Entry] = &[
   ),
   entry(
     "file",
-    "Send a file from this machine, or several as one album, with a caption.",
+    "Send a file from this machine for the room to save or open, or several as one album, with a caption. A picture the room is to look at goes through photo, never through this entry.",
     "file.json",
     input_schema::<FileInput>,
     None,

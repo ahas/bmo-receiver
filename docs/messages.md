@@ -136,8 +136,9 @@ that wants something said there hands the words to that supervisor, and the supe
   carrying what was asked as data: who handed it, the command or unit it came through where the asker names one
   (`from`), the room, the act and its arguments (the words, the pictures, the files, the voice note, the
   reaction, the pin, the sticker, the draw or the fixed line) and the road it named. The rule the marker stands
-  for — that every message a room receives comes from its supervisor, and that it says the words there in its own
-  turn or answers `<<SKIP>>` — stands in the room's block. The asker is answered with one line naming the agent
+  for — that every message a room receives comes from its supervisor, that it says the words there in its own
+  turn or answers `<<SKIP>>`, and that an act handed as an entry of the send tool goes out through that same
+  entry — stands in the room's block. The asker is answered with one line naming the agent
   it was handed to, and the instruction's number as `handed`.
 - **Who it is handed to:** the asker's own agent where that agent answers the room (a supervisor's shell outside
   its round, a process of its own past its turn), and the room's voice otherwise (`docs/voiced-notices.md`,
@@ -146,7 +147,9 @@ that wants something said there hands the words to that supervisor, and the supe
   the words are for and on the road the asker named; it opens a turn there and never rides. The supervisor says
   it in its own words and voice, as its rule for handed lines says (the agency's chat manual): it relays it as it
   stands, rephrases it, folds it, pins it as a reply, speaks it as a voice note, or judges it not worth saying and
-  answers `<<SKIP>>`. Whatever it sends is its own send, through every gate its turn goes through.
+  answers `<<SKIP>>`. Whatever it sends is its own send, through every gate its turn goes through. An act handed
+  as an entry of the send tool goes out through that same entry where the supervisor sends it: a picture as a
+  picture, a file as a file.
 - **A voice note is handed as its words.** A spoken talk asks the act `speak` (the voice named, the written words,
   and the spoken words where given) before anything is synthesised. Outside the asker's own round it is handed
   like any other act, so the supervisor speaks it in its own voice; in the asker's own round the receiver answers

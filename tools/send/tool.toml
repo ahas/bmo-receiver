@@ -44,7 +44,7 @@ verb = "album"
 [[entry]]
 namespace = "bmo"
 name = "file"
-description = "Send a file from this machine, or several as one album, with a caption."
+description = "Send a file from this machine for the room to save or open, or several as one album, with a caption. A picture the room is to look at goes through photo, never through this entry."
 input = "file.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]

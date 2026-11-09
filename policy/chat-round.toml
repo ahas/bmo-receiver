@@ -183,7 +183,7 @@ instruction = """Something was handed to you to put in chat {room}, by {who}. It
 WHAT WAS HANDED:
 {asked}
 END OF WHAT WAS HANDED"""
-rule = "WHEN A TURN IS MARKED {marker} — every message a room receives comes from that room's supervisor, so whether and how it is said is yours. Say it in that room yourself, in this turn. Where it is not worth saying, answer with <<SKIP>>."
+rule = "WHEN A TURN IS MARKED {marker} — every message a room receives comes from that room's supervisor, so whether and how it is said is yours. Say it in that room yourself, in this turn. What was handed as an entry of the send tool goes out through that same entry, a picture as a picture and a file as a file. Where it is not worth saying, answer with <<SKIP>>."
 answered = "Handed to {agent} to say in chat {room} in its own turn (order {id}); nothing went out on this call, so do not send it again."
 
 # The marker and data words pushed into a working turn are carried in (docs/bmo-window.md, 「The openings」,

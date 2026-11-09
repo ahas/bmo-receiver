@@ -13,8 +13,9 @@ and watches are `docs/reminders.md`'s. The other tools of the catalogue are thei
 - **`photo`**: one picture or an album, each `url` with an optional `label`, a `caption` (`docs/pictures.md`) and
   an optional `replyTo` naming the message it replies to.
 - **`file`**: one file from this machine, or several as one album, each a `path` and an optional `name`, with a
-  `caption` and an optional `replyTo` naming the message it replies to. A file a room's folder holds goes only into that room, and a job sends none of them
-  (`docs/room-files.md`).
+  `caption` and an optional `replyTo` naming the message it replies to. A file a room's folder holds goes only
+  into that room, and a job sends none of them (`docs/room-files.md`). It is for a file a room saves or opens;
+  a picture a room is to look at goes through `photo`, and the entry's description says so.
 - **`voice`**: an OGG/Opus voice note at `path`, with its `caption`, what it `said`, the `transcript` read out and
   an optional `replyTo` naming the message it replies to.
 - **`fixed_line`**: a fixed line's `code` and its `fields`, which the web unit's language packs render, the
