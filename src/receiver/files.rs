@@ -108,27 +108,6 @@ pub async fn keep(
   Ok(())
 }
 
-/// The pictures a send handed over as bytes, kept under the record row its message stands as, the first as
-/// `<message>.jpg` and its path on the row: how many were kept. Keeping a sent picture never fails the send, so
-/// the caller says in the journal why one was not kept.
-pub async fn keep_pictures(
-  db: &DatabaseConnection,
-  data_root: &DataRoot,
-  chat_id: i64,
-  message_id: i64,
-  files: &[MessageFile],
-) -> Result<usize, Fault> {
-  let mut pictures = 0;
-
-  for file in files.iter().filter(|file| kind_of(&file.mime) == "image") {
-    if picture(db, data_root, chat_id, message_id, file, pictures).await? {
-      pictures += 1;
-    }
-  }
-
-  Ok(pictures)
-}
-
 // One picture filed under its message, the first as `<message>.jpg` and its path on the row: whether it was kept.
 async fn picture(
   db: &DatabaseConnection,

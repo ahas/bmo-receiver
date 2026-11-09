@@ -31,6 +31,9 @@ receiver keeps the pictures and decides what a session is shown.
 - **A picture an agent sent is kept like a picture it received.** The bytes handed over with the send are filed
   under the message the send is kept as, the first as `images/<chatId>/<messageId>.jpg` and an album's later
   pictures as `<messageId>-1.jpg` and on, and the row points at the first.
+- **A picture sent as a file is kept as a picture too.** A file send's file of an image type is filed in the
+  picture store under the message the file is kept as, so the console draws it as that message's picture; every
+  other file of a send goes to the message-file store (`docs/room-files.md`, 「Message files」).
 - **A web address is the chat service's to fetch:** nothing of it is read here, so it is not filed unless the
   picture is handed over with the send.
 - **A picture the road said did not go is left out of the archive,** and keeping never fails a send: the picture

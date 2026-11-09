@@ -24,6 +24,12 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   under `collected/<chatId>/` of the data root. Keeping a file launches nothing and notifies nobody.
 - **The bytes come from the chat service:** with the hand-over (`POST /attachment`), or later as the message's
   `gathering` promised (`POST /gathered`), or fetched on asking (`POST /media`).
+- **A file an agent sent is kept from the send itself.** The bytes a send hands over — a file send's document
+  or album, a sound, a voice note — are filed under the message the send is kept as, the way a received file
+  is and within the same cap: a picture in the picture store (`docs/pictures.md`, 「A picture an agent sent」),
+  anything else here, by its own name, a voice note under the name a sound with none takes. A file the road
+  said did not go is left out, and keeping never fails a send: the file is already in the room by the time it
+  runs, so a file that could not be kept is said in the journal.
 - **Every file is recorded in `collected_items`** (chat, sender, message id, kind, source, stored path, and the
   file's id among its message's files) and keeping the same file twice is a no-op.
 - **Twice means the same file.** Every file a message carried crosses as a message file, with an id the chat

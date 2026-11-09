@@ -23,7 +23,7 @@ use crate::Fault;
 use std::sync::Arc;
 
 use crate::receiver::speech::KeptLine;
-use crate::receiver::{Receiver, files, speech, wake};
+use crate::receiver::{Receiver, files, rows, speech, wake};
 use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, added, record};
 use crate::verbs::{Launch, NoLaunch, VerbError};
@@ -213,8 +213,8 @@ impl Sends {
 
     match kept {
       Ok(message_id) => {
-        if let Err(why) = self.keep_sent_pictures(request, message_id, &sent.missed).await {
-          eprintln!("chat {chat_id}: a picture sent on {key} was not kept: {}", why.detail);
+        if let Err(why) = self.keep_sent_files(key, request, message_id, &sent.missed).await {
+          eprintln!("chat {chat_id}: a file sent on {key} was not kept: {}", why.detail);
         }
 
         if matches!(request.send, ChatSend::Sticker { .. })
@@ -234,39 +234,36 @@ impl Sends {
     }
   }
 
-  // The pictures a send handed over as bytes, kept under the record row its message stands as, so a picture an
-  // agent sent is kept as one it received is. A picture the road said did not go is left out. Keeping never fails
-  // a send: the picture is already in the room by the time it runs.
-  async fn keep_sent_pictures(
+  // The files a send handed over as bytes, kept under the record row its message stands as, as the files a
+  // message carried are kept (docs/room-files.md, 「Message files」): a picture in the picture store, its path on
+  // the row, and any other file in the message-file store. A file the road said did not go is left out. Keeping
+  // never fails a send: the file is already in the room by the time it runs.
+  async fn keep_sent_files(
     &self,
+    via: &str,
     request: &ChatSendRequest,
     message_id: i64,
     missed: &[MissedPicture],
   ) -> Result<(), Fault> {
-    let ChatSend::Album { items, .. } = &request.send else {
-      return Ok(());
-    };
-    let files: Vec<MessageFile> = items
-      .iter()
-      .filter_map(|item| match item {
-        AlbumItem::File(file) if !missed.iter().any(|one| one.address == file.name) => Some(MessageFile {
-          id: file.name.clone(),
-          name: file.name.clone(),
-          mime: file.mime.clone(),
-          bytes: file.bytes.clone(),
-          kind: None,
-        }),
-        _ => None,
-      })
-      .collect();
+    let files = sent_files(&request.send, missed);
 
     if files.is_empty() {
       return Ok(());
     }
 
-    files::keep_pictures(self.receiver.db(), self.receiver.data_root(), request.room_id, message_id, &files)
-      .await
-      .map(drop)
+    let db = self.receiver.db();
+    let Some(kept) = rows::message(db, request.room_id, message_id, via).await? else {
+      return Ok(());
+    };
+
+    files::keep(
+      db,
+      self.receiver.data_root(),
+      self.receiver.deployment().attachment_bytes,
+      &kept,
+      &files,
+    )
+    .await
   }
 
   // A read-only room refused before any road is chosen, so nothing is sent or kept there.
@@ -399,8 +396,8 @@ impl Sends {
     };
     let message_id = record::keep(self.receiver.db(), self.receiver.news(), line).await.map_err(kept)?;
 
-    if let Err(why) = self.keep_sent_pictures(request, message_id, &[]).await {
-      eprintln!("chat {}: a picture kept in the record was not kept: {}", request.room_id, why.detail);
+    if let Err(why) = self.keep_sent_files(Road::Record.key(), request, message_id, &[]).await {
+      eprintln!("chat {}: a file kept in the record was not kept: {}", request.room_id, why.detail);
     }
 
     if matches!(request.send, ChatSend::Sticker { .. }) {
@@ -575,6 +572,53 @@ fn kept_line(send: &ChatSend) -> String {
     | ChatSend::Typing { .. }
     | ChatSend::Delete { .. } => String::new(),
   }
+}
+
+// The type a voice note goes out as, which names the file it is kept under.
+const VOICE_TYPE: &str = "audio/ogg";
+// What a voice note is told by among its message's files.
+const VOICE_ID: &str = "voice";
+
+/// The files a send hands over as bytes, each as a file of its message: the files of an album the road took, a
+/// document, a sound and a voice note. A web address is the road's to fetch, so it is no file here.
+pub fn sent_files(send: &ChatSend, missed: &[MissedPicture]) -> Vec<MessageFile> {
+  // A file of a send is told from the message's others by its name; a voice note, which has none, by what it is.
+  let file = |name: &str, mime: String, bytes: &[u8]| MessageFile {
+    id: if name.is_empty() { VOICE_ID.to_owned() } else { name.to_owned() },
+    name: name.to_owned(),
+    mime,
+    bytes: bytes.to_vec(),
+    kind: None,
+  };
+
+  match send {
+    ChatSend::Album { items, .. } => items
+      .iter()
+      .filter_map(|item| match item {
+        AlbumItem::File(one) if !missed.iter().any(|missed| missed.address == one.name) => {
+          Some(file(&one.name, one.mime.clone(), &one.bytes))
+        }
+        _ => None,
+      })
+      .collect(),
+    ChatSend::Document { bytes, file_name } => vec![file(file_name, type_of(file_name), bytes)],
+    ChatSend::Audio { audio, file_name } => {
+      // A sound is kept as a sound whatever its name says of it.
+      let named = Some(type_of(file_name)).filter(|mime| files::kind_of(mime) == "audio");
+
+      vec![file(file_name, named.unwrap_or_else(|| VOICE_TYPE.to_owned()), audio)]
+    }
+    ChatSend::Voice { audio, .. } => vec![file("", VOICE_TYPE.to_owned(), audio)],
+    _ => vec![],
+  }
+}
+
+// The type a file's name says it is, a bare file's where the name says nothing.
+fn type_of(name: &str) -> String {
+  mime_guess::from_path(name)
+    .first()
+    .map(|kind| kind.essence_str().to_owned())
+    .unwrap_or_else(|| "application/octet-stream".to_owned())
 }
 
 // Why a send was asked of a room no road holds.

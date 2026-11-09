@@ -16,8 +16,8 @@ use tempfile::tempdir;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::Receiver;
 use bmo_receiver::verbs::messages::{
-  Picture, Relay, SayAsked, failed_instruction, hand_back_to, opening, photo, pin, react, say, say_refusal,
-  sent_instruction, sticker, tell_owner,
+  Picture, Relay, SayAsked, SendFile, VoiceNote, failed_instruction, file, hand_back_to, opening, photo,
+  pin, react, say, say_refusal, sent_instruction, sticker, tell_owner, voice,
 };
 use bmo_receiver::verbs::room_files::{room_file_refusal, room_stores};
 use bmo_receiver::verbs::sends::{Sends, verb_refusal};
@@ -294,10 +294,17 @@ async fn a_picture_the_road_does_not_perform_is_refused_in_one_sentence() {
 // A scratch receiver over a data root of the test's own, reaching one road that holds the room and declares the
 // album send, with the sends those two stand on.
 async fn picturing_road() -> (Scratch, Arc<StandInChat>, DataRoot, tempfile::TempDir, Sends) {
+  road_canning(&[ChatCapability::Album]).await
+}
+
+// The same, on a road that declares the sends named.
+async fn road_canning(
+  verbs: &[ChatCapability],
+) -> (Scratch, Arc<StandInChat>, DataRoot, tempfile::TempDir, Sends) {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let root = DataRoot::new(data.path());
-  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).canning(&[ChatCapability::Album]));
+  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).canning(verbs));
   let standing = standing(scratch.db(), root.clone(), [road.clone()].to_vec());
   let sends = Sends::new(standing.receiver.clone(), None, None);
 
@@ -355,6 +362,88 @@ async fn a_picture_under_the_data_root_goes_as_its_bytes_and_is_kept_under_its_m
 
   assert!(stored.ends_with(&format!("images/{ROOM}/900.jpg")), "{stored}");
   assert_eq!(std::fs::read(&stored).unwrap(), picture, "the picture sent is the picture kept");
+}
+
+#[tokio::test]
+async fn a_file_sent_is_kept_under_its_message_and_a_picture_among_them_as_its_picture() {
+  let (scratch, road, root, _data, sends) = road_canning(&[ChatCapability::Document]).await;
+  let made = tempdir().unwrap();
+  let picture = png();
+  let drawing = made.path().join("drawing.png");
+  let notes = made.path().join("notes.txt");
+
+  std::fs::write(&drawing, &picture).unwrap();
+  std::fs::write(&notes, b"what was measured").unwrap();
+
+  for path in [&drawing, &notes] {
+    let files = [SendFile {
+      path: path.to_string_lossy().into_owned(),
+      name: None,
+    }]
+    .to_vec();
+
+    file(&sends, &root, ROOM, &files, None, None, false).await.unwrap();
+  }
+
+  assert_eq!(road.sent().len(), 2, "each file went as a document of its own");
+
+  let stored = scratch
+    .texts(&format!(
+      r#"SELECT COALESCE("image_path", '') FROM "messages" WHERE "chat_id" = {ROOM} AND "message_id" = 900"#
+    ))
+    .await
+    .concat();
+
+  assert!(stored.ends_with(&format!("images/{ROOM}/900.jpg")), "{stored}");
+  assert_eq!(
+    std::fs::read(&stored).unwrap(),
+    picture,
+    "a picture sent as a file is the message's picture"
+  );
+
+  let kept = scratch
+    .texts(&format!(
+      r#"SELECT "message_id" || ' ' || "kind" || ' ' || "source" || ' ' || COALESCE("stored_path", '')
+         FROM "collected_items" WHERE "chat_id" = {ROOM} ORDER BY "id""#
+    ))
+    .await;
+
+  assert_eq!(kept.len(), 1, "the picture stands in the picture store alone: {kept:?}");
+  assert!(kept[0].starts_with("901 document notes.txt "), "{kept:?}");
+
+  let path = kept[0].rsplit(' ').next().unwrap();
+
+  assert!(path.ends_with(&format!("collected/{ROOM}/901-notes.txt")), "{path}");
+  assert_eq!(std::fs::read(path).unwrap(), b"what was measured");
+}
+
+#[tokio::test]
+async fn a_voice_note_sent_is_kept_as_the_sound_of_its_message() {
+  let (scratch, _road, root, _data, sends) = road_canning(&[ChatCapability::Voice]).await;
+  let made = tempdir().unwrap();
+  let note = made.path().join("briefing.ogg");
+
+  std::fs::write(&note, b"OggS and what follows").unwrap();
+
+  let asked = VoiceNote {
+    path: &note.to_string_lossy(),
+    caption: None,
+    said: Some("the briefing"),
+    transcript: None,
+  };
+
+  voice(&sends, &root, ROOM, asked, None, false).await.unwrap();
+
+  let kept = scratch
+    .texts(&format!(
+      r#"SELECT "message_id" || ' ' || "kind" || ' ' || "source" || ' ' || COALESCE("stored_path", '')
+         FROM "collected_items" WHERE "chat_id" = {ROOM} ORDER BY "id""#
+    ))
+    .await;
+
+  assert_eq!(kept.len(), 1, "{kept:?}");
+  assert!(kept[0].starts_with("900 audio voice.ogg "), "{kept:?}");
+  assert_eq!(std::fs::read(kept[0].rsplit(' ').next().unwrap()).unwrap(), b"OggS and what follows");
 }
 
 #[tokio::test]

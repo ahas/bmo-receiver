@@ -362,6 +362,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A file send** is one document, or several files as one album: each file a `path` on this machine and an
   optional `name`, with an optional `caption`. The bytes go to the verb the room's road declares, `document` for
   one file and `album` for several; a file a room's folder holds goes only into that room, and a job sends none.
+  Each file that went is filed under its message (`docs/room-files.md`, 「Message files」).
 - **A voice note** is an OGG/Opus file at `path`, with its `caption`, what it `said` and the `transcript` read out,
   sent as the chat protocol's `voice` kind.
 - **A fixed line** is a `code` and its `fields`, rendered by the web unit's `POST /words/render` in the
