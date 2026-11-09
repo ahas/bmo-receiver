@@ -50,6 +50,32 @@ message passes, and the record each turn of it leaves.
   exempt from it. A console talk, a typed line, the touch and the line before a fold are no rounds of a room and
   run none.
 
+## A round handed to the double
+
+- **The draft turn may hand its round over.** Where the round calls for work longer than moments, the agent
+  answers `<<HANDOFF>>` and nothing else, at once and before doing any of that work; the process's fixed rules
+  say so. An answer that is nothing but the sentinel is the hand-over, and only of the round's own draft
+  turn; the sentinel standing among other words is words.
+- **The same turn then goes to the agent's double.** The receiver carries the round's turn again, unchanged, as
+  a run of the role the agency names for a supervisor's delegated work, started as that agent's double at the
+  agent's scratch workspace (the agency's `docs/tools.md`, 「The delegate」): the room's block whole with the
+  brain's index, every document of the turn opened in full, and the turn, under one line saying that the round
+  was handed over and that the double answers it as the agent itself. It is no instruction the agent writes:
+  the double reads what the agent read and follows the same process.
+- **The double's answer is the round's draft,** and everything after it is the same process: the closing
+  check, the items, the review, a revision and the checks are turns of the double's run, each sent as its own
+  words alone, since the double's kept session holds the round. The message goes out as the agent's, by the
+  round's own send.
+- **The double's session is the one its last run left.** Each turn takes a slot of the role, waits for it
+  however long its line takes, and resumes the session the role keeps at that folder on that road, so a round
+  handed over after another goes on in the same session, as a delegated task does, until the agency lets that
+  session go. The agent's own session is free from the moment it answered the sentinel: it takes its other
+  rooms' rounds while the double works.
+- **Words that come meanwhile go to the double's turn,** pushed as they are pushed into the agent's own, and
+  the turn's picture is drawn from the double's run.
+- **A double that answers the sentinel itself, or whose run fails, fails the round** as a failed draft turn
+  does: nothing is sent, and the words go back to wait.
+
 ## A voice note
 
 - **The turn reads a voice note as text.** The receiver transcribes the saved recording before the turn

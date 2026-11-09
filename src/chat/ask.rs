@@ -15,20 +15,24 @@ use serde_json::Value;
 use tokio::time::MissedTickBehavior;
 
 use receiver_codes::SessionReason;
+use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::handover::HANDOVER;
-use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
+use receiver_ports::agency::{
+  Agency, DOUBLE_SOURCE, Delivery, DoubleStart, DoubleTurn, Event, Said, Scope, Session, Turn, TurnRoom,
+};
 use receiver_ports::http::PortFailure;
 
 use super::cache::{Leaving, Route, remember, reset_reason, spend_force, transcript};
 use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
-  Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
+  Aside, Asking, BoxFuture, Carrying, Doubled, Failure, Follower, Held, Reply, unified_session,
 };
 use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
 use super::progress::{RunProgress, picture_of};
 use super::room::{RoomContext, room_context};
+use super::sentinels::is_handoff;
 use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::room_record::RoomForget;
@@ -287,7 +291,202 @@ impl Carry {
     Ok(Some(handed))
   }
 
+  /// A turn of a round handed to the agent's double (docs/drafting.md, 「A round handed to the double」), carried
+  /// by a run of the double's role at the agent's scratch workspace: a slot of the role taken, the run's session
+  /// started on it, the turn sent and waited to its end, and the slot given back. The round's own turn goes
+  /// whole, the room's block and every document in full under the line that says the round was handed over; a
+  /// later turn of the process goes as its words alone, since the session the role keeps holds the round. Words
+  /// that come for the room meanwhile are pushed into the turn, and the turn's picture is drawn from its run.
+  /// Nothing of the answer is the agent's own session's: it names no session, no context and no replacement.
+  async fn doubled(
+    &self,
+    asking: &Asking,
+    held: &Held,
+    follower: &Follower,
+    doubled: Doubled,
+  ) -> Result<Reply, Failure> {
+    let receiver = &self.receiver;
+    let agency = receiver.units().agency.clone();
+    let agent = held.agent.as_str();
+    let chat_id = asking.chat_id;
+    let thinking_shown = chat_id == receiver.owner_room();
+    let failed = |why: crate::Fault| Failure::Failed(why.detail);
+    let room = room_context(receiver, chat_id, asking.via.as_deref()).await.map_err(failed)?;
+    let loaded = loaded_in(receiver, None).await.map_err(failed)?;
+    let marked = states(&asking.prompt, &loaded);
+    let (prompt, send) = match doubled {
+      Doubled::Round => {
+        let (sent, send, _) = sent_prompt(receiver, None, Some(&room), true, agent, &asking.prompt)
+          .await
+          .map_err(failed)?;
+
+        (format!("{}\n\n{sent}", CHAT_LINE.room.handed), send)
+      }
+      Doubled::Later => (asking.prompt.clone(), None),
+    };
+    let folder = receiver.data_root().path().join("agent-workspaces").join(agent).join("scratch");
+
+    std::fs::create_dir_all(&folder)
+      .map_err(|why| Failure::Failed(format!("{} could not be made: {why}", folder.display())))?;
+
+    let at = now_ms();
+    let start = DoubleStart {
+      supervisor: agent.to_owned(),
+      path: folder.to_string_lossy().into_owned(),
+      key: format!("{DOUBLE_SOURCE}:{agent}:{chat_id}:{at}"),
+      run: format!("round-{agent}-{chat_id}-{at}"),
+      title: format!("a round of chat {chat_id}"),
+    };
+    let seat = agency.double_start(&start).await.map_err(fault_of)?;
+    let mut variables = serde_json::Map::new();
+
+    variables.insert("BMO_TURN_CHAT".to_owned(), chat_id.to_string().into());
+    variables.insert("BMO_TURN_PRIVILEGED".to_owned(), if asking.privileged { "1" } else { "0" }.into());
+    variables.insert(
+      "BMO_TURN_MESSAGES".to_owned(),
+      asking.answers.iter().map(i64::to_string).collect::<Vec<_>>().join(",").into(),
+    );
+
+    if let Some(via) = &asking.via {
+      variables.insert("BMO_TURN_VIA".to_owned(), via.clone().into());
+    }
+
+    let turn = DoubleTurn {
+      prompt,
+      title: format!("{agent}: a round of chat {chat_id}, handed over"),
+      chat_id,
+      variables,
+    };
+    let mut stream = match agency.events(&["turn.created"]).await {
+      Ok(stream) => Some(stream),
+      Err(why) => {
+        eprintln!("chat {chat_id}: the agency's events were not read for the double's turn: {why}");
+
+        None
+      }
+    };
+    let port = agency.clone();
+    let sent_on = seat.clone();
+    let mut sending = tokio::spawn(async move { port.double_turn(&sent_on, &turn).await });
+    let handed = handed_of(chat_id, send, &asking.context, &marked);
+    let mut picture = RunProgress::starting(&handed);
+    let mut turning: Option<i64> = None;
+    let mut after: i64 = 0;
+    let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
+    let mut quiet_until: Option<tokio::time::Instant> = None;
+
+    look.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+    // The turn is waited to its end, however long it takes: a look offers it the words that came for its room
+    // and reads its run's log for the picture, as a look at the agent's own turn does.
+    let ended = loop {
+      tokio::select! {
+        ended = &mut sending => break ended,
+        read = async { match stream.as_mut() { Some(stream) => stream.next().await, None => std::future::pending().await } } => {
+          match read {
+            Some(Ok(Event { kind, data, .. })) => {
+              let mine = data.get("session").and_then(Value::as_str).is_some_and(|one| one == seat.session);
+
+              if mine && kind == "turn.created" {
+                turning = data.get("turnId").and_then(Value::as_i64);
+              }
+            }
+            // A stream that ended or failed leaves the turn waited on with no more looks at its events.
+            Some(Err(_)) | None => stream = None,
+          }
+        }
+        _ = look.tick() => {
+          if let Some(turning) = turning
+            && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
+          {
+            quiet_until = pushed(agency.as_ref(), &seat.session, turning, follower).await;
+          }
+
+          let since = if after == 0 { None } else { Some(after) };
+
+          if let Ok(lines) = agency.run_log(&seat.run, since).await {
+            for line in lines {
+              let id = line.get("id").and_then(Value::as_i64);
+
+              if after != 0 && id.is_some_and(|id| id <= after) {
+                continue;
+              }
+
+              let text = line
+                .get("text")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| serde_json::to_string(&line).unwrap_or_default());
+
+              if let Some(read) = picture.read(&text).or_else(|| picture.filed(&line)) {
+                picture = read;
+              }
+
+              if thinking_shown && let Some(thought) = thinking_of(&line).last() {
+                picture = picture.thought(thought);
+              }
+
+              after = id.unwrap_or(after);
+            }
+
+            follower.progressed(picture_of(&picture));
+          }
+        }
+      }
+    };
+
+    drop(stream);
+
+    let ended = match ended {
+      Ok(Ok(ended)) => Ok(ended),
+      Ok(Err(why)) => Err(fault_of(why)),
+      Err(_) => Err(Failure::Failed("the double's turn went away".to_owned())),
+    };
+    let outcome = match &ended {
+      Ok(ended) if !ended.outcome.is_empty() => ended.outcome.clone(),
+      Ok(_) => "answered".to_owned(),
+      Err(_) => "failed".to_owned(),
+    };
+
+    if let Err(why) = agency.double_finish(&seat, &outcome, false).await {
+      eprintln!("chat {chat_id}: the double's slot was not given back: {why}");
+    }
+
+    let ended = ended?;
+
+    match ended.outcome.as_str() {
+      "stopped" => Err(Failure::Stopped),
+      "failed" => Err(Failure::Failed(ended.reason)),
+      // A double hands nothing on: the round was its to finish.
+      _ if is_handoff(&ended.answer) => Err(Failure::Failed(
+        "the double answered the hand-off sentinel instead of the round".to_owned(),
+      )),
+      _ => Ok(Reply {
+        text: ended.answer,
+        mode: None,
+        account: None,
+        session: None,
+        context_tokens: None,
+        context_window: None,
+        fold_ratio: None,
+        folds_itself: true,
+        replaced: vec![],
+        run: Some(seat.run.clone()),
+        before: super::draft::Before {
+          session: None,
+          core: marked,
+          names: super::context::core_names(&asking.prompt),
+          loads: loaded,
+        },
+      }),
+    }
+  }
+
   pub async fn carries(&self, asking: &Asking, held: &Held, follower: &Follower) -> Result<Reply, Failure> {
+    if let Some(doubled) = asking.double {
+      return self.doubled(asking, held, follower, doubled).await;
+    }
+
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let db = receiver.db();

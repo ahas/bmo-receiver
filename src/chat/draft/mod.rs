@@ -19,8 +19,8 @@ use serde_json::to_string as stringify;
 
 use super::ask::Carry;
 use super::conversation::{
-  Asking, BoxFuture, Carried, Carrying, Conversations, Drafted, Drafting, Failure, Follower, Held, Made,
-  Reply,
+  Asking, BoxFuture, Carried, Carrying, Conversations, Doubled, Drafted, Drafting, Failure, Follower, Held,
+  Made, Reply,
 };
 use super::mid_turn::{Push, paragraph};
 use super::promises::{promises_after, promises_later, sets_rule_later};
@@ -456,6 +456,7 @@ impl Run<'_> {
       context: drafted.selection.context.clone(),
       thread_mark: None,
       standing: false,
+      double: drafted.double.then_some(Doubled::Later),
     };
     let held = Held {
       agent: self.agent.to_owned(),

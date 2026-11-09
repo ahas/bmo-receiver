@@ -360,6 +360,87 @@ async fn the_draft_is_one_turn_naming_its_questions_and_its_answer_goes_out() {
 const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
 
 #[tokio::test]
+async fn a_draft_turn_that_hands_its_round_over_is_carried_again_by_the_double_whose_answer_goes_out() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<HANDOFF>>"]);
+  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+
+  round.standing.agency.doubling(&["the double's message"]);
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+  until("the double's slot given back", || {
+    !round.standing.agency.double_finishes.lock().unwrap().is_empty()
+  })
+  .await;
+  round.ended(1).await;
+
+  let own = round.session.prompts();
+  let starts = round.standing.agency.double_starts.lock().unwrap().clone();
+  let turns = round.standing.agency.double_turns.lock().unwrap().clone();
+  let sent = round.sent();
+
+  assert_eq!(own.len(), 1, "the agent's own session took the round's turn and no other: {own:#?}");
+  assert!(!starts.is_empty(), "a run of the double was started");
+
+  for start in &starts {
+    assert_eq!(start.supervisor, AGENT);
+    assert!(
+      start.path.ends_with(&format!("agent-workspaces/{AGENT}/scratch")),
+      "the double works at the agent's scratch workspace: {}",
+      start.path
+    );
+  }
+
+  // The round's own turn goes whole under the line that says it was handed over: the room's block, with each
+  // question's text, and the turn the agent itself was sent.
+  let handed = &turns[0];
+
+  assert!(handed.prompt.starts_with(&CHAT_LINE.room.handed), "{}", handed.prompt);
+  assert!(
+    handed.prompt.contains(ASKED) && handed.prompt.contains(turn_of(&own[0])),
+    "{}",
+    handed.prompt
+  );
+
+  for name in ["intent", "information", "final"] {
+    assert!(
+      handed.prompt.contains(&format!("{name}: {}", question(name))),
+      "the handed turn carries the room's block: {}",
+      handed.prompt
+    );
+  }
+
+  assert_eq!(handed.chat_id, OWNER);
+  assert_eq!(handed.variables.get("BMO_TURN_CHAT"), Some(&serde_json::json!(OWNER.to_string())));
+  assert_eq!(handed.variables.get("BMO_TURN_MESSAGES"), Some(&serde_json::json!("1")));
+
+  // Every later turn of the process is the double's too, its words alone.
+  for later in &turns[1..] {
+    assert!(!later.prompt.starts_with(&CHAT_LINE.room.handed), "{}", later.prompt);
+  }
+
+  assert_eq!(sent.len(), 1, "the double's answer is the message that goes out: {sent:?}");
+  assert!(sent[0].contains("the double's message"), "{sent:?}");
+  assert!(!sent[0].contains("HANDOFF"), "{sent:?}");
+
+  let finishes = round.standing.agency.double_finishes.lock().unwrap().clone();
+
+  assert_eq!(finishes.len(), starts.len(), "each run's slot is given back: {finishes:?}");
+  assert!(
+    finishes.iter().all(|(outcome, cancel)| outcome == "answered" && !cancel),
+    "{finishes:?}"
+  );
+}
+
+#[test]
+fn only_an_answer_of_nothing_but_the_sentinel_hands_a_round_over() {
+  use bmo_receiver::chat::sentinels::is_handoff;
+
+  assert!(is_handoff("<<HANDOFF>>") && is_handoff("  <<HANDOFF>>\n"));
+  assert!(!is_handoff("I will hand this over: <<HANDOFF>>"));
+  assert!(!is_handoff("") && !is_handoff("<<SKIP>>"));
+}
+
+#[tokio::test]
 async fn an_ordinary_round_carries_its_round_line_and_no_stage_text_or_archived_block() {
   // The session already holds the room's conversation: the agency opened it before this round.
   let session = StandInSession::new(SESSION, "unscripted").at_generation(1);

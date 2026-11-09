@@ -24,7 +24,7 @@ use super::mid_turn::{Paragraph, Push};
 use super::prompt::{self, Round, Scope as RoundScope};
 use super::reply::Sender;
 use super::room::room_context;
-use super::sentinels::{is_skip, is_wait};
+use super::sentinels::{is_handoff, is_skip, is_wait};
 use super::shape::Reading;
 use super::talk::{TalkFailure, TalkRequest};
 use super::thread::ThreadMark;
@@ -178,6 +178,17 @@ pub struct Asking {
   /// The turn goes on the session as it stands, and no replacement is judged for it: a situation note is written
   /// by the session that answered in the room, whatever is about to become of that session.
   pub standing: bool,
+  /// The turn is carried by a run of the agent's double, where its round was handed over (docs/drafting.md,
+  /// 「A round handed to the double」).
+  pub double: Option<Doubled>,
+}
+
+/// A turn of a round handed to the double: the round's own turn, which carries the room's block and every
+/// document in full, or a later turn of the process, which carries its words alone.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Doubled {
+  Round,
+  Later,
 }
 
 /// What carries a composed turn into the agent's session and answers with what the session said. The agency
@@ -218,6 +229,8 @@ pub struct Drafted<'a> {
   pub began: i64,
   pub opened: i64,
   pub round: &'a str,
+  /// Whether the round was handed to the agent's double, whose run every later turn of the process goes to.
+  pub double: bool,
 }
 
 /// What the draft process made: the message, a skip where nothing goes out, with what the last turn carried of
@@ -1822,6 +1835,7 @@ impl Conversations {
       context: composed.context.clone(),
       thread_mark: composed.selection.thread_mark.clone(),
       standing: false,
+      double: None,
     };
 
     // The draft turn is told as it starts, under the name its row of the round log goes by.
@@ -1830,6 +1844,28 @@ impl Conversations {
     }
 
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
+    // A draft turn that answers the hand-off sentinel hands its round over: the same turn is carried again, whole,
+    // by a run of the agent's double, and every later turn of the process goes to that run (docs/drafting.md,
+    // 「A round handed to the double」). The agent's own session keeps what its turn left it.
+    let mut doubled = false;
+    let asked = match asked {
+      Ok(reply) if is_handoff(&crate::form::strip_prompt_scaffolding(&reply.text)) => {
+        doubled = true;
+        held.context_tokens = reply.context_tokens.or(held.context_tokens);
+        held.session = reply.session.clone().or(held.session.clone());
+        self.keep_session(chat_id, &held);
+        println!("chat {chat_id}: {} handed the round to its double", self.agent());
+
+        let handed = Asking {
+          double: Some(Doubled::Round),
+          began: now_ms(),
+          ..asking.clone()
+        };
+
+        self.0.carrying.carry(&handed, &held, &follower).await
+      }
+      other => other,
+    };
     let carried = follower.finish();
     let mut scope = composed.scope.clone();
     let recent = composed.recent.clone();
@@ -1929,6 +1965,7 @@ impl Conversations {
           began,
           opened: started,
           round,
+          double: doubled,
         },
       )
       .await?;
@@ -2225,6 +2262,7 @@ impl Conversations {
       context: vec![],
       thread_mark: None,
       standing: false,
+      double: None,
     };
     let follower = Follower::new(self, chat_id);
     let reply = self.0.carrying.carry(&asking, held, &follower).await?;
@@ -2287,6 +2325,7 @@ impl Conversations {
       context: vec![],
       thread_mark: None,
       standing: false,
+      double: None,
     };
     let follower = Follower::new(self, chat_id);
     let briefing = self.0.briefings.carrying(chat_id);
@@ -2348,6 +2387,7 @@ impl Conversations {
       context: vec![],
       thread_mark: None,
       standing: false,
+      double: None,
     };
     let follower = Follower::new(self, chat_id);
     let briefing = self.0.briefings.carrying(chat_id);
@@ -3384,6 +3424,7 @@ async fn update_note(
     context: vec![],
     thread_mark: None,
     standing: true,
+    double: None,
   };
   let held = Held {
     agent: agent.to_owned(),

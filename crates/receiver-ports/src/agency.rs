@@ -8,7 +8,7 @@ use futures_util::future::BoxFuture;
 use futures_util::stream::BoxStream;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 use sse_stream::SseStream;
 
 use crate::http::{Answer, Caller, Nothing, Peer, PortFailure};
@@ -225,6 +225,75 @@ pub struct TurnRoom {
   pub chat_id: i64,
   pub text: String,
   pub mark: String,
+}
+
+/// The source a double's slot is asked under, the one the agency lists a supervisor's delegated runs by.
+pub const DOUBLE_SOURCE: &str = "delegate";
+
+// How often a waiting slot is asked for its admission again.
+const DOUBLE_PACE: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// What a double's run is started with: the supervisor whose double it is, the folder it works at, the key its
+/// slot is asked under, the name its run goes by and the slot's title.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DoubleStart {
+  pub supervisor: String,
+  pub path: String,
+  pub key: String,
+  pub run: String,
+  pub title: String,
+}
+
+/// A double's run as it stands: the slot it holds, its session and the name its run goes by.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DoubleSeat {
+  pub token: String,
+  pub session: String,
+  pub run: String,
+}
+
+/// One turn of a double's run: its prompt, its title, the room it answers and the turn's own variables.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DoubleTurn {
+  pub prompt: String,
+  pub title: String,
+  pub chat_id: i64,
+  pub variables: Map<String, Value>,
+}
+
+/// What a double's turn came to: its answer, its outcome and the reason it gave where it failed.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DoubleEnd {
+  pub answer: String,
+  pub outcome: String,
+  pub reason: String,
+}
+
+// A slot request as the agency answers it.
+struct SlotRead {
+  token: String,
+  state: String,
+  role: String,
+}
+
+impl SlotRead {
+  fn of(said: &Value) -> Self {
+    let text = |field: &str| said.get(field).and_then(Value::as_str).unwrap_or_default().to_owned();
+
+    Self {
+      token: text("token"),
+      state: text("state"),
+      role: text("role"),
+    }
+  }
+
+  fn admitted(&self) -> bool {
+    ["active", "bound"].contains(&self.state.as_str())
+  }
+
+  fn given_back(&self) -> bool {
+    self.token.is_empty() || ["released", "cancelled"].contains(&self.state.as_str())
+  }
 }
 
 /// One turn carried into a session: its prompt and the context the receiver composed around it, every part of
@@ -535,6 +604,14 @@ struct RunningJobs {
 }
 
 /// Every call the receiver makes on the agency.
+// What an agency that carries no double's run answers the asking.
+fn no_double() -> PortFailure {
+  PortFailure::Unreachable {
+    url: "double".to_owned(),
+    why: "this agency carries no double's run".to_owned(),
+  }
+}
+
 pub trait Agency: Send + Sync {
   /// Every supervisor with its row.
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>>;
@@ -569,6 +646,32 @@ pub trait Agency: Send + Sync {
   /// One turn carried into its session until it ends. A fault of the session's comes back as the agency's
   /// answer, its outcome code the failure's code (`session-busy`, `unknown-session` and the rest).
   fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>>;
+
+  /// A run of the role the agency names for a supervisor's delegated work started as `supervisor`'s double at
+  /// `path`: a slot of the role asked and waited for however long its line takes, the role's session started on
+  /// it, and the slot bound to the run. An agency that carries no such run refuses.
+  fn double_start<'a>(&'a self, _start: &'a DoubleStart) -> BoxFuture<'a, Answer<DoubleSeat>> {
+    Box::pin(async { Err(no_double()) })
+  }
+
+  /// One turn of a double's run, answered once the run ends however long that takes.
+  fn double_turn<'a>(
+    &'a self,
+    _seat: &'a DoubleSeat,
+    _turn: &'a DoubleTurn,
+  ) -> BoxFuture<'a, Answer<DoubleEnd>> {
+    Box::pin(async { Err(no_double()) })
+  }
+
+  /// A double's slot given back with what its run came to, cancelled where it never ran.
+  fn double_finish<'a>(
+    &'a self,
+    _seat: &'a DoubleSeat,
+    _outcome: &'a str,
+    _cancel: bool,
+  ) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async { Ok(()) })
+  }
 
   fn state<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<SessionState>>;
 
@@ -873,6 +976,150 @@ impl Agency for HttpAgency {
       let delivered: Delivered = self.caller.post(&["sessions", &turn.session, "turns"], turn).await?;
 
       Ok(delivered.delivery)
+    })
+  }
+
+  fn double_start<'a>(&'a self, start: &'a DoubleStart) -> BoxFuture<'a, Answer<DoubleSeat>> {
+    Box::pin(async move {
+      let asked: Value = self
+        .caller
+        .post(
+          &["slot-requests"],
+          &json!({
+            "requestKey": start.key,
+            "owner": start.key,
+            "source": DOUBLE_SOURCE,
+            "title": start.title,
+            "askedBy": start.supervisor,
+            "path": start.path,
+          }),
+        )
+        .await?;
+      let mut slot = SlotRead::of(&asked);
+
+      // Asked for its admission again and again, however long the role's line takes.
+      while !slot.admitted() {
+        if slot.given_back() {
+          return Err(PortFailure::Undecodable {
+            url: self.caller.url(&["slot-requests"])?.to_string(),
+            why: format!("the slot was given back ({}) before it was let in", slot.state),
+          });
+        }
+
+        tokio::time::sleep(DOUBLE_PACE).await;
+
+        let said: Value = self.caller.patch(&["slot-requests", &slot.token], &json!({})).await?;
+
+        slot = match said.get("request").map(SlotRead::of).filter(|read| !read.token.is_empty()) {
+          Some(read) => read,
+          None => {
+            let read: Value = self.caller.get(&["slot-requests", &slot.token], &[]).await?;
+            let read = SlotRead::of(&read);
+
+            // Not let in on this ask: one read as let in all the same still waits for its admission's answer.
+            SlotRead {
+              state: if read.admitted() { "waiting".to_owned() } else { read.state },
+              ..read
+            }
+          }
+        };
+      }
+
+      let seat = DoubleSeat {
+        token: slot.token,
+        session: String::new(),
+        run: start.run.clone(),
+      };
+      let started: Answer<Value> = self
+        .caller
+        .post(
+          &["sessions"],
+          &json!({
+            "scope": "role",
+            "agentName": slot.role,
+            "slot": seat.token,
+            "cwd": start.path,
+            "supervisor": start.supervisor,
+          }),
+        )
+        .await;
+      let session = match started {
+        Ok(started) => started.get("id").and_then(Value::as_str).unwrap_or_default().to_owned(),
+        Err(why) => {
+          let _ = self.double_finish(&seat, "cancelled: its run was not started", true).await;
+
+          return Err(why);
+        }
+      };
+      let seat = DoubleSeat { session, ..seat };
+      let bound: Answer<Value> = self
+        .caller
+        .patch(&["slot-requests", &seat.token], &json!({ "state": "bound", "childId": seat.run }))
+        .await;
+
+      if seat.session.is_empty() || bound.is_err() {
+        let _ = self.double_finish(&seat, "cancelled: not bound", true).await;
+
+        return match bound {
+          Err(why) => Err(why),
+          Ok(_) => Err(PortFailure::Undecodable {
+            url: self.caller.url(&["sessions"])?.to_string(),
+            why: "the agency answered the double's run with no session".to_owned(),
+          }),
+        };
+      }
+
+      Ok(seat)
+    })
+  }
+
+  fn double_turn<'a>(
+    &'a self,
+    seat: &'a DoubleSeat,
+    turn: &'a DoubleTurn,
+  ) -> BoxFuture<'a, Answer<DoubleEnd>> {
+    Box::pin(async move {
+      let ended: Value = self
+        .caller
+        .post(
+          &["sessions", &seat.session, "turns"],
+          &json!({
+            "prompt": turn.prompt,
+            "resume": { "kind": "auto" },
+            "name": seat.run,
+            "title": turn.title,
+            "chat": turn.chat_id,
+            "hearsWords": true,
+            "variables": turn.variables,
+          }),
+        )
+        .await?;
+      let text = |field: &str| ended.get(field).and_then(Value::as_str).unwrap_or_default().to_owned();
+
+      Ok(DoubleEnd {
+        answer: text("answer"),
+        outcome: text("outcome"),
+        reason: text("reason"),
+      })
+    })
+  }
+
+  fn double_finish<'a>(
+    &'a self,
+    seat: &'a DoubleSeat,
+    outcome: &'a str,
+    cancel: bool,
+  ) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      let _: Value = self
+        .caller
+        .patch(
+          &["slot-requests", &seat.token],
+          &json!({ "state": "finished", "outcome": outcome, "cancel": cancel }),
+        )
+        .await?;
+
+      Ok(())
     })
   }
 

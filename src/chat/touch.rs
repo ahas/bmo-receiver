@@ -267,6 +267,7 @@ pub async fn touch(
     context: selection.context.clone(),
     thread_mark: None,
     standing: false,
+    double: None,
   };
   let held = Held {
     agent: agent.to_owned(),

@@ -13,6 +13,7 @@ pub const WAIT: &str = "<<WAIT>>";
 pub const SKIP: &str = "<<SKIP>>";
 pub const SEND: &str = "<<SEND>>";
 pub const FOLD: &str = "<<FOLD>>";
+pub const HANDOFF: &str = "<<HANDOFF>>";
 
 /// Whether an answer is nothing but waits, or nothing at all; a fold asked of no words is nothing.
 pub fn is_wait(text: &str) -> bool {
@@ -22,6 +23,12 @@ pub fn is_wait(text: &str) -> bool {
 /// Whether an answer is nothing but skips, or nothing at all; a fold asked of no words is nothing.
 pub fn is_skip(text: &str) -> bool {
   trim(&text.replace(FOLD, "").replace(SKIP, "")).is_empty()
+}
+
+/// Whether an answer hands its round to the agent's double (docs/drafting.md, 「A round handed to the double」):
+/// the hand-off sentinel and nothing else.
+pub fn is_handoff(text: &str) -> bool {
+  text.contains(HANDOFF) && trim(&text.replace(FOLD, "").replace(HANDOFF, "")).is_empty()
 }
 
 /// Whether a message asks to be folded (docs/wake.md, 「Folds」): the fold mark stands in it outside a code span

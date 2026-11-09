@@ -20,9 +20,10 @@ use bmo_receiver::receiver::{
 use bmo_receiver::roads::Roads;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
-  Agency, Agent, Agents, Delivery, Event, Events, FieldRefusal, Forgotten, KeptEvents, Load, NewSupervisor,
-  OpenRun, Passed, Removal, Repository, ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine,
-  RunningJob, Said, Scope, Session, SessionState, Turn, Written,
+  Agency, Agent, Agents, Delivery, DoubleEnd, DoubleSeat, DoubleStart, DoubleTurn, Event, Events,
+  FieldRefusal, Forgotten, KeptEvents, Load, NewSupervisor, OpenRun, Passed, Removal, Repository,
+  ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine, RunningJob, Said, Scope, Session, SessionState,
+  Turn, Written,
 };
 use receiver_ports::brain::BrainUnit;
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
@@ -848,6 +849,12 @@ pub fn registration(name: &str, label: &str, words: Vec<&str>, window: Option<i6
 /// nothing), and the session its turns go on where a test stands one.
 pub struct StandInAgency {
   pub session: Mutex<Option<Arc<StandInSession>>>,
+  /// The double's runs: the answers its turns give in their order where a test scripts them, a review's turn
+  /// passing where none is left, and every start, turn and finish it was asked.
+  pub double_script: Mutex<std::collections::VecDeque<String>>,
+  pub double_starts: Mutex<Vec<DoubleStart>>,
+  pub double_turns: Mutex<Vec<DoubleTurn>>,
+  pub double_finishes: Mutex<Vec<(String, bool)>>,
   pub removals: Mutex<Vec<(String, Removal)>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
   /// The code a removal is refused with, as the agency's 409, where a test sets one.
@@ -904,6 +911,10 @@ impl StandInAgency {
   pub fn new() -> Self {
     StandInAgency {
       session: Mutex::default(),
+      double_script: Mutex::default(),
+      double_starts: Mutex::default(),
+      double_turns: Mutex::default(),
+      double_finishes: Mutex::default(),
       removals: Mutex::default(),
       refusing: Mutex::default(),
       removal_refused: Mutex::default(),
@@ -939,6 +950,11 @@ impl StandInAgency {
       ends: Mutex::default(),
       kept: Mutex::default(),
     }
+  }
+
+  /// The answers its double's turns give, in their order.
+  pub fn doubling(&self, answers: &[&str]) {
+    *self.double_script.lock().unwrap() = answers.iter().map(|answer| (*answer).to_owned()).collect();
   }
 
   /// The events it keeps from now on, oldest first.
@@ -1117,6 +1133,59 @@ impl Agency for StandInAgency {
     let Some(session) = self.standing_session() else { return not_asked_agency("a turn") };
 
     Box::pin(async move { session.turn(turn).await })
+  }
+
+  fn double_start<'a>(&'a self, start: &'a DoubleStart) -> BoxFuture<'a, Answer<DoubleSeat>> {
+    let mut starts = self.double_starts.lock().unwrap();
+
+    starts.push(start.clone());
+
+    let seat = DoubleSeat {
+      token: format!("slot-{}", starts.len()),
+      session: format!("double@run:{}", starts.len()),
+      run: start.run.clone(),
+    };
+
+    Box::pin(async move { Ok(seat) })
+  }
+
+  fn double_turn<'a>(
+    &'a self,
+    _seat: &'a DoubleSeat,
+    turn: &'a DoubleTurn,
+  ) -> BoxFuture<'a, Answer<DoubleEnd>> {
+    self.double_turns.lock().unwrap().push(turn.clone());
+
+    // A review's turn passes, as the session's own stand-in passes one it hides.
+    let answer = if turn.prompt.contains(&receiver_policy::drafting::DRAFTING.review.marker) {
+      receiver_policy::drafting::DRAFTING.review.pass.clone()
+    } else {
+      self
+        .double_script
+        .lock()
+        .unwrap()
+        .pop_front()
+        .unwrap_or_else(|| "unscripted".to_owned())
+    };
+
+    Box::pin(async move {
+      Ok(DoubleEnd {
+        answer,
+        outcome: "answered".to_owned(),
+        reason: String::new(),
+      })
+    })
+  }
+
+  fn double_finish<'a>(
+    &'a self,
+    _seat: &'a DoubleSeat,
+    outcome: &'a str,
+    cancel: bool,
+  ) -> BoxFuture<'a, Answer<()>> {
+    self.double_finishes.lock().unwrap().push((outcome.to_owned(), cancel));
+
+    Box::pin(async { Ok(()) })
   }
 
   fn state<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<SessionState>> {

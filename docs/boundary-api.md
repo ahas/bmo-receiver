@@ -192,6 +192,12 @@ room's matter.
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
 | fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
 | end a session | `DELETE /sessions/{sessionId}` | | nothing |
+| ask a slot of the double's role | `POST /slot-requests` | `requestKey`, `owner`, `source`, `title`, `askedBy`, the supervisor whose round it is, and `path`, that supervisor's scratch workspace | the request: its `token`, `state` and `role` |
+| a slot's admission | `PATCH /slot-requests/{token}` | nothing, asked again at a steady pace until the request is `active` | `request`, the request as it stands |
+| start the double's run | `POST /sessions` | `scope` `role`, `agentName`, the slot's role, `slot`, `cwd` and `supervisor` | the session's `id` |
+| bind a slot to its run | `PATCH /slot-requests/{token}` | `state` `bound`, `childId` | the request |
+| a turn of the double | `POST /sessions/{sessionId}/turns` | `prompt`, `resume` `auto`, `name`, `title`, `chat`, `hearsWords` and the turn's `variables` | answered once the run ends: `answer`, `outcome`, `reason` |
+| give a slot back | `PATCH /slot-requests/{token}` | `state` `finished`, `outcome`, `cancel` | the request |
 | list sessions | `GET /sessions` | | `items`, each a session's `id`, `agentName`, `scope` — `agent`, `room`, `role` or `conversation` — and `roomId` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
