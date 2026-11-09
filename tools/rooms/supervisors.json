@@ -5,6 +5,7 @@
   "properties": {
     "roomId": {
       "type": "integer",
+      "format": "int64",
       "description": "The room, by its number."
     },
     "supervisors": {

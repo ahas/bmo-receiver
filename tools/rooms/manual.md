@@ -17,13 +17,31 @@ a supervisor answers; one that you also answer is where the two of you talk.
 Say the line in that room, under your own name, and call the other supervisor by the name that wakes it.
 Its answer is a reply to your line, so the answer stays under the request.
 
+## Adding a chat-service room
+
+`room_add` adds a room the owner asked for on a chat service, in `record-only` mode: the messages are kept and
+carried as any room's, and no agent is woken there. Only the owner's word in the turn is served; a job, a worker
+or a turn that is not the owner's is refused. The mode is never chosen by the call, and an existing room's mode
+is never changed here.
+
+Name the chat service's key and one of `roomId`, the room as that service numbers it, `contactId`, a contact to
+start a one-to-one with, or `contactIds`, the contacts to start a group with under `title`. Where the owner names
+no room exactly, call it with the provider alone: it answers the provider's rooms and contacts, each by its name
+and with whether the receiver already holds it, so the owner picks one, and you call again with its id.
+
+The addition is the receiver's own `POST /rooms`, so a room already added, a room the service does not say is its
+own and a mode the service does not offer are refused in the receiver's own words.
+
 ## Its arguments
 
 - `room_open`: `title`, the room's title; `supervisors`, the agents that answer it.
 - `room_list`: `supervisor`, whose rooms are read; the calling agent where absent.
 - `room_supervisors`: `roomId`, the room; `supervisors`, the whole list that answers it.
+- `room_add`: `provider`, the chat service's key; one of `roomId`, `contactId` or `contactIds` with `title` for a
+  group, or none of them to list the provider's rooms and contacts; `title`, optional except for a group.
 
 ## The answer
 
-The receiver's own answer as JSON: a room for `room_open` and `room_supervisors`, a page of rooms for
-`room_list`. A refusal is an English sentence saying what stood in the way.
+The receiver's own answer as JSON: a room for `room_open`, `room_supervisors` and `room_add`, a page of rooms for
+`room_list`, and the provider's rooms and contacts by name for `room_add` when none is named. A refusal is an
+English sentence saying what stood in the way.

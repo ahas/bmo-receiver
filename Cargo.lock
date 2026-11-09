@@ -2475,6 +2475,7 @@ dependencies = [
  "bmo-chat-client",
  "chrono",
  "dotenvy",
+ "receiver-client",
  "receiver-policy",
  "receiver-ports",
  "regex",
@@ -2491,11 +2492,14 @@ dependencies = [
 name = "rooms-tool"
 version = "0.1.0-rev.1"
 dependencies = [
+ "axum",
+ "receiver-client",
  "reqwest",
  "room-calls",
  "schemars",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tool-call",
 ]

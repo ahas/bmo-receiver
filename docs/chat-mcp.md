@@ -1,9 +1,10 @@
-# The send tool
+# The receiver's tools
 
-The agents' tool for speaking into rooms: `send`, under `tools/send/`, with its `tool.toml`. The tool host places
-it and serves its entries to every session whose role holds them; this document is the tool's part of the
-catalogue and how its calls reach the receiver. The receiver's other tool, `wait`, holds no send: its reminders
-and watches are `docs/reminders.md`'s. The other tools of the catalogue are their units'.
+The agents' tools bound to the receiver: `send`, under `tools/send/`, for speaking into rooms, and `rooms`,
+under `tools/rooms/`, for opening an agent room and adding a chat-service room (「The rooms tool」 below). The
+tool host places each and serves its entries to every session whose role holds them; this document is their part
+of the catalogue and how their calls reach the receiver. The receiver's other tool, `wait`, holds no send: its
+reminders and watches are `docs/reminders.md`'s. The other tools of the catalogue are their units'.
 
 ## Its entries
 
@@ -100,3 +101,17 @@ Each asks the receiver the same way, from its own shell's turn, so a tool and a 
 in a shell of the supervisor's own working round a command sends as that supervisor, and for a person, a job, a
 script or a turn whose tool call failed it hands the words to the room's supervisor, who says them in its own
 turn.
+
+## The rooms tool
+
+- **`rooms`, under `tools/rooms/`, holds `room_open`, `room_list`, `room_supervisors` and `room_add`,** every
+  call asking the running receiver as the `bmo` commands doing the same ask ask it. The first three open an agent
+  room on the record alone, read the rooms a supervisor answers, and name a room's answerers.
+- **`room_add` adds a chat-service room in `record-only` mode on the owner's word in the turn.** It answers where
+  the receiver marked every new message of the turn the owner's, and refuses any other turn with one sentence,
+  since no grant in force names adding a room. It takes the provider's key and one of `roomId`, `contactId` or
+  `contactIds` under `title`; a call naming none answers the provider's rooms and contacts, each by its name and
+  with whether the receiver already holds it, so the owner picks.
+- **The addition is the receiver's own `POST /rooms`** (`docs/api.md`, 「Rooms」), and its refusals are the
+  receiver's own sentences. The road never sets `avatar` and changes no existing room's mode: the console's
+  registration screen alone changes a mode. `bmo room add` carries the same call for a shell.

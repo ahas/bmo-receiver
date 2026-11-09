@@ -16,6 +16,8 @@ bmo-chat-client.workspace = true
 chrono.workspace = true
 # The receiver's env file, read for where it answers.
 dotenvy.workspace = true
+# One call for each route of the running receiver, the chat-service rooms it adds among them.
+receiver-client.workspace = true
 # The web unit and the agency, asked across the boundary for a grant check and a reset point.
 receiver-ports.workspace = true
 # The words an answer's promises and rules are read by.

@@ -37,3 +37,12 @@ manual = "manual.md"
 input = "supervisors.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
+
+[[entry]]
+namespace = "bmo"
+name = "room_add"
+description = "Add a chat-service room in record-only mode on the owner's word, or list the rooms and contacts a provider offers when the room is not named exactly; avatar mode is never set."
+manual = "manual.md"
+input = "add.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]

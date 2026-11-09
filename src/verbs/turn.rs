@@ -62,6 +62,11 @@ fn process_environment() -> BTreeMap<String, String> {
   environment(&std::env::vars().collect())
 }
 
+/// The process's environment with its run's own variables in it, as a call reads the owner's mark on its turn.
+pub fn variables() -> BTreeMap<String, String> {
+  process_environment()
+}
+
 /// The agent whose turn this process works in, or none for a process no agent's turn started.
 pub fn agent() -> Option<String> {
   process_environment()

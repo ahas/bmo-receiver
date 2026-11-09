@@ -98,6 +98,7 @@ the operations machine's:
 |---|---|---|
 | `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to; `--by` names the chat that set it off, the turn's own room where none is named |
 | `room registration` | `--room <id> --by <administrator> [--mode record-only\|avatar]` | `GET /rooms/{roomId}/registration` where no mode is named, printing the mode, the providers and whether the list was chosen, whether the room is read-only and by which chat services, and the answerers; a mode named goes through `PUT /rooms/{roomId}/registration`, and the registration as it now stands is printed the same way |
+| `room add` | `--provider <key> [--room-id <id> \| --contact-id <id> \| --contact-ids <id,…>] [--title <words>]` | `POST /rooms` in `record-only` mode, carrying `provider` and the one of `roomId`, `contactId` or `contactIds` named, with `title` where one is; a call naming none prints the provider's rooms and contacts by name, each with whether the receiver holds it, through `GET /providers`, `GET /providers/{key}/rooms` and `GET /providers/{key}/contacts`; the room's refusals are the receiver's own. Only the owner's word in the turn is served, and no grant names it |
 | `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is first asked as the act `speak`: outside the agent's own round that hands the voice note over as its words, and inside it the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the act `voice`, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it; `--spoken`, taken only with `--voice`, names the spoken words the voice synthesises in their place |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
@@ -119,6 +120,10 @@ the operations machine's:
   (`docs/messages.md`, 「Words handed to the room's supervisor」). It prints the line the receiver answered with,
   naming the agent it was handed to, and ends 0. The address and token come from the process's environment, else from the data root's `env/receiver.env`
   (「Its tools」). A spoken `talk` asks the voice engine at the address and token the configuration names.
+- **`room add` is the owner's own, wherever it runs.** It answers only where the turn is the owner's, and refuses a
+  job, a worker or any turn not the owner's in one sentence, since no grant in force names adding a room. A call
+  naming no room, contact or contacts prints the provider's rooms and contacts instead, each by name, and writes
+  nothing.
 - **A spoken `talk` is two texts.** The words are the written words, what the room reads: the voice note's
   `said`, and the synthesis's `text`, which the engine keeps as its transcript; nothing changes them. The
   spoken words are what the voice says, the same words as a Korean reader says them aloud. `--spoken` hands
@@ -142,14 +147,16 @@ the operations machine's:
 
 ### Its tools
 
-- **The receiver's tools are `send` (`docs/chat-mcp.md`) and `wait` (`docs/reminders.md`),** each a folder under
-  `tools/` with its `tool.toml`, its schemas and its executable, which a release's `bin/` holds.
-- **Every deployment places and registers both,** before the release goes live: each tool's executable, manifest,
-  schemas and manuals are copied into the release's own placed folder for it, and that folder is put with the
-  tool host's `bmo-pocket put --service receiver --placed`, allowing the capabilities its entries and their bundles
-  ask for. So the tool host serves the entries of the release that is live, and an entry a release no longer
-  holds is gone from the catalogue with it.
-- **The send tool finds the receiver** as `docs/chat-mcp.md`, 「How a call runs」, states; the wait tool calls no unit.
+- **The receiver's tools are `send` (`docs/chat-mcp.md`), `rooms` (`docs/chat-mcp.md`, 「The rooms tool」) and
+  `wait` (`docs/reminders.md`),** each a folder under `tools/` with its `tool.toml`, its schemas and its
+  executable, which a release's `bin/` holds.
+- **Every deployment places and registers all three,** before the release goes live: each tool's executable,
+  manifest, schemas and manuals are copied into the release's own placed folder for it, and that folder is put
+  with the tool host's `bmo-pocket put --service receiver --placed`, allowing the capabilities its entries and
+  their bundles ask for. So the tool host serves the entries of the release that is live, and an entry a release
+  no longer holds is gone from the catalogue with it.
+- **The send tool finds the receiver** as `docs/chat-mcp.md`, 「How a call runs」, states, and the rooms tool asks
+  it the same way; the wait tool calls no unit.
 
 ## Calls the receiver makes
 

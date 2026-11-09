@@ -56,6 +56,16 @@ pub enum RoomMode {
   RecordOnly,
 }
 
+impl RoomMode {
+  /// The mode as the wire names it.
+  pub fn as_str(&self) -> &'static str {
+    match self {
+      Self::Avatar => "avatar",
+      Self::RecordOnly => "record-only",
+    }
+  }
+}
+
 /// `POST /rooms`: a room to add, on a chat service by its key, as that service numbers it, in a mode, under a title
 /// where one is named.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

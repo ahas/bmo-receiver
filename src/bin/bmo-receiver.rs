@@ -15,8 +15,8 @@ use std::time::Duration;
 use bmo_receiver::chat::instructions::{Rooms, deliver_pending};
 use bmo_receiver::chat::restart::say_stop;
 use bmo_receiver::command::{
-  self, DrawWord, HandoffArgs, PhotoArgs, PinArgs, ReactArgs, RegistrationArgs, SayArgs, StickerArgs,
-  TalkArgs,
+  self, AddArgs, DrawWord, HandoffArgs, PhotoArgs, PinArgs, ReactArgs, RegistrationArgs, SayArgs,
+  StickerArgs, TalkArgs,
 };
 use bmo_receiver::config::{self, Config};
 use bmo_receiver::receiver::handover::routes as handover_routes;
@@ -134,6 +134,9 @@ enum RoomWord {
   /// A room's registration: its mode, its providers, its answerers, and whether it is read-only and why; with a
   /// mode named, its mode changed between record-only and avatar.
   Registration(RegistrationArgs),
+  /// A chat-service room added in record-only mode on the owner's word, or the rooms and contacts a provider
+  /// lists where the room is not named exactly.
+  Add(AddArgs),
 }
 
 fn refused(why: impl std::fmt::Display) -> ExitCode {
@@ -469,6 +472,7 @@ async fn main() -> ExitCode {
     Command::Room { word } => Ok(match word {
       RoomWord::Say(args) => answered(command::room_say(&config, cli.via.clone(), args).await),
       RoomWord::Registration(args) => answered(command::room_registration(&config, args).await),
+      RoomWord::Add(args) => answered(command::room_add(&config, args).await),
     }),
     Command::Talk(args) => Ok(answered(command::talk(&config, cli.via.clone(), args).await)),
     Command::Photo(args) => Ok(answered(command::photo(&config, cli.via.clone(), args).await)),

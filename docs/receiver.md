@@ -225,6 +225,13 @@ flowchart TD
   room and no other member's; a group naming none carries none, and the default answerer answers it
   (`docs/wake.md`, 「Who reaches the session」). A member's own supervisor reads the room's messages without
   answering it (`docs/api.md`, 「Messages」).
+- **A supervisor adds a chat-service room only on the owner's word and only in `record-only` mode,** through the
+  `rooms` tool's `room_add` entry or `bmo room add` (`docs/chat-mcp.md`, 「The rooms tool」): it answers on the
+  turn the receiver marked the owner's, and refuses a turn that is not, since no grant in force names adding a
+  room. A call naming no room, a contact or the contacts of a group answers the provider's rooms and contacts by
+  name, each with whether the receiver holds it, so the owner picks; the addition is the receiver's own
+  `POST /rooms` (`docs/api.md`, 「Rooms」) and its refusals are the receiver's own. Avatar mode and an existing
+  room's mode are not this road's: the console's registration screen alone changes a mode.
 - **A room never added has no mode** and stands as the roads that handed it messages make it.
 
 ## Reading and changing a room's mode

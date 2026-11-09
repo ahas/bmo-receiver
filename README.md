@@ -46,7 +46,7 @@ holds any).
 | `docs/consult.md` | Agents settling overlapping work in the consult room |
 | `docs/random-draw.md` | Fair draws and their method |
 | `docs/reminders.md` | Reminders and watches: the wait tool, and how `bmo use` runs it and wakes the agent |
-| `docs/chat-mcp.md` | The send tool: its entries, how a call runs, its turn context |
+| `docs/chat-mcp.md` | The receiver's tools: the send and rooms entries, how a call runs, its turn context |
 | `docs/store.md` | The receiver's database, its tables and settings keys, and its folders under the data root |
 | `docs/codes.md` | Every refusal, fact, fixed line and kind the receiver gives, with its fields and status |
 | `docs/policy.md` | The policy files and the keys the receiver reads |

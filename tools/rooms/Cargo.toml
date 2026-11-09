@@ -15,6 +15,8 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+# One typed call for each route of the running receiver, the room added on the owner's word among them.
+receiver-client.workspace = true
 reqwest.workspace = true
 room-calls.workspace = true
 schemars.workspace = true
@@ -22,6 +24,10 @@ serde.workspace = true
 serde_json.workspace = true
 tool-call.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+axum.workspace = true
+tempfile.workspace = true
 
 [[test]]
 name = "main"

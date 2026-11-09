@@ -9,6 +9,7 @@ use std::io::Read;
 
 use clap::{Args, Subcommand};
 use receiver_client::{HandoverAsked, ReceiverClient, RoomMode, RoomRegistration};
+use room_calls::additions;
 use room_calls::sends::{
   Act, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
 };
@@ -19,11 +20,12 @@ use crate::tool_env::base_address;
 use crate::verbs::draws::{self, Claim, Claimed};
 use crate::verbs::{VerbError, asked_sends, messages};
 
-/// The nouns `bmo` dispatches to this command, each marked `home`: the receiver's rooms, its consult room, the
-/// draws its store keeps and the sessions it hands over are the operations machine's.
-pub const NOUNS: [&str; 9] = [
+/// The nouns `bmo` dispatches to this command, each marked `home`: the receiver's rooms, the draws its store
+/// keeps and the sessions it hands over are the operations machine's.
+pub const NOUNS: [&str; 10] = [
   "room say\thome",
   "room registration\thome",
+  "room add\thome",
   "talk\thome",
   "photo\thome",
   "react\thome",
@@ -66,6 +68,27 @@ pub struct RegistrationArgs {
   /// The administrator's name, as the web unit knows it.
   #[arg(long)]
   pub by: String,
+}
+
+/// The words of `room add`: a chat-service room added in record-only mode on the owner's word in the turn, or the
+/// rooms and contacts the provider lists where the room is not named exactly.
+#[derive(Args, Debug)]
+pub struct AddArgs {
+  /// The chat service's key.
+  #[arg(long)]
+  pub provider: String,
+  /// The room as the service numbers it.
+  #[arg(long = "room-id")]
+  pub room_id: Option<i64>,
+  /// A contact to start a one-to-one with.
+  #[arg(long = "contact-id")]
+  pub contact_id: Option<i64>,
+  /// The contacts to start a group with, under --title, comma separated.
+  #[arg(long = "contact-ids", value_delimiter = ',')]
+  pub contact_ids: Option<Vec<i64>>,
+  /// The room's title; a group's, which a group needs.
+  #[arg(long)]
+  pub title: Option<String>,
 }
 
 /// The words of `talk`: a line said in a room, or spoken in a voice and sent as a voice note with the words
@@ -297,6 +320,35 @@ pub async fn room_registration(config: &Config, args: RegistrationArgs) -> Resul
   .map_err(|why| VerbError::Refused(why.to_string()))?;
 
   Ok(registration_lines(&registration))
+}
+
+/// `room add`: a chat-service room added in record-only mode through the receiver's own `POST /rooms` on the
+/// owner's word in the turn; a call naming none of the room, a contact or the contacts lists the provider's rooms
+/// and contacts instead, each by its name, so the owner picks.
+pub async fn room_add(config: &Config, args: AddArgs) -> Result<Vec<String>, VerbError> {
+  additions::admitted(&crate::verbs::turn::variables()).map_err(VerbError::Refused)?;
+
+  let client = client(config)?;
+  let chosen = additions::chosen(args.room_id, args.contact_id, args.contact_ids, args.title.as_deref())
+    .map_err(VerbError::Refused)?;
+
+  match chosen {
+    None => additions::candidates(&client, args.provider.trim())
+      .await
+      .map(|candidates| additions::lines(&candidates))
+      .map_err(VerbError::Refused),
+    Some(chosen) => additions::add(&client, args.provider.trim(), &chosen, args.title.as_deref())
+      .await
+      .map(|room| {
+        let title = match room.title.as_deref() {
+          Some(title) => format!(" as \"{title}\""),
+          None => String::new(),
+        };
+
+        vec![format!("room {} added in record-only mode{title}", room.id)]
+      })
+      .map_err(|why| VerbError::Refused(why.to_string())),
+  }
 }
 
 /// `talk`: a line into a room as text, or spoken in a voice and sent as a voice note.

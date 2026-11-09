@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider"],
+  "properties": {
+    "provider": {
+      "type": "string",
+      "description": "The chat service's key."
+    },
+    "roomId": {
+      "type": ["integer", "null"],
+      "format": "int64",
+      "description": "The room as that service numbers it."
+    },
+    "contactId": {
+      "type": ["integer", "null"],
+      "format": "int64",
+      "description": "A contact to start a one-to-one with."
+    },
+    "contactIds": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "integer",
+        "format": "int64"
+      },
+      "description": "The contacts to start a group with, under `title`."
+    },
+    "title": {
+      "type": ["string", "null"],
+      "description": "The room's title; a group's, which a group needs."
+    }
+  }
+}

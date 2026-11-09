@@ -52,9 +52,10 @@ const LISTED: [&str; 19] = [
 ];
 
 // The nouns `bmo` dispatches to this command, each on the operations machine.
-const NOUNS: [&str; 9] = [
+const NOUNS: [&str; 10] = [
   "room say\thome",
   "room registration\thome",
+  "room add\thome",
   "talk\thome",
   "photo\thome",
   "react\thome",
@@ -134,9 +135,10 @@ fn the_nouns_bmo_dispatches_are_declared_one_a_line() {
 
 #[test]
 fn every_noun_reads_as_the_command_bmo_dispatches() {
-  let nouns: [&[&str]; 9] = [
+  let nouns: [&[&str]; 10] = [
     &["room", "say"],
     &["room", "registration"],
+    &["room", "add"],
     &["talk"],
     &["photo"],
     &["react"],
