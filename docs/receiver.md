@@ -424,9 +424,9 @@ flowchart TD
 
 - **A room's situation note is the receiver's own row** (`room_situations`, `docs/store.md`), one a room, replaced
   when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation` rows are
-  rules for a situation, and what the agent remembers beyond the room is the brain's. The supervisor updates the
-  note before its judgement (`docs/drafting.md`, 「The situation note」), and every round's draft carries it as a
-  piece of the core.
+  rules for a situation, and what the agent remembers beyond the room is the brain's. The note is written when
+  the session leaves the room, before a handoff and on a keepalive touch, and a session reads it once, in the
+  round that first takes it into the room (`docs/drafting.md`, 「The situation note」).
 
 ## What is kept for a moment
 

@@ -75,7 +75,7 @@ pub struct Process {
   pub tier: String,
   pub agent: String,
   pub rounds: Vec<String>,
-  /// The question of `rounds` from whose answer on a send is read; empty for the first.
+  /// The question a row once read a send from: kept as it came and read by nothing.
   pub send_from: String,
   pub light: Vec<String>,
   /// The questions of the two lists that are switched off: each keeps its place in its list and is not asked.
@@ -94,7 +94,7 @@ impl Process {
       tier: row.tier.clone(),
       agent: row.agent.clone(),
       rounds: row.rounds.clone(),
-      send_from: row.send_from.clone(),
+      send_from: row.send_from.clone().unwrap_or_default(),
       light: row.light.clone(),
       off: row.off.clone(),
       light_chars: row.light_chars,
@@ -121,20 +121,9 @@ impl Process {
     self
   }
 
-  /// The questions of one of the row's lists a turn is asked: the list without those switched off, in its order.
+  /// The questions of one of the row's lists a round follows: the list without those switched off, in its order.
   pub fn asked(&self, list: &[String]) -> Vec<String> {
     list.iter().filter(|name| !self.off.contains(name)).cloned().collect()
-  }
-
-  /// Where, among the questions an ordinary turn is asked, the process asks for the message: the place of the
-  /// question a send is read from, or of the first question asked after it where that one is switched off; the
-  /// first where the row names none.
-  pub fn send_from_at(&self) -> usize {
-    let Some(named) = self.rounds.iter().position(|name| name == &self.send_from) else {
-      return 0;
-    };
-
-    self.asked(&self.rounds[..named]).len()
   }
 
   fn key(&self) -> (&str, &str, &str) {
@@ -320,13 +309,6 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
 
   if process.off.iter().any(|name| name == LAST) {
     return Some(format!("off names {LAST}, which writes the message and is never switched off."));
-  }
-
-  if !process.send_from.is_empty() && !process.rounds.contains(&process.send_from) {
-    return Some(format!(
-      "sendFrom names the question {}, which rounds does not hold.",
-      process.send_from
-    ));
   }
 
   if process.light_chars > LARGEST_LIGHT {

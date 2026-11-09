@@ -175,6 +175,9 @@ pub struct Asking {
   pub context: Vec<(String, String)>,
   /// The thread line this turn handed, kept under the session once the turn is delivered.
   pub thread_mark: Option<ThreadMark>,
+  /// The turn goes on the session as it stands, and no replacement is judged for it: a situation note is written
+  /// by the session that answered in the room, whatever is about to become of that session.
+  pub standing: bool,
 }
 
 /// What carries a composed turn into the agent's session and answers with what the session said. The agency
@@ -1719,10 +1722,12 @@ impl Conversations {
     };
     let mut via = self.road_of(chat_id, &batch, &roads).await;
 
-    // Every round with words updates the room's situation note first, the owner's private chat included; the
-    // judgement and the draft then read the note as it now stands.
+    // A round with words in a room other than the one the agent last answered in writes that room's situation
+    // note first (docs/drafting.md, 「The situation note」); the note of this room as it stands is kept on the
+    // messages the round judges, for the console's record.
     if !batch.is_empty() && receiver.situation_updates() {
-      self.situation_update(chat_id, &batch, &mut held, &via).await?;
+      self.leave_notes(chat_id, &held).await?;
+      self.note_judged(chat_id, &batch).await;
     }
 
     // A round the open window alone let in is the agent's to judge first, before any reference or gate;
@@ -1772,7 +1777,6 @@ impl Conversations {
         woken: woken.as_deref(),
         reader: Some(receiver.roads()),
         round: Some(round.to_owned()),
-        questioned: plan.questioned(),
       },
     )
     .await
@@ -1817,11 +1821,12 @@ impl Conversations {
       began: started,
       context: composed.context.clone(),
       thread_mark: composed.selection.thread_mark.clone(),
+      standing: false,
     };
 
-    // The first question is told as it starts, as every later one is.
-    if let Some((question, _)) = plan.questions.first() {
-      super::draft::log::tell_start(self, round, chat_id, self.agent(), 1, plan.questions.len(), question);
+    // The draft turn is told as it starts, under the name its row of the round log goes by.
+    if let Some(names) = plan.names() {
+      super::draft::log::tell_start(self, round, chat_id, self.agent(), 1, 1, &names);
     }
 
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
@@ -2015,6 +2020,11 @@ impl Conversations {
         conv.asked_at = None;
       }
 
+      // The room is owed its situation note from this answer on, and is the room the agent last answered in.
+      if receiver.situation_updates() && unified_session(&receiver, self.agent()).await {
+        super::situation::owe(receiver.db(), self.agent(), chat_id).await;
+      }
+
       self.publish(json!({
         "type": "sent",
         "chatId": chat_id,
@@ -2105,107 +2115,61 @@ impl Conversations {
     alone && instructions == 0 && !room.owner_room && chat_id != self.owner_room()
   }
 
-  // The room's situation note updated from the words this round judges, one light turn of the same session
-  // (docs/drafting.md, 「The situation note」): the note as it stands and the messages that came in since it last
-  // read the room's record, in the policy's words; its answer is the note, kept with the row it read to and
-  // attached to every message judged. Every round with words takes it, the owner's private chat included.
-  async fn situation_update(
-    &self,
-    chat_id: i64,
-    batch: &[Inbound],
-    held: &mut Held,
-    via: &str,
-  ) -> Result<(), Failure> {
+  // The situation notes the agent owes written before a round goes on in `entering` (docs/drafting.md, 「The
+  // situation note」): each room it answered in since that room's note was last updated, other than the room the
+  // round is in, updated by one light turn of the agent's one session, in that room. A turn whose run failed leaves
+  // its room owed and the round goes on; a stop ends the round.
+  async fn leave_notes(&self, entering: i64, held: &Held) -> Result<(), Failure> {
+    self.owed_notes(Some(entering), held.session.as_deref()).await.map(drop)
+  }
+
+  /// The situation notes the agent owes written, each by one light turn of its one session in the room the note
+  /// is of: every room it answered in since that room's note was last updated, but `staying`, the room a round is
+  /// about to go on in. A turn whose run failed leaves its room owed and the rest go on; a stop ends them. How
+  /// many turns went in.
+  pub async fn owed_notes(&self, staying: Option<i64>, session: Option<&str>) -> Result<usize, Failure> {
     let receiver = self.receiver();
-    // What the note has not read yet: the room's record after the row it read to, or, where the room has no note
-    // yet, the latest messages the policy names, so the first note has a room to stand on. A gap longer than the
-    // policy's bound is read as its newest messages alone, so a room left long is caught up from its latest words
-    // and the mark moves to the newest of them. The words this round holds are shown with them, whether or not the
-    // room's record carries them yet.
-    let cursor = super::situation::read_through(receiver.db(), chat_id).await.unwrap_or(None);
-    let gap = CHAT_ROUND.situation.gap_messages;
-    let rows = match cursor {
-      Some(after) => {
-        let standing = rows::count_since_row(receiver.db(), chat_id, after).await;
+    let agent = self.agent();
+    let left: Vec<i64> = super::situation::owed(receiver.db(), agent)
+      .await
+      .into_iter()
+      .filter(|room| Some(*room) != staying)
+      .collect();
 
-        match standing {
-          Ok(standing) if super::situation::catch_up(gap, standing) => {
-            rows::recent_rows(receiver.db(), chat_id, gap as u64, "").await
-          }
-          _ => rows::messages_since_row(receiver.db(), chat_id, after, "").await,
-        }
-      }
-      None => rows::recent_rows(receiver.db(), chat_id, CHAT_ROUND.recent_messages, "").await,
+    if left.is_empty() || !receiver.situation_updates() || !unified_session(&receiver, agent).await {
+      return Ok(0);
     }
-    .map_err(|why| Failure::Failed(why.detail))?;
-    let through = rows.iter().map(|(row, _)| *row).max();
-    let mut messages: Vec<Inbound> = rows.into_iter().map(|(_, message)| message).collect();
 
-    for message in batch {
-      if !messages.iter().any(|shown| shown.message_id == message.message_id) {
-        messages.push(message.clone());
+    let mut written = 0;
+
+    for room in left {
+      match update_note(&receiver, self, self.0.carrying.as_ref(), agent, room, session).await {
+        Err(Failure::Stopped) => return Err(Failure::Stopped),
+        Err(why) => eprintln!("chat {room}: the situation note was not updated: {why:?}"),
+        Ok(went) => written += usize::from(went),
       }
     }
 
-    messages.sort_by_key(|message| (message.sent_at, message.message_id));
+    Ok(written)
+  }
 
-    let shown: HashSet<i64> = messages.iter().map(|message| message.message_id).collect();
-    let reading = Reading {
-      receiver: &receiver,
-      owner: self.owner(),
-      fetch_on_demand: false,
-      shown: &shown,
-    };
-    let lines = reading.lines(&messages).await.map_err(|why| Failure::Failed(why.detail))?;
-    let old = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
-    let prompt = super::situation::update_prompt(chat_id, old.as_deref(), &lines);
-    let asking = Asking {
-      chat_id,
-      session: held.session.clone().unwrap_or_default(),
-      prompt,
-      via: (!via.is_empty()).then(|| via.to_owned()),
-      privileged: held.all_from_owner,
-      answers: batch.iter().map(|message| message.message_id).collect(),
-      began: now_ms(),
-      context: vec![],
-      thread_mark: None,
-    };
-    let follower = Follower::new(self, chat_id);
-    let reply = self.0.carrying.carry(&asking, held, &follower).await?;
+  // The room's note as it stands, kept on the messages a round judges, so the console's judgement record says
+  // what the room's situation was as the round found it.
+  async fn note_judged(&self, chat_id: i64, batch: &[Inbound]) {
+    let receiver = self.receiver();
+    let note = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
+    let judged: Vec<i64> = batch.iter().map(|message| message.message_id).collect();
 
-    follower.finish();
-    held.context_tokens = reply.context_tokens.or(held.context_tokens);
-    held.session = reply.session.clone().or(held.session.clone());
-    held.replaced = reply.replaced.clone();
-    self.keep_session(chat_id, held);
-
-    let note = super::situation::note_from_answer(&reply.text, &lines).or(old.clone());
-    let changed = note.is_some() && note != old;
-
-    if let Some(note) = &note
-      && let Err(why) = super::situation::write(receiver.db(), chat_id, note, through).await
-    {
-      eprintln!("chat {chat_id}: the situation note was not kept: {}", why.detail);
-    }
-
-    if let Err(why) = super::situation::attach(
-      receiver.db(),
-      chat_id,
-      &batch.iter().map(|message| message.message_id).collect::<Vec<_>>(),
-      note.as_deref(),
-      changed,
-    )
-    .await
+    if let Err(why) =
+      super::situation::attach(receiver.db(), chat_id, &judged, note.as_deref(), false).await
     {
       eprintln!("chat {chat_id}: the situation note was not kept on the judged messages: {}", why.detail);
     }
-
-    Ok(())
   }
 
   // The agent's own judgement of whether to answer words that did not name it (docs/wake.md, 「The room's queue and
-  // the round」): one light turn of the same session carrying the room's recent words and the words judged, in the
-  // room shape, and the round policy's question; no reference and no gate. Its row stands in the
+  // the round」): one light turn of the same session carrying the room's situation note where the session has not
+  // read it, the room's recent words and the words judged, in the room shape; no reference and no gate. Its row stands in the
   // round log of its own kind. Answers whether the agent passed the words over.
   async fn supervise(
     &self,
@@ -2235,14 +2199,13 @@ impl Conversations {
     };
     let recent_lines = reading.lines(&recent).await.map_err(|why| Failure::Failed(why.detail))?;
     let judged_lines = reading.lines(batch).await.map_err(|why| Failure::Failed(why.detail))?;
-    let note = super::situation::read(receiver.db(), chat_id).await.unwrap_or(None);
-    let mut parts = vec![said.marker.clone(), String::new()];
-
-    if let Some(note) = &note {
-      parts.push(said.situation.clone());
-      parts.push(super::situation::note_block(chat_id, note));
-      parts.push(String::new());
-    }
+    // A session reads a room's note once: its place is filled where the session holds none of this room.
+    let mut parts = vec![
+      said.marker.clone(),
+      String::new(),
+      super::situation::first_reading(chat_id),
+      String::new(),
+    ];
 
     parts.push(said.recent.clone());
     parts.extend(recent_lines);
@@ -2261,6 +2224,7 @@ impl Conversations {
       began: started,
       context: vec![],
       thread_mark: None,
+      standing: false,
     };
     let follower = Follower::new(self, chat_id);
     let reply = self.0.carrying.carry(&asking, held, &follower).await?;
@@ -2322,6 +2286,7 @@ impl Conversations {
       began: now_ms(),
       context: vec![],
       thread_mark: None,
+      standing: false,
     };
     let follower = Follower::new(self, chat_id);
     let briefing = self.0.briefings.carrying(chat_id);
@@ -2382,6 +2347,7 @@ impl Conversations {
       began: now_ms(),
       context: vec![],
       thread_mark: None,
+      standing: false,
     };
     let follower = Follower::new(self, chat_id);
     let briefing = self.0.briefings.carrying(chat_id);
@@ -2930,14 +2896,18 @@ impl Conversations {
         woken: None,
         reader: Some(receiver.roads()),
         round: None,
-        questioned: false,
       },
     )
     .await?;
     let room = room_context(&receiver, room_id, None).await?;
     let written = composed.prompt.clone();
-    let (sent, _, _) =
+    let (sent, _, notes) =
       sent_prompt(&receiver, Some(session_id), Some(&room), true, self.agent(), &written).await?;
+
+    // A note the line's context carried is one the session now holds, and no round hands it again.
+    for note in &notes {
+      super::situation::keep(receiver.db(), session_id, note).await?;
+    }
 
     remember_held(
       &receiver,
@@ -3381,6 +3351,66 @@ async fn settle_instructions(db: &DatabaseConnection, now: i64, round: &str, ids
 }
 
 /// Whether the agent's turns go on one session across its rooms, as its registration says.
+/// One room's situation note updated by a light turn of the agent's one session, in that room (docs/drafting.md,
+/// 「The situation note」): the note as it stands and what the room's record holds past it go in, the answer is the
+/// note, and the room is owed none from then on. A room whose record holds nothing the note has not read is
+/// settled with no turn. A turn whose run failed leaves the room owed. The turn goes on the session as it stands:
+/// the session that answered in the room writes its note, whatever is about to become of it. Whether a turn went in.
+async fn update_note(
+  receiver: &Receiver,
+  conversations: &Conversations,
+  carrying: &dyn Carrying,
+  agent: &str,
+  chat_id: i64,
+  session: Option<&str>,
+) -> Result<bool, Failure> {
+  let db = receiver.db();
+  let update = super::situation::update_of(receiver, receiver.owner_id(), chat_id)
+    .await
+    .map_err(|why| Failure::Failed(why.detail))?;
+  let Some(update) = update else {
+    super::situation::settle(db, agent, chat_id).await;
+
+    return Ok(false);
+  };
+  let asking = Asking {
+    chat_id,
+    session: session.unwrap_or_default().to_owned(),
+    prompt: update.prompt.clone(),
+    via: None,
+    privileged: false,
+    answers: vec![],
+    began: now_ms(),
+    context: vec![],
+    thread_mark: None,
+    standing: true,
+  };
+  let held = Held {
+    agent: agent.to_owned(),
+    chat_id,
+    session: session.map(str::to_owned),
+    account: None,
+    context_tokens: None,
+    all_from_owner: false,
+    replaced: vec![],
+    last_consumed_id: None,
+  };
+  let follower = Follower::new(conversations, chat_id);
+  let carried = carrying.carry(&asking, &held, &follower).await;
+
+  follower.finish();
+
+  let reply = carried?;
+
+  if let Err(why) = super::situation::written(db, &update, reply.session.as_deref(), &reply.text).await {
+    eprintln!("chat {chat_id}: the situation note was not kept: {}", why.detail);
+  }
+
+  super::situation::settle(db, agent, chat_id).await;
+
+  Ok(true)
+}
+
 pub async fn unified_session(receiver: &Receiver, agent: &str) -> bool {
   let listed = receiver.agents().await.ok();
 

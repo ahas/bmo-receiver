@@ -1,25 +1,34 @@
-//! The room's situation note (docs/drafting.md, 「The situation note」): one light turn before the supervisor's
-//! judgement reads the room's note as it stands and the messages that came in since it last read the room's
-//! record, writes it afresh and keeps it for the room with the row it read to. The note is the receiver's own row,
-//! one a room: the judgement reads it before it decides whether to answer, and the turn that writes the message
-//! reads it as that answer's instruction.
+//! The room's situation note (docs/drafting.md, 「The situation note」): one light turn reads the room's note as it
+//! stands and the messages that came in since it last read the room's record, writes it afresh and keeps it for the
+//! room with the row it read to. The note is the receiver's own row, one a room. It is written when the agent's
+//! session leaves a room it answered in, before a handoff and on a keepalive touch, and a session reads a room's
+//! note once, in the round that first takes it into the room.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use regex::Regex;
 
 use crate::chat::promises::own_sentences;
+use crate::chat::shape::Reading;
 use crate::js;
+use crate::receiver::{Inbound, Receiver, rows};
+use crate::store::settings;
 use crate::{Fault, now_ms, one, run};
 
 // The wrapping a note rides in until the session it goes to is settled: a private-use pair no document is written
 // in and that never leaves this process.
 const NOTE_OPEN: &str = "\u{e000}SITUATION-ONCE ";
 const NOTE_CLOSE: &str = "\u{e000}END SITUATION-ONCE";
+
+// The place a round's one reading of the room's note stands at until the session it goes to is settled: the note
+// is read then, so one written while the turn waited, as before a handoff, is the one the session reads.
+const FIRST_OPEN: &str = "\u{e000}SITUATION-FIRST ";
+const FIRST_CLOSE: &str = "\u{e000}";
 
 static NOTE: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new(r"\x{e000}SITUATION-ONCE (\{[^\n]*\})\n((?s:.*?))\n\x{e000}END SITUATION-ONCE")
@@ -57,8 +66,9 @@ struct NoteHead {
   fingerprint: String,
 }
 
-/// The note wrapped to go to the session the turn settles on late (`resolve`): its room and version in the head,
-/// its text in the body.
+/// The note as an update turn carries it, wrapped to go to the session the turn settles on late (`resolve`): its
+/// room and version in the head, its text in the body. It goes whole where that session has not read this
+/// version, and as the policy's one-line marker where it has.
 pub fn note_block(chat_id: i64, note: &str) -> String {
   let head = NoteHead {
     chat: chat_id,
@@ -68,23 +78,33 @@ pub fn note_block(chat_id: i64, note: &str) -> String {
   format!("{NOTE_OPEN}{}\n{note}\n{NOTE_CLOSE}", serde_json::to_string(&head).unwrap_or_default())
 }
 
-/// Each wrapped note opened against the session the turn settled on: the note whole where the session has not read
-/// this version, the policy's one-line marker where it has; with the marks to record once the turn is delivered,
-/// which are none for a note that went as its marker.
+/// The place a round's turn reads the room's note at, filled once the session the turn goes to is settled
+/// (`resolve`): the note as it stands then, under the policy's line, where that session holds no note of the
+/// room, and nothing where it holds one or the room has none, since a session reads a room's note once.
+pub fn first_reading(chat_id: i64) -> String {
+  format!("{FIRST_OPEN}{chat_id}{FIRST_CLOSE}")
+}
+
+/// Each wrapped note opened against the session the turn settled on. An update turn's: the note whole where the
+/// session has not read this version, the policy's one-line marker where it has. A round's one reading: the room's
+/// note as it stands now, whole under its line, where the session holds none of the room, and nothing where it
+/// holds one or the room has none, the blank lines after its place going with it. With the marks to record once the
+/// turn is delivered, which are none for a note that did not go whole.
 pub async fn resolve(
   db: &DatabaseConnection,
   session: Option<&str>,
   prompt: &str,
 ) -> (String, Vec<NoteMark>) {
+  let (prompt, mut marks) = first_readings(db, session, prompt).await;
+
   if !prompt.contains(NOTE_OPEN) {
-    return (prompt.to_owned(), vec![]);
+    return (prompt, marks);
   }
 
   let mut out = String::new();
   let mut at = 0;
-  let mut marks = vec![];
 
-  for found in NOTE.captures_iter(prompt) {
+  for found in NOTE.captures_iter(&prompt) {
     let whole = found.get(0).expect("the whole note block");
     let head = serde_json::from_str::<NoteHead>(&found[1]).ok();
     let note = &found[2];
@@ -105,6 +125,48 @@ pub async fn resolve(
   }
 
   out.push_str(&prompt[at..]);
+
+  (out, marks)
+}
+
+// Each place a round reads its room's note at, filled against the session the turn settled on.
+async fn first_readings(
+  db: &DatabaseConnection,
+  session: Option<&str>,
+  prompt: &str,
+) -> (String, Vec<NoteMark>) {
+  let mut out = String::new();
+  let mut rest = prompt;
+  let mut marks = vec![];
+
+  while let Some(at) = rest.find(FIRST_OPEN) {
+    let after = &rest[at + FIRST_OPEN.len()..];
+    let Some(end) = after.find(FIRST_CLOSE) else { break };
+    let chat = after[..end].parse::<i64>().ok();
+
+    out.push_str(&rest[..at]);
+    rest = &after[end + FIRST_CLOSE.len()..];
+
+    let note = match chat {
+      Some(chat) if !holds(db, session, chat).await => {
+        read(db, chat).await.unwrap_or(None).map(|note| (chat, note))
+      }
+      _ => None,
+    };
+
+    match note {
+      Some((chat, note)) => {
+        marks.push(NoteMark {
+          chat_id: chat,
+          fingerprint: fingerprint(&note),
+        });
+        out.push_str(&format!("{}\n{note}", CHAT_ROUND.situation.front));
+      }
+      None => rest = rest.trim_start_matches('\n'),
+    }
+  }
+
+  out.push_str(rest);
 
   (out, marks)
 }
@@ -145,6 +207,30 @@ pub async fn carried(
   }
 
   (note.to_owned(), mark())
+}
+
+/// Whether a session holds a note of the room, whichever version: one it read or one it wrote. A turn no session
+/// continues holds none, and a record that cannot be read is read as none, so the note goes rather than is lost.
+pub async fn holds(db: &DatabaseConnection, session: Option<&str>, chat_id: i64) -> bool {
+  let Some(session) = session else { return false };
+
+  match one(
+    db,
+    r#"SELECT 1 AS "held" FROM "bmo_session_notes" WHERE "session_id" = $1 AND "chat_id" = $2"#,
+    vec![session.into(), chat_id.into()],
+  )
+  .await
+  {
+    Ok(row) => row.is_some(),
+    Err(why) => {
+      eprintln!(
+        "chat {chat_id}: whether the session holds the situation note could not be read: {}",
+        why.detail
+      );
+
+      false
+    }
+  }
 }
 
 /// The note a session now holds, recorded under the session and the room once its turn is delivered.
@@ -340,4 +426,138 @@ pub fn note_from_answer(answer: &str, shown: &[String]) -> Option<String> {
   };
 
   (!kept.is_empty()).then_some(kept)
+}
+
+/// Where the rooms an agent owes a situation note are kept (docs/drafting.md, 「The situation note」).
+pub fn owed_key(agent: &str) -> String {
+  format!("{agent}_notes_owed")
+}
+
+/// The rooms an agent has sent a round's message in since their note was last updated, in the order of the last
+/// answer: the last of them is the room it last answered in.
+pub async fn owed(db: &DatabaseConnection, agent: &str) -> Vec<i64> {
+  match settings::get(db, &owed_key(agent)).await {
+    Ok(held) => held.and_then(|held| serde_json::from_str(&held).ok()).unwrap_or_default(),
+    Err(why) => {
+      eprintln!("{agent}: the rooms owed a situation note could not be read: {}", why.detail);
+
+      vec![]
+    }
+  }
+}
+
+async fn keep_owed(db: &DatabaseConnection, agent: &str, rooms: &[i64]) {
+  let kept = settings::set(db, &owed_key(agent), &serde_json::to_string(rooms).unwrap_or_default()).await;
+
+  if let Err(why) = kept {
+    eprintln!("{agent}: the rooms owed a situation note were not kept: {}", why.detail);
+  }
+}
+
+/// A room the agent has just sent a round's message in: owed a note, and the room last answered in.
+pub async fn owe(db: &DatabaseConnection, agent: &str, chat_id: i64) {
+  let mut rooms = owed(db, agent).await;
+
+  if rooms.last() == Some(&chat_id) {
+    return;
+  }
+
+  rooms.retain(|room| *room != chat_id);
+  rooms.push(chat_id);
+  keep_owed(db, agent, &rooms).await;
+}
+
+/// A room whose note has been updated, or whose record holds nothing its note has not read: owed none.
+pub async fn settle(db: &DatabaseConnection, agent: &str, chat_id: i64) {
+  let mut rooms = owed(db, agent).await;
+
+  if !rooms.contains(&chat_id) {
+    return;
+  }
+
+  rooms.retain(|room| *room != chat_id);
+  keep_owed(db, agent, &rooms).await;
+}
+
+/// One room's note update, ready to be asked: the turn's prompt, and what its answer is read against.
+pub struct Update {
+  pub chat_id: i64,
+  pub prompt: String,
+  lines: Vec<String>,
+  old: Option<String>,
+  through: Option<i64>,
+}
+
+/// The update of a room's note as its turn is asked (docs/drafting.md, 「The situation note」): the note as it
+/// stands and what it has not read — the room's record after the row it read to, or, where the room has no note
+/// yet, the latest messages the policy names, so the first note has a room to stand on. A gap longer than the
+/// policy's bound is read as its newest messages alone. None where the record holds nothing the note has not read.
+pub async fn update_of(receiver: &Receiver, owner: i64, chat_id: i64) -> Result<Option<Update>, Fault> {
+  let db = receiver.db();
+  let gap = CHAT_ROUND.situation.gap_messages;
+  let unread = match read_through(db, chat_id).await? {
+    Some(after) => {
+      let standing = rows::count_since_row(db, chat_id, after).await?;
+
+      if catch_up(gap, standing) {
+        rows::recent_rows(db, chat_id, gap as u64, "").await?
+      } else {
+        rows::messages_since_row(db, chat_id, after, "").await?
+      }
+    }
+    None => rows::recent_rows(db, chat_id, CHAT_ROUND.recent_messages, "").await?,
+  };
+
+  if unread.is_empty() {
+    return Ok(None);
+  }
+
+  let through = unread.iter().map(|(row, _)| *row).max();
+  let mut messages: Vec<Inbound> = unread.into_iter().map(|(_, message)| message).collect();
+
+  messages.sort_by_key(|message| (message.sent_at, message.message_id));
+
+  let shown: HashSet<i64> = messages.iter().map(|message| message.message_id).collect();
+  let reading = Reading {
+    receiver,
+    owner,
+    fetch_on_demand: false,
+    shown: &shown,
+  };
+  let lines = reading.lines(&messages).await?;
+  let old = read(db, chat_id).await?;
+
+  Ok(Some(Update {
+    chat_id,
+    prompt: update_prompt(chat_id, old.as_deref(), &lines),
+    lines,
+    old,
+    through,
+  }))
+}
+
+/// What an update turn answered, kept: the note it wrote, or the note as it stood where it wrote none, with the
+/// row the turn read to; and the session that answered recorded as holding the note it wrote.
+pub async fn written(
+  db: &DatabaseConnection,
+  update: &Update,
+  session: Option<&str>,
+  answer: &str,
+) -> Result<(), Fault> {
+  let Some(note) = note_from_answer(answer, &update.lines).or(update.old.clone()) else {
+    return Ok(());
+  };
+
+  write(db, update.chat_id, &note, update.through).await?;
+
+  if let Some(session) = session {
+    let mark = NoteMark {
+      chat_id: update.chat_id,
+      fingerprint: fingerprint(&note),
+    };
+
+    keep(db, session, &mark).await?;
+  }
+
+  Ok(())
 }

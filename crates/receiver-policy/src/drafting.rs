@@ -13,8 +13,9 @@ pub struct Process {
   pub tier: String,
   pub agent: String,
   pub rounds: Vec<String>,
-  /// The question of `rounds` from whose answer on a send is read; empty for the first.
-  pub send_from: String,
+  /// The question a row once read a send from: read and ignored, since the draft turn's answer is the message.
+  #[serde(default)]
+  pub send_from: Option<String>,
   pub light: Vec<String>,
   /// The questions of those lists that are switched off: each keeps its place and is not asked.
   #[serde(default)]
@@ -44,6 +45,9 @@ pub struct Review {
   pub draft: String,
   pub words: String,
   pub rules: String,
+  /// The label the review turn shows the questions the draft turn followed under, `{names}` as its line carried
+  /// them: data, with no instruction.
+  pub followed: String,
   pub handed: String,
   pub room_handed: String,
   pub pass: String,
@@ -61,33 +65,21 @@ pub struct Drafting {
   /// A turn's time bound a deployment set before the bound was removed: read and ignored.
   #[serde(default)]
   pub turn_seconds: Option<u32>,
-  /// The opening of the first question, which rides the round's own turn where it is not also the last.
-  pub opening: String,
-  pub lead: String,
-  pub last_lead: String,
-  /// The one-word permission a round's line carries: that a send is read at this round.
-  pub send_open: String,
-  /// The one-word permission a round's line carries: that this round writes notes only.
-  pub send_closed: String,
-  /// The ids of the messages waiting for the next turn, as data.
-  pub waiting: String,
-  /// What to do with the messages waiting, said once in the room's block.
-  pub waiting_rule: String,
+  /// The line the draft turn closes on, `{names}` the questions its round follows, in order and joined by `+`.
+  pub round: String,
   /// The marker that names the closing check's turn.
   pub arrived_marker: String,
   /// What the closing check does, said once in the room's block.
   pub arrived: String,
   /// The head the closing check shows the message as it stands under.
   pub standing: String,
-  /// What a question whose answer may be the message says of its voice: the room's, never notes.
+  /// The voice the message is written in: the persona's, never notes.
   pub voice: String,
   /// The head the room's block carries over the stage instructions, which the session is handed as its system
-  /// prompt.
+  /// prompt; `{voice}` is `voice`.
   pub stages_head: String,
   /// One stage instruction in the room's block, `{name}` the question and `{text}` its catalogue text.
   pub stage: String,
-  /// What a round's send permission means and the voice a message is written in, said once in the room's block.
-  pub send: String,
   /// The review the gate asks before a message goes out.
   pub review: Review,
   /// The questions, by name.

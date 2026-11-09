@@ -1,35 +1,25 @@
 # The draft process
 
-How a round's message is made: the questions the round's session is asked, the table that says which, the
-markers that end the process early, the items and checks the message passes, and the record each turn of it
-leaves.
+How a round's message is made: the one draft turn the round's session is asked, the questions that turn follows
+and the table that says which, the markers that end the process early, the items, the review and the checks the
+message passes, and the record each turn of it leaves.
 
 ## What it is
 
-- **The room's situation is updated first, in every room, and then the round goes on.** Every round with words
-  opens on one light turn that updates the room's situation note from the new lines: the window's words, a direct
-  message to a private chat, a light turn's words, the owner's own chat among them. Where the round is the agent's
-  to judge first, the next step is that judgement, reading the note with the new lines. Neither step asks a
-  reference, reads an index or runs a gate; a skip ends the round there.
-- **The process establishes what the message needs first and writes the message last.** A round's turn goes to
-  the agent as every round's does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where
-  one is asked, and after the window's pregate: the core the gate attaches and the room's situation note. The
-  brain's index rides the room's block at session opening, never the turn. The turn carries only the line naming
-  the process's first round and whether that round writes
-  the message or only notes; the question it answers, like every other question of the process, stands in the
-  room's block, which the session is handed as its system prompt. The agent reads, finds the facts the message
-  rests on and engraves what it establishes in the brain with its tools as it goes. The receiver then asks the
-  same session the process's further rounds, one turn each, in order, each carrying its own round line and no
-  question text; every answer but the last is the agent's notes, and the answer to the last round is the
-  message. Nothing stands as a message before then.
-- **A round's notes are what it read, what it established and what is still unknown.** The facts themselves go
-  to the brain during the round, by the agent's own tools; the notes go to the round log (「The round log」
-  below), so the brain and the draft record both hold what the round established.
-- **The first question has the most freedom,** and a send is honored wherever it stands (「The process table」
-  below). It says, in the owner's words: a simple call is answered now, and where what is now known is enough
-  the message is written now, with `<<SEND>>` beginning it; where the agent cannot tell whether a fact it found
-  is stale, it searches before deciding, with the web search, the web fetch, the translation and the brain's
-  tools its session holds; otherwise it notes what the message needs and goes on.
+- **A round is the agent's judgement where one is asked, and then one draft turn.** Where the round is the
+  agent's to judge first (`docs/wake.md`, 「The room's queue and the round」), its first turn is that judgement,
+  which asks no reference, reads no index and runs no gate; a skip ends the round there. The room's situation
+  note is no step of a round: it is written when the session leaves a room, before a handoff and on a keepalive
+  touch, and a session reads a room's note once (「The situation note」 below).
+- **The draft is one turn, and its answer is the message.** A round's turn goes to the agent as every round's
+  does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where one is asked, and after
+  the window's pregate: the core the gate attaches. The brain's index rides the room's block at session opening,
+  never the turn. The turn carries only the line naming the questions its round follows; each question's text
+  stands in the room's block, which the session is handed as its system prompt. In that one turn the agent
+  follows the questions in the order the line names them — it reads, finds the facts the message rests on,
+  engraves what it establishes in the brain with its tools and does what it promised — and then writes the
+  message, which is its answer. No question is asked as a turn of its own, and nothing stands as a message
+  before that answer.
 - **Confidence comes from a fact's dates, and hedging is no option.** The brain's facts carry when they hold from
   and when they were last confirmed: a fact found or confirmed recently is said with confidence, and one the
   agent is not confident of is searched for quietly before it answers. The message never tells the room that
@@ -37,25 +27,24 @@ leaves.
 - **A fact about the system's live state has one source.** A login, a usage window, a model, what is running,
   what is deployed, a setting: such a fact counts only when read now from the service that owns it, by its route
   or its tool. A file, a cache or an earlier answer that mirrors that state is not a source. What has no source
-  is read now, and what cannot be read now is said as not confirmed, never as fact. The first question and the
-  `facts` question both say so.
-- **A question is a turn of the same session,** opened as `question` (`docs/bmo-window.md`, 「The openings」),
-  so it holds the round's intent, its reference and its cache; the first question is the round's own turn. Every
-  tool the round's turn has is open in every question: reading and writing memories, searching, filing a job,
-  `say`. A question to read more is answered by reading; a question whether a promise was kept is answered by
-  keeping it.
-- **The receiver reads four things of an answer and nothing else:** `<<SKIP>>` standing in it outside a code
-  span or fence, which ends the process in any round with nothing sent; `<<SEND>>` opening it, wherever it
-  stands, which makes what follows the marker the message and ends the questions there, so a question already
-  answerable pays no further round and a message written in a draft is never read as notes; the marks
-  `<<DONE #<number>>>` and `<<SEPARATE #<number>>>` on a message shown to the round (「What came in meanwhile」
-  below); and the answer itself. A skip anywhere in an answer wins over a send that opens it, and a send with
-  nothing after it is a skip.
+  is read now, and what cannot be read now is said as not confirmed, never as fact. The process's fixed rules
+  and the `facts` question both say so.
+- **Every tool the round's turn has is open in the draft turn:** reading and writing memories, searching, filing
+  a job, `say`. A question to read more is followed by reading; a question whether a promise was kept is
+  followed by keeping it.
+- **Every later turn of the process is a turn of the same session,** opened as `question` (`docs/bmo-window.md`,
+  「The openings」), so it holds the round's intent, its reference and its cache: the closing check, an item, the
+  review, a revision the review sent back and a check.
+- **The receiver reads three things of an answer and nothing else:** `<<SKIP>>` standing in it outside a code
+  span or fence, which ends the process with nothing sent; the marks `<<DONE #<number>>>` and
+  `<<SEPARATE #<number>>>` on a message shown to the round (「What came in meanwhile」 below); and the answer
+  itself. `<<SEND>>` opening an answer is taken out of it, the answer being the message with the marker or
+  without, and a marker with nothing after it is a skip. A skip anywhere in an answer wins.
 - **A draft is not a message.** The room's messages are the only record of what the room has heard. A round
   log's answer, a note, or an earlier turn of the session that was not sent is not something said, and no round
   skips a repeated request because it wrote the answer in one; the duplicate rule reads the room's own record and
   nothing else.
-- **A round whose first answer is `<<WAIT>>` runs no further process:** the wait stands as `docs/wake.md`,
+- **A round whose draft turn answers `<<WAIT>>` runs no further process:** the wait stands as `docs/wake.md`,
   「Waiting」, says, and the round that takes the waited words opens the process again.
 - **Every agent's round runs the process,** every supervisor's alike: no agent's turns are
   exempt from it. A console talk, a typed line, the touch and the line before a fold are no rounds of a room and
@@ -72,9 +61,9 @@ leaves.
 
 ## The questions
 
-- **The questions are a catalogue, by name,** each a text the session is asked. The policy holds six, in English
-  as every line an agent reads, each a rule with no sentence for the agent to copy, and the console changes any
-  text or adds a question under a new name (「The routes」 below):
+- **The questions are a catalogue, by name,** each a text the draft turn follows. The policy holds six, in
+  English as every line an agent reads, each a rule with no sentence for the agent to copy, and the console
+  changes any text, adds a question under a new name or takes one it added away (「The routes」 below):
 
 | Name | What it asks |
 |---|---|
@@ -83,13 +72,13 @@ leaves.
 | `facts` | whether what the message rests on is true and where each fact came from: the system's live state read now from the service that owns it, nothing undecided spoken of as known, no variable guessed |
 | `memory` | the brain brought up to date with its tools: the memories the answer needs recalled, similar ones among them; the facts established so far engraved; promises and checks fulfilled marked done; what the conversation showed no longer holds invalidated; what still holds confirmed, its `lastConfirmedAt` moved; and where the opening block's index carries the due line and the brain has unconsolidated episodes (`docs/bmo-window.md`, 「What every turn carries」), a consolidation in this turn: the first of the unconsolidated episodes the brain answers, as many as the turn can afford and never all of them, what each worth keeping comes to drafted, a consequential draft (one closing a live fact, or of importance 8 or more) reviewed by the agent's own second reading before it is written (`docs/unified-bmo.md`, 「The brain's consolidation」), each draft that passes written with `brain_learn`, and every one read marked with `brain_consolidated` but those of a draft the review stopped for a contradiction, with no `brain_fold` |
 | `promises` | whether anything said like a promise was actually done; what was not done is done now or the words change |
-| `final` | looking at what came in meanwhile and at the notes the process gathered, write the message now, as this room's agent says it to this person, or send nothing; always the last |
+| `final` | looking at what the turn established, write the message now, as this room's agent says it to this person, or send nothing; always the last |
 
 - **The process's fixed rules and each question's own text stand in the room's block, not in a turn:** that the
-  message is written last, that it is reviewed before it goes out and that a review which rejects it returns it
-  to be written again, that an answer before the last is notes of what was read, the facts established and
-  engraved in the brain, each with its source, and what is still unknown, the confidence rule and the source
-  rule above, that nothing is hedged, that `<<SKIP>>` ends the process and is for words that ask nothing and
+  round's line names the questions the draft turn follows, each followed in the order named before the message
+  is written, that the message is reviewed before it goes out and that a review which rejects it returns it to
+  be done and written again, the confidence rule and the source rule above, that nothing is hedged, that
+  `<<SKIP>>` ends the process and is for words that ask nothing and
   change nothing, so a person's telling the agent something of themselves, which it keeps, is answered in the
   same round, that a draft or a note is not a message the room has heard and never the reason for a skip, the
   marks a message that arrived meanwhile takes, and that before a step of work taking more than a moment the
@@ -97,85 +86,61 @@ leaves.
   back and what it makes of it, a progress line the room is shown while the turn works and which is no part of
   the message, while what it writes last in a turn is that turn's answer and never shown as progress
   (`chat-line.toml`, `[room]`, `process`; `docs/receiver.md`, 「The event stream」). The room's block
-  also carries the catalogue's texts for the questions the process asks, assembled from the same policy rows the
-  console edits (`drafting.toml`, `[questions]`; 「The routes」 below); a question the row has switched off
+  also carries the catalogue's texts for the questions the process follows, assembled from the same policy rows
+  the console edits (`drafting.toml`, `[questions]`; 「The routes」 below); a question the row has switched off
   stands in no line of it (「The process table」 below). The block goes to a session once per version and by its
-  mark after that, so a turn carries only what changes from round to round: which round it is and what that
-  round may write.
+  mark after that, so a turn carries only what changes from round to round: which questions its round follows.
 - **A session reads one set of instructions for the process, never two.** The process's part of the room's
-  block is the same in every room: its fixed rules, the stage lines, what a send does, the rules of the items
-  and the checks, the agent's first judgement and the review's instructions. Where it is no longer what the last turn of an agent's one session
+  block is the same in every room: its fixed rules, the stage lines, the voice a message is written in, the
+  rules of the items and the checks, the agent's first judgement and the review's instructions. Where it is no
+  longer what the last turn of an agent's one session
   across rooms carried, that session is not handed the new text beside the old: it is replaced through its
   handoff before its next turn, with the reason `process`, and the fresh session reads the block as it now
   stands (`docs/unified-bmo.md`, 「Replacing the session」). A change that leaves that part of the block as it
-  was — a light bound, the text of a question no list asks — replaces nothing, and neither does a change set
+  was — a light bound, the text of a question no list names — replaces nothing, and neither does a change set
   back before the session's next turn. A session an agent keeps in each room is the agency's to resume, and
   reads the changed block in full as a new version.
-- **The first round rides the round's own turn:** the room's words as the window composes them, then the round's
-  line; the closing rules stand in the room's block. The line is the policy's, the shortest that says both facts
-  the block cannot: the place and count of the round,
-  its name, and one word for its send permission (`send_open`, `SEND`, or `send_closed`, `NOTES`). Where the
-  first round is the last, as a light turn's `final` is, it opens on the last round's line instead and its
-  answer is the message, so the round is one turn.
-- **Every later round goes out as one more turn** opening on the process's lead line, naming the round's place,
-  name and send permission; then the turn's scope; then the block of messages that arrived since the last
-  answer, where any did (「What came in meanwhile」 below). Every round but the message round closes on the
-  line naming the messages still waiting; the block says they are shown with the next round and are not
-  answered now. No turn carries a question's text, an instruction about how to answer it, what a send does, or
-  that the message is reviewed: those stand in the room's block. The lines are the policy's (`drafting.toml`,
-  `second-asks.toml`).
-- **No gate is asked for a later round:** the turn carries no reference of its own, and no judgement is
-  written for it.
+- **The round's line rides the round's own turn:** the room's words as the window composes them, then the line;
+  the closing rules stand in the room's block. The line is the policy's (`drafting.toml`, `round`), the shortest
+  that says what the block cannot: the names of the questions this round follows, in their order, joined by
+  `+`. No turn carries a question's text, an instruction about how to follow it, or that the message is
+  reviewed: those stand in the room's block.
 
 ## The process table
 
-- **One table says which questions a turn is asked:** one row for every provider, tier and agent, every part `*`.
+- **One table says which questions a round follows:** one row for every provider, tier and agent, every part `*`.
   The matching code still reads a provider, a tier and an agent, but the policy's one row matches all of them, and a
   console row of any other key is ignored. A row holds:
-  - `rounds`, the questions of an ordinary turn, in order;
-  - `sendFrom`, the question of `rounds` from which the process asks for the message, a send being honored
-    wherever it stands; empty for the first;
-  - `light`, the questions of a light turn (「A light turn」 below);
+  - `rounds`, the questions an ordinary turn's round follows, in order;
+  - `light`, the questions a light turn's round follows (「A light turn」 below);
   - `off`, the questions of those lists that are switched off: each keeps its place in its list and is not
-    asked;
+    followed;
   - `lightChars`, how short the room's words must be for a turn to be light;
-- **A question switched off is not part of the process until it is switched on again.** A turn is asked its
-  list without the questions `off` names, in the list's order: the round lines count only the questions asked,
-  the room's block carries no line for one switched off, and no row of the round log is written for it.
-  Switching it on again asks it at the place it kept. `final` writes the message and is never switched off, so
-  a list that holds questions always asks at least that one. `off` names only questions the row's lists hold: a
-  name neither list holds is dropped as the row is set, so a question taken out of both lists leaves `off`
-  with them.
-- **A `<<SEND>>` is honored at any question.** The row's `sendFrom` names the round from which the process
-  asks for the message; that round's line carries `SEND`, and the room's block says what a send does. Where
-  `sendFrom` names a question that is switched off, the process asks for the message from the first question
-  asked after its place. A send
-  before it is the message too, and the process ends there. Where the agent does not send, the questions that
-  establish the facts are asked before anything is written. The default row asks for a send at `final` alone:
-  every round before it carries `NOTES` in its line, and its answer is notes for the message the last round
-  writes. A light turn's list asks for a send at its first round whatever the row names.
-- **A round whose answer may be the message asks for it in the persona's voice.** The room's block says once,
-  in the send instruction beside the stage lines, that an answer that becomes the message is written as the
-  message itself, in the voice the agent's persona sets for the person it answers, its register toward them
-  included, and in their language, never as notes or a report (`drafting.toml`, `send`, `voice`); it holds
-  however long the session runs, and the closing check carries the voice line again where a message already
-  stands. The receiver carries no register of its own and names no person's register: that is the persona's. A
-  message sent before `sendFrom` is written as the message itself and in that voice; an answer that is not sent
-  stays notes.
-- **The policy's one row is the default for every agent** (`drafting.toml`): `information`, `facts`, `memory`,
-  `promises` and `final`, in that order; a send is asked for at `final` alone; every light turn is `final` alone; 120
-  seconds a turn is the journal's note; 12 characters make a light turn. A deployment that still carries the old
-  two rows loads with them ignored in favour of this one. `intent` stays in the catalogue and out of the
-  default rounds, so the five are not the whole catalogue.
+- **A question switched off is not part of the process until it is switched on again.** A round follows its
+  list without the questions `off` names, in the list's order: the round's line names only the questions
+  followed, and the room's block carries no line for one switched off.
+  Switching it on again puts it back at the place it kept. `final` writes the message and is never switched off,
+  so a list that holds questions always follows at least that one. `off` names only questions the row's lists
+  hold: a name neither list holds is dropped as the row is set, so a question taken out of both lists leaves
+  `off` with them.
+- **The message is written in the persona's voice.** The room's block says once, beside the stage lines, that
+  the draft turn's answer is the message itself, in the voice the agent's persona sets for the person it
+  answers, its register toward them included, and in their language, never as notes or a report
+  (`drafting.toml`, `voice`); it holds however long the session runs, and the closing check carries the voice
+  line again where a message already stands. The receiver carries no register of its own and names no person's
+  register: that is the persona's.
+- **The policy's one row is the default for every agent** (`drafting.toml`): `intent`, `information`, `facts`,
+  `memory`, `promises` and `final`, in that order; every light turn is `final` alone; 12 characters make a light
+  turn. A deployment that still carries the old two rows loads with them ignored in favour of this one.
 - **The console's rows do not make a second process** (「The routes」 below): a row of a key other than the one row's
   is ignored, and the one row's own key replaces the default where the console sets it. Every agent still reads
-  the same five.
-- **A round reads its row before its turn goes out,** since the turn carries the first question: the provider the
+  the same row.
+- **A round reads its row before its turn goes out,** since the turn carries the round's line: the provider the
   agency's state names for the session the round goes on (a session's state answers it from its start, before its
   first turn) and the agent whose turn it is. The most specific row that matches stands, an agent's row before a
   provider's. The agency names no tier for a session, which runs for a supervisor or a role, so a round matches
   only rows of any tier.
-- **A list that holds questions ends in `final` and holds it nowhere else.** An empty list asks nothing: the
+- **A list that holds questions ends in `final` and holds it nowhere else.** An empty list follows nothing: the
   round's turn goes out as the window composed it and its answer is the message, held to the items and checks
   below like any.
 
@@ -183,18 +148,18 @@ leaves.
 
 - **A turn is light** where it carried quiet instructions and none of the room's words, or where the room's words
   it carried hold no file and run together, white space aside, to at most the row's `lightChars` characters: a
-  greeting, a word of thanks, a short call. A light turn is asked the row's `light` list. Whether a turn is light
-  is read of what the round took when its turn went out.
+  greeting, a word of thanks, a short call. A light turn's round follows the row's `light` list. Whether a turn
+  is light is read of what the round took when its turn went out.
 
 ## The situation note
 
-- **The note is an analysis of the room, and it sends nothing.** Its round writes the note and nothing else: it
+- **The note is an analysis of the room, and it sends nothing.** Its turn writes the note and nothing else: it
   answers nobody and writes no reply, and nothing of it goes to the room. It says what the room is about, what
   has been talked about and settled so far, who is talking with whom, who waits on whom, what the agent has
   itself been asked or promised, and what is still to be done, and then it judges what came in against that
   state: what it changes and how the room is best answered, as the course to take and never as the message.
-- **The note says what is talked about and what is owed, never what went out.** It is written before the round
-  answers, so it never says that a reply was sent, attached, fixed or answered: where it would say something was
+- **The note says what is talked about and what is owed, never what went out.** It never says that a reply was
+  sent, attached, fixed or answered: where it would say something was
   sent, it says what remains to be done. It never copies a message or restates the agent's own answer, and it
   holds no first-person claim that a reply, a fix, an attachment or a send happened, whether the claim is fresh or
   copied. A note that copies a shown sentence or makes such a claim is refused, and the note as it stood stays.
@@ -202,69 +167,86 @@ leaves.
 - **One note a room, the receiver's own.** The note stands in `room_situations` (`docs/store.md`), one row a room,
   replaced when it changes, with the row of the room's record it has read to. It is the room's live state, not the
   agent's long-term memory: the brain's `situation` rows are rules for a situation, while this note is written and
-  read by the receiver alone. It is no reference document and stands nowhere in the turn's core: the judgement
-  reads it under its own line, and the turn that writes the message reads it as that answer's instruction.
-- **One light turn a round, in every room, reading only what the note has not.** The note's instruction stands
+  read by the receiver alone. It is no reference document and stands nowhere in the turn's core.
+- **The note is written when a session leaves a room, never by a round.** Three moments write it, each one light
+  turn a room on the agent's one session across rooms:
+  - **another room's words:** where a round with words opens in a room and the agent last answered in another,
+    the note of the room it last answered in is updated first, and then the round goes on in the new room;
+  - **a handoff:** before a session is asked for its handoff file (`docs/unified-bmo.md`, 「Replacing the
+    session」), the note of every room it answered in is updated. The note is the room's own and is no part of
+    the handoff document;
+  - **a keepalive touch:** where the cache warmer's touch reaches the session (`docs/bmo-window.md`, 「The
+    touch」), the note of every room it answered in is updated, and those turns are the touch: the keepalive
+    prompt goes in only where no room is owed a note.
+- **A room is owed a note from the agent's answer in it until its note is updated.** The receiver keeps, for
+  each agent, the rooms it has sent a round's message in since their note was last updated, in the order of the
+  last answer (`<agent>_notes_owed`, `docs/store.md`): the last of them is the room last answered in, and all of
+  them are the rooms a handoff and a touch update. An update takes its room off the list whatever its turn
+  answered, and a room whose record holds nothing past the note's mark is taken off with no turn. A turn whose
+  run failed leaves its room owed, and so does a session that ended with no handoff asked: the update reads the
+  room's record, never what a session remembers, so whichever session stands at the next of the three moments
+  writes it. A session an agent keeps in each room leaves no room, is handed over by no handoff of the
+  receiver's and takes no touch, so its room's note is written by none of them.
+- **The update turn reads only what the note has not.** The note's instruction stands
   in the room's block, the session's system prompt, beside the draft process's stages, assembled from the
   situation policy with its ceiling rendered into the text (`chat-round.toml`, `[situation]`, `instruction`,
   `ceiling_chars`). The turn itself carries only a short mark that this is the note turn (`marker`), the note as
-  it stands and the room's messages that came in since the note last read the record, under the policy's labels;
+  it stands and the room's messages that came in since the note last read the record, the agent's own answers
+  among them, under the policy's labels;
   its answer is the note, and the row of the last message it read to is kept with it. The note as it stands goes
-  whole where the session has not read that version, and as the policy's one-line marker where it has: a session's
-  first turn, a handoff or a fold carries it whole, and a later turn only when the note changed
+  whole where the session has not read that version, and as the policy's one-line marker where it has
   (`chat-round.toml`, `[situation]`, `unchanged`; the version is the note's text, kept under
   `bmo_session_notes`, `docs/store.md`). Where the room has no note
   yet, it carries the latest messages the policy names (`recent_messages`, 30) and takes its first position at the
-  newest of them. It runs for every round with words, the owner's private chat included, before that round's
-  judgement or its own turn. A turn that answers `<<SKIP>>` or `<<WAIT>>`, or nothing, leaves the note's words as
+  newest of them. A turn that answers `<<SKIP>>` or `<<WAIT>>`, or nothing, leaves the note's words as
   it stood but takes its position forward with what it read. Where more messages stand between the note's mark
   and the newest than `gap_messages` (200), the update reads the newest `gap_messages` alone instead of the whole
   gap — a room left long is caught up from its latest words, and the mark moves to the newest of them; a
-  `gap_messages` of 0 reads every message since the mark. The note is stored before the judgement and the
-  round's draft, so both read the same note.
-- **The note is the message round's instruction.** The note advises how the next answer is to be given, so the
-  turn that writes the message carries it first, above the room's words, under the policy's front line; the room's
-  words follow and the round's line closes it. It is no reference piece: a turn that is not writing the message
-  is not handed it, and the note never stands among the core's documents.
+  `gap_messages` of 0 reads every message since the mark.
+- **A session reads a room's note once.** The round that first takes a session into a room — the session's
+  first round there, which is its first round of all or one in a room other than the room it was last in —
+  carries the room's note under the policy's line: in the judgement turn, before the room's recent words and the
+  words judged, where the round is the agent's to judge first, and otherwise at the head of the draft turn,
+  above the room's words. Every later round of that session in that room carries none, however the note has
+  changed since: the session holds what it read there and what it has itself said and written. The receiver
+  keeps which rooms' notes a session holds (`bmo_session_notes`, `docs/store.md`), a note it wrote among them,
+  and lets the record go where the session is replaced, folds or a new generation opens under it. The fresh
+  session then reads each room's note once again, which is how what a replaced session knew of a room reaches
+  the session after it.
+- **The note changes the material a round reads, never an addressee rule:** a conversation between others is
+  left alone, and a line that asks the agent or resumes an earlier thread with it is answered.
 - **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
   the policy's `cut`; the instruction in the room's block names the ceiling, and the ceiling leaves room for the
-  state, what came in and the course to take together. The extra cost is one light turn a round with words: the
-  note it reads, under the ceiling, and the room's messages since the note last read the record, which on a room
-  keeping up is the round's own words. A room with no note yet pays the `recent_messages` window once. The fixed
-  room context stands in that turn and the round's; the note's instruction is part of that block, handed once per
-  session rather than carried by every note turn.
-- **The console reads the note beside each judgement.** The note stands on every message the round judged, with
-  whether that round wrote it afresh (`docs/api.md`, the `Message`'s `situation`), so a message's judgement record
-  says what the room's situation was as the round read it; the owner's private chat's messages carry it too. A room
-  answers the note as it stands now, with when it last changed, at `GET /rooms/{roomId}/situation`.
+  state, what came in and the course to take together. The cost is one light turn for a room left, never one a
+  round: the note it reads, under the ceiling, and the room's messages since the note last read the record. A
+  room with no note yet pays the `recent_messages` window once.
+- **The console reads the note beside each judgement.** The note as it stood when a round opened stands on every
+  message that round judged (`docs/api.md`, the `Message`'s `situation`), so a message's judgement record
+  says what the room's situation was as the round found it; its `changed` is false, since no round writes the
+  note. A room answers the note as it stands now, with when it last changed, at `GET /rooms/{roomId}/situation`.
 - **An owner's directive is not skipped because a note or an earlier draft says it was handled.** The
   round's answer to the owner's words is asked over once more where no message the room's record holds follows
   those words; a note, a draft or a turn of this session is not a sent message.
-- **The judgement reads it with the new lines.** The judging turn carries the note under `[supervisor] situation`,
-  before the room's recent words and the words judged. The note changes the material the judgement reads, never an
-  addressee rule: a conversation between others is left alone, and a line that asks the agent or resumes an earlier
-  thread with it is answered.
 
 ## What came in meanwhile
 
-- **Words that come while a question works go into that turn.** From the round's own turn to the question that
-  writes the message, words the room queue hands over while a turn of the process works are pushed into it at its
+- **Words that come while the draft turn works go into it.** Words the room queue hands over while the draft
+  turn works are pushed into it at its
   next look (`docs/bmo-window.md`, `push`): the paragraph carries the push's marker and the words as data, what
   the marker means standing in the room's block, and the agent's program takes them between tool calls. The
-  round's own turn takes the quiet instructions delivered meanwhile in the same paragraph; a later question
-  takes the room's words alone.
-- **What no push put in reaches the agent at a question boundary.** Words that came between two turns, words a
+  turn takes the quiet instructions delivered meanwhile in the same paragraph.
+- **What no push put in reaches the agent in the closing check.** Words the
   turn refused or whose provider takes no words while it works, and words that came while the push was held back
-  wait in the room's buffer. Each time an answer of the process comes back, the receiver takes what waited since
-  its last look and puts it under the next question as one block, composed as a push's paragraph is but for the
+  wait in the room's buffer. Once the draft turn's answer comes back, the receiver takes what waited
+  and shows it in the closing check as one block, composed as a push's paragraph is but for the
   rule each message is judged by, which the room's block states: each message stands with its number.
-- **Pushed or shown under a question, the words keep the round's privilege,** read by people's words alone as the
+- **Pushed or shown in the closing check, the words keep the round's privilege,** read by people's words alone as the
   round's own is (`docs/unified-bmo.md`, the run-privilege mark): a round that is the owner's takes them where every
   person's words among them are his, an agent's line neither keeping them out nor letting them in; a round that is
   not his never takes words that are his alone. The others wait and open the round after, where the owner's own
   words carry his privilege.
-- **Once the message stands, one closing check.** Where words waited when the message came to stand — the answer
-  to `final`, or one a send marker opened — the session is asked once more before the items and the checks: the
+- **Once the message stands, one closing check.** Where words waited when the message came to stand, the session
+  is asked once more before the items and the checks: the
   marker that names the check (`arrived_marker`), the message as it stands, then the block of what arrived. What
   the check does stands in the room's block (`arrived`). The answer, marks taken out, is the whole
   message as it should now go out, answering the words that arrived as well, and it takes the standing message's
@@ -272,8 +254,8 @@ leaves.
   marks sends the standing message unchanged, a wait leaves it too, and a skip sends nothing; the marks keep their
   meaning for the messages shown. The check is not asked where the process came to nothing to send: those words
   wait for the next round.
-- **The agent decides each message it was shown, by mark,** a message pushed into a turn of the process being shown
-  to the round as one under a question is:
+- **The agent decides each message it was shown, by mark,** a message pushed into the draft turn being shown
+  to the round as one in the closing check is:
   - by default the round's message answers it: it is the round's own from then on, the read mark moves to it, and
     the owner's words among it are owed an answer;
   - `<<DONE #<number>>>`: it needs no answer: the read mark moves past it, nothing is sent for it and nothing is
@@ -288,14 +270,14 @@ leaves.
   shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
   the last stands. Marks are taken out of an answer before anything else reads it, and never reach the room.
 - **Each message shown to the round carries a verdict of what its mark made of it.** Once the round's message is
-  made, every message pushed into a turn of the process or shown under a question is written down under itself as
+  made, every message pushed into the draft turn or shown in the closing check is written down under itself as
   a verdict of the stage `read-with`, naming the message the round's own verdict stands under: `READ: #<number>`
   where it became the round's own, `SKIP: #<number>` where it was marked done, the number left out where that
   verdict stands under no message. A message marked separate is written down by the round that takes it, as its
   own words are.
 - **The answer is pinned only to the message the agent marks.** A `<<REPLY #<number>>>` or `<<REPLY:<number>>>`
   mark names the message, the round's own or one older than it, and the answer is pinned to it; a bare
-  `<<REPLY>>`, or the number zero, names the newest message the round answers; a mark the supervisor's first answer
+  `<<REPLY>>`, or the number zero, names the newest message the round answers; a mark the supervisor's judgement
   set stands where the process's answers set none. With no mark the answer goes out plain, whatever the round held,
   whoever spoke since and whatever the owner is owed: the process never picks a message to pin by itself. Where
   the road cannot aim at the message, or the room's record does not hold it, nothing is pinned.
@@ -315,21 +297,19 @@ leaves.
 
 ## Time
 
-- **No clock and no count bounds a round.** The process asks its questions in order until it has a message or
-  the agent skips deliberately; no turn has a time bound, no round has a cap, and no tool call is counted. A
+- **No clock and no count bounds a round.** The draft turn works until it has its message or the agent skips
+  deliberately; no turn has a time bound, no round has a cap, and no tool call is counted. A
   round that takes a long time still ends with its message, and a failing check gets the repair round it would
   get at any other time. The review's eight rejections are the one bound, and they send the last draft rather
   than silence; a review that gives no guidance or repeats itself ends the review early the same way. Nothing
   else makes the room hear silence but an answer that says so.
-- **Before `final` has run, no message stands:** an answer before the last is notes. A process that already has
-  its message, from `final` or from a send marker, goes on to the closing check, the items and the checks below.
-- **A later question whose run failed** is passed over to `final`, asked at once; a `final` whose run failed
-  leaves no message, and the round ends as a skip.
+- **Before the draft turn has answered, no message stands.** A process that has its message goes on to the
+  closing check, the items, the review and the checks below.
 
 ## The items after the message
 
-The code's own readings of the message are items of the process, asked once the message stands (the last
-question's answer, or the answer a send marker opened) and after the closing check where one was asked
+The code's own readings of the message are items of the process, asked once the message stands (the draft
+turn's answer) and after the closing check where one was asked
 (「What came in meanwhile」 above), each asked once as one more turn of the same session. The turn carries only
 the marker naming the item or the check and the data its rule reads; the rule itself stands in the room's block
 (`second-asks.toml`, `[errands]`, `[data]`).
@@ -365,23 +345,28 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 
 ## The review
 
-- **The gate's first turn reviews the message before it goes out.** What the review reads, the verdict it
-  answers and what a revision round does with the reason stand in the room's block beside the draft stages
-  (`drafting.toml`, `[review]`, `instruction` and `revise`): it reads the draft against the room's words and
-  the rules and knowledge the round carries, and answers `PASS` alone, or `REJECT: <one short reason>` naming
-  the one thing that must change, and nothing else. The review turn itself carries only the marker that names
-  the round, the draft, the room's words and the rules it carries (`marker`, `draft`, `words`, `rules`); it is
-  handed no instruction sentence, no list of the questions the rounds were asked and no verdict wording.
-- **A rejection returns to the draft.** The final question is asked again, its turn carrying only the reason
-  the review gave, and the new draft is reviewed again, eight times at most. At the eighth rejection the last
+- **The review audits the draft turn before the message goes out.** It is one more turn of the same session,
+  the first of the gate, and it audits whether the draft turn did what it was asked: whether each question its
+  line named was carried out — what was to be read was read, each fact has its source, the brain was brought up
+  to date, what was promised was done or the words changed — and whether the message stands on that work, on
+  the room's words and on the rules and knowledge the round carries. What the review is asked, the verdict it
+  answers and what a revision does with the reason stand in the room's block beside the stage lines
+  (`drafting.toml`, `[review]`, `instruction` and `revise`): it answers `PASS` alone, or
+  `REJECT: <one short reason>` naming the one question not carried out or the one thing that must change, and
+  nothing else. The review turn itself carries only the marker that names the round, the questions the draft
+  turn followed, the draft, the room's words and the rules it carries (`marker`, `followed`, `draft`, `words`,
+  `rules`); it is handed no instruction sentence and no verdict wording.
+- **A rejection returns to the draft.** The session is asked again, its turn carrying only the reason
+  the review gave: it does what the reason names as not done, with its tools, and writes the message again, and
+  the new draft is reviewed again, eight times at most. At the eighth rejection the last
   draft is sent, not withheld, and the round's end row reports the reasons in order. A review that gives no
   verdict is a rejection with its own words as the reason.
 - **A rejection that gives no guidance ends the review.** Where the reason is empty, or is the draft's own
-  text after trimming and collapsing white space, no revision round is asked: the draft as it stands is sent
+  text after trimming and collapsing white space, no revision is asked: the draft as it stands is sent
   and the end row says the review gave no usable reason. The same holds where two consecutive rejections carry
   the same reason, since the revision is not converging; the draft as it stands is sent and the end row says
   the review repeated itself. A reason names a change where it is not empty and not the draft itself.
-- **Every verdict and reason is written down.** A review question and its verdict are rows of the round log,
+- **Every verdict and reason is written down.** A review and its verdict are rows of the round log,
   `PASS` or `REJECT`, with the reason; the console reads them with the rest of the round.
 - **The format check runs after the review passes.** A format failure gets the repair round it had before; a
   review rejection has already gone back to the draft.
@@ -389,16 +374,16 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 ## The checks on the final text
 
 - **Once the review has passed, the text is checked before it is sent,** with no model:
-  - `format`: none of the process's own lines stands in the text: no question it was asked, and not the head of
-    the block of words that came meanwhile.
+  - `format`: none of the process's own lines stands in the text: no text of a question the round followed, not
+    the round's line, and not the head of the block of words that came meanwhile.
   There is no length check, and no check reads the language an answer is written in: that is the agent's own
   judgement (`docs/answer-checks.md`, 「The language an answer goes out in」).
 - **A check that fails is asked once:** one more turn of the same session, the check's errand naming what is
   wrong, its answer the text from then on. The check then reads the new text. A `format` check that fails again
   sends nothing, and the end of the process records the check that failed. A check that fails only after
   another's asking is asked once in its turn.
-- **A skip in the answer to an item or a check** ends the process with nothing sent, as a skip in any question
-  does.
+- **A skip in the answer to an item or a check** ends the process with nothing sent, as a skip in the draft
+  turn does.
 
 ## After the process
 
@@ -411,13 +396,13 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 ## The round log
 
 - **Every turn of the process leaves a row of the receiver's round log** (`draft_rounds`, `docs/store.md`): the
-  round it belongs to, the room, the agent, its number (from 1, each question, item and check in the order
-  asked), the question's name, its kind, how long its answer is in characters, whether the answer differs from
-  the one before it, how it ended, the answer itself and how long the turn took. The answer of a question before
-  the last is that round's notes.
-- **The round's own turn is the first question's row:** number 1, of kind `question`, named for the row's first
-  question, its time counted from the round's start. Its kind is `turn` only where the row's list is empty and
-  the turn asked no question, its answer being the message.
+  round it belongs to, the room, the agent, its number (from 1, the draft turn and then each item, review and
+  check in the order asked), its name, its kind, how long its answer is in characters, whether the answer differs
+  from the one before it, how it ended, the answer itself and how long the turn took.
+- **The round's own turn is the draft turn's row:** number 1, of kind `question`, named for the questions it
+  followed, in their order and joined by `+` as the round's line names them, its time counted from the round's
+  start. Its kind is `turn` only where the row's list is empty and the turn followed no question, its answer
+  being the message either way.
 - **A round the agent judges first** (`docs/wake.md`, 「The room's queue and the round」) writes that judgement
   as a row before the process's own: number 0, of kind `supervisor`, named `supervisor`, ending `skip` where the
   round ends there and `answered` where it goes on. A round that ended there writes no other row.
@@ -458,11 +443,10 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   checks that withheld it.
 - **Each row is told on the event stream as it is written,** a `draft` event (`docs/receiver.md`, 「The event
   stream」), and the log is read by round (`GET /rounds/drafts`).
-- **A question is told as it starts, too,** before its answer: a `draft` event of kind `start` with the `round`,
-  the `agentName`, `number`, the question's place in the process (1 for the one the round's own turn carries),
-  `count`, how many questions the process asks, `question`, its name, and `at`. It is no row of the log, and the
-  question's own row follows it once the answer is in. A screen tells the round under way by it, and the message
-  being written where `number` equals `count`; items and checks are told only as rows.
+- **The draft turn is told as it starts, too,** before its answer: a `draft` event of kind `start` with the
+  `round`, the `agentName`, `number` and `count`, both 1, `question`, the name its row goes by, and `at`. It is
+  no row of the log, and the turn's own row follows it once the answer is in. A screen tells the message being
+  written by it; items, reviews and checks are told only as rows.
 - **The gate's `draft` stage and the console's draft chip read this log.** The gate takes every `draft` event of
   a row off the event stream and writes it as a judgement of its `draft` stage; a `start` event is no row, and the
   gate lets it go by its kind (`docs/boundary-api.md`, 「Contract gaps」).
@@ -470,12 +454,13 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 ## The supervisor's opening
 
 - **The room's block carries the shape of a turn and its rounds.** One short line names a **turn** as one pass over
-  a room's words and a **round** as one question inside it, this round's rule (`<<SKIP>>` or one short line, and
-  no other action), and, for the later rounds, only the rulebook each follows: the room block's draft process,
-  the review's own line and each item's rule there. It names them there so the agent knows which rule applies at
-  each round without the prompt repeating texts that stand elsewhere. The judgement turn itself carries a marker
-  and the room's note and words as data; the block says what the marker asks, the judgement's head and question
-  with it.
+  a room's words and its **rounds** as the turns the session is asked inside it, this round's rule (`<<SKIP>>` or
+  one short line, and no other action), and, for the later rounds, only the rulebook each follows: the room
+  block's draft process for the draft round, the review's own line and each item's rule there. It names them
+  there so the agent knows which rule applies at
+  each round without the prompt repeating texts that stand elsewhere. The judgement turn itself carries a marker,
+  the room's note where the session has not read it, and the room's words as data; the block says what the
+  marker asks, the judgement's head and question with it.
 
 ## The routes
 
@@ -484,9 +469,8 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 - **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a row, `*` standing for any in each place, and
   answers it as it now stands. `off` is left out for none. A list naming a question the catalogue does not hold,
   a list that holds questions and does not end in `final` or holds it before the end, an `off` that names
-  `final`, a `sendFrom` that is not empty and names no question
-  of `rounds`, a turn's note outside 1 to 3,600 seconds, or a light bound outside 0 to 1,000 characters is refused
-  `bad-request`, and nothing is written. A row that still carries `turnSeconds`, `ceilingSeconds` or
+  `final`, or a light bound outside 0 to 1,000 characters is refused
+  `bad-request`, and nothing is written. A row that still carries `sendFrom`, `turnSeconds`, `ceilingSeconds` or
   `pastCeiling` loads with them ignored.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes the console's row away; the policy's row of the
   key stands again where it holds one. A key the console set no row for is `not-found`.
@@ -501,8 +485,8 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 - **The catalogue holds the agent's first judgement too,** first of all, named `supervisor`: its text is what the
   room's block says the judgement asks, the round policy's head and question as one text where the console set
   none (`chat-round.toml`, `[supervisor]`, `rule`), and the judgement turn carries the marker, the room's note,
-  its recent words and the words judged as data. It is set like any question, and no list of the table may name
-  it, since it is asked before any process.
+  where the session has not read it, its recent words and the words judged as data. It is set like any question,
+  and no list of the table may name it, since it is asked before any process.
 - A change reaches the next round that reads the table; no round under way changes. Where it changes the
   process's part of the room's block, an agent's one session is replaced before its next turn (「The
   questions」 above).

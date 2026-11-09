@@ -577,6 +577,7 @@
             "type": "integer"
           },
           "light": {
+            "description": "The questions a light turn's round follows, in order.",
             "items": {
               "type": "string"
             },
@@ -588,7 +589,7 @@
             "type": "integer"
           },
           "off": {
-            "description": "The questions of `rounds` and `light` that are switched off: each keeps its place and is not asked.",
+            "description": "The questions of `rounds` and `light` that are switched off: each keeps its place and is not followed.",
             "items": {
               "type": "string"
             },
@@ -603,13 +604,14 @@
             "type": "string"
           },
           "rounds": {
+            "description": "The questions an ordinary turn's round follows, in order.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "sendFrom": {
-            "description": "The question of `rounds` from whose answer on a send is read; empty for the first.",
+            "description": "The question a row once read a send from: kept as it came and read by nothing.",
             "type": "string"
           },
           "source": {
@@ -675,7 +677,7 @@
           },
           "sendFrom": {
             "default": "",
-            "description": "The question of `rounds` from whose answer on a send is read; empty, and left out, for the first.",
+            "description": "Read and ignored: the draft turn's answer is the message.",
             "type": "string"
           }
         },

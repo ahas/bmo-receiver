@@ -1,11 +1,9 @@
-//! A round's draft process carried whole (docs/drafting.md): the round's turn carries the first question its row
-//! names, the rest follow on the same session, every answer before the last is notes and the last is what goes
-//! back to the room; a send in the first round is the message at once, a skip in any question sends nothing, a
-//! failed check is asked once and the repaired text goes out, a light turn is
-//! asked the last question alone in its own turn, words that came meanwhile are pushed into the working turn where
-//! it takes them and otherwise stand under the next question or the closing check, each answered with the message,
-//! marked done or marked separate, and the code's readings are items of the process rather than askings of their
-//! own.
+//! A round's draft process carried whole (docs/drafting.md): the round's turn is its one draft turn, naming the
+//! questions its row follows, and its answer is what goes back to the room; a skip sends nothing, a failed check is
+//! asked once and the repaired text goes out, a light turn follows the last question alone, words that came
+//! meanwhile are pushed into the working turn where it takes them and otherwise stand in the closing check, each
+//! answered with the message, marked done or marked separate, and the code's readings are items of the process
+//! rather than askings of their own.
 
 use std::io::Cursor;
 use std::path::Path;
@@ -31,7 +29,7 @@ use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_ports::agency::Said;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::session::{StandInSession, drafting, drafting_sending};
+use crate::integration::common::session::{StandInSession, drafting};
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
@@ -101,7 +99,7 @@ fn question(name: &str) -> &'static str {
 
 // The fixed head of the opening the first question rides the round's turn on.
 fn opening_head() -> &'static str {
-  DRAFTING.opening.split('{').next().unwrap_or_default()
+  DRAFTING.round.split('{').next().unwrap_or_default()
 }
 
 // The composed turn of a prompt: past the room's block where the block rode in full ahead of it. The block is the
@@ -228,10 +226,10 @@ impl Drafting {
 }
 
 #[tokio::test]
-async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
+async fn the_draft_is_one_turn_naming_its_questions_and_its_answer_goes_out() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes on the intent", "what was read and established", "the message itself"])
-    .holding_turn(3);
+    .answering(&["the message itself"])
+    .holding_turn(1);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
 
   round
@@ -242,68 +240,53 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
     )
     .await;
   round.hear(1, ASKED).await;
-  until("the last question", || round.session.prompts().len() == 3 && round.session.working()).await;
-  assert!(round.sent().is_empty(), "nothing goes out before the last question answered");
+  until("the draft turn", || round.session.prompts().len() == 1 && round.session.working()).await;
+  assert!(round.sent().is_empty(), "nothing goes out before the draft turn answered");
   round.session.let_go();
-  round.ended(3).await;
+  round.ended(1).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 3, "the round's turn carried the first of three rounds");
-  assert!(turn_of(&prompts[0]).contains(ASKED) && turn_of(&prompts[0]).contains("1/3 (intent)"));
+  assert_eq!(prompts.len(), 1, "the round's own turn is the whole draft: {prompts:#?}");
+  assert!(turn_of(&prompts[0]).contains(ASKED));
   assert!(
-    !turn_of(&prompts[0]).contains(question("intent")),
-    "the stage's text stands in the room's block, not the turn: {}",
+    turn_of(&prompts[0]).ends_with("DRAFT ROUND (intent+information+final)."),
+    "the turn closes on the line naming its questions: {}",
     turn_of(&prompts[0])
   );
-  assert!(prompts[0].contains(question("intent")), "the room's block carries it: {}", prompts[0]);
-  assert!(
-    turn_of(&prompts[0]).contains(opening_head()),
-    "the first round opens on the owner's opening"
-  );
+
+  for name in ["intent", "information", "final"] {
+    assert!(
+      !turn_of(&prompts[0]).contains(question(name)),
+      "the stage's text stands in the room's block, not the turn: {}",
+      turn_of(&prompts[0])
+    );
+    assert!(
+      prompts[0].contains(&format!("{name}: {}", question(name))),
+      "the room's block carries {name}: {}",
+      prompts[0]
+    );
+  }
+
+  assert!(turn_of(&prompts[0]).contains(opening_head()), "the turn carries the round's line");
   assert!(
     !turn_of(&prompts[0]).contains(&CHAT_ROUND.closing.rule)
       && prompts[0].contains(&CHAT_ROUND.closing.rule),
     "the closing rules stand in the room's block, never in the turn"
   );
   assert!(
-    turn_of(&prompts[1]).contains("2/3 (information)")
-      && !turn_of(&prompts[1]).contains(question("information"))
-  );
-  assert!(
-    turn_of(&prompts[2]).contains("3/3 (final)") && !turn_of(&prompts[2]).contains(question("final")),
-    "{prompts:#?}"
-  );
-  assert!(
-    prompts[2].starts_with(&format!("{}\na standing note", CHAT_ROUND.situation.front)),
-    "the message question reads the room's situation note first: {}",
-    prompts[2]
+    prompts[0].contains(&format!("{}\na standing note", CHAT_ROUND.situation.front)),
+    "the session's first round in the room reads the room's situation note: {}",
+    prompts[0]
   );
   assert_eq!(sent.len(), 1, "one message goes out: {sent:?}");
-  assert!(sent[0].contains("the message itself") && !sent[0].contains("notes"), "{sent:?}");
-  assert_eq!(
-    round.log().await,
-    [
-      "question intent answered",
-      "question information answered",
-      "question final answered",
-      "end  message",
-    ]
-  );
+  assert!(sent[0].contains("the message itself"), "{sent:?}");
+  assert_eq!(round.log().await, ["question intent+information+final answered", "end  message"]);
 
   let numbers = round.scratch.texts(r#"SELECT "number"::text FROM "draft_rounds" ORDER BY "id""#).await;
-  let notes = round
-    .scratch
-    .texts(r#"SELECT "answer" FROM "draft_rounds" WHERE "kind" = 'question' ORDER BY "id""#)
-    .await;
 
-  assert_eq!(numbers, ["1", "2", "3", "4"]);
-  assert_eq!(
-    notes[..2],
-    ["notes on the intent", "what was read and established"],
-    "each round's notes are kept"
-  );
+  assert_eq!(numbers, ["1", "2"]);
 
   let events = round.standing.heard.events("draft");
   let starts: Vec<(i64, i64, String)> = events
@@ -320,14 +303,10 @@ async fn the_first_question_rides_the_turn_and_only_the_last_answer_goes_out() {
 
   assert_eq!(
     starts,
-    [
-      (1, 3, "intent".to_owned()),
-      (2, 3, "information".to_owned()),
-      (3, 3, "final".to_owned())
-    ],
-    "every question is told as it starts"
+    [(1, 1, "intent+information+final".to_owned())],
+    "the draft turn is told as it starts"
   );
-  assert_eq!(events.len(), 7, "every row is told on the stream beside the starts");
+  assert_eq!(events.len(), 3, "every row is told on the stream beside the start");
 
   // The gate's `draft` stage reads every row event by these fields, and lets a start go by its kind.
   let fields = |event: &serde_json::Value| -> Vec<String> {
@@ -397,17 +376,17 @@ async fn an_ordinary_round_carries_its_round_line_and_no_stage_text_or_archived_
     .await;
 
   round.hear(1, ASKED).await;
-  round.ended(2).await;
+  round.ended(1).await;
 
   // The window the round held closed; the next words open a conversation of their own on the same session.
   round.runner.of(AGENT).close(OWNER).await;
   round.hear(2, ASKED).await;
-  round.ended(4).await;
+  round.ended(2).await;
 
   let prompts = round.session.prompts();
-  let ordinary = &prompts[2];
+  let ordinary = &prompts[1];
 
-  assert!(turn_of(ordinary).contains("1/2 (information)"), "{}", turn_of(ordinary));
+  assert!(turn_of(ordinary).contains("(information+final)"), "{}", turn_of(ordinary));
   assert!(
     !turn_of(ordinary).contains(question("information")),
     "the stage text stays in the block"
@@ -438,7 +417,7 @@ async fn a_console_question_text_reaches_the_rooms_block_and_not_the_turn() {
   let prompt = &round.session.prompts()[0];
 
   assert!(prompt.contains(&format!("final: {text}")), "the room's block carries the console's row");
-  assert!(turn_of(prompt).contains("1/1 (final)"));
+  assert!(turn_of(prompt).contains("DRAFT ROUND (final)."));
   assert!(!turn_of(prompt).contains(text), "the turn carries only its round line");
 }
 
@@ -663,152 +642,8 @@ async fn a_notice_meant_for_the_room_still_goes_there() {
 }
 
 #[tokio::test]
-async fn a_private_chat_round_writes_the_situation_note_and_hands_it_to_the_judgement() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["the private note", "the message"]);
-  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
-
-  round.hear(1, "hello").await;
-  round.ended(2).await;
-
-  let prompts = round.session.prompts();
-  let sent = round.sent();
-
-  assert_eq!(prompts.len(), 2, "{prompts:#?}");
-  assert!(prompts[0].contains(&CHAT_ROUND.situation.previous), "{}", prompts[0]);
-  assert!(
-    prompts[1].starts_with(&format!("{}\nthe private note", CHAT_ROUND.situation.front)),
-    "the message turn reads the note it just wrote first: {}",
-    prompts[1]
-  );
-  assert!(
-    turn_of(&prompts[1]).contains("1/1 (final)") && !turn_of(&prompts[1]).contains(question("final")),
-    "{}",
-    prompts[1]
-  );
-  assert_eq!(
-    round
-      .scratch
-      .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = 42"#)
-      .await,
-    ["the private note"]
-  );
-  assert_eq!(
-    round
-      .scratch
-      .texts(
-        r#"SELECT COALESCE("situation", '') || '|' || COALESCE("situation_changed"::text, '')
-           FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 1"#
-      )
-      .await,
-    ["the private note|true"]
-  );
-  assert!(sent.len() == 1 && sent[0].contains("the message"), "{sent:?}");
-}
-
-#[tokio::test]
-async fn a_second_rounds_note_turn_reads_only_what_came_since_the_note() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[
-    "note one",
-    "message one",
-    "note two",
-    "message two",
-  ]);
-  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
-
-  round.hear(1, "first words").await;
-  round.ended(2).await;
-  round.hear(2, "second words").await;
-  round.ended(4).await;
-
-  let prompts = round.session.prompts();
-
-  assert_eq!(prompts.len(), 4, "{prompts:#?}");
-  assert!(
-    prompts[0].contains("first words"),
-    "the first note seeds from the room's latest messages: {}",
-    prompts[0]
-  );
-  assert!(prompts[2].contains("second words"), "{}", prompts[2]);
-  assert!(
-    !prompts[2].contains("first words"),
-    "the note turn reads only what came since the note: {}",
-    prompts[2]
-  );
-}
-
-#[tokio::test]
-async fn a_note_far_behind_its_room_reads_the_newest_messages_and_moves_its_mark() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["the catch-up note", "the message"]);
-  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
-
-  // One message the note has read, then a gap longer than the policy's bound behind it.
-  round
-    .scratch
-    .run(
-      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
-         VALUES (42, 1, 42, 'tester', 1000, 'm-001')"#,
-      vec![],
-    )
-    .await;
-  let read_to: i64 = round
-    .scratch
-    .texts(r#"SELECT "rowid"::text FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 1"#)
-    .await
-    .remove(0)
-    .parse()
-    .unwrap();
-
-  round
-    .scratch
-    .run(
-      r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at", "read_through")
-         VALUES (42, 'a standing note', 0, $1)"#,
-      vec![read_to.into()],
-    )
-    .await;
-
-  for id in 2..=201i64 {
-    round
-      .scratch
-      .run(
-        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text")
-           VALUES (42, $1, 42, 'tester', $2, $3)"#,
-        vec![id.into(), (1000 + id).into(), format!("m-{id:03}").into()],
-      )
-      .await;
-  }
-
-  round.hear(202, "the newest words").await;
-  round.ended(2).await;
-
-  let prompts = round.session.prompts();
-
-  assert!(
-    !prompts[0].contains("m-001") && !prompts[0].contains("m-002"),
-    "a gap longer than the bound is not read whole: {}",
-    prompts[0]
-  );
-  assert!(
-    prompts[0].contains("m-201") && prompts[0].contains("the newest words"),
-    "{}",
-    prompts[0]
-  );
-  assert_eq!(
-    round
-      .scratch
-      .texts(r#"SELECT "read_through"::text FROM "room_situations" WHERE "chat_id" = 42"#)
-      .await,
-    round
-      .scratch
-      .texts(r#"SELECT "rowid"::text FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 202"#)
-      .await,
-    "the mark moves to the newest message read"
-  );
-}
-
-#[tokio::test]
-async fn a_private_chat_skip_leaves_the_standing_note_unchanged() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "the message"]);
+async fn a_round_writes_no_note_and_reads_the_rooms_note_once_in_its_session() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["message one", "message two"]);
   let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
 
   round
@@ -818,26 +653,57 @@ async fn a_private_chat_skip_leaves_the_standing_note_unchanged() {
       vec![OWNER.into()],
     )
     .await;
-  round.hear(1, "hello").await;
+  round.hear(1, "first words").await;
+  round.ended(1).await;
+  round.hear(2, "second words").await;
   round.ended(2).await;
 
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 2, "a round is its draft turn, with no note turn before it: {prompts:#?}");
+  assert!(
+    !prompts.iter().any(|prompt| prompt.contains(&CHAT_ROUND.situation.previous)),
+    "no round updates the note: {prompts:#?}"
+  );
+  assert!(
+    prompts[0].contains(&format!("{}\nstanding note", CHAT_ROUND.situation.front)),
+    "the session's first round in the room reads the note: {}",
+    prompts[0]
+  );
+  assert!(
+    turn_of(&prompts[0]).contains("DRAFT ROUND (final).")
+      && !turn_of(&prompts[0]).contains(question("final")),
+    "{}",
+    prompts[0]
+  );
+  assert!(
+    !turn_of(&prompts[1]).contains("standing note")
+      && !turn_of(&prompts[1]).contains(&CHAT_ROUND.situation.front)
+      && !turn_of(&prompts[1]).contains(&CHAT_ROUND.situation.unchanged),
+    "a later round of the session carries neither the note nor a marker of it: {}",
+    turn_of(&prompts[1])
+  );
   assert_eq!(
     round
       .scratch
       .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = 42"#)
       .await,
-    ["standing note"]
+    ["standing note"],
+    "the note stands as it stood"
   );
   assert_eq!(
     round
       .scratch
       .texts(
         r#"SELECT COALESCE("situation", '') || '|' || COALESCE("situation_changed"::text, '')
-           FROM "messages" WHERE "chat_id" = 42 AND "message_id" = 1"#
+           FROM "messages" WHERE "chat_id" = 42 AND "message_id" IN (1, 2) ORDER BY "message_id""#
       )
       .await,
-    ["standing note|false"]
+    ["standing note|false", "standing note|false"],
+    "the note as the round found it stands on the messages it judged"
   );
+  assert_eq!(sent.len(), 2, "{sent:?}");
 }
 
 #[tokio::test]
@@ -871,15 +737,18 @@ async fn old_console_rows_fall_to_the_policy_one_row() {
     (rows[0].provider.as_str(), rows[0].tier.as_str(), rows[0].agent.as_str()),
     (ANY, ANY, ANY)
   );
-  assert_eq!(rows[0].rounds, FIVE);
+  assert_eq!(
+    rows[0].rounds,
+    ["intent", "information", "facts", "memory", "promises", "final"],
+    "the policy's row stands, whatever the old rows named"
+  );
 }
 
 #[tokio::test]
-async fn a_question_switched_off_is_not_asked_and_stands_in_no_line_of_the_block() {
+async fn a_question_switched_off_is_not_followed_and_stands_in_no_line_of_the_block() {
   use bmo_receiver::chat::draft::table;
 
-  let session =
-    StandInSession::new(SESSION, "unscripted").answering(&["notes", "promises kept", "the message"]);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
   let round = Drafting::new(session, FIVE, &["final"], 150).await;
   let mut row = table::rows(round.scratch.db()).await.unwrap().remove(0);
 
@@ -887,14 +756,16 @@ async fn a_question_switched_off_is_not_asked_and_stands_in_no_line_of_the_block
   table::set(round.scratch.db(), &row).await.unwrap();
 
   round.hear(1, ASKED).await;
-  round.ended(3).await;
+  round.ended(1).await;
 
   let prompts = round.session.prompts();
 
-  assert_eq!(prompts.len(), 3, "{prompts:#?}");
-  assert!(turn_of(&prompts[0]).contains("1/3 (information)"), "{}", turn_of(&prompts[0]));
-  assert!(turn_of(&prompts[1]).contains("2/3 (promises)"), "{}", turn_of(&prompts[1]));
-  assert!(turn_of(&prompts[2]).contains("3/3 (final)"), "{}", turn_of(&prompts[2]));
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(
+    turn_of(&prompts[0]).contains("DRAFT ROUND (information+promises+final)."),
+    "{}",
+    turn_of(&prompts[0])
+  );
   assert!(prompts[0].contains(&format!("information: {}", question("information"))));
   assert!(prompts[0].contains(&format!("promises: {}", question("promises"))));
 
@@ -905,15 +776,7 @@ async fn a_question_switched_off_is_not_asked_and_stands_in_no_line_of_the_block
     );
   }
 
-  assert_eq!(
-    round.log().await,
-    [
-      "question information answered",
-      "question promises answered",
-      "question final answered",
-      "end  message"
-    ]
-  );
+  assert_eq!(round.log().await, ["question information+promises+final answered", "end  message"]);
   assert_eq!(
     table::rows(round.scratch.db()).await.unwrap()[0].rounds,
     FIVE,
@@ -923,45 +786,26 @@ async fn a_question_switched_off_is_not_asked_and_stands_in_no_line_of_the_block
 }
 
 #[tokio::test]
-async fn a_small_model_agent_runs_the_five_questions() {
-  let session = StandInSession::new(SESSION, "unscripted").on_provider("small").answering(&[
-    "notes",
-    "more notes",
-    "memories",
-    "promises kept",
-    "the message",
-  ]);
-  let round = Drafting::new(session, FIVE, &["final"], 150).await;
+async fn every_provider_s_agent_follows_the_same_questions_in_one_turn() {
+  for provider in ["small", "claude-code"] {
+    let session = StandInSession::new(SESSION, "unscripted")
+      .on_provider(provider)
+      .answering(&["the message"]);
+    let round = Drafting::new(session, FIVE, &["final"], 150).await;
 
-  round.hear(1, ASKED).await;
-  round.ended(5).await;
+    round.hear(1, ASKED).await;
+    round.ended(1).await;
 
-  let prompts = round.session.prompts();
+    let prompts = round.session.prompts();
 
-  assert_eq!(prompts.len(), 5, "{prompts:#?}");
-  assert!(turn_of(&prompts[4]).contains("5/5 (final)"));
-  assert!(round.sent()[0].contains("the message"));
-}
-
-#[tokio::test]
-async fn a_claude_agent_runs_the_same_five_questions() {
-  let session = StandInSession::new(SESSION, "unscripted").on_provider("claude-code").answering(&[
-    "notes",
-    "more notes",
-    "memories",
-    "promises kept",
-    "the message",
-  ]);
-  let round = Drafting::new(session, FIVE, &["final"], 150).await;
-
-  round.hear(1, ASKED).await;
-  round.ended(5).await;
-
-  let prompts = round.session.prompts();
-
-  assert_eq!(prompts.len(), 5, "{prompts:#?}");
-  assert!(turn_of(&prompts[4]).contains("5/5 (final)"));
-  assert!(round.sent()[0].contains("the message"));
+    assert_eq!(prompts.len(), 1, "{provider}: {prompts:#?}");
+    assert!(
+      turn_of(&prompts[0]).contains("DRAFT ROUND (information+facts+memory+promises+final)."),
+      "{provider}: {}",
+      turn_of(&prompts[0])
+    );
+    assert!(round.sent()[0].contains("the message"));
+  }
 }
 
 #[tokio::test]
@@ -974,14 +818,14 @@ async fn a_light_turn_still_runs_final_alone_with_the_one_process() {
 
   let prompts = round.session.prompts();
 
-  assert_eq!(prompts.len(), 1, "a light turn asks final alone: {prompts:#?}");
-  assert!(turn_of(&prompts[0]).contains("1/1 (final)"));
+  assert_eq!(prompts.len(), 1, "a light turn follows final alone: {prompts:#?}");
+  assert!(turn_of(&prompts[0]).contains("DRAFT ROUND (final)."));
   assert!(!turn_of(&prompts[0]).contains(question("final")));
   assert!(round.sent()[0].contains("hello to you too"));
 }
 
 #[tokio::test]
-async fn a_send_in_the_first_round_is_the_message_and_nothing_more_is_asked() {
+async fn a_send_marker_opening_the_draft_turn_s_answer_is_taken_out_of_the_message() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["<<SEND>> the answer, ready at once", "never asked"]);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
@@ -991,37 +835,10 @@ async fn a_send_in_the_first_round_is_the_message_and_nothing_more_is_asked() {
 
   let sent = round.sent();
 
-  assert_eq!(round.session.prompts().len(), 1, "no later question is asked");
+  assert_eq!(round.session.prompts().len(), 1, "the draft is one turn");
   assert!(sent.len() == 1 && sent[0].contains("the answer, ready at once"), "{sent:?}");
   assert!(!sent[0].contains("<<SEND>>"), "the marker never reaches the room: {sent:?}");
-  assert_eq!(round.log().await, ["question intent send", "end  message"]);
-}
-
-#[tokio::test]
-async fn a_send_before_the_question_a_send_is_read_from_is_the_message_and_nothing_more_is_asked() {
-  let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["<<SEND>> the answer, ready at once", "never asked"]);
-  let rounds = ["information", "facts", "final"];
-  let round = Drafting::new(session, &rounds, &["final"], 150).await;
-
-  drafting_sending(round.scratch.db(), &rounds, "facts", &["final"], 150).await;
-  round.hear(1, ASKED).await;
-  round.ended(1).await;
-
-  let prompts = round.session.prompts();
-  let sent = round.sent();
-
-  assert_eq!(prompts.len(), 1, "no later question is asked after an early send: {prompts:#?}");
-  assert!(
-    turn_of(&prompts[0]).contains("Round 1/3 (information): NOTES"),
-    "the notes round says it writes no message: {}",
-    turn_of(&prompts[0])
-  );
-  assert!(
-    sent.len() == 1 && sent[0].contains("the answer, ready at once") && !sent[0].contains("<<SEND>>"),
-    "{sent:?}"
-  );
-  assert_eq!(round.log().await, ["question information send", "end  message"]);
+  assert_eq!(round.log().await, ["question intent+information+final send", "end  message"]);
 }
 
 #[tokio::test]
@@ -1059,32 +876,31 @@ async fn a_draft_that_holds_the_answer_is_sent_and_a_repeated_request_is_answere
 }
 
 #[tokio::test]
-async fn a_skip_in_the_second_question_sends_nothing() {
+async fn a_skip_in_the_draft_turn_sends_nothing() {
   // The owner's own chat owes an answer, so the skip is asked over once, and a skip again stands.
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["notes", "<<SKIP>>", "<<SKIP>>"]);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "<<SKIP>>"]);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
-  round.ended(3).await;
+  round.ended(2).await;
 
   let prompts = round.session.prompts();
 
-  assert_eq!(prompts.len(), 3, "the last question is never asked: {prompts:#?}");
-  assert!(!prompts.iter().any(|prompt| turn_of(prompt).contains("(final)")));
+  assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(
-    turn_of(&prompts[2]).contains("ITEM: owed."),
+    turn_of(&prompts[1]).contains("ITEM: owed."),
     "the owner's chat is asked over the skip: {}",
-    turn_of(&prompts[2])
+    turn_of(&prompts[1])
   );
   assert!(
-    turn_of(&prompts[2]).contains("Owner's messages in this turn: 1."),
+    turn_of(&prompts[1]).contains("Owner's messages in this turn: 1."),
     "the turn carries its data: {}",
-    turn_of(&prompts[2])
+    turn_of(&prompts[1])
   );
   assert!(
-    !turn_of(&prompts[2]).contains("No message stands yet: answer the owner now with the message"),
+    !turn_of(&prompts[1]).contains("No message stands yet: answer the owner now with the message"),
     "the instruction stands in the room's block: {}",
-    turn_of(&prompts[2])
+    turn_of(&prompts[1])
   );
   assert!(
     prompts[0].contains(&SECOND_ASKS.errands.owed),
@@ -1093,7 +909,7 @@ async fn a_skip_in_the_second_question_sends_nothing() {
   assert!(round.sent().is_empty(), "nothing goes out");
   assert_eq!(
     round.log().await,
-    ["question intent answered", "question information skip", "item owed skip", "end  skip",]
+    ["question intent+information+final skip", "item owed skip", "end  skip",]
   );
 }
 
@@ -1114,16 +930,12 @@ fn the_note_turn_carries_only_its_mark_the_note_and_the_messages() {
 }
 
 #[tokio::test]
-async fn the_note_turn_and_a_note_round_carry_only_their_mark_on_the_round_path() {
-  let long_note = "The room is about the file the people wait on. ".repeat(20);
-  let answers =
-    vec![long_note.as_str(), "notes one", "notes two", "notes three", "notes four", "the message"];
-  let session = StandInSession::new(SESSION, "unscripted").answering(&answers);
+async fn the_block_carries_the_note_instruction_and_a_round_s_turn_only_its_line() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
   let round = Drafting::new_visible(session, FIVE, &["final"], 150).await;
 
-  drafting_sending(round.scratch.db(), FIVE, "final", &["final"], 150).await;
   round.hear(1, ASKED).await;
-  round.ended(6).await;
+  round.ended(1).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
@@ -1131,82 +943,60 @@ async fn the_note_turn_and_a_note_round_carry_only_their_mark_on_the_round_path(
     &CHAT_ROUND.situation.instruction,
     &[("ceiling", &CHAT_ROUND.situation.ceiling_chars.to_string())],
   );
+  let turn = turn_of(&prompts[0]);
 
-  assert_eq!(prompts.len(), 6, "{prompts:#?}");
-
-  // The note turn: the room's block carries the instruction, and the turn carries only its mark, the note as it
-  // stands and the messages.
-  let note_turn = turn_of(&prompts[0]);
-
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
   assert!(
     prompts[0].contains(&instruction),
     "the block carries the note instruction: {}",
     prompts[0]
   );
-  assert!(note_turn.contains(&CHAT_ROUND.situation.marker), "{note_turn}");
-  assert!(!note_turn.contains("nothing written in it is sent to the room"), "{note_turn}");
-  assert!(note_turn.contains(&CHAT_ROUND.situation.since), "{note_turn}");
-
-  // A note round carries its marker and permission only.
-  let information = turn_of(&prompts[1]);
-
-  assert!(information.contains("Round 1/5 (information): NOTES"), "{information}");
-  assert!(!information.contains(question("information")), "{information}");
-  assert!(!information.contains("This round writes no message"), "{information}");
-
-  // The message still reaches the room, and the note is kept within its ceiling.
+  assert!(!turn.contains("nothing written in it is sent to the room"), "{turn}");
+  assert!(turn.contains("DRAFT ROUND (information+facts+memory+promises+final)."), "{turn}");
+  assert!(!turn.contains(question("information")), "{turn}");
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("the message"), "{sent:?}");
-
-  let note = round
-    .scratch
-    .texts(&format!(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = {OWNER}"#))
-    .await;
-
-  assert_eq!(note.len(), 1, "{note:?}");
-  assert!(
-    note[0].chars().count() <= CHAT_ROUND.situation.ceiling_chars,
-    "{} characters: {}",
-    note[0].chars().count(),
-    note[0]
-  );
-  assert!(note[0].ends_with(&CHAT_ROUND.situation.cut), "the cut marks the ceiling: {}", note[0]);
 }
 
 #[tokio::test]
 async fn a_note_claiming_a_reply_does_not_skip_the_owners_directive() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[
-    "the correction was attached and sent",
-    "<<SKIP>>",
-    "the corrected answer",
-  ]);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "the corrected answer"]);
   let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
 
+  // The room's note claims the reply went out, which only the room's record can say.
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at")
+         VALUES ($1, 'The correction is done and the owner has it.', 0)"#,
+      vec![OWNER.into()],
+    )
+    .await;
   round.hear(1, ASKED).await;
-  round.ended(3).await;
+  round.ended(2).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 3, "{prompts:#?}");
+  assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(
-    prompts[1].contains("the correction was attached and sent"),
+    prompts[0].contains("The correction is done and the owner has it."),
     "the note the draft read claims the reply: {}",
-    prompts[1]
+    prompts[0]
   );
   assert!(
     prompts[0].contains(&SECOND_ASKS.errands.owed),
     "the room's block carries the item's rule"
   );
   assert!(
-    turn_of(&prompts[2]).contains("ITEM: owed."),
+    turn_of(&prompts[1]).contains("ITEM: owed."),
     "the turn names the item: {}",
-    turn_of(&prompts[2])
+    turn_of(&prompts[1])
   );
   assert!(
-    !turn_of(&prompts[2]).contains("No message stands yet: answer the owner now with the message"),
+    !turn_of(&prompts[1]).contains("No message stands yet: answer the owner now with the message"),
     "the instruction stands in the room's block: {}",
-    turn_of(&prompts[2])
+    turn_of(&prompts[1])
   );
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("the corrected answer"), "{sent:?}");
@@ -1239,41 +1029,41 @@ async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
 }
 
 #[tokio::test]
-async fn a_five_round_process_reviews_and_sends_without_repeating_questions_or_an_empty_waiting_line() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[
-    "notes one",
-    "notes two",
-    "notes three",
-    "notes four",
-    "the message",
-    "PASS",
-  ]);
+async fn the_review_audits_the_one_draft_turn_and_is_shown_the_questions_it_followed() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
   let round = Drafting::new_reviewing(session, FIVE, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
-  round.ended(6).await;
+  round.ended(2).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
   let log = round.log().await;
 
-  assert_eq!(prompts.len(), 6, "five rounds and the review: {prompts:#?}");
+  assert_eq!(prompts.len(), 2, "the draft turn and the review: {prompts:#?}");
+  assert!(
+    turn_of(&prompts[0]).contains("DRAFT ROUND (information+facts+memory+promises+final)."),
+    "{}",
+    prompts[0]
+  );
 
-  for (at, name) in FIVE.iter().enumerate() {
-    assert!(turn_of(&prompts[at]).contains(&format!("{}/5 ({name})", at + 1)), "{}", prompts[at]);
+  for name in FIVE {
     assert!(
-      !turn_of(&prompts[at]).contains(question(name)),
+      !turn_of(&prompts[0]).contains(question(name)),
       "the stage text stays in the room's block: {}",
-      turn_of(&prompts[at])
+      turn_of(&prompts[0])
     );
   }
 
-  assert!(
-    !prompts.iter().any(|prompt| prompt.contains("Messages waiting in the room: []")),
-    "a round with nothing waiting says nothing of waiting"
-  );
+  let review = &prompts[1];
 
-  let review = &prompts[5];
+  assert!(
+    review.contains(&fill_marks(
+      &DRAFTING.review.followed,
+      &[("names", "information+facts+memory+promises+final")]
+    )),
+    "the review is shown the questions the draft turn followed: {review}"
+  );
   let verdict = fill_marks(
     &DRAFTING.review.instruction,
     &[("pass", &DRAFTING.review.pass), ("reject", &DRAFTING.review.reject)],
@@ -1298,16 +1088,14 @@ async fn a_five_round_process_reviews_and_sends_without_repeating_questions_or_a
     prompts[0]
   );
   assert!(
-    prompts[0].contains(&DRAFTING.waiting_rule)
-      && prompts[0].contains(&SECOND_ASKS.later)
+    prompts[0].contains(&SECOND_ASKS.later)
       && prompts[0].contains(&SECOND_ASKS.items_head)
       && prompts[0].contains(&SECOND_ASKS.errands.owed),
     "the room's block carries the waiting rule and the items' rules: {}",
     prompts[0]
   );
   assert!(
-    !prompts.iter().any(|prompt| turn_of(prompt).contains(&DRAFTING.waiting_rule)
-      || turn_of(prompt).contains(&SECOND_ASKS.later)),
+    !prompts.iter().any(|prompt| turn_of(prompt).contains(&SECOND_ASKS.later)),
     "no turn repeats a rule the block carries"
   );
 
@@ -1502,26 +1290,26 @@ async fn a_long_answer_goes_out_with_no_length_check() {
 #[tokio::test]
 async fn an_answer_folds_only_where_the_message_itself_carries_the_fold_mark() {
   let body = "The lead.\n\n- the first point of a long body\n- the second point\n- the third point";
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["notes <<FOLD>>", body]);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[body]);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
-  round.ended(2).await;
+  round.ended(1).await;
 
   let sent = round.sent();
 
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(
     !sent[0].contains("\"fold\":true"),
-    "a mark in the notes folds no message, and a long message goes out unfolded: {sent:?}"
+    "a long message that carries no mark goes out unfolded: {sent:?}"
   );
 
   let marked = format!("{body}\n\n<<FOLD>>");
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["notes", &marked]);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&marked]);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
-  round.ended(2).await;
+  round.ended(1).await;
 
   let sent = round.sent();
 
@@ -1532,7 +1320,7 @@ async fn an_answer_folds_only_where_the_message_itself_carries_the_fold_mark() {
 
 #[tokio::test]
 async fn a_check_that_fails_twice_withholds_the_message() {
-  let lines = "Round 1/1 (final): SEND";
+  let lines = "DRAFT ROUND (final).";
   let session = StandInSession::new(SESSION, "unscripted").answering(&[lines, lines]);
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
 
@@ -1605,39 +1393,33 @@ async fn an_answer_in_a_language_the_person_does_not_write_also_goes_out() {
 }
 
 #[tokio::test]
-async fn a_round_past_the_old_ceiling_still_asks_every_question_and_sends() {
+async fn a_draft_turn_past_the_old_ceiling_still_follows_every_question_and_sends() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "more notes", "facts", "the message final wrote"])
-    .working_for(Duration::from_millis(600));
+    .answering(&["the message final wrote"])
+    .working_for(Duration::from_millis(1500));
   let rounds = ["intent", "information", "facts", "final"];
   let round = Drafting::new(session, &rounds, &["final"], 1).await;
 
   round.hear(1, ASKED).await;
-  round.ended(4).await;
+  round.ended(1).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 4, "no question is passed over by a clock: {prompts:#?}");
-  assert!(prompts.iter().any(|prompt| turn_of(prompt).contains("(facts)")));
-  assert!(turn_of(&prompts[3]).contains("4/4 (final)"));
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(
+    turn_of(&prompts[0]).contains("DRAFT ROUND (intent+information+facts+final)."),
+    "no question is passed over by a clock: {}",
+    turn_of(&prompts[0])
+  );
   assert_eq!(sent.len(), 1);
   assert!(sent[0].contains("the message final wrote"), "the message goes out: {sent:?}");
-  assert_eq!(
-    round.log().await,
-    [
-      "question intent answered",
-      "question information answered",
-      "question facts answered",
-      "question final answered",
-      "end  message"
-    ]
-  );
+  assert_eq!(round.log().await, ["question intent+information+facts+final answered", "end  message"]);
 }
 
 #[tokio::test]
 async fn a_failing_answer_after_the_old_ceiling_gets_its_repair_round() {
-  let first = "Round 1/1 (final): SEND and then the words";
+  let first = "DRAFT ROUND (final). and then the words";
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&[first, "the repaired message"])
     .working_for(Duration::from_millis(700));
@@ -1670,7 +1452,7 @@ async fn a_failing_answer_after_the_old_ceiling_gets_its_repair_round() {
 }
 
 #[tokio::test]
-async fn a_greeting_is_asked_the_last_question_alone_in_its_own_turn() {
+async fn a_greeting_follows_the_last_question_alone() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["hello to you too"]);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
 
@@ -1680,9 +1462,10 @@ async fn a_greeting_is_asked_the_last_question_alone_in_its_own_turn() {
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 1, "the round's turn is the last question");
+  assert_eq!(prompts.len(), 1, "the round's turn follows the last question alone");
   assert!(
-    turn_of(&prompts[0]).contains("1/1 (final)") && !turn_of(&prompts[0]).contains(question("final"))
+    turn_of(&prompts[0]).contains("DRAFT ROUND (final).")
+      && !turn_of(&prompts[0]).contains(question("final"))
   );
   assert!(
     prompts[0].contains(&CHAT_ROUND.closing.rule)
@@ -1691,30 +1474,6 @@ async fn a_greeting_is_asked_the_last_question_alone_in_its_own_turn() {
   );
   assert!(sent.len() == 1 && sent[0].contains("hello to you too"), "{sent:?}");
   assert_eq!(round.log().await, ["question final answered", "end  message"]);
-}
-
-#[tokio::test]
-async fn words_that_came_while_the_second_question_worked_stand_under_the_third() {
-  const BETWEEN: &str = "and one more thing said between the questions";
-
-  let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "more notes", "the message that takes both"])
-    .holding_turn(2);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
-
-  round.hear(1, ASKED).await;
-  until("the second question", || round.session.prompts().len() == 2 && round.session.working()).await;
-  round.hear(2, BETWEEN).await;
-  tokio::time::sleep(Duration::from_millis(50)).await;
-  round.session.let_go();
-  round.ended(3).await;
-
-  let prompts = round.session.prompts();
-
-  assert!(!prompts[1].contains(BETWEEN), "the second question does not carry them");
-  assert!(prompts[2].contains(BETWEEN), "the third question carries them: {}", prompts[2]);
-  assert_eq!(prompts.len(), 3, "the words call no round of their own");
-  assert_eq!(round.sent().len(), 1);
 }
 
 #[tokio::test]
@@ -1827,14 +1586,14 @@ async fn a_promise_from_now_on_is_recorded_without_writing_the_message_again() {
 #[tokio::test]
 async fn every_event_of_the_chat_agent_s_round_names_it_as_the_room_s_own_voice() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes on the intent", "the message itself"])
-    .holding_turn(2);
+    .answering(&["the message itself"])
+    .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &[], 150).await;
 
   round.hear(1, ASKED).await;
-  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
+  until("the draft turn", || round.session.prompts().len() == 1 && round.session.working()).await;
   round.session.let_go();
-  round.ended(2).await;
+  round.ended(1).await;
 
   let speaker = serde_json::json!({ "id": IDENTITY, "name": AGENT });
 
@@ -2210,9 +1969,9 @@ async fn a_push_carries_only_its_own_rooms_words_and_instructions() {
 }
 
 #[tokio::test]
-async fn words_a_turn_does_not_take_while_it_works_stand_under_the_next_question() {
+async fn words_a_turn_does_not_take_while_it_works_stand_in_the_closing_check() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "more notes", "the message that takes both"])
+    .answering(&["the first message", "the message that takes both"])
     .holding_turn(1);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
 
@@ -2224,28 +1983,34 @@ async fn words_a_turn_does_not_take_while_it_works_stand_under_the_next_question
   until("the refused push", || !round.standing.agency.pushes.lock().unwrap().is_empty()).await;
   until("the words waiting again", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
   round.session.let_go();
-  round.ended(3).await;
+  round.ended(2).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
   assert!(!prompts[0].contains(SHORT), "the round's own turn does not carry them");
-  assert!(prompts[1].contains(SHORT), "the second question carries them: {}", prompts[1]);
+  assert!(
+    prompts[1].contains(&DRAFTING.arrived_marker) && prompts[1].contains(SHORT),
+    "the closing check carries them: {}",
+    prompts[1]
+  );
   assert!(
     prompts[0].contains("<<DONE #<number>>>"),
     "the room's block names the marks: {}",
     prompts[0]
   );
-  assert!(!prompts[1].contains("<<DONE #<number>>>"), "a question's lead names only its place");
-  assert!(!prompts[2].contains(SHORT), "a block is shown once");
-  assert_eq!(prompts.len(), 3, "the words shown call no round of their own");
+  assert!(
+    !prompts[1].contains("<<DONE #<number>>>"),
+    "the closing check's turn names only its marker"
+  );
+  assert_eq!(prompts.len(), 2, "the words shown call no round of their own");
   assert!(sent.len() == 1 && sent[0].contains("the message that takes both"), "{sent:?}");
 }
 
 #[tokio::test]
 async fn words_marked_done_are_read_and_answered_by_nothing() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "<<DONE #2>> the message, the call needing nothing"])
+    .answering(&["the message, the call needing nothing", "<<DONE #2>>"])
     .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
@@ -2255,7 +2020,7 @@ async fn words_marked_done_are_read_and_answered_by_nothing() {
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert!(prompts[1].contains(SHORT), "the last question shows them: {}", prompts[1]);
+  assert!(prompts[1].contains(SHORT), "the closing check shows them: {}", prompts[1]);
   assert_eq!(prompts.len(), 2, "words marked done call no round of their own");
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(
@@ -2268,7 +2033,7 @@ async fn words_marked_done_are_read_and_answered_by_nothing() {
 #[tokio::test]
 async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "<<SEPARATE #2>> the message for the first words", "the answer to the second"])
+    .answering(&["the message for the first words", "<<SEPARATE #2>>", "the answer to the second"])
     .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
@@ -2278,7 +2043,11 @@ async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert!(prompts[1].contains(SHORT), "the last question shows them: {}", prompts[1]);
+  assert!(
+    prompts[1].contains(SHORT) && prompts[1].contains(&DRAFTING.arrived_marker),
+    "the closing check shows them: {}",
+    prompts[1]
+  );
   assert_eq!(prompts.len(), 3, "the words marked separate open one round of their own, a light one");
   assert!(
     prompts[2].contains(SHORT) && !prompts[2].contains(&DRAFTING.arrived_marker),
@@ -2296,12 +2065,12 @@ async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
 #[tokio::test]
 async fn words_pushed_with_no_mark_are_the_round_s_own_and_shown_no_more() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "the message that takes both"])
+    .answering(&["the message that takes both"])
     .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
   pushed_during_the_first(&round).await;
-  round.ended(2).await;
+  round.ended(1).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
@@ -2315,8 +2084,11 @@ async fn words_pushed_with_no_mark_are_the_round_s_own_and_shown_no_more() {
     "{}",
     pushes[0].2
   );
-  assert!(!prompts[1].contains(SHORT), "a pushed message stands under no question: {}", prompts[1]);
-  assert_eq!(prompts.len(), 2, "the pushed words call no round of their own");
+  assert_eq!(
+    prompts.len(),
+    1,
+    "a pushed message stands in no closing check and calls no round: {prompts:#?}"
+  );
   assert!(sent.len() == 1 && sent[0].contains("the message that takes both"), "{sent:?}");
   assert!(round.runner.of(AGENT).pending(OWNER).is_empty(), "nothing waits after the round");
   assert_eq!(read_mark(&round).await, ["2"], "the round settled the pushed message");
@@ -2325,19 +2097,22 @@ async fn words_pushed_with_no_mark_are_the_round_s_own_and_shown_no_more() {
 #[tokio::test]
 async fn a_pushed_message_held_stays_unsettled_and_opens_the_round_after() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["<<SEPARATE #2>> notes", "the message for the first words", "the answer to the second"])
+    .answering(&["<<SEPARATE #2>> the message for the first words", "the answer to the second"])
     .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
   pushed_during_the_first(&round).await;
-  round.ended(3).await;
+  round.ended(2).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert!(!prompts[1].contains(SHORT), "the held message stands under no question: {}", prompts[1]);
-  assert_eq!(prompts.len(), 3, "the held message opens one round of its own");
-  assert!(prompts[2].contains(SHORT), "the round after asks it: {}", prompts[2]);
+  assert_eq!(prompts.len(), 2, "the held message opens one round of its own");
+  assert!(
+    prompts[1].contains(SHORT) && !prompts[1].contains(&DRAFTING.arrived_marker),
+    "the round after asks it: {}",
+    prompts[1]
+  );
   assert_eq!(sent.len(), 2, "{sent:?}");
   assert!(
     sent[0].contains("the message for the first words") && !sent[0].contains("SEPARATE"),
@@ -2349,82 +2124,44 @@ async fn a_pushed_message_held_stays_unsettled_and_opens_the_round_after() {
 #[tokio::test]
 async fn a_pushed_message_set_aside_is_read_and_answered_by_nothing() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["<<DONE #2>> notes", "the message for the first words"])
+    .answering(&["<<DONE #2>> the message for the first words"])
     .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
   pushed_during_the_first(&round).await;
-  round.ended(2).await;
+  round.ended(1).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 2, "a message set aside calls no round of its own");
+  assert_eq!(prompts.len(), 1, "a message set aside calls no round of its own");
   assert!(sent.len() == 1 && !sent[0].contains("DONE"), "{sent:?}");
   assert!(round.runner.of(AGENT).pending(OWNER).is_empty(), "nothing waits after the round");
   assert_eq!(read_mark(&round).await, ["2"], "the read mark moved past the message set aside");
 }
 
 #[tokio::test]
-async fn words_pushed_into_a_later_question_are_the_round_s_and_stand_under_no_question() {
-  const BETWEEN: &str = "and one more thing said between the questions";
-
+async fn words_said_during_the_draft_turn_stand_in_the_closing_check_before_the_message_goes_out() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "more notes", "the message that takes both"])
-    .holding_turn(2);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
-
-  *round.standing.agency.saying.lock().unwrap() = Some(Said::Delivered);
-  round.hear(1, ASKED).await;
-  until("the second question", || round.session.prompts().len() == 2 && round.session.working()).await;
-  round.hear(2, BETWEEN).await;
-  until("the push", || !round.standing.agency.pushes.lock().unwrap().is_empty()).await;
-  round.session.let_go();
-  round.ended(3).await;
-
-  let prompts = round.session.prompts();
-  let pushes = round.standing.agency.pushes.lock().unwrap().clone();
-
-  assert!(pushes[0].2.contains(BETWEEN), "{}", pushes[0].2);
-  assert!(
-    !pushes[0].2.contains(&CHAT_ROUND.push.rule),
-    "a later question takes no instruction in its turn: {}",
-    pushes[0].2
-  );
-  assert!(!prompts[2].contains(BETWEEN), "the third question does not carry them again");
-  assert_eq!(prompts.len(), 3, "the words call no round of their own");
-  assert_eq!(round.sent().len(), 1);
-  assert_eq!(read_mark(&round).await, ["2"]);
-}
-
-#[tokio::test]
-async fn words_said_during_the_last_question_stand_in_the_closing_check_before_the_message_goes_out() {
-  let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "the first message", "<<DONE #2>>"])
-    .holding_turn(2);
+    .answering(&["the first message", "<<DONE #2>>"])
+    .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
-  round.hear(1, ASKED).await;
-  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
-  round.hear(2, SHORT).await;
-  // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
-  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
-  round.session.let_go();
-  round.ended(3).await;
+  said_during_the_draft(&round).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 3, "the closing check is one more turn, and the words open no round");
+  assert_eq!(prompts.len(), 2, "the closing check is one more turn, and the words open no round");
   assert!(
-    prompts[2].contains(&DRAFTING.arrived_marker) && prompts[2].contains(SHORT),
+    prompts[1].contains(&DRAFTING.arrived_marker) && prompts[1].contains(SHORT),
     "{}",
-    prompts[2]
+    prompts[1]
   );
   assert!(
-    !turn_of(&prompts[2]).contains("Answer with the message as it should now go out"),
+    !turn_of(&prompts[1]).contains("Answer with the message as it should now go out"),
     "the closing check's instruction stands in the room's block: {}",
-    turn_of(&prompts[2])
+    turn_of(&prompts[1])
   );
   assert!(
     prompts[0].contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
@@ -2436,28 +2173,18 @@ async fn words_said_during_the_last_question_stand_in_the_closing_check_before_t
   );
   assert_eq!(
     round.log().await,
-    [
-      "question intent answered",
-      "question final answered",
-      "item arrived answered",
-      "end  message"
-    ]
+    ["question intent+final answered", "item arrived answered", "end  message"]
   );
 }
 
 #[tokio::test]
 async fn a_closing_check_answered_with_the_fold_mark_alone_sends_the_message_as_it_stands() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "the first message", "<<FOLD>>"])
-    .holding_turn(2);
+    .answering(&["the first message", "<<FOLD>>"])
+    .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
-  round.hear(1, ASKED).await;
-  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
-  round.hear(2, SHORT).await;
-  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
-  round.session.let_go();
-  round.ended(3).await;
+  said_during_the_draft(&round).await;
 
   let sent = round.sent();
 
@@ -2467,33 +2194,29 @@ async fn a_closing_check_answered_with_the_fold_mark_alone_sends_the_message_as_
   );
 }
 
-// The last question held working while `SHORT` comes into the room, then the closing check answered as scripted.
-async fn said_during_the_last(round: &Drafting) {
-  round.hear(1, ASKED).await;
-  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
-  round.hear(2, SHORT).await;
-  // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
-  until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
-  round.session.let_go();
-  round.ended(3).await;
+// The draft turn held working while `SHORT` comes into the room and no push puts it in, then the closing check
+// answered as scripted.
+async fn said_during_the_draft(round: &Drafting) {
+  said_during_the_first(round).await;
+  round.ended(2).await;
 }
 
 #[tokio::test]
 async fn the_closing_checks_answer_is_the_whole_message_in_the_standing_ones_place() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "the first message", "the first message, and the newest words answered"])
-    .holding_turn(2);
+    .answering(&["the first message", "the first message, and the newest words answered"])
+    .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
-  said_during_the_last(&round).await;
+  said_during_the_draft(&round).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
 
   assert!(
-    prompts[2].contains(&DRAFTING.standing) && prompts[2].contains("the first message"),
+    prompts[1].contains(&DRAFTING.standing) && prompts[1].contains("the first message"),
     "the closing check shows the message as it stands: {}",
-    prompts[2]
+    prompts[1]
   );
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("the first message, and the newest words answered"), "{sent:?}");
@@ -2506,18 +2229,18 @@ async fn the_live_pair_goes_out_once_as_the_closing_check_wrote_it() {
   // sentence but for one mark: the answer alone goes out.
   let (standing, answer) = (fixture("closing-standing.txt"), fixture("closing-answer.txt"));
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", &standing, &answer])
-    .holding_turn(2);
+    .answering(&[&standing, &answer])
+    .holding_turn(1);
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
   // The people write Korean, as the room's did, so the answers stand in their language.
   round.hear(1, &fixture("addressing-korean.txt")).await;
-  until("the last question", || round.session.prompts().len() == 2 && round.session.working()).await;
+  until("the draft turn", || round.session.prompts().len() == 1 && round.session.working()).await;
   round.hear(2, &fixture("addressing-korean.txt")).await;
   // The words stand in the conversation, past the queue that gathers them, before the turn is let go.
   until("the words waiting", || round.runner.of(AGENT).buffered(OWNER) == [2]).await;
   round.session.let_go();
-  round.ended(3).await;
+  round.ended(2).await;
 
   let sent = round.sent();
   let texts: Vec<String> = sent
@@ -2536,12 +2259,12 @@ async fn the_live_pair_goes_out_once_as_the_closing_check_wrote_it() {
 #[tokio::test]
 async fn a_long_turn_still_sends_what_it_produced() {
   let session = StandInSession::new(SESSION, "unscripted")
-    .answering(&["notes", "the message after a long while"])
+    .answering(&["the message after a long while"])
     .working_for(Duration::from_millis(1300));
   let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
-  round.ended(2).await;
+  round.ended(1).await;
 
   let sent = round.sent();
 

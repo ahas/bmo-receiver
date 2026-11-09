@@ -376,7 +376,6 @@ pub struct Supervisor {
   pub rule: String,
   pub structure: String,
   pub head: String,
-  pub situation: String,
   pub recent: String,
   pub judged: String,
   pub question: String,

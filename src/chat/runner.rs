@@ -112,6 +112,14 @@ impl crate::receiver::Runner for Runner {
     })
   }
 
+  fn owed_notes<'a>(&'a self, agent: &'a str, session: &'a str) -> BoxFuture<'a, ()> {
+    Box::pin(async move {
+      if let Err(why) = self.of(agent).owed_notes(None, Some(session)).await {
+        eprintln!("{agent}: the situation notes owed before the handoff were not all written: {why:?}");
+      }
+    })
+  }
+
   fn forget(&self, chat_id: i64) -> BoxFuture<'_, ()> {
     Box::pin(async move {
       for conversations in self.every() {

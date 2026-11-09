@@ -115,6 +115,17 @@ pub fn handed_of(
   room.into_iter().chain(documents).collect()
 }
 
+/// The situation notes an agent owes written by its session before that session is asked for its handoff
+/// (docs/unified-bmo.md, 「Replacing the session」), through the agent's conversations where they stand; a note
+/// that is not written stays owed.
+async fn owed_notes(receiver: &Receiver, agent: &str, session: &str) {
+  let Some(runner) = receiver.runner() else {
+    return;
+  };
+
+  runner.owed_notes(agent, session).await;
+}
+
 /// Why the agency's answer to a session operation ended the turn.
 fn fault_of(why: PortFailure) -> Failure {
   Failure::Failed(why.to_string())
@@ -187,6 +198,10 @@ impl Carry {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let db = receiver.db();
+
+    // The session about to end writes the situation notes it owes before it is asked for its handoff.
+    owed_notes(receiver, agent, old).await;
+
     let handed = handoff::ask(receiver, agent, old, chat_id).await;
 
     agency.end(old).await.map_err(fault_of)?;
@@ -258,6 +273,9 @@ impl Carry {
       Err(why) => return Err(Failure::Failed(why.to_string())),
     };
 
+    // The standing session writes the situation notes it owes before it is asked for its handoff.
+    owed_notes(receiver, agent, &standing.id).await;
+
     let Some(handed) = handoff::ask(receiver, agent, &standing.id, chat_id).await else {
       return Ok(None);
     };
@@ -312,7 +330,8 @@ impl Carry {
       session: Some(started_id.clone()),
       transcript: None,
     };
-    let reason = if unified {
+    // A turn that goes on the session as it stands judges no replacement.
+    let reason = if unified && !asking.standing {
       reset_reason(db, agent, &asked, &standing)
         .await
         .map_err(|why| Failure::Failed(why.detail))?

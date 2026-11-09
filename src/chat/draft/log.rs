@@ -10,8 +10,8 @@ use crate::receiver::Receiver;
 use crate::store::{Fault, settings};
 use crate::{all, now_ms, one, run};
 
-/// A question of the process told as it starts, before its answer (docs/drafting.md, 「The round log」): its
-/// place, how many questions the process asks and its name, told as the agent's own. It is no row of the log.
+/// The draft turn told as it starts, before its answer (docs/drafting.md, 「The round log」): its place and count,
+/// both 1, and the name its row goes by, told as the agent's own. It is no row of the log.
 pub fn tell_start(
   conversations: &Conversations,
   round: &str,
@@ -155,11 +155,6 @@ impl Log {
   pub fn numbered_from(mut self, number: i64) -> Self {
     self.number = number;
     self
-  }
-
-  /// A question of the process told as it starts.
-  pub fn start(&self, number: usize, count: usize, question: &str) {
-    tell_start(&self.conversations, &self.round, self.chat_id, &self.agent, number, count, question);
   }
 
   /// A turn of the process written down: its kind, its question, its answer where it gave one, how it ended

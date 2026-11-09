@@ -48,7 +48,7 @@ takes it outright: the table holds no default agent.
 | `bmo_rooms` | a room a supervisor's one shared session has answered in (`docs/unified-bmo.md`) | room |
 | `bmo_room_contexts` | the fingerprint of the room context a chat session was last given | session |
 | `bmo_session_rooms` | a room a chat session has been given the context of | session and room |
-| `bmo_session_notes` | the version of a room's situation note a chat session was last given, by its fingerprint (`docs/bmo-window.md`, 「What every turn carries」) | session and room |
+| `bmo_session_notes` | the rooms whose situation note a chat session holds, each with the version it read or wrote, by its fingerprint (`docs/bmo-window.md`, 「What every turn carries」) | session and room |
 | `collected_items` | a file a message carried, kept in the message-file store (`docs/room-files.md`) | its number; one per room, message and the file's id among its message's files, `file_unique_id` |
 | `avatars` | the picture a room or a person wears, its photo id, stored path and when it was taken (`docs/pictures.md`) | kind and subject |
 | `avatar_sets` | the picture set on a room or a person from the console, its stored path and when it was set (`docs/pictures.md`) | kind and subject |
@@ -111,6 +111,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `<agent>_force_reset` | the owner's word to start an agent's session afresh, with its reason, spent by the replacement it asks for | the chat session, and a handover asked (`POST /handovers/{agentName}`) |
 | `<agent>_cache:<session>` | what the receiver knows of a session's cache between turns, as JSON: the fingerprint of the head and the agency's reason for a changed prefix its last turn stood on, when that turn was, and whether a resumed turn read nothing from the cache (`docs/unified-bmo.md`, 「Replacing the session」) | the chat session |
 | `loaded_cut:<session>` | the round log's last row as a session's ended generation was released; the end rows after it alone count what the session's present generation read in a room (`docs/drafting.md`, 「The round log」) | the release of an ended generation |
+| `<agent>_notes_owed` | the rooms an agent has sent a round's message in since their situation note was last updated, as JSON, in the order of the last answer (`docs/drafting.md`, 「The situation note」) | the chat session, the touch and the handoff |
 | `<agent>_handoff_pending` | the path of the handoff file an agent's standing session wrote when the agency asked ahead of a fresh session, taken by the next turn (`docs/unified-bmo.md`, 「Replacing the session」) | the handoff the agency asks for |
 | `<agent>_briefed_at`, `<agent>_briefed_at:<room>` | when the agent's one session, or its session of the room, was last briefed on what went live, or first looked, in epoch milliseconds (`docs/wake.md`, 「Quiet instructions」) | the deployment briefing |
 | `reset_point:<agent>` | the moment an agent's last reset cut it off, in epoch milliseconds, a later point in place of an earlier: the agency's point as the receiver last heard or read it, which stands alone where the agency does not answer; a send of a turn begun at or before it is refused (`docs/wake.md`, 「An agent's reset」) | the agency's `supervisor-reset.created`, and the supervisor's reset point each such ask reads |

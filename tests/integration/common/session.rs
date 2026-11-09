@@ -406,36 +406,6 @@ pub async fn drafting_past(
   ceiling_seconds: u32,
   past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
 ) {
-  drafting_row(db, rounds, "", light, ceiling_seconds, past_ceiling).await;
-}
-
-/// The draft process every turn reads, reading a send from the question named on.
-pub async fn drafting_sending(
-  db: &sea_orm::DatabaseConnection,
-  rounds: &[&str],
-  send_from: &str,
-  light: &[&str],
-  ceiling_seconds: u32,
-) {
-  drafting_row(
-    db,
-    rounds,
-    send_from,
-    light,
-    ceiling_seconds,
-    bmo_receiver::chat::draft::table::PastCeiling::Send,
-  )
-  .await;
-}
-
-async fn drafting_row(
-  db: &sea_orm::DatabaseConnection,
-  rounds: &[&str],
-  send_from: &str,
-  light: &[&str],
-  ceiling_seconds: u32,
-  past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
-) {
   use bmo_receiver::chat::draft::table::{ANY, Process, set};
 
   let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
@@ -447,7 +417,7 @@ async fn drafting_row(
       tier: ANY.to_owned(),
       agent: ANY.to_owned(),
       rounds: named(rounds),
-      send_from: send_from.to_owned(),
+      send_from: String::new(),
       light: named(light),
       off: vec![],
       light_chars: 12,

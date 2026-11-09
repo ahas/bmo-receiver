@@ -276,6 +276,13 @@ pub trait Runner: Send + Sync {
     Box::pin(async { None })
   }
 
+  /// The situation notes the agent owes written by its session, each in one light turn that judges no
+  /// replacement (docs/drafting.md, 「The situation note」): asked before that session is asked for its handoff.
+  /// Nothing is written where no conversations stand.
+  fn owed_notes<'a>(&'a self, _agent: &'a str, _session: &'a str) -> BoxFuture<'a, ()> {
+    Box::pin(async {})
+  }
+
   /// Whether a round of the agent's is working in the room now, which is the one place a send of the agent's is
   /// carried rather than handed to the room's supervisor (docs/messages.md, 「Words handed to the room's
   /// supervisor」); none works where no conversations stand.

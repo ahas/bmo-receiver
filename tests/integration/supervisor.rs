@@ -67,6 +67,24 @@ fn documents(data: &Path) {
   std::fs::write(chat.join(&CHAT_LINE.capabilities.document), "What the agent can do.").unwrap();
 }
 
+// A prompt's own turn: what follows the room's block and the brain's index of a session's opening, where the
+// prompt carries them.
+fn turn_of(prompt: &str) -> &str {
+  let turn = prompt
+    .rsplit_once(&CHAT_LINE.room.end)
+    .map_or(prompt, |(_, turn)| turn)
+    .trim_start_matches('\n');
+
+  match turn.split_once("\n\n") {
+    Some((index, rest))
+      if index.starts_with(&CHAT_ROUND.index.head) || index.ends_with(CHAT_ROUND.index.hint.trim()) =>
+    {
+      rest
+    }
+    _ => turn,
+  }
+}
+
 async fn until(what: &str, holds: impl Fn() -> bool) {
   // The suite runs the whole file's tests beside the machine's other work, so a round's two light turns can be
   // starved for longer than a quiet run needs; the bound is long enough that slowness is not a failure.
@@ -143,6 +161,17 @@ impl Group {
     tokio::time::sleep(Duration::from_millis(100)).await;
   }
 
+  // The room's situation note as it stands before the round.
+  async fn noted(&self, note: &str) {
+    self
+      .scratch
+      .run(
+        r#"INSERT INTO "room_situations" ("chat_id", "text", "updated_at") VALUES ($1, $2, 1)"#,
+        vec![ROOM.into(), note.into()],
+      )
+      .await;
+  }
+
   // The turns up to `least` asked, without waiting for the round that asks them to end: the prompt a test reads
   // before the message is written.
   async fn prompts_over(&self, least: usize) {
@@ -154,12 +183,8 @@ impl Group {
 async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may_name() {
   use bmo_receiver::chat::draft::table::{self, SUPERVISOR};
 
-  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&[
-    "We talked about the match.",
-    "<<SKIP>>",
-    "never asked",
-  ]))
-  .await;
+  let round =
+    Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "never asked"])).await;
   let catalogue = table::questions(round.scratch.db()).await.unwrap();
 
   assert_eq!(catalogue[0].name, SUPERVISOR);
@@ -173,33 +198,30 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
   table::set_question(round.scratch.db(), SUPERVISOR, "Decide first, briefly.")
     .await
     .unwrap();
+  round.noted("We talked about the match.").await;
   round.hand(1, "did anyone see the match last night", false).await;
-  round.rounds_over(2).await;
+  round.rounds_over(1).await;
 
   let prompts = round.session.prompts();
+  let judging = turn_of(&prompts[0]);
 
   assert!(
-    prompts[0].contains(&CHAT_ROUND.situation.previous),
-    "the update turn reads the note as it stands: {}",
-    prompts[0]
+    !prompts.iter().any(|prompt| prompt.contains(&CHAT_ROUND.situation.previous)),
+    "no turn of the round updates the note: {prompts:#?}"
   );
-
   assert!(
     prompts[0].contains("Decide first, briefly."),
     "the room's block carries the set supervisor text: {}",
     prompts[0]
   );
   assert!(
-    prompts[1].starts_with(&CHAT_ROUND.supervisor.marker) && !prompts[1].contains("Decide first, briefly."),
-    "the judging turn carries the marker, not the question: {}",
-    prompts[1]
+    judging.starts_with(&CHAT_ROUND.supervisor.marker) && !judging.contains("Decide first, briefly."),
+    "the judging turn carries the marker, not the question: {judging}"
   );
-  assert!(!prompts[1].contains(&CHAT_ROUND.supervisor.question));
+  assert!(!judging.contains(&CHAT_ROUND.supervisor.question));
   assert!(
-    prompts[1].contains(&CHAT_ROUND.supervisor.situation)
-      && prompts[1].contains("We talked about the match."),
-    "the judgement reads the note: {}",
-    prompts[1]
+    judging.contains(&format!("{}\nWe talked about the match.", CHAT_ROUND.situation.front)),
+    "the judgement reads the note the session has not read: {judging}"
   );
 
   let catalogue = table::questions(round.scratch.db()).await.unwrap();
@@ -230,41 +252,36 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
 
 #[tokio::test]
 async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing_and_asks_no_gate() {
-  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&[
-    "They talked about the match.",
-    "<<SKIP>>",
-    "never asked",
-  ]))
-  .await;
+  let round =
+    Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "never asked"])).await;
 
   round.hand(1, "did anyone see the match last night", false).await;
-  round.rounds_over(2).await;
+  round.rounds_over(1).await;
 
   let prompts = round.session.prompts();
+  let judging = turn_of(&prompts[0]);
 
-  assert_eq!(prompts.len(), 2, "the update and the judgement are the round's turns: {prompts:#?}");
-  assert!(
-    prompts[0].contains(&CHAT_ROUND.situation.previous)
-      && !prompts[0].contains(&CHAT_ROUND.supervisor.situation),
-    "the first turn updates the note, not the judgement: {}",
-    prompts[0]
-  );
+  assert_eq!(prompts.len(), 1, "the judgement is the round's one turn: {prompts:#?}");
   assert!(
     prompts[0].contains(&CHAT_ROUND.supervisor.question),
     "the room's block carries the judgement's question: {}",
     prompts[0]
   );
-  assert!(prompts[1].starts_with(&CHAT_ROUND.supervisor.marker), "{}", prompts[1]);
-  assert!(prompts[1].contains("did anyone see the match last night"));
-  assert!(prompts[1].contains("They talked about the match."));
-  assert!(!prompts[1].contains("TURN SCOPE") && !prompts[1].contains(&CHAT_ROUND.index.head));
+  assert!(judging.starts_with(&CHAT_ROUND.supervisor.marker), "{judging}");
+  assert!(judging.contains("did anyone see the match last night"));
+  assert!(
+    !judging.contains(&CHAT_ROUND.situation.front),
+    "a room with no note hands the judgement none: {judging}"
+  );
+  assert!(!judging.contains("TURN SCOPE") && !judging.contains(&CHAT_ROUND.index.head));
   assert_eq!(*round.standing.gate.referred.lock().unwrap(), 0, "no reference was asked");
-  assert_eq!(
+  assert!(
     round
       .scratch
       .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = -500"#)
-      .await,
-    ["They talked about the match."]
+      .await
+      .is_empty(),
+    "a round writes no note"
   );
 
   let log = round
@@ -277,12 +294,8 @@ async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing
 
 #[tokio::test]
 async fn a_line_that_resumes_an_earlier_thread_with_the_agent_is_answered_with_its_note() {
-  let round = Group::new(StandInSession::new(SESSION, "Here.").answering(&[
-    "They asked you to send the file; you promised it, and now ask when it will arrive.",
-    "They asked me again.",
-    "Here.",
-  ]))
-  .await;
+  let round =
+    Group::new(StandInSession::new(SESSION, "Here.").answering(&["They asked me again.", "Here."])).await;
 
   round
     .scratch
@@ -301,38 +314,31 @@ async fn a_line_that_resumes_an_earlier_thread_with_the_agent_is_answered_with_i
     .await;
 
   round.hand(2, "and when will it arrive?", false).await;
-  round.prompts_over(3).await;
+  round.prompts_over(2).await;
 
   let prompts = round.session.prompts();
+  let judging = turn_of(&prompts[0]);
 
-  assert!(
-    prompts[0].contains("They asked you to send the file; you promised it."),
-    "the update turn reads the earlier thread's note: {}",
-    prompts[0]
-  );
   assert!(
     prompts[0].contains(&CHAT_ROUND.supervisor.question),
     "the room's block carries the judgement's question: {}",
     prompts[0]
   );
-  assert!(prompts[1].starts_with(&CHAT_ROUND.supervisor.marker), "{}", prompts[1]);
-  assert!(prompts[1].contains("now ask when it will arrive"), "{}", prompts[1]);
+  assert!(judging.starts_with(&CHAT_ROUND.supervisor.marker), "{judging}");
+  assert!(judging.contains("and when will it arrive?"), "{judging}");
   assert!(
-    prompts[1]
-      .contains("They asked you to send the file; you promised it, and now ask when it will arrive."),
-    "the judgement carries the note whole: {}",
-    prompts[1]
+    judging.contains(&format!(
+      "{}\nThey asked you to send the file; you promised it.",
+      CHAT_ROUND.situation.front
+    )),
+    "the judgement carries the earlier thread's note whole: {judging}"
   );
-  assert!(prompts[2].contains("TURN SCOPE"), "{}", prompts[2]);
+  assert!(prompts[1].contains("TURN SCOPE"), "{}", prompts[1]);
   assert!(
-    prompts[2].contains(&CHAT_ROUND.situation.unchanged),
-    "the note rides as its marker: {}",
-    prompts[2]
-  );
-  assert!(
-    !prompts[2].contains("They asked you to send the file; you promised it"),
-    "the note is not repeated: {}",
-    prompts[2]
+    !prompts[1].contains("They asked you to send the file; you promised it")
+      && !prompts[1].contains(&CHAT_ROUND.situation.unchanged),
+    "the session read the note in its judgement, and the draft turn carries none of it: {}",
+    prompts[1]
   );
 }
 
@@ -398,22 +404,23 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
     ],
   );
 
+  round.noted("Here.").await;
   round.hand(1, "agent-a what is due today", true).await;
-  round.rounds_over(2).await;
+  round.rounds_over(1).await;
 
   let prompts = round.session.prompts();
   let block = &prompts[0];
-  let prompt = &prompts[1];
+  let prompt = turn_of(&prompts[0]);
   let index = &CHAT_ROUND.index;
 
   assert!(prompt.contains("Reference for this message (3):"), "{prompt}");
   assert!(
     prompt.starts_with(&format!("{}\nHere.", CHAT_ROUND.situation.front)),
-    "the note stands first, as the answer's instruction: {prompt}"
+    "the note stands first, read once by the session: {prompt}"
   );
   assert!(
     prompts[0].contains(&receiver_policy::chat_line::CHAT_LINE.room.voice),
-    "the situation update carries the room block: {}",
+    "the turn carries the room block: {}",
     prompts[0]
   );
   assert!(
@@ -440,14 +447,13 @@ async fn the_turn_carries_the_gates_core_whole_beside_the_brains_index() {
 }
 
 #[tokio::test]
-async fn an_unchanged_note_and_memory_reference_ride_a_later_turn_as_marks() {
-  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&[
-    "the room is quiet",
-    "the first answer",
-    "<<SKIP>>",
-    "the second answer",
-  ]))
+async fn a_note_read_once_rides_no_later_turn_and_a_memory_reference_rides_as_its_mark() {
+  let round = Group::new(
+    StandInSession::new(SESSION, "unused").answering(&["the first answer", "the second answer"]),
+  )
   .await;
+
+  round.noted("the room is quiet").await;
 
   *round.standing.gate.entries.lock().unwrap() = vec![Entry {
     path: "memories/-500".to_owned(),
@@ -458,28 +464,29 @@ async fn an_unchanged_note_and_memory_reference_ride_a_later_turn_as_marks() {
   }];
 
   round.hand(1, "first words", true).await;
-  round.rounds_over(2).await;
+  round.rounds_over(1).await;
   round.hand(2, "second words", true).await;
-  round.rounds_over(4).await;
+  round.rounds_over(2).await;
 
   let prompts = round.session.prompts();
 
-  assert_eq!(prompts.len(), 4, "{prompts:#?}");
-  assert!(prompts[1].contains("BODY OF THE DUE MEMORIES"), "{}", prompts[1]);
-  assert!(prompts[1].contains("the room is quiet"), "{}", prompts[1]);
+  assert_eq!(prompts.len(), 2, "{prompts:#?}");
+  assert!(prompts[0].contains("BODY OF THE DUE MEMORIES"), "{}", prompts[0]);
+  assert!(prompts[0].contains("the room is quiet"), "{}", prompts[0]);
   assert!(
-    prompts[3].contains("[memories/-500] (already loaded)"),
+    prompts[1].contains("[memories/-500] (already loaded)"),
     "the memory reference rides as its mark: {}",
-    prompts[3]
+    prompts[1]
   );
   assert!(
-    !prompts[3].contains("BODY OF THE DUE MEMORIES"),
+    !prompts[1].contains("BODY OF THE DUE MEMORIES"),
     "the memory reference is not repeated: {}",
-    prompts[3]
+    prompts[1]
   );
   assert!(
-    !prompts[2].contains("the room is quiet") && !prompts[3].contains("the room is quiet"),
-    "the unchanged note is not repeated into the later turns: {prompts:#?}"
+    !prompts[1].contains("the room is quiet") && !prompts[1].contains(&CHAT_ROUND.situation.unchanged),
+    "a note the session read rides no later turn, whole or as a marker: {}",
+    prompts[1]
   );
 }
 
@@ -506,10 +513,13 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
     ],
   );
   round.hand(1, "agent-a what do the rules say", true).await;
+  round.rounds_over(1).await;
+  round.hand(2, "agent-a and what else", true).await;
   round.rounds_over(2).await;
 
   let prompts = round.session.prompts();
   let block = &prompts[0];
+  let turn = &prompts[1];
   let index = &CHAT_ROUND.index;
 
   assert!(
@@ -519,9 +529,8 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
   assert!(block.contains(&format!("{} 7", index.knowledge)), "{block}");
   assert!(block.contains(&index.hint), "the nudge stands in the room's block");
   assert!(
-    !prompts[1].contains(&index.head) && !prompts[1].contains(&index.hint),
-    "the turn itself carries no index line: {}",
-    prompts[1]
+    !turn.contains(&index.head) && !turn.contains(&index.hint),
+    "a turn after the session's opening carries no index line: {turn}"
   );
 
   let asked = round.standing.gate.indexed.lock().unwrap().clone();
@@ -535,45 +544,41 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
 
 #[tokio::test]
 async fn a_line_that_asks_the_agent_is_answered_with_the_situation_note() {
-  let round = Group::new(StandInSession::new(SESSION, "Here.").answering(&[
-    "They asked you to send the file.",
-    "They asked me.",
-    "Here.",
-    "Here.",
-  ]))
-  .await;
+  let round =
+    Group::new(StandInSession::new(SESSION, "Here.").answering(&["They asked me.", "Here.", "Here."]))
+      .await;
 
   // The line as the room's record holds it, which is where a judged round keeps the note it read under.
   round.scratch.message(ROOM, 1, 31).await;
+  round.noted("They asked you to send the file.").await;
   round.hand(1, "can you send the file?", false).await;
-  round.prompts_over(3).await;
+  round.prompts_over(2).await;
 
   let prompts = round.session.prompts();
+  let judging = turn_of(&prompts[0]);
 
-  assert!(prompts.len() >= 3, "{prompts:#?}");
-  assert!(prompts[0].contains(&CHAT_ROUND.situation.previous), "{}", prompts[0]);
-  assert!(prompts[1].contains(&CHAT_ROUND.supervisor.situation), "{}", prompts[1]);
-  assert!(prompts[1].contains("They asked you to send the file."), "{}", prompts[1]);
-  assert!(prompts[2].contains("TURN SCOPE"), "{}", prompts[2]);
+  assert!(prompts.len() >= 2, "{prompts:#?}");
   assert!(
-    prompts[2].contains(&CHAT_ROUND.situation.unchanged),
-    "the note rides as its marker: {}",
-    prompts[2]
+    judging.contains(&format!("{}\nThey asked you to send the file.", CHAT_ROUND.situation.front)),
+    "the judgement reads the room's note: {judging}"
   );
+  assert!(prompts[1].contains("TURN SCOPE"), "{}", prompts[1]);
   assert!(
-    !prompts[2].contains("They asked you to send the file."),
-    "the note is not repeated: {}",
-    prompts[2]
+    !prompts[1].contains("They asked you to send the file.")
+      && !prompts[1].contains(&CHAT_ROUND.situation.unchanged),
+    "the note is read once, and the draft turn carries none of it: {}",
+    prompts[1]
   );
   assert_eq!(
     round
       .scratch
       .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = -500"#)
       .await,
-    ["They asked you to send the file."]
+    ["They asked you to send the file."],
+    "the round leaves the note as it stood"
   );
-  // The note stands on the line the round judged, marked as the round's own change, so the console's judgement
-  // record shows the situation the round read it under.
+  // The note stands on the line the round judged, so the console's judgement record shows the situation the
+  // round found.
   assert_eq!(
     round
       .scratch
@@ -589,29 +594,26 @@ async fn a_line_that_asks_the_agent_is_answered_with_the_situation_note() {
         vec![],
       )
       .await,
-    1,
-    "the round wrote the note afresh"
+    0,
+    "no round writes the note"
   );
 }
 
 #[tokio::test]
 async fn a_line_between_two_people_is_left_alone_though_the_note_names_them() {
-  let round = Group::new(
-    StandInSession::new(SESSION, "unused")
-      .answering(&["Mina and Joon are talking about the match; nobody waits on you.", "<<SKIP>>"]),
-  )
-  .await;
+  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>"])).await;
 
+  round.noted("Mina and Joon are talking about the match; nobody waits on you.").await;
   round.hand(1, "Mina, did Joon see the match?", false).await;
-  round.rounds_over(2).await;
+  round.rounds_over(1).await;
 
   let prompts = round.session.prompts();
 
-  assert_eq!(prompts.len(), 2, "{prompts:#?}");
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
   assert!(
-    prompts[1].contains("Mina and Joon are talking about the match"),
+    prompts[0].contains("Mina and Joon are talking about the match"),
     "the judgement reads the note: {}",
-    prompts[1]
+    prompts[0]
   );
   assert_eq!(
     round.scratch.count(r#"SELECT COUNT(*) FROM "messages""#, vec![]).await,
@@ -628,52 +630,38 @@ async fn a_line_between_two_people_is_left_alone_though_the_note_names_them() {
 }
 
 #[tokio::test]
-async fn the_note_stays_under_its_ceiling_and_the_update_is_one_light_turn() {
+async fn the_note_stays_under_its_ceiling_which_the_rooms_block_names() {
   let ceiling = CHAT_ROUND.situation.ceiling_chars;
   let long = "x".repeat(ceiling + 100);
-  let round =
-    Group::new(StandInSession::new(SESSION, "unused").answering(&[long.as_str(), "<<SKIP>>"])).await;
+  let note =
+    bmo_receiver::chat::situation::note_from_answer(&long, &[]).expect("a long note is cut, not lost");
+
+  assert!(
+    bmo_receiver::js::units(&note) <= ceiling,
+    "the note is {} units, over the ceiling of {ceiling}",
+    bmo_receiver::js::units(&note)
+  );
+  assert!(note.ends_with(&CHAT_ROUND.situation.cut));
+
+  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>"])).await;
 
   round.hand(1, "did anyone see the match last night", false).await;
-  round.rounds_over(2).await;
-
-  let note = round
-    .scratch
-    .texts(r#"SELECT "text" FROM "room_situations" WHERE "chat_id" = -500"#)
-    .await;
-
-  assert_eq!(note.len(), 1);
-  assert!(
-    bmo_receiver::js::units(&note[0]) <= ceiling,
-    "the note is {} units, over the ceiling of {ceiling}",
-    bmo_receiver::js::units(&note[0])
-  );
-  assert!(note[0].ends_with(&CHAT_ROUND.situation.cut));
+  round.rounds_over(1).await;
 
   let prompts = round.session.prompts();
 
   assert!(
-    prompts[0].contains(&ceiling.to_string()),
-    "the update turn names the ceiling: {}",
+    prompts[0].contains(&format!("under {ceiling} characters")),
+    "the room's block names the ceiling: {}",
     prompts[0]
-  );
-  println!(
-    "situation: update prompt {} chars, judgement prompt {} chars, note {} chars, extra {} chars",
-    prompts[0].len(),
-    prompts[1].len(),
-    note[0].len(),
-    prompts[0].len() + note[0].len()
   );
 }
 
 #[tokio::test]
 async fn a_reply_mark_in_the_supervisors_answer_pins_the_older_line_it_names() {
-  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&[
-    "They asked me.",
-    "<<REPLY #1>> They asked me.",
-    "Here.",
-  ]))
-  .await;
+  let round =
+    Group::new(StandInSession::new(SESSION, "unused").answering(&["<<REPLY #1>> They asked me.", "Here."]))
+      .await;
 
   round
     .scratch
@@ -685,7 +673,7 @@ async fn a_reply_mark_in_the_supervisors_answer_pins_the_older_line_it_names() {
     .await;
 
   round.hand(2, "did you hear the recording?", false).await;
-  round.rounds_over(3).await;
+  round.rounds_over(2).await;
 
   let sent = round.chat.sent();
 
@@ -713,10 +701,11 @@ async fn a_reply_mark_in_the_supervisors_answer_pins_the_older_line_it_names() {
 async fn the_supervisor_prompt_is_the_golden_file() {
   let round = Group::new(StandInSession::new(SESSION, "Here.")).await;
 
+  round.noted("Here.").await;
   round.hand(1, "are you there", false).await;
-  round.prompts_over(2).await;
+  round.prompts_over(1).await;
 
-  let prompt = &round.session.prompts()[1];
+  let prompts = round.session.prompts();
 
-  assert_eq!(prompt, include_str!("../fixtures/supervisor-prompt.txt"));
+  assert_eq!(turn_of(&prompts[0]), include_str!("../fixtures/supervisor-prompt.txt"));
 }

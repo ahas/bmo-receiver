@@ -104,22 +104,20 @@ fn the_rounds_lines_carry_their_marks() {
 
 #[test]
 fn the_draft_process_ends_every_list_on_its_last_question() {
-  assert!(DRAFTING.lead.contains("{number}") && DRAFTING.lead.contains("{count}"));
-  assert!(DRAFTING.opening.contains("{number}") && DRAFTING.opening.contains("{send}"));
-  assert!(DRAFTING.lead.contains("{send}") && DRAFTING.send.contains("<<SEND>>"));
+  // The round's line names the questions its round follows and nothing else.
+  assert!(DRAFTING.round.contains("{names}"));
   assert!(CHAT_ROUND.closing.rule.contains("<<SKIP>>"));
-  assert!(DRAFTING.last_lead.contains("{number}") && DRAFTING.waiting.contains("{ids}"));
   assert!(DRAFTING.questions.contains_key("final"));
-  // The room's block says what a send does and the voice a message is written in, once; a round's line carries
-  // only its one-word permission.
-  for line in [&DRAFTING.send, &DRAFTING.arrived] {
+  // The room's block says the voice a message is written in, once; a round's line carries none of it.
+  for line in [&DRAFTING.stages_head, &DRAFTING.arrived] {
     assert!(line.contains("{voice}"), "{line}");
   }
-  assert!(!DRAFTING.send_open.contains("{voice}") && !DRAFTING.send_closed.contains("{voice}"));
-  assert!(!DRAFTING.last_lead.contains("{voice}") && !DRAFTING.voice.is_empty());
+  assert!(!DRAFTING.round.contains("{voice}") && !DRAFTING.voice.is_empty());
+  // The review is shown the questions the draft round followed, as data.
+  assert!(DRAFTING.review.followed.contains("{names}"));
 
-  // The room's block names the marks a message that arrived meanwhile takes, once for every question, and so does
-  // the closing check; the lead lines name only a question's place.
+  // The room's block names the marks a message that arrived meanwhile takes, once, and so does the closing check;
+  // the round's line names only its questions.
   for line in [&CHAT_LINE.room.process, &DRAFTING.arrived] {
     assert!(line.contains("<<DONE #<number>>>") && line.contains("<<SEPARATE #<number>>>"), "{line}");
   }
@@ -129,11 +127,6 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
       assert!(list.iter().all(|name| DRAFTING.questions.contains_key(name)), "{process:?}");
       assert_eq!(list.last().map(String::as_str), Some("final"), "{process:?}");
     }
-
-    assert!(
-      process.send_from.is_empty() || process.rounds.contains(&process.send_from),
-      "{process:?}"
-    );
   }
 
   assert!(DRAFTING.process.iter().any(|process| process.provider == "*" && process.agent == "*"));
@@ -220,14 +213,15 @@ fn a_process_row_that_still_names_a_ceiling_loads_and_ignores_it() {
 fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
   use receiver_policy::drafting::{Drafting, Process};
 
-  let five = vec!["information", "facts", "memory", "promises", "final"];
+  let six = vec!["intent", "information", "facts", "memory", "promises", "final"];
+  let five = &six[1..];
 
   assert_eq!(DRAFTING.process.len(), 1);
   assert_eq!(DRAFTING.process[0].provider, "*");
   assert_eq!(DRAFTING.process[0].tier, "*");
   assert_eq!(DRAFTING.process[0].agent, "*");
-  assert_eq!(DRAFTING.process[0].rounds, five);
-  assert!(DRAFTING.questions.contains_key("intent") && !five.contains(&"intent"));
+  assert_eq!(DRAFTING.process[0].rounds, six);
+  assert_eq!(DRAFTING.process[0].send_from, None, "no row names a question a send is read from");
 
   let policy = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml"))
     .expect("the drafting policy reads");
@@ -239,7 +233,7 @@ fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
       tier: "*".to_owned(),
       agent: "*".to_owned(),
       rounds: vec!["information".to_owned(), "facts".to_owned(), "final".to_owned()],
-      send_from: "facts".to_owned(),
+      send_from: Some("facts".to_owned()),
       light: vec!["final".to_owned()],
       off: vec![],
       light_chars: 12,
@@ -252,7 +246,7 @@ fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
       tier: "*".to_owned(),
       agent: "*".to_owned(),
       rounds: five.iter().map(|name| (*name).to_owned()).collect(),
-      send_from: "facts".to_owned(),
+      send_from: Some("facts".to_owned()),
       light: vec!["final".to_owned()],
       off: vec![],
       light_chars: 12,

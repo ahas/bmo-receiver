@@ -1562,17 +1562,19 @@ export interface components {
             agentName: string;
             /** Format: uint32 */
             ceilingSeconds: number;
+            /** @description The questions a light turn's round follows, in order. */
             light: string[];
             /** Format: uint32 */
             lightChars: number;
-            /** @description The questions of `rounds` and `light` that are switched off: each keeps its place and is not asked. */
+            /** @description The questions of `rounds` and `light` that are switched off: each keeps its place and is not followed. */
             off: string[];
             /** @description `send` or `skip`. */
             pastCeiling: string;
             /** @description A provider's key, or `*` for any. */
             provider: string;
+            /** @description The questions an ordinary turn's round follows, in order. */
             rounds: string[];
-            /** @description The question of `rounds` from whose answer on a send is read; empty for the first. */
+            /** @description The question a row once read a send from: kept as it came and read by nothing. */
             sendFrom: string;
             /** @description `set` or `default`. */
             source: string;
@@ -1595,7 +1597,7 @@ export interface components {
             pastCeiling: string;
             rounds: string[];
             /**
-             * @description The question of `rounds` from whose answer on a send is read; empty, and left out, for the first.
+             * @description Read and ignored: the draft turn's answer is the message.
              * @default
              */
             sendFrom: string;

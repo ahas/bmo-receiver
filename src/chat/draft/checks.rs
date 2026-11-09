@@ -60,15 +60,9 @@ pub fn fixed_head(line: &str) -> Option<String> {
 
 /// The process's own lines a final text must not carry: the questions asked and the fixed heads of its lines.
 pub fn own_lines(asked: &[String]) -> Vec<String> {
-  let heads = [
-    &DRAFTING.opening,
-    &DRAFTING.lead,
-    &DRAFTING.last_lead,
-    &DRAFTING.waiting,
-    &DRAFTING.arrived_marker,
-  ]
-  .into_iter()
-  .filter_map(|line| fixed_head(line));
+  let heads = [&DRAFTING.round, &DRAFTING.arrived_marker]
+    .into_iter()
+    .filter_map(|line| fixed_head(line));
 
   asked
     .iter()

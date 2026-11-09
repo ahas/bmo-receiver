@@ -237,9 +237,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `voiceState` (`heard`, `failed`, or null), `kind` (`sticker`, or null for any other), `editedAt`, `deletedAt` and
   `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
-  `situation` (the room's situation note as the round that judged this message read it — its `text` and whether
-  that round `changed` it, the owner's private chat's messages included — or null on a message no round judged
-  under a note; `docs/drafting.md`, 「The situation note」), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+  `situation` (the room's situation note as it stood when the round that judged this message opened — its `text`,
+  and `changed`, which is false since no round writes the note, the owner's private chat's messages included — or
+  null on a message no round judged under a note; `docs/drafting.md`, 「The situation note」), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`
@@ -554,28 +554,26 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body | Answers |
 |---|---|---|
 | `GET /draft-processes` | | a page of `DraftProcess`: the policy's one row, or the console's row of its own key |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `sendFrom?`, `light`, `off?`, `lightChars`; `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `light`, `off?`, `lightChars`; `sendFrom?`, `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
 | `GET /draft-questions` | | a page of `DraftQuestion` |
 | `PUT /draft-questions/{name}` | `text` | the `DraftQuestion` as it now stands |
 | `DELETE /draft-questions/{name}` | | 204; `not-found` where the console set no text of the name, `conflict` where a list still names a question the console added |
 
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
-  names of the questions an ordinary and a light turn are asked, in order; `off`, the questions of those lists
-  that are switched off, each keeping its place and not asked; `sendFrom`, the question of `rounds`
-  from whose answer on a send is read, empty for the first; `lightChars`; no turn bound stands; and `source`,
+  names of the questions an ordinary and a light turn's round follows, in order; `off`, the questions of those
+  lists that are switched off, each keeping its place and not followed; `lightChars`; no turn bound stands; and `source`,
   `set` where the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process
   table」). A
-  row that still carries `ceilingSeconds` or `pastCeiling` is read with both ignored, and both stand in its answer
-  as they came. The page holds the policy's rows in their order,
+  row that still carries `sendFrom`, `ceilingSeconds` or `pastCeiling` is read with them ignored, and they stand
+  in its answer as they came. The page holds the policy's rows in their order,
   each replaced by the console's of the same key, then the console's own keys.
 - **A `DraftQuestion`** is `name`, `text` and `source`. The page opens on `supervisor`, the text the agent's own
   judgement of whether to answer opens on (`docs/drafting.md`, 「The routes」), set like any question; a list that
   names it is refused `bad-request`.
 - **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
   hold, where a list that holds questions does not end in `final` or holds it before its end, where `off` names
-  `final`, where `sendFrom` is
-  not empty and names no question of `rounds`, where a turn's note is outside 1 to 3,600 seconds or the light
+  `final`, where the light
   bound is outside 0 to 1,000 characters, and where a question's name is not a lowercase word of letters, digits
   and dashes of at most 40 characters or its text is empty or past 4,000 characters. A name `off` holds that
   neither list holds is dropped, and the answer carries `off` as it now stands.

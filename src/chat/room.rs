@@ -484,22 +484,17 @@ async fn stages(db: &DatabaseConnection) -> Result<String, Fault> {
     }
 
     if !names.is_empty() {
-      parts.push(DRAFTING.stages_head.clone());
+      parts.push(fill_marks(&DRAFTING.stages_head, &[("voice", &DRAFTING.voice)]));
 
       for name in names {
         if let Some(question) = catalogue.iter().find(|question| question.name == name) {
           parts.push(fill_marks(&DRAFTING.stage, &[("name", &name), ("text", &question.text)]));
         }
       }
-
-      // The send clause a round's line now carries only as a permission word: what a send does and the voice a
-      // message is written in stand here once.
-      parts.push(fill_marks(&DRAFTING.send, &[("voice", &DRAFTING.voice)]));
     }
   }
 
   // The lines a turn carries only as data, and the rules the items and checks that follow the message follow.
-  parts.push(DRAFTING.waiting_rule.clone());
   parts.push(SECOND_ASKS.later.clone());
   parts.push(SECOND_ASKS.items_head.clone());
   parts.push(SECOND_ASKS.errands.owed.clone());

@@ -50,9 +50,6 @@ pub struct Round<'a> {
   /// The owner's reader, where a reply's picture may be fetched on demand.
   pub reader: Option<&'a Roads>,
   pub round: Option<String>,
-  /// The turn carries a draft round that is not the process's message round: a message round reads the room's
-  /// situation note first (docs/drafting.md).
-  pub questioned: bool,
 }
 
 /// The scope a round's turn is about.
@@ -458,28 +455,10 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     context.push(("archive".to_owned(), quoted_range(chat_id, &quoted)));
   }
 
-  // The round that writes the message reads the room's situation note first (docs/drafting.md, 「The situation
-  // note」): the update turn wrote it before this round, and the message is written with the room's state in front.
-  let front = match round.questioned {
-    true => None,
-    false => match super::situation::read(db, chat_id).await {
-      Ok(Some(note)) => Some(format!(
-        "{}\n{}",
-        CHAT_ROUND.situation.front,
-        super::situation::note_block(chat_id, &note)
-      )),
-      Ok(None) => None,
-      Err(why) => {
-        eprintln!("bmo-receiver: the room's situation note could not be read: {why}");
-
-        None
-      }
-    },
-  };
-  let prompt = match front {
-    Some(front) => format!("{front}\n\n{}", parts.join("\n")),
-    None => parts.join("\n"),
-  };
+  // A session reads a room's situation note once (docs/drafting.md, 「The situation note」): the round's turn
+  // carries its place at its head, above the room's words, filled where the session the turn settles on holds
+  // none of this room.
+  let prompt = format!("{}\n\n{}", super::situation::first_reading(chat_id), parts.join("\n"));
 
   Ok(Composed {
     prompt,

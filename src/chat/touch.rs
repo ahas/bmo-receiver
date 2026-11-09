@@ -205,6 +205,26 @@ pub async fn touch(
     };
   }
 
+  // A touch writes the situation notes the session owes, and those turns are what keeps the prefix warm
+  // (docs/drafting.md, 「The situation note」): the keepalive prompt goes in only where no note's turn did.
+  match conversations.owed_notes(None, None).await {
+    Ok(0) => {}
+    Ok(_) => {
+      return TouchAnswer {
+        outcome: TouchOutcome::Warmed,
+        code: None,
+        reason: None,
+      };
+    }
+    Err(why) => {
+      return TouchAnswer {
+        outcome: TouchOutcome::Failed,
+        code: None,
+        reason: Some(format!("{why:?}")),
+      };
+    }
+  }
+
   let room = quiet_room(receiver, chat_id).await.unwrap_or(Room::default());
   let recent = recent_lines(receiver, receiver.deployment().owner_id, chat_id)
     .await
@@ -246,6 +266,7 @@ pub async fn touch(
     began: now,
     context: selection.context.clone(),
     thread_mark: None,
+    standing: false,
   };
   let held = Held {
     agent: agent.to_owned(),

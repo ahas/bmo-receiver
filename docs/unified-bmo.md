@@ -41,10 +41,10 @@
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
   are English while the language an answer is written in is the agent's own judgement, never a line of the turn;
   and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there,
-  and so do what a round's one-word send permission means, the review's instruction and verdict wording, the
+  and so do the voice a message is written in, the review's instruction and verdict wording, the
   situation-note instruction with its ceiling, the closing rules (how a turn opens and closes, when a `<<WAIT>>`
   is right, and that the owner's own words in his own chat are always answered), the queue rule, the brain's
-  rule and the memories rule, so a round's turn names only which round it is and whether it may send, a note turn
+  rule and the memories rule, so a round's turn names only the questions its round follows, a note turn
   carries only its mark, and the review turn carries only its mark and the material it reads. The turn carries
   only what changes from turn to turn: the room and its facts, the words themselves, the round's mark and the
   material the gate attaches.
@@ -237,6 +237,11 @@
   stand, since a turn it composed against the ended generation may have written them back after that. A plain
   turn releases nothing, and neither does a session resumed after the agency's restart or a deploy, nor a return
   to another room of the one session across rooms.
+- **Before the old session is asked for its handoff it writes the notes it owes.** The situation note of every
+  room the agent answered in since that room's note was last updated is updated first, one light turn a room on
+  the session that is about to end (`docs/drafting.md`, 「The situation note」). The notes are the rooms' own and
+  no part of the handoff document: the fresh session reads each room's note in its first round there. The
+  handoff the agency asks for ahead of a fresh session writes them the same way.
 - **Before the old session is ended it consolidates and writes its handoff,** whatever the reason. The receiver
   asks it one more turn marked `HANDOFF ASK.` and naming, as data, the file it writes with its file tool:
   `handoffs/<agent>/<epoch-ms>.md` under the data root (`docs/store.md`, 「The data root's folders」); the rule

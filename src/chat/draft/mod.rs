@@ -11,7 +11,6 @@ pub mod table;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
@@ -52,56 +51,33 @@ pub fn words(marker: &str, scope: &Scope, pending: &[i64]) -> String {
   )
 }
 
-/// The process a round opens before its turn goes out (docs/drafting.md, 「The process table」): its questions by
-/// name with their texts, the place of the question a send is read from (from 0), the row of the table it read,
-/// the note one turn's length is kept as, and whether the round's room has heard it is still at work. A round no
-/// row matches asks nothing and has neither note nor bound.
+/// The process a round opens before its turn goes out (docs/drafting.md, 「The process table」): the questions its
+/// one draft turn follows, by name with their texts and in their order, and the row of the table it read. A round
+/// no row matches follows none.
 #[derive(Clone, Debug, Default)]
 pub struct Plan {
   pub questions: Vec<(String, String)>,
-  pub send_from_at: usize,
   pub row: String,
 }
 
 impl Plan {
-  /// Whether the round's turn carries a question that is not the process's last, so that it asks no message.
-  pub fn questioned(&self) -> bool {
-    self.questions.len() > 1
+  /// The questions the round follows as its line and its row of the round log name them: in their order, joined
+  /// by `+`; none where the round follows none.
+  pub fn names(&self) -> Option<String> {
+    (!self.questions.is_empty())
+      .then(|| self.questions.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>().join("+"))
   }
 
-  /// Whether a send is read in the answer to the question at a place (from 0).
-  pub fn send_open(&self, at: usize) -> bool {
-    at >= self.send_from_at
-  }
-
-  /// The one-word permission a round's line carries: that a send is read at this round, or that it writes notes
-  /// only. What a send does stands in the room's block.
-  pub fn send_line(&self, at: usize) -> String {
-    if self.send_open(at) {
-      DRAFTING.send_open.clone()
-    } else {
-      DRAFTING.send_closed.clone()
-    }
-  }
-
-  /// What the first round adds to the round's turn, where the process asks any: its place, its name and whether
-  /// it may send. The question's own text and what a send does stand in the room's block, never in the turn. The
-  /// turn's own scope stands in it already.
+  /// The line the round's turn closes on, where the round follows any question: the names of those it follows.
+  /// Each question's own text stands in the room's block, never in the turn.
   pub fn first_words(&self) -> Option<String> {
-    let (name, _) = self.questions.first()?;
-    let count = self.questions.len();
-    let lead = if count == 1 { &DRAFTING.last_lead } else { &DRAFTING.opening };
-    let send = self.send_line(0);
-
-    Some(fill_marks(
-      lead,
-      &[("number", "1"), ("count", &count.to_string()), ("name", name), ("send", &send)],
-    ))
+    Some(fill_marks(&DRAFTING.round, &[("names", &self.names()?)]))
   }
 }
 
-/// An answer as the process reads it: a skip standing anywhere in it outside code, which wins; a send opening it,
-/// the words after the marker being the message, and a send with nothing after it a skip; or an answer.
+/// An answer as the process reads it: a skip standing anywhere in it outside code, which wins; a send marker
+/// opening it taken out, the words after it being the answer, and a marker with nothing after it a skip; or an
+/// answer.
 pub fn read_answer(text: &str) -> (String, Answered) {
   if has_skip(text) || is_skip(text) {
     return (text.to_owned(), Answered::Skip);
@@ -112,27 +88,6 @@ pub fn read_answer(text: &str) -> (String, Answered) {
     Some(words) => (words.to_owned(), Answered::Send),
     None => (text.to_owned(), Answered::Answered),
   }
-}
-
-/// The line of a later round: its place, its name and whether it may send. The question's own text and what a
-/// send does stand in the room's block, never in the turn.
-pub fn question_words(name: &str, number: usize, count: usize, send: &str) -> String {
-  let lead = if number == count { &DRAFTING.last_lead } else { &DRAFTING.lead };
-
-  fill_marks(
-    lead,
-    &[
-      ("number", &number.to_string()),
-      ("count", &count.to_string()),
-      ("name", name),
-      ("send", send),
-    ],
-  )
-}
-
-/// The line every question but the last closes on: the messages still waiting, shown with the next question.
-pub fn waiting_line(pending: &[i64]) -> String {
-  fill_marks(&DRAFTING.waiting, &[("ids", &stringify(&pending).unwrap_or_default())])
 }
 
 /// The closing check's turn (docs/drafting.md, 「Once the message stands, one closing check」): its marker, the
@@ -403,9 +358,9 @@ impl Run<'_> {
     paths
   }
 
-  // The review prompt (docs/drafting.md, 「The review」): its short mark, the message as it stands, the room's words
-  // and the rules and knowledge the round carries. What the review is asked, its verdict line among it, stands in
-  // the room's block, and a round's answers and notes are its own, so neither is repeated here.
+  // The review prompt (docs/drafting.md, 「The review」): its short mark, the questions the draft turn followed,
+  // the message as it stands, the room's words and the rules and knowledge the round carries. What the review is
+  // asked, its verdict line among it, stands in the room's block.
   fn review_prompt(&self, message: &str) -> String {
     let said = &DRAFTING.review;
     // What the main round handed is a line; what was not handed, or arrived since, is the body.
@@ -445,8 +400,16 @@ impl Run<'_> {
       })
       .collect();
 
+    // The questions the draft turn followed, as its line named them; a turn that followed none shows no line.
+    let followed = self
+      .drafted
+      .plan
+      .names()
+      .map(|names| format!("{}\n", fill_marks(&said.followed, &[("names", &names)])))
+      .unwrap_or_default();
+
     format!(
-      "{}\n\n{}\n{}\n\n{}\n{}\n\n{}\n{}",
+      "{}\n{followed}\n{}\n{}\n\n{}\n{}\n\n{}\n{}",
       said.marker,
       said.draft,
       message,
@@ -466,18 +429,6 @@ impl Run<'_> {
     words: &str,
   ) -> Result<Option<(Reply, Answered)>, Failure> {
     self.asked_with(kind, name, words, false).await
-  }
-
-  // One more turn of the same session that takes the room's words pushed into it while it works (docs/drafting.md,
-  // 「What came in meanwhile」): what it took is shown to the round once it answers, and goes back to wait where
-  // its run failed or the stop came.
-  async fn ask_taking_words(
-    &mut self,
-    kind: Kind,
-    name: &str,
-    words: &str,
-  ) -> Result<Option<(Reply, Answered)>, Failure> {
-    self.asked_with(kind, name, words, true).await
   }
 
   async fn asked_with(
@@ -504,6 +455,7 @@ impl Run<'_> {
       began: started,
       context: drafted.selection.context.clone(),
       thread_mark: None,
+      standing: false,
     };
     let held = Held {
       agent: self.agent.to_owned(),
@@ -732,10 +684,8 @@ impl Drafter {
       };
     };
     let is_light = light(batch, instructions, process.light_chars);
-    // A question the row has switched off keeps its place in its list and is not asked.
+    // A question the row has switched off keeps its place in its list and is not followed.
     let list = process.asked(if is_light { &process.light } else { &process.rounds });
-    // A light turn reads a send from its first question whatever the row names.
-    let send_from_at = if is_light { 0 } else { process.send_from_at() };
     let catalogue = table::questions(receiver.db()).await.unwrap_or_default();
     let questions = list
       .iter()
@@ -752,7 +702,6 @@ impl Drafter {
 
     Plan {
       questions,
-      send_from_at,
       row: format!("{}/{}/{}", process.provider, process.tier, process.agent),
     }
   }
@@ -769,7 +718,6 @@ impl Drafter {
     let owner = receiver.owner_id();
     let plan = drafted.plan;
     let row = &plan.row;
-    let count = plan.questions.len();
     let mut run = Run {
       drafter: self,
       conversations,
@@ -777,11 +725,10 @@ impl Drafter {
       held,
       drafted,
       spoken: drafted.reply.run.clone().into_iter().collect(),
-      // The format check forbids the process's own lines in the final text: the question texts and the round
-      // lines each as they were asked.
+      // The format check forbids the process's own lines in the final text: the texts of the questions the round
+      // followed and the round's line.
       asked: {
-        let mut asked: Vec<String> =
-          plan.questions.first().map(|(_, text)| text.clone()).into_iter().collect();
+        let mut asked: Vec<String> = plan.questions.iter().map(|(_, text)| text.clone()).collect();
 
         asked.extend(plan.first_words());
 
@@ -817,120 +764,25 @@ impl Drafter {
       text,
       ..drafted.reply.clone()
     };
-    let (kind, name) = match plan.questions.first() {
-      Some((name, _)) => (Kind::Question, name.as_str()),
+    // The draft turn's row goes by the questions it followed; a turn that followed none is a plain turn.
+    let names = plan.names();
+    let (kind, name) = match &names {
+      Some(names) => (Kind::Question, names.as_str()),
       None => (Kind::Turn, "turn"),
     };
 
     run.latest = first.clone();
     run.log.turn(kind, name, Some(&first.text), first_read, now_ms() - drafted.began).await;
 
-    let mut message: Option<Reply> = None;
+    // The draft turn's answer is the message, unless it skipped.
     let mut skipped = first_read == Answered::Skip;
-
-    // The first answer is the message where it sent one, or where the first question was the last or the turn
-    // asked none; any other is notes.
-    if !skipped && (first_read == Answered::Send || count <= 1) {
-      message = Some(first);
-    }
-
-    let mut at = 1;
-
-    while message.is_none() && !skipped && at < count {
-      let number = at + 1;
-      let last = number == count;
-      let (name, text) = &plan.questions[at];
-      let send = plan.send_line(at);
-      let mut words = question_words(name, number, count, &send);
-
-      run.asked.push(text.clone());
-      run.asked.push(words.clone());
-
-      // The room's words that waited since the last answer stand under this question.
-      let block = run.arrived().await;
-
-      if let Some((text, _)) = &block {
-        words = format!("{words}\n\n{text}");
-      }
-
-      if !last {
-        let pending = conversations.pending(chat);
-
-        // Nothing waits on most rounds; the line rides only when something does.
-        if !pending.is_empty() {
-          words = format!("{words}\n{}", waiting_line(&pending));
-        }
-      }
-
-      // The message round reads the room's situation note first (docs/drafting.md, 「The situation note」).
-      if last && let Ok(Some(note)) = super::situation::read(receiver.db(), chat).await {
-        words = format!(
-          "{}\n{}\n\n{words}",
-          CHAT_ROUND.situation.front,
-          super::situation::note_block(chat, &note)
-        );
-      }
-
-      run.log.start(number, count, name);
-
-      let before = run.shown.len();
-      let asked = run.ask_taking_words(Kind::Question, name, &words).await;
-      let block = block.map(|(_, took)| took).unwrap_or_default();
-
-      match asked {
-        Ok(Some((answer, read))) => {
-          // The block was shown ahead of what the turn took while it worked.
-          run.shown.splice(before..before, block);
-
-          // A wait is no message: the last question answering one sends nothing.
-          if read == Answered::Skip || (last && is_wait(&answer.text)) {
-            skipped = true;
-            break;
-          }
-
-          if last || read == Answered::Send {
-            message = Some(answer);
-          }
-        }
-        Ok(None) => {
-          conversations.give_back_words(chat, block);
-
-          if last {
-            break;
-          }
-
-          // A question whose run failed is passed over to the last.
-          at = count - 1;
-          continue;
-        }
-        Err(failure) => {
-          conversations.give_back_words(chat, block);
-          run.give_back_shown();
-
-          return Err(failure);
-        }
-      }
-
-      at += 1;
-    }
-
-    if skipped {
-      message = None;
-    }
+    let mut message: Option<Reply> = (!skipped).then_some(first);
 
     // Once the message stands, the room's words that waited since the last answer are shown in one closing check.
     if let Some(standing) = &message
       && let Some((block, took)) = run.arrived().await
     {
-      let mut words = closing_words(&standing.text, &block);
-
-      if let Ok(Some(note)) = super::situation::read(receiver.db(), chat).await {
-        words = format!(
-          "{}\n{}\n\n{words}",
-          CHAT_ROUND.situation.front,
-          super::situation::note_block(chat, &note)
-        );
-      }
+      let words = closing_words(&standing.text, &block);
 
       match run.ask(Kind::Item, "arrived", &words).await {
         Ok(Some((answer, read))) => {

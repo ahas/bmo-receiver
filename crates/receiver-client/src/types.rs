@@ -1110,11 +1110,13 @@ pub struct DraftProcess {
   pub tier: String,
   /// An agent, or `*` for any.
   pub agent_name: String,
+  /// The questions an ordinary turn's round follows, in order.
   pub rounds: Vec<String>,
-  /// The question of `rounds` from whose answer on a send is read; empty for the first.
+  /// The question a row once read a send from: kept as it came and read by nothing.
   pub send_from: String,
+  /// The questions a light turn's round follows, in order.
   pub light: Vec<String>,
-  /// The questions of `rounds` and `light` that are switched off: each keeps its place and is not asked.
+  /// The questions of `rounds` and `light` that are switched off: each keeps its place and is not followed.
   pub off: Vec<String>,
   pub light_chars: u32,
   pub ceiling_seconds: u32,
@@ -1129,7 +1131,7 @@ pub struct DraftProcess {
 #[serde(rename_all = "camelCase")]
 pub struct DraftProcessSet {
   pub rounds: Vec<String>,
-  /// The question of `rounds` from whose answer on a send is read; empty, and left out, for the first.
+  /// Read and ignored: the draft turn's answer is the message.
   #[serde(default)]
   pub send_from: String,
   pub light: Vec<String>,

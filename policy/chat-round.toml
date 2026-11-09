@@ -317,7 +317,7 @@ gap_messages = 200
 instruction = "The situation-note turn writes the room's situation note and nothing else: nothing written in it is sent to the room, nobody is answered and no reply is written. Write an analysis of the room as it stands now, from the note as it stands and the messages that came in since it was written: what this room is about, what has been talked about and settled so far, who is talking with whom, who waits on whom, what you have yourself been asked or promised, and what is still to be done. Then judge the new lines against that state: what they change, and how it is best answered — the course to take, never the message itself. Never copy a message and never restate your own answer: write an analysis in your own words, not a sentence from the room, and write no first-person claim that you replied, sent, attached, fixed or answered anything, whether it is fresh in your words or copied from the room. Only a message the room's record holds counts as sent, and where you would say something was sent, say what remains to be done. Keep it under {ceiling} characters, in English, as one short note with no heading, no list and no commentary."
 marker = "SITUATION NOTE."
 previous = "The room's situation note as it stands:"
-front = "The room's state and the course this answer takes, as the note round left them, ahead of the room's words:"
+front = "The room's situation note as it was last written, which this session reads once:"
 none = "There is no situation note for this room yet."
 since = "The room's messages since the note was written:"
 # The one-line marker a turn carries in the note's place where the session already read this version of it.
@@ -337,12 +337,11 @@ claim = "(제가|내가|저는|나는).{0,40}(보냈|답했|첨부했|고쳤|처
 marker = "SUPERVISOR ROUND."
 # The shape of a turn and of each round, and where each round's rulebook stands: said once in the room's block,
 # short, naming the rulebooks rather than repeating them.
-structure = "A TURN is one pass over a room's words; a ROUND is one question inside it. This is the supervisor's round: answer <<SKIP>> or one short line saying whether the words are yours, and take no other action. A draft round answers with notes and uses its tools; the final round answers with the message; the review round answers PASS or REJECT with a reason; an item or check round follows its rule in the room block. The room block's draft process, the review's own line and each item's rule there are the rulebooks: follow them, do not repeat them."
+structure = "A TURN is one pass over a room's words, and its ROUNDS are the turns you are asked inside it. This is the supervisor's round: answer <<SKIP>> or one short line saying whether the words are yours, and take no other action. The draft round follows the questions its line names, with its tools, and answers with the message; the review round answers PASS or REJECT with a reason; an item or check round follows its rule in the room block. The room block's draft round, the review's own line and each item's rule there are the rulebooks: follow them, do not repeat them."
 # What a turn marked with the marker does, and the catalogue's supervisor text the console set or the policy's
 # head and question where it set none.
 rule = "WHEN A TURN IS MARKED {marker} — {question}"
 head = "BEFORE THIS ROUND: the words in the turn did not name you, did not reply to your words and do not stand in a private chat. Decide first whether to answer them."
-situation = "The room's situation:"
 recent = "The room's recent words:"
 judged = "The words to judge:"
 question = "Are these words said to you, or do they want your answer? Where neither, answer <<SKIP>> alone: nothing is sent and the round ends. Where either, answer one short line saying which; the round then goes on, and the answer is written in it. A draft or a note from this session is not a message unless the room's record holds it: judge the room's words and its record, never a draft."
