@@ -236,10 +236,11 @@
   the brain with `brain_fold`, then the file, then the exact skip. The file
   holds what the session was in the middle of and how far it got, the promises it made and what wakes them,
   the open threads of each room, what the next session must do first, and what it learned was wrong. The turn
-  is waited on until it ends, however long it takes; a run that fails ends the session all the same. The turn
-  answers a room, as every turn of a session across rooms does, carrying that room's block: the room the
-  replacement is made in, or the room the agency's asking named, and the owner's private chat where neither
-  names one.
+  is waited on until it ends, however long it takes; a run that fails ends the session all the same. A session
+  already in a turn is waited for: the asking waits for that turn's end on the agency's event stream and asks
+  again, however long it takes. The turn answers a room, as every turn of a session across rooms does, carrying
+  that room's block: the room the replacement is made in, or the room the agency's asking named, and the owner's
+  private chat where neither names one.
   A file that stands and is not empty is copied to `handoffs/<agent>/latest.md`, the newest handoff.
 - **The new session's first turn carries the note at its head:** `HANDOFF.`, then the handoff file's path and its
   whole content in its block, so the session can read it again with its file tool; the rule the marker stands for
@@ -255,12 +256,16 @@
   session for an agent that had one — the kept session gone, a program stood anew that cannot resume it, its own
   restart — it asks the receiver first (`POST /handoffs/{agentName}`, `docs/api.md`, 「Handoffs」), and the receiver
   asks the agent's standing session, usually still alive in its pane, for its handoff file exactly as a
-  replacement does, waited on until its turn ends. A second asking for the same agent while one is under way
-  waits in line behind it. The file it writes is kept for the agent
-  (`<agent>_handoff_pending`, `docs/store.md`), and the next turn on a session the agency's state says was never
-  opened carries it as its note, in the order below; a turn on a session the agency resumed lets it go. Where the
-  agent has no opened session to ask, or it wrote nothing, the transcript the receiver keeps stands in at the next
-  replacement as above.
+  replacement does, waited on until its turn ends. A session already in a turn is waited for: the asking waits
+  for that turn's end on the agency's event stream and asks again, however long it takes. The agency lets its
+  record of the session go before it asks, so the state it answers names no generation while the program still
+  stands; the receiver reads no generation to decide whether to ask, and the asking itself tells whether there
+  was a session to ask. A second asking for the same agent while one is under way waits in line behind it. The
+  file it writes is kept for the agent (`<agent>_handoff_pending`, `docs/store.md`), and the next turn that finds
+  a fresh session — the agency's state naming it never opened, or a generation the agency opened under the
+  session, which that turn releases — carries it as its note, in the order below; a turn on a session the agency
+  resumed lets it go. Where the agent has no session to ask, or it wrote nothing, the transcript the receiver
+  keeps stands in at the next replacement as above.
 - **A handoff is asked at most once in a span** (`handover.toml`, `again_minutes`). The agency asking again for
   the same agent's handoff within that span of the last one the standing session was asked for is answered with
   the file that one kept, where it is still kept, else with nothing, and the standing session is not asked. Each

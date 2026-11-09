@@ -14,7 +14,7 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
 use receiver_ports::agency::{Delivery, Event, Events, RunLine, Scope, Session, SessionState, Turn};
-use receiver_ports::http::Answer;
+use receiver_ports::http::{Answer, WireError};
 use serde_json::json;
 use tokio::sync::{Notify, broadcast};
 
@@ -61,6 +61,8 @@ pub struct StandInSession {
   hide_review: Mutex<bool>,
   // The words a turn's prompt holds for the session to refuse it, as an agency that cannot carry it answers.
   refusing: Mutex<Option<String>>,
+  // Whether a turn asked while another works is refused as the agency refuses a session in a turn.
+  busy: Mutex<bool>,
 }
 
 impl StandInSession {
@@ -88,7 +90,14 @@ impl StandInSession {
       hide_situation: Mutex::new(true),
       hide_review: Mutex::new(true),
       refusing: Mutex::default(),
+      busy: Mutex::default(),
     }
+  }
+
+  /// A turn asked while another works is refused 409 `session-busy`, as the agency refuses a session in a turn.
+  pub fn busy(self) -> Self {
+    *self.busy.lock().unwrap() = true;
+    self
   }
 
   /// A turn whose prompt holds `words` is refused, kept out of `prompts`.
@@ -279,6 +288,17 @@ impl StandInSession {
 
   pub fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
     Box::pin(async move {
+      if *self.busy.lock().unwrap() && *self.working.lock().unwrap() {
+        return Err(receiver_ports::PortFailure::Answered {
+          url: format!("http://agency.invalid/sessions/{}/turns", self.id),
+          status: 409,
+          answer: Some(WireError {
+            code: "session-busy".to_owned(),
+            error: format!("{} is in a turn", self.id),
+          }),
+        });
+      }
+
       if self
         .refusing
         .lock()

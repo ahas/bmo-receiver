@@ -26,8 +26,9 @@ pub struct Asked {
 }
 
 /// 200 with the file's path and size where the standing session wrote it, 204 where the agent has no session to
-/// ask or it wrote nothing. An asking while a handoff of the same agent is under way waits for it in line, and is
-/// then answered by the handoff kept, as an asking again within the policy's span is.
+/// ask or it wrote nothing. A session already in a turn is waited for until that turn ends. An asking while a
+/// handoff of the same agent is under way waits for it in line, and is then answered by the handoff kept, as an
+/// asking again within the policy's span is.
 pub async fn hand_off(
   State(served): State<Served>,
   Path(agent): Path<String>,

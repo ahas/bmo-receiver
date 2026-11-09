@@ -17,6 +17,7 @@ use bmo_receiver::receiver::{Context, Inbound, Room};
 use bmo_receiver::store::settings;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_ports::agency::Turn;
 use serde_json::json;
 
 use crate::integration::common::Scratch;
@@ -80,23 +81,119 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queue
 }
 
 #[tokio::test]
-async fn an_agent_whose_session_never_opened_has_nothing_to_hand_over() {
+async fn a_standing_session_the_agency_names_no_generation_for_is_still_asked() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
 
   prompt_documents(front.data.path());
+  // The agency lets its record of the session go before it asks, so its state names no generation while the
+  // program still stands and can write the handoff.
   let session = Arc::new(StandInSession::new("agent-c@agent", "unused").acting(writing_handoff(NOTE)));
   let mut agent = registration("agent-c", "Agent X", vec![ADDRESS], None);
 
   agent.row.insert("sessionScope".to_owned(), json!("agent"));
   front.standing.agency.registering(vec![agent]);
   front.standing.agency.carrying_on(session.clone());
-  session.now_at(None);
+
+  let (status, body) = post(&front, "/handoffs/agent-c", json!({ "reason": "a program stood anew" })).await;
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  assert_eq!(body["bytes"], NOTE.len());
+  assert_eq!(std::fs::read_to_string(body["path"].as_str().unwrap()).unwrap(), NOTE);
+  assert_eq!(session.rooms(), [Some(OWNER)], "the standing session was asked");
+  assert_eq!(
+    settings::get(scratch.db(), &pending_key("agent-c")).await.unwrap(),
+    Some(body["path"].as_str().unwrap().to_owned())
+  );
+}
+
+#[tokio::test]
+async fn a_session_whose_turn_cannot_be_carried_hands_nothing_over() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  prompt_documents(front.data.path());
+  let session = Arc::new(
+    StandInSession::new("agent-c@agent", "unused")
+      .acting(writing_handoff(NOTE))
+      .refusing("HANDOFF ASK."),
+  );
+  let mut agent = registration("agent-c", "Agent X", vec![ADDRESS], None);
+
+  agent.row.insert("sessionScope".to_owned(), json!("agent"));
+  front.standing.agency.registering(vec![agent]);
+  front.standing.agency.carrying_on(session.clone());
 
   let (status, _) = post(&front, "/handoffs/agent-c", json!({ "reason": "a program stood anew" })).await;
 
   assert_eq!(status, StatusCode::NO_CONTENT);
-  assert!(session.prompts().is_empty(), "no session was asked");
+  assert!(session.prompts().is_empty(), "no handoff was written");
+}
+
+#[tokio::test]
+async fn a_handoff_turn_that_meets_the_session_in_a_turn_waits_for_it_to_end() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  prompt_documents(front.data.path());
+
+  let session = Arc::new(
+    StandInSession::new("agent-a@agent", "unused")
+      .at_generation(3)
+      .acting(writing_handoff(NOTE))
+      .holding_the_first()
+      .busy(),
+  );
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
+
+  agent.row.insert("sessionScope".to_owned(), json!("agent"));
+  front.standing.agency.registering(vec![agent]);
+  front.standing.agency.carrying_on(session.clone());
+
+  // A turn already stands working on the session, as the agency's own does while it asks for the handoff.
+  let working = {
+    let session = session.clone();
+
+    tokio::spawn(async move {
+      session
+        .turn(&Turn {
+          session: "agent-a@agent".to_owned(),
+          prompt: "a turn already working".to_owned(),
+          room: None,
+          via: None,
+          privileged: None,
+          answers: vec![],
+          began: None,
+          round: None,
+        })
+        .await
+    })
+  };
+
+  while !session.working() {
+    tokio::time::sleep(Duration::from_millis(5)).await;
+  }
+
+  let asked = post(
+    &front,
+    "/handoffs/agent-a",
+    json!({ "reason": "a fresh session replaces the one the agent had" }),
+  );
+
+  tokio::pin!(asked);
+  assert!(
+    tokio::time::timeout(Duration::from_millis(200), &mut asked).await.is_err(),
+    "the asking waits for the turn to end"
+  );
+
+  session.let_go();
+
+  let (status, body) = asked.await;
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  assert_eq!(body["bytes"], NOTE.len());
+  assert_eq!(std::fs::read_to_string(body["path"].as_str().unwrap()).unwrap(), NOTE);
+  working.await.unwrap().unwrap();
 }
 
 #[tokio::test]

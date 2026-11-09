@@ -233,8 +233,9 @@ impl Carry {
 
   /// The agent's standing session asked for its handoff ahead of a fresh session the agency is about to open
   /// (docs/api.md, 「Handoffs」), exactly as a replacement asks it, and the file kept for the next fresh session's
-  /// first turn: the file where it was written, none where the agent has no opened session to ask or it wrote
-  /// nothing.
+  /// first turn: the file where it was written, none where the agent has no session to ask or it wrote nothing.
+  /// The agency lets its record of the session go before it asks, so the state it answers names no generation and
+  /// is no reason not to ask; only the asking itself tells whether a session stood.
   pub async fn hand_off(
     &self,
     agent: &str,
@@ -245,14 +246,15 @@ impl Carry {
     let unified = unified_session(receiver, agent).await;
     let chat_id = room.unwrap_or_else(|| receiver.owner_room());
     let scope = scope_of(unified, chat_id);
-    let Ok(standing) = agency.start(agent, scope).await else {
-      return Ok(None);
-    };
-    let state = agency.state(&standing.id).await.unwrap_or_default();
+    let standing = match agency.start(agent, scope).await {
+      Ok(standing) => standing,
+      Err(why) if matches!(why.status(), Some(404 | 422)) => {
+        eprintln!("{agent}: no session was started to ask for a handoff: {why}");
 
-    if !state.generation.as_i64().is_some_and(|generation| generation > 0) {
-      return Ok(None);
-    }
+        return Ok(None);
+      }
+      Err(why) => return Err(Failure::Failed(why.to_string())),
+    };
 
     let Some(handed) = handoff::ask(receiver, agent, &standing.id, chat_id).await else {
       return Ok(None);
@@ -356,9 +358,11 @@ impl Carry {
     }
 
     let answered = if released { opened.released() } else { answered };
-    // A handoff the agency asked for before it opened a fresh session is that session's note; a session it
-    // resumed lets it go (docs/unified-bmo.md, 「Replacing the session」).
-    let fresh = !standing.generation.as_i64().is_some_and(|generation| generation > 0);
+    // A handoff the agency asked for before it opened a fresh session is that session's note: the turn is the
+    // fresh session's where the agency's state names it never opened, or names a generation it opened under the
+    // session, which this turn releases; a turn on a session it resumed lets the kept handoff go
+    // (docs/unified-bmo.md, 「Replacing the session」).
+    let fresh = !standing.generation.as_i64().is_some_and(|generation| generation > 0) || released;
     let pending = handoff::take_pending(receiver, agent, fresh && note.is_none()).await;
     let note = note.or_else(|| pending.as_ref().map(carried_note));
 

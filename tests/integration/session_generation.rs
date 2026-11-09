@@ -10,10 +10,13 @@ use std::time::Duration;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::generation::{self, Standing};
+use bmo_receiver::chat::handoff::pending_key;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
+use bmo_receiver::store::settings;
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::handover::HANDOVER;
 use receiver_ports::gate::{Entry, Source};
 use serde_json::{Value, json};
 
@@ -448,4 +451,34 @@ async fn the_release_forgets_the_receivers_records_and_reports_the_fold() {
     .await
     .unwrap()
     .expect("the road outlives the session");
+}
+
+#[tokio::test]
+async fn a_handoff_kept_ahead_of_a_fresh_generation_rides_its_first_turn() {
+  const NOTE: &str = "what the session before the fresh generation was in the middle of";
+
+  let round = Round::new(StandInSession::new(SESSION, ANSWER).at_generation(1), false).await;
+
+  round.round(1).await;
+
+  // The agency asks for the handoff as it hands the room's session over, then opens the fresh generation the
+  // receiver's next turn goes on.
+  let kept = round._data.path().join("kept-handoff.md");
+
+  std::fs::write(&kept, NOTE).unwrap();
+  settings::set(round.scratch.db(), &pending_key(AGENT), &kept.to_string_lossy())
+    .await
+    .unwrap();
+  round.opens_generation(2);
+  round.round(2).await;
+
+  let prompt = &round.session.prompts()[1];
+
+  assert!(prompt.starts_with(&HANDOVER.chat.handed_marker), "{prompt}");
+  assert!(prompt.contains(NOTE), "the handoff is not carried: {prompt}");
+  assert_eq!(
+    settings::get(round.scratch.db(), &pending_key(AGENT)).await.unwrap(),
+    None,
+    "the handoff is taken once"
+  );
 }

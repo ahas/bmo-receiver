@@ -5,10 +5,12 @@
 
 use std::path::{Path, PathBuf};
 
+use futures_util::StreamExt;
 use receiver_codes::{HealthFact, SessionReason};
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
-use receiver_ports::agency::{Turn, TurnRoom};
+use receiver_ports::agency::{Events, Turn, TurnRoom};
+use receiver_ports::http::PortFailure;
 
 use super::notices::{self, Voiced};
 use super::room::room_context;
@@ -64,9 +66,39 @@ pub fn read(path: &Path) -> Option<Handoff> {
   })
 }
 
+/// Whether the agency answered that the session is in a turn and takes no other until it ends.
+fn busy(why: &PortFailure) -> bool {
+  why.status() == Some(409)
+}
+
+/// The session's turn ended, as the agency's stream says, whether or not it was this asking's own turn; false
+/// where the stream ended first.
+async fn waited(events: &mut Events, session: &str) -> bool {
+  while let Some(read) = events.next().await {
+    match read {
+      Ok(event)
+        if event.kind == "turn.ended"
+          && event.data.get("session").and_then(serde_json::Value::as_str) == Some(session) =>
+      {
+        return true;
+      }
+      Ok(_) => {}
+      Err(why) => {
+        eprintln!("the agency's events failed while a handoff waited for {session}'s turn: {why}");
+
+        return false;
+      }
+    }
+  }
+
+  false
+}
+
 /// The closing session asked one more turn to write its handoff file, waited on until the turn ends however long it
-/// takes; the file it wrote, where it stands and is not empty. A run that fails leaves whatever the file holds.
-/// The turn answers `chat_id`, carrying that room's block as every turn of a session across rooms does.
+/// takes; the file it wrote, where it stands and is not empty. A turn the session is already in is waited out on the
+/// agency's stream and the asking made again, so a handoff is not lost to a session that was working. A run that
+/// fails leaves whatever the file holds. The turn answers `chat_id`, carrying that room's block as every turn of a
+/// session across rooms does.
 pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) -> Option<Handoff> {
   let folder = folder(receiver.data_root().path(), agent);
 
@@ -101,8 +133,43 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
   };
   let agency = receiver.units().agency.clone();
 
-  if let Err(why) = agency.turn(&turn).await {
-    eprintln!("{agent}: the handoff turn of session {session} failed: {why}");
+  // The stream is opened before the turn is tried: a turn that refuses this one ends after the refusal, and its
+  // end is what the asking waits on.
+  let mut ended = match agency.events(&["turn.ended"]).await {
+    Ok(ended) => Some(ended),
+    Err(why) => {
+      eprintln!("{agent}: the agency's events were not read for the handoff turn: {why}");
+
+      None
+    }
+  };
+
+  loop {
+    match agency.turn(&turn).await {
+      Ok(_) => break,
+      Err(why) if busy(&why) => {
+        eprintln!("{agent}: session {session} is in a turn; the handoff turn waits for it to end");
+
+        let Some(ended) = ended.as_mut() else {
+          eprintln!("{agent}: the handoff turn of session {session} was not waited on: no events are read");
+
+          break;
+        };
+
+        if !waited(ended, session).await {
+          eprintln!(
+            "{agent}: the handoff turn of session {session} was not waited on: the stream ended first"
+          );
+
+          break;
+        }
+      }
+      Err(why) => {
+        eprintln!("{agent}: the handoff turn of session {session} failed: {why}");
+
+        break;
+      }
+    }
   }
 
   let handed = read(&path);
