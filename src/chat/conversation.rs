@@ -373,6 +373,16 @@ struct Conv {
   window_until: i64,
   timer: Option<JoinHandle<()>>,
   carried: Option<Carried>,
+  // How often the words it opened on were given back by a round that failed.
+  given_back: i64,
+}
+
+// The words a round that failed left unread, waiting for the room's next round (docs/messages.md, 「Read
+// marker」): the words, what their road said of the room, and how often they were given back.
+struct GivenBack {
+  words: Vec<Inbound>,
+  room: Room,
+  times: i64,
 }
 
 /// The turn of a round that is working, as what is pushed into it grows it: whether the round is the owner's and
@@ -511,6 +521,17 @@ impl Conv {
     self.instruction_events.splice(0..0, events);
   }
 
+  // The words a failed round left for this conversation, at the front of what waits, under the room their road
+  // spoke of.
+  fn take_back(&mut self, back: GivenBack) {
+    let words: Vec<Inbound> =
+      back.words.into_iter().filter(|message| self.seen.insert(message.message_id)).collect();
+
+    self.buffer.splice(0..0, words);
+    self.room = back.room;
+    self.given_back = back.times;
+  }
+
   fn new(_chat_id: i64, room: Room, held: Held) -> Self {
     Self {
       room,
@@ -534,6 +555,7 @@ impl Conv {
       window_until: 0,
       timer: None,
       carried: None,
+      given_back: 0,
     }
   }
 }
@@ -561,6 +583,8 @@ struct State {
   going: HashMap<String, i64>,
   // The messages of each room that reached the session on its open window alone, which the agent judges first.
   window_only: HashMap<i64, HashSet<i64>>,
+  // The words a failed round left unread in each room, which the room's next conversation opens on.
+  given_back: HashMap<i64, GivenBack>,
 }
 
 /// A run of an agent's own named as going until this is dropped.
@@ -583,12 +607,15 @@ pub struct CutOff {
   pub going: Vec<String>,
 }
 
-// What a round of the pump keeps of itself: whether its turn was written down, the rows it settles, and whether
-// it held its words over.
+// What a round of the pump keeps of itself: whether its turn was written down, the rows it settles, whether it
+// held its words over, and the words it took with the read mark as it stood, which a failure gives back.
 #[derive(Default)]
 pub struct Record {
   settling: Vec<i64>,
   held_over: bool,
+  // The words the round took, and where the read mark stood before it took them.
+  took: Vec<Inbound>,
+  read_before: Option<i64>,
 }
 
 struct Inner {
@@ -707,6 +734,8 @@ impl Conversations {
     let mut rooms: Vec<i64> = state.queue.drain().map(|(chat_id, _)| chat_id).collect();
     let mut instructions = vec![];
 
+    state.given_back.clear();
+
     for (chat_id, conv) in &mut state.active {
       rooms.push(*chat_id);
       conv.buffer.clear();
@@ -741,6 +770,7 @@ impl Conversations {
       let mut state = self.state();
 
       state.queue.remove(&chat_id);
+      state.given_back.remove(&chat_id);
       state.called_windows.remove(&chat_id);
       state.woken.remove(&chat_id);
       state.folding.remove(&chat_id);
@@ -1068,6 +1098,10 @@ impl Conversations {
           }
         }
 
+        if let Some(back) = state.given_back.remove(&chat_id) {
+          conv.take_back(back);
+        }
+
         conv.reply_target = (!last.via_reader.unwrap_or(false)).then_some(last.message_id);
         conv.held.all_from_owner = conv.buffer.iter().all(|message| message.sender_id == Some(owner));
         conv.window_until = called;
@@ -1167,6 +1201,13 @@ impl Conversations {
     let pumps = {
       let mut state = self.state();
 
+      // The words a failed round left unread open the conversation with the instruction.
+      let back = if state.active.contains_key(&chat_id) {
+        None
+      } else {
+        state.given_back.remove(&chat_id)
+      };
+
       // A conversation another word opened meanwhile takes the instruction as its own.
       match state.active.entry(chat_id) {
         std::collections::hash_map::Entry::Occupied(mut standing) => {
@@ -1186,6 +1227,11 @@ impl Conversations {
           conv.instruction_roads.extend(via);
           conv.instruction_events.extend(events);
           conv.held.all_from_owner = owner_room;
+
+          if let Some(back) = back {
+            conv.take_back(back);
+          }
+
           self.set_deadline(&mut conv, chat_id, window, false);
           vacant.insert(conv);
           true
@@ -1380,7 +1426,14 @@ impl Conversations {
     let failed = matches!(&ended, Err(failure) if !matches!(failure, Failure::Stopped));
 
     if let Err(failure) = ended {
+      if failed {
+        self.leave_unread(chat_id, &record);
+      }
+
       self.fail_round(chat_id, failure).await;
+    } else if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      // A round that ended has dealt with the words a failed one gave back.
+      conv.given_back = 0;
     }
 
     // The words a wait held go with any other ending.
@@ -1426,6 +1479,39 @@ impl Conversations {
     self.0.hooks.typing(chat_id, false).await;
 
     drop(turn_lock);
+  }
+
+  // The words of a round that failed for anything but a stop left unread (docs/messages.md, 「Read marker」): the
+  // read mark back where it stood before the round, and the words it took, with those that came in while it
+  // worked, kept for the room's next conversation. Words already given back the policy's `restart_limit` times go
+  // with the round as read.
+  fn leave_unread(&self, chat_id: i64, record: &Record) {
+    let mut state = self.state();
+    let Some(conv) = state.active.get_mut(&chat_id) else { return };
+    let times = conv.given_back + 1;
+
+    if times > CHAT_ROUND.instructions.restart_limit {
+      return;
+    }
+
+    let mut kept = HashSet::new();
+    let words: Vec<Inbound> = record
+      .took
+      .iter()
+      .cloned()
+      .chain(conv.buffer.drain(..))
+      .filter(|message| kept.insert(message.message_id))
+      .collect();
+
+    if words.is_empty() {
+      return;
+    }
+
+    conv.held.last_consumed_id = record.read_before;
+
+    let room = conv.room;
+
+    state.given_back.insert(chat_id, GivenBack { words, room, times });
   }
 
   // A round that failed, wherever in it the failure came from: it ends the conversation the way a failed run
@@ -1604,6 +1690,8 @@ impl Conversations {
       let events = std::mem::take(&mut conv.instruction_events);
 
       record.settling.extend(ids.iter().copied());
+      record.took = batch.clone();
+      record.read_before = conv.held.last_consumed_id;
 
       (
         held_words,

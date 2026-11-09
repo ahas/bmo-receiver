@@ -97,6 +97,11 @@ impl StandInSession {
     self
   }
 
+  /// From now on every turn's turn-ended says this beside its session, and its answer where none is named.
+  pub fn end_as(&self, ending: Option<serde_json::Value>) {
+    *self.ending.lock().unwrap() = ending;
+  }
+
   /// The situation update's light turn answers its default and stays out of `prompts`, so a test about the draft
   /// process reads the same turns it did.
   pub fn hiding_situations(self) -> Self {

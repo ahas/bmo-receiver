@@ -135,7 +135,8 @@ that session without the room hearing it.
   that failed for any reason but a stop asked of it gives its room replies back to pending, counting the failure
   on the row as a restart is counted, so the next pass hands them again; a reply given back the policy's
   `restart_limit` times is settled with the round that failed last, whose failure order still stands. A stop
-  asked of a round raises no order at all.
+  asked of a round raises no order at all. The words such a round took go back to wait the same way
+  (`docs/messages.md`, 「Read marker」).
   A round whose turn's end never reached it, because the agency's event stream ended first, reads the turn's
   end from the agency; where the agency no longer holds the turn the round has failed.
 - **Acted on as the owner's word in that chat.** The session may answer `<<SKIP>>` in any chat, the owner's

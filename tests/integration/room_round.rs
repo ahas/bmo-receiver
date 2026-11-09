@@ -340,6 +340,54 @@ async fn words_the_closing_check_shows_leave_the_queue_and_carry_their_verdict()
   );
 }
 
+// The message the room's read mark stands at, where it stands at one.
+async fn read_mark(round: &Round) -> Vec<String> {
+  round
+    ._scratch
+    .texts(&format!(
+      r#"SELECT "last_read_message_id"::text FROM "chat_reads" WHERE "chat_id" = {OWNER}"#
+    ))
+    .await
+}
+
+#[tokio::test]
+async fn the_words_of_a_round_that_failed_wait_unread_and_are_the_next_rounds_new_messages() {
+  let round = Round::stood(timings(), StandInSession::new(SESSION, ANSWER), None).await;
+
+  // The program dies under the round the words open, so the round fails.
+  round.session.end_as(Some(json!({ "outcome": "failed", "reason": "the program died" })));
+  round.hear(1, FIRST).await;
+  until("the round's turn", || round.session.working()).await;
+  round.session.let_go();
+  until("the failed round's end", || {
+    !round.runner.of(AGENT).is_active(OWNER) && round.runner.idle()
+  })
+  .await;
+
+  assert!(round.sent().is_empty(), "nothing was answered");
+  assert_ne!(read_mark(&round).await, ["1".to_owned()], "the words the round took stay unread");
+
+  // Whatever opens the room's next round, the words are its new messages.
+  round.session.end_as(None);
+  round
+    .runner
+    .of(AGENT)
+    .instruct(OWNER, "a line of the system's".to_owned(), None, None, vec![])
+    .await;
+  until("the next round's end", || {
+    round.runner.idle() && !round.session.working() && !round.sent().is_empty()
+  })
+  .await;
+
+  let turns = round.session.turns.lock().unwrap().clone();
+  let next = &turns.last().unwrap().prompt;
+
+  assert!(turns.len() > 1, "the next round carried a turn of its own");
+  assert!(next.contains(r#""messageIds":[1]"#), "the turn stands under the message: {next}");
+  assert!(next.contains(FIRST), "{next}");
+  assert_eq!(read_mark(&round).await, ["1".to_owned()], "the round that answered them read them");
+}
+
 #[tokio::test]
 async fn a_turn_names_its_round_and_the_answer_is_attached_to_the_rounds_newest_run() {
   let round = Round::said_meanwhile().await;
