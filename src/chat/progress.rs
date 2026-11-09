@@ -196,10 +196,49 @@ impl RunProgress {
   }
 
   /// One line the agency filed already told apart — a thinking block, words, a call or a call's result — against
-  /// what is already known; none where it is no such line. Such a line names what it is and holds no usage, so the
-  /// phase and the call are read off the line itself and what the turn thought and wrote is counted by estimate
-  /// (docs/receiver.md, 「The event stream」).
+  /// what is already known; none where it is no such line. Such a line names what it is, so the phase and the
+  /// call are read off the line itself and what the turn thought and wrote is counted by estimate; the request
+  /// its metadata names is counted exactly (docs/receiver.md, 「The event stream」).
   pub fn filed(&self, line: &serde_json::Map<String, Value>) -> Option<Self> {
+    let request = line.get("metadata").and_then(|metadata| metadata.get("request"));
+
+    Some(self.filed_kind(line)?.requested(self, request))
+  }
+
+  // The request a filed line's message answers, counted into the picture: how full the session stands by that
+  // request's input, and what the turn spent with the request added once, by its id.
+  fn requested(self, before: &Self, request: Option<&Value>) -> Self {
+    let Some(usage) = request.and_then(|request| request.get("usage")).filter(|usage| usage.is_object())
+    else {
+      return self;
+    };
+    let used = |name: &str| usage.get(name).and_then(Value::as_i64).unwrap_or(0);
+    let id = request.and_then(|request| request.get("id")).and_then(Value::as_str).map(str::to_owned);
+    let fresh = id.is_none() || id != before.request_id;
+    let spent = if fresh {
+      let held = before.spent.clone().unwrap_or_default();
+
+      Some(RequestSpend {
+        input_tokens: held.input_tokens + used("input_tokens"),
+        cache_read_tokens: held.cache_read_tokens + used("cache_read_input_tokens"),
+        cache_write_tokens: held.cache_write_tokens + used("cache_creation_input_tokens"),
+      })
+    } else {
+      before.spent.clone()
+    };
+
+    Self {
+      context_tokens: Some(
+        used("input_tokens") + used("cache_read_input_tokens") + used("cache_creation_input_tokens"),
+      ),
+      cache_read_tokens: Some(used("cache_read_input_tokens")),
+      request_id: id.or_else(|| before.request_id.clone()),
+      spent,
+      ..self
+    }
+  }
+
+  fn filed_kind(&self, line: &serde_json::Map<String, Value>) -> Option<Self> {
     let word = |name: &str| line.get(name).and_then(Value::as_str);
     let text = word("text").unwrap_or_default();
     let failed = word("state") == Some("failed");

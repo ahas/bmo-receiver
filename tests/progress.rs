@@ -337,7 +337,46 @@ fn a_progress_line_is_redacted_cut_and_only_the_last_few_are_kept() {
 }
 
 // A road whose program keeps its own record is filed by the agency as lines already told apart, each holding its
-// words and no usage (docs/receiver.md, 「The event stream」).
+// words and, in its metadata, the request its message answers (docs/receiver.md, 「The event stream」).
+#[test]
+fn a_filed_line_counts_the_request_its_message_answers_once_by_its_id() {
+  let request = |id: &str, input: i64, read: i64, written: i64| {
+    json!({ "request": { "id": id, "usage": {
+      "input_tokens": input, "output_tokens": 5, "cache_read_input_tokens": read, "cache_creation_input_tokens": written
+    } } })
+  };
+  let read = filed_all(
+    RunProgress::default(),
+    &[
+      json!({ "kind": "thinking", "text": "considering", "metadata": request("m1", 10, 900, 30) }),
+      json!({ "kind": "text", "text": "words", "metadata": request("m1", 10, 900, 30) }),
+      json!({ "kind": "tool", "name": "Bash", "text": "ls", "ref": "t1", "metadata": request("m2", 4, 940, 6) }),
+      json!({ "kind": "tool-result", "ref": "t1", "state": "succeeded" }),
+    ],
+  );
+
+  assert_eq!(
+    read.context_tokens,
+    Some(4 + 940 + 6),
+    "the session stands as the latest request found it"
+  );
+  assert_eq!(read.cache_read_tokens, Some(940));
+  assert_eq!(read.request_id.as_deref(), Some("m2"));
+
+  let spent = read.spent.expect("what the turn spent");
+
+  assert_eq!(
+    (spent.input_tokens, spent.cache_read_tokens, spent.cache_write_tokens),
+    (10 + 4, 900 + 940, 30 + 6),
+    "each request is added once, however many of its lines were filed"
+  );
+
+  // A line that names no request leaves the figures as they stand.
+  let bare = filed_all(RunProgress::default(), &[json!({ "kind": "text", "text": "words" })]);
+
+  assert_eq!((bare.context_tokens, bare.spent), (None, None));
+}
+
 fn filed_all(mut progress: RunProgress, lines: &[Value]) -> RunProgress {
   for line in lines {
     if let Some(read) = progress.filed(line.as_object().unwrap()) {

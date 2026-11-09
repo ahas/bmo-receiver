@@ -318,12 +318,14 @@ flowchart TD
   estimate, and how full the session stands. A pane program's `progress` line carries the turn's spend so far,
   which is set where it stands rather than added to; its `answer` line carries the turn's whole spend the same way.
   - **A line the agency filed already told apart is read as what it names.** A road whose program keeps its own
-    record is filed as lines of a kind — a thinking block, words, a call, a call's result — each holding its words
-    and no usage. A thinking line puts the turn at thinking and words at writing; a call puts it at the tool the
+    record is filed as lines of a kind — a thinking block, words, a call, a call's result — each holding its words,
+    and beside them, in its metadata, the request its message answers: that request's id and the usage the
+    provider stated for it (the agency's `docs/api.md`, 「log-lines」). A thinking line puts the turn at thinking and words at writing; a call puts it at the tool the
     line names and stands in the picture's actions, the words held before it becoming progress lines; a result
     settles the call it answers. What the turn thought and wrote is counted by estimate, from those lines'
-    length, and how full the session stands and what each request spent stay unknown on such a road until the
-    turn ends.
+    length. How full the session stands is the latest request's input, read and written cache together, and what
+    the turn spent adds each request once, by its id, as a record's own line would; a line that names no request
+    leaves both as they stand.
 
   The log is read as each of the turn's events comes and once every look the pushing policy sets
   (`chat-round.toml`, `[pushing]`), so what the run writes reaches the picture within that look, and a picture that
