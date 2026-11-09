@@ -406,8 +406,10 @@ impl Carry {
     look.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
     while ended.is_none() {
+      // A look offers the working turn the words that came for its room and reads its run's log as an event
+      // does, so the picture moves while the turn works between its events.
       let read = tokio::select! {
-        read = stream.next() => read,
+        read = stream.next() => Some(read),
         _ = look.tick() => {
           if let Some(turning) = turning
             && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
@@ -415,16 +417,19 @@ impl Carry {
             quiet_until = pushed(agency.as_ref(), &session.id, turning, follower).await;
           }
 
-          continue;
+          None
         }
       };
 
+      let looked = read.is_none();
+
       match read {
-        None => {
+        None => {}
+        Some(None) => {
           dropped = true;
           break;
         }
-        Some(Ok(Event { kind, data, .. })) => {
+        Some(Some(Ok(Event { kind, data, .. }))) => {
           let body = &data;
           let mine = body.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
 
@@ -443,13 +448,30 @@ impl Carry {
             );
           }
         }
-        Some(Err(why)) => return Err(fault_of(why)),
+        Some(Some(Err(why))) => return Err(fault_of(why)),
       }
 
       if let Some(run) = &run {
         let since = if after == 0 { None } else { Some(after) };
 
-        for line in agency.run_log(run, since).await.map_err(fault_of)? {
+        // A look's read that failed leaves the picture as it stands until the next; an event's ends the turn.
+        let lines = match agency.run_log(run, since).await {
+          Ok(lines) => lines,
+          Err(why) if looked => {
+            eprintln!("session {}: the run's log was not read for its picture: {why}", session.id);
+            continue;
+          }
+          Err(why) => return Err(fault_of(why)),
+        };
+
+        for line in lines {
+          let id = line.get("id").and_then(Value::as_i64);
+
+          // A line already read changes nothing, so a log that answers more than was asked reads each once.
+          if after != 0 && id.is_some_and(|id| id <= after) {
+            continue;
+          }
+
           let text = line
             .get("text")
             .and_then(Value::as_str)
@@ -460,7 +482,7 @@ impl Carry {
             picture = read;
           }
 
-          after = line.get("id").and_then(Value::as_i64).unwrap_or(after);
+          after = id.unwrap_or(after);
         }
 
         follower.progressed(picture_of(&picture));

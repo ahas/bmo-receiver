@@ -310,6 +310,22 @@ flowchart TD
   already holds: the phase, the tool being called, the thinking and the tokens each request spent, the written
   estimate, and how full the session stands. A pane program's `progress` line carries the turn's spend so far,
   which is set where it stands rather than added to; its `answer` line carries the turn's whole spend the same way.
+  The log is read as each of the turn's events comes and once every look the pushing policy sets
+  (`chat-round.toml`, `[pushing]`), so what the run writes reaches the picture within that look, and a picture that
+  changed goes out at once. A look whose read fails leaves the picture as it stands until the next; a read an
+  event called for that fails ends the turn as a fault.
+- **A turn's progress lines are the words it writes and then goes on working,** shown in the room while the turn
+  works and no part of its message. A text block the turn writes is held until a call of the same turn follows it,
+  which makes it a progress line: in an agent's own road a `tool_use` block after the text block, in the same line
+  or a later one, and in a rollout a `function_call` or `custom_tool_call` item after an assistant `message` item.
+  What the turn writes last, with no call after it, is its answer and never a progress line, a failed request's
+  text is none, and thinking never is one; a pane program's record carries no text, so its turns have none. The
+  picture carries the last three as `said`, oldest first, each `{text, before}`: `text` is the line with its
+  secret-shaped runs taken out (`docs/messages.md`, 「Secrets taken out」), its whitespace run together into one
+  line and cut at 240 characters with an ellipsis; `before` is how many actions the turn had made when the call
+  it led to was made, those dropped off the front of `actions` counted, so the line stands just before the action
+  of that number, the kept action at place `i` being number `droppedActions + i`. The picture keeps nothing after
+  the turn; the run's lines stay in the agency's log under the runs a message names, where they are read again.
 - **`GET /health` answers for the receiver itself:** `ok`, the owner, `bot` with this process's number and the
   moment it started, and its version. A deployment's wait matches `bot`'s number against the unit's main process.
 

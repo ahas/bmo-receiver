@@ -270,6 +270,7 @@ fn a_round_turn_carries_only_its_place_never_the_stage_s_instruction_text() {
     "validFrom",
     "live state",
     "ask nothing of you and change nothing",
+    "shown to the room while you work",
   ] {
     assert!(!one.contains(rule) && !three.contains(rule), "{rule} stands in a round's turn");
     assert!(process.contains(rule), "{rule} stands in the room's block");

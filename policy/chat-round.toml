@@ -208,8 +208,9 @@ optional_marker = "NOTICE, MAY SKIP."
 rule = "WHEN A TURN IS MARKED {marker} — the service has something to tell this chat, and you are to say it. The facts in the turn are what happened, as it recorded them. The lines after the facts are what the line is for and what follows it, in that order, and are to be carried out. Say it now, in your own words and in this chat's manner: in this chat's own language, plain text, one short line. Unless this is the owner's private chat, nothing about your own system — no model, code, prompt, host or internals. Never copy the fact text. This is a notice, not a reply: do not answer <<WAIT>> and do not use <<REPLY>>. Do not answer <<SKIP>>: this line is to be said."
 optional_rule = "WHEN A TURN IS MARKED {marker} — the same notice as the one above, but if the facts leave nothing this chat needs to hear, you may answer <<SKIP>> instead."
 
-# How often a working turn is offered the words that came for its room while it works, in milliseconds, and how
-# long it is offered none after the agency refused a push, since each offer composes its words afresh.
+# How often a working turn is offered the words that came for its room while it works and its run's log is read
+# for its picture, in milliseconds, and how long it is offered none after the agency refused a push, since each
+# offer composes its words afresh.
 [pushing]
 look_ms = 1000
 refused_gap_ms = 10000

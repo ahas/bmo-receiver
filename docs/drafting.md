@@ -91,8 +91,12 @@ leaves.
   engraved in the brain, each with its source, and what is still unknown, the confidence rule and the source
   rule above, that nothing is hedged, that `<<SKIP>>` ends the process and is for words that ask nothing and
   change nothing, so a person's telling the agent something of themselves, which it keeps, is answered in the
-  same round, that a draft or a note is not a message the room has heard and never the reason for a skip, and
-  the marks a message that arrived meanwhile takes (`chat-line.toml`, `[room]`, `process`). The room's block
+  same round, that a draft or a note is not a message the room has heard and never the reason for a skip, the
+  marks a message that arrived meanwhile takes, and that before a step of work taking more than a moment the
+  agent writes one short line in the room's language of what it is about to do and after it one of what came
+  back and what it makes of it, a progress line the room is shown while the turn works and which is no part of
+  the message, while what it writes last in a turn is that turn's answer and never shown as progress
+  (`chat-line.toml`, `[room]`, `process`; `docs/receiver.md`, 「The event stream」). The room's block
   also carries the catalogue's texts for the questions the process asks, assembled from the same policy rows the
   console edits (`drafting.toml`, `[questions]`; 「The routes」 below), so a console row takes effect the next
   time a session is handed its room's block. The block goes to a session once per version and by its mark after

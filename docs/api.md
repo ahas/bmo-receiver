@@ -448,6 +448,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the room's own identity for the default answerer, the number the room's road or the record gave any other
   agent — or null where the room gives it none. The speaker is read as each turn begins, so an event told of a
   room no turn has begun in yet carries none.
+- **`run-progress` carries the working turn's picture** as `progress`, with `chatId` and `messageId`: its
+  `phase`, `tool`, token counts and `spent`, its last `actions` with `droppedActions` and `droppedContext`, and
+  `said`, the turn's last three progress lines, oldest first, each `{text, before}` — the words it wrote and then
+  went on working, redacted, run into one line and cut at 240 characters, never its answer
+  (`docs/receiver.md`, 「The event stream」).
 
 ## Hooks
 

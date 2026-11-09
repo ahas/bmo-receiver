@@ -1,18 +1,26 @@
 //! What a turn of a conversational agent is doing, read off the lines its run leaves in the agency's log as they
 //! are written (the agency's `docs/run-records.md`, 「Agent log」; docs/receiver.md, 「The event stream」): whether it thinks, writes or calls a tool, the thinking it
-//! counted, what its last request carried and what its requests spent, an estimate of what it wrote, and the last
-//! few things it did — what it was handed and each call with how it ended — so a room watching the console sees
-//! the turn as it goes.
+//! counted, what its last request carried and what its requests spent, an estimate of what it wrote, the last
+//! few things it did — what it was handed and each call with how it ended — and the last few lines it wrote and
+//! then went on working, so a room watching the console sees the turn as it goes.
 
 use serde::Serialize;
 
-use crate::js::trim;
+use super::talk::clip;
+use crate::js::{is_space, trim};
 use crate::json::Json;
 use crate::run_lines::{Line, called_tool, record_lines, rollout_input, rollout_item, rollout_lines};
+use crate::secrets;
 use serde_json::{Value, json};
 
 /// How many of a turn's actions the picture keeps.
 pub const MAX_TURN_ACTIONS: usize = 8;
+
+/// How many of a turn's progress lines the picture keeps.
+pub const MAX_SAID_LINES: usize = 3;
+
+/// How many characters of a progress line the picture keeps, an ellipsis marking the cut.
+pub const SAID_CHARS: usize = 240;
 
 // How many bytes of what a turn writes make a token, by estimate.
 const BYTES_PER_TOKEN: usize = 3;
@@ -27,6 +35,15 @@ pub struct TurnAction {
   pub state: Option<String>,
   #[serde(rename = "ref")]
   pub reference: Option<String>,
+}
+
+/// A line the turn wrote and then went on working, shown to the room while the turn works: its words, run into one
+/// line, and how many actions the turn had made when the call it led to was made, those dropped counted.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaidLine {
+  pub text: String,
+  pub before: usize,
 }
 
 /// What the turn's requests have reported, each added once.
@@ -53,6 +70,11 @@ pub struct RunProgress {
   pub actions: Vec<TurnAction>,
   pub dropped_actions: usize,
   pub dropped_context: usize,
+  pub said: Vec<SaidLine>,
+  // What the turn wrote since its last call, which a call coming after it makes progress lines of and which is
+  // otherwise its answer.
+  #[serde(skip)]
+  held: Vec<String>,
 }
 
 impl Default for RunProgress {
@@ -69,6 +91,8 @@ impl Default for RunProgress {
       actions: vec![],
       dropped_actions: 0,
       dropped_context: 0,
+      said: vec![],
+      held: vec![],
     }
   }
 }
@@ -107,6 +131,37 @@ impl RunProgress {
     self.dropped_context += dropped.iter().filter(|action| action.kind == "context").count();
     self.actions = all;
     self
+  }
+
+  // The picture after one piece of a line: text held until a call shows it was no answer, and a call put on with
+  // the text held before it said first; thinking, a result and a failed request's text change nothing here.
+  fn after_line(mut self, line: &Line) -> Self {
+    match line.kind {
+      "text" if line.state != Some("failed") => {
+        self.held.push(line.text.clone());
+        self
+      }
+      "tool" => {
+        let before = self.dropped_actions + self.actions.len();
+        let said: Vec<SaidLine> = std::mem::take(&mut self.held)
+          .iter()
+          .filter_map(|text| said_line(text, before))
+          .collect();
+
+        self.said.extend(said);
+
+        let cut = self.said.len().saturating_sub(MAX_SAID_LINES);
+
+        self.said.drain(..cut);
+        self.with_actions(vec![action_of(line)])
+      }
+      _ => self,
+    }
+  }
+
+  // The picture after every piece of a line, in the order the line holds them.
+  fn after_lines(self, lines: &[Line]) -> Self {
+    lines.iter().fold(self, Self::after_line)
   }
 
   // The picture with one call's result written onto the call it answers; none where nothing changed.
@@ -212,7 +267,7 @@ impl RunProgress {
       }
       _ => None,
     };
-    let actions = actions_of(&record_lines(&event));
+    let lines = record_lines(&event);
     let spent = if fresh {
       let held = self.spent.clone().unwrap_or_default();
 
@@ -239,7 +294,7 @@ impl RunProgress {
       ..self.clone()
     };
 
-    Some(read.with_actions(actions))
+    Some(read.after_lines(&lines))
   }
 
   // One line of a Codex rollout against what is already known.
@@ -259,12 +314,16 @@ impl RunProgress {
         tool: None,
         ..self.clone()
       }),
-      "message" if item.get("role").and_then(Json::as_str) == Some("assistant") => Some(Self {
-        phase: "writing",
-        tool: None,
-        written_tokens: added(self.written_tokens, lines.iter().map(|line| estimated(&line.text)).sum()),
-        ..self.clone()
-      }),
+      "message" if item.get("role").and_then(Json::as_str) == Some("assistant") => {
+        let read = Self {
+          phase: "writing",
+          tool: None,
+          written_tokens: added(self.written_tokens, lines.iter().map(|line| estimated(&line.text)).sum()),
+          ..self.clone()
+        };
+
+        Some(read.after_lines(&lines))
+      }
       "function_call" | "custom_tool_call" => {
         let name = item.get("name").and_then(Json::as_str).unwrap_or("tool");
         let read = Self {
@@ -274,7 +333,7 @@ impl RunProgress {
           ..self.clone()
         };
 
-        Some(read.with_actions(actions_of(&lines)))
+        Some(read.after_lines(&lines))
       }
       "function_call_output" | "custom_tool_call_output" => {
         let answered = lines.first()?;
@@ -384,6 +443,7 @@ impl RunProgress {
         action.state.as_deref().unwrap_or_default()
       )
     }));
+    parts.extend(self.said.iter().map(|line| format!("{}:{}", line.before, line.text)));
 
     parts.join("|")
   }
@@ -417,19 +477,27 @@ fn added(held: Option<i64>, more: i64) -> Option<i64> {
   if more == 0 { held } else { Some(held.unwrap_or(0) + more) }
 }
 
-// The calls among a line's pieces, as the actions the picture keeps of them.
-fn actions_of(lines: &[Line]) -> Vec<TurnAction> {
-  lines
-    .iter()
-    .filter(|line| line.kind == "tool")
-    .map(|line| TurnAction {
-      kind: "tool",
-      name: line.name.clone(),
-      text: line.text.clone(),
-      state: None,
-      reference: line.reference.clone(),
-    })
-    .collect()
+// A call among a line's pieces, as the action the picture keeps of it.
+fn action_of(line: &Line) -> TurnAction {
+  TurnAction {
+    kind: "tool",
+    name: line.name.clone(),
+    text: line.text.clone(),
+    state: None,
+    reference: line.reference.clone(),
+  }
+}
+
+// Text the turn wrote before a call, as the progress line the room is shown: its secret-shaped runs taken out,
+// its whitespace run together into one line and cut at the bound; none where nothing is left.
+fn said_line(text: &str, before: usize) -> Option<SaidLine> {
+  let redacted = secrets::redacted(text);
+  let flat = redacted.split(is_space).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" ");
+
+  (!flat.is_empty()).then(|| SaidLine {
+    text: clip(&flat, SAID_CHARS),
+    before,
+  })
 }
 
 fn phase_of(block: Option<&str>, held: &'static str) -> &'static str {

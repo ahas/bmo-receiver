@@ -1,9 +1,11 @@
 //! A turn's run read as it goes: the rollouts drawn as they come and after the turn ends, a failed request and
-//! the rollouts' bookkeeping changing nothing, and the loops' steps read as the other program's record.
+//! the rollouts' bookkeeping changing nothing, the loops' steps read as the other program's record, and the
+//! lines a turn writes and then goes on working shown as its progress lines, its answer and its thinking never.
 
 use serde_json::{Value, json};
 
-use bmo_receiver::chat::progress::{RequestSpend, RunProgress};
+use bmo_receiver::chat::progress::{MAX_SAID_LINES, RequestSpend, RunProgress, SAID_CHARS};
+use bmo_receiver::secrets::marker;
 
 fn read_all(mut progress: RunProgress, lines: &[Value]) -> RunProgress {
   for line in lines {
@@ -192,4 +194,144 @@ fn the_loops_steps_read_as_claude_codes_record() {
   );
 
   assert_eq!(tools(&answered), vec![(Some("bash"), Some("succeeded"))]);
+}
+
+fn said(progress: &RunProgress) -> Vec<(&str, usize)> {
+  progress.said.iter().map(|line| (line.text.as_str(), line.before)).collect()
+}
+
+fn assistant(id: &str, content: Value) -> Value {
+  json!({ "type": "assistant", "message": { "id": id, "content": content } })
+}
+
+#[test]
+fn a_text_block_a_call_follows_is_a_progress_line_and_the_last_one_is_the_answer() {
+  let handed = [("room".to_owned(), "chat 42".to_owned(), None)];
+  let working = read_all(
+    RunProgress::starting(&handed),
+    &[
+      assistant("message-1", json!([{ "type": "thinking", "thinking": "weighing what to read" }])),
+      assistant("message-1", json!([{ "type": "text", "text": "Reading the plan first." }])),
+      assistant(
+        "message-1",
+        json!([{ "type": "tool_use", "id": "call-1", "name": "Read", "input": { "file_path": "plan.md" } }]),
+      ),
+      json!({ "type": "user", "message": { "content": [
+        { "type": "tool_result", "tool_use_id": "call-1", "content": "the plan", "is_error": false },
+      ] } }),
+      assistant(
+        "message-2",
+        json!([
+          { "type": "text", "text": "The plan names two steps;\n\n  checking the second." },
+          { "type": "tool_use", "id": "call-2", "name": "Bash", "input": { "command": "ls" } },
+        ]),
+      ),
+    ],
+  );
+
+  assert_eq!(
+    said(&working),
+    vec![("Reading the plan first.", 1), ("The plan names two steps; checking the second.", 2)]
+  );
+  assert_eq!(tools(&working), vec![(Some("Read"), Some("succeeded")), (Some("Bash"), None)]);
+
+  let answered = read_all(
+    working.clone(),
+    &[assistant("message-3", json!([{ "type": "text", "text": "Both steps are done." }]))],
+  );
+
+  assert_eq!(answered.phase, "writing");
+  assert_eq!(answered.said, working.said);
+  assert!(!serde_json::to_string(&answered).unwrap().contains("Both steps are done."));
+}
+
+#[test]
+fn thinking_and_a_failed_request_s_text_are_no_progress_lines() {
+  let read = read_all(
+    RunProgress::default(),
+    &[
+      assistant("message-1", json!([{ "type": "thinking", "thinking": "a long thought" }])),
+      json!({
+        "type": "assistant", "isApiErrorMessage": true,
+        "message": { "id": "message-2", "content": [{ "type": "text", "text": "API Error: overloaded" }] },
+      }),
+      assistant(
+        "message-3",
+        json!([{ "type": "tool_use", "id": "call-1", "name": "Bash", "input": {} }]),
+      ),
+    ],
+  );
+
+  assert!(read.said.is_empty(), "{:?}", read.said);
+  assert_eq!(tools(&read), vec![(Some("Bash"), None)]);
+}
+
+#[test]
+fn a_rollout_s_message_a_call_follows_is_a_progress_line_and_its_last_message_is_not() {
+  let read = read_all(
+    RunProgress::default(),
+    &[
+      item(json!({ "type": "reasoning", "summary": [{ "type": "summary_text", "text": "planning" }] })),
+      item(
+        json!({ "type": "message", "role": "assistant", "content": [{ "type": "output_text", "text": "Listing the folder." }] }),
+      ),
+      item(
+        json!({ "type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"ls\"}", "call_id": "call-1" }),
+      ),
+      item(json!({ "type": "function_call_output", "call_id": "call-1", "output": "listed" })),
+      item(
+        json!({ "type": "message", "role": "assistant", "content": [{ "type": "output_text", "text": "The folder holds two files." }] }),
+      ),
+    ],
+  );
+
+  assert_eq!(said(&read), vec![("Listing the folder.", 0)]);
+}
+
+#[test]
+fn a_progress_line_is_redacted_cut_and_only_the_last_few_are_kept() {
+  let secret = format!("{}={}", "SAMPLE_API_KEY", "abcdefghijklmnop");
+  let long = "word ".repeat(SAID_CHARS);
+  let mut lines = vec![
+    assistant(
+      "message-0",
+      json!([{ "type": "text", "text": format!("Setting {secret} for the road.") }]),
+    ),
+    assistant(
+      "message-0",
+      json!([{ "type": "tool_use", "id": "call-0", "name": "Bash", "input": {} }]),
+    ),
+    assistant("message-1", json!([{ "type": "text", "text": long }])),
+    assistant(
+      "message-1",
+      json!([{ "type": "tool_use", "id": "call-1", "name": "Bash", "input": {} }]),
+    ),
+  ];
+  let read = read_all(RunProgress::default(), &lines);
+
+  assert_eq!(read.said[0].text, format!("Setting SAMPLE_API_KEY={} for the road.", marker()));
+  assert!(!serde_json::to_string(&read).unwrap().contains("abcdefghijklmnop"));
+  assert_eq!(read.said[1].text.chars().count(), SAID_CHARS + 1);
+  assert!(read.said[1].text.ends_with('…'));
+
+  for at in 2..(MAX_SAID_LINES + 3) {
+    lines.push(assistant(
+      &format!("message-{at}"),
+      json!([{ "type": "text", "text": format!("Step {at}.") }]),
+    ));
+    lines.push(assistant(
+      &format!("message-{at}"),
+      json!([{ "type": "tool_use", "id": format!("call-{at}"), "name": "Bash", "input": {} }]),
+    ));
+  }
+
+  let read = read_all(RunProgress::default(), &lines);
+  let last = MAX_SAID_LINES + 2;
+
+  assert_eq!(read.said.len(), MAX_SAID_LINES);
+  assert_eq!(
+    read.said.last().map(|line| (line.text.clone(), line.before)),
+    Some((format!("Step {last}."), last))
+  );
+  assert_ne!(read.drawn(), RunProgress::default().drawn());
 }
