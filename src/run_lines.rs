@@ -173,6 +173,47 @@ pub fn record_lines(event: &Json) -> Vec<Line> {
   }
 }
 
+/// The thinking a run-log line carries, in the order it wrote it: the line itself where the agency filed it as
+/// thinking, else the thinking blocks of the record or rollout event its text holds. A failed request's thinking
+/// and an empty block carry nothing.
+pub fn thinking_of(line: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
+  let failed = line.get("state").and_then(serde_json::Value::as_str) == Some("failed");
+
+  if failed {
+    return vec![];
+  }
+
+  if line.get("kind").and_then(serde_json::Value::as_str) == Some("thinking") {
+    return line
+      .get("text")
+      .and_then(serde_json::Value::as_str)
+      .map(crate::js::trim)
+      .filter(|text| !text.is_empty())
+      .map(|text| vec![text.to_owned()])
+      .unwrap_or_default();
+  }
+
+  let Some(text) = line.get("text").and_then(serde_json::Value::as_str) else {
+    return vec![];
+  };
+  let trimmed = crate::js::trim(text);
+
+  if !trimmed.starts_with('{') {
+    return vec![];
+  }
+
+  let Some(event) = Json::parse(trimmed) else {
+    return vec![];
+  };
+
+  record_lines(&event)
+    .into_iter()
+    .chain(rollout_lines(&event))
+    .filter(|line| line.kind == "thinking" && line.state != Some("failed") && !line.text.trim().is_empty())
+    .map(|line| line.text)
+    .collect()
+}
+
 fn assistant_lines(blocks: &[Json], source_id: Option<String>, failed: bool) -> Vec<Line> {
   let state = failed.then_some("failed");
   let mut lines: Vec<Line> = vec![];

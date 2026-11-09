@@ -29,10 +29,12 @@ use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
 use super::progress::{RunProgress, picture_of};
 use super::room::{RoomContext, room_context};
+use super::thinking::Thoughts;
 use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::room_record::RoomForget;
 use crate::rounds;
+use crate::run_lines::thinking_of;
 
 // The least a room's first launch since this process started is spaced from another room's: several sessions
 // starting from cold at once is the shape of abuse.
@@ -277,6 +279,10 @@ impl Carry {
     let db = receiver.db();
     let agent = held.agent.as_str();
     let chat_id = asking.chat_id;
+    // A working supervisor's thinking goes into the owner's private chat as its own marked messages, off the
+    // turn's path (docs/receiver.md, 「The event stream」). No other room is sent to.
+    let thoughts = (chat_id == receiver.owner_room())
+      .then(|| Thoughts::start(receiver.clone(), chat_id, asking.via.clone(), held.agent.clone()));
 
     pace_first_launch(chat_id).await;
 
@@ -484,6 +490,12 @@ impl Carry {
 
           if let Some(read) = picture.read(&text) {
             picture = read;
+          }
+
+          if let Some(thoughts) = thoughts.as_ref() {
+            for thought in thinking_of(&line) {
+              thoughts.say(&thought);
+            }
           }
 
           after = id.unwrap_or(after);

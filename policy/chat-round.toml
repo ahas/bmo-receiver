@@ -220,6 +220,14 @@ refused_gap_ms = 10000
 [progress]
 gap_ms = 1000
 
+# A working supervisor's thinking, sent into the owner's private chat as its own messages while the turn works
+# (docs/receiver.md, 「The event stream」): the marker each message opens on, and the most characters of a block
+# carried, an ellipsis marking the cut. No other room is sent to, since thinking can quote private or other-room
+# material.
+[thinking]
+marker = "THINKING."
+ceiling_chars = 2000
+
 # How often a room an agent is answering is shown typing again while the round's answer is on its way, in
 # milliseconds: a road's typing mark fades on its own after a few seconds.
 [typing]

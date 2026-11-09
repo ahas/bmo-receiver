@@ -41,6 +41,7 @@ mod store;
 mod supervisor;
 mod supervisor_routes;
 mod talks;
+mod thinking;
 mod tools_heard;
 mod verbs_draws;
 mod verbs_messages;

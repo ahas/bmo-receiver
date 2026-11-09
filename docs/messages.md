@@ -23,8 +23,9 @@ and when a room sees it typing.
   providers, in what a turn is handed and in what the console's live events and pages read. So are the words of an
   edit, a file's caption, every string of the payload a chat service hands over beside a message, what bmo-ear heard
   in a voice note, the new words a person's edit from the console carries, and the words and captions the owner puts
-  in a room or says to a room's session from the console (`docs/receiver.md`, 「The owner's words」), and the
-  progress lines a working turn's picture carries (`docs/receiver.md`, 「The event stream」).
+  in a room or says to a room's session from the console (`docs/receiver.md`, 「The owner's words」), the
+  progress lines a working turn's picture carries (`docs/receiver.md`, 「The event stream」), and the thinking
+  messages it sends into the owner's private chat (「A working turn's thinking」 below).
 - **The shapes are data,** the policy's `secret-shapes.toml` (`docs/policy.md`), read in the order it lists them,
   each a regular expression with a name; where a shape names a part of its run `secret`, that part alone is
   replaced, so a `name=value` keeps its name and loses its value. As it stands it holds a platform's 64-character
@@ -117,6 +118,21 @@ and when a room sees it typing.
 - **Everyday conversation is answered with a sticker** (a greeting, a joke, small talk, a remark that only wants a
   nod) when one of the set fits, sending it and then answering `<<SKIP>>` so no words follow; words are for
   questions, errands and reports.
+
+## A working turn's thinking
+
+- **The receiver sends a supervisor's thinking into the owner's private chat as its own messages while the turn
+  works** (`chat-round.toml`, `[thinking]`; `docs/receiver.md`, 「The event stream」): each thinking block the run
+  writes goes out as it stands, in its own language and untranslated, opening on the policy's marker and cut at
+  the policy's ceiling with an ellipsis marking the cut; its secret-shaped runs are taken out as any message's
+  are. It goes out on the road the turn answers on, off the
+  turn's path, so the turn never waits on the chat service, and it is kept in the room's record as an agent's
+  message like any other send.
+- **Thinking is never the turn's answer.** The answer is the turn's own last words, sent as every answer is and
+  judged as it is; a thinking message is no part of it, is never taken as the round's answer, and does not carry
+  the answer's wait.
+- **Only the owner's private chat is sent to.** Thinking can quote private or other-room material and a group
+  room holds other people, so no other room is sent thinking.
 
 ## Words handed to the room's supervisor
 

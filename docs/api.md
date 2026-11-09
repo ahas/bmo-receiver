@@ -452,7 +452,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `phase`, `tool`, token counts and `spent`, its last `actions` with `droppedActions` and `droppedContext`, and
   `said`, the turn's last three progress lines, oldest first, each `{text, before}` — the words it wrote and then
   went on working, redacted, run into one line and cut at 240 characters, never its answer
-  (`docs/receiver.md`, 「The event stream」).
+  (`docs/receiver.md`, 「The event stream」). The thinking blocks themselves are no part of this picture: while the
+  turn works they go into the owner's private chat as messages opening on the policy's marker, cut at its ceiling
+  (`docs/messages.md`, 「A working turn's thinking」).
 
 ## Hooks
 

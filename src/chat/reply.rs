@@ -130,6 +130,65 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
   }
 }
 
+/// A working turn's thinking sent into its room as its own line: marked as thinking by the caller, never the
+/// turn's answer and no part of what the round's answer is judged by (docs/receiver.md, 「The event stream」).
+/// It goes out on the road the turn answers on, as the agent's own words where the room keeps them.
+pub async fn send_thinking(
+  receiver: &Receiver,
+  chat_id: i64,
+  via: Option<&str>,
+  agent: &str,
+  text: &str,
+) -> Option<i64> {
+  let send = ChatSend::Text {
+    text: text.to_owned(),
+    silent: false,
+    fold: false,
+  };
+  let road = receiver.roads().answering(chat_id, via).await?;
+
+  match road {
+    Road::Record => {
+      let line = KeptLine {
+        chat_id,
+        text,
+        reply_to: None,
+        sent: None,
+        agent: Some(agent),
+        voice: None,
+      };
+
+      receiver.speech().kept_carrying(&line, Carried::Send(send)).await.ok()
+    }
+    Road::Service(key) => {
+      let number = receiver
+        .speech()
+        .act(&key, &ChatSendRequest::new(chat_id, send.clone()))
+        .await
+        .ok()
+        .flatten();
+      let line = KeptLine {
+        chat_id,
+        text,
+        reply_to: None,
+        sent: Some((&key, number)),
+        agent: Some(agent),
+        voice: None,
+      };
+
+      // The line is in the room either way; a record that could not keep it is said in the journal.
+      match receiver.speech().kept_carrying(&line, Carried::Send(send)).await {
+        Ok(message) => Some(message),
+        Err(why) => {
+          eprintln!("chat {chat_id}: a thinking line was not kept: {why}");
+
+          number
+        }
+      }
+    }
+  }
+}
+
 // One answer carried on its road, under the agent that says it where that is not the road's own voice, folded
 // where the agent asked it.
 async fn carry(

@@ -37,6 +37,7 @@ pub mod sentinels;
 pub mod shape;
 pub mod situation;
 pub mod talk;
+pub mod thinking;
 pub mod thread;
 pub mod touch;
 pub mod turn_mark;
