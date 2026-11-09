@@ -855,6 +855,8 @@ pub struct StandInAgency {
   pub double_starts: Mutex<Vec<DoubleStart>>,
   pub double_turns: Mutex<Vec<DoubleTurn>>,
   pub double_finishes: Mutex<Vec<(String, bool)>>,
+  /// Whether a double's start is refused, as an agency that lets no run of the role in refuses it.
+  pub double_refused: Mutex<bool>,
   pub removals: Mutex<Vec<(String, Removal)>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
   /// The code a removal is refused with, as the agency's 409, where a test sets one.
@@ -915,6 +917,7 @@ impl StandInAgency {
       double_starts: Mutex::default(),
       double_turns: Mutex::default(),
       double_finishes: Mutex::default(),
+      double_refused: Mutex::default(),
       removals: Mutex::default(),
       refusing: Mutex::default(),
       removal_refused: Mutex::default(),
@@ -1136,6 +1139,16 @@ impl Agency for StandInAgency {
   }
 
   fn double_start<'a>(&'a self, start: &'a DoubleStart) -> BoxFuture<'a, Answer<DoubleSeat>> {
+    if *self.double_refused.lock().unwrap() {
+      return Box::pin(async {
+        Err(PortFailure::Answered {
+          url: "http://agency.invalid/slot-requests".to_owned(),
+          status: 409,
+          answer: None,
+        })
+      });
+    }
+
     let mut starts = self.double_starts.lock().unwrap();
 
     starts.push(start.clone());

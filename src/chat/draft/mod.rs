@@ -27,7 +27,7 @@ use super::promises::{promises_after, promises_later, sets_rule_later};
 use super::prompt::{Scope, scope_line};
 use super::records::run_records;
 use super::sentinels::{
-  FOLD, Mark, SKIP, asks_fold, is_skip, is_wait, round_marks, sent_now, without_round_marks,
+  FOLD, Mark, SKIP, asks_fold, is_handoff, is_skip, is_wait, round_marks, sent_now, without_round_marks,
 };
 use super::turn_mark::{self, TurnMark};
 use super::turnover::note_session;
@@ -495,7 +495,9 @@ impl Run<'_> {
       Ok(answered) => {
         self.shown.extend(pushed);
 
-        let text = self.marked(&strip_prompt_scaffolding(&answered.text));
+        // The hand-off sentinel is the round's own draft turn's alone: from a later turn it is a skip, never words.
+        let said = strip_prompt_scaffolding(&answered.text);
+        let text = self.marked(if is_handoff(&said) { SKIP } else { &said });
         // An answer of nothing but marks says nothing more: no skip, and no words.
         let (text, ending) = match (self.only_marks, text.is_empty()) {
           (true, _) => (text, Answered::Answered),

@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use tokio::task::JoinHandle;
 
+use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 use sea_orm::DatabaseConnection;
@@ -1862,7 +1863,30 @@ impl Conversations {
           ..asking.clone()
         };
 
-        self.0.carrying.carry(&handed, &held, &follower).await
+        match self.0.carrying.carry(&handed, &held, &follower).await {
+          // A double that did not take the round hands it back: the agent's own session, which holds the round
+          // already, is asked once more to answer it itself, and the process goes on there.
+          Err(Failure::Failed(why)) | Err(Failure::Transport(why)) => {
+            doubled = false;
+            eprintln!("chat {chat_id}: the double did not take the round: {why}");
+
+            let own = Asking {
+              prompt: fill_marks(&CHAT_LINE.room.handed_back, &[("why", why.as_str())]),
+              began: now_ms(),
+              ..asking.clone()
+            };
+
+            match self.0.carrying.carry(&own, &held, &follower).await {
+              Ok(reply) if is_handoff(&crate::form::strip_prompt_scaffolding(&reply.text)) => {
+                Err(Failure::Failed(
+                  "the agent handed the round over again after its double gave it back".to_owned(),
+                ))
+              }
+              other => other,
+            }
+          }
+          other => other,
+        }
       }
       other => other,
     };

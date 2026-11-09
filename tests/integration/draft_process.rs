@@ -431,6 +431,34 @@ async fn a_draft_turn_that_hands_its_round_over_is_carried_again_by_the_double_w
   );
 }
 
+#[tokio::test]
+async fn a_double_that_does_not_take_the_round_hands_it_back_to_the_agent_s_own_session() {
+  let session =
+    StandInSession::new(SESSION, "unscripted").answering(&["<<HANDOFF>>", "the agent's own message"]);
+  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+
+  *round.standing.agency.double_refused.lock().unwrap() = true;
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let own = round.session.prompts();
+  let sent = round.sent();
+  let back = CHAT_LINE.room.handed_back.split("{why}").next().unwrap_or_default();
+
+  assert_eq!(own.len(), 2, "the round's turn, and the asking once the double gave it back: {own:#?}");
+  assert!(
+    own[1].contains(back),
+    "the second asking says the double did not take the round: {}",
+    own[1]
+  );
+  assert!(
+    round.standing.agency.double_turns.lock().unwrap().is_empty(),
+    "no turn of the double ran"
+  );
+  assert_eq!(sent.len(), 1, "the agent's own answer goes out: {sent:?}");
+  assert!(sent[0].contains("the agent's own message") && !sent[0].contains("HANDOFF"), "{sent:?}");
+}
+
 #[test]
 fn only_an_answer_of_nothing_but_the_sentinel_hands_a_round_over() {
   use bmo_receiver::chat::sentinels::is_handoff;

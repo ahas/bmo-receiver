@@ -73,8 +73,12 @@ message passes, and the record each turn of it leaves.
   rooms' rounds while the double works.
 - **Words that come meanwhile go to the double's turn,** pushed as they are pushed into the agent's own, and
   the turn's picture is drawn from the double's run.
-- **A double that answers the sentinel itself, or whose run fails, fails the round** as a failed draft turn
-  does: nothing is sent, and the words go back to wait.
+- **A double that does not take the round hands it back.** Where its slot or its run is refused, its turn
+  fails, or it answers the sentinel itself, the agent's own session is asked once more, under one line saying
+  the double did not take the round and why, to answer the round itself; that session holds the round already,
+  so the line is the whole of the turn. The process then goes on in the agent's own session.
+- **The sentinel is never a message.** An answer of nothing but the sentinel from that second asking fails the
+  round as a failed draft turn does, and one from any later turn of the process is read as a skip.
 
 ## A voice note
 
