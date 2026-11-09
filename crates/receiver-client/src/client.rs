@@ -627,9 +627,11 @@ impl ReceiverClient {
     .await
   }
 
-  /// `GET /draft-processes`.
-  pub async fn draft_processes(&self) -> Answer<Page<DraftProcess>> {
-    Self::answered(self.request(Method::GET, &["draft-processes"])).await
+  /// `GET /draft-processes`: every row, or with a supervisor named the one row it reads.
+  pub async fn draft_processes(&self, agent_name: Option<&str>) -> Answer<Page<DraftProcess>> {
+    let whose: Vec<(&str, &str)> = agent_name.map(|name| ("agentName", name)).into_iter().collect();
+
+    Self::answered(self.get(&["draft-processes"], &whose)).await
   }
 
   /// `PUT /draft-processes/{provider}/{tier}/{agentName}`.
@@ -648,19 +650,26 @@ impl ReceiverClient {
     Self::nothing(self.request(Method::DELETE, &["draft-processes", provider, tier, agent_name])).await
   }
 
-  /// `GET /draft-questions`.
-  pub async fn draft_questions(&self) -> Answer<Page<DraftQuestion>> {
-    Self::answered(self.request(Method::GET, &["draft-questions"])).await
+  /// `GET /draft-questions`: a supervisor's catalogue, or the policy's alone where none is named.
+  pub async fn draft_questions(&self, agent_name: Option<&str>) -> Answer<Page<DraftQuestion>> {
+    let whose: Vec<(&str, &str)> = agent_name.map(|name| ("agentName", name)).into_iter().collect();
+
+    Self::answered(self.get(&["draft-questions"], &whose)).await
   }
 
-  /// `PUT /draft-questions/{name}`.
-  pub async fn set_draft_question(&self, name: &str, question: &DraftQuestionSet) -> Answer<DraftQuestion> {
-    Self::answered(self.send(Method::PUT, &["draft-questions", name], question)).await
+  /// `PUT /draft-questions/{agentName}/{name}`.
+  pub async fn set_draft_question(
+    &self,
+    agent_name: &str,
+    name: &str,
+    question: &DraftQuestionSet,
+  ) -> Answer<DraftQuestion> {
+    Self::answered(self.send(Method::PUT, &["draft-questions", agent_name, name], question)).await
   }
 
-  /// `DELETE /draft-questions/{name}`.
-  pub async fn remove_draft_question(&self, name: &str) -> Answer<()> {
-    Self::nothing(self.request(Method::DELETE, &["draft-questions", name])).await
+  /// `DELETE /draft-questions/{agentName}/{name}`.
+  pub async fn remove_draft_question(&self, agent_name: &str, name: &str) -> Answer<()> {
+    Self::nothing(self.request(Method::DELETE, &["draft-questions", agent_name, name])).await
   }
 
   /// `POST /supervisors`.

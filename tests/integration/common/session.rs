@@ -386,8 +386,11 @@ impl StandInSession {
   }
 }
 
-/// The draft process every turn reads, set as the console sets a row of any provider, tier and agent: the
-/// questions of an ordinary and a light turn, the light bound and the ceiling, past which `final` is asked at once.
+/// The supervisors the suites stand, each of which reads the draft process a test sets.
+pub const SUPERVISORS: [&str; 3] = ["agent-a", "agent-b", "agent-c"];
+
+/// The draft process every turn reads, set as the console sets each supervisor its row: the questions of an
+/// ordinary and a light turn, the light bound and the ceiling, past which `final` is asked at once.
 pub async fn drafting(
   db: &sea_orm::DatabaseConnection,
   rounds: &[&str],
@@ -410,24 +413,26 @@ pub async fn drafting_past(
 
   let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
 
-  set(
-    db,
-    &Process {
-      provider: ANY.to_owned(),
-      tier: ANY.to_owned(),
-      agent: ANY.to_owned(),
-      rounds: named(rounds),
-      send_from: String::new(),
-      light: named(light),
-      off: vec![],
-      light_chars: 12,
-      ceiling_seconds,
-      past_ceiling,
-      set: true,
-    },
-  )
-  .await
-  .unwrap();
+  for supervisor in SUPERVISORS {
+    set(
+      db,
+      &Process {
+        provider: ANY.to_owned(),
+        tier: ANY.to_owned(),
+        agent: supervisor.to_owned(),
+        rounds: named(rounds),
+        send_from: String::new(),
+        light: named(light),
+        off: vec![],
+        light_chars: 12,
+        ceiling_seconds,
+        past_ceiling,
+        set: true,
+      },
+    )
+    .await
+    .unwrap();
+  }
 }
 
 /// No question follows a turn: its own answer is the message, as a test of something else needs it.

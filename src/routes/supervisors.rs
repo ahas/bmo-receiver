@@ -425,10 +425,11 @@ pub async fn remove(State(served): State<Served>, Path(name): Path<String>, raw:
   run(
     receiver.db(),
     r#"DELETE FROM "room_supervisors" WHERE "supervisor" = $1"#,
-    vec![name.into()],
+    vec![name.clone().into()],
   )
   .await
   .map_err(store)?;
+  crate::chat::draft::table::forget(receiver.db(), &name).await.map_err(store)?;
 
   Ok((StatusCode::NO_CONTENT, axum::Json(json!({}))))
 }

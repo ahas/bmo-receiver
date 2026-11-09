@@ -181,7 +181,7 @@ pub async fn reset_reason(
     return Ok(Some(SessionReason::Prefix));
   }
 
-  if !state.process.is_empty() && state.process != super::room::process_mark(db).await? {
+  if !state.process.is_empty() && state.process != super::room::process_mark(db, agent).await? {
     return Ok(Some(SessionReason::Process));
   }
 

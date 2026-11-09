@@ -38,7 +38,6 @@ use crate::receiver::{Inbound, Receiver};
 
 use checks::{Check, Reading, failing, has_skip, light, own_lines};
 use log::{Answered, Ended, Kind, Log};
-use table::{resolve, rows};
 
 /// What an item or a check goes out with beside its marker and data: the turn's scope and the ids of the
 /// messages waiting for the next turn. What is done with them stands in the room's block.
@@ -671,16 +670,15 @@ impl Item {
 }
 
 impl Drafter {
-  // The process a round opens: the row its session's provider, any tier and its agent match, and the
-  // questions that row asks of a turn that took what this one took.
+  // The process a round opens: the supervisor's row, its own or the policy's, and the questions that row asks of
+  // a turn that took what this one took, in the supervisor's texts.
   async fn plan(&self, agent: &str, chat: i64, batch: &[Inbound], instructions: usize) -> Plan {
     let receiver = &self.receiver;
-    let provider = Carry::new(receiver.clone()).standing(agent, chat).await;
-    let table = rows(receiver.db()).await.unwrap_or_else(|why| {
+    let row = table::row_of(receiver.db(), agent).await.unwrap_or_else(|why| {
       eprintln!("chat {chat}: the draft process table could not be read: {}", why.detail);
-      vec![]
+      None
     });
-    let Some(process) = resolve(&table, provider.as_deref(), None, agent) else {
+    let Some(process) = row else {
       return Plan {
         row: "none".to_owned(),
         ..Plan::default()
@@ -689,7 +687,7 @@ impl Drafter {
     let is_light = light(batch, instructions, process.light_chars);
     // A question the row has switched off keeps its place in its list and is not followed.
     let list = process.asked(if is_light { &process.light } else { &process.rounds });
-    let catalogue = table::questions(receiver.db()).await.unwrap_or_default();
+    let catalogue = table::questions(receiver.db(), Some(agent)).await.unwrap_or_default();
     let questions = list
       .iter()
       .map(|name| {

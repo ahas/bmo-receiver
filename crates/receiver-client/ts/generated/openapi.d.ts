@@ -99,7 +99,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every row of the draft process table, the policy's and the console's. */
+        /** Every row of the draft process table, the policy's and each supervisor's own; for a supervisor named, the one row it reads. */
         get: operations["draftProcesses"];
         put?: never;
         post?: never;
@@ -117,10 +117,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** A row of the draft process table set by the console. */
+        /** A supervisor's row set by the console. */
         put: operations["setDraftProcess"];
         post?: never;
-        /** The console's row of a key taken away. */
+        /** A supervisor's row taken away. */
         delete: operations["removeDraftProcess"];
         options?: never;
         head?: never;
@@ -134,7 +134,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The draft process's catalogue of questions. */
+        /** A supervisor's catalogue of questions, or the policy's alone where none is named. */
         get: operations["draftQuestions"];
         put?: never;
         post?: never;
@@ -144,7 +144,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/draft-questions/{name}": {
+    "/draft-questions/{agentName}/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -152,10 +152,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** A question's text set by the console. */
+        /** A question's text set by the console for a supervisor. */
         put: operations["setDraftQuestion"];
         post?: never;
-        /** The console's text of a question taken away. */
+        /** The console's text of a supervisor's question taken away. */
         delete: operations["removeDraftQuestion"];
         options?: never;
         head?: never;
@@ -2806,7 +2806,9 @@ export interface operations {
     };
     draftProcesses: {
         parameters: {
-            query?: never;
+            query?: {
+                agentName?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2903,7 +2905,9 @@ export interface operations {
     };
     draftQuestions: {
         parameters: {
-            query?: never;
+            query?: {
+                agentName?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2935,6 +2939,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                agentName: string;
                 name: string;
             };
             cookie?: never;
@@ -2970,6 +2975,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                agentName: string;
                 name: string;
             };
             cookie?: never;

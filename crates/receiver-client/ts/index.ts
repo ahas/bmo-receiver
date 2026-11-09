@@ -462,12 +462,16 @@ export function receiverClient(options: ReceiverOptions) {
       );
     },
 
-    /** `GET /draft-processes`. */
-    async draftProcesses(): Promise<Page<DraftProcess>> {
-      return answered(await client.GET("/draft-processes"));
+    /** `GET /draft-processes`: every row, or with a supervisor named the one row it reads. */
+    async draftProcesses(agentName?: string): Promise<Page<DraftProcess>> {
+      return answered(
+        await client.GET("/draft-processes", {
+          params: { query: agentName === undefined ? {} : { agentName } },
+        }),
+      );
     },
 
-    /** `PUT /draft-processes/{provider}/{tier}/{agentName}`, `*` standing for any. */
+    /** `PUT /draft-processes/{provider}/{tier}/{agentName}`: a supervisor's row, its provider and tier `*`. */
     async setDraftProcess(
       provider: string,
       tier: string,
@@ -491,19 +495,32 @@ export function receiverClient(options: ReceiverOptions) {
       );
     },
 
-    /** `GET /draft-questions`. */
-    async draftQuestions(): Promise<Page<DraftQuestion>> {
-      return answered(await client.GET("/draft-questions"));
+    /** `GET /draft-questions`: a supervisor's catalogue, or the policy's alone where none is named. */
+    async draftQuestions(agentName?: string): Promise<Page<DraftQuestion>> {
+      return answered(
+        await client.GET("/draft-questions", {
+          params: { query: agentName === undefined ? {} : { agentName } },
+        }),
+      );
     },
 
-    /** `PUT /draft-questions/{name}`. */
-    async setDraftQuestion(name: string, body: DraftQuestionSet): Promise<DraftQuestion> {
-      return answered(await client.PUT("/draft-questions/{name}", { params: { path: { name } }, body }));
+    /** `PUT /draft-questions/{agentName}/{name}`. */
+    async setDraftQuestion(agentName: string, name: string, body: DraftQuestionSet): Promise<DraftQuestion> {
+      return answered(
+        await client.PUT("/draft-questions/{agentName}/{name}", {
+          params: { path: { agentName, name } },
+          body,
+        }),
+      );
     },
 
-    /** `DELETE /draft-questions/{name}`. */
-    async removeDraftQuestion(name: string): Promise<void> {
-      answered(await client.DELETE("/draft-questions/{name}", { params: { path: { name } } }));
+    /** `DELETE /draft-questions/{agentName}/{name}`. */
+    async removeDraftQuestion(agentName: string, name: string): Promise<void> {
+      answered(
+        await client.DELETE("/draft-questions/{agentName}/{name}", {
+          params: { path: { agentName, name } },
+        }),
+      );
     },
 
     /** `PUT /pinned-rooms`. */

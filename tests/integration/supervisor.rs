@@ -185,7 +185,7 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
 
   let round =
     Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "never asked"])).await;
-  let catalogue = table::questions(round.scratch.db()).await.unwrap();
+  let catalogue = table::questions(round.scratch.db(), Some(AGENT)).await.unwrap();
 
   assert_eq!(catalogue[0].name, SUPERVISOR);
   assert_eq!(
@@ -195,7 +195,7 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
   );
   assert!(!catalogue[0].set);
 
-  table::set_question(round.scratch.db(), SUPERVISOR, "Decide first, briefly.")
+  table::set_question(round.scratch.db(), AGENT, SUPERVISOR, "Decide first, briefly.")
     .await
     .unwrap();
   round.noted("We talked about the match.").await;
@@ -224,7 +224,7 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
     "the judgement reads the note the session has not read: {judging}"
   );
 
-  let catalogue = table::questions(round.scratch.db()).await.unwrap();
+  let catalogue = table::questions(round.scratch.db(), Some(AGENT)).await.unwrap();
 
   assert_eq!(
     (catalogue[0].name.as_str(), catalogue[0].set),
@@ -236,7 +236,7 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
   let process = table::Process {
     provider: "*".into(),
     tier: "*".into(),
-    agent: "*".into(),
+    agent: AGENT.into(),
     rounds: vec![SUPERVISOR.into(), "final".into()],
     send_from: String::new(),
     light: vec![],

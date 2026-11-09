@@ -108,7 +108,7 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
     return None;
   }
 
-  let room = match room_context(receiver, chat_id, None).await {
+  let room = match room_context(receiver, agent, chat_id, None).await {
     Ok(room) => room,
     Err(why) => {
       eprintln!("{agent}: the handoff turn's room {chat_id} could not be composed: {}", why.detail);

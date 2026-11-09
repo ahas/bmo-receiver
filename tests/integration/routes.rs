@@ -157,7 +157,7 @@ async fn a_route_whose_needs_are_not_met_names_what_is_missing() {
 async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
-  let row = "/draft-processes/*/*/*";
+  let row = "/draft-processes/*/*/agent-a";
   let set = |rounds: Value, off: Value| json!({ "rounds": rounds, "light": ["final"], "off": off, "lightChars": 12 });
 
   // A question switched off keeps its place; a name no list holds is dropped.
@@ -170,7 +170,31 @@ async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
 
   let (_, page) = get(&front, "/draft-processes").await;
 
-  assert_eq!(page["items"][0]["off"], json!(["facts"]), "{page}");
+  assert_eq!(page["items"][0]["source"], json!("default"), "the policy's row opens the table: {page}");
+  assert_eq!(page["items"][1]["agentName"], json!("agent-a"), "{page}");
+  assert_eq!(page["items"][1]["off"], json!(["facts"]), "{page}");
+
+  // A supervisor named reads one row: its own, or the policy's where it has none.
+  let (_, page) = get(&front, "/draft-processes?agentName=agent-a").await;
+
+  assert_eq!(page["items"].as_array().map(Vec::len), Some(1), "{page}");
+  assert_eq!(page["items"][0]["source"], json!("set"), "{page}");
+
+  let (_, page) = get(&front, "/draft-processes?agentName=agent-b").await;
+
+  assert_eq!(page["items"].as_array().map(Vec::len), Some(1), "{page}");
+  assert_eq!(page["items"][0]["source"], json!("default"), "{page}");
+
+  // No row stands for every supervisor, and none for a provider or a tier.
+  for key in ["/draft-processes/*/*/*", "/draft-processes/provider-a/*/agent-a"] {
+    let (status, body) = put(&front, key, set(json!(["final"]), json!([]))).await;
+
+    assert_eq!(
+      (status, refused(&body).as_str()),
+      (StatusCode::BAD_REQUEST, "bad-request"),
+      "{key}: {body}"
+    );
+  }
 
   // A set that names no `off` switches nothing off.
   let (status, body) = put(
@@ -187,24 +211,36 @@ async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
   assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
 
   // A question the console added is taken away once no list names it.
-  let (status, _) = put(&front, "/draft-questions/tone", json!({ "text": "Is the tone right?" })).await;
+  let (status, _) =
+    put(&front, "/draft-questions/agent-a/tone", json!({ "text": "Is the tone right?" })).await;
 
   assert_eq!(status, StatusCode::OK);
+
+  // The question is that supervisor's: another's lists may not name it, and no text is set for every one.
+  let (status, body) =
+    put(&front, "/draft-processes/*/*/agent-b", set(json!(["tone", "final"]), json!([]))).await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
+
+  let (status, body) =
+    put(&front, "/draft-questions/*/tone", json!({ "text": "Is the tone right?" })).await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
 
   let (status, _) = put(&front, row, set(json!(["tone", "final"]), json!([]))).await;
 
   assert_eq!(status, StatusCode::OK);
 
-  let (status, body) = remove(&front, "/draft-questions/tone").await;
+  let (status, body) = remove(&front, "/draft-questions/agent-a/tone").await;
 
   assert_eq!((status, refused(&body).as_str()), (StatusCode::CONFLICT, "conflict"), "{body}");
 
   let (status, _) = put(&front, row, set(json!(["final"]), json!([]))).await;
 
   assert_eq!(status, StatusCode::OK);
-  assert_eq!(remove(&front, "/draft-questions/tone").await.0, StatusCode::NO_CONTENT);
+  assert_eq!(remove(&front, "/draft-questions/agent-a/tone").await.0, StatusCode::NO_CONTENT);
 
-  let (status, body) = remove(&front, "/draft-questions/tone").await;
+  let (status, body) = remove(&front, "/draft-questions/agent-a/tone").await;
 
   assert_eq!((status, refused(&body).as_str()), (StatusCode::NOT_FOUND, "not-found"), "{body}");
 
@@ -216,17 +252,28 @@ async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
       .map(|one| format!("{} {}", one["name"].as_str().unwrap(), one["source"].as_str().unwrap()))
       .collect()
   };
-  let (_, page) = get(&front, "/draft-questions").await;
+  let (_, page) = get(&front, "/draft-questions?agentName=agent-a").await;
 
   assert!(!names(&page).iter().any(|one| one.starts_with("tone ")), "{page}");
 
   // A question the policy holds stands again in the policy's text, a list naming it or not.
-  let (status, _) = put(&front, "/draft-questions/final", json!({ "text": "Write it now." })).await;
+  let (status, _) = put(&front, "/draft-questions/agent-a/final", json!({ "text": "Write it now." })).await;
 
   assert_eq!(status, StatusCode::OK);
-  assert_eq!(remove(&front, "/draft-questions/final").await.0, StatusCode::NO_CONTENT);
 
-  let (_, page) = get(&front, "/draft-questions").await;
+  let (_, own) = get(&front, "/draft-questions?agentName=agent-a").await;
+  let (_, other) = get(&front, "/draft-questions?agentName=agent-b").await;
+  let (_, policy) = get(&front, "/draft-questions").await;
+
+  assert!(names(&own).contains(&"final set".to_owned()), "{own}");
+  assert!(
+    names(&other).contains(&"final default".to_owned()),
+    "another supervisor reads the policy's: {other}"
+  );
+  assert!(names(&policy).contains(&"final default".to_owned()), "{policy}");
+  assert_eq!(remove(&front, "/draft-questions/agent-a/final").await.0, StatusCode::NO_CONTENT);
+
+  let (_, page) = get(&front, "/draft-questions?agentName=agent-a").await;
 
   assert!(names(&page).contains(&"final default".to_owned()), "{page}");
 }

@@ -43,6 +43,14 @@ pub struct QuestionSet {
   text: String,
 }
 
+/// The supervisor a read is asked for, where it names one.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Whose {
+  #[serde(default)]
+  agent_name: Option<String>,
+}
+
 #[derive(Deserialize)]
 pub struct Asked {
   room: i64,
@@ -55,14 +63,19 @@ fn bad(why: &str) -> Refusal {
   refused(StatusCode::BAD_REQUEST, "bad-request", why)
 }
 
-/// Every row of the table, the policy's and the console's.
-pub async fn processes(State(served): State<Served>) -> Answered {
+/// Every row of the table, the policy's and each supervisor's own; for a supervisor named, the one row it reads.
+pub async fn processes(State(served): State<Served>, raw: RawQuery) -> Answered {
+  let whose = query::<Whose>(raw)?;
   let rows = table::rows(served.receiver.db()).await.map_err(store)?;
+  let rows = match whose.agent_name.as_deref() {
+    Some(agent) => table::resolve(&rows, agent).into_iter().collect(),
+    None => rows,
+  };
 
   answered(json!({ "items": rows.iter().map(Process::member).collect::<Vec<_>>(), "more": false }))
 }
 
-/// A row set by the console, answered as it now stands.
+/// A supervisor's row set by the console, answered as it now stands.
 pub async fn set_process(
   State(served): State<Served>,
   Path((provider, tier, agent)): Path<(String, String, String)>,
@@ -84,7 +97,7 @@ pub async fn set_process(
     past_ceiling,
     set: true,
   };
-  let catalogue = table::questions(db).await.map_err(store)?;
+  let catalogue = table::questions(db, Some(&process.agent)).await.map_err(store)?;
 
   if let Some(why) = table::refusal(&process, &catalogue) {
     return Err(bad(&why));
@@ -97,7 +110,7 @@ pub async fn set_process(
   answered(process.member())
 }
 
-/// The console's row of a key taken away, the policy's standing again where it holds one.
+/// A supervisor's row taken away, the supervisor reading the policy's again.
 pub async fn remove_process(
   State(served): State<Served>,
   Path((provider, tier, agent)): Path<(String, String, String)>,
@@ -115,24 +128,37 @@ pub async fn remove_process(
   Ok((StatusCode::NO_CONTENT, axum::Json(json!({}))))
 }
 
-/// The catalogue of questions.
-pub async fn questions(State(served): State<Served>) -> Answered {
-  let questions = table::questions(served.receiver.db()).await.map_err(store)?;
+/// A supervisor's catalogue of questions, or the policy's alone where none is named.
+pub async fn questions(State(served): State<Served>, raw: RawQuery) -> Answered {
+  let whose = query::<Whose>(raw)?;
+  let questions = table::questions(served.receiver.db(), whose.agent_name.as_deref())
+    .await
+    .map_err(store)?;
 
   answered(
     json!({ "items": questions.iter().map(table::Question::member).collect::<Vec<_>>(), "more": false }),
   )
 }
 
-/// A question's text set by the console, answered as it now stands.
-pub async fn set_question(State(served): State<Served>, Path(name): Path<String>, body: Bytes) -> Answered {
+/// A question's text set by the console for a supervisor, answered as it now stands.
+pub async fn set_question(
+  State(served): State<Served>,
+  Path((agent, name)): Path<(String, String)>,
+  body: Bytes,
+) -> Answered {
   let asked = read::<QuestionSet>(&body)?;
+
+  if agent == table::ANY || agent.trim().is_empty() {
+    return Err(bad("A question's text is set for one supervisor, by its name."));
+  }
 
   if let Some(why) = table::question_refusal(&name, &asked.text) {
     return Err(bad(&why));
   }
 
-  table::set_question(served.receiver.db(), &name, &asked.text).await.map_err(store)?;
+  table::set_question(served.receiver.db(), &agent, &name, &asked.text)
+    .await
+    .map_err(store)?;
 
   answered(
     table::Question {
@@ -144,30 +170,37 @@ pub async fn set_question(State(served): State<Served>, Path(name): Path<String>
   )
 }
 
-/// The console's text of a question taken away: one the console added leaves the catalogue, and one the policy
-/// holds stands again in the policy's text. A question the console added that a list still names is refused.
-pub async fn remove_question(State(served): State<Served>, Path(name): Path<String>) -> Accepted {
+/// The console's text of a supervisor's question taken away: one the console added leaves the supervisor's
+/// catalogue, and one the policy holds stands again in the policy's text. A question the console added that a
+/// list of the supervisor's row still names is refused.
+pub async fn remove_question(
+  State(served): State<Served>,
+  Path((agent, name)): Path<(String, String)>,
+) -> Accepted {
   let db = served.receiver.db();
 
   if !table::policy_holds(&name) {
     let rows = table::rows(db).await.map_err(store)?;
+    let named = rows.iter().any(|row| {
+      row.own() && row.agent == agent && (row.rounds.contains(&name) || row.light.contains(&name))
+    });
 
-    if rows.iter().any(|row| row.rounds.contains(&name) || row.light.contains(&name)) {
+    if named {
       return Err(refused(
         StatusCode::CONFLICT,
         "conflict",
-        &format!("A list of the draft process table still names the question {name}."),
+        &format!("A list of {agent}'s draft process row still names the question {name}."),
       ));
     }
   }
 
-  let gone = table::remove_question(db, &name).await.map_err(store)?;
+  let gone = table::remove_question(db, &agent, &name).await.map_err(store)?;
 
   if !gone {
     return Err(refused(
       StatusCode::NOT_FOUND,
       "not-found",
-      &format!("The console set no text for the question {name}."),
+      &format!("The console set {agent} no text for the question {name}."),
     ));
   }
 

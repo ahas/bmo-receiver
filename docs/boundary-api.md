@@ -426,9 +426,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver keeps
   what was recorded as its `restart_reason` setting, and where none was, reads its own deployment record
   (「The deployments」) at start-up for the purpose and the commit.
-- **The draft process table** is keyed by provider, tier and agent, and the agency names no tier: a session
-  runs for a supervisor or a role. A turn matches only rows of any tier (`docs/drafting.md`, 「The process
-  table」), and the console's routes keep the tier in the key until the web unit takes it out with the receiver.
+- **The draft process table** is keyed by provider, tier and agent, and a row is one supervisor's, its provider
+  and its tier `*` (`docs/drafting.md`, 「The process table」): the console's routes keep the two places in the key
+  until the web unit takes them out with the receiver.
 - **The gate's `draft` stage** reads the receiver's event stream (`GET /events`) and takes every frame whose
   data's `type` is `draft` as one row of a round's draft process, with the fields the receiver's
   `docs/receiver.md`, 「The event stream」, names: `chatId`, `round`, `agentName`, `number` (from 1), `question`,

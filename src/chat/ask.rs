@@ -173,16 +173,6 @@ impl Carry {
     Carry { receiver, look }
   }
 
-  /// The provider the agency's state names for the session a room's turn goes on, read before the turn: a
-  /// session's state answers it from its start. None where the agency does not say.
-  pub async fn standing(&self, agent: &str, chat_id: i64) -> Option<String> {
-    let agency = self.receiver.units().agency.clone();
-    let scope = scope_of(unified_session(&self.receiver, agent).await, chat_id);
-    let started = agency.start(agent, scope).await.ok()?;
-
-    agency.state(&started.id).await.unwrap_or_default().provider
-  }
-
   /// The agent's one session replaced: asked one more turn for its handoff file, ended with what it held, the
   /// owner's word to start afresh spent, and started again; the new session and the note its first turn opens
   /// with: the handoff, else the receiver's transcript of the old session, else the word that nothing was
@@ -311,7 +301,7 @@ impl Carry {
     let chat_id = asking.chat_id;
     let thinking_shown = chat_id == receiver.owner_room();
     let failed = |why: crate::Fault| Failure::Failed(why.detail);
-    let room = room_context(receiver, chat_id, asking.via.as_deref()).await.map_err(failed)?;
+    let room = room_context(receiver, agent, chat_id, asking.via.as_deref()).await.map_err(failed)?;
     let loaded = loaded_in(receiver, None).await.map_err(failed)?;
     let marked = states(&asking.prompt, &loaded);
     let (prompt, send) = match doubled {
@@ -503,7 +493,7 @@ impl Carry {
     let started = agency.start(agent, scope).await.map_err(fault_of)?;
     let started_id = started.id.to_owned();
 
-    let room = room_context(receiver, chat_id, asking.via.as_deref())
+    let room = room_context(receiver, agent, chat_id, asking.via.as_deref())
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
 

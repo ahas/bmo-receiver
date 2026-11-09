@@ -517,7 +517,7 @@ async fn a_console_question_text_reaches_the_rooms_block_and_not_the_turn() {
   let round = Drafting::new(session, &["final"], &["final"], 150).await;
   let text = "the console's own final instruction";
 
-  bmo_receiver::chat::draft::table::set_question(round.scratch.db(), "final", text)
+  bmo_receiver::chat::draft::table::set_question(round.scratch.db(), AGENT, "final", text)
     .await
     .unwrap();
   round.hear(1, ASKED).await;
@@ -816,14 +816,14 @@ async fn a_round_writes_no_note_and_reads_the_rooms_note_once_in_its_session() {
 }
 
 #[tokio::test]
-async fn old_console_rows_fall_to_the_policy_one_row() {
+async fn a_supervisor_s_row_is_read_by_that_supervisor_alone() {
   use bmo_receiver::chat::draft::table::{self, ANY, PastCeiling, Process};
 
   let scratch = Scratch::new().await;
-  let row = |provider: &str, rounds: &[&str]| Process {
-    provider: provider.to_owned(),
+  let row = |agent: &str, rounds: &[&str]| Process {
+    provider: ANY.to_owned(),
     tier: ANY.to_owned(),
-    agent: ANY.to_owned(),
+    agent: agent.to_owned(),
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
     send_from: "facts".to_owned(),
     light: vec!["final".to_owned()],
@@ -834,23 +834,43 @@ async fn old_console_rows_fall_to_the_policy_one_row() {
     set: true,
   };
 
-  table::set(scratch.db(), &row("claude-code", FIVE)).await.unwrap();
-  table::set(scratch.db(), &row("small-model", &["information", "facts", "final"]))
+  table::set(scratch.db(), &row("agent-b", &["information", "facts", "final"]))
+    .await
+    .unwrap();
+  table::set_question(scratch.db(), "agent-b", "facts", "agent-b's own facts")
     .await
     .unwrap();
 
   let rows = table::rows(scratch.db()).await.unwrap();
 
-  assert_eq!(rows.len(), 1, "{rows:?}");
+  assert_eq!(rows.len(), 2, "the policy's row and the one supervisor's: {rows:?}");
   assert_eq!(
-    (rows[0].provider.as_str(), rows[0].tier.as_str(), rows[0].agent.as_str()),
-    (ANY, ANY, ANY)
+    (rows[0].provider.as_str(), rows[0].tier.as_str(), rows[0].agent.as_str(), rows[0].set),
+    (ANY, ANY, ANY, false)
   );
+
+  let read = |agent: &'static str| {
+    let rows = rows.clone();
+
+    async move { table::resolve(&rows, agent).unwrap() }
+  };
+
   assert_eq!(
-    rows[0].rounds,
+    read("agent-a").await.rounds,
     ["intent", "information", "facts", "memory", "promises", "final"],
-    "the policy's row stands, whatever the old rows named"
+    "a supervisor with no row of its own reads the policy's"
   );
+  assert_eq!(read("agent-b").await.rounds, ["information", "facts", "final"]);
+
+  let text = |catalogue: Vec<table::Question>| {
+    catalogue.into_iter().find(|question| question.name == "facts").unwrap().text
+  };
+  let own = text(table::questions(scratch.db(), Some("agent-b")).await.unwrap());
+  let other = text(table::questions(scratch.db(), Some("agent-a")).await.unwrap());
+
+  assert_eq!(own, "agent-b's own facts");
+  assert_ne!(other, own, "a text set for one supervisor is read by no other");
+  assert_eq!(other, text(table::questions(scratch.db(), None).await.unwrap()));
 }
 
 #[tokio::test]
@@ -859,7 +879,7 @@ async fn a_question_switched_off_is_not_followed_and_stands_in_no_line_of_the_bl
 
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
   let round = Drafting::new(session, FIVE, &["final"], 150).await;
-  let mut row = table::rows(round.scratch.db()).await.unwrap().remove(0);
+  let mut row = table::row_of(round.scratch.db(), AGENT).await.unwrap().unwrap();
 
   row.off = vec!["facts".to_owned(), "memory".to_owned()];
   table::set(round.scratch.db(), &row).await.unwrap();
@@ -887,7 +907,7 @@ async fn a_question_switched_off_is_not_followed_and_stands_in_no_line_of_the_bl
 
   assert_eq!(round.log().await, ["question information+promises+final answered", "end  message"]);
   assert_eq!(
-    table::rows(round.scratch.db()).await.unwrap()[0].rounds,
+    table::row_of(round.scratch.db(), AGENT).await.unwrap().unwrap().rounds,
     FIVE,
     "a question switched off keeps its place"
   );
@@ -1824,7 +1844,7 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_as_data_under_a_ma
     built.instructions
   );
 
-  let block = room_context(receiver, OWNER, None).await.unwrap().text;
+  let block = room_context(receiver, AGENT, OWNER, None).await.unwrap().text;
 
   assert!(
     block.contains(&fill_marks(&push.rule, &[("marker", &push.marker)])),

@@ -464,16 +464,16 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
   Ok(lines.join("\n"))
 }
 
-// The draft process's stage instructions, as the room's block carries them (docs/drafting.md, 「The questions」):
-// the head and one line for each question the process's row may ask, ordinary or light, from the catalogue with
-// the console's rows over it; then what a waiting line means and the rules of the items and checks that follow
-// the message, which stand here whether the row asks a question or none.
-async fn stages(db: &DatabaseConnection) -> Result<String, Fault> {
+// The draft process's stage instructions, as a supervisor's room block carries them (docs/drafting.md, 「The
+// questions」): the head and one line for each question the supervisor's row may ask, ordinary or light, out of the
+// supervisor's catalogue; then what a waiting line means and the rules of the items and checks that follow the
+// message, which stand here whether the row asks a question or none.
+async fn stages(db: &DatabaseConnection, agent: &str) -> Result<String, Fault> {
   let mut parts = vec![];
-  let row = super::draft::table::rows(db).await?.into_iter().next();
+  let row = super::draft::table::row_of(db, agent).await?;
 
   if let Some(row) = row {
-    let catalogue = super::draft::table::questions(db).await?;
+    let catalogue = super::draft::table::questions(db, Some(agent)).await?;
     // A question the row has switched off is not asked, so the block carries no line for it.
     let mut names = row.asked(&row.rounds);
 
@@ -525,15 +525,15 @@ fn situation_instruction() -> String {
   fill_marks(&said.instruction, &[("ceiling", &said.ceiling_chars.to_string())])
 }
 
-/// The draft process's part of the room's block, the same in every room (docs/drafting.md, 「The questions」): the
-/// process's fixed rules, the stage lines, the agent's first judgement and the review's instructions, in the order
-/// the block carries them.
-pub async fn process_part(db: &DatabaseConnection) -> Result<Vec<String>, Fault> {
-  let supervisor = super::draft::table::supervisor_text(db).await?;
+/// The draft process's part of a supervisor's room block, the same in every room it answers (docs/drafting.md,
+/// 「The questions」): the process's fixed rules, the stage lines, the supervisor's first judgement and the review's
+/// instructions, in the order the block carries them.
+pub async fn process_part(db: &DatabaseConnection, agent: &str) -> Result<Vec<String>, Fault> {
+  let supervisor = super::draft::table::supervisor_text(db, agent).await?;
 
   Ok(vec![
     CHAT_LINE.room.process.clone(),
-    stages(db).await?,
+    stages(db, agent).await?,
     CHAT_ROUND.supervisor.structure.clone(),
     fill_marks(
       &CHAT_ROUND.supervisor.rule,
@@ -548,15 +548,16 @@ pub fn process_mark_of(parts: &[String]) -> String {
   format!("{:x}", Sha256::digest(parts.join("\n\n").as_bytes()))
 }
 
-/// The fingerprint of the process's part of the block as it stands now.
-pub async fn process_mark(db: &DatabaseConnection) -> Result<String, Fault> {
-  Ok(process_mark_of(&process_part(db).await?))
+/// The fingerprint of the process's part of a supervisor's block as it stands now.
+pub async fn process_mark(db: &DatabaseConnection, agent: &str) -> Result<String, Fault> {
+  Ok(process_mark_of(&process_part(db, agent).await?))
 }
 
 /// The room's block a turn in a room carries, answering on the road it was asked on where that road reaches
 /// the room, and the line that restates it.
 pub async fn room_context(
   receiver: &Receiver,
+  agent: &str,
   chat_id: i64,
   via: Option<&str>,
 ) -> Result<RoomContext, Fault> {
@@ -570,7 +571,7 @@ pub async fn room_context(
   let elsewhere = (road.key != home.key).then_some(&home);
   let title = serde_json::to_string(&rows::chat_title(receiver.db(), chat_id).await?).unwrap_or_default();
   let server = server_facts(receiver).await;
-  let process = process_part(receiver.db()).await?;
+  let process = process_part(receiver.db(), agent).await?;
   let process_mark = process_mark_of(&process);
   let mut parts = vec![
     fill_marks(&said.head, &[("chat", &chat_id.to_string()), ("kind", kind)]),

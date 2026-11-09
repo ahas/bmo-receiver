@@ -167,24 +167,33 @@ fn the_check_reads_the_process_s_own_lines_and_no_length() {
 }
 
 #[test]
-fn the_most_specific_row_is_read() {
-  let rows = vec![
-    row(ANY, ANY, ANY, &["intent", "final"]),
-    row("provider-a", ANY, ANY, &["final"]),
-    row(ANY, "Supervisor", ANY, &["facts", "final"]),
-    row(ANY, ANY, "agent-b", &["memory", "final"]),
-  ];
+fn a_supervisor_reads_its_own_row_and_the_policy_s_where_it_has_none() {
+  let rows = vec![row(ANY, ANY, ANY, &["intent", "final"]), row(ANY, ANY, "agent-b", &["memory", "final"])];
 
-  assert_eq!(resolve(&rows, Some("provider-b"), None, "agent-a").unwrap().rounds, ["intent", "final"]);
-  assert_eq!(
-    resolve(&rows, Some("provider-a"), Some("Supervisor"), "agent-a").unwrap().rounds,
-    ["final"]
-  );
-  assert_eq!(
-    resolve(&rows, Some("provider-b"), Some("Supervisor"), "agent-a").unwrap().rounds,
-    ["facts", "final"]
-  );
-  assert_eq!(resolve(&rows, Some("provider-a"), None, "agent-b").unwrap().rounds, ["memory", "final"]);
+  assert_eq!(resolve(&rows, "agent-a").unwrap().rounds, ["intent", "final"]);
+  assert_eq!(resolve(&rows, "agent-b").unwrap().rounds, ["memory", "final"]);
+  assert_eq!(resolve(&rows[1..], "agent-a"), None, "another supervisor's row is no one else's");
+}
+
+#[test]
+fn a_row_is_set_for_one_supervisor_alone() {
+  let catalogue = [Question {
+    name: "final".to_owned(),
+    text: "write it".to_owned(),
+    set: false,
+  }];
+
+  for (provider, tier, agent) in
+    [(ANY, ANY, ANY), ("provider-a", ANY, "agent-a"), (ANY, "tier-a", "agent-a")]
+  {
+    assert!(
+      refusal(&row(provider, tier, agent, &["final"]), &catalogue)
+        .is_some_and(|why| why.contains("supervisor")),
+      "{provider}/{tier}/{agent}"
+    );
+  }
+
+  assert_eq!(refusal(&row(ANY, ANY, "agent-a", &["final"]), &catalogue), None);
 }
 
 #[test]
@@ -193,7 +202,7 @@ fn a_question_switched_off_keeps_its_place_and_is_not_asked() {
   let switched = |off: &[&str]| {
     Process {
       off: named(off),
-      ..row(ANY, ANY, ANY, &["information", "facts", "memory", "final"])
+      ..row(ANY, ANY, "agent-a", &["information", "facts", "memory", "final"])
     }
     .settled()
   };
@@ -218,15 +227,15 @@ fn a_question_switched_off_keeps_its_place_and_is_not_asked() {
 fn a_set_names_known_questions_ending_in_the_last_and_bounds_its_numbers() {
   let catalogue = catalogue();
 
-  assert_eq!(refusal(&row(ANY, ANY, ANY, &["intent", "final"]), &catalogue), None);
-  assert_eq!(refusal(&row(ANY, ANY, ANY, &[]), &catalogue), None, "an empty list asks nothing");
-  assert!(refusal(&row(ANY, ANY, ANY, &["final", "intent"]), &catalogue).is_some());
-  assert!(refusal(&row(ANY, ANY, ANY, &["final", "final"]), &catalogue).is_some());
-  assert!(refusal(&row(ANY, ANY, ANY, &["unknown", "final"]), &catalogue).is_some());
+  assert_eq!(refusal(&row(ANY, ANY, "agent-a", &["intent", "final"]), &catalogue), None);
+  assert_eq!(refusal(&row(ANY, ANY, "agent-a", &[]), &catalogue), None, "an empty list asks nothing");
+  assert!(refusal(&row(ANY, ANY, "agent-a", &["final", "intent"]), &catalogue).is_some());
+  assert!(refusal(&row(ANY, ANY, "agent-a", &["final", "final"]), &catalogue).is_some());
+  assert!(refusal(&row(ANY, ANY, "agent-a", &["unknown", "final"]), &catalogue).is_some());
 
   let sending = Process {
     send_from: "memory".to_owned(),
-    ..row(ANY, ANY, ANY, &["information", "facts", "final"])
+    ..row(ANY, ANY, "agent-a", &["information", "facts", "final"])
   };
 
   assert_eq!(refusal(&sending, &catalogue), None, "a row's old send question is read by nothing");

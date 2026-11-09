@@ -1,6 +1,6 @@
 //! The draft process table and its questions (docs/drafting.md, 「The process table」 and 「The questions」): the
-//! policy's rows and catalogue, the console's rows and texts standing over them, the row a turn reads and what a
-//! set may hold.
+//! policy's row and catalogue, each supervisor's own row and texts standing over them for that supervisor alone,
+//! the row a turn reads and what a set may hold.
 
 use std::collections::BTreeMap;
 
@@ -66,9 +66,9 @@ impl PastCeiling {
   }
 }
 
-/// A row of the table: its key, each part a name or `*`, the questions of an ordinary and of a light turn, those
-/// of them switched off, the question a send is read from, the light bound, the ceiling and what is done past it,
-/// and whether the console set it.
+/// A row of the table: its key, the policy's `*/*/*` or a supervisor's name under any provider and tier, the
+/// questions of an ordinary and of a light turn, those of them switched off, the question a send is read from,
+/// the light bound, the ceiling and what is done past it, and whether the console set it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Process {
   pub provider: String,
@@ -126,20 +126,10 @@ impl Process {
     list.iter().filter(|name| !self.off.contains(name)).cloned().collect()
   }
 
-  fn key(&self) -> (&str, &str, &str) {
-    (&self.provider, &self.tier, &self.agent)
-  }
-
-  /// Whether the row is one a turn on this provider, tier and agent reads.
-  pub fn matches(&self, provider: Option<&str>, tier: Option<&str>, agent: &str) -> bool {
-    let fits = |part: &str, named: Option<&str>| part == ANY || named == Some(part);
-
-    fits(&self.provider, provider) && fits(&self.tier, tier) && fits(&self.agent, Some(agent))
-  }
-
-  // How specific the row is: an agent's before a provider's, a provider's before a tier's.
-  fn specificity(&self) -> u8 {
-    u8::from(self.agent != ANY) * 4 + u8::from(self.provider != ANY) * 2 + u8::from(self.tier != ANY)
+  /// Whether the row's key is a supervisor's own, the only kind the console sets: a supervisor's name under any
+  /// provider and any tier.
+  pub fn own(&self) -> bool {
+    self.provider == ANY && self.tier == ANY && self.agent != ANY && !self.agent.trim().is_empty()
   }
 
   /// The row as the routes answer it.
@@ -198,51 +188,52 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
   })
 }
 
-/// Every row of the table: the policy's in their order, each replaced by the console's of the same key, then
-/// the console's own keys.
+/// The policy's row, which a supervisor reads until the console sets it one of its own.
+pub fn policy_row() -> Option<Process> {
+  DRAFTING.process.first().map(Process::of_policy)
+}
+
+/// Every row of the table: the policy's, then each supervisor's own by the supervisor's name.
 pub async fn rows<C: ConnectionTrait>(db: &C) -> Result<Vec<Process>, Fault> {
   let read = all(
     db,
     r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "light", "off", "light_chars",
             "ceiling_seconds", "past_ceiling"
-         FROM "draft_processes" ORDER BY "provider", "tier", "agent""#,
+         FROM "draft_processes" ORDER BY "agent""#,
     vec![],
   )
   .await?;
-  let set = read
+  let own = read
     .iter()
     .map(|row| set_row(row).map(Process::settled))
     .collect::<Result<Vec<Process>, Fault>>()?;
-  let Some(default) = DRAFTING.process.first().map(Process::of_policy) else {
-    return Ok(vec![]);
-  };
-  let universal = set.into_iter().find(|row| row.key() == default.key());
 
-  Ok(vec![universal.unwrap_or(default)])
+  Ok(policy_row().into_iter().chain(own.into_iter().filter(Process::own)).collect())
 }
 
-/// The row a turn reads: the most specific that matches its provider, its tier and its agent.
-pub fn resolve(
-  rows: &[Process],
-  provider: Option<&str>,
-  tier: Option<&str>,
-  agent: &str,
-) -> Option<Process> {
+/// The row a supervisor's turn reads: its own where the console set it one, else the policy's.
+pub fn resolve(rows: &[Process], agent: &str) -> Option<Process> {
   rows
     .iter()
-    .filter(|row| row.matches(provider, tier, agent))
-    .fold(None::<&Process>, |best, row| match best {
-      Some(best) if best.specificity() >= row.specificity() => Some(best),
-      _ => Some(row),
-    })
+    .find(|row| row.own() && row.agent == agent)
+    .or_else(|| rows.iter().find(|row| !row.own()))
     .cloned()
 }
 
-/// The text the agent's own judgement of whether to answer opens on: the console's where it set one, else the
-/// policy's.
-pub async fn supervisor_text<C: ConnectionTrait>(db: &C) -> Result<String, Fault> {
-  let read =
-    all(db, r#"SELECT "text" FROM "draft_questions" WHERE "name" = $1"#, vec![SUPERVISOR.into()]).await?;
+/// The row a supervisor's turn reads, read from the table.
+pub async fn row_of<C: ConnectionTrait>(db: &C, agent: &str) -> Result<Option<Process>, Fault> {
+  Ok(resolve(&rows(db).await?, agent))
+}
+
+/// The text a supervisor's own judgement of whether to answer opens on: the console's where it set that
+/// supervisor one, else the policy's.
+pub async fn supervisor_text<C: ConnectionTrait>(db: &C, agent: &str) -> Result<String, Fault> {
+  let read = all(
+    db,
+    r#"SELECT "text" FROM "draft_questions" WHERE "agent" = $1 AND "name" = $2"#,
+    vec![agent.into(), SUPERVISOR.into()],
+  )
+  .await?;
 
   match read.first() {
     Some(row) => Ok(row.try_get::<String>("", "text")?),
@@ -250,10 +241,21 @@ pub async fn supervisor_text<C: ConnectionTrait>(db: &C) -> Result<String, Fault
   }
 }
 
-/// The catalogue: the supervisor's text, then the policy's questions, each text replaced by the console's, then the
-/// console's own names.
-pub async fn questions<C: ConnectionTrait>(db: &C) -> Result<Vec<Question>, Fault> {
-  let read = all(db, r#"SELECT "name", "text" FROM "draft_questions" ORDER BY "name""#, vec![]).await?;
+/// A supervisor's catalogue: its first judgement's text, then the policy's questions, each text replaced by the
+/// one the console set that supervisor, then the names the console added for it. With no supervisor named, the
+/// policy's alone.
+pub async fn questions<C: ConnectionTrait>(db: &C, agent: Option<&str>) -> Result<Vec<Question>, Fault> {
+  let read = match agent {
+    Some(agent) => {
+      all(
+        db,
+        r#"SELECT "name", "text" FROM "draft_questions" WHERE "agent" = $1 ORDER BY "name""#,
+        vec![agent.into()],
+      )
+      .await?
+    }
+    None => vec![],
+  };
   let mut set: BTreeMap<String, String> = BTreeMap::new();
 
   for row in read {
@@ -289,6 +291,12 @@ pub async fn questions<C: ConnectionTrait>(db: &C) -> Result<Vec<Question>, Faul
 
 /// Why a row may not be set, where it may not; the catalogue's names are the questions a list may name.
 pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
+  if !process.own() {
+    return Some(format!(
+      "A draft process row is one supervisor's: its key is {ANY}/{ANY}/ and the supervisor's name."
+    ));
+  }
+
   for (what, list) in [("rounds", &process.rounds), ("light", &process.light)] {
     if list.iter().any(|name| name == SUPERVISOR) {
       return Some(format!("{what} names {SUPERVISOR}, which is asked before any process and in no list."));
@@ -388,16 +396,29 @@ pub async fn remove<C: ConnectionTrait>(
   Ok(gone > 0)
 }
 
-/// A question's text set by the console.
-pub async fn set_question<C: ConnectionTrait>(db: &C, name: &str, text: &str) -> Result<(), Fault> {
+/// A question's text set by the console for a supervisor.
+pub async fn set_question<C: ConnectionTrait>(
+  db: &C,
+  agent: &str,
+  name: &str,
+  text: &str,
+) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "draft_questions" ("name", "text", "set_at") VALUES ($1, $2, $3)
-       ON CONFLICT ("name") DO UPDATE SET "text" = EXCLUDED."text", "set_at" = EXCLUDED."set_at""#,
-    vec![name.into(), text.into(), now_ms().into()],
+    r#"INSERT INTO "draft_questions" ("agent", "name", "text", "set_at") VALUES ($1, $2, $3, $4)
+       ON CONFLICT ("agent", "name") DO UPDATE SET "text" = EXCLUDED."text", "set_at" = EXCLUDED."set_at""#,
+    vec![agent.into(), name.into(), text.into(), now_ms().into()],
   )
   .await
   .map(drop)
+}
+
+/// Everything the console set a supervisor taken away with the supervisor: its row and its question texts.
+pub async fn forget<C: ConnectionTrait>(db: &C, agent: &str) -> Result<(), Fault> {
+  run(db, r#"DELETE FROM "draft_processes" WHERE "agent" = $1"#, vec![agent.into()]).await?;
+  run(db, r#"DELETE FROM "draft_questions" WHERE "agent" = $1"#, vec![agent.into()]).await?;
+
+  Ok(())
 }
 
 /// Whether the policy's catalogue holds a question of the name, the agent's own judgement among them: one whose
@@ -406,9 +427,14 @@ pub fn policy_holds(name: &str) -> bool {
   name == SUPERVISOR || DRAFTING.questions.contains_key(name)
 }
 
-/// The console's text of a question taken away; whether there was one.
-pub async fn remove_question<C: ConnectionTrait>(db: &C, name: &str) -> Result<bool, Fault> {
-  let gone = run(db, r#"DELETE FROM "draft_questions" WHERE "name" = $1"#, vec![name.into()]).await?;
+/// The console's text of a supervisor's question taken away; whether there was one.
+pub async fn remove_question<C: ConnectionTrait>(db: &C, agent: &str, name: &str) -> Result<bool, Fault> {
+  let gone = run(
+    db,
+    r#"DELETE FROM "draft_questions" WHERE "agent" = $1 AND "name" = $2"#,
+    vec![agent.into(), name.into()],
+  )
+  .await?;
 
   Ok(gone > 0)
 }

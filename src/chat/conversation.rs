@@ -2963,7 +2963,7 @@ impl Conversations {
       },
     )
     .await?;
-    let room = room_context(&receiver, room_id, None).await?;
+    let room = room_context(&receiver, self.agent(), room_id, None).await?;
     let written = composed.prompt.clone();
     let (sent, _, notes) =
       sent_prompt(&receiver, Some(session_id), Some(&room), true, self.agent(), &written).await?;

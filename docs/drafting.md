@@ -92,8 +92,10 @@ message passes, and the record each turn of it leaves.
 ## The questions
 
 - **The questions are a catalogue, by name,** each a text the draft turn follows. The policy holds six, in
-  English as every line an agent reads, each a rule with no sentence for the agent to copy, and the console
-  changes any text, adds a question under a new name or takes one it added away (「The routes」 below):
+  English as every line an agent reads, each a rule with no sentence for the agent to copy. **A supervisor's
+  catalogue is its own:** the policy's six, each in the text the console set for that supervisor where it set one,
+  then the questions the console added for it under new names (「The routes」 below). A text set for one supervisor
+  is read by no other, and nothing the console sets stands for every supervisor:
 
 | Name | What it asks |
 |---|---|
@@ -114,12 +116,12 @@ message passes, and the record each turn of it leaves.
   the marks a message that arrived meanwhile takes (`chat-line.toml`, `[room]`, `process`). The process asks the
   agent for no progress line: what a working turn shows the room is read off its run as it goes
   (`docs/receiver.md`, 「The event stream」). The room's block
-  also carries the catalogue's texts for the questions the process follows, assembled from the same policy rows
-  the console edits (`drafting.toml`, `[questions]`; 「The routes」 below); a question the row has switched off
+  also carries the texts of the questions the supervisor's process follows, out of the supervisor's own catalogue
+  (`drafting.toml`, `[questions]`; 「The routes」 below); a question its row has switched off
   stands in no line of it (「The process table」 below). The block goes to a session once per version and by its
   mark after that, so a turn carries only what changes from round to round: which questions its round follows.
 - **A session reads one set of instructions for the process, never two.** The process's part of the room's
-  block is the same in every room: its fixed rules, the stage lines, the voice a message is written in, the
+  block is a supervisor's own and the same in every room it answers: its fixed rules, the stage lines, the voice a message is written in, the
   rules of the items and the checks, the agent's first judgement and the review's instructions. Where it is no
   longer what the last turn of an agent's one session
   across rooms carried, that session is not handed the new text beside the old: it is replaced through its
@@ -136,9 +138,9 @@ message passes, and the record each turn of it leaves.
 
 ## The process table
 
-- **One table says which questions a round follows:** one row for every provider, tier and agent, every part `*`.
-  The matching code still reads a provider, a tier and an agent, but the policy's one row matches all of them, and a
-  console row of any other key is ignored. A row holds:
+- **One table says which questions a round follows,** a row to a supervisor. A row's key is a provider, a tier
+  and an agent, each a name or `*` for any: the policy's one row is `*/*/*`, and a supervisor's own row, which the
+  console sets, names the supervisor under any provider and any tier. A row holds:
   - `rounds`, the questions an ordinary turn's round follows, in order;
   - `light`, the questions a light turn's round follows (「A light turn」 below);
   - `off`, the questions of those lists that are switched off: each keeps its place in its list and is not
@@ -157,17 +159,14 @@ message passes, and the record each turn of it leaves.
   (`drafting.toml`, `voice`); it holds however long the session runs, and the closing check carries the voice
   line again where a message already stands. The receiver carries no register of its own and names no person's
   register: that is the persona's.
-- **The policy's one row is the default for every agent** (`drafting.toml`): `intent`, `information`, `facts`,
-  `memory`, `promises` and `final`, in that order; every light turn is `final` alone; 12 characters make a light
-  turn. A deployment that still carries the old two rows loads with them ignored in favour of this one.
-- **The console's rows do not make a second process** (「The routes」 below): a row of a key other than the one row's
-  is ignored, and the one row's own key replaces the default where the console sets it. Every agent still reads
-  the same row.
-- **A round reads its row before its turn goes out,** since the turn carries the round's line: the provider the
-  agency's state names for the session the round goes on (a session's state answers it from its start, before its
-  first turn) and the agent whose turn it is. The most specific row that matches stands, an agent's row before a
-  provider's. The agency names no tier for a session, which runs for a supervisor or a role, so a round matches
-  only rows of any tier.
+- **The policy's one row is what a supervisor reads until it has a row of its own** (`drafting.toml`): `intent`,
+  `information`, `facts`, `memory`, `promises` and `final`, in that order; every light turn is `final` alone; 12
+  characters make a light turn.
+- **The console sets a supervisor's row and no other** (「The routes」 below): a row is one supervisor's, read by
+  that supervisor alone, and no row the console sets stands for every supervisor. The policy's row is the
+  deployment's, changed in the policy file.
+- **A round reads its row before its turn goes out,** since the turn carries the round's line: the row of the
+  supervisor whose turn it is where the console set it one, and the policy's where it did not.
 - **A list that holds questions ends in `final` and holds it nowhere else.** An empty list follows nothing: the
   round's turn goes out as the window composed it and its answer is the message, held to the items and checks
   below like any.
@@ -492,29 +491,32 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 
 ## The routes
 
-- **`GET /draft-processes`** answers every row of the table, the policy's and the console's, each with its
-  `source`: `set` where the console set it, `default` where the policy's stands.
-- **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a row, `*` standing for any in each place, and
-  answers it as it now stands. `off` is left out for none. A list naming a question the catalogue does not hold,
+- **`GET /draft-processes`** answers every row of the table, the policy's and then each supervisor's by name,
+  each with its `source`: `set` where the console set it, `default` where the policy's stands. With
+  `agentName` it answers the one row that supervisor reads: its own, or the policy's where it has none.
+- **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a supervisor's row and answers it as it now
+  stands: the provider and the tier are `*` and the agent a supervisor's name, and any other key is refused
+  `bad-request`. `off` is left out for none. A list naming a question the supervisor's catalogue does not hold,
   a list that holds questions and does not end in `final` or holds it before the end, an `off` that names
   `final`, or a light bound outside 0 to 1,000 characters is refused
   `bad-request`, and nothing is written. A row that still carries `sendFrom`, `turnSeconds`, `ceilingSeconds` or
   `pastCeiling` loads with them ignored.
-- **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes the console's row away; the policy's row of the
-  key stands again where it holds one. A key the console set no row for is `not-found`.
-- **`GET /draft-questions`** answers the catalogue, each question with its `source`; **`PUT
-  /draft-questions/{name}`** sets a question's text, a name being a lowercase word of letters, digits and
-  dashes, and a text at most 4,000 characters and not empty.
-- **`DELETE /draft-questions/{name}`** takes the console's text of a question away. A question the console
-  added leaves the catalogue; one the policy holds stands again in the policy's text, and so does the agent's
-  first judgement. A question the console added that a list of the table still names is refused `conflict`,
-  since the list would name nothing: it is taken out of the lists first. A name the console set no text for is
-  `not-found`.
-- **The catalogue holds the agent's first judgement too,** first of all, named `supervisor`: its text is what the
-  room's block says the judgement asks, the round policy's head and question as one text where the console set
-  none (`chat-round.toml`, `[supervisor]`, `rule`), and the judgement turn carries the marker, the room's note,
+- **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes a supervisor's row away, and the supervisor
+  reads the policy's again. A key the console set no row for is `not-found`.
+- **`GET /draft-questions`** answers a supervisor's catalogue where `agentName` names one, and the policy's
+  alone where it names none, each question with its `source`; **`PUT /draft-questions/{agentName}/{name}`** sets
+  a question's text for that supervisor, a name being a lowercase word of letters, digits and dashes, and a text
+  at most 4,000 characters and not empty.
+- **`DELETE /draft-questions/{agentName}/{name}`** takes the console's text of a supervisor's question away. A
+  question the console added leaves that supervisor's catalogue; one the policy holds stands again in the
+  policy's text, and so does the agent's first judgement. A question the console added that a list of the
+  supervisor's row still names is refused `conflict`, since the list would name nothing: it is taken out of the
+  lists first. A name the console set no text for is `not-found`.
+- **A supervisor's catalogue holds its first judgement too,** first of all, named `supervisor`: its text is what
+  the room's block says the judgement asks, the round policy's head and question as one text where the console
+  set none for that supervisor (`chat-round.toml`, `[supervisor]`, `rule`), and the judgement turn carries the marker, the room's note,
   where the session has not read it, its recent words and the words judged as data. It is set like any question,
   and no list of the table may name it, since it is asked before any process.
-- A change reaches the next round that reads the table; no round under way changes. Where it changes the
-  process's part of the room's block, an agent's one session is replaced before its next turn (「The
-  questions」 above).
+- A change reaches the next round of the supervisor it was set for; no round under way changes, and no other
+  supervisor's does. Where it changes the process's part of that supervisor's room block, the supervisor's one
+  session is replaced before its next turn (「The questions」 above).

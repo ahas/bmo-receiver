@@ -319,7 +319,7 @@ async fn a_full_session_handed_over_by_its_note_is_replaced_at_its_next_turn_thr
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }
 
-// The process row every turn reads, as the console sets it.
+// The process row the supervisor's turns read, as the console sets it.
 async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str], light_chars: u32) {
   use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
 
@@ -330,7 +330,7 @@ async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str], light_cha
     &Process {
       provider: ANY.to_owned(),
       tier: ANY.to_owned(),
-      agent: ANY.to_owned(),
+      agent: AGENT.to_owned(),
       rounds: named(rounds),
       send_from: String::new(),
       light: vec![],

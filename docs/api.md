@@ -553,12 +553,12 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body | Answers |
 |---|---|---|
-| `GET /draft-processes` | | a page of `DraftProcess`: the policy's one row, or the console's row of its own key |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}` | `rounds`, `light`, `off?`, `lightChars`; `sendFrom?`, `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
+| `GET /draft-processes` | query `agentName?` | a page of `DraftProcess`: the policy's row and each supervisor's own; with `agentName`, the one row that supervisor reads |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}`, the provider and the tier `*` and the agent a supervisor's name | `rounds`, `light`, `off?`, `lightChars`; `sendFrom?`, `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
-| `GET /draft-questions` | | a page of `DraftQuestion` |
-| `PUT /draft-questions/{name}` | `text` | the `DraftQuestion` as it now stands |
-| `DELETE /draft-questions/{name}` | | 204; `not-found` where the console set no text of the name, `conflict` where a list still names a question the console added |
+| `GET /draft-questions` | query `agentName?` | a page of `DraftQuestion`: that supervisor's catalogue, or the policy's alone where none is named |
+| `PUT /draft-questions/{agentName}/{name}` | `text` | the `DraftQuestion` as it now stands |
+| `DELETE /draft-questions/{agentName}/{name}` | | 204; `not-found` where the console set that supervisor no text of the name, `conflict` where a list of its row still names a question the console added |
 
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
   names of the questions an ordinary and a light turn's round follows, in order; `off`, the questions of those
@@ -631,8 +631,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `DELETE /supervisors/{supervisorName}` with `rooms`, every room that names it, read there as rooms it shares so
   each keeps its record, and `forgetBrain` and `force` as the console gave them; the agency's `running` comes back
   as `running` with the `label`. Once the agency has taken its half, the receiver lets go of every number it gave
-  the supervisor that no kept message is filed under, with its picture, and of every room's naming of it; a room
-  left naming none is the default answerer's.
+  the supervisor that no kept message is filed under, with its picture, of every room's naming of it, and of its
+  draft process row and its question texts (`docs/drafting.md`, 「The process table」); a room left naming none is
+  the default answerer's.
 - **A reset is the agency's, with the rooms the receiver names.** `POST /supervisors/{supervisorName}/resets`
   hands the agency's reset (the agency's `docs/supervisors.md`, 「Starting it afresh」) `conversation`, `person`,
   `dryRun` and `by` as they came, with `alone`, the rooms that name the supervisor alone, and `shared`, those that

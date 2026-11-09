@@ -218,7 +218,7 @@
 - **The draft process's instructions are read once by a session.** The process's part of the room's block —
   its fixed rules, the stage lines of the questions the process asks, what a send does, the rules of the items
   and the checks, the agent's first judgement and the review's instructions (`docs/drafting.md`, 「The
-  questions」) — is the same in every room, and it is what tells the session how each round is answered. The receiver keeps, with what it knows of
+  questions」) — is a supervisor's own and the same in every room it answers, and it is what tells the session how each round is answered. The receiver keeps, with what it knows of
   the session's cache, the fingerprint of that part as the session's last turn carried it; a turn that finds
   it another replaces the session, with the reason `process`, so no session holds the instructions as they
   were beside the instructions as they are. It is not the head: the agency's prefix stands unmoved, and the

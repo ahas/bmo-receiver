@@ -3747,6 +3747,16 @@
     "/draft-processes": {
       "get": {
         "operationId": "draftProcesses",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3769,7 +3779,7 @@
             "description": "A refusal or failure: unauthorized, failed"
           }
         },
-        "summary": "Every row of the draft process table, the policy's and the console's.",
+        "summary": "Every row of the draft process table, the policy's and each supervisor's own; for a supervisor named, the one row it reads.",
         "tags": [
           "Drafts"
         ],
@@ -3823,7 +3833,7 @@
             "description": "A refusal or failure: unauthorized, not-found, failed"
           }
         },
-        "summary": "The console's row of a key taken away.",
+        "summary": "A supervisor's row taken away.",
         "tags": [
           "Drafts"
         ],
@@ -3893,7 +3903,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, failed"
           }
         },
-        "summary": "A row of the draft process table set by the console.",
+        "summary": "A supervisor's row set by the console.",
         "tags": [
           "Drafts"
         ],
@@ -3907,6 +3917,16 @@
     "/draft-questions": {
       "get": {
         "operationId": "draftQuestions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3929,7 +3949,7 @@
             "description": "A refusal or failure: unauthorized, failed"
           }
         },
-        "summary": "The draft process's catalogue of questions.",
+        "summary": "A supervisor's catalogue of questions, or the policy's alone where none is named.",
         "tags": [
           "Drafts"
         ],
@@ -3939,10 +3959,18 @@
         ]
       }
     },
-    "/draft-questions/{name}": {
+    "/draft-questions/{agentName}/{name}": {
       "delete": {
         "operationId": "removeDraftQuestion",
         "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "name",
@@ -3967,7 +3995,7 @@
             "description": "A refusal or failure: unauthorized, not-found, conflict, failed"
           }
         },
-        "summary": "The console's text of a question taken away.",
+        "summary": "The console's text of a supervisor's question taken away.",
         "tags": [
           "Drafts"
         ],
@@ -3981,6 +4009,14 @@
       "put": {
         "operationId": "setDraftQuestion",
         "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "name",
@@ -4022,7 +4058,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, failed"
           }
         },
-        "summary": "A question's text set by the console.",
+        "summary": "A question's text set by the console for a supervisor.",
         "tags": [
           "Drafts"
         ],
