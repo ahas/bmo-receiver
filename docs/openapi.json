@@ -1481,7 +1481,7 @@
           },
           "kind": {
             "default": null,
-            "description": "`sticker` for a sticker kept on the record, `thinking` for a working turn's thinking that the owner's chat\nwas sent, and null for any other message.",
+            "description": "`sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, null\nfor any other message.",
             "type": [
               "string",
               "null"

@@ -117,12 +117,11 @@ pub async fn save_message(
   message: &Inbound,
   agent_name: Option<&str>,
   voice: Option<&str>,
-  kind: Option<&str>,
 ) -> Result<(), Fault> {
   run(
     db,
-    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "image_state", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice", "kind")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "image_state", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT ("chat_id", "message_id") DO UPDATE SET "sender_id" = excluded."sender_id", "sender_name" = excluded."sender_name",
          "sent_at" = excluded."sent_at", "text" = excluded."text", "image_path" = excluded."image_path",
          "image_state" = COALESCE(excluded."image_state", "messages"."image_state"),
@@ -130,7 +129,7 @@ pub async fn save_message(
          "voice_seconds" = COALESCE(excluded."voice_seconds", "messages"."voice_seconds"),
          "voice_state" = COALESCE(excluded."voice_state", "messages"."voice_state"),
          "reply_to_message_id" = excluded."reply_to_message_id", "via" = excluded."via", "answer_seconds" = NULL, "round" = NULL, "album" = excluded."album",
-         "agent_name" = excluded."agent_name", "voice" = excluded."voice", "kind" = COALESCE(excluded."kind", "messages"."kind")"#,
+         "agent_name" = excluded."agent_name", "voice" = excluded."voice""#,
     vec![
       message.chat_id.into(),
       message.message_id.into(),
@@ -148,7 +147,6 @@ pub async fn save_message(
       message.album.into(),
       agent_name.into(),
       voice.into(),
-      kind.into(),
     ],
   )
   .await
@@ -220,8 +218,12 @@ pub async fn message(
   Ok(row.map(|row| inbound_of(&row, via)).transpose()?)
 }
 
+// The rows of a room's record that are its conversation: every message but one of kind `thinking`, which the room
+// is shown and no turn is handed (docs/messages.md, 「A working turn's thinking」).
+const SPOKEN: &str = r#""kind" IS DISTINCT FROM 'thinking'"#;
+
 /// The room's latest messages, oldest first in the room's line: by when each was sent, and then by when it was
-/// written down, with the row of the room's record each stands at.
+/// written down, with the row of the room's record each stands at. A thinking message is none of them.
 pub async fn recent_rows(
   db: &DatabaseConnection,
   chat_id: i64,
@@ -230,8 +232,10 @@ pub async fn recent_rows(
 ) -> Result<Vec<(i64, Inbound)>, Fault> {
   let rows = all(
     db,
-    r#"SELECT * FROM (SELECT * FROM "messages" WHERE "chat_id" = $1 ORDER BY "sent_at" DESC, "rowid" DESC LIMIT $2) "m"
-       ORDER BY "sent_at", "rowid""#,
+    &format!(
+      r#"SELECT * FROM (SELECT * FROM "messages" WHERE "chat_id" = $1 AND {SPOKEN} ORDER BY "sent_at" DESC, "rowid" DESC LIMIT $2) "m"
+         ORDER BY "sent_at", "rowid""#
+    ),
     vec![chat_id.into(), i64::try_from(count).unwrap_or(i64::MAX).into()],
   )
   .await?;
@@ -244,11 +248,14 @@ pub async fn recent_rows(
   Ok(found)
 }
 
-/// How many of the room's messages were written down after one row of its record.
+/// How many of the room's messages were written down after one row of its record, a thinking message never
+/// counted.
 pub async fn count_since_row(db: &DatabaseConnection, chat_id: i64, after: i64) -> Result<i64, Fault> {
   let row = one(
     db,
-    r#"SELECT COUNT(*) AS "standing" FROM "messages" WHERE "chat_id" = $1 AND "rowid" > $2"#,
+    &format!(
+      r#"SELECT COUNT(*) AS "standing" FROM "messages" WHERE "chat_id" = $1 AND "rowid" > $2 AND {SPOKEN}"#
+    ),
     vec![chat_id.into(), after.into()],
   )
   .await?;
@@ -256,7 +263,8 @@ pub async fn count_since_row(db: &DatabaseConnection, chat_id: i64, after: i64) 
   Ok(row.map(|row| row.try_get::<i64>("", "standing")).transpose()?.unwrap_or(0))
 }
 
-/// The room's messages written down after one row of the room's record, oldest first, with the row each stands at.
+/// The room's messages written down after one row of the room's record, oldest first, with the row each stands
+/// at; a thinking message is none of them.
 pub async fn messages_since_row(
   db: &DatabaseConnection,
   chat_id: i64,
@@ -265,7 +273,9 @@ pub async fn messages_since_row(
 ) -> Result<Vec<(i64, Inbound)>, Fault> {
   let rows = all(
     db,
-    r#"SELECT * FROM "messages" WHERE "chat_id" = $1 AND "rowid" > $2 ORDER BY "sent_at", "rowid""#,
+    &format!(
+      r#"SELECT * FROM "messages" WHERE "chat_id" = $1 AND "rowid" > $2 AND {SPOKEN} ORDER BY "sent_at", "rowid""#
+    ),
     vec![chat_id.into(), after.into()],
   )
   .await?;
@@ -288,8 +298,10 @@ pub async fn recent_messages(
 ) -> Result<Vec<Inbound>, Fault> {
   let rows = all(
     db,
-    r#"SELECT * FROM (SELECT * FROM "messages" WHERE "chat_id" = $1 ORDER BY "sent_at" DESC, "rowid" DESC LIMIT $2) "m"
-       ORDER BY "sent_at", "rowid""#,
+    &format!(
+      r#"SELECT * FROM (SELECT * FROM "messages" WHERE "chat_id" = $1 AND {SPOKEN} ORDER BY "sent_at" DESC, "rowid" DESC LIMIT $2) "m"
+         ORDER BY "sent_at", "rowid""#
+    ),
     vec![chat_id.into(), i64::try_from(count).unwrap_or(i64::MAX).into()],
   )
   .await?;
@@ -307,10 +319,12 @@ pub async fn messages_after(
 ) -> Result<Vec<Inbound>, Fault> {
   let rows = all(
     db,
-    r#"SELECT * FROM "messages" WHERE "chat_id" = $1 AND (
-         ("sent_at", "rowid") > (SELECT "c"."sent_at", "c"."rowid" FROM "messages" "c" WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)
-         OR (NOT EXISTS (SELECT 1 FROM "messages" "c" WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2) AND "message_id" > $2)
-       ) ORDER BY "sent_at", "rowid""#,
+    &format!(
+      r#"SELECT * FROM "messages" WHERE "chat_id" = $1 AND {SPOKEN} AND (
+           ("sent_at", "rowid") > (SELECT "c"."sent_at", "c"."rowid" FROM "messages" "c" WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)
+           OR (NOT EXISTS (SELECT 1 FROM "messages" "c" WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2) AND "message_id" > $2)
+         ) ORDER BY "sent_at", "rowid""#
+    ),
     vec![chat_id.into(), after.into()],
   )
   .await?;

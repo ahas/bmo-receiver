@@ -1906,8 +1906,8 @@ export interface components {
             id: number;
             imagePath: string | null;
             /**
-             * @description `sticker` for a sticker kept on the record, `thinking` for a working turn's thinking that the owner's chat
-             *     was sent, and null for any other message.
+             * @description `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, null
+             *     for any other message.
              * @default null
              */
             kind: string | null;

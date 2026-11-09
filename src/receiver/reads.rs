@@ -14,9 +14,10 @@ use crate::now_ms;
 
 use crate::{all, one, run};
 
-// A message of the room not in an agent's book yet, read over the room's rows as `m`.
-const UNREAD: &str = r#"NOT EXISTS (SELECT 1 FROM "people_reads" "r" WHERE "r"."agent" = $1
-     AND "r"."chat_id" = "m"."chat_id" AND "r"."message_id" = "m"."message_id")"#;
+// A message of the room not in an agent's book yet, read over the room's rows as `m`. A thinking message is none:
+// it is no part of the room's conversation, so no agent's book takes it.
+const UNREAD: &str = r#""m"."kind" IS DISTINCT FROM 'thinking' AND NOT EXISTS (SELECT 1 FROM "people_reads" "r"
+     WHERE "r"."agent" = $1 AND "r"."chat_id" = "m"."chat_id" AND "r"."message_id" = "m"."message_id")"#;
 
 // Where a message stands after the cursor message the reader holds, or after its number where the room no
 // longer holds that row.
@@ -84,7 +85,8 @@ pub struct Page {
   pub via: Option<String>,
   pub agent_name: Option<String>,
   pub voice: Option<String>,
-  /// `sticker` for a sticker kept on the record, `thinking` for a working turn's thinking, none for any other.
+  /// `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, none
+  /// for any other.
   pub kind: Option<String>,
   pub edited_at: Option<i64>,
   pub deleted_at: Option<i64>,

@@ -234,8 +234,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
   `transcript` (the words heard in a voice note, or null), `voiceSeconds` (how long the recording ran, or null),
-  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker`, a working turn's `thinking`, or null for any
-  other), `editedAt`, `deletedAt` and
+  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker`, `thinking` for a thinking block a record holds as a message, or null for any other), `editedAt`, `deletedAt` and
   `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
   `situation` (the room's situation note as it stood when the round that judged this message opened — its `text`,
@@ -453,9 +452,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `phase`, `tool`, token counts and `spent`, its last `actions` with `droppedActions` and `droppedContext`, and
   `said`, the turn's last three progress lines, oldest first, each `{text, before}` — the words it wrote and then
   went on working, redacted, run into one line and cut at 240 characters, never its answer
-  (`docs/receiver.md`, 「The event stream」). The thinking blocks themselves are no part of this picture: while the
-  turn works they go into the owner's private chat as messages the record marks with the policy's thinking kind,
-  cut at its ceiling (`docs/messages.md`, 「A working turn's thinking」).
+  (`docs/receiver.md`, 「The event stream」) — and `thinking`, the last thinking block the run wrote, redacted and
+  cut at the policy's ceiling, on a turn working in the owner's private chat and null on every other
+  (`docs/messages.md`, 「A working turn's thinking」).
 
 ## Hooks
 

@@ -29,7 +29,6 @@ use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
 use super::progress::{RunProgress, picture_of};
 use super::room::{RoomContext, room_context};
-use super::thinking::Thoughts;
 use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::room_record::RoomForget;
@@ -294,10 +293,9 @@ impl Carry {
     let db = receiver.db();
     let agent = held.agent.as_str();
     let chat_id = asking.chat_id;
-    // A working supervisor's thinking goes into the owner's private chat as its own marked messages, off the
-    // turn's path (docs/receiver.md, 「The event stream」). No other room is sent to.
-    let thoughts = (chat_id == receiver.owner_room())
-      .then(|| Thoughts::start(receiver.clone(), chat_id, asking.via.clone(), held.agent.clone()));
+    // The picture of a turn working in the owner's private chat carries the run's last thinking block; no other
+    // room's does (docs/messages.md, 「A working turn's thinking」).
+    let thinking_shown = chat_id == receiver.owner_room();
 
     pace_first_launch(receiver, chat_id).await;
 
@@ -508,10 +506,8 @@ impl Carry {
             picture = read;
           }
 
-          if let Some(thoughts) = thoughts.as_ref() {
-            for thought in thinking_of(&line) {
-              thoughts.say(&thought);
-            }
+          if thinking_shown && let Some(thought) = thinking_of(&line).last() {
+            picture = picture.thought(thought);
           }
 
           after = id.unwrap_or(after);

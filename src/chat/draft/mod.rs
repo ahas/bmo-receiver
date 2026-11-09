@@ -1068,7 +1068,7 @@ impl Drafter {
 }
 
 /// Whether a message the agent itself sent follows the owner's directive in the room's record: the only thing that
-/// makes an owner's words answered.
+/// makes an owner's words answered. A thinking message is no such message.
 async fn answered_after(receiver: &Receiver, chat_id: i64, own: Option<i64>, message_id: i64) -> bool {
   let Some(own) = own else {
     return false;
@@ -1077,7 +1077,7 @@ async fn answered_after(receiver: &Receiver, chat_id: i64, own: Option<i64>, mes
     receiver.db(),
     r#"SELECT COUNT(*) AS "sent" FROM "messages" m
        JOIN "messages" o ON o."chat_id" = m."chat_id" AND o."message_id" = $2
-       WHERE m."chat_id" = $1 AND m."sender_id" = $3
+       WHERE m."chat_id" = $1 AND m."sender_id" = $3 AND m."kind" IS DISTINCT FROM 'thinking'
          AND (m."sent_at", m."rowid") > (o."sent_at", o."rowid")"#,
     vec![chat_id.into(), message_id.into(), own.into()],
   )

@@ -63,7 +63,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 36);
+  assert_eq!(migrate(db).await.unwrap(), 37);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -173,7 +173,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
 
   // The line's index is made thirteen migrations before the forwards, every migration since standing between them.
   // Down to the same version as before the note's columns were added, one step further back.
-  Migrator::down(db, Some(26)).await.unwrap();
+  Migrator::down(db, Some(27)).await.unwrap();
 
   let before = stated(database.texts(MESSAGE_INDEXES).await);
 
@@ -184,8 +184,69 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
   );
 
-  assert_eq!(migrate(db).await.unwrap(), 26);
+  assert_eq!(migrate(db).await.unwrap(), 27);
   assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
+}
+
+#[tokio::test]
+async fn the_thinking_messages_a_record_holds_take_their_kind_and_lose_their_marker() {
+  let database = Scratch::new().await;
+  let db = database.db();
+  let marker = bmo_receiver::store::migration::m20261109_000037_thinking_kind::MARKER;
+  Migrator::down(db, Some(1)).await.unwrap();
+
+  // A thinking message as it was kept, an answer that only quotes the marker, a person's words opening on it, and a
+  // round's answer opening on it: the first alone is a thinking message.
+  let rows: [(i64, Option<&str>, Option<&str>, String); 4] = [
+    (1, Some("agent-a"), None, format!("{marker}\nweighing the room's words")),
+    (2, Some("agent-a"), None, format!("the line said {marker}")),
+    (3, None, None, format!("{marker}\na person wrote this")),
+    (4, Some("agent-a"), Some("round:1"), format!("{marker}\nan answer")),
+  ];
+
+  for (id, agent, round, text) in rows {
+    database
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_name", "sent_at", "text", "agent_name", "round")
+           VALUES (1, $1, 'agent-a', $1, $2, $3, $4)"#,
+        vec![id.into(), text.into(), agent.map(str::to_owned).into(), round.map(str::to_owned).into()],
+      )
+      .await;
+  }
+
+  assert_eq!(migrate(db).await.unwrap(), 1);
+
+  let kept = all(
+    db,
+    r#"SELECT "message_id", "kind", "text" FROM "messages" ORDER BY "message_id""#,
+    vec![],
+  )
+  .await
+  .unwrap()
+  .iter()
+  .map(|row| {
+    (
+      row.try_get::<i64>("", "message_id").unwrap(),
+      row.try_get::<Option<String>>("", "kind").unwrap(),
+      row.try_get::<String>("", "text").unwrap(),
+    )
+  })
+  .collect::<Vec<_>>();
+
+  assert_eq!(kept[0], (1, Some("thinking".to_owned()), "weighing the room's words".to_owned()));
+  assert_eq!(kept[1].1, None, "an answer that quotes the marker is an answer");
+  assert_eq!(kept[2], (3, None, format!("{marker}\na person wrote this")));
+  assert_eq!(kept[3].1, None, "a round's answer is an answer whatever it opens on");
+
+  // Stepping back hands the message its marker again.
+  Migrator::down(db, Some(1)).await.unwrap();
+  assert_eq!(
+    one(db, r#"SELECT "text" FROM "messages" WHERE "message_id" = 1 AND "kind" IS NULL"#, vec![])
+      .await
+      .unwrap()
+      .map(|row| row.try_get::<String>("", "text").unwrap()),
+    Some(format!("{marker}\nweighing the room's words"))
+  );
 }
 
 #[tokio::test]
@@ -293,7 +354,7 @@ async fn the_rows_under_the_consoles_former_key_are_the_records_and_an_agent_kee
     database.run(row, vec![]).await;
   }
 
-  assert_eq!(migrate(db).await.unwrap(), 18);
+  assert_eq!(migrate(db).await.unwrap(), 19);
   assert_eq!(
     database.texts(r#"SELECT "via" FROM "messages""#).await,
     ["record"],

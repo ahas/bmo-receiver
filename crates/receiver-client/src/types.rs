@@ -230,8 +230,8 @@ pub struct Message {
   /// The voice the send went out in (`bot-account`, `human-avatar`, `human-reader`), set beside `agentName` and
   /// null on a message that came in from a provider.
   pub voice: Option<String>,
-  /// `sticker` for a sticker kept on the record, `thinking` for a working turn's thinking that the owner's chat
-  /// was sent, and null for any other message.
+  /// `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, null
+  /// for any other message.
   #[serde(default)]
   pub kind: Option<String>,
   /// When the record kept an edit of the message, in epoch milliseconds.

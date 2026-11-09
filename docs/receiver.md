@@ -326,15 +326,12 @@ flowchart TD
   it led to was made, those dropped off the front of `actions` counted, so the line stands just before the action
   of that number, the kept action at place `i` being number `droppedActions + i`. The picture keeps nothing after
   the turn; the run's lines stay in the agency's log under the runs a message names, where they are read again.
-- **A working supervisor's thinking goes into the owner's private chat as its own messages** while the turn
-  works (`chat-round.toml`, `[thinking]`): each thinking block the run writes is sent as a text message as it
-  stands, in its own language with its secret-shaped runs taken out, and cut at the policy's ceiling with an
-  ellipsis marking the cut. Its words carry no label: the message the room's record keeps carries the policy's
-  kind (`thinking`), which a reader such as the console draws the label from. It is sent off the turn's path, so
-  nothing waits on the chat service. Only the
-  owner's private chat is sent to: thinking can quote private or other-room material and a group room holds other
-  people. These messages are never the turn's answer and no part of what the round's answer is judged by; the
-  answer is the turn's own last words, sent as it always was.
+- **The picture of a turn working in the owner's private chat carries the run's last thinking block,** as
+  `thinking`: the block as it stands and in its own language with its secret-shaped runs taken out, cut at the
+  policy's ceiling with an ellipsis marking the cut (`chat-round.toml`, `[thinking]`). A newer block takes its
+  place, a turn that has written none carries null, and so does a turn in any other room: thinking can quote
+  private or other-room material and a group room holds other people. It is never sent as a message and never the
+  turn's answer (`docs/messages.md`, 「A working turn's thinking」).
 - **`GET /health` answers for the receiver itself:** `ok`, the owner, `bot` with this process's number and the
   moment it started, and its version. A deployment's wait matches `bot`'s number against the unit's main process.
 

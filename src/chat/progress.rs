@@ -4,6 +4,7 @@
 //! few things it did — what it was handed and each call with how it ended — and the last few lines it wrote and
 //! then went on working, so a room watching the console sees the turn as it goes.
 
+use receiver_policy::chat_round::CHAT_ROUND;
 use serde::Serialize;
 
 use super::talk::clip;
@@ -71,6 +72,8 @@ pub struct RunProgress {
   pub dropped_actions: usize,
   pub dropped_context: usize,
   pub said: Vec<SaidLine>,
+  /// The last thinking block the run wrote, on a turn working in the owner's private chat; none on every other.
+  pub thinking: Option<String>,
   // What the turn wrote since its last call, which a call coming after it makes progress lines of and which is
   // otherwise its answer.
   #[serde(skip)]
@@ -92,6 +95,7 @@ impl Default for RunProgress {
       dropped_actions: 0,
       dropped_context: 0,
       said: vec![],
+      thinking: None,
       held: vec![],
     }
   }
@@ -112,6 +116,14 @@ impl RunProgress {
         })
         .collect(),
     )
+  }
+
+  /// The picture carrying `block` as the run's last thinking block: as it stands with its secret-shaped runs taken
+  /// out, cut at the policy's ceiling with the cut marked (docs/messages.md, 「A working turn's thinking」).
+  pub fn thought(mut self, block: &str) -> Self {
+    self.thinking = Some(clip(&secrets::redacted(block), CHAT_ROUND.thinking.ceiling_chars));
+
+    self
   }
 
   // The picture with more actions on it, the oldest dropped where the bound is met and counted.
