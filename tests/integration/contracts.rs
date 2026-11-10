@@ -96,7 +96,7 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
     put(
       &front,
       "/room-holders/unit-a",
-      json!({ "address": "http://127.0.0.1:9", "holdings": [] })
+      json!({ "address": "http://[::1]:9", "holdings": [] })
     )
     .await,
     (StatusCode::NO_CONTENT, json!({})),
@@ -300,8 +300,8 @@ async fn each_hook_the_agency_is_told_of_stands_at_a_route_the_receiver_answers(
     .await;
 
   for point in bmo_receiver::service_start::HOOKS {
-    let url = bmo_receiver::service_start::hook_url("http://127.0.0.1:9", point);
-    let path = url.strip_prefix("http://127.0.0.1:9").unwrap();
+    let url = bmo_receiver::service_start::hook_url("http://[::1]:9", point);
+    let path = url.strip_prefix("http://[::1]:9").unwrap();
 
     assert!(
       bmo_receiver::routes::served().contains(&"POST /hooks/{point}".to_owned()),

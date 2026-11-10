@@ -131,23 +131,23 @@ sender_name = "Agent A"
 language = "en"
 
 [agency]
-base = "http://127.0.0.1:1"
+base = "http://[::1]:1"
 token = "unused"
 
 [gate]
-base = "http://127.0.0.1:1"
+base = "http://[::1]:1"
 token = "unused"
 
 [job]
-base = "http://127.0.0.1:1"
+base = "http://[::1]:1"
 token = "unused"
 
 [web]
-base = "http://127.0.0.1:1"
+base = "http://[::1]:1"
 token = "unused"
 
 [warmer]
-base = "http://127.0.0.1:1"
+base = "http://[::1]:1"
 token = "unused"
 "#,
     data_root.display()

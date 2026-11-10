@@ -536,7 +536,7 @@ async fn a_unit_declared_a_holder_keeps_its_declaration_and_declaring_again_repl
     put(
       &front,
       "/room-holders/unit-a",
-      json!({ "address": "http://127.0.0.1:9", "holdings": [{ "name": "rows", "effect": "kept" }] }),
+      json!({ "address": "http://[::1]:9", "holdings": [{ "name": "rows", "effect": "kept" }] }),
     )
     .await,
     (StatusCode::NO_CONTENT, json!({})),

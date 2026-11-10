@@ -133,7 +133,7 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
   remember_mark(stood.receiver.db(), thread.mark.unwrap()).await.unwrap();
 
   // A restart keeps the thread's mark: the next turn is still handed growth alone.
-  bmo_receiver::service_start::settle(&stood.receiver, "test-consumer", "127.0.0.1:1", "token").await;
+  bmo_receiver::service_start::settle(&stood.receiver, "test-consumer", "[::1]:1", "token").await;
 
   // A later line is handed as growth alone, not with the thread it follows.
   for (id, sender, name, text) in [(20, OWNER, "tester", "a later word"), (21, 0, SENDER, "a later answer")]

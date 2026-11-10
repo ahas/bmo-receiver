@@ -10,7 +10,7 @@ use receiver_ports::Peer;
 fn configured(data: &Path, extra: &str) -> Config {
   let quoted = |text: &str| serde_json::json!(text).to_string();
   let mut lines = vec![
-    format!("listen = {}", quoted("127.0.0.1:9")),
+    format!("listen = {}", quoted("[::1]:9")),
     format!("token = {}", quoted("t")),
     format!("database = {}", quoted("postgres://nowhere/receiver")),
     format!("data_root = {}", quoted(&data.to_string_lossy())),
@@ -21,7 +21,7 @@ fn configured(data: &Path, extra: &str) -> Config {
   ];
 
   for peer in ["agency", "gate", "job", "web", "warmer"] {
-    lines.extend([format!("[{peer}]"), format!("base = {}", quoted("http://127.0.0.1:9"))]);
+    lines.extend([format!("[{peer}]"), format!("base = {}", quoted("http://[::1]:9"))]);
   }
 
   lines.push(extra.to_owned());
@@ -43,14 +43,14 @@ fn the_brain_is_the_one_the_file_names_else_the_one_its_env_file_names_else_none
   std::fs::create_dir_all(data.path().join("env")).unwrap();
   std::fs::write(
     data.path().join("env/brain.env"),
-    "BRAIN_ADDRESS=http://127.0.0.1:7\nBRAIN_TOKEN=brain-token\n",
+    "BRAIN_ADDRESS=http://[::1]:7\nBRAIN_TOKEN=brain-token\n",
   )
   .unwrap();
 
   assert_eq!(
     configured(data.path(), "").brain(),
     Some(Peer {
-      base: "http://127.0.0.1:7".to_owned(),
+      base: "http://[::1]:7".to_owned(),
       token: "brain-token".to_owned(),
     }),
     "the brain's own env file stands in"
