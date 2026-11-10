@@ -192,8 +192,9 @@ flowchart TD
 
 ## An archived room
 
-- **A room is archived and locked by the administrator or by its leader,** the person who owns a supervisor the
-  room names. Archiving keeps the room's record, title, providers and messages as they stand; it is undone by the
+- **A room is archived and locked by the administrator, by its leader or by a head of its unit:** its leader is the
+  person who owns a supervisor the room names, and the room belongs to the leader's unit, so a head of that unit or
+  of one above it locks it too (the web unit's `POST /checks/unit`). Archiving keeps the room's record, title, providers and messages as they stand; it is undone by the
   same people, and the room then stands as it did.
 - **An archived room is listed and read like any other,** its messages standing in the archive for the people and
   agents who could read them before.

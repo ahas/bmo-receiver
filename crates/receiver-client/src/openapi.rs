@@ -278,7 +278,7 @@ pub fn openapi() -> Value {
     "/rooms/{roomId}/archive",
     "changeRoomArchive",
     "Rooms",
-    "A room archived and locked, or opened again, by the administrator or the room's leader.",
+    "A room archived and locked, or opened again, by the administrator, the room's leader or a head of the leader's unit.",
     vec![path_parameter("roomId"), parameter("by", "string", true)],
     Some(generator.subschema_for::<ChangeRoomArchive>()),
     vec![(200, json_answer::<RoomArchive>(&mut generator))],

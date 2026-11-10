@@ -618,7 +618,7 @@ export interface paths {
         };
         /** Whether a room is archived and locked, when and by whom. */
         get: operations["roomArchive"];
-        /** A room archived and locked, or opened again, by the administrator or the room's leader. */
+        /** A room archived and locked, or opened again, by the administrator, the room's leader or a head of the leader's unit. */
         put: operations["changeRoomArchive"];
         post?: never;
         delete?: never;

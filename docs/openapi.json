@@ -5695,7 +5695,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, upstream-failed, failed"
           }
         },
-        "summary": "A room archived and locked, or opened again, by the administrator or the room's leader.",
+        "summary": "A room archived and locked, or opened again, by the administrator, the room's leader or a head of the leader's unit.",
         "tags": [
           "Rooms"
         ],

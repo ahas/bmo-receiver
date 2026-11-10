@@ -94,7 +94,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `PUT /rooms/{roomId}/registration` | `by` (the administrator); `mode`, `avatar` or `record-only` | the registration as it now stands |
 | `GET /rooms/{roomId}/leaders` | | `room` and `leaders`, the accounts that own a supervisor the room names, each once, in order |
 | `GET /rooms/{roomId}/archive` | | `room`, `archivedAt` and `archivedBy`, both null for a room that is not archived |
-| `PUT /rooms/{roomId}/archive` | `by` (the administrator or the room's leader); `archived` | the archive as it now stands; `not-room-leader` (403) for anyone else, `not-found` (404) for a room the receiver does not hold |
+| `PUT /rooms/{roomId}/archive` | `by` (the administrator, the room's leader or a head of the leader's unit); `archived` | the archive as it now stands; `not-room-leader` (403) for anyone else, `not-found` (404) for a room the receiver does not hold |
 | `GET /rooms/{roomId}/title` | | `title`, or null |
 | `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `defaultAnswerer`, whether it is the supervisor the receiver's default answerer setting names) |
 | `PUT /rooms/{roomId}/supervisors` | `supervisors`, the whole list, each a supervisor's name | `supervisors`, the list as it now stands; `unknown-supervisor` (404) for a name the agency does not register |

@@ -862,20 +862,27 @@ pub async fn change_room_archive(
     return Err(refused(StatusCode::NOT_FOUND, "not-found", &format!("no chat {room} is held")));
   }
 
-  let leader = match by.parse::<i64>() {
-    Ok(account) => crate::receiver::wake::agents::named_designated(&receiver, room)
-      .await
-      .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?
-      .iter()
-      .any(|agent| agent.owner_account == Some(account)),
-    Err(_) => false,
-  };
+  let leaders: Vec<i64> = crate::receiver::wake::agents::named_designated(&receiver, room)
+    .await
+    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?
+    .iter()
+    .filter_map(|agent| agent.owner_account)
+    .collect();
+  let mut leads = by.parse::<i64>().is_ok_and(|account| leaders.contains(&account));
 
-  if !leader && !super::is_administrator(&receiver, &by).await {
+  // A head of the unit the room belongs to, its leader's, leads it as well.
+  for leader in &leaders {
+    if leads {
+      break;
+    }
+    leads = receiver.units().web.heads_unit_of(&by, &leader.to_string()).await.unwrap_or(false);
+  }
+
+  if !leads && !super::is_administrator(&receiver, &by).await {
     return Err(refused(
       StatusCode::FORBIDDEN,
       "not-room-leader",
-      "a room is archived by the administrator or by the person whose supervisor it names",
+      "a room is archived by the administrator, by the person whose supervisor it names or by a head of their unit",
     ));
   }
 

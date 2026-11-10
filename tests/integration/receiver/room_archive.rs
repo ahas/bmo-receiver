@@ -121,6 +121,15 @@ async fn the_owner_of_a_supervisor_the_room_names_leads_it_and_locks_it() {
 
   assert_eq!(put(&front, &format!("{path}?by=82"), json!({ "archived": true })).await.0.as_u16(), 403);
 
+  // A head of the leader's unit locks it as well.
+  front.standing.web.heads.lock().unwrap().insert(("83".to_owned(), "81".to_owned()));
+
+  let (status, by_head) = put(&front, &format!("{path}?by=83"), json!({ "archived": true })).await;
+
+  assert_eq!(status.as_u16(), 200, "{by_head}");
+  assert_eq!(by_head["archivedBy"], "83");
+  assert_eq!(put(&front, &format!("{path}?by=83"), json!({ "archived": false })).await.0.as_u16(), 200);
+
   let (status, locked) = put(&front, &format!("{path}?by=81"), json!({ "archived": true })).await;
 
   assert_eq!(status.as_u16(), 200, "{locked}");

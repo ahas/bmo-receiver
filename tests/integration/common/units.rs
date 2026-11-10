@@ -584,6 +584,8 @@ pub struct StandInWeb {
   pub watched: Mutex<Vec<i64>>,
   // The machine each user's account is bound to, and whether it is attached.
   pub nodes: Mutex<BTreeMap<String, UserNode>>,
+  // Each (head, user) where the head heads the user's unit.
+  pub heads: Mutex<BTreeSet<(String, String)>>,
 }
 
 impl StandInWeb {
@@ -595,6 +597,7 @@ impl StandInWeb {
       admins: Mutex::default(),
       watched: Mutex::default(),
       nodes: Mutex::default(),
+      heads: Mutex::default(),
     }
   }
 
@@ -724,6 +727,12 @@ impl Web for StandInWeb {
     let node = self.nodes.lock().unwrap().get(user).cloned().unwrap_or_default();
 
     Box::pin(async move { Ok(node) })
+  }
+
+  fn heads_unit_of<'a>(&'a self, head: &'a str, user: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    let heads = self.heads.lock().unwrap().contains(&(head.to_owned(), user.to_owned()));
+
+    Box::pin(async move { Ok(heads) })
   }
 }
 

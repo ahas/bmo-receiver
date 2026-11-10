@@ -138,6 +138,30 @@ pub trait Web: Send + Sync {
 
   /// The machine a user's account is bound to and whether the hub has it attached.
   fn node_of<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<UserNode>>;
+
+  /// Whether one user heads the unit another stands in, through a head grant on it or on a unit above it.
+  fn heads_unit_of<'a>(&'a self, head: &'a str, user: &'a str) -> BoxFuture<'a, Answer<bool>>;
+}
+
+#[derive(Deserialize)]
+struct UnitOf {
+  unit: UnitId,
+}
+
+#[derive(Deserialize)]
+struct UnitId {
+  id: i64,
+}
+
+#[derive(Serialize)]
+struct UnitCheck<'a> {
+  unit: i64,
+  user: &'a str,
+}
+
+#[derive(Deserialize)]
+struct UnitAllowed {
+  allowed: bool,
 }
 
 /// The machine an account is bound to, none for an account bound to none, and whether it is attached.
@@ -304,5 +328,25 @@ impl Web for HttpWeb {
 
   fn node_of<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<UserNode>> {
     Box::pin(async move { self.caller.get(&["users", user, "node"], &[]).await })
+  }
+
+  fn heads_unit_of<'a>(&'a self, head: &'a str, user: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    Box::pin(async move {
+      let Some(standing): Option<UnitOf> = self.caller.found(&["users", user, "unit"], &[]).await? else {
+        return Ok(false);
+      };
+      let checked: UnitAllowed = self
+        .caller
+        .post(
+          &["checks", "unit"],
+          &UnitCheck {
+            unit: standing.unit.id,
+            user: head,
+          },
+        )
+        .await?;
+
+      Ok(checked.allowed)
+    })
   }
 }

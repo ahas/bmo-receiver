@@ -352,7 +352,8 @@ read again at every connection. Where no socket can be named, nothing is heard o
 Its `docs/boundary.md` and `docs/openapi.json`, in the common format: the account model, a sender's user, a user
 and its senders, the grants in a room, a sender's relation in a room, a message's sender's relation, a user's
 relation on an object, making and revoking a grant, a fixed line's words, the machine a user's account is bound to
-and whether it is attached (`GET /users/{user}/node`, answering `agent` and `attached`), and the rooms the console has open:
+and whether it is attached (`GET /users/{user}/node`, answering `agent` and `attached`), whether one user heads
+another's unit (`GET /users/{user}/unit`, then `POST /checks/unit`), and the rooms the console has open:
 `GET /watching` answers `rooms` and the moment the console last reported, which the restart's backlog reads before
 it serves an open room. The port reads the model as
 `inForce`, a grant's holder as `subjectKey` and a grant's lapse as `expiresAt`, and sends a grant's lapse as
