@@ -199,6 +199,11 @@
   agent's turn is held, so words that arrive wait for the fresh session; the note it leaves (the handoff file,
   else the transcript) is kept for the fresh session's first turn, which opens on it as below. The fresh session
   is started as the replacement ends, so no question waits for its start.
+- **A room whose words arrive while the session is replaced is told so, once.** The replacement holds the agent's
+  turn, so the words wait for the fresh session; the room hears the fixed line `memory-tidying` (`docs/codes.md`,
+  「Fixed lines」) as the agent, once for the one replacement, however many messages arrive, and the fresh session
+  answers them all. The line goes out whether the replacement was owed and is made while the agent was quiet,
+  made ahead of a turn, or asked by the agency.
 - **A handover asked for is the same word.** `POST /handovers/{agentName}` (`docs/api.md`, 「Handovers」), which
   the `handoff` command asks (`docs/boundary-api.md`, 「The unit command」), writes the owner's word to start the
   agent's one session afresh with the reason `asked`, and waits on no turn: the agent may ask it of its own

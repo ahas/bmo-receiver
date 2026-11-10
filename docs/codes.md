@@ -219,6 +219,7 @@ session once the setting has changed, one waiting per setting.
 | `chat-denied` | | the owner shut the room |
 | `going-down-for-update` | `items` | the service stops for a deployment: a system notice |
 | `going-down` | | the service restarts with no deployment behind it: a system notice |
+| `memory-tidying` | | the agent's one session is being replaced and its memory tidied; a room whose words arrive meanwhile is told once that the answer comes when it is done |
 | `draw` | `label`, `asked`, `result`, `number`, `seed`, `method`, `answered`, `next` | a fair draw's room line (`docs/random-draw.md`) |
 
 ## Kinds

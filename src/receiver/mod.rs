@@ -402,6 +402,9 @@ pub struct Receiver {
   // The rooms this receiver has launched for and the moment the last first launch was given, by which a room's
   // first launch is spaced from another room's (docs/bmo-window.md, 「Quiet instruction」).
   launches: Arc<tokio::sync::Mutex<Launches>>,
+  // The agents whose one session is being replaced now, each with the rooms told so during this replacement
+  // (docs/unified-bmo.md, 「Replacing the session」).
+  replacing: Arc<std::sync::Mutex<std::collections::HashMap<String, std::collections::HashSet<i64>>>>,
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
   // stands the receiver without that turn.
   situation_updates: bool,
@@ -462,6 +465,7 @@ impl Receiver {
       touching: Arc::default(),
       place: Arc::default(),
       launches: Arc::default(),
+      replacing: Arc::default(),
       situation_updates: true,
       review_gate: true,
     }
@@ -470,6 +474,31 @@ impl Receiver {
   /// The rooms this receiver has launched for and the moment the last first launch was given.
   pub fn launches(&self) -> &tokio::sync::Mutex<Launches> {
     &self.launches
+  }
+
+  /// The agent's one session marked as being replaced now: a room whose words arrive meanwhile is told once.
+  pub fn replacing_begins(&self, agent: &str) {
+    self
+      .replacing
+      .lock()
+      .unwrap_or_else(std::sync::PoisonError::into_inner)
+      .insert(agent.to_owned(), Default::default());
+  }
+
+  /// The replacement over: the mark and the rooms told go.
+  pub fn replacing_ends(&self, agent: &str) {
+    self.replacing.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(agent);
+  }
+
+  /// Whether the agent's session is being replaced now and this room has not yet been told; telling it is the
+  /// caller's, and the room counts as told from here on.
+  pub fn replacing_untold(&self, agent: &str, chat_id: i64) -> bool {
+    let mut held = self.replacing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    match held.get_mut(agent) {
+      Some(told) => told.insert(chat_id),
+      None => false,
+    }
   }
 
   /// The same receiver, with the situation update turn on or off.

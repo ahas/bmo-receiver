@@ -28,6 +28,9 @@ pub enum FixedLine {
   GoingDownForUpdate { items: Vec<i64> },
   /// The service restarts with no deployment behind it: a system notice.
   GoingDown,
+  /// The agent's one session is being replaced and its memory tidied, so a room's words wait for the fresh
+  /// session: said once to a room whose words arrive while it goes on.
+  MemoryTidying,
   /// A fair draw's room line.
   Draw(DrawLine),
 }

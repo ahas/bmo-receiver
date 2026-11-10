@@ -10,6 +10,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use bmo_chat_client::ChatSend;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
@@ -84,6 +85,7 @@ struct Unified {
   standing: Standing,
   session: Arc<StandInSession>,
   runner: Runner,
+  chat: Arc<StandInChat>,
 }
 
 impl Unified {
@@ -96,7 +98,7 @@ impl Unified {
 
     crate::integration::common::session::prompt_documents(data.path());
 
-    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
     let session = Arc::new(session);
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
@@ -113,7 +115,21 @@ impl Unified {
       standing,
       session,
       runner,
+      chat,
     }
+  }
+
+  // The fixed lines the owner's chat was sent, as the stand-in web renders them: the code and the language.
+  fn fixed_lines_said(&self) -> Vec<String> {
+    self
+      .chat
+      .sent()
+      .iter()
+      .filter_map(|held| match &held.send {
+        ChatSend::Text { text, .. } if text.ends_with(" in en") => Some(text.clone()),
+        _ => None,
+      })
+      .collect()
   }
 
   // The notices the owner's chat was queued of a handoff lost.
@@ -287,19 +303,24 @@ async fn words_that_arrive_while_the_replacement_is_made_wait_for_the_fresh_sess
   until("the handoff turn", || unified.session.prompts().len() == 3 && unified.session.working()).await;
   assert!(unified.session.prompts()[2].starts_with(&HANDOVER.chat.ask_marker));
 
-  // Words arriving while the handoff is written go on no turn of the old session.
-  unified
-    .standing
-    .receiver
-    .message(&said(3, "the third words"), &Context::default(), owners_room())
-    .await
-    .unwrap();
-  tokio::time::sleep(Duration::from_millis(200)).await;
+  // Words arriving while the handoff is written go on no turn of the old session, and the room is told once,
+  // however many arrive, that the memory is being tidied and the answer comes after.
+  for (id, words) in [(3, "the third words"), (4, "the fourth words")] {
+    unified
+      .standing
+      .receiver
+      .message(&said(id, words), &Context::default(), owners_room())
+      .await
+      .unwrap();
+  }
+
+  tokio::time::sleep(Duration::from_millis(300)).await;
   assert_eq!(unified.session.prompts().len(), 3, "the words wait: {:?}", unified.session.prompts());
   assert!(
     unified.standing.agency.ended().is_empty(),
     "the old session still stands while it writes"
   );
+  assert_eq!(unified.fixed_lines_said(), ["memory-tidying in en"], "the room is told once");
 
   unified.session.let_go();
   until("the third words' round", || {
@@ -310,8 +331,19 @@ async fn words_that_arrive_while_the_replacement_is_made_wait_for_the_fresh_sess
   let prompts = unified.session.prompts();
 
   assert!(prompts[3].starts_with(&HANDOVER.chat.handed_marker), "{}", prompts[3]);
-  assert!(prompts[3].contains(NOTE) && prompts[3].contains("the third words"), "{}", prompts[3]);
+  assert!(
+    prompts[3].contains(NOTE)
+      && prompts[3].contains("the third words")
+      && prompts[3].contains("the fourth words"),
+    "{}",
+    prompts[3]
+  );
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
+  assert_eq!(
+    unified.fixed_lines_said(),
+    ["memory-tidying in en"],
+    "nothing more is said once the fresh session stands"
+  );
 }
 
 #[tokio::test]

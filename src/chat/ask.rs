@@ -179,12 +179,14 @@ pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
     return true;
   }
 
+  receiver.replacing_begins(agent);
   owed_notes(receiver, agent, &old).await;
 
   let handed = handoff::ask(receiver, agent, &old, chat_id).await;
 
   if let Err(why) = agency.end(&old).await {
     eprintln!("{agent}: session {old} was not ended for its replacement ({reason}): {why}");
+    receiver.replacing_ends(agent);
 
     return false;
   }
@@ -217,6 +219,8 @@ pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
   if let Err(why) = agency.start(agent, scope).await {
     eprintln!("{agent}: the fresh session was not started after the replacement ({reason}): {why}");
   }
+
+  receiver.replacing_ends(agent);
 
   if let Some(times) = handoff::in_a_row(receiver, agent, &format!("replacement-{reason}"), true).await {
     eprintln!(
@@ -302,11 +306,16 @@ impl Carry {
     let db = receiver.db();
 
     // The session about to end writes the situation notes it owes before it is asked for its handoff.
+    receiver.replacing_begins(agent);
     owed_notes(receiver, agent, old).await;
 
     let handed = handoff::ask(receiver, agent, old, chat_id).await;
 
-    agency.end(old).await.map_err(fault_of)?;
+    if let Err(why) = agency.end(old).await {
+      receiver.replacing_ends(agent);
+
+      return Err(fault_of(why));
+    }
 
     // The ended session's loads, its room's block and its cache record go with it; the one started next holds
     // nothing yet.
@@ -328,7 +337,11 @@ impl Carry {
       handoff::tell_lost(receiver, agent, reason).await;
     }
 
-    let again = agency.start(agent, scope).await.map_err(fault_of)?;
+    let again = agency.start(agent, scope).await;
+
+    receiver.replacing_ends(agent);
+
+    let again = again.map_err(fault_of)?;
 
     if let Some(times) = handoff::in_a_row(receiver, agent, &format!("replacement-{reason}"), true).await {
       eprintln!(
@@ -376,9 +389,14 @@ impl Carry {
     };
 
     // The standing session writes the situation notes it owes before it is asked for its handoff.
+    receiver.replacing_begins(agent);
     owed_notes(receiver, agent, &standing.id).await;
 
-    let Some(handed) = handoff::ask(receiver, agent, &standing.id, chat_id).await else {
+    let handed = handoff::ask(receiver, agent, &standing.id, chat_id).await;
+
+    receiver.replacing_ends(agent);
+
+    let Some(handed) = handed else {
       return Ok(None);
     };
 

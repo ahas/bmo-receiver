@@ -887,6 +887,18 @@ impl Conversations {
     super::ask::replace_owed(&self.0.receiver, self.agent()).await
   }
 
+  // The fixed line telling a room its words wait for the fresh session, said as the agent.
+  async fn say_tidying(&self, chat_id: i64) {
+    let receiver = &self.0.receiver;
+    let Some(line) = receiver.speech().rendered(&receiver_codes::FixedLine::MemoryTidying).await else {
+      return;
+    };
+
+    if let Err(why) = receiver.speech().say(chat_id, &line).await {
+      eprintln!("chat {chat_id}: the memory-tidying line was not said: {why}");
+    }
+  }
+
   // A round counted among those under way for as long as the guard stands.
   fn round_under_way(&self) -> UnderWay {
     self.state().rounds += 1;
@@ -1419,6 +1431,12 @@ impl Conversations {
   }
 
   async fn pump(&self, chat_id: i64, force: bool) {
+    // Words that arrive while the agent's session is replaced wait for the fresh session; the room is told so once
+    // (docs/unified-bmo.md, 「Replacing the session」).
+    if self.0.receiver.replacing_untold(self.agent(), chat_id) {
+      self.say_tidying(chat_id).await;
+    }
+
     {
       let mut state = self.state();
       let Some(conv) = state.active.get_mut(&chat_id) else { return };
