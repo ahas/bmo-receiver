@@ -71,6 +71,6 @@ command = "The owner reopens it with this command, written here exactly as the a
 no_command = "Nothing waits on the owner: each road reopens by itself."
 reopens = "The first road reopens by itself at {at}."
 intent = "tell the owner, in his private chat, what became of the road the work goes out on."
-follow_up = "Tell the owner now in one sentence, in his language and in your own words: what moved from what to what and why, or what is closed and why. Where the facts carry a command, give it after that sentence exactly as written, character for character, in a code span: never reword, shorten or translate it, since a command reworded does not run. Name the moment it reopens where the facts name one. Do not answer <<SKIP>>: the owner is to hear it."
+follow_up = "Tell the owner now in one sentence, in his language and in your own words: what moved from what to what and why, or what is closed and why. Where the facts carry a command, give it after that sentence exactly as written, character for character, in a code span: never reword, shorten or translate it, since a command reworded does not run. Name the moment it reopens where the facts name one. Do not skip: the owner is to hear it."
 # How the instruction is laid out: the {fact}, then what it is for ({intent}) and what follows ({follow_up}).
 frame = "{fact}\n\nWhat this is for: {intent}\n\nWhat follows: {follow_up}"

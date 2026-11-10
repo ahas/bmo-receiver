@@ -116,7 +116,7 @@ and when a room sees it typing.
   each goes on to the room's other providers wherever the message stands under a number of the provider's own,
   as a kept message does (`docs/receiver.md`, 「A room's chat providers」).
 - **Everyday conversation is answered with a sticker** (a greeting, a joke, small talk, a remark that only wants a
-  nod) when one of the set fits, sending it and then answering `<<SKIP>>` so no words follow; words are for
+  nod) when one of the set fits, sending it and then skipping in the round's form so no words follow; words are for
   questions, errands and reports.
 
 ## A working turn's thinking
@@ -154,7 +154,7 @@ that wants something said there hands the words to that supervisor, and the supe
   (`from`), the room, the act and its arguments (the words, the pictures, the files, the voice note, the
   reaction, the pin, the sticker, the draw or the fixed line) and the road it named. The rule the marker stands
   for — that every message a room receives comes from its supervisor, that it says the words there in its own
-  turn or answers `<<SKIP>>`, and that an act handed as an entry of the send tool goes out through that same
+  turn or skips in the round's form, and that an act handed as an entry of the send tool goes out through that same
   entry — stands in the room's block. The asker is answered with one line naming the agent
   it was handed to, and the instruction's number as `handed`.
 - **Who it is handed to:** the asker's own agent where that agent answers the room (a supervisor's shell outside
@@ -164,8 +164,8 @@ that wants something said there hands the words to that supervisor, and the supe
   the words are for and on the road the asker named; it opens a turn there and never rides. The supervisor says
   it in its own words and voice, as its rule for handed lines says (the agency's chat manual): it relays it as it
   stands, rephrases it, folds it, pins it as a reply, speaks it as a voice note, or judges it not worth saying and
-  answers `<<SKIP>>`. Whatever it sends is its own send, through every gate its turn goes through. An act handed
-  as an entry of the send tool goes out through that same entry where the supervisor sends it: a picture as a
+  skips in the round's form. Whatever it sends is its own send, through every gate its turn goes through. An act
+  handed as an entry of the send tool goes out through that same entry where the supervisor sends it: a picture as a
   picture, a file as a file.
 - **A voice note is handed as its words.** A spoken talk asks the act `speak` (the voice named, the written words,
   and the spoken words where given) before anything is synthesised. Outside the asker's own round it is handed
@@ -180,7 +180,7 @@ that wants something said there hands the words to that supervisor, and the supe
 - **The typing state is shown only while an answer is actually on its way to the room.**
 - **Nothing reaches a room until the round's checks have let an answer through:** the run's words come back whole,
   not as they are written, and until the code's own checks are done the round may still end in silence, whether
-  the run said `<<SKIP>>` or `<<WAIT>>`.
+  the run skipped or waited.
 - **So every round shows typing from the moment an answer is let through,** one that read new messages and one
   that carries only a quiet instruction alike, through the send, and a round that ends without
   sending anything never shows it at all.

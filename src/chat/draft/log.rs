@@ -67,13 +67,17 @@ impl Kind {
   }
 }
 
-/// How a turn of the process ended: answered, answered with the message now by the send marker, skipped or
-/// failed.
+/// What the round log records as the reason of a round that skipped with no reason named, twice over.
+pub const NO_REASON: &str = "none given";
+
+/// How a turn of the process ended: answered, answered with the message now by the send marker, skipped, no
+/// verdict because it skipped naming no reason and the same turn was asked once more, or failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Answered {
   Answered,
   Send,
   Skip,
+  NoVerdict,
   Failed,
 }
 
@@ -83,6 +87,7 @@ impl Answered {
       Self::Answered => "answered",
       Self::Send => "send",
       Self::Skip => "skip",
+      Self::NoVerdict => "no-verdict",
       Self::Failed => "failed",
     }
   }
@@ -157,9 +162,18 @@ impl Log {
     self
   }
 
-  /// A turn of the process written down: its kind, its question, its answer where it gave one, how it ended
-  /// and how long it took.
-  pub async fn turn(&mut self, kind: Kind, question: &str, answer: Option<&str>, ended: Answered, ms: i64) {
+  /// A turn of the process written down: its kind, its question, its answer where it gave one, how it ended, what
+  /// the row says beside that ending (the reason a round sent nothing, where it ended in a skip) and how long it
+  /// took.
+  pub async fn turn(
+    &mut self,
+    kind: Kind,
+    question: &str,
+    answer: Option<&str>,
+    ended: Answered,
+    detail: Option<&str>,
+    ms: i64,
+  ) {
     let changed = match (answer, self.last.as_deref()) {
       (Some(answer), Some(last)) => answer.trim() != last.trim(),
       _ => false,
@@ -170,7 +184,7 @@ impl Log {
       answer,
       changed,
       outcome: ended.word(),
-      detail: None,
+      detail,
       ms,
       reads: &[],
       session: None,

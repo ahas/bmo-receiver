@@ -37,7 +37,8 @@
 - **The persona a room adds is the receiver's:** the room's tone layer, `prompts/persona/<tone>.md` under the data
   root, and the room's own persona, `prompts/persona/rooms/<chat id>.md`, each under its header in the turn's block.
 - **What a turn's scaffolding means is said there once**, not on every turn: that a quiet instruction comes from
-  the system, is acted on as the owner's word and may be answered with `<<SKIP>>`; that a reference block outranks
+  the system, is acted on as the owner's word and may be skipped (in a round of a room, in the round's form, which
+  names why: `docs/drafting.md`, 「What it is」); that a reference block outranks
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
   are English while the language an answer is written in is the agent's own judgement, never a line of the turn;
   and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there,

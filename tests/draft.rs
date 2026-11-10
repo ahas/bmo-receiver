@@ -126,13 +126,54 @@ fn the_rooms_voice_stands_in_the_block_and_no_turn_repeats_it() {
 
 #[test]
 fn an_answer_opening_on_the_send_marker_is_the_message_and_a_skip_wins() {
-  assert_eq!(read_answer("<<SEND>> hello there"), ("hello there".to_owned(), Answered::Send));
-  assert_eq!(read_answer("  <<SEND>>\nthe answer"), ("the answer".to_owned(), Answered::Send));
-  assert_eq!(read_answer("<<SEND>>").1, Answered::Skip);
-  assert_eq!(read_answer("<<SEND>> then <<SKIP>>").1, Answered::Skip);
+  assert_eq!(read_answer("<<SEND>> hello there"), ("hello there".to_owned(), Answered::Send, None));
+  assert_eq!(read_answer("  <<SEND>>\nthe answer"), ("the answer".to_owned(), Answered::Send, None));
+  assert_eq!(
+    read_answer("<<SEND>>").1,
+    Answered::NoVerdict,
+    "a marker with nothing after it names no reason"
+  );
+  assert_eq!(read_answer("<<SEND>> then <<SKIP>>").1, Answered::NoVerdict);
   assert_eq!(
     read_answer("notes that name <<SEND>> later"),
-    ("notes that name <<SEND>> later".to_owned(), Answered::Answered)
+    ("notes that name <<SEND>> later".to_owned(), Answered::Answered, None)
+  );
+}
+
+#[test]
+fn a_skip_names_its_reason_and_a_bare_one_is_no_verdict() {
+  let (said, ended, reason) = read_answer("<<SKIP: the words were not mine>>");
+
+  assert_eq!(ended, Answered::Skip);
+  assert_eq!(reason.as_deref(), Some("the words were not mine"), "the reason the round log keeps");
+  assert!(said.contains("SKIP"));
+  assert_eq!(read_answer("<<SKIP>>").1, Answered::NoVerdict, "a skip naming no reason is no verdict");
+  assert_eq!(
+    read_answer("<<SKIP:  >>").1,
+    Answered::NoVerdict,
+    "the form with nothing in it names no reason"
+  );
+  assert_eq!(read_answer("").1, Answered::NoVerdict, "no words name no reason");
+  assert_eq!(read_answer("<<FOLD>>").1, Answered::NoVerdict, "a fold asked of no words is nothing");
+  assert_eq!(
+    read_answer("nothing to add <<SKIP: the picture asked nothing>>").1,
+    Answered::Skip,
+    "a skip anywhere in an answer wins"
+  );
+  assert_eq!(
+    read_answer("<<SKIP>> but <<SKIP: the owner has it already>>").2.as_deref(),
+    Some("the owner has it already"),
+    "where an answer skips both ways, the reason is the verdict"
+  );
+  assert_eq!(
+    read_answer("its form is `<<SKIP: why>>` in code").1,
+    Answered::Answered,
+    "a skip quoted in code names nothing"
+  );
+  assert_eq!(
+    read_answer("<<SKIP:   the   picture   asked   nothing  >>").2.as_deref(),
+    Some("the picture asked nothing"),
+    "the reason is one line, its white space collapsed"
   );
 }
 
@@ -140,7 +181,9 @@ fn an_answer_opening_on_the_send_marker_is_the_message_and_a_skip_wins() {
 fn a_skip_counts_outside_code_alone() {
   assert!(has_skip("nothing to add <<SKIP>>"));
   assert!(has_skip("<<SKIP>>"));
+  assert!(has_skip("nothing to add <<SKIP: nothing was asked>>"));
   assert!(!has_skip("the mark is written `<<SKIP>>` in code"));
+  assert!(!has_skip("the form is written `<<SKIP: why>>` in code"));
   assert!(!has_skip("an answer"));
 }
 
@@ -271,6 +314,7 @@ fn a_round_turn_carries_only_its_place_never_the_stage_s_instruction_text() {
   for rule in [
     "<<DONE #<number>>>",
     "<<SEPARATE #<number>>>",
+    "<<SKIP: <why>>>",
     "validFrom",
     "live state",
     "ask nothing of you and change nothing",

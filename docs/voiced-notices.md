@@ -31,7 +31,8 @@ agent that answers the room says the line.
   sentence: the room's block says, for each marker, that the session says the line in the room's language, plain
   text, one short line, in this room's manner; that it says nothing about models, code, prompts, hosts or other
   internals unless the chat is the owner's private chat; that it uses its own words, never copying the fact text
-  out; and that it answers no `<<WAIT>>` or `<<REPLY>>`, and `<<SKIP>>` only under the optional marker.
+  out; and that it answers no `<<WAIT>>` or `<<REPLY>>`, and skips only under the optional marker, in the round's
+  form, which names why (`docs/drafting.md`, 「What it is」).
 - **Recipients and switches are the notice's own.** A voiced notice goes to exactly the chats the line is for,
   under the per-chat switch (`notice:restart`), and the rest rule holds: a rest and its lifting are told to the
   owner alone, and a room's session folding says nothing to any room.
@@ -146,7 +147,7 @@ agent that answers the room says the line.
      whole account and not a summary of it, in the same shape (a summary paragraph, the detail, a closing line of
      figures), commits, paths, commands and counts kept as they stand, followed by what the report could not say:
      a deployment it starts, the next item it launches, why a run failed, a decision the owner has to make. A fact
-     carrying a report is never answered `<<SKIP>>`.
+     carrying a report is never answered with a skip.
   2. A room other than the owner's own that asked for the work hears one voiced line as well: that the work it
      asked for is finished, or that it is not, and what it came to for the people there.
   3. The facts of that line are the report's summary paragraph with every sentence that names the system or
@@ -208,7 +209,7 @@ spoken, and the session writes what is said.
 ### The summary of a notice turn
 
 - **A turn qualifies** when all of these hold: it is the owner's private chat; nobody spoke in its round, so it
-  carried quiet instructions and no message of anyone; it sent a line, so a `<<SKIP>>` or a `<<WAIT>>` is not
+  carried quiet instructions and no message of anyone; it sent a line, so a skip or a wait is not
   spoken; the switch is on; and its agent has a voice.
 - **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one light
   turn once the line has gone out and before the round lets go of the room. The instruction is marked and

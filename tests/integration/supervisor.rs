@@ -16,6 +16,7 @@ use bmo_receiver::js::bun_hash;
 use bmo_receiver::receiver::{Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::drafting::DRAFTING;
 use receiver_ports::agency::Load;
 use receiver_ports::gate::{Entry, IndexGroup, Source};
 
@@ -183,8 +184,10 @@ impl Group {
 async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may_name() {
   use bmo_receiver::chat::draft::table::{self, SUPERVISOR};
 
-  let round =
-    Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "never asked"])).await;
+  let round = Group::new(
+    StandInSession::new(SESSION, "unused").answering(&["<<SKIP: nobody here was asked>>", "never asked"]),
+  )
+  .await;
   let catalogue = table::questions(round.scratch.db(), Some(AGENT)).await.unwrap();
 
   assert_eq!(catalogue[0].name, SUPERVISOR);
@@ -252,8 +255,10 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
 
 #[tokio::test]
 async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing_and_asks_no_gate() {
-  let round =
-    Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "never asked"])).await;
+  let round = Group::new(
+    StandInSession::new(SESSION, "unused").answering(&["<<SKIP: nobody here was asked>>", "never asked"]),
+  )
+  .await;
 
   round.hand(1, "did anyone see the match last night", false).await;
   round.rounds_over(1).await;
@@ -601,7 +606,10 @@ async fn a_line_that_asks_the_agent_is_answered_with_the_situation_note() {
 
 #[tokio::test]
 async fn a_line_between_two_people_is_left_alone_though_the_note_names_them() {
-  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>"])).await;
+  let round = Group::new(
+    StandInSession::new(SESSION, "unused").answering(&["<<SKIP: the two of them are talking>>"]),
+  )
+  .await;
 
   round.noted("Mina and Joon are talking about the match; nobody waits on you.").await;
   round.hand(1, "Mina, did Joon see the match?", false).await;
@@ -643,7 +651,10 @@ async fn the_note_stays_under_its_ceiling_which_the_rooms_block_names() {
   );
   assert!(note.ends_with(&CHAT_ROUND.situation.cut));
 
-  let round = Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>"])).await;
+  let round = Group::new(
+    StandInSession::new(SESSION, "unused").answering(&["<<SKIP: nothing here waits on the line>>"]),
+  )
+  .await;
 
   round.hand(1, "did anyone see the match last night", false).await;
   round.rounds_over(1).await;
@@ -708,4 +719,65 @@ async fn the_supervisor_prompt_is_the_golden_file() {
   let prompts = round.session.prompts();
 
   assert_eq!(turn_of(&prompts[0]), include_str!("../fixtures/supervisor-prompt.txt"));
+}
+
+#[tokio::test]
+async fn the_judgement_row_keeps_the_reason_its_skip_named() {
+  let round = Group::new(
+    StandInSession::new(SESSION, "unused").answering(&["<<SKIP: a line of theirs, not for me>>"]),
+  )
+  .await;
+
+  round.hand(1, "did anyone see the match last night", false).await;
+  round.rounds_over(1).await;
+
+  assert_eq!(round.session.prompts().len(), 1, "a skip naming its reason is the judgement's one turn");
+  assert_eq!(
+    round
+      .scratch
+      .texts(
+        r#"SELECT "kind" || ' ' || "number" || ' ' || "outcome" || ' ' || coalesce("detail", '-')
+             FROM "draft_rounds" ORDER BY "id""#
+      )
+      .await,
+    ["supervisor 0 skip a line of theirs, not for me"],
+    "the row says why the round ended"
+  );
+  assert!(round.chat.sent().is_empty(), "nothing goes out");
+}
+
+#[tokio::test]
+async fn a_judgement_that_skips_bare_is_asked_once_over_and_keeps_none_given() {
+  let round =
+    Group::new(StandInSession::new(SESSION, "unused").answering(&["<<SKIP>>", "<<SKIP>>", "never asked"]))
+      .await;
+
+  round.hand(1, "did anyone see the match last night", false).await;
+  round.rounds_over(2).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(prompts.len(), 2, "the same turn is asked once more: {prompts:#?}");
+  assert!(
+    turn_of(&prompts[1]).starts_with(&CHAT_ROUND.supervisor.marker),
+    "the asking over names the judgement it asks over: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    prompts[1].contains(&DRAFTING.skip_again) && prompts[1].contains("<<SKIP: <why>>>"),
+    "the line states the form: {}",
+    prompts[1]
+  );
+  assert_eq!(
+    round
+      .scratch
+      .texts(
+        r#"SELECT "kind" || ' ' || "number" || ' ' || "outcome" || ' ' || coalesce("detail", '-')
+             FROM "draft_rounds" ORDER BY "id""#
+      )
+      .await,
+    ["supervisor 0 no-verdict -", "supervisor 1 skip none given"],
+    "the round log says why, or that none was given"
+  );
+  assert!(round.chat.sent().is_empty(), "a round that ends at its judgement sends nothing");
 }

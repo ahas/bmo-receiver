@@ -542,8 +542,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   judgement before a round), `question`, `kind` (`supervisor`, the agent's own judgement whether to answer words
   its open window alone let in, `turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is
   empty), `answerChars`,
-  `changed`, `outcome` (`answered`, `send`, `skip` or `failed` for a turn; `PASS` or `REJECT` for a review; `message`, `skip` or `withheld` for
-  the end), `detail` (or null), `answer` (or null), `ms`, `at` and `reads`:
+  `changed`, `outcome` (`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn; `PASS` or `REJECT` for a
+  review; `message`, `skip` or `withheld` for the end), `detail` (or null: a row ending `skip` names there why the
+  round sent nothing, or `none given`), `answer` (or null), `ms`, `at` and `reads`:
   on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
   `read`; `docs/drafting.md`, 「The round log」), and empty on every other row; `session` and `loaded`: on the end,
   the agency session the round's turn ran on (or null) and how many pieces that session's earlier rounds in the room

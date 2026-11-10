@@ -67,6 +67,8 @@ pub struct Drafting {
   pub turn_seconds: Option<u32>,
   /// The line the draft turn closes on, `{names}` the questions its round follows, in order and joined by `+`.
   pub round: String,
+  /// The line a round turn is asked once more with where it skipped naming no reason: the form a skip goes in.
+  pub skip_again: String,
   /// The marker that names the closing check's turn.
   pub arrived_marker: String,
   /// What the closing check does, said once in the room's block.

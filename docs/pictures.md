@@ -123,7 +123,8 @@ receiver keeps the pictures and decides what a session is shown.
 - **While it is on,** the message's line in the prompt names the absolute path of the image file (and, for a reply,
   the path of the replied-to message's image as well) so the agent opens the picture, and the same note tells it to
   decide afterwards whether the picture calls for an answer at all: it answers when the picture is addressed to it,
-  asks something, or plainly invites a reaction, and otherwise stays silent with `<<SKIP>>`.
+  asks something, or plainly invites a reaction, and otherwise stays silent with a skip naming on one line what the
+  picture was (`docs/drafting.md`, 「What it is」).
 - **An older picture is fetched on demand.** With the switch on, a new message in a turn with tools that replies to
   a message whose image the receiver never stored or no longer holds has that message's media fetched through its
   chat service into the same directory, so old photos stay answerable and a second question about the same photo

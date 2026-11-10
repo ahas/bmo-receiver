@@ -35,11 +35,23 @@ message passes, and the record each turn of it leaves.
 - **Every later turn of the process is a turn of the same session,** opened as `question` (`docs/bmo-window.md`,
   「The openings」), so it holds the round's intent, its reference and its cache: the closing check, an item, the
   review, a revision the review sent back and a check.
-- **The receiver reads three things of an answer and nothing else:** `<<SKIP>>` standing in it outside a code
-  span or fence, which ends the process with nothing sent; the marks `<<DONE #<number>>>` and
-  `<<SEPARATE #<number>>>` on a message shown to the round (「What came in meanwhile」 below); and the answer
-  itself. `<<SEND>>` opening an answer is taken out of it, the answer being the message with the marker or
-  without, and a marker with nothing after it is a skip. A skip anywhere in an answer wins.
+- **The receiver reads three things of an answer and nothing else:** a skip standing in it outside a code span or
+  fence, which ends the process with nothing sent; the marks `<<DONE #<number>>>` and `<<SEPARATE #<number>>>` on
+  a message shown to the round (「What came in meanwhile」 below); and the answer itself. `<<SEND>>` opening an
+  answer is taken out of it, the answer being the message with the marker or without, and a marker with nothing
+  after it names no reason. A skip anywhere in an answer wins, and where an answer carries skips naming reasons and
+  not, one that names a reason wins.
+- **A turn of a round skips in its form: `<<SKIP: <reason>>>`,** the reason one non-empty line in English saying
+  why the round sends nothing. A skip that names none is not a skip: the bare marker, or the form with nothing
+  after its colon, is read as no verdict, and the same turn is asked once more under one line saying that a skip
+  names its reason in that form (`drafting.toml`, `skip_again`), the session holding the round already. A second
+  answer naming none ends the round as a skip whose reason is recorded as `none given`, so a round log that ends
+  in a skip always says why, or says that no reason was given. The asking is the only repair a bare skip gets: a
+  turn that answers anything else is read as it answers.
+- **The bare marker stands where a rule gives it whole.** The handoff turn, a consolidation turn and the
+  situation-note turn are each told to output exactly `<<SKIP>>` and ask no reason, since nothing of them goes to
+  a room and what they leave unsaid is settled by their own rule; the reader of those turns takes a skip naming a
+  reason as the same nothing to say.
 - **A draft is not a message.** The room's messages are the only record of what the room has heard. A round
   log's answer, a note, or an earlier turn of the session that was not sent is not something said, and no round
   skips a repeated request because it wrote the answer in one; the duplicate rule reads the room's own record and
@@ -78,7 +90,8 @@ message passes, and the record each turn of it leaves.
   the double did not take the round and why, to answer the round itself; that session holds the round already,
   so the line is the whole of the turn. The process then goes on in the agent's own session.
 - **The sentinel is never a message.** An answer of nothing but the sentinel from that second asking fails the
-  round as a failed draft turn does, and one from any later turn of the process is read as a skip.
+  round as a failed draft turn does, and one from any later turn of the process is read as a skip whose reason is
+  that the answer carried the hand-off sentinel.
 
 ## A voice note
 
@@ -110,8 +123,9 @@ message passes, and the record each turn of it leaves.
   round's line names the questions the draft turn follows, each followed in the order named before the message
   is written, that the message is reviewed before it goes out and that a review which rejects it returns it to
   be done and written again, the confidence rule and the source rule above, that nothing is hedged, that
-  `<<SKIP>>` ends the process and is for words that ask nothing and
-  change nothing, so a person's telling the agent something of themselves, which it keeps, is answered in the
+  a skip in its form ends the process and is for words that ask nothing and
+  change nothing, that it names its reason on one line and never stands bare, so a person's telling the agent
+  something of themselves, which it keeps, is answered in the
   same round, that a draft or a note is not a message the room has heard and never the reason for a skip, and
   the marks a message that arrived meanwhile takes (`chat-line.toml`, `[room]`, `process`). The process asks the
   agent for no progress line: what a working turn shows the room is read off its run as it goes
@@ -387,7 +401,10 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   the review gave: it does what the reason names as not done, with its tools, and writes the message again, and
   the new draft is reviewed again, eight times at most. At the eighth rejection the last
   draft is sent, not withheld, and the round's end row reports the reasons in order. A review that gives no
-  verdict is a rejection with its own words as the reason.
+  verdict is a rejection with its own words as the reason. A review's answer that skips is the review giving no
+  verdict too, and is never the round's own skip: one naming a reason is a rejection carrying the reason it names,
+  and one naming none is asked once over as any round turn's is and, naming none again, is a rejection whose reason
+  is that the review gave no verdict.
 - **A rejection that gives no guidance ends the review.** Where the reason is empty, or is the draft's own
   text after trimming and collapsing white space, no revision is asked: the draft as it stands is sent
   and the end row says the review gave no usable reason. The same holds where two consecutive rejections carry
@@ -432,7 +449,10 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   being the message either way.
 - **A round the agent judges first** (`docs/wake.md`, 「The room's queue and the round」) writes that judgement
   as a row before the process's own: number 0, of kind `supervisor`, named `supervisor`, ending `skip` where the
-  round ends there and `answered` where it goes on. A round that ended there writes no other row.
+  round ends there, `answered` where it goes on, or `no-verdict` where the answer skipped naming no reason. The
+  asking once over that a bare skip gets is a turn of the judgement's own: it leaves the next row, of the same kind
+  and name, whose `detail` carries the reason where the round ended in a skip. A round that ended at its judgement
+  writes no row beyond these.
 - **The end row names what the round read,** its `reads`, each a `path`, what the piece holds
   (`holds`), the brain memory it is (`memoryId`) and how it was read (`how`). `holds` is the index's words for the
   piece where the gate's index lists it, else the name the piece came with: a piece of the turn's core carries the
@@ -463,11 +483,15 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   sessions or generations: a new session, and a new generation of the same session, start at 0, and the console's
   브레인 figure reads as the running count, `loaded` and then `+` this round's full reads. Every row but the end
   carries neither.
-- **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item named `arrived`. A turn's row ends `answered`, `send` where its
-  answer opened on `<<SEND>>` and became the message, `skip` or `failed`.
+- **The kinds are `supervisor`, `turn`, `question`, `item`, `check` and `end`;** the closing check is an item
+  named `arrived`. A turn's row ends `answered`, `send` where its answer opened on `<<SEND>>` and became the
+  message, `no-verdict` where it skipped naming no reason and the same turn was asked once over, `skip` or `failed`.
+  A row ending `skip` carries in its `detail` the reason its skip named, or `none given` where the turn named none
+  twice and the round ended for that.
 - **The process's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where
-  nothing does, `withheld` where a check failed twice, and in its detail the row of the table the turn read and the
-  checks that withheld it.
+  nothing does, `withheld` where a check failed twice, and in its detail the row of the table the turn read, the
+  reason the round skipped for where it skipped (`; skipped: ` then the reason, or `none given`), and the checks
+  that withheld it.
 - **Each row is told on the event stream as it is written,** a `draft` event (`docs/receiver.md`, 「The event
   stream」), and the log is read by round (`GET /rounds/drafts`).
 - **The draft turn is told as it starts, too,** before its answer: a `draft` event of kind `start` with the
@@ -481,8 +505,8 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 ## The supervisor's opening
 
 - **The room's block carries the shape of a turn and its rounds.** One short line names a **turn** as one pass over
-  a room's words and its **rounds** as the turns the session is asked inside it, this round's rule (`<<SKIP>>` or
-  one short line, and no other action), and, for the later rounds, only the rulebook each follows: the room
+  a room's words and its **rounds** as the turns the session is asked inside it, this round's rule (a skip in its
+  form or one short line, and no other action), and, for the later rounds, only the rulebook each follows: the room
   block's draft process for the draft round, the review's own line and each item's rule there. It names them
   there so the agent knows which rule applies at
   each round without the prompt repeating texts that stand elsewhere. The judgement turn itself carries a marker,

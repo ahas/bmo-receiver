@@ -18,10 +18,10 @@ items_head = "THE ITEMS AND CHECKS THAT FOLLOW THE MESSAGE — a turn marked ITE
 # items are asked with no message standing and answer with the message itself.
 [errands]
 # A turn that carried the owner's own messages and answered with silence.
-owed = "ITEM owed — the answer to this turn was <<SKIP>>, so nothing went out and nobody has been answered. The turn says how many of the owner's own messages it carried, in the owner's own private chat, which is always answered. No message stands yet: answer the owner now with the message. <<SKIP>> and <<WAIT>> are not available."
+owed = "ITEM owed — this turn skipped, so nothing went out and nobody has been answered. The turn says how many of the owner's own messages it carried, in the owner's own private chat, which is always answered. No message stands yet: answer the owner now with the message. A skip and <<WAIT>> are not available."
 # A turn carrying the owner's words with no message in the room's record answering them: a note or an earlier draft
 # is not a sent answer.
-owner_directive = "ITEM owner_directive — the owner's words stand in this turn and no message the room's record holds answers them. A draft, a note or an earlier turn of this session that the record does not hold is not a sent answer, and nothing was sent. No message stands yet: answer the owner's words now with the message. <<SKIP>> and <<WAIT>> are not available."
+owner_directive = "ITEM owner_directive — the owner's words stand in this turn and no message the room's record holds answers them. A draft, a note or an earlier turn of this session that the record does not hold is not a sent answer, and nothing was sent. No message stands yet: answer the owner's words now with the message. A skip and <<WAIT>> are not available."
 # A final text carrying the process's own lines.
 format = "CHECK format — the message you wrote carries the process's own lines: a question that was asked, or the head of a block of messages. Nothing went out. Write the message again as the room is to read it, with none of them. <<WAIT>> is not available."
 # A promise with nothing recorded, for a turn whose tools are on or off.

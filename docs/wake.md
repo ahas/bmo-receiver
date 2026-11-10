@@ -76,12 +76,12 @@ its rounds.
   name either.
 - **While it runs, new messages keep streaming into the same session.** The agent decides each round whether to
   answer, keep waiting while the author may still be typing (`<<WAIT>>`), or stay silent because the messages
-  were not addressed to it (`<<SKIP>>`, group chats only: members talking to each other are left alone).
+  were not addressed to it (a skip in its form, group chats only: members talking to each other are left alone).
 - **Two things restart the window and no others:** an answer that goes out, and a call. Each answer restarts it,
   so a follow-up needs no name; the conversation ends once the window has run out with nothing left to read.
 - **The room merely speaking again does not restart it**: that would let a room that talks among itself hold the
   agent awake with no one ever calling it.
-- **A round that ends in silence leaves the time it already had to run out** (a `<<SKIP>>`) because passing over
+- **A round that ends in silence leaves the time it already had to run out** (a skip) because passing over
   what a room said is not answering it, and a window that grew every time the agent stayed quiet would hold a
   session open through a conversation it is not in.
 - **A line the agent's own send puts in the room** (a `say` through `POST /sends` in its round, or the line it
@@ -111,7 +111,7 @@ its rounds.
   anybody else's words leave it running.
 - **Those words open a round of their own,** which reads the held words with them and may wait again.
 - **Once any held person has stood quiet for their ten seconds** the turn opens on the held words, with whatever
-  came since, and the agent must then answer with what it has; `<<SKIP>>` stays valid even then.
+  came since, and the agent must then answer with what it has; a skip stays valid even then.
 - **The room's window is unaffected by the wait** and still runs its three minutes from the call or the answer.
 
 ## The owner's own chat is always answered
@@ -121,7 +121,7 @@ its rounds.
   round was carrying.
 - **The turn is told so in as many words**: the permission a quiet instruction brings covers the instruction
   alone, and the line a closed window puts in front of the turn withholds the silence too.
-- **A `<<SKIP>>` that comes back anyway is not taken.** Where the draft process ends in a skip, the session is
+- **A skip that comes back anyway is not taken.** Where the draft process ends in a skip, the session is
   asked once more with the silence withdrawn, the process's `owed` item (`docs/drafting.md`), and what it writes
   then is the message; a session that stays silent through that asking ends the round the way it stood, with
   every turn of it in the round log.
@@ -148,8 +148,8 @@ its rounds.
   numbered it, negative where the record did. A bare `<<REPLY>>`, zero, or a number too large to name a message either side of zero pins it to
   the newest message the round answers, and a number the room's record does not hold pins it to nothing.
 - **The sentinel is stripped either way,** and every send to a chat removes any `<<REPLY>>`, `<<FOLD>>`,
-  `<<SKIP>>` or `<<WAIT>>` still standing in the text as its last step, leaving one alone only inside a code span
-  or fence, where it is being quoted.
+  `<<WAIT>>`, `<<SKIP>>` or `<<SKIP: <reason>>>` still standing in the text as its last step, leaving one alone
+  only inside a code span or fence, where it is being quoted.
 - **Nothing checks the number beyond the room's record:** the chat service refuses a message it cannot reach, the
   answer goes out pinned to nothing and reaches the room either way, and the room and the number it was pointing
   at go to the log, which is how a session aiming at another room's numbers or at messages that are gone is ever
@@ -204,8 +204,12 @@ its rounds.
   answer. What the marker asks is the draft catalogue's `supervisor` text (the round policy's head and question,
   `chat-round.toml`, `[supervisor]`, where the console set none; `docs/drafting.md`, 「The routes」), said in the
   room's block. The turn carries no reference and no index,
-  and nothing of it passes any gate. `<<SKIP>>` ends the round there: nothing is sent, the words are
-  read and the window keeps the time it had, as a skipped round leaves it. Any other answer opens the ordinary
+  and nothing of it passes any gate. A skip in the round's form (`<<SKIP: <reason>>>`, `docs/drafting.md`, 「What
+  it is」) ends the round there: nothing is sent, the words are
+  read and the window keeps the time it had, as a skipped round leaves it, and the judgement's row of the round log
+  carries the reason it named. An answer skipping with no reason is no verdict: the same judgement turn is asked
+  once more under one line naming the form, and a second answer naming none ends the round with its reason recorded
+  as `none given`. Any other answer opens the ordinary
   round, its reference and its draft process. A round with a named call, a reply, words of a
   private chat or the owner's chat skips this step. The judgement is a row of the round log of its own kind,
   `supervisor` (`docs/drafting.md`, 「The round log」).

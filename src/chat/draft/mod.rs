@@ -27,7 +27,8 @@ use super::promises::{promises_after, promises_later, sets_rule_later};
 use super::prompt::{Scope, scope_line};
 use super::records::run_records;
 use super::sentinels::{
-  FOLD, Mark, SKIP, asks_fold, is_handoff, is_skip, is_wait, round_marks, sent_now, without_round_marks,
+  FOLD, Mark, SKIP, Skip, asks_fold, is_handoff, is_skip, is_wait, round_marks, sent_now, skip,
+  without_round_marks,
 };
 use super::turn_mark::{self, TurnMark};
 use super::turnover::note_session;
@@ -36,8 +37,12 @@ use crate::now_ms;
 use crate::one;
 use crate::receiver::{Inbound, Receiver};
 
-use checks::{Check, Reading, failing, has_skip, light, own_lines};
-use log::{Answered, Ended, Kind, Log};
+use checks::{Check, Reading, failing, light, own_lines};
+use log::{Answered, Ended, Kind, Log, NO_REASON};
+
+// What the round log records for a skip the code itself reads out of an answer: the hand-off sentinel standing in
+// a turn of the process after the draft turn (docs/drafting.md, 「A round handed to the double」).
+const SKIPPED_BY_HANDOFF: &str = "the answer carried the hand-off sentinel";
 
 /// What an item or a check goes out with beside its marker and data: the turn's scope and the ids of the
 /// messages waiting for the next turn. What is done with them stands in the room's block.
@@ -74,18 +79,50 @@ impl Plan {
   }
 }
 
-/// An answer as the process reads it: a skip standing anywhere in it outside code, which wins; a send marker
-/// opening it taken out, the words after it being the answer, and a marker with nothing after it a skip; or an
-/// answer.
-pub fn read_answer(text: &str) -> (String, Answered) {
-  if has_skip(text) || is_skip(text) {
-    return (text.to_owned(), Answered::Skip);
+/// An answer of a round's turn as the process reads it: a skip naming its reason standing anywhere in it outside
+/// code, which wins and ends the round with nothing sent; a skip naming none, or no words at all, which is no
+/// verdict and asks the same turn once more; a send marker opening it taken out, the words after it being the
+/// answer, and a marker with nothing after it naming no reason; or an answer. The reason is what the round log
+/// keeps where the turn skipped (docs/drafting.md, 「What the receiver reads of an answer」).
+pub fn read_answer(text: &str) -> (String, Answered, Option<String>) {
+  match skip(text) {
+    Some(Skip::Reasoned(reason)) => return (text.to_owned(), Answered::Skip, Some(reason)),
+    Some(Skip::Bare) => return (text.to_owned(), Answered::NoVerdict, None),
+    None => {}
+  }
+
+  if is_skip(text) {
+    return (text.to_owned(), Answered::NoVerdict, None);
   }
 
   match sent_now(text) {
-    Some("") => (SKIP.to_owned(), Answered::Skip),
-    Some(words) => (words.to_owned(), Answered::Send),
-    None => (text.to_owned(), Answered::Answered),
+    Some("") => (SKIP.to_owned(), Answered::NoVerdict, None),
+    Some(words) => (words.to_owned(), Answered::Send, None),
+    None => (text.to_owned(), Answered::Answered, None),
+  }
+}
+
+/// A turn's answer as the process holds it: the reply, with what its run left of the session, how its row of the
+/// round log ends and, where the turn skipped, the reason the log keeps.
+#[derive(Clone, Debug)]
+pub struct Answer {
+  pub reply: Reply,
+  pub ended: Answered,
+  pub reason: Option<String>,
+}
+
+impl Answer {
+  fn new(reply: Reply, ended: Answered, reason: Option<String>) -> Self {
+    Answer {
+      reply,
+      ended,
+      reason,
+    }
+  }
+
+  // What the row of the round log says beside an ending of `skip`.
+  fn detail(&self) -> Option<&str> {
+    (self.ended == Answered::Skip).then_some(self.reason.as_deref()).flatten()
   }
 }
 
@@ -96,9 +133,15 @@ pub fn closing_words(standing: &str, block: &str) -> String {
   format!("{}\n\n{}\n{}\n\n{block}", DRAFTING.arrived_marker, DRAFTING.standing, standing.trim())
 }
 
-/// An answer that says something: not empty, not a skip and not a wait.
+/// An answer that says something: not empty, not a skip of either shape and not a wait.
 pub fn usable(text: &str) -> bool {
-  !text.is_empty() && !is_skip(text) && !is_wait(text)
+  !text.is_empty() && skip(text).is_none() && !is_skip(text) && !is_wait(text)
+}
+
+/// The line a turn that skipped with no reason is asked once more with: the policy's own line over the turn as it
+/// first went out.
+fn over_skip(words: &str) -> String {
+  format!("{}\n\n{words}", DRAFTING.skip_again)
 }
 
 /// An item's turn: the marker that names it and the data its rule reads.
@@ -212,7 +255,8 @@ impl Drafter {
 
 // One round's process as it runs: where it stands, the runs its turns opened, the texts of the questions it
 // asked, the reply the last turn carried and the log; the messages that arrived meanwhile and were shown to it,
-// what the round holds by path, the marks its answers set and whether the last answer was nothing but marks.
+// what the round holds by path, the marks its answers set, whether the last answer was nothing but marks and the
+// reason a skip of this round named.
 struct Run<'a> {
   drafter: &'a Drafter,
   conversations: &'a Conversations,
@@ -228,16 +272,27 @@ struct Run<'a> {
   marks: Vec<(Mark, i64)>,
   only_marks: bool,
   turn_mark: TurnMark,
+  skip_reason: Option<String>,
 }
 
 impl Run<'_> {
   // The process's end written down with what the round read and the session its turn ran on (docs/drafting.md,
-  // 「The round log」).
+  // 「The round log」). Where the round ended in a skip, the row says why it sent nothing.
   async fn end(&mut self, ended: Ended, detail: &str, ms: i64) {
     let reads = self.reads().await;
     let session = self.latest.session.clone();
+    let detail = match (ended, self.skip_reason.as_deref()) {
+      (Ended::Skip, Some(reason)) => format!("{detail}; skipped: {reason}"),
+      (Ended::Skip, None) => format!("{detail}; skipped: {NO_REASON}"),
+      _ => detail.to_owned(),
+    };
 
-    self.log.end(ended, detail, ms, &reads, session.as_deref()).await;
+    self.log.end(ended, &detail, ms, &reads, session.as_deref()).await;
+  }
+
+  // The round skipped: the reason its log keeps, the one the answer named or none given.
+  fn skipped(&mut self, reason: Option<&str>) {
+    self.skip_reason = Some(reason.unwrap_or(NO_REASON).to_owned());
   }
 
   // What the round read from the brain (docs/drafting.md, 「The round log」): the core its turn carried, in full or
@@ -419,14 +474,11 @@ impl Run<'_> {
     )
   }
 
-  // One more turn of the same session: its answer where it gave one, as the process reads it with its marks taken
-  // out, none where its run failed, the stop raised. Nothing is pushed into it while it works.
-  async fn ask(
-    &mut self,
-    kind: Kind,
-    name: &str,
-    words: &str,
-  ) -> Result<Option<(Reply, Answered)>, Failure> {
+  // One more turn of the same session: its answer where it gave one, none where its run failed, the stop raised.
+  // Where the turn skipped naming no reason, the same turn is asked once more under the line naming the form, and
+  // a second answer naming none is the round's own skip with its reason recorded as none given
+  // (docs/drafting.md, 「What the receiver reads of an answer」). Nothing is pushed into a turn while it works.
+  async fn ask(&mut self, kind: Kind, name: &str, words: &str) -> Result<Option<Answer>, Failure> {
     self.asked_with(kind, name, words, false).await
   }
 
@@ -436,7 +488,28 @@ impl Run<'_> {
     name: &str,
     words: &str,
     taking: bool,
-  ) -> Result<Option<(Reply, Answered)>, Failure> {
+  ) -> Result<Option<Answer>, Failure> {
+    let Some(answer) = self.ask_turn(kind, name, words, taking, false).await? else {
+      return Ok(None);
+    };
+
+    if answer.ended != Answered::NoVerdict {
+      return Ok(Some(answer));
+    }
+
+    self.ask_turn(kind, name, &over_skip(words), taking, true).await
+  }
+
+  // One carrying of one turn of the process: its answer read with its marks taken out and its row written down.
+  // `settling` names the asking a skip with no reason ends the round over, where no reason given is the reason.
+  async fn ask_turn(
+    &mut self,
+    kind: Kind,
+    name: &str,
+    words: &str,
+    taking: bool,
+    settling: bool,
+  ) -> Result<Option<Answer>, Failure> {
     let drafted = self.drafted;
     let chat = self.held.chat_id;
     let started = now_ms();
@@ -494,23 +567,35 @@ impl Run<'_> {
       Ok(answered) => {
         self.shown.extend(pushed);
 
-        // The hand-off sentinel is the round's own draft turn's alone: from a later turn it is a skip, never words.
+        // The hand-off sentinel is the round's own draft turn's alone: from a later turn it is a skip whose reason
+        // is that sentinel, never words and never a turn asked over its skip.
         let said = strip_prompt_scaffolding(&answered.text);
-        let text = self.marked(if is_handoff(&said) { SKIP } else { &said });
+        let handing = is_handoff(&said);
+        let text = self.marked(if handing { SKIP } else { &said });
         // An answer of nothing but marks says nothing more: no skip, and no words.
-        let (text, ending) = match (self.only_marks, text.is_empty()) {
-          (true, _) => (text, Answered::Answered),
+        let (text, ending, reason) = match (self.only_marks, text.is_empty()) {
+          (true, _) => (text, Answered::Answered, None),
           (false, true) => read_answer(SKIP),
           (false, false) => read_answer(&text),
         };
-        let answer = Reply { text, ..answered };
+        let (ending, reason) = if handing {
+          (Answered::Skip, Some(SKIPPED_BY_HANDOFF.to_owned()))
+        } else {
+          (ending, reason)
+        };
+        // At the asking that settles the round, a skip naming no reason is its skip after all, none given.
+        let (ending, reason) = match (ending, settling) {
+          (Answered::NoVerdict, true) => (Answered::Skip, Some(NO_REASON.to_owned())),
+          _ => (ending, reason),
+        };
+        let answer = Answer::new(Reply { text, ..answered }, ending, reason);
 
         if let Err(why) = note_session(
           &self.drafter.receiver,
           self.agent,
           chat,
           drafted.privileged,
-          answer.session.as_deref(),
+          answer.reply.session.as_deref(),
           drafted.tools_allowed,
         )
         .await
@@ -518,16 +603,19 @@ impl Run<'_> {
           eprintln!("chat {chat}: the session's launch: {}", why.detail);
         }
 
-        self.spoken.extend(answer.run.clone());
-        self.log.turn(kind, name, Some(&answer.text), ending, now_ms() - started).await;
-        self.latest = answer.clone();
+        self.spoken.extend(answer.reply.run.clone());
+        self
+          .log
+          .turn(kind, name, Some(&answer.reply.text), answer.ended, answer.detail(), now_ms() - started)
+          .await;
+        self.latest = answer.reply.clone();
 
-        Ok(Some((answer, ending)))
+        Ok(Some(answer))
       }
       Err(failure) => {
         // A turn whose run failed showed nothing: what was pushed into it goes back to wait.
         self.conversations.give_back_words(chat, pushed);
-        self.log.turn(kind, name, None, Answered::Failed, now_ms() - started).await;
+        self.log.turn(kind, name, None, Answered::Failed, None, now_ms() - started).await;
 
         if matches!(failure, Failure::Stopped) {
           return Err(failure);
@@ -742,6 +830,7 @@ impl Drafter {
       marks: vec![],
       only_marks: false,
       turn_mark: TurnMark::default(),
+      skip_reason: None,
     };
     // The main round handed the core and the room's words; the later rounds of this turn carry them as lines.
     let mut turn = turn_mark::read(receiver.db(), drafted.round).await;
@@ -760,11 +849,16 @@ impl Drafter {
 
     run.turn_mark = turn;
     let first_text = run.marked(&drafted.reply.text);
-    let (text, first_read) = read_answer(if first_text.is_empty() { SKIP } else { &first_text });
-    let first = Reply {
-      text,
-      ..drafted.reply.clone()
-    };
+    let (text, first_read, first_reason) =
+      read_answer(if first_text.is_empty() { SKIP } else { &first_text });
+    let mut first = Answer::new(
+      Reply {
+        text,
+        ..drafted.reply.clone()
+      },
+      first_read,
+      first_reason,
+    );
     // The draft turn's row goes by the questions it followed; a turn that followed none is a plain turn.
     let names = plan.names();
     let (kind, name) = match &names {
@@ -772,12 +866,41 @@ impl Drafter {
       None => (Kind::Turn, "turn"),
     };
 
-    run.latest = first.clone();
-    run.log.turn(kind, name, Some(&first.text), first_read, now_ms() - drafted.began).await;
+    run.latest = first.reply.clone();
+    run
+      .log
+      .turn(
+        kind,
+        name,
+        Some(&first.reply.text),
+        first.ended,
+        first.detail(),
+        now_ms() - drafted.began,
+      )
+      .await;
+
+    // A draft turn that skipped naming no reason is the same turn asked once more under the line naming the form,
+    // the session holding the round already, and a second answer naming none is the round's own skip.
+    if first.ended == Answered::NoVerdict {
+      let again = plan
+        .first_words()
+        .map(|line| over_skip(&line))
+        .unwrap_or_else(|| DRAFTING.skip_again.clone());
+
+      first = run
+        .ask_turn(kind, name, &again, false, true)
+        .await?
+        .ok_or_else(|| Failure::Failed("the round's turn asked over its skip failed".to_owned()))?;
+    }
 
     // The draft turn's answer is the message, unless it skipped.
-    let mut skipped = first_read == Answered::Skip;
-    let mut message: Option<Reply> = (!skipped).then_some(first);
+    let mut skipped = first.ended == Answered::Skip;
+
+    if skipped {
+      run.skipped(first.reason.as_deref());
+    }
+
+    let mut message: Option<Reply> = (!skipped).then(|| first.reply.clone());
 
     // Once the message stands, the room's words that waited since the last answer are shown in one closing check.
     if let Some(standing) = &message
@@ -786,17 +909,18 @@ impl Drafter {
       let words = closing_words(&standing.text, &block);
 
       match run.ask(Kind::Item, "arrived", &words).await {
-        Ok(Some((answer, read))) => {
+        Ok(Some(answer)) => {
           run.shown.extend(took);
 
-          if read == Answered::Skip {
+          if answer.ended == Answered::Skip {
             message = None;
             skipped = true;
-          } else if is_wait(&answer.text) || run.only_marks || answer.text.trim().is_empty() {
+            run.skipped(answer.reason.as_deref());
+          } else if is_wait(&answer.reply.text) || run.only_marks || answer.reply.text.trim().is_empty() {
             message = Some(standing.clone());
           } else {
             // The answer is the whole message as it now goes out, in the standing one's place.
-            message = Some(answer);
+            message = Some(answer.reply);
           }
         }
         Ok(None) => conversations.give_back_words(chat, took),
@@ -841,9 +965,10 @@ impl Drafter {
       };
 
       match run.ask(Kind::Item, "owed", &words(&errand, drafted.scope, &drafted.pending)).await {
-        Ok(Some((answer, read))) if usable(&answer.text) && read != Answered::Skip => {
-          message = Some(answer)
+        Ok(Some(answer)) if answer.ended == Answered::Skip => {
+          run.skipped(answer.reason.as_deref());
         }
+        Ok(Some(answer)) if usable(&answer.reply.text) => message = Some(answer.reply),
         Ok(_) => {}
         Err(failure) => {
           run.give_back_shown();
@@ -914,12 +1039,15 @@ impl Drafter {
     while receiver.review_gate() && reviews < 8 {
       let started = now_ms();
       let answered = run.ask(Kind::Review, "review", &run.review_prompt(&message.text)).await?;
-      let Some((answer, read)) = answered else {
+      let Some(answer) = answered else {
         break;
       };
-      let (pass, reason) = match read {
-        Answered::Skip => (false, "the review gave no verdict".to_owned()),
-        _ => review_verdict(&answer.text),
+      // A skip in a review's answer is the review giving no verdict, never the round's own skip: where it names a
+      // reason that reason rejects the draft, and where none was given even when asked over, the reason says so.
+      let (pass, reason) = match (answer.ended, answer.reason.as_deref()) {
+        (Answered::Skip, Some(reason)) if reason != NO_REASON => (false, reason.to_owned()),
+        (Answered::Skip, _) => (false, "the review gave no verdict".to_owned()),
+        _ => review_verdict(&answer.reply.text),
       };
 
       run
@@ -975,14 +1103,15 @@ impl Drafter {
         .ask(Kind::Question, "final", &words(&reason_shown, drafted.scope, &drafted.pending))
         .await
       {
-        Ok(Some((answer, read))) => {
-          if read == Answered::Skip {
+        Ok(Some(answer)) => {
+          if answer.ended == Answered::Skip {
+            run.skipped(answer.reason.as_deref());
             run.end(Ended::Skip, row, now_ms() - drafted.began).await;
 
             return Ok(run.made(SKIP));
           }
 
-          message = answer;
+          message = answer.reply;
         }
         Ok(None) => break,
         Err(failure) => {
@@ -1029,15 +1158,16 @@ impl Drafter {
           .await;
 
         match answered {
-          Ok(Some((answer, read))) => {
-            if read == Answered::Skip {
+          Ok(Some(answer)) => {
+            if answer.ended == Answered::Skip {
+              run.skipped(answer.reason.as_deref());
               run.end(Ended::Skip, row, now_ms() - drafted.began).await;
 
               return Ok(run.made(SKIP));
             }
 
-            if !is_wait(&answer.text) {
-              message = answer;
+            if !is_wait(&answer.reply.text) {
+              message = answer.reply;
             }
           }
           Ok(None) => {}

@@ -139,19 +139,21 @@ that session without the room hearing it.
   (`docs/messages.md`, 「Read marker」).
   A round whose turn's end never reached it, because the agency's event stream ended first, reads the turn's
   end from the agency; where the agency no longer holds the turn the round has failed.
-- **Acted on as the owner's word in that chat.** The session may answer `<<SKIP>>` in any chat, the owner's
-  private chat included, when acting on it needs nothing said. The permission covers the instruction and not the
+- **Acted on as the owner's word in that chat.** The session may skip the instruction in any chat, the owner's
+  private chat included, when acting on it needs nothing said; where the instruction rode a round of a room, the
+  skip goes in the round's form, which names why (`docs/drafting.md`, 「What it is」). The permission covers the
+  instruction and not the
   round it rides in, so where the same round also read the owner's own words in the owner's own chat the silence
   is withdrawn and those words are answered along with the instruction.
 - **The two markers are stripped from outgoing text** like every other piece of prompt scaffolding, so neither
   can leak into a message. That cut is made the moment a reply comes back from the session, before any gate
   reads it: a session sometimes writes on past its answer and invents the next prompt, a "New messages" block
   carrying words nobody sent, and a gate that read it would take the invented message for a real one. A reply
-  that was nothing but such scaffolding counts as `<<SKIP>>`.
+  that was nothing but such scaffolding counts as a skip naming no reason, so a round's turn is asked once over it.
 - **A chat already talking takes it into that conversation,** and it runs as soon as the reply in flight is
   done; otherwise it opens a conversation of its own, carrying the archived messages since the last reply as an
   ordinary wake would, and consumes nothing: the read marker never moves for it.
-- **It never holds a room open.** A `<<SKIP>>` to an instruction opens no window, and a conversation opened for
+- **It never holds a room open.** A skip of an instruction opens no window, and a conversation opened for
   an instruction closes as soon as it is done, so a room is never listened to on an instruction's account; an
   answer to the room's own messages is the one thing that keeps the room open.
 - **The pass skips rows for a chat the usage rest has silenced** until the rest lifts. A row is marked handed
@@ -185,7 +187,7 @@ that session without the room hearing it.
 
 ## Rows that ride
 
-A row that nearly always ends in `<<SKIP>>`, or that only makes sense beside the row that follows it, does not
+A row that nearly always ends in a skip, or that only makes sense beside the row that follows it, does not
 open a turn of its own. It waits for the next round its room opens for something else and goes in with that
 round.
 
@@ -209,7 +211,7 @@ round.
 - **What never rides:** anything the owner must not hear late (a job's ending, a failure, a road that moved or
   closed, a question or a stop, a deployment's outcome, a result somebody asked for) and anything that is the machine's only wake for work to
   move: an item awaiting its launch or its approval, a job waiting for a road or a slot. Those turns often do their work in tool
-  calls and say nothing, so a `<<SKIP>>` there is not an idle turn.
+  calls and say nothing, so a skip there is not an idle turn.
 - **How a rider gets in.** The instruction pass hands a rider over at the start of a round that may carry it
   (the round asks the pass for its riders before it takes anything) and never on its own tick while the rider
   still rides. A rider past its while is handed like any other row.

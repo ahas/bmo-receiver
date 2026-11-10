@@ -3,8 +3,7 @@
 
 use receiver_policy::drafting::DRAFTING;
 
-use super::super::sentinels::SKIP;
-use crate::form::without_control_markers;
+use super::super::sentinels::skip;
 use crate::receiver::Inbound;
 
 // How long a fixed head of a line of the process must run before the format check reads it.
@@ -30,9 +29,10 @@ pub struct Reading<'a> {
   pub own_lines: &'a [String],
 }
 
-/// Whether the skip stands in an answer outside a code span or fence, where it is not being quoted.
+/// Whether a skip of either shape stands in an answer outside a code span or fence, where it is not being quoted.
+/// What it names, where it names a reason, is read by `super::super::sentinels::skip`.
 pub fn has_skip(text: &str) -> bool {
-  text.matches(SKIP).count() > without_control_markers(text).matches(SKIP).count()
+  skip(text).is_some()
 }
 
 /// Whether a turn is light: it carried quiet instructions and none of the room's words, or room words that hold

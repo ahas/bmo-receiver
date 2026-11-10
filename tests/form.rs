@@ -129,6 +129,47 @@ fn the_fold_mark_asks_a_fold_outside_code_and_never_reaches_the_room() {
 }
 
 #[test]
+fn a_round_s_skip_names_its_reason_and_a_bare_one_names_none() {
+  use bmo_receiver::chat::sentinels::{Skip, is_skip, skip, skip_alone};
+
+  assert_eq!(
+    skip("<<SKIP: nobody here was asked>>"),
+    Some(Skip::Reasoned("nobody here was asked".to_owned()))
+  );
+  assert_eq!(skip("<<SKIP>>"), Some(Skip::Bare), "the bare marker names no reason");
+  assert_eq!(skip("<<SKIP:>>"), Some(Skip::Bare), "the form with nothing after its colon names none");
+  assert_eq!(skip("<<SKIP:    >>"), Some(Skip::Bare), "white space names no reason");
+  assert_eq!(skip("words that name nothing"), None);
+  assert_eq!(skip("quoted `<<SKIP: why>>` here"), None, "a skip quoted in code names nothing");
+  assert_eq!(
+    skip("<<SKIP>> then <<SKIP: one reason>>"),
+    Some(Skip::Reasoned("one reason".to_owned())),
+    "where the answer skips both ways, a reason is the verdict"
+  );
+  assert_eq!(skip("```\n<<SKIP: fenced>>\n```"), None, "a skip inside a fence is quoted");
+  assert_eq!(
+    skip_alone("<<SKIP: the picture asked nothing>>").as_ref().and_then(Skip::reason),
+    Some("the picture asked nothing"),
+    "an answer that is nothing but a skip carries its reason"
+  );
+  assert_eq!(skip_alone("<<SKIP>>"), Some(Skip::Bare));
+  assert_eq!(skip_alone(""), Some(Skip::Bare), "no words name no reason");
+  assert_eq!(
+    skip_alone("<<REPLY>> <<SKIP: with a reason>>"),
+    None,
+    "a mark is not nothing but a skip"
+  );
+  assert_eq!(skip_alone("here is the message"), None);
+  assert!(is_skip("<<SKIP: done here>>"), "a skip naming its reason says nothing either");
+  assert!(is_skip("<<FOLD>><<SKIP>>"));
+  assert_eq!(without_control_markers("<<SKIP: a reason>> Hello"), "Hello");
+  assert_eq!(
+    without_control_markers("say `<<SKIP: a reason>>` there"),
+    "say `<<SKIP: a reason>>` there",
+  );
+}
+
+#[test]
 fn a_verdict_carries_the_words_without_their_markers() {
   use bmo_receiver::chat::turnover::verdict_of;
 

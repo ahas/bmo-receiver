@@ -13,6 +13,7 @@ use tokio::task::JoinHandle;
 
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
@@ -2360,7 +2361,7 @@ impl Conversations {
     parts.extend(judged_lines);
 
     let started = now_ms();
-    let asking = Asking {
+    let mut asking = Asking {
       chat_id,
       session: held.session.clone().unwrap_or_default(),
       prompt: parts.join("\n"),
@@ -2373,16 +2374,52 @@ impl Conversations {
       standing: false,
       double: None,
     };
-    let follower = Follower::new(self, chat_id);
-    let reply = self.0.carrying.carry(&asking, held, &follower).await?;
+    let mut log = super::draft::log::Log::new(self, round, chat_id, self.agent()).numbered_from(0);
+    // A judgement that skipped with no reason is no verdict: the marker and the line naming the form are the whole
+    // of the turn asked over, the session holding the words already (docs/drafting.md, 「What the receiver reads
+    // of an answer」). The asking over is asked for once.
+    let mut over_skip = false;
+    let (reply, passed) = loop {
+      let follower = Follower::new(self, chat_id);
+      let began = now_ms();
+      let reply = self.0.carrying.carry(&asking, held, &follower).await?;
 
-    follower.finish();
-    held.context_tokens = reply.context_tokens.or(held.context_tokens);
-    held.session = reply.session.clone().or(held.session.clone());
-    held.replaced.extend(reply.replaced.clone());
-    self.keep_session(chat_id, held);
+      follower.finish();
+      held.context_tokens = reply.context_tokens.or(held.context_tokens);
+      held.session = reply.session.clone().or(held.session.clone());
+      held.replaced.extend(reply.replaced.clone());
+      self.keep_session(chat_id, held);
 
-    let passed = is_skip(&crate::form::strip_prompt_scaffolding(&reply.text));
+      let (ended, passed, reason) =
+        match super::sentinels::skip_alone(&crate::form::strip_prompt_scaffolding(&reply.text)) {
+          Some(super::sentinels::Skip::Reasoned(reason)) => {
+            (super::draft::log::Answered::Skip, true, Some(reason))
+          }
+          Some(super::sentinels::Skip::Bare) if over_skip => {
+            (super::draft::log::Answered::Skip, true, Some(super::draft::log::NO_REASON.to_owned()))
+          }
+          Some(super::sentinels::Skip::Bare) => (super::draft::log::Answered::NoVerdict, false, None),
+          None => (super::draft::log::Answered::Answered, false, None),
+        };
+
+      log
+        .turn(
+          super::draft::log::Kind::Supervisor,
+          &said.name,
+          Some(&reply.text),
+          ended,
+          reason.as_deref(),
+          now_ms() - began,
+        )
+        .await;
+
+      if ended != super::draft::log::Answered::NoVerdict {
+        break (reply, passed);
+      }
+
+      over_skip = true;
+      asking.prompt = format!("{}\n{}", said.marker, DRAFTING.skip_again);
+    };
 
     if !passed
       && let Some(id) = super::sentinels::round_marks(&reply.text)
@@ -2394,22 +2431,6 @@ impl Conversations {
     {
       conv.reply_marked = Some(id);
     }
-
-    let mut log = super::draft::log::Log::new(self, round, chat_id, self.agent()).numbered_from(0);
-
-    log
-      .turn(
-        super::draft::log::Kind::Supervisor,
-        &said.name,
-        Some(&reply.text),
-        if passed {
-          super::draft::log::Answered::Skip
-        } else {
-          super::draft::log::Answered::Answered
-        },
-        now_ms() - started,
-      )
-      .await;
 
     Ok(passed)
   }

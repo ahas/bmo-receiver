@@ -1007,13 +1007,21 @@ async fn a_draft_that_holds_the_answer_is_sent_and_a_repeated_request_is_answere
 #[tokio::test]
 async fn a_skip_in_the_draft_turn_sends_nothing() {
   // The owner's own chat owes an answer, so the skip is asked over once, and a skip again stands.
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "<<SKIP>>"]);
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["<<SKIP: the plan stands as the room has it>>", "<<SKIP: nothing to add>>"]);
   let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
 
   let prompts = round.session.prompts();
+  let rows = round
+    .scratch
+    .texts(
+      r#"SELECT "kind" || ' ' || "question" || ' ' || "outcome" || ' ' || coalesce("detail", '-')
+           FROM "draft_rounds" ORDER BY "id""#,
+    )
+    .await;
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(
@@ -1039,6 +1047,68 @@ async fn a_skip_in_the_draft_turn_sends_nothing() {
   assert_eq!(
     round.log().await,
     ["question intent+information+final skip", "item owed skip", "end  skip",]
+  );
+  assert_eq!(
+    rows,
+    [
+      "question intent+information+final skip the plan stands as the room has it",
+      "item owed skip nothing to add",
+      "end  skip */*/agent-a; skipped: nothing to add",
+    ],
+    "every skip row says why, and so does the round's end"
+  );
+}
+
+#[tokio::test]
+async fn a_bare_skip_asks_the_same_turn_once_over_and_a_second_one_ends_the_round() {
+  let session =
+    StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "<<SKIP>>", "<<SKIP>>", "<<SKIP>>"]);
+  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(4).await;
+
+  let prompts = round.session.prompts();
+  let rows = round
+    .scratch
+    .texts(
+      r#"SELECT "kind" || ' ' || "number" || ' ' || "outcome" || ' ' || coalesce("detail", '-')
+           FROM "draft_rounds" ORDER BY "id""#,
+    )
+    .await;
+
+  assert_eq!(
+    prompts.len(),
+    4,
+    "the draft turn and its asking over, then the owed item and its asking over: {prompts:#?}"
+  );
+  assert!(
+    turn_of(&prompts[1]).contains(&DRAFTING.skip_again)
+      && turn_of(&prompts[1]).contains("DRAFT ROUND (final)."),
+    "the asking over states the form over the round's own line: {}",
+    turn_of(&prompts[1])
+  );
+  assert!(
+    turn_of(&prompts[2]).contains("ITEM: owed."),
+    "the owner's chat is still asked over the silence: {}",
+    turn_of(&prompts[2])
+  );
+  assert!(
+    turn_of(&prompts[3]).contains("ITEM: owed.") && turn_of(&prompts[3]).contains(&DRAFTING.skip_again),
+    "an item that skips bare is asked over the same way: {}",
+    turn_of(&prompts[3])
+  );
+  assert!(round.sent().is_empty(), "nothing goes out");
+  assert_eq!(
+    rows,
+    [
+      "question 1 no-verdict -",
+      "question 2 skip none given",
+      "item 3 no-verdict -",
+      "item 4 skip none given",
+      "end 5 skip */*/agent-a; skipped: none given",
+    ],
+    "a skip that names none is no verdict, and the round log says none given"
   );
 }
 
@@ -1089,7 +1159,8 @@ async fn the_block_carries_the_note_instruction_and_a_round_s_turn_only_its_line
 
 #[tokio::test]
 async fn a_note_claiming_a_reply_does_not_skip_the_owners_directive() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "the corrected answer"]);
+  let session = StandInSession::new(SESSION, "unscripted")
+    .answering(&["<<SKIP: the note says the owner has it>>", "the corrected answer"]);
   let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
 
   // The room's note claims the reply went out, which only the room's record can say.

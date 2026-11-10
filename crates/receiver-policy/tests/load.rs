@@ -106,8 +106,24 @@ fn the_rounds_lines_carry_their_marks() {
 fn the_draft_process_ends_every_list_on_its_last_question() {
   // The round's line names the questions its round follows and nothing else.
   assert!(DRAFTING.round.contains("{names}"));
-  assert!(CHAT_ROUND.closing.rule.contains("<<SKIP>>"));
+  assert!(CHAT_ROUND.closing.rule.contains("<<SKIP: <why>>>"), "{}", CHAT_ROUND.closing.rule);
   assert!(DRAFTING.questions.contains_key("final"));
+  // A skip of a round's turn names its reason, and the line that says so stands where the agent reads it: in the
+  // room's block, in the judgement's question, in the last question, and in the asking over a bare skip.
+  for line in [&CHAT_LINE.room.process, &DRAFTING.questions["final"], &DRAFTING.arrived] {
+    assert!(line.contains("<<SKIP: <why>>>"), "{line}");
+  }
+  assert!(
+    CHAT_ROUND.supervisor.question.contains("<<SKIP: <why>>>")
+      && CHAT_ROUND.supervisor.structure.contains("<<SKIP: <why>>>"),
+    "{}",
+    CHAT_ROUND.supervisor.question
+  );
+  assert!(
+    DRAFTING.skip_again.contains("<<SKIP: <why>>>") && !DRAFTING.skip_again.contains("{"),
+    "the line that asks a turn over its bare skip states the form: {}",
+    DRAFTING.skip_again
+  );
   // The room's block says the voice a message is written in, once; a round's line carries none of it.
   for line in [&DRAFTING.stages_head, &DRAFTING.arrived] {
     assert!(line.contains("{voice}"), "{line}");
