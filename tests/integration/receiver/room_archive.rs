@@ -128,7 +128,10 @@ async fn the_owner_of_a_supervisor_the_room_names_leads_it_and_locks_it() {
 
   assert_eq!(status.as_u16(), 200, "{by_head}");
   assert_eq!(by_head["archivedBy"], "83");
-  assert_eq!(put(&front, &format!("{path}?by=83"), json!({ "archived": false })).await.0.as_u16(), 200);
+  assert_eq!(
+    put(&front, &format!("{path}?by=83"), json!({ "archived": false })).await.0.as_u16(),
+    200
+  );
 
   let (status, locked) = put(&front, &format!("{path}?by=81"), json!({ "archived": true })).await;
 
