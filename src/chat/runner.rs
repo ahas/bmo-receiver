@@ -160,6 +160,10 @@ impl Touching for Runner {
   ) -> BoxFuture<'a, Result<TouchAnswer, Fault>> {
     Box::pin(async move { Ok(self.of(agent).touch(idle_override_ms).await) })
   }
+
+  fn settle_owed<'a>(&'a self, _receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool> {
+    Box::pin(async move { self.of(agent).settle_owed().await })
+  }
 }
 
 // A line typed into an agent's program goes to that agent's conversations.

@@ -256,21 +256,51 @@ impl Asking {
   }
 }
 
-/// The handoff kept for an agent's next fresh session taken: its note where the session the turn goes on is a fresh
-/// one and the file still stands, none otherwise. Taken either way, so a session the agency resumed lets it go.
+/// The settings key the transcript of a session replaced while its agent was quiet is kept under where it wrote no
+/// handoff, until the fresh session's first turn carries it (docs/unified-bmo.md, 「Replacing the session」).
+pub fn carried_key(agent: &str) -> String {
+  format!("{agent}_transcript_pending")
+}
+
+/// The note kept for an agent's next fresh session taken: the handoff where its file still stands, else the
+/// transcript kept for it, where the session the turn goes on is a fresh one; none otherwise. Taken either way, so a
+/// session the agency resumed lets it go.
 pub async fn take_pending(receiver: &Receiver, agent: &str, fresh: bool) -> Option<Note> {
-  let path = crate::store::settings::take(receiver.db(), &pending_key(agent)).await.ok().flatten()?;
+  let db = receiver.db();
+  let path = crate::store::settings::take(db, &pending_key(agent)).await.ok().flatten();
+  let carried = crate::store::settings::take(db, &carried_key(agent)).await.ok().flatten();
 
   if !fresh {
     return None;
   }
 
-  let text = std::fs::read_to_string(&path).ok().filter(|text| !text.trim().is_empty())?;
+  let handed = path.and_then(|path| {
+    let text = std::fs::read_to_string(&path).ok().filter(|text| !text.trim().is_empty())?;
 
-  Some(Note::Handed(Handoff {
-    path: PathBuf::from(path),
-    text,
-  }))
+    Some(Note::Handed(Handoff {
+      path: PathBuf::from(path),
+      text,
+    }))
+  });
+
+  handed.or_else(|| carried.filter(|kept| !kept.trim().is_empty()).map(Note::Carried))
+}
+
+/// The note a session replaced while its agent was quiet left kept for the fresh session's first turn: the handoff's
+/// path, or the transcript where it wrote none. Nothing recovered leaves nothing to keep.
+pub async fn keep_pending(receiver: &Receiver, agent: &str, note: &Note) {
+  let db = receiver.db();
+  let kept = match note {
+    Note::Handed(handed) => {
+      crate::store::settings::set(db, &pending_key(agent), &handed.path.display().to_string()).await
+    }
+    Note::Carried(kept) => crate::store::settings::set(db, &carried_key(agent), kept).await,
+    Note::Lost => Ok(()),
+  };
+
+  if let Err(why) = kept {
+    eprintln!("{agent}: the note for its fresh session was not kept: {}", why.detail);
+  }
 }
 
 /// The last asking of one kind for an agent: when it was made, and how many have come in a row since within the

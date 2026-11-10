@@ -204,10 +204,12 @@ async fn stood_handing(session: Arc<StandInSession>) -> (Scratch, tempfile::Temp
 }
 
 #[tokio::test]
-async fn the_handoff_verb_asks_a_handover_and_the_next_turn_replaces_the_session_on_its_note() {
+async fn the_handoff_verb_asks_a_handover_and_a_quiet_agents_session_is_replaced_at_once_on_its_note() {
   let session = Arc::new(StandInSession::new("agent-a@standing", "Here.").acting(writing_handoff(NOTE)));
   let (scratch, data, standing, runner) = stood_handing(session.clone()).await;
   let receiver = standing.receiver.clone();
+
+  receiver.clone().hold_touching(Arc::new(runner.clone()));
 
   receiver
     .message(&worded(1, "the first words"), &Context::default(), owners_room())
@@ -239,10 +241,14 @@ async fn the_handoff_verb_asks_a_handover_and_the_next_turn_replaces_the_session
   assert_eq!(
     said.trim_end(),
     format!(
-      "handoff {AGENT}: handover asked (the session is to start afresh); it happens at the session's next turn"
+      "handoff {AGENT}: handover asked (the session is to start afresh); it happens once the agent is quiet"
     ),
   );
-  assert_eq!(session.prompts().len(), before, "the verb runs no turn");
+
+  // The agent is in no round, so the session is replaced behind the verb's answer: asked for its handoff and ended.
+  until_turns(&runner, &session, before + 1).await;
+  assert!(handoff_path(&session.prompts()[before]).is_some(), "{}", session.prompts()[before]);
+  assert_eq!(standing.agency.ended(), ["agent-a@standing"]);
 
   // A refusal is the route's own sentence, and the verb ends with 1.
   let empty = tokio::process::Command::new(env!("CARGO_BIN_EXE_bmo-receiver"))
@@ -260,7 +266,7 @@ async fn the_handoff_verb_asks_a_handover_and_the_next_turn_replaces_the_session
     String::from_utf8_lossy(&empty.stderr)
   );
 
-  // The next turn asks the old session for its handoff, ends it, and opens the new one on the note.
+  // The next turn opens the new session on the note.
   receiver
     .message(&worded(2, "the second words"), &Context::default(), owners_room())
     .await
@@ -270,7 +276,6 @@ async fn the_handoff_verb_asks_a_handover_and_the_next_turn_replaces_the_session
   let prompts = session.prompts();
 
   assert_eq!(prompts.len(), before + 2, "the handoff asked, then the next round: {prompts:?}");
-  assert!(handoff_path(&prompts[before]).is_some(), "{}", prompts[before]);
   assert!(
     prompts[before + 1].contains(NOTE),
     "the new session opens on the note: {}",

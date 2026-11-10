@@ -1,7 +1,7 @@
 //! A session past its cache lifetime is woken only by what someone waits on (docs/unified-bmo.md, 「Replacing the
 //! session」; docs/wake.md, 「Quiet instructions」): the touch answers it expired, no housekeeping instruction and no
-//! spoken script opens a turn on it, and a room's own words or a room reply open a round that replaces it through
-//! the handoff.
+//! spoken script opens a turn on it, and a room's own words or a room reply open a round that resumes it as it
+//! stands; the lifetime alone replaces nothing.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -202,7 +202,7 @@ async fn a_room_reply_landing_on_an_expired_session_is_handed_at_once() {
 }
 
 #[tokio::test]
-async fn a_room_reply_on_an_expired_session_starts_a_turn_that_replaces_it_through_the_handoff() {
+async fn a_room_reply_on_an_expired_session_starts_a_turn_that_resumes_it() {
   let scratch = Scratch::new().await;
 
   crate::integration::common::session::no_drafting(scratch.db()).await;
@@ -238,7 +238,7 @@ async fn a_room_reply_on_an_expired_session_starts_a_turn_that_replaces_it_throu
   deliver_pending(&receiver, &runner, &mut last, now_ms(), 0).await.unwrap();
 
   let waited = tokio::time::timeout(Duration::from_secs(20), async {
-    while session.prompts().len() < 2 || !runner.idle() || session.working() {
+    while session.prompts().is_empty() || !runner.idle() || session.working() {
       tokio::time::sleep(Duration::from_millis(5)).await;
     }
   })
@@ -248,13 +248,14 @@ async fn a_room_reply_on_an_expired_session_starts_a_turn_that_replaces_it_throu
 
   let prompts = session.prompts();
 
+  assert_eq!(prompts.len(), 1, "the expired session takes the turn as it stands: {prompts:#?}");
   assert!(
-    prompts[0].contains("/handoffs/"),
-    "the expired session is asked for its handoff first: {}",
+    !prompts[0].contains("/handoffs/"),
+    "no handoff is asked for the lifetime: {}",
     prompts[0]
   );
-  assert!(prompts[1].contains(NOTE), "the new session opens on it: {}", prompts[1]);
-  assert!(prompts[1].contains("the research run asked in this room has ended"), "{}", prompts[1]);
+  assert!(prompts[0].contains("the research run asked in this room has ended"), "{}", prompts[0]);
+  assert!(standing.agency.ended().is_empty(), "the session is not replaced for its lifetime");
 
   let settled = tokio::time::timeout(Duration::from_secs(5), async {
     let sql = r#"SELECT count(*) FROM "instructions" WHERE "id" = $1 AND "delivered_at" IS NOT NULL"#;
@@ -269,7 +270,7 @@ async fn a_room_reply_on_an_expired_session_starts_a_turn_that_replaces_it_throu
 }
 
 #[tokio::test]
-async fn a_real_message_after_expiry_goes_through_the_handoff_into_a_new_session() {
+async fn a_real_message_after_expiry_resumes_the_session_as_it_stands() {
   let scratch = Scratch::new().await;
 
   crate::integration::common::session::no_drafting(scratch.db()).await;
@@ -315,7 +316,7 @@ async fn a_real_message_after_expiry_goes_through_the_handoff_into_a_new_session
   receiver.message(&message, &Context::default(), room).await.unwrap();
 
   let waited = tokio::time::timeout(Duration::from_secs(20), async {
-    while session.prompts().len() < 2 || !runner.idle() || session.working() {
+    while session.prompts().is_empty() || !runner.idle() || session.working() {
       tokio::time::sleep(Duration::from_millis(5)).await;
     }
   })
@@ -325,10 +326,12 @@ async fn a_real_message_after_expiry_goes_through_the_handoff_into_a_new_session
 
   let prompts = session.prompts();
 
+  assert_eq!(prompts.len(), 1, "the expired session takes the turn as it stands: {prompts:#?}");
   assert!(
-    prompts[0].contains("/handoffs/"),
-    "the expired session is asked for its handoff first: {}",
+    !prompts[0].contains("/handoffs/"),
+    "no handoff is asked for the lifetime: {}",
     prompts[0]
   );
-  assert!(prompts[1].contains(NOTE), "the new session opens on it: {}", prompts[1]);
+  assert!(prompts[0].contains("are you there"), "{}", prompts[0]);
+  assert!(standing.agency.ended().is_empty(), "the session is not replaced for its lifetime");
 }

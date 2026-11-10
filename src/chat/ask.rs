@@ -23,7 +23,10 @@ use receiver_ports::agency::{
 };
 use receiver_ports::http::PortFailure;
 
-use super::cache::{Leaving, Route, remember, reset_reason, spend_force, transcript};
+use super::cache::{
+  Leaving, Route, active_route, owe_replacement, owed_replacement, remember, reset_reason,
+  settle_replacement, spend_force, transcript, waits_for_quiet,
+};
 use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
   Aside, Asking, BoxFuture, Carrying, Doubled, Failure, Follower, Held, Reply, unified_session,
@@ -124,6 +127,115 @@ async fn owed_notes(receiver: &Receiver, agent: &str, session: &str) {
   };
 
   runner.owed_notes(agent, session).await;
+}
+
+/// The replacement an agent's one session owes made while the agent is quiet (docs/unified-bmo.md, 「Replacing the
+/// session」): the session writes the notes it owes and its handoff, is ended and started again, and the note the
+/// fresh session's first turn opens on is kept for it. True where a replacement was owed and made; the caller holds
+/// the agent's turn, so words that arrive while it is made wait for the fresh session.
+pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
+  let db = receiver.db();
+  let reason = match owed_replacement(db, agent).await {
+    Ok(Some(reason)) => reason,
+    Ok(None) => return false,
+    Err(why) => {
+      eprintln!("{agent}: the replacement owed was not read: {}", why.detail);
+
+      return false;
+    }
+  };
+  let agency = receiver.units().agency.clone();
+  let chat_id = receiver.owner_room();
+  let scope = scope_of(unified_session(receiver, agent).await, chat_id);
+  let old = match agency.start(agent, scope).await {
+    Ok(standing) => standing.id,
+    Err(why) => {
+      eprintln!("{agent}: the session owing a replacement ({reason}) was not reached: {why}");
+
+      return false;
+    }
+  };
+
+  // A session no turn of the receiver's went on holds nothing to hand over: the debt is settled as it stands.
+  let turned = active_route(db, agent)
+    .await
+    .ok()
+    .flatten()
+    .is_some_and(|route| route.session.as_deref() == Some(&old));
+
+  if !turned {
+    if let Err(why) = spend_force(db, agent).await {
+      eprintln!("{agent}: the word to start afresh was not spent: {}", why.detail);
+    }
+
+    if let Err(why) = settle_replacement(db, agent).await {
+      eprintln!("{agent}: the replacement owed was not settled: {}", why.detail);
+    }
+
+    println!(
+      "{agent}: session {old} owed a replacement ({reason}) and no turn had gone on it; nothing to hand over"
+    );
+
+    return true;
+  }
+
+  owed_notes(receiver, agent, &old).await;
+
+  let handed = handoff::ask(receiver, agent, &old, chat_id).await;
+
+  if let Err(why) = agency.end(&old).await {
+    eprintln!("{agent}: session {old} was not ended for its replacement ({reason}): {why}");
+
+    return false;
+  }
+
+  generation::forget(receiver, agent, &old).await;
+
+  if let Err(why) = spend_force(db, agent).await {
+    eprintln!("{agent}: the word to start afresh was not spent: {}", why.detail);
+  }
+
+  if let Err(why) = settle_replacement(db, agent).await {
+    eprintln!("{agent}: the replacement owed was not settled: {}", why.detail);
+  }
+
+  let note = match handed {
+    Some(handed) => Note::Handed(handed),
+    None => match transcript(db, agent).await.ok().flatten() {
+      Some(kept) => Note::Carried(kept),
+      None => Note::Lost,
+    },
+  };
+
+  if note == Note::Lost {
+    handoff::tell_lost(receiver, agent, reason).await;
+  }
+
+  handoff::keep_pending(receiver, agent, &note).await;
+
+  // The fresh session stands ready for the next turn, so no question waits for its start.
+  if let Err(why) = agency.start(agent, scope).await {
+    eprintln!("{agent}: the fresh session was not started after the replacement ({reason}): {why}");
+  }
+
+  if let Some(times) = handoff::in_a_row(receiver, agent, &format!("replacement-{reason}"), true).await {
+    eprintln!(
+      "{agent}: session replaced again for the same reason ({reason}), {times} in a row, each within {} minutes of \
+       the last",
+      HANDOVER.again_minutes
+    );
+  }
+
+  println!(
+    "{agent}: session {old} replaced while the agent was quiet ({reason}), the next one opening on {}",
+    match &note {
+      Note::Handed(handed) => handed.path.display().to_string(),
+      Note::Carried(_) => "the transcript".to_owned(),
+      Note::Lost => "nothing recovered".to_owned(),
+    }
+  );
+
+  true
 }
 
 /// Why the agency's answer to a session operation ended the turn.
@@ -521,6 +633,26 @@ impl Carry {
         .map_err(|why| Failure::Failed(why.detail))?
     } else {
       None
+    };
+    // A replacement never stands between a question and its answer: for a reason the session can still take the
+    // turn under, the turn goes on in the session as it stands and the replacement is owed, to be made once the
+    // agent is quiet (docs/unified-bmo.md, 「Replacing the session」).
+    let reason = match reason {
+      Some(reason) if waits_for_quiet(reason) => {
+        match owe_replacement(db, agent, reason).await {
+          Ok(true) => println!(
+            "{agent}: session {started_id} owes a replacement ({reason}); this turn goes on in it, and the session \
+             is replaced once the agent is quiet"
+          ),
+          Ok(false) => {}
+          Err(why) => {
+            eprintln!("{agent}: the replacement owed ({reason}) was not written down: {}", why.detail)
+          }
+        }
+
+        None
+      }
+      other => other,
     };
     let replacing = reason.is_some();
     let (session, note, replaced): (Session, Option<String>, Vec<SessionReason>) = match reason {

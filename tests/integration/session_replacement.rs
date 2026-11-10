@@ -1,8 +1,11 @@
 //! Replacing the default answerer's one session (docs/unified-bmo.md, 「Replacing the session」): a turn on an unmoved
-//! head resumes the session whatever its own composition carries, and a head the agency says moved replaces it.
-//! Before it is ended the old session writes its handoff file, which the new session's first turn carries; where it
-//! writes nothing the receiver's transcript of it stands in, and only where neither stands is nothing recovered and
-//! the owner told so.
+//! head resumes the session whatever its own composition carries, and a head the agency says moved leaves a
+//! replacement owed, made once the round that found it has ended and no words wait: a replacement never stands
+//! between a question and its answer, and a question arriving while it is made waits for the fresh session. Before
+//! it is ended the old session writes its handoff file, which the new session's first turn carries; where it writes
+//! nothing the receiver's transcript of it stands in, and only where neither stands is nothing recovered and the
+//! owner told so. A session that cannot take the turn — the owner's word on a model replaced on its own, a full
+//! window — is replaced ahead of it.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -166,7 +169,7 @@ async fn two_rounds_of_a_room_on_an_unmoved_head_go_on_the_one_session() {
 }
 
 #[tokio::test]
-async fn a_head_the_agency_says_moved_replaces_the_session() {
+async fn a_head_the_agency_says_moved_replaces_the_session_once_the_round_that_found_it_has_ended() {
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
 
   unified.round(1, "the first words").await;
@@ -176,6 +179,18 @@ async fn a_head_the_agency_says_moved_replaces_the_session() {
   let ended = unified.standing.agency.ended();
 
   assert_eq!(ended, [SESSION], "a reason the last turn did not keep replaces the session once");
+
+  let prompts = unified.session.prompts();
+
+  assert_eq!(prompts.len(), 3, "the round's turn, then the handoff asked after it: {prompts:?}");
+  assert!(
+    prompts[1].contains("the second words"),
+    "the round's turn goes on in the session as it stands"
+  );
+  assert!(
+    prompts[2].starts_with(&HANDOVER.chat.ask_marker),
+    "the handoff is asked once the round ended"
+  );
 
   let count = unified.session.prompts().len();
 
@@ -214,22 +229,22 @@ async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_ses
 
   assert_eq!(prompts.len(), 3, "{prompts:?}");
 
-  // The old session was asked, before it was ended, to write its handoff at a file under the data root, under
-  // the marker alone: the rule stands in the room's block.
-  assert!(prompts[1].starts_with(&HANDOVER.chat.ask_marker), "{}", prompts[1]);
+  // The old session was asked, once the round ended and before it was ended, to write its handoff at a file
+  // under the data root, under the marker alone: the rule stands in the room's block.
+  assert!(prompts[2].starts_with(&HANDOVER.chat.ask_marker), "{}", prompts[2]);
   assert!(
-    !prompts[1].contains("First, consolidate your brain"),
+    !prompts[2].contains("First, consolidate your brain"),
     "no instruction sentence stands in the ask turn: {}",
-    prompts[1]
+    prompts[2]
   );
   let path =
-    crate::integration::common::session::handoff_path(&prompts[1]).expect("the handoff names its file");
+    crate::integration::common::session::handoff_path(&prompts[2]).expect("the handoff names its file");
   let folder = unified.data.path().join("handoffs").join(AGENT);
 
   assert!(path.starts_with(&folder.display().to_string()), "{path}");
   assert_eq!(std::fs::read_to_string(&path).unwrap(), NOTE);
-  // The handoff turn answers the room the replacement is made in, as every turn across rooms names one.
-  assert_eq!(unified.session.rooms()[1], Some(OWNER), "{:?}", unified.session.rooms());
+  // The handoff turn answers the owner's private chat, as every turn across rooms names a room.
+  assert_eq!(unified.session.rooms()[2], Some(OWNER), "{:?}", unified.session.rooms());
   assert_eq!(
     std::fs::read_to_string(folder.join("latest.md")).unwrap(),
     NOTE,
@@ -238,13 +253,65 @@ async fn a_replacement_asks_the_old_session_for_its_handoff_file_and_the_new_ses
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
 
   // The new session's first turn opens on the file's path and its whole text, ahead of the round's own words.
-  let first = &prompts[2];
+  unified.round(3, "the third words").await;
+
+  let prompts = unified.session.prompts();
+  let first = &prompts[3];
 
   assert!(first.starts_with(&HANDOVER.chat.handed_marker), "{first}");
   assert!(first.contains(&path) && first.contains(NOTE), "{first}");
-  assert!(first.find(NOTE) < first.find("the second words"), "{first}");
+  assert!(first.find(NOTE) < first.find("the third words"), "{first}");
   assert!(!first.contains("could not be recovered"), "{first}");
   assert!(unified.lost_notices().await.is_empty());
+  assert_eq!(unified.standing.agency.ended(), [SESSION], "the fresh session stands");
+}
+
+#[tokio::test]
+async fn words_that_arrive_while_the_replacement_is_made_wait_for_the_fresh_session() {
+  // The third turn, the handoff asked after the second round, stands working until it is let go.
+  let unified = Unified::on(
+    StandInSession::new(SESSION, ANSWER)
+      .acting(crate::integration::common::session::writing_handoff(NOTE))
+      .holding_turn(3),
+  )
+  .await;
+
+  unified.round(1, "the first words").await;
+  unified.session.prefix_changed("reload: a prompt document");
+  unified
+    .standing
+    .receiver
+    .message(&said(2, "the second words"), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until("the handoff turn", || unified.session.prompts().len() == 3 && unified.session.working()).await;
+  assert!(unified.session.prompts()[2].starts_with(&HANDOVER.chat.ask_marker));
+
+  // Words arriving while the handoff is written go on no turn of the old session.
+  unified
+    .standing
+    .receiver
+    .message(&said(3, "the third words"), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  tokio::time::sleep(Duration::from_millis(200)).await;
+  assert_eq!(unified.session.prompts().len(), 3, "the words wait: {:?}", unified.session.prompts());
+  assert!(
+    unified.standing.agency.ended().is_empty(),
+    "the old session still stands while it writes"
+  );
+
+  unified.session.let_go();
+  until("the third words' round", || {
+    unified.session.prompts().len() == 4 && unified.runner.idle()
+  })
+  .await;
+
+  let prompts = unified.session.prompts();
+
+  assert!(prompts[3].starts_with(&HANDOVER.chat.handed_marker), "{}", prompts[3]);
+  assert!(prompts[3].contains(NOTE) && prompts[3].contains("the third words"), "{}", prompts[3]);
+  assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }
 
 #[tokio::test]
@@ -254,11 +321,13 @@ async fn a_session_that_writes_no_handoff_leaves_the_transcript_of_what_it_answe
   unified.round(1, "the first words").await;
   unified.session.prefix_changed("reload: a prompt document");
   unified.round(2, "the second words").await;
+  assert_eq!(unified.standing.agency.ended(), [SESSION], "replaced once the second round ended");
+  unified.round(3, "the third words").await;
 
   let prompts = unified.session.prompts();
   let first = prompts.last().unwrap();
 
-  assert_eq!(prompts.len(), 3, "{prompts:?}");
+  assert_eq!(prompts.len(), 4, "{prompts:?}");
   assert!(first.starts_with(&HANDOVER.chat.carried_marker), "{first}");
   assert!(first.contains("WHAT YOU ANSWERED BEFORE"), "{first}");
   assert!(first.contains(&format!("{AGENT} (room {OWNER}): {ANSWER}")), "{first}");
@@ -372,6 +441,11 @@ async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() 
   let ended = unified.standing.agency.ended();
 
   assert_eq!(ended, [SESSION], "the session that read the instructions as they were is replaced");
+  assert!(
+    unified.session.prompts()[1].contains("the second words"),
+    "the round that found the change goes on in the session as it stood: {:?}",
+    unified.session.prompts()
+  );
 
   unified.round(3, "the third words").await;
   assert_eq!(unified.standing.agency.ended(), ended, "instructions that stand replace nothing more");

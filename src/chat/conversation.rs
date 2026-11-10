@@ -338,7 +338,9 @@ pub trait Talking: Send + Sync {
 }
 
 /// The touch of the quiet rooms' sessions, on the idle stretch the warmer names where it shortens it
-/// (docs/bmo-window.md, 「The touch」): the conversations take it behind whatever round is running.
+/// (docs/bmo-window.md, 「The touch」): the conversations take it behind whatever round is running. The replacement
+/// an agent's one session owes is made the same way, where the agent is quiet (docs/unified-bmo.md, 「Replacing the
+/// session」).
 pub trait Touching: Send + Sync {
   fn touch<'a>(
     &'a self,
@@ -346,6 +348,10 @@ pub trait Touching: Send + Sync {
     agent: &'a str,
     idle_override_ms: Option<i64>,
   ) -> BoxFuture<'a, Result<TouchAnswer, Fault>>;
+
+  /// The replacement the agent's one session owes made now where the agent is quiet: true where one was made,
+  /// false where none was owed or a round holds the agent's turn, which makes it once it ends.
+  fn settle_owed<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
 }
 
 /// What the window hands a line a person typed into the agent's program (docs/bmo-window.md, 「A line typed into
@@ -577,9 +583,23 @@ impl Conv {
   }
 }
 
+// A round under way, counted until it is dropped.
+struct UnderWay(Conversations);
+
+impl Drop for UnderWay {
+  fn drop(&mut self) {
+    let mut state = self.0.state();
+
+    state.rounds = state.rounds.saturating_sub(1);
+  }
+}
+
 #[derive(Default)]
 struct State {
   active: HashMap<i64, Conv>,
+  // The rounds under way, each from the moment it takes the agent's turn to the moment it gives it back, the
+  // replacement it may make after its last turn included.
+  rounds: usize,
   // Each room's words the queue is gathering.
   queue: HashMap<i64, Vec<Inbound>>,
   // How many gathered batches have left the queue and not yet reached their conversation.
@@ -826,12 +846,52 @@ impl Conversations {
   pub fn idle(&self) -> bool {
     let state = self.state();
 
-    state.queue.is_empty()
+    state.rounds == 0
+      && state.queue.is_empty()
       && state.delivering == 0
       && state.folding.is_empty()
       && state.active.values().all(|conv| {
         !conv.in_flight && !conv.waiting && conv.buffer.is_empty() && conv.instructions.is_empty()
       })
+  }
+
+  /// Whether no words of any room wait for the agent: nothing gathering, on its way, or left unread for a round
+  /// still to come.
+  fn quiet(&self) -> bool {
+    let state = self.state();
+
+    state.queue.is_empty()
+      && state.delivering == 0
+      && state.active.values().all(|conv| conv.buffer.is_empty() && conv.instructions.is_empty())
+  }
+
+  /// The replacement the agent's one session owes made now where the agent is quiet, behind its turn: true where
+  /// one was made. A round holding the turn makes it once it ends.
+  pub async fn settle_owed(&self) -> bool {
+    let Ok(turn) = self.0.turn.try_lock() else {
+      return false;
+    };
+    let settled = self.settle_owed_behind_turn().await;
+
+    drop(turn);
+    settled
+  }
+
+  // The owed replacement made by whoever holds the agent's turn, where no words wait; words that arrive while
+  // it is made wait for the fresh session.
+  async fn settle_owed_behind_turn(&self) -> bool {
+    if !self.quiet() {
+      return false;
+    }
+
+    super::ask::replace_owed(&self.0.receiver, self.agent()).await
+  }
+
+  // A round counted among those under way for as long as the guard stands.
+  fn round_under_way(&self) -> UnderWay {
+    self.state().rounds += 1;
+
+    UnderWay(self.clone())
   }
 
   // How long the agent's window runs, read as each window opens so a change to its row reaches the next.
@@ -1387,10 +1447,12 @@ impl Conversations {
     }
 
     let turn_lock = self.0.turn.lock().await;
+    let under_way = self.round_under_way();
     let (messages, instructions, read) = {
       let state = self.state();
       let Some(conv) = state.active.get(&chat_id) else {
         drop(state);
+        drop(under_way);
         drop(turn_lock);
         return;
       };
@@ -1495,6 +1557,11 @@ impl Conversations {
     self.0.receiver.news().end_turn(turn);
     self.0.hooks.typing(chat_id, false).await;
 
+    // A replacement the round found owed is made now that it has ended, where no words wait (docs/unified-bmo.md,
+    // 「Replacing the session」).
+    self.settle_owed_behind_turn().await;
+
+    drop(under_way);
     drop(turn_lock);
   }
 
@@ -2911,6 +2978,11 @@ impl Conversations {
   /// it.
   pub async fn touch(&self, idle_override_ms: Option<i64>) -> TouchAnswer {
     let lock = self.0.turn.lock().await;
+
+    // A replacement owed is made ahead of the touch: the agent is quiet, and the fresh session is what the touch
+    // keeps warm (docs/unified-bmo.md, 「Replacing the session」).
+    self.settle_owed_behind_turn().await;
+
     let touched = super::touch::touch(&self.0.receiver, self, self.agent(), idle_override_ms).await;
 
     drop(lock);

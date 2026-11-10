@@ -1,7 +1,7 @@
 //! The nouns this repository's unit command declares to `bmo` (bmo-cli's `docs/api.md`, 「The unit command」;
 //! docs/boundary-api.md, 「The unit command」): the sends a shell asks the running receiver for through
 //! `POST /sends`, the rooms and their messages, the
-//! fair draw made or checked, and an agent's one session asked to hand over at its next turn through
+//! fair draw made or checked, and an agent's one session asked to hand over once the agent is quiet through
 //! `POST /handovers/{agentName}`. Every noun runs on the operations machine, since the receiver, its store and the
 //! rooms it answers are that machine's.
 
@@ -474,7 +474,7 @@ pub async fn handoff(config: &Config, args: HandoffArgs) -> Result<Vec<String>, 
     .map_err(|why| VerbError::Refused(why.to_string()))?;
 
   Ok(vec![format!(
-    "handoff {}: handover asked ({reason}); it happens at the session's next turn",
+    "handoff {}: handover asked ({reason}); it happens once the agent is quiet",
     pending.agent_name
   )])
 }

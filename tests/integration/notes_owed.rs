@@ -230,7 +230,7 @@ const HANDOFF: &str = "In the middle of the owner's question about the plan.";
 async fn a_handoff_writes_the_notes_owed_first_and_the_fresh_session_reads_them_once() {
   let two = Two::on(
     StandInSession::new(SESSION, "unused")
-      .answering(&["answer one", OWNERS_NOTE, "<<SKIP>>", "answer two", "answer three"])
+      .answering(&["answer one", "answer two", OWNERS_NOTE, "<<SKIP>>", "answer three", "answer four"])
       .acting(writing_handoff(HANDOFF)),
   )
   .await;
@@ -238,38 +238,50 @@ async fn a_handoff_writes_the_notes_owed_first_and_the_fresh_session_reads_them_
 
   two.owner(1, "what does the plan hold", 1).await;
   force_reset(db, AGENT, SessionReason::Asked).await.unwrap();
+  // The round that finds the word goes on in the session as it stands; the replacement is made once it has
+  // ended, the note owed written first (docs/unified-bmo.md, 「Replacing the session」).
   two.owner(2, "and what after that", 4).await;
 
   let prompts = two.session.prompts();
 
   assert_eq!(prompts.len(), 4, "{prompts:#?}");
   assert!(
-    is_note_turn(&prompts[1]),
-    "the session about to end writes the note it owes first: {}",
+    prompts[1].contains("and what after that") && !is_note_turn(&prompts[1]),
+    "the round goes on in the session as it stands: {}",
     prompts[1]
   );
-  assert!(handoff_path(&prompts[2]).is_some(), "then it is asked for its handoff: {}", prompts[2]);
+  assert!(
+    is_note_turn(&prompts[2]),
+    "the session about to end writes the note it owes first: {}",
+    prompts[2]
+  );
+  assert!(handoff_path(&prompts[3]).is_some(), "then it is asked for its handoff: {}", prompts[3]);
   assert_eq!(two.standing.agency.ended(), [SESSION]);
   assert_eq!(two.note_of(OWNER).await, [OWNERS_NOTE]);
-  assert!(prompts[3].contains(HANDOFF), "the fresh session opens on the handoff: {}", prompts[3]);
-  assert!(
-    prompts[3].contains(&format!("{}\n{OWNERS_NOTE}", CHAT_ROUND.situation.front)),
-    "and reads the room's note in its first round there: {}",
-    prompts[3]
-  );
-  assert!(
-    !prompts[3].contains(&format!("{HANDOFF}\n{OWNERS_NOTE}")),
-    "the note is the room's own and no part of the handoff document"
-  );
 
   two.owner(3, "one more thing", 5).await;
 
   let prompts = two.session.prompts();
 
+  assert!(prompts[4].contains(HANDOFF), "the fresh session opens on the handoff: {}", prompts[4]);
   assert!(
-    !prompts[4].contains(OWNERS_NOTE) && !prompts[4].contains(&CHAT_ROUND.situation.unchanged),
-    "the fresh session reads the note once: {}",
+    prompts[4].contains(&format!("{}\n{OWNERS_NOTE}", CHAT_ROUND.situation.front)),
+    "and reads the room's note in its first round there: {}",
     prompts[4]
+  );
+  assert!(
+    !prompts[4].contains(&format!("{HANDOFF}\n{OWNERS_NOTE}")),
+    "the note is the room's own and no part of the handoff document"
+  );
+
+  two.owner(4, "yet another thing", 6).await;
+
+  let prompts = two.session.prompts();
+
+  assert!(
+    !prompts[5].contains(OWNERS_NOTE) && !prompts[5].contains(&CHAT_ROUND.situation.unchanged),
+    "the fresh session reads the note once: {}",
+    prompts[5]
   );
 }
 

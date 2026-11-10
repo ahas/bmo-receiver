@@ -105,7 +105,7 @@ the operations machine's:
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
 | `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
 | `draw` | `draw --chat <id> --spec '<json>'`, or `verify <id>`, or `verify --seed <hex> --draw <id> --spec '<json>' [--commitment <hex>] [--result <words>]` | `draw` asks `POST /sends`, the act `random_draw`; `verify` reads the store by number, or checks the published claim without one |
-| `handoff` | `handoff <agent> --reason <words>` | `POST /handovers/{agentName}`: the agent's one session hands over at its next turn, writing its handoff note and a fresh session opening on it; prints one line that the handover is asked and happens at the next turn; a refusal is the route's own sentence |
+| `handoff` | `handoff <agent> --reason <words>` | `POST /handovers/{agentName}`: the agent's one session hands over once the agent is quiet, writing its handoff note and a fresh session opening on it; prints one line that the handover is asked and happens at the next turn; a refusal is the route's own sentence |
 
 - **`handoff` puts no words into a room.** It asks for the agent's handover (`docs/api.md`, 「Handovers」), answered
   at once and running no turn, so an agent may run it on itself inside its own turn; it changes nothing of a

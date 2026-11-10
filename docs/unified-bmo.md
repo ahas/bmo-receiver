@@ -183,22 +183,31 @@
 ## Replacing the session
 
 - **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
-  effort, or another login), the draft process's instructions it was handed changed, the cache lifetime its
-  provider declares passed (`providers.toml`, `cache_minutes`,
-  else `keepalive_idle_minutes`), or the owner asked for a fresh
-  start. The agency carries the replacement as the session's provider declares.
+  effort, or another login), the draft process's instructions it was handed changed, or the owner asked for a
+  fresh start. The agency carries the replacement as the session's provider declares.
   A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
   folded: the owner's word to start it afresh is written for it, with the reason `full`, and its next turn
-  replaces it.
+  replaces it. A cache lifetime passed replaces nothing: the next turn resumes the session, and the provider
+  reads its prefix again.
+- **A replacement never stands between a question and its answer.** A session that cannot take the turn — its
+  road moved, its window full, its model replaced on its own — is replaced ahead of the turn. For every other
+  reason (its head moved, no record of its head, the draft process's instructions changed, a handover asked
+  for) the turn goes on in the session as it stands, and the replacement is written down as owed, with the
+  reason it was first owed for. It is made once the agent is quiet, behind the agent's turn: right after the
+  round that found it ends with no words of any room waiting, else after the next round that ends so, ahead of
+  the keepalive's touch, and at once where a handover is asked of an agent in no round. While it is made the
+  agent's turn is held, so words that arrive wait for the fresh session; the note it leaves (the handoff file,
+  else the transcript) is kept for the fresh session's first turn, which opens on it as below. The fresh session
+  is started as the replacement ends, so no question waits for its start.
 - **A handover asked for is the same word.** `POST /handovers/{agentName}` (`docs/api.md`, 「Handovers」), which
   the `handoff` command asks (`docs/boundary-api.md`, 「The unit command」), writes the owner's word to start the
-  agent's one session afresh with the reason `asked`, and runs no turn: the agent may ask it of its own session
-  from inside its own turn, and its next turn, in whichever room, replaces the session through the handoff below.
+  agent's one session afresh with the reason `asked`, and waits on no turn: the agent may ask it of its own
+  session from inside its own turn. The session is replaced through the handoff below once the agent is quiet:
+  at once where it is in no round, else as the round it is in ends.
 - **A session past its cache lifetime is woken only by what someone waits on.** A room's own words and a room
   reply (`docs/wake.md`, 「Quiet instructions」: a research result, a delegate's or a worker's answer, a job's
-  report, a reminder come due) open a round on it at once, and that round replaces it: the fresh session reads
-  the handoff document, then the room's block with the brain's index at session opening, then the unread
-  messages of the turn. Nothing else opens a turn on
+  report, a reminder come due) open a round on it at once, and that round resumes it: the provider reads the
+  session's prefix again, and nothing is replaced for the lifetime alone. Nothing else opens a turn on
   it: no keepalive touch, no fold, no housekeeping instruction, no push and no spoken script
   (`docs/bmo-window.md`, 「The touch」; `docs/voiced-notices.md`), since waking it for those would have the
   provider read its whole prefix again for nothing. The lifetime is the one the agency's warm and cold
@@ -220,11 +229,12 @@
   and the checks, the agent's first judgement and the review's instructions (`docs/drafting.md`, 「The
   questions」) — is a supervisor's own and the same in every room it answers, and it is what tells the session how each round is answered. The receiver keeps, with what it knows of
   the session's cache, the fingerprint of that part as the session's last turn carried it; a turn that finds
-  it another replaces the session, with the reason `process`, so no session holds the instructions as they
-  were beside the instructions as they are. It is not the head: the agency's prefix stands unmoved, and the
+  it another leaves the replacement owed, with the reason `process`, and the session is replaced once the agent
+  is quiet, so no session answers for long with the instructions as they were beside the instructions as they
+  are. It is not the head: the agency's prefix stands unmoved, and the
   replacement is the receiver's own. A record that kept no fingerprint has nothing to compare.
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
-  generation is 0 or not named), the record starting with its first turn, and replaced otherwise.
+  generation is 0 or not named), the record starting with its first turn, and owes a replacement otherwise.
 - **A generation the agency opens under the session is a handover the receiver did not make.** The session's
   state names the generation its turns stand in, and the agency announces the handover on the event stream as
   `system-prompt-changed` for the one session across rooms, whose state names no higher generation. A turn that

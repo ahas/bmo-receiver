@@ -1,8 +1,9 @@
 //! The road the room's turns stand on and what each session was opened against (docs/unified-bmo.md, 「Replacing
 //! the session」): kept in the receiver's own settings because the road outlives the session standing on it. A
-//! turn whose road moved, whose login is another, whose head moved or outlived its cache, or that the owner
-//! asked to start afresh goes out on a fresh session with the old one's note ahead of its words; what a turn
-//! leaves is the road its session now stands on and the head it stood on.
+//! turn whose road moved or whose login is another goes out on a fresh session with the old one's note ahead of
+//! its words; a turn whose head moved, or that the owner asked to start afresh, goes on in the session as it
+//! stands and leaves the replacement owed, to be made once the agent is quiet; what a turn leaves is the road its
+//! session now stands on and the head it stood on.
 
 use std::sync::LazyLock;
 
@@ -29,6 +30,12 @@ pub fn active_key(agent: &str) -> String {
 
 pub fn force_key(agent: &str) -> String {
   format!("{agent}_force_reset")
+}
+
+/// Where the replacement an agent's one session owes is kept, with the reason it was first owed for, until it is
+/// made (docs/unified-bmo.md, 「Replacing the session」).
+pub fn owed_key(agent: &str) -> String {
+  format!("{agent}_replacement_owed")
 }
 
 pub fn state_key(agent: &str, session: &str) -> String {
@@ -140,9 +147,10 @@ pub fn route_reason(
   }
 }
 
-/// Why the session this turn would resume may not be resumed: the owner's word, a road moved, a session opened
-/// before with no record of its head, a head moved, the draft process's instructions no longer the ones its last
-/// turn carried, or a head its cache has let go of. `standing` is the agency's
+/// Why the session this turn would resume may not be resumed as it stands: the owner's word, a road moved, a
+/// session opened before with no record of its head, a head moved, or the draft process's instructions no longer
+/// the ones its last turn carried. A cache lifetime passed is no reason: the turn resumes the session and the
+/// provider reads its prefix again. `standing` is the agency's
 /// state of the session, read before the turn: whether it was ever opened, and why its prefix changed where the
 /// agency names it. Nothing of the turn's own composition is read (docs/unified-bmo.md, 「Replacing the session」).
 pub async fn reset_reason(
@@ -185,13 +193,52 @@ pub async fn reset_reason(
     return Ok(Some(SessionReason::Process));
   }
 
-  let minutes = PROVIDERS.provider(&asked.provider).and_then(|found| found.lifetime_minutes());
+  Ok(None)
+}
 
-  Ok(
-    minutes
-      .filter(|lifetime| now_ms() - state.at >= *lifetime as i64 * 60_000)
-      .map(|_| SessionReason::Expired),
+/// Whether a replacement for this reason waits for the agent to be quiet rather than standing between a question
+/// and its answer (docs/unified-bmo.md, 「Replacing the session」). A session whose road moved, whose window is
+/// full or whose model was replaced on its own cannot take the turn, so it is replaced ahead of it; every other
+/// reason leaves the turn to go on in the session as it stands.
+pub fn waits_for_quiet(reason: SessionReason) -> bool {
+  matches!(
+    reason,
+    SessionReason::Prefix | SessionReason::NoPrefix | SessionReason::Process | SessionReason::Asked
   )
+}
+
+/// The replacement written down as owed for a reason: true where it was not owed before, false where it already
+/// was, the first reason kept.
+pub async fn owe_replacement(
+  db: &DatabaseConnection,
+  agent: &str,
+  reason: SessionReason,
+) -> Result<bool, Fault> {
+  if settings::get(db, &owed_key(agent)).await?.is_some_and(|held| !held.is_empty()) {
+    return Ok(false);
+  }
+
+  settings::set(db, &owed_key(agent), &reason.to_string()).await?;
+
+  Ok(true)
+}
+
+/// The replacement the agent's one session owes, if any, by the reason it was first owed for.
+pub async fn owed_replacement(
+  db: &DatabaseConnection,
+  agent: &str,
+) -> Result<Option<SessionReason>, Fault> {
+  Ok(
+    settings::get(db, &owed_key(agent))
+      .await?
+      .filter(|held| !held.is_empty())
+      .and_then(|held| serde_json::from_value(serde_json::Value::String(held)).ok()),
+  )
+}
+
+/// The owed replacement settled: made, or no longer due.
+pub async fn settle_replacement(db: &DatabaseConnection, agent: &str) -> Result<(), Fault> {
+  forget_setting(db, &owed_key(agent)).await
 }
 
 /// Whether the agent's one session has outlived its cache (docs/bmo-window.md, 「The touch」): its last turn older

@@ -248,7 +248,7 @@ session once the setting has changed, one waiting per setting.
 | `account` | the account changed |
 | `placement` | the node the session ran on is gone |
 | `prefix` | the system prompt or the head of the run changed |
-| `expired` | the cache's lifetime passed |
+| `expired` | the cache's lifetime passed; no replacement is made for it any more, and the code stands for records that name it |
 | `no-prefix` | the session holds no record of its prefix |
 | `downgrade` | a downgrade was noticed |
 | `downgrade-forced` | the model was replaced on its own |

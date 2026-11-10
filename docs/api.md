@@ -513,13 +513,14 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body | Answers |
 |---|---|---|
-| `POST /handovers/{agentName}` | `reason` | 202 `agentName`, `sessionReason` (`asked`): the agent's one session hands over at its next turn |
+| `POST /handovers/{agentName}` | `reason` | 202 `agentName`, `sessionReason` (`asked`): the agent's one session hands over once the agent is quiet |
 
 - **A handover is asked for the agent's one session across its rooms** (`docs/unified-bmo.md`, 「Replacing the
   session」). The route writes the word to start that session afresh with the reason `asked` and answers at once;
-  it runs no turn itself, so an agent may ask it of its own session from inside its own turn. The agent's next
-  turn, in whichever room, replaces the session as every replacement does: the old session writes its handoff
-  file, is ended, and the new session's first turn opens on the note.
+  it waits on no turn, so an agent may ask it of its own session from inside its own turn. The session is
+  replaced once the agent is quiet — at once where it is in no round, else as the round it is in ends — as every
+  replacement is: the old session writes its handoff file, is ended, and the new session's first turn opens on
+  the note.
 - **`reason`** is a non-empty English sentence saying why, for the receiver's journal; an empty one is refused
   400 `bad-request`. The journal holds one line naming the agent and the reason.
 - **An agent with no opened session** is given the word all the same, and its next turn spends it in the one

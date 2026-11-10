@@ -319,4 +319,8 @@ impl crate::chat::conversation::Touching for Conversations {
   ) -> BoxFuture<'a, Result<TouchAnswer, Fault>> {
     Box::pin(async move { Ok(Conversations::touch(self, idle_override_ms).await) })
   }
+
+  fn settle_owed<'a>(&'a self, _receiver: &'a Receiver, _agent: &'a str) -> BoxFuture<'a, bool> {
+    Box::pin(async move { Conversations::settle_owed(self).await })
+  }
 }
