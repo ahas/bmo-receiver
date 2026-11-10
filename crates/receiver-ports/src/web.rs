@@ -135,6 +135,25 @@ pub trait Web: Send + Sync {
 
   /// The rooms the console has open now, from the web unit's watching route.
   fn watched_rooms(&self) -> BoxFuture<'_, Answer<Vec<i64>>>;
+
+  /// The machine a user's account is bound to and whether the hub has it attached.
+  fn node_of<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<UserNode>>;
+}
+
+/// The machine an account is bound to, none for an account bound to none, and whether it is attached.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct UserNode {
+  #[serde(default)]
+  pub agent: Option<String>,
+  #[serde(default)]
+  pub attached: bool,
+}
+
+impl UserNode {
+  /// Whether the account stands: bound to no machine, or to one that is attached.
+  pub fn stands(&self) -> bool {
+    self.agent.is_none() || self.attached
+  }
 }
 
 /// The web unit over HTTP.
@@ -281,5 +300,9 @@ impl Web for HttpWeb {
 
       Ok(watching.rooms)
     })
+  }
+
+  fn node_of<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<UserNode>> {
+    Box::pin(async move { self.caller.get(&["users", user, "node"], &[]).await })
   }
 }

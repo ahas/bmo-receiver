@@ -755,3 +755,41 @@ async fn a_member_granted_ask_calls_their_own_supervisor_into_a_group_room_by_na
     .unwrap();
   assert_eq!(standing.taken.handed().len(), 1);
 }
+
+#[tokio::test]
+async fn a_supervisor_of_an_account_whose_machine_is_gone_is_woken_nowhere() {
+  let (scratch, _data, standing) = stood(&[-162]).await;
+  let member = 9412;
+
+  standing.web.linking(member, "82".to_owned());
+  standing.web.granting(-162, member, "ask".to_owned());
+
+  let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
+  own.row.insert("ownerAccount".to_owned(), json!(82));
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), own]);
+  everyone_heard(&scratch).await;
+
+  // Bound to a machine the hub does not have attached, the account's supervisor is woken nowhere.
+  standing.web.binding("82", false);
+  standing
+    .receiver
+    .message(&inbound(-162, 1, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+  assert!(standing.taken.handed().is_empty(), "{:?}", standing.taken.handed());
+
+  // Attached again, the same call reaches it.
+  standing.web.binding("82", true);
+  standing
+    .receiver
+    .message(&inbound(-162, 2, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  let woken = standing.taken.handed();
+
+  assert_eq!(woken.len(), 1, "{woken:?}");
+  assert_eq!(woken[0].message_id, 2);
+}

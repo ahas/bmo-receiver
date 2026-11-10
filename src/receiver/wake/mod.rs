@@ -392,6 +392,16 @@ pub async fn hand(
     return false;
   };
 
+  // An agent of an account whose machine is gone is woken nowhere (docs/wake.md, 「Who reaches the session」).
+  if !agents::account_stands(receiver, agent).await {
+    println!(
+      "chat {}: {agent}'s account has no machine attached, so message {} wakes it not",
+      inbound.chat_id, inbound.message_id
+    );
+
+    return false;
+  }
+
   let pinnable = receiver.roads().pinnable(&inbound.via, inbound.mode.as_deref()).await;
   let read_through = inbound.via_reader.unwrap_or(!pinnable);
   let carried = |message: &Inbound| Inbound {

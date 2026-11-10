@@ -488,6 +488,12 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
     return Ok(false);
   }
 
+  // An instruction for an agent of an account whose machine is gone stays queued until the machine is attached
+  // again (docs/wake.md, 「Who reaches the session」).
+  if !wake::agents::account_stands(receiver, &row.agent).await {
+    return Ok(false);
+  }
+
   if !wake::agents::answers(receiver, &row.agent, row.chat_id).await.unwrap_or(false) {
     println!(
       "instruction {} of {} for chat {} ({kind}) has no conversation to take it, discarding",

@@ -40,6 +40,11 @@ its rounds.
   answer in the owner's private chat among them, wake an agent on the three grounds below and not because the chat
   is private, so two agents answering one private chat do not wake each other on every answer.
 - **A room that names supervisors never reaches the default answerer** unless it names it among them.
+- **A supervisor of an account whose machine is gone is woken nowhere.** A supervisor whose row names an owner
+  account answers only while that account stands: bound to no machine, or bound to one the hub has attached, as
+  the web unit answers (`docs/boundary-api.md`, 「The web unit」). While the machine is gone, words that would wake
+  it are kept and wake nothing, and a quiet instruction for it stays queued, delivered once the machine is attached
+  again. A web unit that cannot be asked leaves the supervisor standing, since that says nothing of the machine.
 - **A room added `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
   kept and carried to its providers, and nothing past that is decided for them. The owner's answer to a job's
   open question is still handed to bmo-job there, since that wakes no agent.

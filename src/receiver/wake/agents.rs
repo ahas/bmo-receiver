@@ -85,6 +85,24 @@ pub async fn awake(receiver: &Receiver) -> Result<Vec<Designated>, NotReceived> 
   )
 }
 
+/// Whether an agent's owner account stands (docs/wake.md, 「Who reaches the session」): an agent of no account, or
+/// of one bound to no machine or to one the hub has attached. A web unit that cannot be asked leaves it standing.
+pub async fn account_stands(receiver: &Receiver, agent: &str) -> bool {
+  let account = match registered(receiver, agent).await {
+    Ok(Some(designated)) => designated.owner_account,
+    _ => None,
+  };
+  let Some(account) = account else { return true };
+
+  match receiver.units.web.node_of(&account.to_string()).await {
+    Ok(node) => node.stands(),
+    Err(why) => {
+      eprintln!("the machine of account {account} could not be read, so {agent} stands: {why}");
+      true
+    }
+  }
+}
+
 /// The agent as the agency registers it, awake or not, by name; none where no row names it.
 pub async fn registered(receiver: &Receiver, name: &str) -> Result<Option<Designated>, NotReceived> {
   Ok(

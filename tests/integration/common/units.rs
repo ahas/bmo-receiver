@@ -34,7 +34,7 @@ use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
 use receiver_ports::warmer::{Target, Used, Warmer};
 use receiver_ports::web::{
-  Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, Web,
+  Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, UserNode, Web,
 };
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
@@ -582,6 +582,8 @@ pub struct StandInWeb {
   // The names the web unit says are the administrator's.
   pub admins: Mutex<BTreeSet<String>>,
   pub watched: Mutex<Vec<i64>>,
+  // The machine each user's account is bound to, and whether it is attached.
+  pub nodes: Mutex<BTreeMap<String, UserNode>>,
 }
 
 impl StandInWeb {
@@ -592,6 +594,7 @@ impl StandInWeb {
       model: Mutex::default(),
       admins: Mutex::default(),
       watched: Mutex::default(),
+      nodes: Mutex::default(),
     }
   }
 
@@ -622,6 +625,19 @@ impl StandInWeb {
 
 fn unasked<T>() -> BoxFuture<'static, Answer<T>> {
   panic!("the stand-in web unit was asked what no test sets")
+}
+
+impl StandInWeb {
+  /// A user's account bound to a machine, attached or not.
+  pub fn binding(&self, user: &str, attached: bool) {
+    self.nodes.lock().unwrap().insert(
+      user.to_owned(),
+      UserNode {
+        agent: Some(format!("u{user}")),
+        attached,
+      },
+    );
+  }
 }
 
 impl Web for StandInWeb {
@@ -702,6 +718,12 @@ impl Web for StandInWeb {
     let rooms = self.watched.lock().unwrap().clone();
 
     Box::pin(async move { Ok(rooms) })
+  }
+
+  fn node_of<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<UserNode>> {
+    let node = self.nodes.lock().unwrap().get(user).cloned().unwrap_or_default();
+
+    Box::pin(async move { Ok(node) })
   }
 }
 
