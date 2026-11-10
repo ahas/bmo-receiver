@@ -71,7 +71,7 @@ fn text(text: &str) -> ChatSendRequest {
 
 #[tokio::test]
 async fn a_refused_road_is_skipped_at_once_and_a_live_slow_one_still_waits() {
-  let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap();
+  let closed = std::net::TcpListener::bind("[::1]:0").unwrap().local_addr().unwrap();
   let down = ChatServices::from_peers(&BTreeMap::from([(
     "road-down".to_owned(),
     Peer {

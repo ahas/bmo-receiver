@@ -73,7 +73,7 @@ impl Wait for Opening {
 
 // A port that was bound and let go, so nothing listens there.
 fn closed() -> std::net::SocketAddr {
-  std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap()
+  std::net::TcpListener::bind("[::1]:0").unwrap().local_addr().unwrap()
 }
 
 #[tokio::test]

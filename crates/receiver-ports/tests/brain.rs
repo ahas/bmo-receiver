@@ -92,7 +92,7 @@ async fn an_agent_with_no_brain_or_more_than_one_has_none_and_nothing_is_kept() 
 
 #[tokio::test]
 async fn a_brain_that_does_not_listen_ends_the_call_at_once() {
-  let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+  let listener = std::net::TcpListener::bind("[::1]:0").unwrap();
   let address = listener.local_addr().unwrap();
 
   drop(listener);
