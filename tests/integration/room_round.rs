@@ -474,8 +474,12 @@ async fn a_rounds_judgements_are_attached_from_its_start_under_the_answer_as_the
   let (room, message, since) = attached[0];
 
   assert_eq!((room, message), (OWNER, kept[0]), "they stand under the answer as the room keeps it");
+  // Epoch milliseconds near the round's start: the wall clock a virtual machine keeps is stepped back and forth as
+  // its host sets it, so the moment is held to a span around the round rather than ordered against it.
+  let around = 60_000;
+
   assert!(
-    since >= before && since <= bmo_receiver::now_ms(),
+    since >= before - around && since <= bmo_receiver::now_ms() + around,
     "they are the ones written since the round began, in epoch milliseconds: {since}"
   );
 
