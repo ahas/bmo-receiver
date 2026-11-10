@@ -854,6 +854,10 @@ impl Carry {
           after = id.unwrap_or(after);
         }
 
+        // The block still being written, which no line says yet, read after the lines that may have said it.
+        let open = agency.open_block(&session.id).await.ok().flatten();
+
+        picture = picture.with_open(open.as_ref().map(|block| (block.kind.as_str(), block.bytes)));
         follower.progressed(picture_of(&picture));
       }
     }

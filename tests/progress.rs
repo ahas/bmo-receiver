@@ -4,7 +4,7 @@
 
 use serde_json::{Value, json};
 
-use bmo_receiver::chat::progress::{MAX_SAID_LINES, RequestSpend, RunProgress, SAID_CHARS};
+use bmo_receiver::chat::progress::{MAX_SAID_LINES, RequestSpend, RunProgress, SAID_CHARS, picture_of};
 use bmo_receiver::secrets::marker;
 
 fn read_all(mut progress: RunProgress, lines: &[Value]) -> RunProgress {
@@ -447,4 +447,24 @@ fn a_failed_line_and_a_line_of_no_such_kind_move_nothing() {
   ] {
     assert_eq!(start.filed(line.as_object().unwrap()), None, "{line}");
   }
+}
+
+// "the block a turn is still writing stands in the picture by estimate on top of what the lines said, under
+// thinking for a thinking block and under the written figure otherwise, and goes once none is open"
+#[test]
+fn the_block_still_being_written_counts_on_top_of_what_the_lines_said() {
+  let filed = RunProgress::default()
+    .filed(json!({ "kind": "text", "text": "x".repeat(40) }).as_object().unwrap())
+    .unwrap();
+  let written = filed.written_tokens.unwrap();
+
+  let thinking = picture_of(&filed.with_open(Some(("thinking", 400))));
+  let words = picture_of(&filed.with_open(Some(("text", 400))));
+  let closed = picture_of(&filed.with_open(Some(("text", 400))).with_open(None));
+
+  assert!(thinking["thinkingTokens"].as_i64().unwrap() > 0, "{thinking}");
+  assert_eq!(thinking["writtenTokens"], json!(written), "{thinking}");
+  assert!(words["writtenTokens"].as_i64().unwrap() > written, "{words}");
+  assert_eq!(words["thinkingTokens"], Value::Null, "{words}");
+  assert_eq!(closed["writtenTokens"], json!(written), "{closed}");
 }

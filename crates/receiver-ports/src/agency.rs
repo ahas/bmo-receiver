@@ -433,6 +433,15 @@ pub struct Forgotten {
 /// One line of a run's log, as the agency gives it.
 pub type RunLine = Map<String, Value>;
 
+/// The block a session's answer is still writing, as the agency's model gateway counts it: its place in the
+/// answer, its kind (`thinking`, `text` or `tool`) and the bytes it has written so far.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct OpenBlock {
+  pub index: u64,
+  pub kind: String,
+  pub bytes: u64,
+}
+
 /// One event off the agency's stream: its kind and its data, and the number the agency gave it and the moment it
 /// published it where its envelope names them.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -694,6 +703,12 @@ pub trait Agency: Send + Sync {
 
   /// A run's log lines after the one given, five hundred at most.
   fn run_log<'a>(&'a self, run: &'a str, after: Option<i64>) -> BoxFuture<'a, Answer<Vec<RunLine>>>;
+
+  /// The block a session's answer is still writing; none where none is open, which is all an agency that counts
+  /// no block answers.
+  fn open_block<'a>(&'a self, _session: &'a str) -> BoxFuture<'a, Answer<Option<OpenBlock>>> {
+    Box::pin(async { Ok(None) })
+  }
 
   /// A run's row by its id; none where the agency holds none.
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>>;
@@ -1206,6 +1221,10 @@ impl Agency for HttpAgency {
 
   fn run(&self, id: i64) -> BoxFuture<'_, Answer<Option<Run>>> {
     Box::pin(async move { self.caller.found(&["runs", &id.to_string()], &[]).await })
+  }
+
+  fn open_block<'a>(&'a self, session: &'a str) -> BoxFuture<'a, Answer<Option<OpenBlock>>> {
+    Box::pin(async move { self.caller.present(&["sessions", session, "streaming"], &[]).await })
   }
 
   fn round_runs<'a>(&'a self, round: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>> {

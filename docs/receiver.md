@@ -327,6 +327,13 @@ flowchart TD
     the turn spent adds each request once, by its id, as a record's own line would; a line that names no request
     leaves both as they stand.
 
+  - **The block a turn is still writing is read from the agency beside the lines** (the agency's `docs/api.md`,
+    「sessions」): a line says a block only once it has ended, so on every look the session's open block, as the
+    model gateway counts it, is read after the log, and the bytes it has written so far stand in the picture by
+    estimate on top of what the lines have said — under thinking for a thinking block, under the written figure
+    for words and calls. A block that ends is let go of, and its line says it from then on; a look that finds none
+    open, or a read that fails, leaves no open block in the picture.
+
   The log is read as each of the turn's events comes and once every look the pushing policy sets
   (`chat-round.toml`, `[pushing]`), so what the run writes reaches the picture within that look, and a picture that
   changed goes out at once. A look whose read fails leaves the picture as it stands until the next; a read an

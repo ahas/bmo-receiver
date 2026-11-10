@@ -205,6 +205,7 @@ room's matter.
 | a supervisor's registration ended | `DELETE /supervisors/{supervisorName}?rooms=&forgetBrain=&force=` | `rooms`, the room numbers that name it, joined by commas | 204; 409 `seeded` and `running`. A seeded supervisor, and the one the default answerer setting names, is never asked to be taken out: the receiver reads `seeded` off the supervisor first and refuses the console itself |
 | a supervisor started afresh | `POST /supervisors/{supervisorName}/resets` | `conversation`, `person`, `dryRun`, `by`, and `alone` and `shared`, the rooms that name it alone and beside another | the reset's counts as the agency answers them, handed to the console as they came |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
+| the block a session's answer is writing | `GET /sessions/{sessionId}/streaming` | | `index`, `kind`, `bytes`; 204 where none is open |
 | a session's loads | `GET /session-loads/{sessionId}` | | `sessionId`, `documents`, each `path` and `version` |
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |

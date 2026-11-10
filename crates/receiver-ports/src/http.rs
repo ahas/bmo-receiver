@@ -313,6 +313,21 @@ impl Caller {
     decoded(url, answer).await.map(Some)
   }
 
+  /// A GET with the query's fields, answered `None` where the unit says there is nothing to read now (204).
+  pub async fn present<T: DeserializeOwned>(
+    &self,
+    segments: &[&str],
+    query: &[(&str, String)],
+  ) -> Answer<Option<T>> {
+    let (url, answer) = self.sent::<()>(Method::GET, segments, None, query).await?;
+
+    if answer.status() == reqwest::StatusCode::NO_CONTENT {
+      return Ok(None);
+    }
+
+    decoded(url, answer).await.map(Some)
+  }
+
   /// A GET with the query's fields whose answer goes on arriving, a stream of server-sent events, answered once
   /// its head says it succeeded.
   pub async fn open(&self, segments: &[&str], query: &[(&str, String)]) -> Answer<reqwest::Response> {

@@ -78,6 +78,10 @@ pub struct RunProgress {
   // otherwise its answer.
   #[serde(skip)]
   held: Vec<String>,
+  // The block the turn is still writing, which no line says yet: whether it is thinking, and the bytes it has
+  // written so far.
+  #[serde(skip)]
+  open: Option<(bool, u64)>,
 }
 
 impl Default for RunProgress {
@@ -97,6 +101,7 @@ impl Default for RunProgress {
       said: vec![],
       thinking: None,
       held: vec![],
+      open: None,
     }
   }
 }
@@ -284,6 +289,36 @@ impl RunProgress {
       }
       "tool-result" => self.with_result(reference?, word("state")),
       _ => None,
+    }
+  }
+
+  /// The block the turn is still writing, of the kind named and with the bytes written so far, or none open: it
+  /// stands beside what the lines have said until a line says it (docs/receiver.md, 「A turn's progress」).
+  pub fn with_open(&self, open: Option<(&str, u64)>) -> Self {
+    Self {
+      open: open.map(|(kind, bytes)| (kind == "thinking", bytes)),
+      ..self.clone()
+    }
+  }
+
+  // The picture with the open block's bytes counted by estimate: under thinking for a thinking block, under the
+  // written figure for words and calls.
+  fn counted_open(&self) -> Self {
+    let Some((thinking, bytes)) = self.open else {
+      return self.clone();
+    };
+    let more = (bytes as usize).div_ceil(BYTES_PER_TOKEN) as i64;
+
+    if thinking {
+      Self {
+        thinking_tokens: added(self.thinking_tokens, more),
+        ..self.clone()
+      }
+    } else {
+      Self {
+        written_tokens: added(self.written_tokens, more),
+        ..self.clone()
+      }
     }
   }
 
@@ -615,5 +650,5 @@ fn phase_of(block: Option<&str>, held: &'static str) -> &'static str {
 
 /// The picture as the room's screens are told it.
 pub fn picture_of(progress: &RunProgress) -> Value {
-  serde_json::to_value(progress).unwrap_or(json!({}))
+  serde_json::to_value(progress.counted_open()).unwrap_or(json!({}))
 }
