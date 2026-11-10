@@ -159,6 +159,11 @@ impl ReceiverClient {
     .await
   }
 
+  /// `GET /rooms/{roomId}/leaders`.
+  pub async fn room_leaders(&self, room_id: i64) -> Answer<RoomLeaders> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "leaders"])).await
+  }
+
   /// `GET /rooms/{roomId}/archive`.
   pub async fn room_archive(&self, room_id: i64) -> Answer<RoomArchive> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "archive"])).await

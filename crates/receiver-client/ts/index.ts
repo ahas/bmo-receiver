@@ -28,6 +28,7 @@ export type ChooseProviders = Schemas["ChooseProviders"];
 export type RoomRegistration = Schemas["RoomRegistration"];
 export type ChangeRoomMode = Schemas["ChangeRoomMode"];
 export type RoomArchive = Schemas["RoomArchive"];
+export type RoomLeaders = Schemas["RoomLeaders"];
 export type ChangeRoomArchive = Schemas["ChangeRoomArchive"];
 export type Notice = Schemas["Notice"];
 export type Instruction = Schemas["Instruction"];
@@ -163,6 +164,11 @@ export function receiverClient(options: ReceiverOptions) {
           body,
         }),
       );
+    },
+
+    /** `GET /rooms/{roomId}/leaders`. */
+    async roomLeaders(roomId: number): Promise<RoomLeaders> {
+      return answered(await client.GET("/rooms/{roomId}/leaders", { params: { path: { roomId } } }));
     },
 
     /** `GET /rooms/{roomId}/archive`. */

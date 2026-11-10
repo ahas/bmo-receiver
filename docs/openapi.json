@@ -2697,6 +2697,27 @@
         ],
         "type": "object"
       },
+      "RoomLeaders": {
+        "description": "`GET /rooms/{roomId}/leaders`: the accounts that lead a room, owning a supervisor it names.",
+        "properties": {
+          "leaders": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "leaders"
+        ],
+        "type": "object"
+      },
       "RoomMode": {
         "description": "What a room added is to the agents: answered as the user, or the user alone.",
         "oneOf": [
@@ -5838,6 +5859,53 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/leaders": {
+      "get": {
+        "operationId": "roomLeaders",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomLeaders"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, upstream-failed, failed"
+          }
+        },
+        "summary": "The accounts that lead a room, owning a supervisor it names.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "upstream-failed",
           "failed"
         ]
       }

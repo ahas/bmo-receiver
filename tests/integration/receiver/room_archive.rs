@@ -8,7 +8,7 @@ use serde_json::json;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::queue::{Front, get, post, put, stood_on};
-use crate::integration::common::units::{OWNER, StandInChat};
+use crate::integration::common::units::{AGENT, OWNER, StandInChat, registration};
 
 const ROOM: i64 = -100;
 const ADMIN: &str = "the-admin";
@@ -92,4 +92,37 @@ async fn a_room_the_receiver_does_not_hold_is_not_archived() {
     put(&front, &format!("/rooms/-999/archive?by={ADMIN}"), json!({ "archived": true })).await;
 
   assert_eq!((status.as_u16(), refused["code"].as_str()), (404, Some("not-found")), "{refused}");
+}
+
+#[tokio::test]
+async fn the_owner_of_a_supervisor_the_room_names_leads_it_and_locks_it() {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch).await;
+  let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
+
+  own.row.insert("ownerAccount".to_owned(), json!(81));
+  front
+    .standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec!["agent-a"], None), own]);
+
+  let (status, named) =
+    put(&front, &format!("/rooms/{ROOM}/supervisors"), json!({ "supervisors": ["agent-c"] })).await;
+
+  assert_eq!(status.as_u16(), 200, "{named}");
+
+  let (status, leaders) = get(&front, &format!("/rooms/{ROOM}/leaders")).await;
+
+  assert_eq!(status.as_u16(), 200, "{leaders}");
+  assert_eq!(leaders, json!({ "room": ROOM, "leaders": [81] }));
+
+  // The leader locks the room; another account does not.
+  let path = format!("/rooms/{ROOM}/archive");
+
+  assert_eq!(put(&front, &format!("{path}?by=82"), json!({ "archived": true })).await.0.as_u16(), 403);
+
+  let (status, locked) = put(&front, &format!("{path}?by=81"), json!({ "archived": true })).await;
+
+  assert_eq!(status.as_u16(), 200, "{locked}");
+  assert_eq!(locked["archivedBy"], "81");
 }

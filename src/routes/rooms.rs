@@ -829,6 +829,22 @@ pub async fn room_archive(State(served): State<Served>, Path(room): Path<i64>) -
   answered(archive_view(&receiver, room).await?)
 }
 
+/// `GET /rooms/{roomId}/leaders`: the accounts that own a supervisor the room names, which lead it.
+pub async fn room_leaders(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+  let mut leaders: Vec<i64> = crate::receiver::wake::agents::named_designated(&receiver, room)
+    .await
+    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?
+    .iter()
+    .filter_map(|agent| agent.owner_account)
+    .collect();
+
+  leaders.sort_unstable();
+  leaders.dedup();
+
+  answered(json!({ "room": room, "leaders": leaders }))
+}
+
 /// `PUT /rooms/{roomId}/archive?by=`: a room archived and locked, or opened again, by the administrator or by the
 /// person whose supervisor the room names (docs/receiver.md, 「An archived room」).
 pub async fn change_room_archive(

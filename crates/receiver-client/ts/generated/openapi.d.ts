@@ -678,6 +678,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/leaders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The accounts that lead a room, owning a supervisor it names. */
+        get: operations["roomLeaders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/messages": {
         parameters: {
             query?: never;
@@ -2341,6 +2358,12 @@ export interface components {
             address: string;
             /** @default [] */
             holdings: components["schemas"]["Holding"][];
+        };
+        /** @description `GET /rooms/{roomId}/leaders`: the accounts that lead a room, owning a supervisor it names. */
+        RoomLeaders: {
+            leaders: number[];
+            /** Format: int64 */
+            room: number;
         };
         /** @description What a room added is to the agents: answered as the user, or the user alone. */
         RoomMode: "avatar" | "record-only";
@@ -4189,6 +4212,37 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomLeaders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomLeaders"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

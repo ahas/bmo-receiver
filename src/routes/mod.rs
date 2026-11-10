@@ -112,6 +112,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/rooms/{roomId}/registration", get(rooms::room_registration)),
     ("PUT", "/rooms/{roomId}/registration", put(rooms::change_room_mode)),
     ("GET", "/rooms/{roomId}/archive", get(rooms::room_archive)),
+    ("GET", "/rooms/{roomId}/leaders", get(rooms::room_leaders)),
     ("PUT", "/rooms/{roomId}/archive", put(rooms::change_room_archive)),
     ("GET", "/rooms/{roomId}/title", get(console::title)),
     ("GET", "/answerers", get(brain::all_answerers)),

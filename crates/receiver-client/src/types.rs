@@ -507,6 +507,14 @@ pub struct RoomRegistration {
   pub read_only_by: Vec<String>,
 }
 
+/// `GET /rooms/{roomId}/leaders`: the accounts that lead a room, owning a supervisor it names.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomLeaders {
+  pub room: i64,
+  pub leaders: Vec<i64>,
+}
+
 /// `GET /rooms/{roomId}/archive`: whether a room is archived and locked.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

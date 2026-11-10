@@ -92,6 +92,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}` | | one `Room` |
 | `GET /rooms/{roomId}/registration` | `by` (the administrator) | the room's registration: `mode`, `providers` and `chosen`, `answerers`, `readOnly`, and `readOnlyBy`, the chat services reading it in the owner's account alone |
 | `PUT /rooms/{roomId}/registration` | `by` (the administrator); `mode`, `avatar` or `record-only` | the registration as it now stands |
+| `GET /rooms/{roomId}/leaders` | | `room` and `leaders`, the accounts that own a supervisor the room names, each once, in order |
 | `GET /rooms/{roomId}/archive` | | `room`, `archivedAt` and `archivedBy`, both null for a room that is not archived |
 | `PUT /rooms/{roomId}/archive` | `by` (the administrator or the room's leader); `archived` | the archive as it now stands; `not-room-leader` (403) for anyone else, `not-found` (404) for a room the receiver does not hold |
 | `GET /rooms/{roomId}/title` | | `title`, or null |

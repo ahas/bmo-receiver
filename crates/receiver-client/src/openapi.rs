@@ -253,6 +253,17 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/rooms/{roomId}/leaders",
+    "roomLeaders",
+    "Rooms",
+    "The accounts that lead a room, owning a supervisor it names.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomLeaders>(&mut generator))],
+    vec!["unauthorized", "upstream-failed", "failed"]
+  );
+  add!(
+    "GET",
     "/rooms/{roomId}/archive",
     "roomArchive",
     "Rooms",
