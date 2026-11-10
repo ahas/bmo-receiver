@@ -18,7 +18,10 @@ use super::{How, Inbound, NotReceived, Receiver, Room, Wake, rows};
 use crate::roads::added::{self, RoomMode};
 use crate::roads::providers;
 use crate::secrets;
-use agents::{Designated, default_designated, holds_own, own_number, room_designated, window_until};
+use agents::{
+  Designated, default_designated, group_room, holds_own, own_number, owned_by, room_designated,
+  window_until,
+};
 use rest::{resting, stand_in};
 
 /// How a message is woken on: the words its call is read from, a file's caption where it carries one, and
@@ -167,7 +170,48 @@ pub async fn woken_on(
     .await;
   }
 
+  if let Some(own) = called_own(receiver, inbound, room, &agents, basis).await? {
+    hand(receiver, &own.name, inbound, &[], true, false, room, rest_gated).await;
+  }
+
   Ok(())
+}
+
+/// The caller's own supervisor a person calls by name into a group room that does not name it, where the room
+/// grants the person `ask` (docs/wake.md, 「Who reaches the session」); none otherwise.
+async fn called_own(
+  receiver: &Receiver,
+  inbound: &Inbound,
+  room: Room,
+  agents: &[Designated],
+  basis: &Basis<'_>,
+) -> Result<Option<Designated>, NotReceived> {
+  if !group_room(room) || basis.by_agent {
+    return Ok(None);
+  }
+
+  let Some(sender) = inbound.sender_id else {
+    return Ok(None);
+  };
+  let Some(user) = receiver.units.web.user_of_sender(sender).await.ok().flatten() else {
+    return Ok(None);
+  };
+  let Some(own) = owned_by(receiver, &user).await? else {
+    return Ok(None);
+  };
+
+  if agents.iter().any(|agent| agent.name == own.name) || !own.called_by(basis.text) {
+    return Ok(None);
+  }
+
+  let check = receiver_ports::web::RoomCheck {
+    room: inbound.chat_id,
+    sender: Some(sender),
+    relation: "ask".to_owned(),
+  };
+  let granted = receiver.units.web.check_room(&check).await.is_ok_and(|checked| checked.allowed);
+
+  Ok(granted.then_some(own))
 }
 
 /// A message carrying a file, once its file is gathered, woken on by the same rule as words, read off its
@@ -231,6 +275,12 @@ pub async fn wakes(
 // owner's account reads (docs/receiver.md, 「A read-only room」).
 async fn wakes_nobody(receiver: &Receiver, chat_id: i64) -> Result<bool, NotReceived> {
   if added::mode_of(receiver.db(), chat_id).await? == Some(RoomMode::RecordOnly) {
+    return Ok(true);
+  }
+
+  // An archived room is locked: its record stands and nothing in it wakes an agent (docs/receiver.md, 「An archived
+  // room」).
+  if crate::roads::archived::archived(receiver.db(), chat_id).await?.is_some() {
     return Ok(true);
   }
 

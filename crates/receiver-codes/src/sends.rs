@@ -16,6 +16,9 @@ pub enum SendRefusal {
   /// The room is read-only: it is read in the owner's account alone, and no agent sends into it.
   #[error("the room {room} is read-only, read in the owner's account alone, so nothing is sent into it")]
   ReadOnlyRoom { room: i64 },
+  /// The room is archived and locked: its record stands and nothing more is said in it.
+  #[error("the room {room} is archived and locked, so nothing is sent into it")]
+  ArchivedRoom { room: i64 },
   /// The asker's role gives no sending.
   #[error("the role of {agent} gives no sending")]
   RoleWithoutSends { agent: String },
@@ -76,6 +79,7 @@ impl SendRefusal {
       | Self::NoPicture { .. }
       | Self::SpeakerRefused { .. }
       | Self::Unnumbered { .. }
+      | Self::ArchivedRoom { .. }
       | Self::BriefingTurn { .. } => StatusCode::CONFLICT,
     }
   }

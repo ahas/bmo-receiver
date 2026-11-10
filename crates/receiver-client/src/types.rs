@@ -507,6 +507,24 @@ pub struct RoomRegistration {
   pub read_only_by: Vec<String>,
 }
 
+/// `GET /rooms/{roomId}/archive`: whether a room is archived and locked.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomArchive {
+  pub room: i64,
+  /// When the room was archived, in milliseconds; null while it is open.
+  pub archived_at: Option<i64>,
+  /// Who archived it; null while it is open.
+  pub archived_by: Option<String>,
+}
+
+/// `PUT /rooms/{roomId}/archive`: whether a room is to stand archived.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeRoomArchive {
+  pub archived: bool,
+}
+
 /// `PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

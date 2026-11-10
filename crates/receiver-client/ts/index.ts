@@ -27,6 +27,8 @@ export type RoomProviders = Schemas["RoomProviders"];
 export type ChooseProviders = Schemas["ChooseProviders"];
 export type RoomRegistration = Schemas["RoomRegistration"];
 export type ChangeRoomMode = Schemas["ChangeRoomMode"];
+export type RoomArchive = Schemas["RoomArchive"];
+export type ChangeRoomArchive = Schemas["ChangeRoomArchive"];
 export type Notice = Schemas["Notice"];
 export type Instruction = Schemas["Instruction"];
 export type InstructionRequest = Schemas["InstructionRequest"];
@@ -157,6 +159,21 @@ export function receiverClient(options: ReceiverOptions) {
     async changeRoomMode(roomId: number, by: string, body: ChangeRoomMode): Promise<RoomRegistration> {
       return answered(
         await client.PUT("/rooms/{roomId}/registration", {
+          params: { path: { roomId }, query: { by } },
+          body,
+        }),
+      );
+    },
+
+    /** `GET /rooms/{roomId}/archive`. */
+    async roomArchive(roomId: number): Promise<RoomArchive> {
+      return answered(await client.GET("/rooms/{roomId}/archive", { params: { path: { roomId } } }));
+    },
+
+    /** `PUT /rooms/{roomId}/archive`, as the administrator or the room's leader the console names. */
+    async changeRoomArchive(roomId: number, by: string, body: ChangeRoomArchive): Promise<RoomArchive> {
+      return answered(
+        await client.PUT("/rooms/{roomId}/archive", {
           params: { path: { roomId }, query: { by } },
           body,
         }),

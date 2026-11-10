@@ -396,6 +396,18 @@
         ],
         "type": "object"
       },
+      "ChangeRoomArchive": {
+        "description": "`PUT /rooms/{roomId}/archive`: whether a room is to stand archived.",
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "archived"
+        ],
+        "type": "object"
+      },
       "ChangeRoomMode": {
         "description": "`PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in.",
         "properties": {
@@ -2632,6 +2644,36 @@
         "required": [
           "room",
           "agents"
+        ],
+        "type": "object"
+      },
+      "RoomArchive": {
+        "description": "`GET /rooms/{roomId}/archive`: whether a room is archived and locked.",
+        "properties": {
+          "archivedAt": {
+            "description": "When the room was archived, in milliseconds; null while it is open.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "archivedBy": {
+            "description": "Who archived it; null while it is open.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "archivedAt",
+          "archivedBy"
         ],
         "type": "object"
       },
@@ -5529,6 +5571,118 @@
         ],
         "x-codes": [
           "unauthorized",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/archive": {
+      "get": {
+        "operationId": "roomArchive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomArchive"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "Whether a room is archived and locked, when and by whom.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "changeRoomArchive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoomArchive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomArchive"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, upstream-failed, failed"
+          }
+        },
+        "summary": "A room archived and locked, or opened again, by the administrator or the room's leader.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-room-leader",
+          "not-found",
           "upstream-failed",
           "failed"
         ]

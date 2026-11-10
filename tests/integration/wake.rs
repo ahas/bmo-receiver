@@ -711,3 +711,47 @@ async fn a_room_added_for_the_user_alone_wakes_no_agent_even_where_one_is_called
     .unwrap()
   );
 }
+
+#[tokio::test]
+async fn a_member_granted_ask_calls_their_own_supervisor_into_a_group_room_by_name() {
+  let (scratch, _data, standing) = stood(&[-161]).await;
+  let member = 9411;
+
+  standing.web.linking(member, "81".to_owned());
+
+  let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
+  own.row.insert("ownerAccount".to_owned(), json!(81));
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), own]);
+  everyone_heard(&scratch).await;
+
+  // Without the grant the call wakes nobody, since the room names the default answerer alone.
+  standing
+    .receiver
+    .message(&inbound(-161, 1, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+  assert!(standing.taken.handed().is_empty(), "{:?}", standing.taken.handed());
+
+  // Granted ask in the room, the same call reaches the member's own supervisor.
+  standing.web.granting(-161, member, "ask".to_owned());
+  standing
+    .receiver
+    .message(&inbound(-161, 2, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  let woken = standing.taken.handed();
+
+  assert_eq!(woken.len(), 1, "{woken:?}");
+  assert_eq!(woken[0].message_id, 2);
+
+  // A word that does not name it wakes it not.
+  standing
+    .receiver
+    .message(&inbound(-161, 3, member, "thanks all"), &Context::default(), room())
+    .await
+    .unwrap();
+  assert_eq!(standing.taken.handed().len(), 1);
+}

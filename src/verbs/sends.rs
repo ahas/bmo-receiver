@@ -266,10 +266,14 @@ impl Sends {
     .await
   }
 
-  // A read-only room refused before any road is chosen, so nothing is sent or kept there.
+  // A read-only or archived room refused before any road is chosen, so nothing is sent or kept there.
   async fn writable(&self, chat_id: i64) -> Result<(), VerbError> {
     if providers::read_only(self.receiver.db(), self.receiver.roads(), chat_id).await? {
       return Err(VerbError::Refused(SendRefusal::ReadOnlyRoom { room: chat_id }.to_string()));
+    }
+
+    if crate::roads::archived::archived(self.receiver.db(), chat_id).await?.is_some() {
+      return Err(VerbError::Refused(SendRefusal::ArchivedRoom { room: chat_id }.to_string()));
     }
 
     Ok(())

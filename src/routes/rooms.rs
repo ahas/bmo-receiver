@@ -804,3 +804,68 @@ pub async fn choose_providers(
   providers::choose(receiver.db(), room, &asked.providers).await.map_err(store)?;
   standing(&receiver, room).await
 }
+
+/// Whether a room is to stand archived.
+#[derive(Deserialize)]
+struct Archiving {
+  archived: bool,
+}
+
+/// A room's archive as it stands: when it was locked and by whom, both null while it is open.
+async fn archive_view(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
+  let standing = crate::roads::archived::archived(receiver.db(), room).await.map_err(store)?;
+
+  Ok(json!({
+    "room": room,
+    "archivedAt": standing.as_ref().map(|(at, _)| *at),
+    "archivedBy": standing.map(|(_, by)| by),
+  }))
+}
+
+/// `GET /rooms/{roomId}/archive`: whether a room is archived and locked.
+pub async fn room_archive(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+
+  answered(archive_view(&receiver, room).await?)
+}
+
+/// `PUT /rooms/{roomId}/archive?by=`: a room archived and locked, or opened again, by the administrator or by the
+/// person whose supervisor the room names (docs/receiver.md, 「An archived room」).
+pub async fn change_room_archive(
+  State(served): State<Served>,
+  Path(room): Path<i64>,
+  raw: RawQuery,
+  body: Bytes,
+) -> Answered {
+  let asked = query::<ByAdministrator>(raw)?;
+  let changing = read::<Archiving>(&body)?;
+  let receiver: Receiver = (*served.receiver).clone();
+  let by = asked.by.trim().to_owned();
+
+  if !known(&receiver, room).await? && added::mode_of(receiver.db(), room).await.map_err(store)?.is_none() {
+    return Err(refused(StatusCode::NOT_FOUND, "not-found", &format!("no chat {room} is held")));
+  }
+
+  let leader = match by.parse::<i64>() {
+    Ok(account) => crate::receiver::wake::agents::named_designated(&receiver, room)
+      .await
+      .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?
+      .iter()
+      .any(|agent| agent.owner_account == Some(account)),
+    Err(_) => false,
+  };
+
+  if !leader && !super::is_administrator(&receiver, &by).await {
+    return Err(refused(
+      StatusCode::FORBIDDEN,
+      "not-room-leader",
+      "a room is archived by the administrator or by the person whose supervisor it names",
+    ));
+  }
+
+  crate::roads::archived::set(receiver.db(), room, &by, changing.archived, crate::now_ms())
+    .await
+    .map_err(store)?;
+
+  answered(archive_view(&receiver, room).await?)
+}

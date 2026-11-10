@@ -159,6 +159,29 @@ impl ReceiverClient {
     .await
   }
 
+  /// `GET /rooms/{roomId}/archive`.
+  pub async fn room_archive(&self, room_id: i64) -> Answer<RoomArchive> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "archive"])).await
+  }
+
+  /// `PUT /rooms/{roomId}/archive`.
+  pub async fn change_room_archive(&self, room_id: i64, by: &str, archived: bool) -> Answer<RoomArchive> {
+    #[derive(Serialize)]
+    struct Asked<'a> {
+      by: &'a str,
+    }
+
+    let room = room_id.to_string();
+
+    Self::answered(
+      self
+        .request(Method::PUT, &["rooms", &room, "archive"])
+        .query(&Asked { by })
+        .json(&ChangeRoomArchive { archived }),
+    )
+    .await
+  }
+
   /// `GET /rooms/{roomId}/title`.
   pub async fn room_title(&self, room_id: i64) -> Answer<RoomTitle> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "title"])).await

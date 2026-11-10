@@ -609,6 +609,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether a room is archived and locked, when and by whom. */
+        get: operations["roomArchive"];
+        /** A room archived and locked, or opened again, by the administrator or the room's leader. */
+        put: operations["changeRoomArchive"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/avatar": {
         parameters: {
             query?: never;
@@ -1493,6 +1511,10 @@ export interface components {
             items: components["schemas"]["Avatar"][];
             more: boolean;
         };
+        /** @description `PUT /rooms/{roomId}/archive`: whether a room is to stand archived. */
+        ChangeRoomArchive: {
+            archived: boolean;
+        };
         /** @description `PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in. */
         ChangeRoomMode: {
             mode: components["schemas"]["RoomMode"];
@@ -2299,6 +2321,18 @@ export interface components {
         /** @description Every room with its agents answering it. */
         RoomAnswerers: {
             agents: string[];
+            /** Format: int64 */
+            room: number;
+        };
+        /** @description `GET /rooms/{roomId}/archive`: whether a room is archived and locked. */
+        RoomArchive: {
+            /**
+             * Format: int64
+             * @description When the room was archived, in milliseconds; null while it is open.
+             */
+            archivedAt: number | null;
+            /** @description Who archived it; null while it is open. */
+            archivedBy: string | null;
             /** Format: int64 */
             room: number;
         };
@@ -3990,6 +4024,74 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomArchive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomArchive"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    changeRoomArchive: {
+        parameters: {
+            query: {
+                by: string;
+            };
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeRoomArchive"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomArchive"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

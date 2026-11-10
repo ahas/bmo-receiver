@@ -19,12 +19,16 @@ pub enum OwnerSendRefusal {
   },
   #[error("no file went: {}", crate::listed(.unsent))]
   NoneSent { unsent: Vec<FileUnsent> },
+  #[error("the room {room} is archived and locked, so nothing is sent into it")]
+  RoomArchived { room: i64 },
 }
 
 impl OwnerSendRefusal {
   fn answers(&self) -> StatusCode {
     match self {
-      Self::ReplyMissing | Self::WordsOnly | Self::NoneSent { .. } => StatusCode::CONFLICT,
+      Self::ReplyMissing | Self::WordsOnly | Self::NoneSent { .. } | Self::RoomArchived { .. } => {
+        StatusCode::CONFLICT
+      }
       Self::TooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
     }
   }

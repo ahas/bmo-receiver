@@ -84,6 +84,10 @@ impl Speech {
       return Err(NotSaid::ReadOnly { chat_id });
     }
 
+    if crate::roads::archived::archived(&self.db, chat_id).await?.is_some() {
+      return Err(NotSaid::ReadOnly { chat_id });
+    }
+
     let road = self.units.roads.unasked(chat_id).await.ok_or(NotSaid::NoRoad { chat_id })?;
     match road {
       Road::Record => self.kept(chat_id, text, None, None, None).await.map(Some),

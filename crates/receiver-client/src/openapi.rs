@@ -253,6 +253,35 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/rooms/{roomId}/archive",
+    "roomArchive",
+    "Rooms",
+    "Whether a room is archived and locked, when and by whom.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomArchive>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/archive",
+    "changeRoomArchive",
+    "Rooms",
+    "A room archived and locked, or opened again, by the administrator or the room's leader.",
+    vec![path_parameter("roomId"), parameter("by", "string", true)],
+    Some(generator.subschema_for::<ChangeRoomArchive>()),
+    vec![(200, json_answer::<RoomArchive>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-room-leader",
+      "not-found",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
+    "GET",
     "/rooms/{roomId}/title",
     "roomTitle",
     "Rooms",

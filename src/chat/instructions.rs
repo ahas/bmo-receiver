@@ -478,6 +478,16 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
     return Ok(false);
   }
 
+  if crate::roads::archived::archived(receiver.db(), row.chat_id).await?.is_some() {
+    println!(
+      "instruction {} for archived chat {} ({kind}) is never taken, discarding",
+      row.id, row.chat_id
+    );
+    discard(receiver.db(), row.id).await?;
+
+    return Ok(false);
+  }
+
   if !wake::agents::answers(receiver, &row.agent, row.chat_id).await.unwrap_or(false) {
     println!(
       "instruction {} of {} for chat {} ({kind}) has no conversation to take it, discarding",

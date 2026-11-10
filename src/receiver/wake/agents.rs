@@ -202,7 +202,7 @@ pub async fn room_designated(
 }
 
 /// Whether a room is a group room: neither the owner's private chat nor a one-to-one with a person.
-fn group_room(room: Room) -> bool {
+pub fn group_room(room: Room) -> bool {
   !room.owner_room && room.private_to.is_none()
 }
 
@@ -254,7 +254,7 @@ async fn one_to_one_user(receiver: &Receiver, room: Room) -> Result<Option<Strin
 
 /// The awake supervisor whose registration names `user` as its owner; the first by name where more than one
 /// does.
-async fn owned_by(receiver: &Receiver, user: &str) -> Result<Option<Designated>, NotReceived> {
+pub async fn owned_by(receiver: &Receiver, user: &str) -> Result<Option<Designated>, NotReceived> {
   let Ok(account) = user.trim().parse::<i64>() else {
     return Ok(None);
   };

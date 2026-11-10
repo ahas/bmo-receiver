@@ -5,6 +5,7 @@
 //! here compares a road's key to a literal.
 
 pub mod added;
+pub mod archived;
 pub mod declared;
 pub mod providers;
 pub mod record;

@@ -190,6 +190,17 @@ flowchart TD
   whose list carries it: every other message kept there is not carried to it, and nothing else is sent to it in
   that room.
 
+## An archived room
+
+- **A room is archived and locked by the administrator or by its leader,** the person who owns a supervisor the
+  room names. Archiving keeps the room's record, title, providers and messages as they stand; it is undone by the
+  same people, and the room then stands as it did.
+- **An archived room is listed and read like any other,** its messages standing in the archive for the people and
+  agents who could read them before.
+- **Nothing more is said in it:** no message wakes an agent there, a quiet instruction queued for it is let go
+  undelivered, a line the receiver says itself is not said there, words or files typed into it from the console are refused 409 `room-archived` before anything is
+  kept, and a send an agent asks into it is refused `archived-room` before anything is sent or kept.
+
 ## Adding a room
 
 - **A room is added by choosing a chat service, one of the rooms its account is in or a conversation started

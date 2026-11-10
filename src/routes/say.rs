@@ -128,6 +128,8 @@ pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
     return Err(refused(StatusCode::NOT_FOUND, "no-route", &format!("unknown chat {}", asked.chat_id)));
   }
 
+  locked(&receiver, asked.chat_id).await?;
+
   let reply = reply_target(&receiver, asked.chat_id, asked.reply_to.as_ref()).await?;
   let message_id = record::next_number(receiver.db(), asked.chat_id).await.map_err(store)?;
   let message = Inbound {
@@ -266,6 +268,8 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
   if !known(&receiver, chat_id).await? {
     return Err(refused(StatusCode::NOT_FOUND, "no-route", &format!("unknown chat {chat_id}")));
   }
+
+  locked(&receiver, chat_id).await?;
 
   let reply_value = reply_field.map(Value::String);
   let reply = reply_target(&receiver, chat_id, reply_value.as_ref()).await?;
@@ -596,4 +600,15 @@ fn stored_picture(receiver: &Receiver, room: i64, stored: &str) -> Option<Messag
     bytes,
     kind: None,
   })
+}
+
+/// A refusal where the room is archived: nothing more is said in it (docs/receiver.md, 「An archived room」).
+pub(super) async fn locked(receiver: &Receiver, chat_id: i64) -> Result<(), super::Refusal> {
+  match crate::roads::archived::archived(receiver.db(), chat_id).await.map_err(store)? {
+    Some(_) => {
+      let refusal = receiver_codes::OwnerSendRefusal::RoomArchived { room: chat_id };
+      Err(refused(StatusCode::CONFLICT, (&refusal).into(), &refusal.to_string()))
+    }
+    None => Ok(()),
+  }
 }
