@@ -93,12 +93,7 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
 
   // A holder declared answers 204 with no body.
   assert_eq!(
-    put(
-      &front,
-      "/room-holders/unit-a",
-      json!({ "address": "http://[::1]:9", "holdings": [] })
-    )
-    .await,
+    put(&front, "/room-holders/unit-a", json!({ "address": "http://[::1]:9", "holdings": [] })).await,
     (StatusCode::NO_CONTENT, json!({})),
   );
 }

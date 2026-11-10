@@ -15,10 +15,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{Answered, Refusal, Served, answered, read, refused, store};
+use crate::data_root::room_path;
 use crate::receiver::{Context, Inbound, NotReceived, Receiver, rows};
 use crate::roads::providers::{self, Carried, Delivery};
 use crate::roads::{Road, record};
 use crate::routes::as_owner::{OwnerFile, refusal};
+use crate::routes::message_files::inside;
 use crate::secrets;
 use crate::{now_ms, one};
 
@@ -504,6 +506,40 @@ pub async fn forward(
     voice: None,
   };
   let copy = record::keep(receiver.db(), receiver.news(), kept).await.map_err(store)?;
+  // The picture the message stores is kept again under the copy, and goes on to the room's other providers
+  // with it; a file no longer there leaves the copy with the words alone.
+  let picture = source.image_path.as_deref().and_then(|stored| stored_picture(&receiver, room, stored));
+
+  if let Some(file) = &picture {
+    let inbound = Inbound {
+      chat_id: asked.to,
+      message_id: copy,
+      sender_id: Some(receiver.owner_id()),
+      sender_name: name.clone(),
+      sent_at: now_ms(),
+      text: source.text.clone(),
+      image_path: None,
+      image_state: None,
+      transcript: None,
+      voice_seconds: None,
+      voice_state: None,
+      reply_to_message_id: None,
+      via: Road::Record.key().to_owned(),
+      mode: None,
+      via_reader: None,
+      album: None,
+    };
+
+    crate::receiver::files::keep(
+      receiver.db(),
+      receiver.data_root(),
+      receiver.deployment().attachment_bytes,
+      &inbound,
+      std::slice::from_ref(file),
+    )
+    .await
+    .map_err(store)?;
+  }
 
   crate::run(
     receiver.db(),
@@ -526,10 +562,38 @@ pub async fn forward(
     reply_to: None,
     owner: true,
     standing: vec![Road::Record.key().to_owned()],
-    carried: Carried::words(&source.text),
+    carried: match picture {
+      Some(file) => Carried::Files {
+        files: vec![FileItem {
+          name: file.name,
+          mime: file.mime,
+          bytes: file.bytes,
+        }],
+        caption: source.text.clone(),
+      },
+      None => Carried::words(&source.text),
+    },
   };
 
   providers::deliver(receiver.db(), receiver.roads(), &delivery).await;
 
   Ok((StatusCode::CREATED, Json(json!({ "room": asked.to, "id": copy }))))
+}
+
+// The picture a message of a room stores, read back as the one file of a message: none where the stored path
+// does not stand inside the room's picture folder or the file is no longer there.
+fn stored_picture(receiver: &Receiver, room: i64, stored: &str) -> Option<MessageFile> {
+  let folder = room_path(&receiver.data_root().images(), room);
+  let real = inside(&folder, stored)?;
+  let bytes = std::fs::read(&real).ok()?;
+  let name = real.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+  let mime = mime_guess::from_path(&real).first_or_octet_stream().essence_str().to_owned();
+
+  Some(MessageFile {
+    id: "1".to_owned(),
+    name,
+    mime,
+    bytes,
+    kind: None,
+  })
 }

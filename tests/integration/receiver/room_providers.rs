@@ -383,6 +383,62 @@ async fn a_message_the_owner_forwards_is_kept_as_his_in_the_room_it_goes_into_ma
 }
 
 #[tokio::test]
+async fn a_forwarded_message_keeps_its_stored_picture_under_the_copy_and_carries_it_as_a_picture() {
+  let scratch = Scratch::new().await;
+  let (front, road) = front(&scratch).await;
+  // A picture message of another room, its picture filed under that room.
+  let folder = front.data.path().join("images/-200");
+  let bytes = {
+    let mut out = std::io::Cursor::new(Vec::new());
+
+    image::RgbImage::from_pixel(8, 8, image::Rgb([10, 200, 30]))
+      .write_to(&mut out, image::ImageFormat::Jpeg)
+      .unwrap();
+    out.into_inner()
+  };
+
+  std::fs::create_dir_all(&folder).unwrap();
+  std::fs::write(folder.join("5.jpg"), &bytes).unwrap();
+  scratch
+    .run(
+      &format!(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via", "image_path", "image_state")
+           VALUES (-200, 5, 55, 'someone', 1, 'a diagram', 'record', '{}', 'stored')"#,
+        folder.join("5.jpg").display()
+      ),
+      vec![],
+    )
+    .await;
+
+  let (status, answer) = post(&front, "/rooms/-200/messages/5/forwards", json!({ "to": ROOM })).await;
+
+  assert_eq!(status, StatusCode::CREATED, "{answer}");
+
+  let copy = answer["id"].as_i64().unwrap();
+  let (status, kept) = get(&front, &format!("/rooms/{ROOM}/messages/{copy}")).await;
+
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(kept["text"], "a diagram");
+
+  let stored = kept["imagePath"].as_str().expect("the copy stores the picture").to_owned();
+
+  assert!(
+    stored.starts_with(&front.data.path().join(format!("images/{ROOM}")).to_string_lossy().into_owned()),
+    "{stored}"
+  );
+  assert_eq!(std::fs::read(&stored).unwrap(), bytes, "the same picture, kept again under the copy");
+
+  let carried = road.sent();
+
+  assert_eq!(carried.len(), 1, "{carried:?}");
+  assert!(
+    matches!(&carried[0].send, ChatSend::Photo { .. } | ChatSend::Album { .. }),
+    "carried as a picture: {:?}",
+    carried[0].send
+  );
+}
+
+#[tokio::test]
 async fn a_reply_to_the_services_copy_of_a_line_the_record_numbered_answers_that_line() {
   let scratch = Scratch::new().await;
   let (front, _road) = front(&scratch).await;

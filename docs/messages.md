@@ -70,7 +70,9 @@ and when a room sees it typing.
   messages are listed newest pin first.
 - **The owner forwards a message from the console** into another room: a copy kept there as his, marked as
   forwarded with where it came from and who said it, carried out on that room's own road and waking nobody
-  (`docs/api.md`, 「Sends」).
+  (`docs/api.md`, 「Sends」). A picture the message stores is kept again under the copy, so the copy shows and
+  reads as a picture wherever the original does, and goes to the room's other providers as a picture with the
+  message's words as its caption; a picture whose file is no longer there leaves the copy with the words alone.
 - **An edit (`POST /edited`) changes the archived text in place and wakes nobody.**
 - **A message kept in a room goes to each of the room's other chat providers** (`docs/receiver.md`, 「A room's
   chat providers」); a message read back from a room's past goes nowhere.
