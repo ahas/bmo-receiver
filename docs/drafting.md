@@ -397,6 +397,11 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   nothing else. The review turn itself carries only the marker that names the round, the questions the draft
   turn followed, the draft, the room's words and the rules it carries (`marker`, `followed`, `draft`, `words`,
   `rules`); it is handed no instruction sentence and no verdict wording.
+- **A thing said not to be possible, and a step put on the owner, stand on an attempt.** Where the message
+  claims a road, a tool, a permission, a file or a capability is missing or cannot work, or asks the owner to
+  do a step, the review checks that the draft turn actually tried it with its tools and that the message says
+  what it tried and what answered; a step the round could take itself, or a thing called impossible on no
+  attempt, is a reason to reject.
 - **A rejection returns to the draft.** The session is asked again, its turn carrying only the reason
   the review gave: it does what the reason names as not done, with its tools, and writes the message again, and
   the new draft is reviewed again, eight times at most. At the eighth rejection the last
