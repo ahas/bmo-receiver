@@ -15,6 +15,7 @@ pub mod metadata;
 pub mod notices;
 pub mod pictures;
 pub mod pinned;
+pub mod platform;
 pub mod reads;
 pub mod rows;
 pub mod speech;

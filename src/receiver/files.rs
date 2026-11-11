@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use bmo_chat_client::MessageFile;
+use bmo_chat_client::{ChatFileKind, MessageFile};
 use receiver_policy::roads::ROADS;
 use sea_orm::DatabaseConnection;
 
@@ -28,6 +28,18 @@ pub fn kind_of(mime: &str) -> &'static str {
   }
 }
 
+/// What a kept file's row names it: a sticker or an animation as the chat service handed it over, where it is no
+/// picture; otherwise by its type (docs/room-files.md, 「Message files」).
+pub fn kept_kind(file: &MessageFile) -> &'static str {
+  let by_type = kind_of(&file.mime);
+
+  match file.kind {
+    Some(ChatFileKind::Sticker) if by_type != "image" => "sticker",
+    Some(ChatFileKind::Animation) if by_type != "image" => "animation",
+    _ => by_type,
+  }
+}
+
 // A type as its first part reads, without its parameters or its case.
 fn bare_type(mime: &str) -> String {
   mime.split(';').next().unwrap_or_default().trim().to_lowercase()
@@ -43,8 +55,8 @@ pub fn named(file: &MessageFile) -> String {
   let gathering = &ROADS.gathering;
   let mime = bare_type(&file.mime);
 
-  match kind_of(&file.mime) {
-    "video" => format!(
+  match kept_kind(file) {
+    "video" | "animation" => format!(
       "{}{}",
       gathering.video_name,
       gathering.video_extensions.get(&mime).unwrap_or(&gathering.video_fallback_extension)
@@ -216,7 +228,7 @@ async fn collected(
   };
 
   let kept = Kept {
-    kind: kind_of(&file.mime),
+    kind: kept_kind(file),
     source: &source,
     id: &file.id,
     stored,

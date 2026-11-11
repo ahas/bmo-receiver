@@ -117,6 +117,13 @@ and when a room sees it typing.
   emoji, and its picture where the deployment holds one. Each tells the room's screens with `message.changed`, and
   each goes on to the room's other providers wherever the message stands under a number of the provider's own,
   as a kept message does (`docs/receiver.md`, 「A room's chat providers」).
+- **A chat service's word of what happened to a message on its platform is kept the same way** (bmo-chat's
+  `docs/contract.md`, 「The receiving side, as a provider sees it」): a reaction change stands in the message's
+  reactions, each person it lists under their number, or under the provider's key where it names the account
+  itself, taking the first emoji listed for them or none, and where the change is the message's whole set, every
+  other reactor's taken off; a message deleted on the platform keeps its place and its words, marked with the
+  moment it went, so the console can still open it. Each tells the room's screens with `message.changed`. A
+  reaction change for a message the room does not hold is answered `not-found`, and a deletion passes over one.
 - **Everyday conversation is answered with a sticker** (a greeting, a joke, small talk, a remark that only wants a
   nod) when one of the set fits, sending it and then skipping in the round's form so no words follow; words are for
   questions, errands and reports.

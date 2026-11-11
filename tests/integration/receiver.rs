@@ -14,6 +14,7 @@ mod notices;
 mod owner_road;
 mod owner_sends;
 mod owner_words;
+mod platform;
 mod read_only_rooms;
 mod read_requests;
 mod record_alone_rooms;

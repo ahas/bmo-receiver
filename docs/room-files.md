@@ -19,7 +19,7 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 
 ## Message files
 
-- **Voice notes, ordinary audio, videos and documents are kept from every sender** in allowed rooms, silently and
+- **Voice notes, ordinary audio, videos, animations, stickers and documents are kept from every sender** in allowed rooms, silently and
   within the configured attachment size cap, in the message-file store: the `collected_items` table and the files
   under `collected/<chatId>/` of the data root. Keeping a file launches nothing and notifies nobody.
 - **The bytes come from the chat service:** with the hand-over (`POST /attachment`), or later as the message's
@@ -42,9 +42,13 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   as `<messageId>-<n>-<name>`, from 2 up, where another file of the message already stands under that name.
 - **Failures:** a file past the cap, or one that could not be written, keeps its row with no stored path and why,
   and a later hand-over of the same file keeps it; a failure is logged but never takes the receiver down.
-- **A video is kept as one**, whatever the chat service called it, as a row of kind `video`, by the video type it
-  is handed over under. One with no file name of its own is filed as `video` with the extension its type implies,
-  and a sound with none as `voice` with its own (`policy/roads.toml`, `gathering`).
+- **A row's kind is what the file is:** `sticker` for a file the chat service hands over as a sticker and
+  `animation` for one it hands over as an animation (bmo-chat's `docs/contract.md`, 「Files」), where the file is no
+  picture; otherwise its type's, `audio`, `video` or `document`. A picture a sticker or an animation came as is
+  filed in the picture store as any picture is. A row kept before the chat service's kind was read takes `sticker`
+  where its file is named as a sticker, `sticker-` at the head of its name.
+- **A video or an animation with no file name of its own** is filed as `video` with the extension its type
+  implies, and a sound with none as `voice` with its own (`policy/roads.toml`, `gathering`).
 - **What is kept always has a message to hang on.** A voice note, an audio file and a document are written into
   the archive as the short placeholder line the chat service makes of it, so the room reads back with the note in
   its place and the console has a row to put a listen button on.

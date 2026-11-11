@@ -237,6 +237,36 @@ async fn a_sound_or_a_video_with_no_name_is_named_for_what_it_is() {
 }
 
 #[tokio::test]
+async fn a_sticker_and_an_animation_keep_their_own_kind_and_a_sticker_picture_stays_a_picture() {
+  let (scratch, _data, standing) = stood().await;
+  let kinded = |id: &str, name: &str, mime: &str, kind: ChatFileKind| MessageFile {
+    kind: Some(kind),
+    ..file(id, name, mime, b"bytes".to_vec())
+  };
+
+  handed(
+    &standing,
+    40,
+    &[
+      kinded("1", "sticker-1.tgs", "application/x-tgsticker", ChatFileKind::Sticker),
+      kinded("2", "sticker-2.webm", "video/webm", ChatFileKind::Sticker),
+      kinded("3", "", "video/mp4", ChatFileKind::Animation),
+      kinded("4", "clip.mp4", "video/mp4", ChatFileKind::Video),
+    ],
+  )
+  .await;
+
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "source" || ' ' || "kind" FROM "collected_items" WHERE "chat_id" = {ROOM} AND "message_id" = 40 ORDER BY "source""#
+      ))
+      .await,
+    ["clip.mp4 video", "sticker-1.tgs sticker", "sticker-2.webm sticker", "video.mp4 animation"]
+  );
+}
+
+#[tokio::test]
 async fn the_same_file_handed_over_twice_is_kept_once() {
   let (scratch, _data, standing) = stood().await;
 

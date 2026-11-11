@@ -439,7 +439,7 @@ pub async fn carries_file(db: &DatabaseConnection, chat_id: i64, message_id: i64
     one(
       db,
       r#"SELECT 1 AS "one" FROM "collected_items"
-         WHERE "chat_id" = $1 AND "message_id" = $2 AND "kind" IN ('audio', 'video', 'document') AND "source" NOT LIKE 'agent:%'
+         WHERE "chat_id" = $1 AND "message_id" = $2 AND "kind" IN ('audio', 'video', 'animation', 'sticker', 'document') AND "source" NOT LIKE 'agent:%'
          LIMIT 1"#,
       vec![chat_id.into(), message_id.into()],
     )

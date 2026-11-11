@@ -362,7 +362,7 @@ impl Reading<'_> {
       let kept = all(
         self.receiver.db(),
         r#"SELECT "source", "stored_path", "summary" FROM "collected_items"
-             WHERE "chat_id" = $1 AND "message_id" = $2 AND "kind" IN ('audio', 'video', 'document')
+             WHERE "chat_id" = $1 AND "message_id" = $2 AND "kind" IN ('audio', 'video', 'animation', 'sticker', 'document')
                AND "source" NOT LIKE 'agent:%'
              ORDER BY "id""#,
         vec![one.chat_id.into(), one.message_id.into()],

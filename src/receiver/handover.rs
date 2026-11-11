@@ -10,9 +10,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bmo_chat_client::{
-  AvatarChange, ChatReceiver, ErrorCode, FileItem, GatheredPatch, HandedMessage, HeldMessage,
-  InboundChatContext, MessageOrigin, ReceiverRoom, RoomFacts, RoomKind, RoomQuery, RoomsQuery, WireError,
-  receiver_router,
+  AvatarChange, ChatReceiver, Deletion, ErrorCode, FileItem, GatheredPatch, HandedMessage, HeldMessage,
+  InboundChatContext, MessageOrigin, ReactionChange, ReceiverRoom, RoomFacts, RoomKind, RoomQuery,
+  RoomsQuery, WireError, receiver_router,
 };
 
 use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
@@ -308,6 +308,75 @@ impl ChatReceiver for Receiver {
 
   async fn avatars_changed(&self, _change: AvatarChange) -> Result<(), WireError> {
     self.news().publish(&crate::events::avatars());
+
+    Ok(())
+  }
+
+  async fn reactions_changed(&self, change: ReactionChange) -> Result<(), WireError> {
+    let store =
+      |why: crate::Fault| WireError::new(ErrorCode::Failed, format!("The reactions were not kept: {why}."));
+    let reactors: Vec<(String, Option<String>)> = change
+      .reactions
+      .iter()
+      .map(|person| {
+        let by = person.person_id.map_or_else(|| change.via.clone(), |id| id.to_string());
+
+        (by, person.emojis.first().cloned())
+      })
+      .collect();
+
+    let missing = || {
+      WireError::new(
+        ErrorCode::NotFound,
+        format!("Room {} holds no message {}.", change.room_id, change.message_id),
+      )
+    };
+    // A message the account knows by no number the room holds is found by who sent it and when.
+    let message_id = match change.stamp {
+      Some(stamp) => {
+        crate::receiver::platform::stamped(self.db(), change.room_id, stamp.sender_id, stamp.sent_at)
+          .await
+          .map_err(store)?
+          .ok_or_else(missing)?
+      }
+      None => change.message_id,
+    };
+
+    if !crate::receiver::platform::reactions(self.db(), change.room_id, message_id, &reactors, change.whole)
+      .await
+      .map_err(store)?
+    {
+      return Err(missing());
+    }
+
+    self.news().publish(&crate::events::message_changed(change.room_id, message_id));
+
+    Ok(())
+  }
+
+  async fn deleted(&self, deletion: Deletion) -> Result<(), WireError> {
+    let store =
+      |why: crate::Fault| WireError::new(ErrorCode::Failed, format!("The deletion was not kept: {why}."));
+    let mut named = deletion.message_ids.clone();
+
+    // A message the account knows by no number the room holds is found by who sent it and when.
+    for stamp in &deletion.stamps {
+      if let Some(found) =
+        crate::receiver::platform::stamped(self.db(), deletion.room_id, stamp.sender_id, stamp.sent_at)
+          .await
+          .map_err(store)?
+      {
+        named.push(found);
+      }
+    }
+
+    let marked = crate::receiver::platform::deleted(self.db(), deletion.room_id, &named)
+      .await
+      .map_err(store)?;
+
+    for message_id in marked {
+      self.news().publish(&crate::events::message_changed(deletion.room_id, message_id));
+    }
 
     Ok(())
   }
