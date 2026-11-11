@@ -3,7 +3,8 @@
 //! administrator's delete of any, a sticker of the record's set, and the room's pinned messages. The record keeps
 //! each act and tells `message.changed`; the owner's acts go on in his own voice where the message stands on the
 //! room's other providers, in the room's own where a provider refuses his, and a member's stand on the record
-//! alone.
+//! alone. An act a provider did not carry is named under `notCarried` beside the message's own fields, and the
+//! record keeps the act the same.
 
 use axum::{
   Json,
@@ -21,7 +22,7 @@ use super::rooms::message_shape;
 use super::{Answered, Refusal, Served, answered, code, read, refused, store};
 use crate::all;
 use crate::receiver::{Receiver, reads, rows};
-use crate::roads::providers::{self, Carried, Delivery};
+use crate::roads::providers::{self, ActCarriage, Carriage, Carried, Delivery};
 use crate::roads::{Road, record};
 use crate::secrets;
 
@@ -95,8 +96,25 @@ async fn standing(receiver: &Receiver, room: i64, message: i64) -> Result<reads:
   Ok(kept)
 }
 
+// One provider the act did not go to, as the answer names it (docs/api.md, 「Messages」); nothing where it went.
+fn not_carried(taken: ActCarriage) -> Option<Value> {
+  let (reason, detail) = match taken.took {
+    Carriage::Carried => return None,
+    Carriage::NoCopy => ("no-copy", None),
+    Carriage::NoService => ("no-service", None),
+    Carriage::Refused(why) => ("refused", Some(why)),
+  };
+  let mut named = json!({ "provider": taken.provider, "reason": reason });
+
+  if let Some(detail) = detail {
+    named["detail"] = Value::String(detail);
+  }
+
+  Some(named)
+}
+
 // The act kept and told, and carried in the caller's voice where they have one; the message answered as it now
-// stands.
+// stands, with every provider that did not carry the act named beside it.
 async fn acted(
   receiver: &Receiver,
   by: &Caller,
@@ -106,14 +124,26 @@ async fn acted(
 ) -> Answered {
   record::act(receiver.db(), room, message, act).await.map_err(store)?;
   receiver.news().publish(&crate::events::message_changed(room, message));
+  let mut held_back: Vec<Value> = vec![];
 
   if let Some(voice) = by.voice() {
-    providers::carry_act(receiver.db(), receiver.roads(), room, message, &send, Some(voice)).await;
+    held_back = providers::carry_act(receiver.db(), receiver.roads(), room, message, &send, Some(voice))
+      .await
+      .into_iter()
+      .filter_map(not_carried)
+      .collect();
   }
 
   let shaped = message_shape(receiver, room, message).await.map_err(store)?;
+  let mut answer = shaped.unwrap_or_else(|| json!({}));
 
-  answered(shaped.unwrap_or(Value::Null))
+  if !held_back.is_empty()
+    && let Some(fields) = answer.as_object_mut()
+  {
+    fields.insert("notCarried".to_owned(), Value::Array(held_back));
+  }
+
+  answered(answer)
 }
 
 #[derive(Deserialize)]

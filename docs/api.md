@@ -204,11 +204,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /supervisors/{supervisorName}/rooms/{roomId}/messages` | `before`, `after`, `limit` | a page of `Message` |
 | `GET /rooms/{roomId}/messages/{messageId}` | | one `Message` |
 | `GET /rooms/{roomId}/pins` | | `items`, the room's pinned messages, newest pin first, each a `Message` |
-| `PUT /rooms/{roomId}/messages/{messageId}/reactions/mine` | `emoji` | the `Message` as it now stands |
-| `DELETE /rooms/{roomId}/messages/{messageId}/reactions/mine` | | the `Message` as it now stands |
-| `PUT /rooms/{roomId}/messages/{messageId}/pin` | `on` | the `Message` as it now stands |
-| `PATCH /rooms/{roomId}/messages/{messageId}` | `text` | the `Message` as it now stands |
-| `DELETE /rooms/{roomId}/messages/{messageId}` | | the `Message` as it now stands |
+| `PUT /rooms/{roomId}/messages/{messageId}/reactions/mine` | `emoji` | the `Message` as it now stands, `notCarried` where a chat service did not take the act (`docs/messages.md`, 「What an agent can send back」) |
+| `DELETE /rooms/{roomId}/messages/{messageId}/reactions/mine` | | the `Message` as it now stands, `notCarried` as above |
+| `PUT /rooms/{roomId}/messages/{messageId}/pin` | `on` | the `Message` as it now stands, `notCarried` as above |
+| `PATCH /rooms/{roomId}/messages/{messageId}` | `text` | the `Message` as it now stands, `notCarried` as above |
+| `DELETE /rooms/{roomId}/messages/{messageId}` | | the `Message` as it now stands, `notCarried` as above |
 | `GET /stickers` | | `items`, each `emoji`: the stickers the record keeps |
 | `POST /rooms/{roomId}/stickers` | `emoji` | 201, the `Message` the sticker was kept as |
 | `GET /rooms/{roomId}/messages/{messageId}/metadata` | | `metadata`, what the chat service handed over beside it, or null |
@@ -242,7 +242,12 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
   `situation` (the room's situation note as it stood when the round that judged this message opened — its `text`,
   and `changed`, which is false since no round writes the note, the owner's private chat's messages included — or
-  null on a message no round judged under a note; `docs/drafting.md`, 「The situation note」), and `files`, each a `KeptFile` (`kind`, `source`, `storedPath`, `summary`, `collectedAt`).
+  null on a message no round judged under a note; `docs/drafting.md`, 「The situation note」), and `files`, each a `KeptFile` (`kind`, `source`,
+  `storedPath`, `summary`, `collectedAt`). `notCarried` stands on the answer of an act on a message alone, and only where one of the
+  room's chat services did not take that act: each entry its `provider` key, its `reason` (`no-copy` where the service holds no number
+  for the message, `refused` where the service turned the act down in the voice named and in the room's own voice where that was tried,
+  `no-service` where the room's list names a provider no chat service stands under) and the service's own `detail` sentence where it
+  gave one. The record keeps the act all the same, and where every provider it was carried to took it, the answer names no `notCarried`.
 - **An `Avatar`** is `kind` (`room` or `person`), `id` and `takenAt` (epoch milliseconds); the page is walked by
   `after`, a `takenAt`, and `limit`. The bytes routes answer 404 `not-found` where no picture is kept for the number
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`
@@ -393,7 +398,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   act in his own voice is handed it again in the voice it answers the room by, unless it reads the room in the
   owner's account alone, so a reaction or its removal reaches the room's chat service even where the owner's
   account sends only words and files; a member's act stands on the record alone, since no road speaks in a
-  member's account. A reaction is the caller's own, one to a reactor; a pin anyone
+  member's account. Where the act was carried, every provider that did not take it is named in the answer under
+  `notCarried` and said in the service's log, and the act stands on the record all the same: the answer is still
+  the message as it now stands, and the screen reads that row as it does for any act. A reaction is the caller's
+  own, one to a reactor; a pin anyone
   signed in sets or takes off; an edit is the caller's on a message one of their senders said, and a delete the
   same or the administrator's on any; a sticker is a message of the caller's own, its kind `sticker`, carried as
   the owner's words are where the caller is the owner. A caller the relay names no user for, or whose user holds no

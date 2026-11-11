@@ -361,8 +361,10 @@ impl Sends {
         .receiver
         .news()
         .publish(&crate::events::message_changed(request.room_id, message_id));
-      providers::carry_act(db, self.receiver.roads(), request.room_id, message_id, &request.send, None)
-        .await;
+      // What each provider took the act is said in the log there; the send itself went, since the record kept it.
+      let _ =
+        providers::carry_act(db, self.receiver.roads(), request.room_id, message_id, &request.send, None)
+          .await;
 
       return Ok(Sent {
         message_id: Some(message_id),

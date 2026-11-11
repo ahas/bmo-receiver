@@ -1499,6 +1499,16 @@
               "null"
             ]
           },
+          "notCarried": {
+            "description": "The chat services that did not carry an act on this message, each a `NotCarried`: it stands on the answer of\nan act alone, and where there is nothing to name the field is left out.",
+            "items": {
+              "$ref": "#/components/schemas/NotCarried"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "pinnedAt": {
             "default": null,
             "description": "When the record kept the message pinned, in epoch milliseconds; null where it stands unpinned.",
@@ -1638,6 +1648,28 @@
         },
         "required": [
           "metadata"
+        ],
+        "type": "object"
+      },
+      "NotCarried": {
+        "description": "One chat service that did not carry an act on a message: its key, the `reason` the act did not go there\n(`no-copy` where it holds no number for the message, `no-service` where the room's list names a provider no\nchat service stands under, `refused` where it turned the act down in every voice it has for the room), and the\nservice's own `detail` sentence where it gave one.",
+        "properties": {
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "reason"
         ],
         "type": "object"
       },

@@ -1951,6 +1951,11 @@ export interface components {
              */
             kind: string | null;
             /**
+             * @description The chat services that did not carry an act on this message, each a `NotCarried`: it stands on the answer of
+             *     an act alone, and where there is nothing to name the field is left out.
+             */
+            notCarried?: components["schemas"]["NotCarried"][] | null;
+            /**
              * Format: int64
              * @description When the record kept the message pinned, in epoch milliseconds; null where it stands unpinned.
              * @default null
@@ -2007,6 +2012,17 @@ export interface components {
         /** @description What a chat service handed over beside a message, opaque to the receiver. */
         MessageMetadata: {
             metadata: unknown;
+        };
+        /**
+         * @description One chat service that did not carry an act on a message: its key, the `reason` the act did not go there
+         *     (`no-copy` where it holds no number for the message, `no-service` where the room's list names a provider no
+         *     chat service stands under, `refused` where it turned the act down in every voice it has for the room), and the
+         *     service's own `detail` sentence where it gave one.
+         */
+        NotCarried: {
+            detail?: string | null;
+            provider: string;
+            reason: string;
         };
         /** @description One notice a room was voiced. */
         Notice: {

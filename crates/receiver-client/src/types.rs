@@ -273,6 +273,23 @@ pub struct Message {
   #[serde(default)]
   pub voice_state: Option<String>,
   pub files: Vec<KeptFile>,
+  /// The chat services that did not carry an act on this message, each a `NotCarried`: it stands on the answer of
+  /// an act alone, and where there is nothing to name the field is left out.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub not_carried: Option<Vec<NotCarried>>,
+}
+
+/// One chat service that did not carry an act on a message: its key, the `reason` the act did not go there
+/// (`no-copy` where it holds no number for the message, `no-service` where the room's list names a provider no
+/// chat service stands under, `refused` where it turned the act down in every voice it has for the room), and the
+/// service's own `detail` sentence where it gave one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NotCarried {
+  pub provider: String,
+  pub reason: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub detail: Option<String>,
 }
 
 /// A room's situation note as one round read it: its text and whether that round wrote it afresh.

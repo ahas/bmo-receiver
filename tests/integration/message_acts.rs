@@ -1,7 +1,8 @@
 //! A signed-in person's acts on a room's message from the console (docs/api.md, 「Messages」): the relay names the
-//! caller, the record keeps each act under their number and carries it where the message stands, another
-//! person's message is refused to edit or delete but the administrator deletes any, a deleted message takes no act,
-//! and the room's pins are listed newest first.
+//! caller, the record keeps each act under their number and carries it where the message stands, an act a provider
+//! holds no copy of or refuses is named as not carried and stands on the record all the same, another person's
+//! message is refused to edit or delete but the administrator deletes any, a deleted message takes no act, and the
+//! room's pins are listed newest first.
 
 use axum::{
   body::{Body, to_bytes},
@@ -249,6 +250,7 @@ async fn the_owners_reaction_refused_in_his_own_voice_goes_in_the_rooms_own_unle
 
   assert_eq!(status, StatusCode::OK, "{reacted}");
   assert_eq!(reacted["reactions"], json!([{ "emoji": "🔥", "by": OWNER.to_string() }]));
+  assert_eq!(reacted.get("notCarried"), None, "the act went, so the answer names none");
 
   let (status, unreacted) =
     asked(&front, "DELETE", "/rooms/-100/messages/5/reactions/mine", None, OWNERS).await;
@@ -278,4 +280,135 @@ async fn the_owners_reaction_refused_in_his_own_voice_goes_in_the_rooms_own_unle
 
   assert_eq!(status, StatusCode::OK);
   assert_eq!(road.sent().len(), 2, "{:?}", road.sent());
+}
+
+// The providers an act's answer names as not carried.
+fn named_back(answer: &Value) -> Vec<Value> {
+  answer["notCarried"]
+    .as_array()
+    .unwrap_or_else(|| panic!("the answer names no notCarried: {answer}"))
+    .clone()
+}
+
+#[tokio::test]
+async fn an_act_a_provider_holds_no_copy_of_or_refuses_is_named_as_not_carried_and_still_stands_on_the_record()
+ {
+  const FORWARDED: i64 = -300;
+  const HELD: i64 = 5;
+  const NOCOPY: i64 = 6;
+  const REFUSED: i64 = 7;
+  const SENTENCE: &str = "does not send that kind in this voice";
+
+  let scratch = Scratch::new().await;
+  let road = std::sync::Arc::new(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER));
+  // A road that turns a reaction down in the owner's voice and in its own alike: the act cannot go there.
+  let refused_road = std::sync::Arc::new(
+    StandInChat::new("road-b")
+      .holding(&[FORWARDED])
+      .refusing_in(ChatVoice::HumanReader, &[ChatVerb::Reaction])
+      .refusing_in(ChatVoice::BotAccount, &[ChatVerb::Reaction]),
+  );
+  let front = stood_on(&scratch, OWNER, vec![road.clone(), refused_road.clone()]).await;
+
+  front.standing.web.linking(OWNER, OWNERS.0.to_owned());
+
+  // The room's line: one message the road holds under its own number, one kept on the record alone that never
+  // went out, and one the other road holds and refuses every reaction on.
+  for (room, message, via) in
+    [(ROOM, HELD, "road-a"), (ROOM, NOCOPY, "record"), (FORWARDED, REFUSED, "road-b")]
+  {
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+           VALUES ($1, $2, $3, 'someone', $2, 'words', $4)"#,
+        vec![room.into(), message.into(), OWNER.into(), via.into()],
+      )
+      .await;
+  }
+
+  // Where the road holds the message, the act goes and the answer names nothing.
+  let (status, reacted) = asked(
+    &front,
+    "PUT",
+    "/rooms/-100/messages/5/reactions/mine",
+    Some(json!({ "emoji": "👍" })),
+    OWNERS,
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "{reacted}");
+  assert_eq!(reacted["reactions"], json!([{ "emoji": "👍", "by": OWNER.to_string() }]));
+  assert_eq!(reacted.get("notCarried"), None, "{reacted}");
+
+  // A message the record holds but the chat service was never given: kept all the same, named as not carried,
+  // and nothing asked of the road.
+  let (status, reacted) = asked(
+    &front,
+    "PUT",
+    "/rooms/-100/messages/6/reactions/mine",
+    Some(json!({ "emoji": "👍" })),
+    OWNERS,
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "{reacted}");
+  assert_eq!(reacted["reactions"], json!([{ "emoji": "👍", "by": OWNER.to_string() }]));
+  assert_eq!(
+    reacted["notCarried"],
+    json!([{ "provider": "road-a", "reason": "no-copy" }]),
+    "{reacted}"
+  );
+  assert!(
+    road.sent().iter().all(|held| !matches!(
+      held.send,
+      ChatSend::Reaction {
+        message_id: NOCOPY,
+        ..
+      }
+    )),
+    "{:?}",
+    road.sent()
+  );
+
+  // A road that refuses the act in both voices is named with its own sentence, after both were asked, and the
+  // reaction and its removal stand on the record.
+  let (status, reacted) = asked(
+    &front,
+    "PUT",
+    "/rooms/-300/messages/7/reactions/mine",
+    Some(json!({ "emoji": "👍" })),
+    OWNERS,
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "{reacted}");
+  assert_eq!(
+    named_back(&reacted)[0]["provider"],
+    json!("road-b"),
+    "the road that refused is the one named"
+  );
+  assert_eq!(named_back(&reacted)[0]["reason"], json!("refused"));
+  assert!(
+    named_back(&reacted)[0]["detail"]
+      .as_str()
+      .is_some_and(|detail| detail.contains(SENTENCE)),
+    "{reacted}"
+  );
+  assert_eq!(refused_road.turned_down(), 2, "both the voice named and the room's own were asked");
+  assert_eq!(reacted["reactions"], json!([{ "emoji": "👍", "by": OWNER.to_string() }]));
+
+  let (status, unreacted) =
+    asked(&front, "DELETE", "/rooms/-300/messages/7/reactions/mine", None, OWNERS).await;
+
+  assert_eq!(status, StatusCode::OK, "{unreacted}");
+  assert_eq!(unreacted["reactions"], json!([]));
+  assert_eq!(named_back(&unreacted)[0]["provider"], json!("road-b"));
+  assert_eq!(named_back(&unreacted)[0]["reason"], json!("refused"));
+  assert!(
+    named_back(&unreacted)[0]["detail"]
+      .as_str()
+      .is_some_and(|detail| detail.contains(SENTENCE)),
+    "{unreacted}"
+  );
+  assert_eq!(refused_road.turned_down(), 4, "the removal was turned down in both voices too");
 }

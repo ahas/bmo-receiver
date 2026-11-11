@@ -75,6 +75,8 @@ pub struct StandInChat {
   /// The kinds of send each voice refuses, as a platform refuses what an account cannot do; a refused send is
   /// not among the sends carried through.
   pub voice_refusals: Vec<(ChatVoice, ChatVerb)>,
+  /// How often a send was turned down for the voice it was asked in.
+  pub turn_downs: AtomicUsize,
   /// The contacts of its account, and every conversation it was asked to start.
   pub contacts: Vec<ChatContact>,
   pub starts: Mutex<Vec<ChatStart>>,
@@ -187,6 +189,11 @@ impl StandInChat {
     self.sends.lock().unwrap().clone()
   }
 
+  /// How often a send was turned down for the voice it was asked in, each voice refusal counted once.
+  pub fn turned_down(&self) -> usize {
+    self.turn_downs.load(Ordering::SeqCst)
+  }
+
   /// The next send stands held, unsent, until what this answers is notified.
   pub fn holding_the_next_send(&self) -> Arc<tokio::sync::Notify> {
     let release = Arc::new(tokio::sync::Notify::new());
@@ -296,6 +303,8 @@ impl Chat for StandInChat {
     let voice = request.mode.unwrap_or(ChatVoice::BotAccount);
 
     if self.voice_refusals.contains(&(voice, request.send.kind())) {
+      self.turn_downs.fetch_add(1, Ordering::SeqCst);
+
       return Box::pin(async {
         Err(answered_with(
           422,

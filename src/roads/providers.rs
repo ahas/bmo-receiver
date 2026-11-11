@@ -418,11 +418,45 @@ pub async fn echo(
   )
 }
 
+/// How one of a room's providers took an act carried to it (docs/messages.md, 「What an agent can send back」).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Carriage {
+  /// The act went there.
+  Carried,
+  /// The provider holds no number for the message, so it has no copy of the message to act on.
+  NoCopy,
+  /// The room's list names the provider, but no chat service stands under that key.
+  NoService,
+  /// The provider turned the act down, in the voice named and in the room's own where that was tried: `why` is
+  /// the provider's own sentence.
+  Refused(String),
+}
+
+impl Carriage {
+  /// Why the act did not go, in the receiver's own words; nothing where it went.
+  fn why_not_carried(&self) -> Option<String> {
+    match self {
+      Self::Carried => None,
+      Self::NoCopy => Some("the service holds no copy of that message".to_owned()),
+      Self::NoService => Some("no chat service stands under that provider".to_owned()),
+      Self::Refused(why) => Some(why.clone()),
+    }
+  }
+}
+
+/// One of a room's providers and how it took an act carried to it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActCarriage {
+  pub provider: String,
+  pub took: Carriage,
+}
+
 /// An act on a kept message carried to each of the room's other providers where the message stands under a
 /// number of the provider's own (docs/messages.md, 「What an agent can send back」): the act sent with that number,
 /// in the voice named, the room's own where none is. A provider that refuses the act in the voice named is handed
 /// it again in the voice it answers the room by, where that is another voice and the provider does not read the
-/// room in the owner's account alone.
+/// room in the owner's account alone. Every provider the act was taken to, and every one that did not take it, is
+/// answered, each provider that did not take it said in the log as not carried.
 pub async fn carry_act(
   db: &DatabaseConnection,
   roads: &Roads,
@@ -430,16 +464,42 @@ pub async fn carry_act(
   message_id: i64,
   act: &ChatSend,
   voice: Option<ChatVoice>,
-) {
-  let Ok(listed) = listed(db, roads, chat_id).await else { return };
+) -> Vec<ActCarriage> {
+  let Ok(listed) = listed(db, roads, chat_id).await else {
+    eprintln!(
+      "chat {chat_id}: an act on message {message_id} was not carried to any provider: the room's providers could \
+       not be read"
+    );
+
+    return vec![];
+  };
+  let mut taken: Vec<ActCarriage> = vec![];
+  let mut name = |provider: &str, carriage: Carriage| {
+    if let Some(why) = carriage.why_not_carried() {
+      eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {provider}: {why}");
+    }
+
+    taken.push(ActCarriage {
+      provider: provider.to_owned(),
+      took: carriage,
+    });
+  };
 
   for key in listed.providers {
     if key == Road::Record.key() {
       continue;
     }
 
-    let Some(service) = roads.chats().road(&key) else { continue };
-    let Some(number) = number_on(db, chat_id, message_id, &key).await else { continue };
+    let Some(service) = roads.chats().road(&key) else {
+      name(&key, Carriage::NoService);
+
+      continue;
+    };
+    let Some(number) = number_on(db, chat_id, message_id, &key).await else {
+      name(&key, Carriage::NoCopy);
+
+      continue;
+    };
     let send = match act.clone() {
       ChatSend::Reaction { emoji, .. } => ChatSend::Reaction {
         message_id: number,
@@ -463,10 +523,14 @@ pub async fn carry_act(
     request.mode = voice;
 
     let refused = match service.send(&request).await {
-      Ok(_) => continue,
+      Ok(_) => {
+        name(&key, Carriage::Carried);
+
+        continue;
+      }
       Err(why @ ClientFailure::Answered { .. }) => why,
       Err(why) => {
-        eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {why}");
+        name(&key, Carriage::Refused(why.to_string()));
 
         continue;
       }
@@ -474,7 +538,7 @@ pub async fn carry_act(
     let own = added::voice_in(db, chat_id).await;
 
     if voice.is_none() || own == voice || roads.reads_only(&key, chat_id).await {
-      eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {refused}");
+      name(&key, Carriage::Refused(refused.to_string()));
 
       continue;
     }
@@ -485,10 +549,18 @@ pub async fn carry_act(
     );
     request.mode = own;
 
-    if let Err(why) = service.send(&request).await {
-      eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {why}");
-    }
+    let went = service.send(&request).await;
+
+    name(
+      &key,
+      match went {
+        Ok(_) => Carriage::Carried,
+        Err(why) => Carriage::Refused(why.to_string()),
+      },
+    );
   }
+
+  taken
 }
 
 /// A kept message carried to each provider of its room it does not already stand on. The record holds it by being

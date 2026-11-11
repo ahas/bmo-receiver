@@ -118,7 +118,11 @@ and when a room sees it typing.
   each goes on to the room's other providers wherever the message stands under a number of the provider's own,
   as a kept message does (`docs/receiver.md`, 「A room's chat providers」). An act carried in a voice the provider
   refuses it in goes again in the voice the provider answers the room by, where that is another voice and the
-  provider does not read the room in the owner's account alone.
+  provider does not read the room in the owner's account alone. An act that does not go is never passed over
+  without a word: each provider that holds no number for the message, that stands under no chat service, or that
+  turns the act down in every voice it has for the room is named as not carried, in the service's log and — where
+  the act came from the console — in the answer's `notCarried` (`docs/api.md`, 「Messages」). The record keeps such
+  an act as it keeps any other, and the room's screens are told of it the same way.
 - **A chat service's word of what happened to a message on its platform is kept the same way** (bmo-chat's
   `docs/contract.md`, 「The receiving side, as a provider sees it」): a reaction change stands in the message's
   reactions, each person it lists under their number, or under the provider's key where it names the account
