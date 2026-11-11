@@ -171,12 +171,15 @@ pub struct UserNode {
   pub agent: Option<String>,
   #[serde(default)]
   pub attached: bool,
+  /// Whether the account has left.
+  #[serde(default)]
+  pub left: bool,
 }
 
 impl UserNode {
-  /// Whether the account stands: bound to no machine, or to one that is attached.
+  /// Whether the account stands: not left, and bound to no machine or to one that is attached.
   pub fn stands(&self) -> bool {
-    self.agent.is_none() || self.attached
+    !self.left && (self.agent.is_none() || self.attached)
   }
 }
 

@@ -638,6 +638,7 @@ impl StandInWeb {
       UserNode {
         agent: Some(format!("u{user}")),
         attached,
+        left: false,
       },
     );
   }

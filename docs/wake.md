@@ -45,6 +45,8 @@ its rounds.
   the web unit answers (`docs/boundary-api.md`, 「The web unit」). While the machine is gone, words that would wake
   it are kept and wake nothing, and a quiet instruction for it stays queued, delivered once the machine is attached
   again. A web unit that cannot be asked leaves the supervisor standing, since that says nothing of the machine.
+- **A supervisor of an account that left is woken nowhere again,** as the same answer of the web unit says
+  (`left`): words that would wake it are kept and wake nothing, and a quiet instruction for it is let go.
 - **A room added `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
   kept and carried to its providers, and nothing past that is decided for them. The owner's answer to a job's
   open question is still handed to bmo-job there, since that wakes no agent.

@@ -17,6 +17,7 @@ use bmo_receiver::roads::added::{self, RoomMode};
 use receiver_policy::commands::COMMANDS;
 use receiver_ports::agency::{Rest, RestKind};
 use receiver_ports::job::{Chosen, Moved, OpenQuestion, Talked};
+use receiver_ports::web::UserNode;
 use serde_json::json;
 
 use crate::integration::common::Scratch;
@@ -792,4 +793,19 @@ async fn a_supervisor_of_an_account_whose_machine_is_gone_is_woken_nowhere() {
 
   assert_eq!(woken.len(), 1, "{woken:?}");
   assert_eq!(woken[0].message_id, 2);
+  // Left, the account's supervisor is woken nowhere again, attached or not.
+  standing.web.nodes.lock().unwrap().insert(
+    "82".to_owned(),
+    UserNode {
+      agent: Some("u82".to_owned()),
+      attached: true,
+      left: true,
+    },
+  );
+  standing
+    .receiver
+    .message(&inbound(-162, 3, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+  assert_eq!(standing.taken.handed().len(), 1);
 }

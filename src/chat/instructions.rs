@@ -489,9 +489,19 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
   }
 
   // An instruction for an agent of an account whose machine is gone stays queued until the machine is attached
-  // again (docs/wake.md, 「Who reaches the session」).
-  if !wake::agents::account_stands(receiver, &row.agent).await {
-    return Ok(false);
+  // again; one for an agent of an account that left is let go (docs/wake.md, 「Who reaches the session」).
+  match wake::agents::account_of(receiver, &row.agent).await {
+    wake::agents::Account::Stands => {}
+    wake::agents::Account::Away => return Ok(false),
+    wake::agents::Account::Left => {
+      println!(
+        "instruction {} for {}, whose account left, is never taken, discarding",
+        row.id, row.agent
+      );
+      discard(receiver.db(), row.id).await?;
+
+      return Ok(false);
+    }
   }
 
   if !wake::agents::answers(receiver, &row.agent, row.chat_id).await.unwrap_or(false) {
