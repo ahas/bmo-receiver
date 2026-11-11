@@ -75,6 +75,100 @@ fn a_pane_program_s_record_draws_the_turn_and_the_usage_it_ended_on() {
   assert_eq!(answered.written_tokens, Some(40));
 }
 
+// The live figures move only forward while a turn runs: the running totals hold a report of the whole
+// spend at the greater of it and what was counted, and the answer's measured figures replace them.
+#[test]
+fn a_report_of_the_turn_s_whole_spend_never_takes_the_live_figure_back() {
+  let working = read_all(
+    RunProgress::default(),
+    &[
+      json!({ "kind": "progress", "id": "turn-1", "usage": {
+        "inputTokens": 400, "outputTokens": 120, "cacheReadTokens": 900,
+      } }),
+      json!({ "kind": "progress", "id": "turn-1", "usage": {
+        "inputTokens": 500, "outputTokens": 30, "cacheReadTokens": 1_000,
+      } }),
+    ],
+  );
+
+  assert_eq!(
+    working.spent,
+    Some(RequestSpend {
+      input_tokens: 500,
+      cache_read_tokens: 1_000,
+      cache_write_tokens: 0,
+    }),
+    "the spend and how full the session stands are set where the newest report stands"
+  );
+  assert_eq!(working.written_tokens, Some(120), "the written figure holds the greater of the reports");
+
+  let answered = read_all(
+    working,
+    &[json!({
+      "kind": "answer", "id": "turn-1", "text": "done",
+      "usage": { "inputTokens": 900, "outputTokens": 210, "cacheReadTokens": 1_200 },
+    })],
+  );
+
+  assert_eq!(
+    answered.written_tokens,
+    Some(210),
+    "the turn's measured whole spend replaces the running total"
+  );
+}
+
+#[test]
+fn a_progress_report_and_the_estimates_its_run_files_keep_one_running_figure() {
+  let counting = read_all(
+    RunProgress::default(),
+    &[json!({ "kind": "progress", "id": "turn-1", "usage": {
+        "inputTokens": 300, "outputTokens": 12, "cacheReadTokens": 200,
+      } })],
+  );
+
+  assert_eq!(counting.written_tokens, Some(12));
+
+  let counted = filed_all(
+    counting.clone(),
+    &[json!({ "id": 2, "kind": "tool", "name": "Bash", "text": "ls docs", "ref": "call-1" })],
+  );
+
+  assert_eq!(
+    counted.written_tokens,
+    Some(15),
+    "the call's estimate is added to the whole spend so far"
+  );
+
+  let restated = read_all(
+    counted,
+    &[json!({ "kind": "progress", "id": "turn-1", "usage": {
+      "inputTokens": 600, "outputTokens": 8, "cacheReadTokens": 300,
+    } })],
+  );
+
+  assert_eq!(
+    restated.written_tokens,
+    Some(15),
+    "the report of a smaller whole spend leaves the running figure where it reached",
+  );
+}
+
+// The thinking count the program states as a running total stands the picture at the greater of it and
+// what was counted; the stretches it says separately are added.
+#[test]
+fn the_thinking_count_a_program_reports_moves_only_forward() {
+  let running = read_all(
+    RunProgress::default(),
+    &[
+      json!({ "type": "system", "subtype": "thinking_tokens", "estimated_tokens_delta": 40 }),
+      json!({ "type": "system", "subtype": "thinking_tokens", "estimated_tokens": 100 }),
+      json!({ "type": "system", "subtype": "thinking_tokens", "estimated_tokens": 90 }),
+    ],
+  );
+
+  assert_eq!(running.thinking_tokens, Some(100), "a running total stands where it is the greater");
+}
+
 #[test]
 fn a_codex_rollout_draws_the_turn_as_it_goes_and_after_it_ends() {
   let handed = [("knowledge".to_owned(), "knowledge/sample.md".to_owned(), Some("held"))];
@@ -450,7 +544,7 @@ fn a_failed_line_and_a_line_of_no_such_kind_move_nothing() {
 }
 
 // "the block a turn is still writing stands in the picture by estimate on top of what the lines said, under
-// thinking for a thinking block and under the written figure otherwise, and goes once none is open"
+// thinking for a thinking block and under the written figure otherwise"
 #[test]
 fn the_block_still_being_written_counts_on_top_of_what_the_lines_said() {
   let filed = RunProgress::default()
@@ -460,11 +554,75 @@ fn the_block_still_being_written_counts_on_top_of_what_the_lines_said() {
 
   let thinking = picture_of(&filed.with_open(Some(("thinking", 400))));
   let words = picture_of(&filed.with_open(Some(("text", 400))));
-  let closed = picture_of(&filed.with_open(Some(("text", 400))).with_open(None));
 
   assert!(thinking["thinkingTokens"].as_i64().unwrap() > 0, "{thinking}");
   assert_eq!(thinking["writtenTokens"], json!(written), "{thinking}");
   assert!(words["writtenTokens"].as_i64().unwrap() > written, "{words}");
   assert_eq!(words["thinkingTokens"], Value::Null, "{words}");
-  assert_eq!(closed["writtenTokens"], json!(written), "{closed}");
+}
+
+// A block that ended is let go of before its line comes, and its line may say less than the bytes it streamed —
+// a call's line holds a summary of its arguments — so the figures a look drew hold until the lines pass them.
+#[test]
+fn a_block_that_ended_keeps_what_its_look_drew_until_the_lines_pass_it() {
+  let drawn = |picture: &RunProgress, name: &str| picture_of(picture)[name].as_i64().unwrap_or(0);
+  let thinking = RunProgress::default().with_open(Some(("thinking", 600)));
+  let calling = thinking.with_open(Some(("tool", 3_000)));
+  let between = calling.with_open(None);
+  let filed = between
+    .filed(
+      json!({ "kind": "tool", "name": "Write", "text": "notes.md", "ref": "call-1" })
+        .as_object()
+        .unwrap(),
+    )
+    .unwrap()
+    .with_open(None);
+
+  assert_eq!(drawn(&calling, "thinkingTokens"), 200, "the ended thinking block keeps its estimate");
+  assert_eq!(drawn(&between, "writtenTokens"), 1_000, "the ended call keeps its estimate");
+  assert_eq!(drawn(&filed, "writtenTokens"), 1_000, "a call's shorter line takes nothing back");
+
+  let words = filed
+    .filed(json!({ "kind": "text", "text": "y".repeat(3_300) }).as_object().unwrap())
+    .unwrap()
+    .with_open(None);
+
+  assert_eq!(
+    drawn(&words, "writtenTokens"),
+    3 + 1_100,
+    "the lines move the figure on once they pass it"
+  );
+}
+
+// A request reports what it wrote on each of its lines, a later line of it the larger figure, and its
+// measured output covers its thinking, its words and its calls whatever the lines' estimates came to.
+#[test]
+fn the_requests_measured_output_adds_up_once_each_beside_the_estimates() {
+  let request = |id: &str, output: i64| json!({ "request": { "id": id, "usage": { "input_tokens": 1, "output_tokens": output } } });
+  let read = filed_all(
+    RunProgress::default(),
+    &[
+      json!({ "kind": "thinking", "text": "z".repeat(30), "metadata": request("m1", 4) }),
+      json!({ "kind": "tool", "name": "Write", "text": "notes.md", "ref": "t1", "metadata": request("m1", 500) }),
+      json!({ "kind": "tool-result", "ref": "t1", "state": "succeeded" }),
+      json!({ "kind": "text", "text": "done", "metadata": request("m2", 30) }),
+    ],
+  );
+
+  assert_eq!(read.thinking_tokens, Some(10));
+  assert_eq!(
+    read.written_tokens,
+    Some(500 + 30 - 10),
+    "each request counted once at its largest report, the thinking counted taken off"
+  );
+
+  // An agent's own stream states the same per request, on each event of its message.
+  let message = |id: &str, output: i64| {
+    json!({ "type": "assistant", "message": { "id": id, "usage": { "input_tokens": 1, "output_tokens": output },
+      "content": [{ "type": "text", "text": "ok" }] } })
+  };
+  let streamed =
+    read_all(RunProgress::default(), &[message("m1", 3), message("m1", 60), message("m2", 40)]);
+
+  assert_eq!(streamed.written_tokens, Some(100));
 }

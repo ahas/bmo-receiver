@@ -82,6 +82,22 @@ pub struct RunProgress {
   // written so far.
   #[serde(skip)]
   open: Option<(bool, u64)>,
+  // What the turn's requests measured they wrote, each counted once at the largest figure its reports gave,
+  // and that largest figure of the request counted last.
+  #[serde(skip)]
+  measured: i64,
+  #[serde(skip)]
+  measured_last: i64,
+  // The thinking and written figures the last look drew, below which no later look draws them.
+  #[serde(skip)]
+  reached: Reached,
+}
+
+// The figures a look drew, each none where it drew none.
+#[derive(Clone, Debug, Default, PartialEq)]
+struct Reached {
+  thinking: Option<i64>,
+  written: Option<i64>,
 }
 
 impl Default for RunProgress {
@@ -102,6 +118,9 @@ impl Default for RunProgress {
       thinking: None,
       held: vec![],
       open: None,
+      measured: 0,
+      measured_last: 0,
+      reached: Reached::default(),
     }
   }
 }
@@ -241,6 +260,23 @@ impl RunProgress {
       spent,
       ..self
     }
+    .with_request_output(fresh, used("output_tokens"))
+  }
+
+  // The picture with one request's measured output counted: a fresh request adds what it reported, a request
+  // already counted moves to the larger of its reports, and the turn's figures then reach at least what its
+  // requests measured, the written figure making up what the thinking counted does not.
+  fn with_request_output(self, fresh: bool, output: i64) -> Self {
+    let (earlier, last) =
+      if fresh { (0, output) } else { (self.measured_last, self.measured_last.max(output)) };
+    let measured = self.measured - earlier + last;
+
+    Self {
+      written_tokens: reaching(self.written_tokens, self.thinking_tokens, measured),
+      measured,
+      measured_last: last,
+      ..self
+    }
   }
 
   fn filed_kind(&self, line: &serde_json::Map<String, Value>) -> Option<Self> {
@@ -294,31 +330,36 @@ impl RunProgress {
 
   /// The block the turn is still writing, of the kind named and with the bytes written so far, or none open: it
   /// stands beside what the lines have said until a line says it (docs/receiver.md, 「A turn's progress」).
+  /// The look draws the figures it reaches, and no later look of the turn draws them lower: a block that ended
+  /// keeps what it drew until its line, which may say less than the bytes it streamed, has come.
   pub fn with_open(&self, open: Option<(&str, u64)>) -> Self {
-    Self {
+    let looked = Self {
       open: open.map(|(kind, bytes)| (kind == "thinking", bytes)),
       ..self.clone()
+    };
+    let drawn = looked.counted_open();
+
+    Self {
+      reached: Reached {
+        thinking: drawn.thinking_tokens,
+        written: drawn.written_tokens,
+      },
+      ..looked
     }
   }
 
-  // The picture with the open block's bytes counted by estimate: under thinking for a thinking block, under the
-  // written figure for words and calls.
+  // The picture with the open block's bytes counted by estimate, under thinking for a thinking block and under
+  // the written figure for words and calls, each figure at least where the last look drew it.
   fn counted_open(&self) -> Self {
-    let Some((thinking, bytes)) = self.open else {
-      return self.clone();
+    let more = |open: bool| match self.open {
+      Some((thinking, bytes)) if thinking == open => (bytes as usize).div_ceil(BYTES_PER_TOKEN) as i64,
+      _ => 0,
     };
-    let more = (bytes as usize).div_ceil(BYTES_PER_TOKEN) as i64;
 
-    if thinking {
-      Self {
-        thinking_tokens: added(self.thinking_tokens, more),
-        ..self.clone()
-      }
-    } else {
-      Self {
-        written_tokens: added(self.written_tokens, more),
-        ..self.clone()
-      }
+    Self {
+      thinking_tokens: added(self.thinking_tokens, more(true)).max(self.reached.thinking),
+      written_tokens: added(self.written_tokens, more(false)).max(self.reached.written),
+      ..self.clone()
     }
   }
 
@@ -351,16 +392,19 @@ impl RunProgress {
     if event.get("type").and_then(Json::as_str) == Some("system")
       && event.get("subtype").and_then(Json::as_str) == Some("thinking_tokens")
     {
-      let added = event
-        .get("estimated_tokens_delta")
-        .filter(|delta| !matches!(delta, Json::Null))
-        .or_else(|| event.get("estimated_tokens"))
-        .and_then(number)?;
+      // The event names either one stretch's count, added to what was counted, or the running count, which
+      // stands the figure at the greater of the two so it never moves back while the turn runs.
+      let delta = event.get("estimated_tokens_delta").and_then(number);
+      let counted = match (delta, event.get("estimated_tokens").and_then(number)) {
+        (Some(more), _) => added(self.thinking_tokens, more),
+        (None, Some(whole)) => standing(self.thinking_tokens, whole),
+        _ => return None,
+      };
 
       return Some(Self {
         phase: "thinking",
         tool: None,
-        thinking_tokens: Some(self.thinking_tokens.unwrap_or(0) + added),
+        thinking_tokens: counted,
         ..self.clone()
       });
     }
@@ -432,6 +476,10 @@ impl RunProgress {
       written_tokens: added(self.written_tokens, written),
       ..self.clone()
     };
+    let read = match usage {
+      Some(_) => read.with_request_output(fresh, used("output_tokens")),
+      None => read,
+    };
 
     Some(read.after_lines(&lines))
   }
@@ -502,7 +550,9 @@ impl RunProgress {
       .and_then(|context| context.get("used"))
       .and_then(number)
       .or(self.context_tokens);
-    // The figure the turn stands at is its whole spend so far, so it is set where it stands, never added.
+    // The record's own figures are the turn's spend so far, so the spend and how full the session stands
+    // are set where they stand, while the output it states is the whole the turn's figures reach: the
+    // estimates the run's filed lines add stay where they are above it, so the figures never go back.
     let usage = event.get("usage").filter(|usage| !matches!(usage, Json::Null));
     let used = |name: &str| usage.and_then(|usage| usage.get(name)).and_then(number);
     let spent = used("inputTokens").map(|input| RequestSpend {
@@ -510,19 +560,21 @@ impl RunProgress {
       cache_read_tokens: used("cacheReadTokens").unwrap_or(0),
       cache_write_tokens: used("cacheWriteTokens").unwrap_or(0),
     });
+    let written = reaching(self.written_tokens, self.thinking_tokens, used("outputTokens").unwrap_or(0));
 
     Some(Self {
       phase,
       tool,
       context_tokens: context,
       spent: spent.or(self.spent.clone()),
-      written_tokens: used("outputTokens").or(self.written_tokens),
+      written_tokens: written,
       ..self.clone()
     })
   }
 
   // The answer a pane program's turn ended on, with the usage it reported: the turn's whole spend and the
-  // context its last request carried, where the program gave them.
+  // context its last request carried, where the program gave them. Its measured output replaces the running
+  // figure and what the looks drew, so the turn ends on the program's own count.
   fn read_answer(&self, event: &Json) -> Option<Self> {
     let Some(usage) = event.get("usage").filter(|usage| !matches!(usage, Json::Null)) else {
       return Some(self.clone());
@@ -536,6 +588,7 @@ impl RunProgress {
         cache_write_tokens: used("cacheWriteTokens"),
       }),
       written_tokens: Some(used("outputTokens")),
+      reached: Reached::default(),
       ..self.clone()
     })
   }
@@ -553,17 +606,20 @@ impl RunProgress {
     let write = used("cache_write_input_tokens");
     let held = self.spent.clone().unwrap_or_default();
 
-    Some(Self {
-      thinking_tokens: added(self.thinking_tokens, used("reasoning_output_tokens")),
-      context_tokens: Some(input),
-      cache_read_tokens: Some(read),
-      spent: Some(RequestSpend {
-        input_tokens: held.input_tokens + (input - read - write).max(0),
-        cache_read_tokens: held.cache_read_tokens + read,
-        cache_write_tokens: held.cache_write_tokens + write,
-      }),
-      ..self.clone()
-    })
+    Some(
+      Self {
+        thinking_tokens: added(self.thinking_tokens, used("reasoning_output_tokens")),
+        context_tokens: Some(input),
+        cache_read_tokens: Some(read),
+        spent: Some(RequestSpend {
+          input_tokens: held.input_tokens + (input - read - write).max(0),
+          cache_read_tokens: held.cache_read_tokens + read,
+          cache_write_tokens: held.cache_write_tokens + write,
+        }),
+        ..self.clone()
+      }
+      .with_request_output(true, used("output_tokens")),
+    )
   }
 
   /// What of the picture the room's screens draw, as one word: a change in it is worth an event at once.
@@ -614,6 +670,18 @@ fn estimated(text: &str) -> i64 {
 // A count with more added to it, left as it was where nothing was.
 fn added(held: Option<i64>, more: i64) -> Option<i64> {
   if more == 0 { held } else { Some(held.unwrap_or(0) + more) }
+}
+
+// A count standing at a whole a report states, never below what it already counted: what was counted beside
+// the report by estimate may stand above it, and a running count can be stated lower than it stood.
+fn standing(held: Option<i64>, whole: i64) -> Option<i64> {
+  if whole <= 0 { held } else { Some(held.unwrap_or(0).max(whole)) }
+}
+
+// The written figure the measured output of the turn reaches, beside the thinking counted: thinking and words
+// together come to at least that output, the written figure making up what the thinking does not.
+fn reaching(written: Option<i64>, thinking: Option<i64>, output: i64) -> Option<i64> {
+  standing(written, output - thinking.unwrap_or(0))
 }
 
 // A call among a line's pieces, as the action the picture keeps of it.

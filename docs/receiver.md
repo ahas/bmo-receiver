@@ -328,14 +328,29 @@ flowchart TD
   lines a pane program's record writes. A record naming no phase, no tool or no usage leaves what the picture
   already holds: the phase, the tool being called, the thinking and the tokens each request spent, the written
   estimate, and how full the session stands. A pane program's `progress` line carries the turn's spend so far,
-  which is set where it stands rather than added to; its `answer` line carries the turn's whole spend the same way.
+  and its `answer` line carries the turn's whole spend: what the requests spent and how full the session
+  stands are set where they stand, never added to.
+  - **The thinking and the written figures are the turn's running totals, and move only forward while it
+    runs.** Thinking and written follow one rule. What one block or one request states for itself is added
+    to what stands: a block's estimate, a stretch of thinking the program counted, a request's thinking
+    tokens. A request's measured output is counted once by the request's id, at the largest figure its
+    lines or events report, so a request that states a partial count first and its whole later counts the
+    whole once. A figure the program states for the whole turn so far, the running count of its thinking or
+    a pane program's output, is not added: the figure stands at the greater of it and what was already
+    counted. Measured output, a request's or the turn's, covers the thinking, the words and the calls
+    together, so the thinking and the written figures together reach at least what was measured, the
+    written figure making up what the thinking counted does not; an estimate counted beside a measured
+    figure, as the call lines a pane program's run files beside its `progress` lines, stays where it stands
+    above it. The `answer` line's measured output replaces the written figure once the turn ends, so the
+    turn ends on the program's own count.
   - **A line the agency filed already told apart is read as what it names.** A road whose program keeps its own
     record is filed as lines of a kind — a thinking block, words, a call, a call's result — each holding its words,
     and beside them, in its metadata, the request its message answers: that request's id and the usage the
     provider stated for it (the agency's `docs/api.md`, 「log-lines」). A thinking line puts the turn at thinking and words at writing; a call puts it at the tool the
     line names and stands in the picture's actions, the words held before it becoming progress lines; a result
     settles the call it answers. What the turn thought and wrote is counted by estimate, from those lines'
-    length. How full the session stands is the latest request's input, read and written cache together, and what
+    length, and reaches at least what the requests the lines name measured as their output. How full the
+    session stands is the latest request's input, read and written cache together, and what
     the turn spent adds each request once, by its id, as a record's own line would; a line that names no request
     leaves both as they stand.
 
@@ -344,7 +359,10 @@ flowchart TD
     model gateway counts it, is read after the log, and the bytes it has written so far stand in the picture by
     estimate on top of what the lines have said — under thinking for a thinking block, under the written figure
     for words and calls. A block that ends is let go of, and its line says it from then on; a look that finds none
-    open, or a read that fails, leaves no open block in the picture.
+    open, or a read that fails, leaves no open block in the picture. The figures a look draws are the least any
+    later look of the turn draws: the gateway lets go of a block before its line is filed, and a call's line
+    holds a summary of its arguments rather than the bytes it streamed, so the figures hold where they reached
+    until the lines pass them. The `answer` line of a pane program's turn lets go of them with the rest.
 
   The log is read as each of the turn's events comes and once every look the pushing policy sets
   (`chat-round.toml`, `[pushing]`), so what the run writes reaches the picture within that look, and a picture that
