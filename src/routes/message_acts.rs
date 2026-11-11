@@ -2,7 +2,8 @@
 //! 「What an agent can send back」): a reaction of their own, a pin, an edit and a delete of their own message, the
 //! administrator's delete of any, a sticker of the record's set, and the room's pinned messages. The record keeps
 //! each act and tells `message.changed`; the owner's acts go on in his own voice where the message stands on the
-//! room's other providers, and a member's stand on the record alone.
+//! room's other providers, in the room's own where a provider refuses his, and a member's stand on the record
+//! alone.
 
 use axum::{
   Json,

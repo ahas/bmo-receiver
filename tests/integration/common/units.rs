@@ -10,8 +10,8 @@ use std::time::Duration;
 use bmo_chat_client::{
   AccountRoomsQuery, ChatCapability, ChatContact, ChatContactKind, ChatDeclaration, ChatDialectDeclaration,
   ChatDialectLimits, ChatHealth, ChatMediaRequest, ChatModeStanding, ChatNumberRanges, ChatNumberSpace,
-  ChatNumbering, ChatReach, ChatReadMode, ChatSendRequest, ChatSent, ChatStart, ChatVoice, ClientFailure,
-  ContactsQuery, DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
+  ChatNumbering, ChatReach, ChatReadMode, ChatSendRequest, ChatSent, ChatStart, ChatVerb, ChatVoice,
+  ClientFailure, ContactsQuery, DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{
@@ -72,6 +72,9 @@ pub struct StandInChat {
   /// The read modes it declares, each by its voice and where it stands.
   pub modes: Mutex<Vec<(ChatVoice, ChatModeStanding)>>,
   pub sends: Mutex<Vec<ChatSendRequest>>,
+  /// The kinds of send each voice refuses, as a platform refuses what an account cannot do; a refused send is
+  /// not among the sends carried through.
+  pub voice_refusals: Vec<(ChatVoice, ChatVerb)>,
   /// The contacts of its account, and every conversation it was asked to start.
   pub contacts: Vec<ChatContact>,
   pub starts: Mutex<Vec<ChatStart>>,
@@ -133,6 +136,12 @@ impl StandInChat {
   /// The send verbs the service declares beside the three every road carries.
   pub fn canning(mut self, verbs: &[ChatCapability]) -> Self {
     self.cans.get_mut().unwrap().extend(verbs.iter().copied());
+    self
+  }
+
+  /// The kinds of send a voice refuses with the platform's own reason.
+  pub fn refusing_in(mut self, voice: ChatVoice, verbs: &[ChatVerb]) -> Self {
+    self.voice_refusals.extend(verbs.iter().map(|verb| (voice, *verb)));
     self
   }
 
@@ -284,6 +293,18 @@ impl Chat for StandInChat {
   }
 
   fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSent>> {
+    let voice = request.mode.unwrap_or(ChatVoice::BotAccount);
+
+    if self.voice_refusals.contains(&(voice, request.send.kind())) {
+      return Box::pin(async {
+        Err(answered_with(
+          422,
+          bmo_chat_client::ErrorCode::Platform,
+          "The stand-in's account does not send that kind in this voice.",
+        ))
+      });
+    }
+
     let held = self.held_send.lock().unwrap().take();
     let answer = self.answer.lock().unwrap().clone().unwrap_or_else(|| ChatSent {
       message_id: Some(900 + self.numbered.fetch_add(1, Ordering::SeqCst)),

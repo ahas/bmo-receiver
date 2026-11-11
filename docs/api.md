@@ -389,8 +389,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   unit links to the user, and the caller acts under the one of them the room already holds, else the first. The
   record keeps each act as the agent-side acts are kept (`docs/messages.md`, 「What an agent can send back」) under
   that number and tells `message.changed`. Where the caller is the owner, the act goes on in his own voice to the
-  room's other providers wherever the message stands under a number of theirs; a member's act stands on the record
-  alone, since no road speaks in a member's account. A reaction is the caller's own, one to a reactor; a pin anyone
+  room's other providers wherever the message stands under a number of theirs, and a provider that refuses the
+  act in his own voice is handed it again in the voice it answers the room by, unless it reads the room in the
+  owner's account alone, so a reaction or its removal reaches the room's chat service even where the owner's
+  account sends only words and files; a member's act stands on the record alone, since no road speaks in a
+  member's account. A reaction is the caller's own, one to a reactor; a pin anyone
   signed in sets or takes off; an edit is the caller's on a message one of their senders said, and a delete the
   same or the administrator's on any; a sticker is a message of the caller's own, its kind `sticker`, carried as
   the owner's words are where the caller is the owner. A caller the relay names no user for, or whose user holds no

@@ -8,7 +8,7 @@ use axum::{
   extract::Request,
   http::StatusCode,
 };
-use bmo_chat_client::{ChatSend, ChatVoice};
+use bmo_chat_client::{ChatSend, ChatVerb, ChatVoice};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -209,4 +209,73 @@ async fn a_person_acts_on_a_rooms_messages_as_themselves_and_the_record_keeps_an
     asked(&front, "PUT", "/rooms/-100/messages/99/pin", Some(json!({ "on": true })), MEMBERS).await;
 
   assert_eq!((status, refused["code"].as_str()), (StatusCode::NOT_FOUND, Some("message-unknown")));
+}
+
+#[tokio::test]
+async fn the_owners_reaction_refused_in_his_own_voice_goes_in_the_rooms_own_unless_the_room_is_his_alone() {
+  const READ_ONLY: i64 = -200;
+
+  let scratch = Scratch::new().await;
+  let road = std::sync::Arc::new(
+    StandInChat::new("road-a")
+      .holding(&[ROOM, READ_ONLY])
+      .owners(OWNER)
+      .room_moding(READ_ONLY, &[ChatVoice::HumanReader])
+      .refusing_in(ChatVoice::HumanReader, &[ChatVerb::Reaction]),
+  );
+  let front = stood_on(&scratch, OWNER, vec![road.clone()]).await;
+
+  front.standing.web.linking(OWNER, OWNERS.0.to_owned());
+
+  for room in [ROOM, READ_ONLY] {
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+           VALUES ($1, 5, 77, 'someone', 5, 'words', 'road-a')"#,
+        vec![room.into()],
+      )
+      .await;
+  }
+
+  // The reaction and its removal each reach the road in the voice it answers the room by.
+  let (status, reacted) = asked(
+    &front,
+    "PUT",
+    "/rooms/-100/messages/5/reactions/mine",
+    Some(json!({ "emoji": "🔥" })),
+    OWNERS,
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "{reacted}");
+  assert_eq!(reacted["reactions"], json!([{ "emoji": "🔥", "by": OWNER.to_string() }]));
+
+  let (status, unreacted) =
+    asked(&front, "DELETE", "/rooms/-100/messages/5/reactions/mine", None, OWNERS).await;
+
+  assert_eq!((status, &unreacted["reactions"]), (StatusCode::OK, &json!([])));
+
+  let carried: Vec<(i64, String, Option<ChatVoice>)> = road
+    .sent()
+    .into_iter()
+    .filter_map(|held| match held.send {
+      ChatSend::Reaction { message_id, emoji } => Some((message_id, emoji, held.mode)),
+      _ => None,
+    })
+    .collect();
+
+  assert_eq!(carried, [(5, "🔥".to_owned(), None), (5, String::new(), None)]);
+
+  // A room the road reads in the owner's account alone has no other voice to take the act.
+  let (status, _) = asked(
+    &front,
+    "PUT",
+    "/rooms/-200/messages/5/reactions/mine",
+    Some(json!({ "emoji": "🔥" })),
+    OWNERS,
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(road.sent().len(), 2, "{:?}", road.sent());
 }

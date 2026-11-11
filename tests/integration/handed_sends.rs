@@ -100,6 +100,7 @@ async fn a_say_a_command_asks_outside_any_turn_becomes_an_order_for_the_rooms_su
   unsafe {
     std::env::remove_var("BMO_AGENT_PLACE");
     std::env::remove_var("BMO_TURN_AGENT");
+    std::env::remove_var("BMO_TASK_LOCKED");
   }
 
   let (scratch, port, road, _standing, _data) = stood().await;

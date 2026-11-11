@@ -116,7 +116,9 @@ and when a room sees it typing.
   cleared and the moment it went; a sticker is a message of its own, its kind `sticker`, its words the sticker's
   emoji, and its picture where the deployment holds one. Each tells the room's screens with `message.changed`, and
   each goes on to the room's other providers wherever the message stands under a number of the provider's own,
-  as a kept message does (`docs/receiver.md`, 「A room's chat providers」).
+  as a kept message does (`docs/receiver.md`, 「A room's chat providers」). An act carried in a voice the provider
+  refuses it in goes again in the voice the provider answers the room by, where that is another voice and the
+  provider does not read the room in the owner's account alone.
 - **A chat service's word of what happened to a message on its platform is kept the same way** (bmo-chat's
   `docs/contract.md`, 「The receiving side, as a provider sees it」): a reaction change stands in the message's
   reactions, each person it lists under their number, or under the provider's key where it names the account

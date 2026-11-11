@@ -420,7 +420,9 @@ pub async fn echo(
 
 /// An act on a kept message carried to each of the room's other providers where the message stands under a
 /// number of the provider's own (docs/messages.md, 「What an agent can send back」): the act sent with that number,
-/// in the voice named, the room's own where none is.
+/// in the voice named, the room's own where none is. A provider that refuses the act in the voice named is handed
+/// it again in the voice it answers the room by, where that is another voice and the provider does not read the
+/// room in the owner's account alone.
 pub async fn carry_act(
   db: &DatabaseConnection,
   roads: &Roads,
@@ -459,6 +461,29 @@ pub async fn carry_act(
     let mut request = ChatSendRequest::new(chat_id, send);
 
     request.mode = voice;
+
+    let refused = match service.send(&request).await {
+      Ok(_) => continue,
+      Err(why @ ClientFailure::Answered { .. }) => why,
+      Err(why) => {
+        eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {why}");
+
+        continue;
+      }
+    };
+    let own = added::voice_in(db, chat_id).await;
+
+    if voice.is_none() || own == voice || roads.reads_only(&key, chat_id).await {
+      eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {refused}");
+
+      continue;
+    }
+
+    println!(
+      "chat {chat_id}: {key} refused an act on message {message_id} in the voice named, so it goes in the room's own: \
+       {refused}"
+    );
+    request.mode = own;
 
     if let Err(why) = service.send(&request).await {
       eprintln!("chat {chat_id}: an act on message {message_id} was not carried to {key}: {why}");
