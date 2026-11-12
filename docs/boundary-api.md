@@ -69,8 +69,9 @@ road name with its base address and token.
   restart, and what they send it waits for it as rows of its own. A job counts
   only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
   agency answers as starting or running counts, however long it has run, each named by its role and its
-  repository, with the checkout it runs in beside it. It ends 0 where none counts and 1 where some does or the
-  agency or the store did not answer, each one named on its own line.
+  repository, with the checkout it runs in beside it. It ends 0 where none counts, 1 where some does, each one
+  named on its own line, and 2 where the agency or the store did not answer, so a caller tells work under way
+  from a quiet that could not be read.
 - **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
   title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
   the record as its one provider, the owner and the default answerer its members and the default answerer's number there one

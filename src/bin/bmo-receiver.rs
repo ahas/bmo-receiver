@@ -70,8 +70,8 @@ enum Command {
   },
   /// The nouns `bmo` dispatches to this command, one a line.
   Nouns,
-  /// Whether work stands under way that a restart would cut: 0 where none does, 1 where some does or the agency
-  /// did not answer, each one named.
+  /// Whether work stands under way that a restart would cut: 0 where none does, 1 where some does, each one
+  /// named, and 2 where the agency or the store did not answer.
   Quiet {
     /// Counts every open run of a job too, for a unit whose restart can cut a worker's tool calls mid-turn.
     #[arg(long)]
@@ -260,7 +260,7 @@ async fn quiet(config: &Config, jobs: bool) -> u8 {
     Err(why) => {
       println!("the store did not answer which double's slots are held: {why}");
 
-      return 1;
+      return 2;
     }
   };
 
@@ -276,7 +276,7 @@ async fn quiet(config: &Config, jobs: bool) -> u8 {
     Err(why) => {
       println!("what stands under way was not read: {why}");
 
-      1
+      2
     }
   }
 }
