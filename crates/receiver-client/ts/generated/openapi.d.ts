@@ -1375,7 +1375,7 @@ export interface paths {
         };
         /** The voice briefing's two switches as they stand. */
         get: operations["voiceBriefing"];
-        /** One of the voice briefing's switches moved; moving the whole briefing is told to the owner. */
+        /** One of the voice briefing's switches moved; moving the whole briefing is told to the owner, and setting it off stops every briefing the voice engine holds. */
         put: operations["switchVoiceBriefing"];
         post?: never;
         delete?: never;

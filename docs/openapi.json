@@ -8751,7 +8751,7 @@
             "description": "A refusal or failure: unauthorized, one-switch, upstream-failed"
           }
         },
-        "summary": "One of the voice briefing's switches moved; moving the whole briefing is told to the owner.",
+        "summary": "One of the voice briefing's switches moved; moving the whole briefing is told to the owner, and setting it off stops every briefing the voice engine holds.",
         "tags": [
           "Voice briefing"
         ],

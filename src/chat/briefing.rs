@@ -1,12 +1,14 @@
-//! The voice briefing (docs/voiced-notices.md, 「The voice briefing」): its two switches, the voice an agent speaks
-//! in, a notice turn's summary handed to the voice engine, and a line's full reading launched or answered as it
-//! stands there. The engine speaks and keeps every briefing; this decides when one is spoken.
+//! The voice briefing (docs/voiced-notices.md, 「The voice briefing」): its two switches, the engine's briefings
+//! stopped when the whole one is switched off, the voice an agent speaks in, a notice turn's summary handed to the
+//! voice engine, and a line's full reading launched or answered as it stands there. The engine speaks and keeps
+//! every briefing; this decides when one is spoken.
 
 use std::collections::HashSet;
 use std::sync::{LazyLock, Mutex, PoisonError};
 
 use receiver_codes::{VoiceFact, VoiceRefusal};
-use receiver_ports::voice::NewBriefing;
+use receiver_ports::http::Answer;
+use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
 
 use super::notices::{Voiced, queue_notice};
 use crate::receiver::{NotReceived, Receiver};
@@ -34,12 +36,16 @@ pub async fn switches(receiver: &Receiver) -> (bool, bool) {
   (on(receiver, SWITCH).await, on(receiver, AUTOPLAY).await)
 }
 
-/// One switch set; moving the whole briefing queues its line for the owner's private chat, and a write that
-/// changes nothing says nothing.
+/// One switch set; setting the whole briefing off stops every briefing the engine holds, and moving it queues its
+/// line for the owner's private chat, where a write that changes nothing says nothing.
 pub async fn set(receiver: &Receiver, key: &str, value: bool) -> Result<(), NotReceived> {
   let was = on(receiver, key).await;
 
   settings::set(receiver.db(), key, if value { "on" } else { "off" }).await?;
+
+  if key == SWITCH && !value {
+    silence(receiver);
+  }
 
   if key == SWITCH && was != value {
     let fact = if value { VoiceFact::BriefingOn } else { VoiceFact::BriefingOff };
@@ -59,6 +65,70 @@ pub async fn set(receiver: &Receiver, key: &str, value: bool) -> Result<(), NotR
   }
 
   Ok(())
+}
+
+/// Every briefing the engine holds that has not ended stopped, as the whole briefing switched off asks: asked now,
+/// and where the engine did not take the stop, asked again at the policy's pace for as long as the switch stays
+/// off. Nothing waits on it, since a call to an engine that is down waits until it listens.
+pub fn silence(receiver: &Receiver) {
+  let Some(engine) = receiver.units().voice.clone() else {
+    return;
+  };
+  let receiver = receiver.clone();
+
+  tokio::spawn(async move {
+    while !stopped(engine.as_ref()).await {
+      tokio::time::sleep(receiver.voice_stop_pace()).await;
+
+      if switched_back_on(&receiver).await {
+        println!("voice briefing: switched on again, so its stop is asked no more");
+        return;
+      }
+    }
+  });
+}
+
+/// The engine asked once to stop every room's briefings; whether it did.
+async fn stopped(engine: &dyn VoiceEngine) -> bool {
+  match engine.stop_all().await {
+    Ok(stopped) => {
+      println!("voice briefing: switched off, {} briefings stopped", stopped.len());
+      true
+    }
+    Err(why) => {
+      eprintln!(
+        "voice briefing: switched off, but the engine did not stop its briefings, asked again: {why}"
+      );
+      false
+    }
+  }
+}
+
+/// Whether the whole switch reads on again; a store that cannot be read leaves it off, so the stop is still asked.
+async fn switched_back_on(receiver: &Receiver) -> bool {
+  settings::get(receiver.db(), SWITCH)
+    .await
+    .is_ok_and(|value| value.as_deref() != Some("off"))
+}
+
+/// A briefing handed to the engine while the whole switch stands on; none where it is off. One the engine took
+/// while the switch was being set off is stopped with the rest, since the switch is read again once it is taken.
+async fn hand_over(
+  receiver: &Receiver,
+  engine: &dyn VoiceEngine,
+  briefing: &NewBriefing,
+) -> Option<Answer<Briefing>> {
+  if !on(receiver, SWITCH).await {
+    return None;
+  }
+
+  let taken = engine.brief(briefing).await;
+
+  if taken.is_ok() && !on(receiver, SWITCH).await {
+    silence(receiver);
+  }
+
+  Some(taken)
 }
 
 /// The voice an agent's lines are spoken in, the one its registration names; none where it names none.
@@ -174,9 +244,12 @@ pub async fn speak_summary(
     plays: on(receiver, AUTOPLAY).await,
   };
 
-  match engine.brief(&briefing).await {
-    Ok(taken) => println!("notice turn in {chat_id}: summary taken as briefing {}", taken.id),
-    Err(why) => eprintln!("notice turn in {chat_id} could not be summarised: {why}"),
+  match hand_over(receiver, engine.as_ref(), &briefing).await {
+    Some(Ok(taken)) => println!("notice turn in {chat_id}: summary taken as briefing {}", taken.id),
+    Some(Err(why)) => eprintln!("notice turn in {chat_id} could not be summarised: {why}"),
+    None => {
+      println!("notice turn in {chat_id}: the voice briefing was switched off, so no summary is spoken")
+    }
   }
 }
 
@@ -255,7 +328,11 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
     .await
     .map_err(|why| unreachable(why.to_string()))?;
 
-  if let Some(standing) = standing.first().filter(|standing| standing.state != "failed") {
+  // A reading that failed or was stopped stands for nothing: asking for it again launches a new one.
+  if let Some(standing) = standing
+    .first()
+    .filter(|standing| !["failed", "stopped"].contains(&standing.state.as_str()))
+  {
     return Ok(Reading {
       ready: standing.state == "done",
       briefing: Some(standing.id),
@@ -289,8 +366,10 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
       plays: false,
     };
 
-    if let Err(why) = engine.brief(&briefing).await {
-      eprintln!("chat {chat_id}: the full reading of {message_id} was not taken: {why}");
+    match hand_over(&receiver, engine.as_ref(), &briefing).await {
+      Some(Ok(_)) => {}
+      Some(Err(why)) => eprintln!("chat {chat_id}: the full reading of {message_id} was not taken: {why}"),
+      None => println!("chat {chat_id}: the voice briefing was switched off, so {message_id} is not read"),
     }
 
     WRITING.lock().unwrap_or_else(PoisonError::into_inner).remove(&(chat_id, message_id));

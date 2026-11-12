@@ -24,6 +24,7 @@ use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_policy::secret_shapes::SECRET_SHAPES;
 use receiver_policy::talk::TALK;
 use receiver_policy::tool_host::TOOL_HOST;
+use receiver_policy::voice_briefing::VOICE_BRIEFING;
 use receiver_policy::wake::WAKE;
 
 const POLICY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy");
@@ -34,7 +35,7 @@ fn parts() -> Vec<&'static str> {
   let _ = (&*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
   let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING);
-  let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES);
+  let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES, &*VOICE_BRIEFING);
 
   vec![
     "chat-health.toml",
@@ -60,6 +61,7 @@ fn parts() -> Vec<&'static str> {
     "secret-shapes.toml",
     "talk.toml",
     "tool-host.toml",
+    "voice-briefing.toml",
     "wake.toml",
   ]
 }

@@ -1,10 +1,12 @@
 //! The voice briefing (docs/voiced-notices.md, 「The voice briefing」; docs/api.md, 「The voice briefing」): its two
-//! switches moved one at a time and the whole one told to the owner, a line's full reading launched once and then
-//! answered as it stands, its refusals, and a notice turn of the owner's chat summarised by its own session and
+//! switches moved one at a time and the whole one told to the owner, every briefing the engine holds stopped once the
+//! whole one is off and none of them played after, a line's full reading launched once and then answered as it
+//! stands, its refusals, and a notice turn of the owner's chat summarised by its own session and
 //! handed to the voice engine while a round somebody spoke in is not, and no send of the agent's into the room
 //! carried while its briefing turn is.
 
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use axum::body::{Body, to_bytes};
@@ -97,6 +99,91 @@ async fn the_switches_move_one_at_a_time_and_only_the_whole_ones_move_is_told_to
     "the line is about where it ended: {}",
     text[0]
   );
+}
+
+#[tokio::test]
+async fn a_stop_the_engine_did_not_take_is_asked_again_and_every_write_of_off_asks_one() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let voice = front.standing.voice.clone();
+
+  *voice.failing_stops.lock().unwrap() = 2;
+
+  let (status, both) = put(&front, "/voice-briefing", json!({ "on": false })).await;
+
+  assert_eq!((status, both["on"].as_bool()), (StatusCode::OK, Some(false)));
+  until("the stop taken", || voice.stops().last() == Some(&true)).await;
+  assert_eq!(voice.stops(), [false, false, true], "a failed stop is asked again until it is taken");
+
+  put(&front, "/voice-briefing", json!({ "on": false })).await;
+  until("a write of off where it stood stopping", || voice.stops().len() == 4).await;
+}
+
+#[tokio::test]
+async fn switching_the_whole_briefing_off_stops_a_waiting_a_speaking_and_a_just_taken_briefing_and_none_plays_after()
+ {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let voice = front.standing.voice.clone();
+  let reading = |message: i64| format!("/rooms/{ROOM}/messages/{message}/reading");
+
+  front.standing.agency.registering(vec![voiced(Some(VOICE))]);
+
+  for message in [11, 12, 13] {
+    line(&scratch, message, Some(AGENT), "Agent A").await;
+  }
+
+  post(&front, &reading(11), json!({})).await;
+  until("the waiting reading taken", || voice.briefed().len() == 1).await;
+  post(&front, &reading(12), json!({})).await;
+  until("the speaking reading taken", || voice.briefed().len() == 2).await;
+  voice.states.lock().unwrap().insert(2, "speaking".to_owned());
+
+  // The third reading is handed over while the switch stands on, and the engine takes it only once it is off.
+  let held = voice.taking.write().await;
+
+  post(&front, &reading(13), json!({})).await;
+  until("the third reading handed over", || voice.handed.load(Ordering::SeqCst) == 3).await;
+
+  let (status, _) = put(&front, "/voice-briefing", json!({ "on": false })).await;
+
+  assert_eq!(status, StatusCode::OK);
+  until("the stop taken", || voice.stops() == [true]).await;
+  assert_eq!(
+    (voice.state_of(1), voice.state_of(2)),
+    ("stopped".to_owned(), "stopped".to_owned()),
+    "the waiting and the speaking briefing are stopped"
+  );
+
+  drop(held);
+  until("the briefing taken as the switch moved stopped", || voice.state_of(3) == "stopped").await;
+  assert_eq!(voice.stops(), [true, true], "taken after the off, it was stopped by a stop of its own");
+
+  let (_, refused) = post(&front, &reading(11), json!({})).await;
+
+  assert_eq!(refused["code"].as_str(), Some("switched-off"), "nothing is read while it is off");
+
+  put(&front, "/voice-briefing", json!({ "on": true })).await;
+
+  assert_eq!(
+    (voice.handed.load(Ordering::SeqCst), voice.stops().len()),
+    (3, 2),
+    "switching it on hands the engine nothing"
+  );
+  assert!(
+    (1..=3).all(|id| voice.state_of(id) == "stopped"),
+    "no stopped briefing is ever taken up again"
+  );
+
+  let (_, asked) = post(&front, &reading(11), json!({})).await;
+
+  assert_eq!(
+    asked,
+    json!({ "state": "making", "briefingId": null }),
+    "a stopped reading is never answered"
+  );
+  until("a reading asked again launched anew", || voice.briefed().len() == 4).await;
+  assert_eq!((voice.state_of(1), voice.state_of(4)), ("stopped".to_owned(), "waiting".to_owned()));
 }
 
 #[tokio::test]

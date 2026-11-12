@@ -1768,10 +1768,21 @@ impl Runner for Taken {
 }
 
 /// The voice engine, keeping every briefing it was handed and answering a line's briefings from them, each in the
-/// state the test sets.
+/// state the test gives it, else in the state the test sets for all; a stop ends every briefing not yet ended, once
+/// the stops the test makes fail have failed. A briefing is taken only once the test lets go of `taking`.
 pub struct StandInVoice {
   pub briefed: Mutex<Vec<NewBriefing>>,
   pub state: Mutex<String>,
+  /// The state of each briefing the test or a stop gave one of its own, by its id.
+  pub states: Mutex<BTreeMap<i64, String>>,
+  /// Held by a test, every briefing handed over waits for it to be let go before it is taken.
+  pub taking: tokio::sync::RwLock<()>,
+  /// How many briefings were handed over, taken or still waiting on `taking`.
+  pub handed: AtomicUsize,
+  /// How many stops still fail before one is taken.
+  pub failing_stops: Mutex<usize>,
+  /// Every stop asked, in order, each with whether it was taken.
+  pub stops: Mutex<Vec<bool>>,
 }
 
 impl StandInVoice {
@@ -1779,12 +1790,29 @@ impl StandInVoice {
     Self {
       briefed: Mutex::default(),
       state: Mutex::new("waiting".to_owned()),
+      states: Mutex::default(),
+      taking: tokio::sync::RwLock::default(),
+      handed: AtomicUsize::default(),
+      failing_stops: Mutex::default(),
+      stops: Mutex::default(),
     }
   }
 
-  /// Every briefing handed over, in order.
+  /// Every briefing taken, in order.
   pub fn briefed(&self) -> Vec<NewBriefing> {
     self.briefed.lock().unwrap().clone()
+  }
+
+  /// Where the briefing `id` stands: its own state where it has one, else the state set for all.
+  pub fn state_of(&self, id: i64) -> String {
+    let own = self.states.lock().unwrap().get(&id).cloned();
+
+    own.unwrap_or_else(|| self.state.lock().unwrap().clone())
+  }
+
+  /// Every stop asked, in order, each with whether it was taken.
+  pub fn stops(&self) -> Vec<bool> {
+    self.stops.lock().unwrap().clone()
   }
 }
 
@@ -1889,6 +1917,9 @@ impl Hearing for StandInHearing {
 impl VoiceEngine for StandInVoice {
   fn brief<'a>(&'a self, briefing: &'a NewBriefing) -> BoxFuture<'a, Answer<Briefing>> {
     Box::pin(async move {
+      self.handed.fetch_add(1, Ordering::SeqCst);
+
+      let _taking = self.taking.read().await;
       let mut briefed = self.briefed.lock().unwrap();
 
       briefed.push(briefing.clone());
@@ -1908,12 +1939,10 @@ impl VoiceEngine for StandInVoice {
     kind: &'a str,
   ) -> BoxFuture<'a, Answer<Vec<Briefing>>> {
     Box::pin(async move {
-      let state = self.state.lock().unwrap().clone();
-      let briefed = self.briefed.lock().unwrap();
+      let briefed = self.briefed().into_iter();
 
       Ok(
         briefed
-          .iter()
           .enumerate()
           .rev()
           .filter(|(_, one)| {
@@ -1921,11 +1950,53 @@ impl VoiceEngine for StandInVoice {
           })
           .map(|(at, one)| Briefing {
             id: at as i64 + 1,
-            kind: one.kind.clone(),
-            state: state.clone(),
+            kind: one.kind,
+            state: self.state_of(at as i64 + 1),
           })
           .collect(),
       )
+    })
+  }
+
+  fn stop_all(&self) -> BoxFuture<'_, Answer<Vec<Briefing>>> {
+    Box::pin(async move {
+      let mut failing = self.failing_stops.lock().unwrap();
+
+      if *failing > 0 {
+        *failing -= 1;
+        self.stops.lock().unwrap().push(false);
+
+        return Err(PortFailure::Transport {
+          url: "http://voice/briefings/stop".to_owned(),
+          why: "the stand-in engine fails this stop".to_owned(),
+        });
+      }
+
+      drop(failing);
+      self.stops.lock().unwrap().push(true);
+
+      let stopped: Vec<Briefing> = self
+        .briefed()
+        .into_iter()
+        .enumerate()
+        .map(|(at, one)| Briefing {
+          id: at as i64 + 1,
+          kind: one.kind,
+          state: self.state_of(at as i64 + 1),
+        })
+        .filter(|one| ["waiting", "speaking"].contains(&one.state.as_str()))
+        .map(|one| Briefing {
+          state: "stopped".to_owned(),
+          ..one
+        })
+        .collect();
+      let mut states = self.states.lock().unwrap();
+
+      for one in &stopped {
+        states.insert(one.id, one.state.clone());
+      }
+
+      Ok(stopped)
     })
   }
 }
@@ -2073,7 +2144,8 @@ pub fn unrun(
     .with_news(heard.clone())
     .with_wake(waking.clone())
     .with_situation_updates(false)
-    .with_review_gate(false);
+    .with_review_gate(false)
+    .stopping_voice_every(Duration::from_millis(2));
 
   Standing {
     receiver,

@@ -1,0 +1,5 @@
+# The voice briefing's whole switch (docs/voiced-notices.md, 「The switches」): how the receiver keeps asking the
+# voice engine to stop its briefings once the switch is set off and a stop it asked for failed.
+
+# How long the receiver waits before asking the engine to stop again, in milliseconds.
+stop_again_ms = 5000

@@ -225,6 +225,15 @@ pub fn keep(standing: &Standing) {
       eprintln!("bmo-receiver: the windows still open were not watched: {why}");
     }
   });
+  // A stop of the voice engine's briefings a restart cut short is asked again while the whole briefing stands off
+  // (docs/voiced-notices.md, 「The switches」).
+  let silencing = standing.receiver.clone();
+
+  tokio::spawn(async move {
+    if !crate::chat::briefing::on(&silencing, crate::chat::briefing::SWITCH).await {
+      crate::chat::briefing::silence(&silencing);
+    }
+  });
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();
   keep_restart(standing.receiver.clone(), standing.runner.clone());

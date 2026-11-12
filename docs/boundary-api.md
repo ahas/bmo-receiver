@@ -388,7 +388,8 @@ configuration names: `POST /briefings` with `voiceName`, `text`, `chatId`, `mess
 `emotion?` and `plays`, a notice turn's summary or a line's full reading, its `text` the written words and no
 `spoken`, so the engine derives the spoken words; `POST /syntheses` with `voiceName`, `text` and `spoken?`,
 then `GET /syntheses/{id}` and its `sound`, a spoken `talk`; and `GET /briefings` with `chatId`,
-`messageId` and `kind`, the page a line's full reading is looked up in. The voice an agent speaks in is the
+`messageId` and `kind`, the page a line's full reading is looked up in; `POST /briefings/stop` with an empty body,
+every room's briefings stopped once the whole voice briefing is switched off. The voice an agent speaks in is the
 `voice` its agency registration names. The receiver reads `id`, `state` and `kind` of a briefing, and nothing of
 its sound: listeners read that, and the briefing's events, from the engine.
 

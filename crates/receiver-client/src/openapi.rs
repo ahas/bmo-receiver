@@ -1075,7 +1075,7 @@ pub fn openapi() -> Value {
     "/voice-briefing",
     "switchVoiceBriefing",
     "Voice briefing",
-    "One of the voice briefing's switches moved; moving the whole briefing is told to the owner.",
+    "One of the voice briefing's switches moved; moving the whole briefing is told to the owner, and setting it off stops every briefing the voice engine holds.",
     vec![],
     Some(generator.subschema_for::<VoiceBriefingSwitch>()),
     vec![(200, json_answer::<VoiceBriefing>(&mut generator))],

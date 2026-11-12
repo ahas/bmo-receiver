@@ -1,4 +1,5 @@
-//! The voice engine's port: a briefing taken in, and the briefings a line holds looked up (`docs/boundary-api.md`,
+//! The voice engine's port: a briefing taken in, the briefings a line holds looked up, and every room's briefings
+//! stopped (`docs/boundary-api.md`,
 //! 「The voice engine」; the voice's `docs/boundary-api.md`, 「Briefings」). Bodies are camelCase, behind the bearer
 //! token the configuration holds for it.
 
@@ -30,7 +31,7 @@ pub struct NewBriefing {
 pub struct Briefing {
   pub id: i64,
   pub kind: String,
-  /// `waiting`, `speaking`, `done` or `failed`.
+  /// `waiting`, `speaking`, `done`, `failed` or `stopped`.
   pub state: String,
 }
 
@@ -38,6 +39,10 @@ pub struct Briefing {
 struct Page {
   items: Vec<Briefing>,
 }
+
+// Whose briefings a stop ends: every room's, as the body names none.
+#[derive(Serialize)]
+struct EveryRoom {}
 
 /// Every call the receiver makes on the voice engine.
 pub trait VoiceEngine: Send + Sync {
@@ -51,6 +56,9 @@ pub trait VoiceEngine: Send + Sync {
     message_id: i64,
     kind: &'a str,
   ) -> BoxFuture<'a, Answer<Vec<Briefing>>>;
+
+  /// Every room's briefings that have not ended stopped at once, answered with the briefings it stopped.
+  fn stop_all(&self) -> BoxFuture<'_, Answer<Vec<Briefing>>>;
 }
 
 /// The voice engine over HTTP.
@@ -88,6 +96,14 @@ impl VoiceEngine for HttpVoice {
         ("limit", "10".to_owned()),
       ];
       let page: Page = self.caller.get(&["briefings"], &query).await?;
+
+      Ok(page.items)
+    })
+  }
+
+  fn stop_all(&self) -> BoxFuture<'_, Answer<Vec<Briefing>>> {
+    Box::pin(async move {
+      let page: Page = self.caller.post(&["briefings", "stop"], &EveryRoom {}).await?;
 
       Ok(page.items)
     })

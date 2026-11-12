@@ -26,6 +26,7 @@ pub mod second_asks;
 pub mod secret_shapes;
 pub mod talk;
 pub mod tool_host;
+pub mod voice_briefing;
 pub mod wake;
 
 /// A line of the policy with each `{name}` it holds filled in, every one at once so a value that itself holds a

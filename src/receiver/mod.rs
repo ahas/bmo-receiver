@@ -418,6 +418,8 @@ pub struct Receiver {
   review_gate: bool,
   // How long a round waits between two tries to re-attach to a cut turn while the agency answers nothing.
   re_attach_pace: Duration,
+  // How long the receiver waits before asking the voice engine again to stop its briefings, once a stop failed.
+  voice_stop_pace: Duration,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -476,6 +478,9 @@ impl Receiver {
       situation_updates: true,
       review_gate: true,
       re_attach_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.attach.pace_ms.max(1)),
+      voice_stop_pace: Duration::from_millis(
+        receiver_policy::voice_briefing::VOICE_BRIEFING.stop_again_ms.max(1),
+      ),
     }
   }
 
@@ -540,6 +545,18 @@ impl Receiver {
   /// How long a round waits between two tries to re-attach to a cut turn while the agency answers nothing.
   pub fn re_attach_pace(&self) -> Duration {
     self.re_attach_pace
+  }
+
+  /// The same receiver, waiting `pace` before asking the voice engine again to stop its briefings rather than the
+  /// policy's.
+  pub fn stopping_voice_every(mut self, pace: Duration) -> Self {
+    self.voice_stop_pace = pace.max(Duration::from_millis(1));
+    self
+  }
+
+  /// How long the receiver waits before asking the voice engine again to stop its briefings, once a stop failed.
+  pub fn voice_stop_pace(&self) -> Duration {
+    self.voice_stop_pace
   }
 
   /// The conversations that answer a line typed into the default answerer's program, and that take the warmer's touch

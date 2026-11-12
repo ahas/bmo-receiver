@@ -48,6 +48,7 @@ it acts on itself, each named here.
 | `run-lines.toml` | each line's `keeps_session`, and the chat line's `composes_typed_lines` | whether a line's turns go on one session, whose typed lines are composed |
 | `roles.toml` | `send`, the bundle that opens sending, and `supervisor`, the bundles every supervisor holds; a role's own bundles are the agency's (`GET /roles`) | whether the asker gives sending |
 | `keepalive.toml` | `prompt` | the touch's prompt |
+| `voice-briefing.toml` | `stop_again_ms` | how long the receiver waits before asking the voice engine again to stop its briefings, once a stop it asked for when the whole briefing was switched off failed |
 | `providers.toml` | each provider's `turns` and `handover`, Claude Code's `keepalive_idle_minutes` and `cache_minutes`, and the `own_words` of the providers whose programs write words of their own into a turn | how a turn goes in and is read back, how a full session is handed over, when the touch is due, when a session's cache has expired, which words of an answer are the program's |
 
 ## What is configuration rather than policy

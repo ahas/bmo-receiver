@@ -185,7 +185,18 @@ spoken, and the session writes what is said.
 
 - **One switch for the whole briefing,** the receiver's setting `voice_briefing`, `on` or `off`; a missing row
   reads as on. It is read at every door: before a notice turn's summary is asked for and before a line's full
-  reading is launched. A refusal is `switched-off` (`docs/codes.md`, 「VoiceRefusal」).
+  reading is launched, and again at the moment a summary or a reading is handed to the engine, so a script the
+  session wrote while the switch moved goes nowhere. A refusal is `switched-off` (`docs/codes.md`,
+  「VoiceRefusal」).
+- **Switching it off silences what the engine already holds.** Right after the setting is written `off`, the
+  receiver asks the engine to stop every briefing of every room that has not ended (`POST /briefings/stop` with no
+  room), so a briefing waiting or speaking is stopped, the console's player falls silent and nothing taken before
+  plays afterwards. A summary or reading the engine took while the switch was being set off is stopped as well: the
+  receiver reads the switch again once the engine has taken it, and asks for the stop where it now stands off. A
+  stop that fails is logged and asked again at the policy's pace (`voice-briefing.toml`) for as long as the switch
+  stays off, and the receiver asks for it once more at its own start while the switch stands off, so a stop a
+  restart cut short is still made. Writing `off` where it already stood asks for the stop as well. Switching it
+  back on starts nothing that was stopped: a stopped briefing never plays again.
 - **A second switch, whether a briefing plays by itself,** the setting `voice_briefing_autoplay`, on unless it
   holds `off`. It decides only whether a listener plays a summary on its own: the receiver hands it to the engine
   with each summary, as it stands at that moment, and the engine keeps it on the briefing and its events. It stays
@@ -242,7 +253,7 @@ spoken, and the session writes what is said.
   send, with words of its own; any other message is `not-found`.
 - **Nothing is made before it is asked for.** The receiver asks the engine for the line's full reading
   (`GET /briefings` by room, line and kind): one waiting or speaking answers `making`, one done answers `ready`.
-  Where there is none, or the last one failed, it answers `making` at once and asks the line's agent, in one turn of its session in the line's room, for the whole line as a spoken script: the turn is marked and carries
+  Where there is none, or the last one failed or was stopped, it answers `making` at once and asks the line's agent, in one turn of its session in the line's room, for the whole line as a spoken script: the turn is marked and carries
   the line as data, and what the marker asks for stands in the room's block (`policy/chat-round.toml`, `[voice]`,
   `reading_marker`, `reading_rule`), every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
   `full`; a session that gives no script, or one past its cache lifetime, which is never woken for it
