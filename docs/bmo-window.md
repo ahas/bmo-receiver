@@ -127,18 +127,43 @@ that session without the room hearing it.
   that also read a room's words answers those words, with the agent-only record read as part of the turn.
 - **A row waits for a turn to take it.** A row carries no expiry: it is delivered with the round it is handed
   to, however long it waited, and a newer row of the same kind in the chat replaces one not yet handed.
+- **A row moves through one lifecycle, and no row is ever deleted.** It is pending until the pass hands it to a
+  room's conversation (`handed_at`). It is carried once a turn holds its text: the round's own turn where the row
+  stands in its prompt, or the working turn a push put it into, the turn's session and id written on the row as
+  the agency names the turn. It is settled (`delivered_at`, and the round that settled it) only once its round
+  ended with its message or its skip, after the turn that carried it ended answered in the session that received
+  its text. Every other end returns the row to pending with its carrying cleared: a round that failed, a turn of
+  a double that handed the round back (`docs/drafting.md`, 「A round handed to the double」), a restart of the
+  receiver, a round that ended before any turn carried the row. A row that is not to be carried is let go: kept
+  on the table, settled with the reason it went (`let_go`) and no round — a newer row of its kind replaced it,
+  its producer withdrew it, no turn could ever take it, a stop asked of its round ended it, a reset cut its agent
+  off, or its failures reached the limit.
 - **A row carries its cause:** a room reply, which answers something a room or the owner asked and opens its
   turn on a session past its cache lifetime too, or housekeeping, a record for the agent alone that waits there
   for a round something else opens (`docs/wake.md`, 「Quiet instructions」). The producer names it on the row; a
   row marked `agent_only` is housekeeping whatever it names, and a row that names none is a room reply.
-- **A round settles the rows it took however it ended, except a room reply in a round that failed.** A round
-  that failed for any reason but a stop asked of it gives its room replies back to pending, counting the failure
-  on the row as a restart is counted, so the next pass hands them again; a reply given back the policy's
-  `restart_limit` times is settled with the round that failed last, whose failure order still stands. A stop
-  asked of a round raises no order at all. The words such a round took go back to wait the same way
-  (`docs/messages.md`, 「Read marker」).
-  A round whose turn's end never reached it, because the agency's event stream ended first, reads the turn's
-  end from the agency; where the agency no longer holds the turn the round has failed.
+- **A round that failed gives back every row it took, whatever its cause, and the words it took.** A row whose
+  text a session received before the round failed is marked as handed before (`restarts`), so the turn that takes
+  it next opens it under the policy's marker and looks at what is already done before it repeats anything. A
+  failure the agency answered — the turn ended failed, a call refused, a step of the receiver's own failing — is
+  counted on each row the round took (`failures`), and a row counted the policy's `failure_limit` times is let go
+  as `failed` with the round that failed last, whose failure order still stands. A failure where the agency was
+  unreachable, cut the turn's connection or holds no record of the turn counts nothing: no row and no word is
+  ever let go for it, and the instruction pass holds the agent's rows until the agency answers again. A stop
+  asked of a round raises no order at all and lets its rows go as `stopped`. The words a failed round took go
+  back to wait the same way and are counted the same way (`docs/messages.md`, 「Read marker」).
+- **A turn is a resource the round re-attaches to, never one held call.** The round sends its turn under a key of
+  its own (`docs/boundary-api.md`, 「The agency」) and follows the turn's end on the agency's event stream. A cut
+  — the stream ending or failing, or the send's connection closing — is no end of the turn: the round opens the
+  stream again and reads the events the agency kept since the last one heard before the turn went out, where the
+  turn's end, once it came, stands. Where none does it reads the turn: one still running is followed on; one whose
+  read carries its end gives it; one read as ended with its end nowhere the round can read, and one the agency
+  holds no record of, fail the round, uncounted, so the round runs again rather than settle its rows on an answer
+  it never read. A turn the round never heard named,
+  and which no kept event names, is sent again under the same key, which the agency attaches to the turn
+  standing under it. While
+  the agency answers nothing the round keeps asking, and only after the round policy's `reattach_ms` without an
+  answer does it fail, uncounted.
 - **Acted on as the owner's word in that chat.** The session may skip the instruction in any chat, the owner's
   private chat included, when acting on it needs nothing said; where the instruction rode a round of a room, the
   skip goes in the round's form, which names why (`docs/drafting.md`, 「What it is」). The permission covers the
@@ -156,8 +181,8 @@ that session without the room hearing it.
 - **It never holds a room open.** A skip of an instruction opens no window, and a conversation opened for
   an instruction closes as soon as it is done, so a room is never listened to on an instruction's account; an
   answer to the room's own messages is the one thing that keeps the room open.
-- **The pass skips rows for a chat the usage rest has silenced** until the rest lifts. A row is marked handed
-  the moment it is handed over and delivered when the round that took it settles it.
+- **The pass skips rows for a chat the usage rest has silenced** until the rest lifts, and the rows of an agent
+  whose last round failed with the agency unreachable until the agency answers a read again.
 - **Cold wakes are paced.** Handing an instruction to a chat that is not talking resumes its session and
   prefills its whole context again, so a reload that queues one row per room would re-prefill every room at
   once. So the pass lets a cold wake through only when the launch gap has passed since the last one, the same

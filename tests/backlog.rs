@@ -114,9 +114,7 @@ async fn a_restart_serves_each_room_once_and_in_order() {
   rows::set_last_read(round.scratch.db(), ROOM, 1).await.unwrap();
   rows::set_last_read(round.scratch.db(), ROOM_B, 1).await.unwrap();
 
-  let conversations = round.runner.default_answerer().clone();
-
-  resume_backlog(&round.standing.receiver, &conversations).await.unwrap();
+  resume_backlog(&round.standing.receiver, &round.runner).await.unwrap();
 
   let prompts = round.session.prompts();
 
@@ -129,7 +127,7 @@ async fn a_restart_serves_each_room_once_and_in_order() {
   assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(3));
 
   // A line already served is not served again.
-  resume_backlog(&round.standing.receiver, &conversations).await.unwrap();
+  resume_backlog(&round.standing.receiver, &round.runner).await.unwrap();
 
   assert_eq!(round.session.prompts().len(), 2, "the read marks hold every line served");
 
@@ -144,12 +142,12 @@ async fn a_restart_serves_each_room_once_and_in_order() {
     .await;
   round.standing.web.watching(&[ROOM]);
 
-  resume_backlog(&round.standing.receiver, &conversations).await.unwrap();
+  resume_backlog(&round.standing.receiver, &round.runner).await.unwrap();
 
   assert_eq!(round.session.prompts().len(), 3, "the unread room is served");
   assert!(round.session.prompts()[2].contains("said with its window closed"));
   assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(4));
 
-  conversations.close(ROOM).await;
-  conversations.close(ROOM_B).await;
+  round.runner.default_answerer().close(ROOM).await;
+  round.runner.default_answerer().close(ROOM_B).await;
 }

@@ -7,6 +7,7 @@
 pub mod alone;
 pub mod queue;
 pub mod scratch;
+pub mod served_agency;
 pub mod session;
 pub mod units;
 

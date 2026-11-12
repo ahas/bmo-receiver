@@ -1,5 +1,6 @@
 //! How every port reaches its unit: behind the unit's token where it takes one, a refusal read with its code, a
-//! refused connection offered again until the unit listens or only once where no wait is set, and an address that is no `http` one refused.
+//! refused connection offered again until the unit listens or only once where no wait is set, a read whose
+//! connection was cut offered again and a post never, and an address that is no `http` one refused.
 
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -136,4 +137,87 @@ async fn an_address_that_is_no_http_one_is_refused_before_anything_is_sent() {
   let failure = Caller::new(&peer).post::<Done>(&["ping"], &json!({})).await.unwrap_err();
 
   assert!(matches!(failure, PortFailure::NotAnAddress { .. }), "{failure:?}");
+}
+
+// A waiter that returns at once, counting the waits it was asked for.
+#[derive(Default)]
+struct Counting(AtomicU32);
+
+impl Wait for Counting {
+  fn wait(&self, _interval: Duration) -> BoxFuture<'_, ()> {
+    self.0.fetch_add(1, Ordering::SeqCst);
+
+    Box::pin(async {})
+  }
+}
+
+// A unit that cuts the connection of every call before the last it takes, as a unit stopping does, and answers
+// the last with success; it stops listening once it has taken them.
+async fn cutting(calls: u32) -> (std::net::SocketAddr, tokio::task::JoinHandle<()>) {
+  use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+  let listener = tokio::net::TcpListener::bind("[::1]:0").await.unwrap();
+  let address = listener.local_addr().unwrap();
+  let serving = tokio::spawn(async move {
+    for taken in 1..=calls {
+      let (mut stream, _) = listener.accept().await.unwrap();
+      let mut head = [0_u8; 4096];
+      let _ = stream.read(&mut head).await.unwrap();
+
+      if taken < calls {
+        drop(stream);
+        continue;
+      }
+
+      let body = r#"{"ok":true}"#;
+      let answer = format!(
+        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+        body.len()
+      );
+
+      stream.write_all(answer.as_bytes()).await.unwrap();
+    }
+  });
+
+  (address, serving)
+}
+
+#[tokio::test]
+async fn a_read_whose_connection_is_cut_is_offered_again_and_a_post_is_not() {
+  let (address, serving) = cutting(3).await;
+  let waits = Arc::new(Counting::default());
+  let caller = Caller::new(&Peer {
+    base: format!("http://{address}"),
+    token: "t".to_owned(),
+  })
+  .with_patience(Patience {
+    every: Duration::from_secs(2),
+    waiter: waits.clone(),
+  });
+
+  let done: Done = caller.get(&["ping"], &[]).await.unwrap();
+
+  assert!(done.ok);
+  assert_eq!(waits.0.load(Ordering::SeqCst), 2, "each cut is waited out once");
+  serving.await.unwrap();
+
+  let (address, serving) = cutting(2).await;
+  let waits = Arc::new(Counting::default());
+  let caller = Caller::new(&Peer {
+    base: format!("http://{address}"),
+    token: "t".to_owned(),
+  })
+  .with_patience(Patience {
+    every: Duration::from_secs(2),
+    waiter: waits.clone(),
+  });
+  let failure = caller.post::<Done>(&["ping"], &json!({})).await.unwrap_err();
+
+  assert!(matches!(failure, PortFailure::Transport { .. }), "{failure:?}");
+  assert_eq!(
+    waits.0.load(Ordering::SeqCst),
+    0,
+    "a post that may have started work is never sent again"
+  );
+  serving.abort();
 }

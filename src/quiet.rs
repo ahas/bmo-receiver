@@ -1,19 +1,23 @@
 //! Whether work stands under way that a restart of the receiver would cut (docs/boundary-api.md, 「The service and
-//! its commands」, `quiet`): the agency's runs still open, each that counts named.
+//! its commands」, `quiet`): the agency's runs still open and the double's slots the receiver holds, each that
+//! counts named.
 
-use receiver_policy::quiet::QUIET;
 use receiver_ports::agency::{Agency, OpenRun, RunningJob};
+use sea_orm::DatabaseConnection;
 
-/// The open runs that count as under way, each named as a line: one whose name carries a long-work word or a
-/// chat turn's word, however long it has run; no other.
+use crate::chat::double_slots;
+
+/// Whether a restart of the receiver would cut the round that follows the run: a turn of one of its rounds, or a
+/// turn answering a room that is no job's turn. What a run is decides, never a word of its name.
+pub fn counts(run: &OpenRun) -> bool {
+  run.round.is_some() || (run.room_id.is_some() && run.job_id.is_none())
+}
+
+/// The open runs that count as under way, each named as a line, however long it has run.
 pub fn under_way(open: &[OpenRun]) -> Vec<String> {
   open
     .iter()
-    .filter(|run| {
-      let carries = |words: &[String]| words.iter().any(|word| run.name.contains(word.as_str()));
-
-      carries(&QUIET.long_words) || carries(&QUIET.turn_words)
-    })
+    .filter(|run| counts(run))
     .map(|run| format!("run {} {} under way since {}", run.id, run.name, run.started_at))
     .collect()
 }
@@ -41,10 +45,17 @@ pub fn jobs_under_way(jobs: &[RunningJob]) -> Vec<String> {
     .collect()
 }
 
-/// What stands under way as the agency answers now: the runs that count, and with `jobs` every job starting or
-/// running; the agency's failure where it did not answer either.
-pub async fn asked(agency: &dyn Agency, jobs: bool) -> Result<Vec<String>, String> {
+/// What stands under way now: the runs that count as the agency answers them, every double's slot the store
+/// holds, since the agency opens no run for a double's turn, and with `jobs` every job starting or running; the
+/// failure of whichever did not answer.
+pub async fn asked(
+  agency: &dyn Agency,
+  db: &DatabaseConnection,
+  jobs: bool,
+) -> Result<Vec<String>, String> {
   let mut lines = agency.open_runs().await.map(|open| under_way(&open)).map_err(|why| why.to_string())?;
+
+  lines.extend(double_slots::under_way(db).await.map_err(|why| why.detail)?);
 
   if jobs {
     lines.extend(

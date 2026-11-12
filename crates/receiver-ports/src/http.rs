@@ -1,6 +1,7 @@
 //! How a port reaches its unit: a call of a JSON body, a GET with its query, or a GET held open for the events
 //! it streams, at a path under the unit's base address and behind the unit's token, offered again for as long as
-//! the connection is refused (`docs/boundary-api.md`, 「Calls the receiver makes」).
+//! the connection is refused, and, for a call that changes nothing by being made twice, for as long as its
+//! connection is cut before an answer (`docs/boundary-api.md`, 「Calls the receiver makes」).
 
 use std::fmt;
 use std::io;
@@ -387,6 +388,7 @@ impl Caller {
       }
     };
     let Patience { every, waiter } = &self.patience;
+    let repeatable = [Method::GET, Method::HEAD, Method::PUT, Method::DELETE].contains(&method);
 
     loop {
       let error = match request().send().await {
@@ -394,7 +396,7 @@ impl Caller {
         Err(error) => error,
       };
 
-      if !refused(&error) {
+      if !refused(&error) && !(repeatable && cut(&error)) {
         return Err(PortFailure::Transport {
           url: shown,
           why: chain(&error),
@@ -486,6 +488,16 @@ fn refused(error: &reqwest::Error) -> bool {
   }
 
   false
+}
+
+/// Whether the connection was cut before an answer came, as a unit stopping cuts it: a call that changes nothing by
+/// being made twice may be made again. A call no answer came to within a timeout of its own is no cut.
+fn cut(error: &reqwest::Error) -> bool {
+  !error.is_timeout()
+    && !error.is_builder()
+    && !error.is_redirect()
+    && !error.is_status()
+    && !error.is_decode()
 }
 
 /// The error and every cause beneath it, in one line.

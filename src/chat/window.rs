@@ -332,7 +332,9 @@ async fn answered_line(
   Ok(Some(message_line(&said.sender_name, said.sender_id, &text)))
 }
 
-/// What this turn is handed. A selection that fails costs the turn its reference and nothing else.
+/// What this turn is handed. A selection that fails costs a turn carrying no events its reference and nothing else;
+/// one whose envelope carried events fails the turn, so the rows that brought them go back rather than being
+/// settled with nothing of them read (docs/boundary-api.md, 「The gate」).
 pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Selection, Fault> {
   let chat_id = material.chat_id;
   let speakers: Vec<i64> = material
@@ -385,6 +387,12 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
   };
   let entries = match receiver.units().gate.reference(&envelope).await {
     Ok(entries) => entries,
+    Err(why) if !material.events.is_empty() => {
+      return Err(Fault::new(format!(
+        "the reference selection failed for a turn carrying {} event(s): {why}",
+        material.events.len()
+      )));
+    }
     Err(why) => {
       eprintln!("bmo-receiver: the reference selection failed: {why}");
       vec![]

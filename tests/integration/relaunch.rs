@@ -59,7 +59,7 @@ fn brief(fact: &str) -> String {
 async fn rows(scratch: &Scratch, chat_id: i64) -> Vec<String> {
   scratch
     .texts(&format!(
-      r#"SELECT "text" || ' | ' || "rides"::text || ' ' || "kind" FROM "instructions" WHERE "chat_id" = {chat_id} AND "sort" = 'briefing' ORDER BY "id""#
+      r#"SELECT "text" || ' | ' || "rides"::text || ' ' || "kind" FROM "instructions" WHERE "chat_id" = {chat_id} AND "sort" = 'briefing' AND "let_go" IS NULL ORDER BY "id""#
     ))
     .await
 }

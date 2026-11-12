@@ -200,8 +200,9 @@ its rounds.
 - **An empty queue has no timer,** so a quiet room costs nothing and a busy one costs one run per five seconds
   instead of one per message.
 - **Quiet instructions, touches and the start-up backlog do not queue.** The start-up backlog is one turn per room
-  with unread lines, handed in room order; its lines are read as the turn goes out, a room with nothing waiting is
-  not served, and a line served is not served again.
+  with unread lines, handed in room order to every agent the room's words wake by the one rule a message is
+  judged by, whichever agent answers the room; its lines are read as the turn goes out, a room with nothing
+  waiting is not served, and a line served is not served again.
 - **A session answers one round at a time, and a round is over only once its answer has gone out.** Sending is
   not instant (the road's send may have to be waited out) so a round that counted
   itself finished before it had sent would let the next message start a second run of the same session, and the
@@ -287,7 +288,7 @@ fields: a cut-off names the `point` alone, a reset names its `ranges`.
 - **The cut-off is the live signal,** heard for as long as the service runs. Its point is kept as the agent's
   reset point, a later point in place of an earlier one. Everything waiting for the
   agent's turns in every room is let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on,
-  and its quiet instructions, whose rows are settled as delivered so no turn takes them again. An agent whose
+  and its quiet instructions, whose rows are let go as `reset` so no turn takes them again. An agent whose
   conversations do not stand in this process has nothing waiting. A turn under way is the agency's to stop, and
   a stopped round ends as any stopped round does.
 
@@ -336,8 +337,11 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
 - **A pending room reply is an obligation the receiver keeps until a round has taken it.** It carries no age and
   nothing lets it go for having waited. The pass looks at every pending row on each tick, at every opening of
   the agency's event stream (「What the agency's events wake」 below) and as the receiver starts, and hands each
-  reply it finds. A row handed into a round that fails goes back to pending with the round's failure counted on
-  it (`docs/bmo-window.md`, 「Quiet instruction」), so the next pass hands it again. A session the agency ended is
+  reply it finds. A row handed into a round that fails goes back to pending, its failure counted only where the
+  agency answered it (`docs/bmo-window.md`, 「Quiet instruction」), so the next pass hands it again; while the
+  agency does not answer, the pass holds the agent's rows rather than handing them into rounds that cannot
+  reach it, and hands them once a read of the agency is answered. Housekeeping goes back the same way: a round
+  that failed settles nothing it took. A session the agency ended is
   no reason to wait: the reply's turn asks the agency for the agent's session, which starts a fresh one where
   none stands, and the agency's `session.deleted` brings the pass forward at once.
 - **The deployment briefing is written by the wake itself:** what went live since the owner was last briefed.
@@ -430,8 +434,9 @@ The stream is heard from where the receiver left it:
   below the last one handed is not handed twice.
 - **Then the receiver reconciles its rows with what the agency still holds.** Every row it marked handed whose
   room's conversation no longer stands in this process, and which rides no round of another room, is made
-  pending again, and the instruction pass runs at once over every pending row. A round whose turn the agency
-  lost meanwhile ends failed on its own (`docs/bmo-window.md`, 「Quiet instruction」), giving its replies back.
+  pending again with its carrying cleared, and the instruction pass runs at once over every pending row. A round
+  whose turn the agency lost meanwhile ends failed on its own, uncounted (`docs/bmo-window.md`, 「Quiet
+  instruction」), giving back everything it took.
 - **What the receiver cannot recover** is an event the agency no longer keeps: one published while the receiver
   was away past the newest events the agency keeps in its store. The reconcile and the pass's own rescan stand for
   those, so no reply owed is lost with them.

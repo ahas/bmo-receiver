@@ -93,6 +93,13 @@ pub enum Failure {
 }
 
 impl Failure {
+  /// Whether the failure counts against the rows and the words its round took: one the agency answered, or a step
+  /// of the receiver's own; never one where the agency was unreachable, a rest, or a stop asked
+  /// (docs/bmo-window.md, 「Quiet instruction」).
+  pub fn counted(&self) -> bool {
+    matches!(self, Failure::Failed(_) | Failure::Engine { .. })
+  }
+
   /// The failure as the turn's line says it.
   pub fn reason(&self) -> String {
     match self {
@@ -421,6 +428,19 @@ pub struct Carried {
   open: bool,
   shut: bool,
   pushing: bool,
+  // The rows the round's own turn holds in its prompt, and the session and turn carrying the round now, as the
+  // agency named the turn.
+  own: Vec<i64>,
+  turn: Option<(String, i64)>,
+}
+
+/// How far the pushes into a round's turn had come at a moment: what a turn begun then took is everything after.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PushMark {
+  shown: usize,
+  settling: usize,
+  pushed: usize,
+  pushed_instructions: usize,
 }
 
 impl Carried {
@@ -449,7 +469,15 @@ impl Carried {
       open: true,
       shut: false,
       pushing: false,
+      own: vec![],
+      turn: None,
     }
+  }
+
+  /// The rows the round's own turn holds in its prompt, written as carried by the turn the agency names for it.
+  pub fn holding(mut self, own: Vec<i64>) -> Self {
+    self.own = own;
+    self
   }
 
   /// The room's messages the turn took, shown to the round and settled by its marks (docs/drafting.md, 「What
@@ -1513,13 +1541,23 @@ impl Conversations {
     // A round's future holds the whole of its asking: it stands on the heap, not on a worker's stack.
     let ended =
       rounds::within(round.clone(), Box::pin(self.round(chat_id, force, &round, &mut record))).await;
-    // A round that failed for anything but a stop asked of it gives its room replies back to wait for the next pass
-    // (docs/bmo-window.md, 「Quiet instruction」).
-    let failed = matches!(&ended, Err(failure) if !matches!(failure, Failure::Stopped));
+    // A round that failed for anything but a stop asked of it gives back every row and word it took, the failure
+    // counted only where the agency answered it; one where the agency was unreachable holds the agent's rows until
+    // it answers again (docs/bmo-window.md, 「Quiet instruction」).
+    let stopped = matches!(&ended, Err(Failure::Stopped));
+    let failed = ended.is_err() && !stopped;
+    let counted = matches!(&ended, Err(failure) if failure.counted());
 
     if let Err(failure) = ended {
       if failed {
-        self.leave_unread(chat_id, &record);
+        self.leave_unread(chat_id, &record, counted);
+      }
+
+      if failed
+        && !counted
+        && let Some(pass) = self.0.receiver.pass()
+      {
+        pass.hold(self.agent());
       }
 
       self.fail_round(chat_id, failure).await;
@@ -1545,23 +1583,28 @@ impl Conversations {
       }
     };
 
-    // A round that ended has dealt with the rows it took, but for the room replies of one that failed, and its
-    // turn's mark goes with it.
-    if failed && !settling.is_empty() {
-      match super::instructions::give_back(self.0.receiver.db(), &round, &settling).await {
-        Ok(given) if !given.is_empty() => {
-          if let Some(pass) = self.0.receiver.pass() {
-            pass.kick();
-          }
-        }
-        Ok(_) => {}
-        Err(why) => {
-          eprintln!("chat {chat_id}: the rows of a failed round were not given back: {}", why.detail);
-          settle_instructions(self.0.receiver.db(), now_ms(), &round, settling).await;
+    // The rows the round took end with it: settled where a turn carried them and the round ended with its message
+    // or its skip, let go where a stop was asked of it, and back to pending otherwise. A write that failed leaves
+    // them handed, for the reconcile or the next start to give back. Its turn's mark goes with it.
+    let db = self.0.receiver.db();
+    let ending = if stopped {
+      super::instructions::let_go(db, &settling, super::instructions::why::STOPPED, Some(&round))
+        .await
+        .map(|()| vec![])
+    } else if failed {
+      super::instructions::give_back(db, &round, &settling, counted).await
+    } else {
+      super::instructions::settle(db, &round, &settling).await
+    };
+
+    match ending {
+      Ok(given) if !given.is_empty() => {
+        if let Some(pass) = self.0.receiver.pass() {
+          pass.kick();
         }
       }
-    } else if !settling.is_empty() {
-      settle_instructions(self.0.receiver.db(), now_ms(), &round, settling).await;
+      Ok(_) => {}
+      Err(why) => eprintln!("chat {chat_id}: the rows of round {round} were not settled: {}", why.detail),
     }
 
     let _ = super::turn_mark::forget(self.0.receiver.db(), &round).await;
@@ -1580,14 +1623,17 @@ impl Conversations {
 
   // The words of a round that failed for anything but a stop left unread (docs/messages.md, 「Read marker」): the
   // read mark back where it stood before the round, and the words it took, with those that came in while it
-  // worked, kept for the room's next conversation. Words already given back the policy's `restart_limit` times go
-  // with the round as read.
-  fn leave_unread(&self, chat_id: i64, record: &Record) {
+  // worked, kept for the room's next conversation. A failure the agency answered is counted on them, and words
+  // whose count reaches the policy's `failure_limit` go with the round as read; one where the agency was
+  // unreachable counts nothing.
+  fn leave_unread(&self, chat_id: i64, record: &Record, counted: bool) {
     let mut state = self.state();
     let Some(conv) = state.active.get_mut(&chat_id) else { return };
-    let times = conv.given_back + 1;
+    let times = conv.given_back + i64::from(counted);
 
-    if times > CHAT_ROUND.instructions.restart_limit {
+    if times >= CHAT_ROUND.instructions.failure_limit {
+      eprintln!("chat {chat_id}: the words of a round failed {times} times go with it as read");
+
       return;
     }
 
@@ -1898,7 +1944,8 @@ impl Conversations {
         true,
         composed.selection.entries.iter().map(|entry| entry.path.clone()).collect(),
         roads.clone(),
-      ),
+      )
+      .holding(ids.clone()),
     );
 
     let started = now_ms();
@@ -1942,13 +1989,17 @@ impl Conversations {
           began: now_ms(),
           ..asking.clone()
         };
+        let mark = follower.mark();
+        let own_turn = follower.carrier();
 
         match self.0.carrying.carry(&handed, &held, &follower).await {
-          // A double that did not take the round hands it back: the agent's own session, which holds the round
-          // already, is asked once more to answer it itself, and the process goes on there.
+          // A double that did not take the round hands it back: what was pushed into its turn goes back to wait,
+          // and the agent's own session, which holds the round already, is asked once more to answer it itself, and
+          // the process goes on there.
           Err(Failure::Failed(why)) | Err(Failure::Transport(why)) => {
             doubled = false;
             eprintln!("chat {chat_id}: the double did not take the round: {why}");
+            follower.hand_back(mark, own_turn).await;
 
             let own = Asking {
               prompt: fill_marks(&CHAT_LINE.room.handed_back, &[("why", why.as_str())]),
@@ -3262,9 +3313,113 @@ impl Follower {
     }
   }
 
+  /// The turn carrying the round now, as the agency named it: the rows its prompt holds written as carried by it
+  /// where no turn carried them before, and every row pushed into it from now on.
+  pub async fn carried_by(&self, session: &str, turn: i64) {
+    let own = {
+      let mut state = self.conversations.state();
+      let Some(carried) = state.active.get_mut(&self.chat_id).and_then(|conv| conv.carried.as_mut()) else {
+        return;
+      };
+
+      carried.turn = Some((session.to_owned(), turn));
+      carried.own.clone()
+    };
+
+    if let Err(why) =
+      super::instructions::carried_by(self.conversations.0.receiver.db(), &own, session, turn).await
+    {
+      eprintln!(
+        "chat {}: the rows turn {turn} carries were not written down: {}",
+        self.chat_id, why.detail
+      );
+    }
+  }
+
+  /// How far the pushes into the round's turn have come now.
+  pub fn mark(&self) -> PushMark {
+    self
+      .conversations
+      .state()
+      .active
+      .get(&self.chat_id)
+      .and_then(|conv| conv.carried.as_ref())
+      .map(|carried| PushMark {
+        shown: carried.shown.len(),
+        settling: carried.settling.len(),
+        pushed: carried.pushed.len(),
+        pushed_instructions: carried.pushed_instructions.len(),
+      })
+      .unwrap_or_default()
+  }
+
+  /// What was pushed into a turn begun at the mark, given back as that turn is handed back: the session that goes
+  /// on never received it (docs/drafting.md, 「A round handed to the double」). Its words go back to wait at the
+  /// front of the room's queue, its rows back to pending with their carrying cleared, and the turn the round
+  /// carried before stands as the round's carrier again.
+  pub async fn hand_back(&self, mark: PushMark, before: Option<(String, i64)>) {
+    let chat_id = self.chat_id;
+    let (words, rows) = {
+      let mut state = self.conversations.state();
+      let Some(carried) = state.active.get_mut(&chat_id).and_then(|conv| conv.carried.as_mut()) else {
+        return;
+      };
+      let words: Vec<Inbound> = carried.shown.drain(mark.shown.min(carried.shown.len())..).collect();
+      let rows: Vec<i64> = carried.settling.drain(mark.settling.min(carried.settling.len())..).collect();
+
+      carried.pushed.truncate(mark.pushed);
+      carried.pushed_instructions.truncate(mark.pushed_instructions);
+      carried.turn = before;
+
+      (words, rows)
+    };
+
+    if !words.is_empty() {
+      println!(
+        "chat {chat_id}: {} message(s) pushed into the double's turn go back to wait",
+        words.len()
+      );
+    }
+
+    self.conversations.give_back_words(chat_id, words);
+
+    let receiver = &self.conversations.0.receiver;
+
+    match super::instructions::returned(receiver.db(), &rows).await {
+      Ok(given) if !given.is_empty() => {
+        let named: Vec<String> = given.iter().map(i64::to_string).collect();
+
+        println!(
+          "chat {chat_id}: instructions {} pushed into the double's turn are pending again",
+          named.join(", ")
+        );
+
+        if let Some(pass) = receiver.pass() {
+          pass.kick();
+        }
+      }
+      Ok(_) => {}
+      Err(why) => eprintln!(
+        "chat {chat_id}: the rows pushed into the double's turn were not given back: {}",
+        why.detail
+      ),
+    }
+  }
+
+  /// The session and turn carrying the round now, where the agency named one.
+  pub fn carrier(&self) -> Option<(String, i64)> {
+    self
+      .conversations
+      .state()
+      .active
+      .get(&self.chat_id)
+      .and_then(|conv| conv.carried.as_ref())
+      .and_then(|carried| carried.turn.clone())
+  }
+
   // What the turn took joins the round: its messages shown to the round, waiting for the marks that settle them,
-  // its instructions among the rows the round settles. What it refused goes back to the front of what waits, and
-  // a turn that says it is waiting takes no more.
+  // its instructions among the rows the round settles, carried by the turn that took them. What it refused goes
+  // back to the front of what waits, and a turn that says it is waiting takes no more.
   pub async fn settle(&self, outcome: AsideOutcome) {
     let chat_id = self.chat_id;
     let Some(offered) = self.offered().take() else { return };
@@ -3287,7 +3442,8 @@ impl Follower {
             paragraph,
             ..
           } = offered;
-          let took = (messages.len(), instructions.len(), messages.clone());
+          let took =
+            (messages.len(), instructions.len(), messages.clone(), ids.clone(), carried.turn.clone());
 
           carried.shown.extend(messages);
           carried.roads.extend(roads);
@@ -3323,7 +3479,14 @@ impl Follower {
         }
       }
     };
-    let Some((messages, pushed, took)) = taken else { return };
+    let Some((messages, pushed, took, ids, turn)) = taken else { return };
+
+    if let Some((session, turn)) = turn
+      && let Err(why) =
+        super::instructions::carried_by(conversations.0.receiver.db(), &ids, &session, turn).await
+    {
+      eprintln!("chat {chat_id}: the rows pushed into turn {turn} were not written down: {}", why.detail);
+    }
 
     conversations.took_meanwhile(chat_id, &took);
     println!(
@@ -3501,21 +3664,6 @@ async fn return_instructions(db: &DatabaseConnection, ids: Vec<i64>) {
 
   if let Err(why) = run(db, &query, ids.iter().map(|id| (*id).into()).collect()).await {
     eprintln!("instructions could not be returned: {}", why.detail);
-  }
-}
-
-// The rows of the quiet instructions a round took, settled under the round that ended.
-async fn settle_instructions(db: &DatabaseConnection, now: i64, round: &str, ids: Vec<i64>) {
-  let numbered = (1..=ids.len()).map(|at| format!("${}", at + 2)).collect::<Vec<_>>().join(", ");
-  let query = format!(
-    r#"UPDATE "instructions" SET "delivered_at" = $1, "round" = $2 WHERE "id" IN ({numbered}) AND "delivered_at" IS NULL"#
-  );
-  let mut values: Vec<sea_orm::Value> = vec![now.into(), round.into()];
-
-  values.extend(ids.iter().map(|id| (*id).into()));
-
-  if let Err(why) = run(db, &query, values).await {
-    eprintln!("instructions could not be settled: {}", why.detail);
   }
 }
 

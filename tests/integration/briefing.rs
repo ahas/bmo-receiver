@@ -88,7 +88,9 @@ async fn the_switches_move_one_at_a_time_and_only_the_whole_ones_move_is_told_to
     "flipped twice, one line, and autoplay says nothing"
   );
 
-  let text = scratch.texts(r#"SELECT "text" FROM "instructions""#).await;
+  let text = scratch
+    .texts(r#"SELECT "text" FROM "instructions" WHERE "let_go" IS NULL ORDER BY "id""#)
+    .await;
 
   assert!(
     text[0].contains("switched the voice briefing on"),
@@ -116,7 +118,9 @@ async fn a_briefing_line_goes_to_the_owners_private_room_even_where_a_notices_ro
 
   assert_eq!(
     scratch
-      .texts(r#"SELECT "kind" || ' ' || "chat_id" FROM "instructions" ORDER BY "id""#)
+      .texts(
+        r#"SELECT "kind" || ' ' || "chat_id" FROM "instructions" WHERE "let_go" IS NULL ORDER BY "id""#
+      )
       .await,
     [format!("voice-briefing {OWNER}")],
     "the switch line stands in the owner's private room"

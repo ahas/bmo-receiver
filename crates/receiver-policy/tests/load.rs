@@ -13,7 +13,6 @@ use receiver_policy::keepalive::KEEPALIVE;
 use receiver_policy::kept::KEPT;
 use receiver_policy::owner_facts::OWNER_FACTS;
 use receiver_policy::providers::{Handover, PROVIDERS, Turns};
-use receiver_policy::quiet::QUIET;
 use receiver_policy::resident_turn::RESIDENT_TURN;
 use receiver_policy::rest::REST;
 use receiver_policy::restart::RESTART;
@@ -34,7 +33,7 @@ fn parts() -> Vec<&'static str> {
   let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS);
   let _ = (&*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
-  let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING, &*QUIET);
+  let _ = (&*SECOND_ASKS, &*KEPT, &*DRAFTING);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES);
 
   vec![
@@ -50,7 +49,6 @@ fn parts() -> Vec<&'static str> {
     "kept.toml",
     "owner-facts.toml",
     "providers.toml",
-    "quiet.toml",
     "resident-turn.toml",
     "rest.toml",
     "restart.toml",

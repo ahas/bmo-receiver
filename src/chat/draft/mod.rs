@@ -617,7 +617,9 @@ impl Run<'_> {
         self.conversations.give_back_words(chat, pushed);
         self.log.turn(kind, name, None, Answered::Failed, None, now_ms() - started).await;
 
-        if matches!(failure, Failure::Stopped) {
+        // A turn the process cannot do without fails the round with it: the review, a revision and a check. Only
+        // an item's turn lets the process go on without it (docs/drafting.md, 「The checks on the final text」).
+        if matches!(failure, Failure::Stopped) || !matches!(kind, Kind::Item) {
           return Err(failure);
         }
 

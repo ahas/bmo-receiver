@@ -308,7 +308,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `cause?` (`reply` or `housekeeping`), `events?`, `agentOnly?`, `ridesUntil?`, `via?`, `run?`, `publisher?` | 201, `{id}` |
-| `GET /instructions/{instructionId}` | | `id`, `state` (`pending`, `handed` or `delivered`) |
+| `GET /instructions/{instructionId}` | | `id`, `state` (`pending`, `handed` or `delivered`); 404 where the row was let go — withdrawn, replaced, or ended without a turn carrying it (`docs/bmo-window.md`, 「Quiet instruction」) — though the row stays kept |
 | `DELETE /instructions/{instructionId}` | | 204 |
 | `POST /owner/instructions` | `chatId`, `text` | 204 |
 

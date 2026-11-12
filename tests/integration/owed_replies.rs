@@ -1,12 +1,14 @@
 //! A room reply is an obligation the receiver keeps until a round has taken it (docs/wake.md, 「Quiet instructions」
-//! and 「What the agency's events wake」; docs/bmo-window.md, 「Quiet instruction」): a failed round gives its replies
-//! back, rows handed to no conversation that stands are made pending again as the agency's stream opens and handed
-//! by the next pass, and the stream resumes after the last event heard.
+//! and 「What the agency's events wake」; docs/bmo-window.md, 「Quiet instruction」): a row is settled only once a turn
+//! carried it, a failed round gives back every row it took and counts only a failure the agency answered, no row is
+//! ever deleted, rows handed to no conversation that stands are made pending again as the agency's stream opens and
+//! handed by the next pass, and the stream resumes after the last event heard.
 
 use std::sync::{Arc, Mutex};
 
 use bmo_receiver::chat::instructions::{
-  Cause, Queued, Rooms, deliver_pending, give_back, queue, reconcile,
+  Cause, Queued, Rooms, carried_by, deliver_pending, give_back, queue, reconcile, requeue_interrupted,
+  settle,
 };
 use bmo_receiver::hearing::{HeardSetting, Hearer, Hearing, Mark, Marks};
 use bmo_receiver::now_ms;
@@ -60,25 +62,27 @@ impl Rooms for Recorded {
   }
 }
 
-// The state a row stands in: whether it is handed, whether it is settled, and how often it was given back.
-async fn stood(scratch: &Scratch, id: i64) -> (bool, bool, i64) {
-  let handed = scratch
-    .count(
-      r#"SELECT count(*) FROM "instructions" WHERE "id" = $1 AND "handed_at" IS NOT NULL"#,
-      vec![id.into()],
-    )
-    .await;
-  let settled = scratch
-    .count(
-      r#"SELECT count(*) FROM "instructions" WHERE "id" = $1 AND "delivered_at" IS NOT NULL"#,
-      vec![id.into()],
-    )
-    .await;
+// The state a row stands in: whether it is handed, whether it is settled, how often its text reached a turn that
+// did not end answered, how often a round the agency answered failed with it, and why it was let go.
+async fn stood(scratch: &Scratch, id: i64) -> (bool, bool, i64, i64, Option<String>) {
+  let read = |column: &'static str| {
+    format!(r#"SELECT count(*) FROM "instructions" WHERE "id" = $1 AND "{column}" IS NOT NULL"#)
+  };
+  let handed = scratch.count(&read("handed_at"), vec![id.into()]).await;
+  let settled = scratch.count(&read("delivered_at"), vec![id.into()]).await;
   let restarts = scratch
     .count(r#"SELECT "restarts" FROM "instructions" WHERE "id" = $1"#, vec![id.into()])
     .await;
+  let failures = scratch
+    .count(r#"SELECT "failures" FROM "instructions" WHERE "id" = $1"#, vec![id.into()])
+    .await;
+  let let_go = scratch
+    .texts(&format!(r#"SELECT COALESCE("let_go", '') FROM "instructions" WHERE "id" = {id}"#))
+    .await
+    .into_iter()
+    .find(|why| !why.is_empty());
 
-  (handed > 0, settled > 0, restarts)
+  (handed > 0, settled > 0, restarts, failures, let_go)
 }
 
 async fn handed(scratch: &Scratch, id: i64) {
@@ -88,7 +92,7 @@ async fn handed(scratch: &Scratch, id: i64) {
 }
 
 #[tokio::test]
-async fn a_failed_round_gives_its_room_replies_back_and_settles_its_housekeeping() {
+async fn a_failed_round_gives_back_every_row_and_counts_only_a_failure_the_agency_answered() {
   let scratch = Scratch::new().await;
   let reply = queue(scratch.db(), AGENT, OWNER, "a delegate's answer", &Queued::default())
     .await
@@ -98,31 +102,90 @@ async fn a_failed_round_gives_its_room_replies_back_and_settles_its_housekeeping
     ..Queued::default()
   };
   let chore = queue(scratch.db(), AGENT, OWNER, "a record", &chores).await.unwrap();
-  let spent = queue(scratch.db(), AGENT, OWNER, "a reply failed before", &Queued::default())
-    .await
-    .unwrap();
+  let rows = [reply, chore];
 
-  for id in [reply, chore, spent] {
+  for id in rows {
     handed(&scratch, id).await;
   }
 
-  scratch
-    .run(
-      r#"UPDATE "instructions" SET "restarts" = $1 WHERE "id" = $2"#,
-      vec![CHAT_ROUND.instructions.restart_limit.into(), spent.into()],
-    )
-    .await;
+  // The round's turn carried the reply's text; the record never reached a turn.
+  carried_by(scratch.db(), &[reply], "session-a", 7).await.unwrap();
 
-  let given = give_back(scratch.db(), "round-a", &[reply, chore, spent]).await.unwrap();
+  // A failure where the agency was unreachable counts nothing, however often it comes.
+  for _ in 0..CHAT_ROUND.instructions.failure_limit + 1 {
+    assert_eq!(give_back(scratch.db(), "round-a", &rows, false).await.unwrap(), rows);
 
-  assert_eq!(given, [reply]);
-  assert_eq!(stood(&scratch, reply).await, (false, false, 1), "the reply waits for the next pass");
-  assert_eq!(stood(&scratch, chore).await, (true, true, 0), "housekeeping is settled with the round");
+    for id in rows {
+      handed(&scratch, id).await;
+    }
+  }
+
   assert_eq!(
-    stood(&scratch, spent).await,
-    (true, true, CHAT_ROUND.instructions.restart_limit),
-    "a reply given back the policy's times is settled"
+    stood(&scratch, reply).await,
+    (true, false, 1, 0, None),
+    "its text reached a session once"
   );
+  assert_eq!(
+    stood(&scratch, chore).await,
+    (true, false, 0, 0, None),
+    "housekeeping is given back too"
+  );
+
+  // A failure the agency answered is counted, and the last the limit allows lets the rows go, kept as failed.
+  for _ in 1..CHAT_ROUND.instructions.failure_limit {
+    assert_eq!(give_back(scratch.db(), "round-b", &rows, true).await.unwrap(), rows);
+
+    for id in rows {
+      handed(&scratch, id).await;
+    }
+  }
+
+  assert_eq!(give_back(scratch.db(), "round-c", &rows, true).await.unwrap(), Vec::<i64>::new());
+
+  let limit = CHAT_ROUND.instructions.failure_limit;
+
+  assert_eq!(stood(&scratch, reply).await, (true, true, 1, limit, Some("failed".to_owned())));
+  assert_eq!(stood(&scratch, chore).await, (true, true, 0, limit, Some("failed".to_owned())));
+}
+
+#[tokio::test]
+async fn a_round_settles_only_the_rows_a_turn_carried_and_a_restart_deletes_none() {
+  let scratch = Scratch::new().await;
+  let carried = queue(scratch.db(), AGENT, OWNER, "a job's ending", &Queued::default()).await.unwrap();
+  let uncarried = queue(scratch.db(), AGENT, OWNER, "a review check", &Queued::default()).await.unwrap();
+  let cut = queue(scratch.db(), AGENT, OWNER, "a queue notice", &Queued::default()).await.unwrap();
+
+  for id in [carried, uncarried, cut] {
+    handed(&scratch, id).await;
+  }
+
+  carried_by(scratch.db(), &[carried], "session-a", 7).await.unwrap();
+
+  // A later turn names no carrying of a row a turn carried before.
+  carried_by(scratch.db(), &[carried], "double-a", 9).await.unwrap();
+  assert_eq!(
+    scratch
+      .count(r#"SELECT "turn" FROM "instructions" WHERE "id" = $1"#, vec![carried.into()])
+      .await,
+    7
+  );
+
+  assert_eq!(settle(scratch.db(), "round-a", &[carried, uncarried]).await.unwrap(), [uncarried]);
+  assert_eq!(stood(&scratch, carried).await, (true, true, 0, 0, None), "the carried row is settled");
+  assert_eq!(
+    stood(&scratch, uncarried).await,
+    (false, false, 0, 0, None),
+    "no turn carried it: it waits"
+  );
+
+  // A restart gives back a row it cut off however often it did, and deletes none.
+  for _ in 0..4 {
+    carried_by(scratch.db(), &[cut], "session-a", 8).await.unwrap();
+    requeue_interrupted(scratch.db()).await.unwrap();
+    handed(&scratch, cut).await;
+  }
+
+  assert_eq!(stood(&scratch, cut).await, (true, false, 4, 0, None), "a restart counts no failure");
 }
 
 #[tokio::test]
@@ -148,7 +211,7 @@ async fn rows_handed_across_a_reconnect_to_no_standing_conversation_are_handed_a
   let given = reconcile(scratch.db(), &rooms).await.unwrap();
 
   assert_eq!(given, [lost], "a conversation that stands keeps the row it holds");
-  assert_eq!(stood(&scratch, held).await, (true, false, 0));
+  assert_eq!(stood(&scratch, held).await, (true, false, 0, 0, None));
 
   deliver_pending(&standing.receiver, &rooms, &mut last, now_ms(), 0).await.unwrap();
   assert_eq!(*rooms.handed.lock().unwrap(), [lost], "the next pass hands the row again");

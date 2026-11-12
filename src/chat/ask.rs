@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
-use futures_util::StreamExt;
 use serde_json::Value;
 use tokio::time::MissedTickBehavior;
 
@@ -19,10 +18,12 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::handover::HANDOVER;
 use receiver_ports::agency::{
-  Agency, DOUBLE_SOURCE, Delivery, DoubleStart, DoubleTurn, Event, Said, Scope, Session, Turn, TurnRoom,
+  Agency, DOUBLE_SOURCE, Delivery, DoubleEnd, DoubleStart, DoubleTurn, Event, Said, Scope, Session, Turn,
+  TurnRoom,
 };
 use receiver_ports::http::PortFailure;
 
+use super::attach::{Followed, Step};
 use super::cache::{
   Leaving, Route, active_route, owe_replacement, owed_replacement, remember, reset_reason,
   settle_replacement, spend_force, transcript, waits_for_quiet,
@@ -31,6 +32,7 @@ use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, sta
 use super::conversation::{
   Aside, Asking, BoxFuture, Carrying, Doubled, Failure, Follower, Held, Reply, unified_session,
 };
+use super::double_slots;
 use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
 use super::progress::{RunProgress, picture_of};
@@ -47,6 +49,10 @@ use crate::run_lines::thinking_of;
 const LAUNCH_GAP: Duration = Duration::from_secs(10);
 
 static OPENED: Mutex<u64> = Mutex::new(0);
+
+// The events a round's turn is followed by, and a double's.
+const TURN_KINDS: &[&str] = &["turn.created", "turn.ended", "system-prompt-changed"];
+const DOUBLE_KINDS: &[&str] = &["turn.created", "turn.ended"];
 
 /// A fresh name for one run of a room's conversation, since two runs of a room can open in the same moment.
 pub fn chat_run_name(chat_id: i64) -> String {
@@ -242,9 +248,27 @@ pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
   true
 }
 
-/// Why the agency's answer to a session operation ended the turn.
+/// Why the agency's answer to a session operation ended the turn: uncounted where the agency did not answer.
 fn fault_of(why: PortFailure) -> Failure {
-  Failure::Failed(why.to_string())
+  super::attach::failure_of(why)
+}
+
+/// The carrying's own key: the round, the room and the moment the turn took its words, so a send made again after a
+/// cut attaches to the turn standing under it.
+fn key_of(asking: &Asking) -> String {
+  format!(
+    "{}:{}:{}",
+    rounds::current().unwrap_or_else(|| "turn".to_owned()),
+    asking.chat_id,
+    asking.began
+  )
+}
+
+/// The number of the last of the agency's events the receiver heard, from which a turn sent now is followed.
+async fn heard_mark(receiver: &Receiver) -> Option<i64> {
+  use crate::hearing::Marks;
+
+  crate::hearing::HeardSetting(receiver.db().clone()).last().await.map(|mark| mark.id)
 }
 
 /// The session scope an agent's turns go on: one across its rooms, or the room's own.
@@ -267,6 +291,7 @@ fn turn_of(asking: &Asking, session: &Session, room: &RoomContext, prompt: &str)
     answers: asking.answers.to_vec(),
     began: Some(asking.began),
     round: rounds::current(),
+    key: Some(key_of(asking)),
   }
 }
 
@@ -435,10 +460,14 @@ impl Carry {
     let loaded = loaded_in(receiver, None).await.map_err(failed)?;
     let marked = states(&asking.prompt, &loaded);
     let (prompt, send) = match doubled {
+      // The round's own turn goes whole, with every paragraph pushed into the agent's own turn before it answered
+      // the sentinel, which the double reads as the agent did.
       Doubled::Round => {
         let (sent, send, _) = sent_prompt(receiver, None, Some(&room), true, agent, &asking.prompt)
           .await
           .map_err(failed)?;
+        let pushed = follower.pushed();
+        let sent = std::iter::once(sent).chain(pushed).collect::<Vec<_>>().join("\n\n");
 
         (format!("{}\n\n{sent}", CHAT_LINE.room.handed), send)
       }
@@ -457,7 +486,24 @@ impl Carry {
       run: format!("round-{agent}-{chat_id}-{at}"),
       title: format!("a round of chat {chat_id}"),
     };
-    let seat = agency.double_start(&start).await.map_err(fault_of)?;
+    let slot = double_slots::Held {
+      key: start.key.clone(),
+      agent: agent.to_owned(),
+      chat_id,
+      asked_at: at,
+    };
+
+    double_slots::keep(receiver.db(), &slot).await.map_err(failed)?;
+
+    // A slot whose asking failed at any step is given back whole by its key, so nothing it was let in on waits on.
+    let seat = match agency.double_start(&start).await {
+      Ok(seat) => seat,
+      Err(why) => {
+        double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
+
+        return Err(fault_of(why));
+      }
+    };
     let mut variables = serde_json::Map::new();
 
     variables.insert("BMO_TURN_CHAT".to_owned(), chat_id.to_string().into());
@@ -475,48 +521,70 @@ impl Carry {
       prompt,
       title: format!("{agent}: a round of chat {chat_id}, handed over"),
       chat_id,
+      round: rounds::current(),
+      key: key_of(asking),
       variables,
     };
-    let mut stream = match agency.events(&["turn.created"]).await {
-      Ok(stream) => Some(stream),
-      Err(why) => {
-        eprintln!("chat {chat_id}: the agency's events were not read for the double's turn: {why}");
-
-        None
-      }
-    };
+    let mark = heard_mark(receiver).await;
+    let mut followed =
+      Followed::open(agency.clone(), &seat.session, DOUBLE_KINDS, mark, receiver.re_attach_pace()).await;
+    let sent = turn.clone();
     let port = agency.clone();
     let sent_on = seat.clone();
-    let mut sending = tokio::spawn(async move { port.double_turn(&sent_on, &turn).await });
+    let mut sending = tokio::spawn(async move { port.double_turn(&sent_on, &sent).await });
+    let mut sent_done = false;
+    let mut carrying: Option<i64> = None;
     let handed = handed_of(chat_id, send, &asking.context, &marked);
     let mut picture = RunProgress::starting(&handed);
-    let mut turning: Option<i64> = None;
     let mut after: i64 = 0;
     let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
     let mut quiet_until: Option<tokio::time::Instant> = None;
 
     look.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
-    // The turn is waited to its end, however long it takes: a look offers it the words that came for its room
-    // and reads its run's log for the picture, as a look at the agent's own turn does.
-    let ended = loop {
+    // The turn is followed to its end, however long it takes, re-attached to across every cut: a look offers it
+    // the words that came for its room and reads its run's log for the picture, as a look at the agent's own turn
+    // does.
+    let ended: Result<DoubleEnd, Failure> = loop {
       tokio::select! {
-        ended = &mut sending => break ended,
-        read = async { match stream.as_mut() { Some(stream) => stream.next().await, None => std::future::pending().await } } => {
-          match read {
-            Some(Ok(Event { kind, data, .. })) => {
-              let mine = data.get("session").and_then(Value::as_str).is_some_and(|one| one == seat.session);
+        done = &mut sending, if !sent_done => {
+          sent_done = true;
 
-              if mine && kind == "turn.created" {
-                turning = data.get("turnId").and_then(Value::as_i64);
+          match done {
+            Ok(Ok(end)) => break Ok(end),
+            Ok(Err(why)) if super::attach::unreachable(&why) => {
+              eprintln!("chat {chat_id}: the double's turn's send was cut: {why}");
+              followed.cut();
+            }
+            Ok(Err(why)) => break Err(fault_of(why)),
+            Err(_) => followed.cut(),
+          }
+        }
+        step = followed.next() => {
+          match step {
+            Ok(Step::Ended(end)) => {
+              let text = |field: &str| end.get(field).and_then(Value::as_str).unwrap_or_default().to_owned();
+
+              break Ok(DoubleEnd { answer: text("answer"), outcome: text("outcome"), reason: text("reason") });
+            }
+            Ok(Step::Event(_)) => {}
+            Ok(Step::Unnamed) => {
+              if sent_done {
+                println!("chat {chat_id}: the double's turn was never named, so it is sent again under its key");
+
+                let sent = turn.clone();
+                let port = agency.clone();
+                let sent_on = seat.clone();
+
+                sending = tokio::spawn(async move { port.double_turn(&sent_on, &sent).await });
+                sent_done = false;
               }
             }
-            // A stream that ended or failed leaves the turn waited on with no more looks at its events.
-            Some(Err(_)) | None => stream = None,
+            Err(failure) => break Err(failure),
           }
         }
         _ = look.tick() => {
-          if let Some(turning) = turning
+          if let Some(turning) = followed.turn()
             && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
           {
             quiet_until = pushed(agency.as_ref(), &seat.session, turning, follower).await;
@@ -553,23 +621,60 @@ impl Carry {
           }
         }
       }
+
+      // The double's turn, once the agency names it, carries what is pushed into it from then on.
+      if followed.turn().is_some() && followed.turn() != carrying {
+        carrying = followed.turn();
+
+        if let Some(turning) = carrying {
+          follower.carried_by(&seat.session, turning).await;
+        }
+      }
+    };
+    let turning = followed.turn();
+
+    drop(followed);
+
+    if !sent_done {
+      sending.abort();
+    }
+
+    // A double that does not take the round is stopped before it is handed back: its turn interrupted where it
+    // may still run, and its slot given back as cancelled, so no run of it goes on beside the agent
+    // (docs/drafting.md, 「A round handed to the double」).
+    let taken = match &ended {
+      Ok(end) => !matches!(end.outcome.as_str(), "stopped" | "failed") && !is_handoff(&end.answer),
+      Err(_) => false,
     };
 
-    drop(stream);
+    if !taken
+      && ended.is_err()
+      && let Some(turning) = turning
+      && let Err(why) = agency.interrupt(&seat.session, turning).await
+    {
+      eprintln!("chat {chat_id}: the double's turn was not interrupted: {why}");
+    }
 
-    let ended = match ended {
-      Ok(Ok(ended)) => Ok(ended),
-      Ok(Err(why)) => Err(fault_of(why)),
-      Err(_) => Err(Failure::Failed("the double's turn went away".to_owned())),
-    };
     let outcome = match &ended {
-      Ok(ended) if !ended.outcome.is_empty() => ended.outcome.clone(),
+      Ok(end) if !end.outcome.is_empty() => end.outcome.clone(),
       Ok(_) => "answered".to_owned(),
       Err(_) => "failed".to_owned(),
     };
 
-    if let Err(why) = agency.double_finish(&seat, &outcome, false).await {
-      eprintln!("chat {chat_id}: the double's slot was not given back: {why}");
+    // A slot the agency did not take back is given back by its key, and kept as held until it is.
+    match agency.double_finish(&seat, &outcome, !taken).await {
+      Ok(()) => {
+        if let Err(why) = double_slots::given_back(receiver.db(), &start.key).await {
+          eprintln!(
+            "chat {chat_id}: the double's slot is given back but still kept as held: {}",
+            why.detail
+          );
+        }
+      }
+      Err(why) => {
+        eprintln!("chat {chat_id}: the double's slot was not given back: {why}");
+        double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
+      }
     }
 
     let ended = ended?;
@@ -749,82 +854,121 @@ impl Carry {
     };
 
     let turn = turn_of(asking, &session, &room, &prompt);
-    let kinds: Vec<&'static str> = vec!["turn.created", "turn.ended", "system-prompt-changed"];
-    let mut stream = agency.events(&kinds).await.map_err(fault_of)?;
+    let mark = heard_mark(receiver).await;
+    let mut followed =
+      Followed::open(agency.clone(), &session.id, TURN_KINDS, mark, receiver.re_attach_pace()).await;
 
-    // The turn is sent apart, so the room's picture of it can be drawn from the run's log while it works.
+    // The turn is sent apart, so the room's picture of it can be drawn from the run's log while it works; a send
+    // whose connection is cut is no end of the turn, which the round follows on and re-attaches to.
+    let sent = turn.clone();
     let port = agency.clone();
-    let sending = tokio::spawn(async move { port.turn(&turn).await });
+    let mut sending = tokio::spawn(async move { port.turn(&sent).await });
+    let mut sent_done = false;
+    let mut delivered: Option<Delivery> = None;
+    let mut carrying: Option<i64> = None;
 
     let handed = handed_of(chat_id, send, &asking.context, &marked);
     let mut picture = RunProgress::starting(&handed);
-    let mut run: Option<String> = None;
-    let mut turning: Option<i64> = None;
     let mut after: i64 = 0;
     let mut ended: Option<Value> = None;
     let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
     let mut quiet_until: Option<tokio::time::Instant> = None;
-    let mut dropped = false;
 
     look.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
     while ended.is_none() {
       // A look offers the working turn the words that came for its room and reads its run's log as an event
       // does, so the picture moves while the turn works between its events.
-      let read = tokio::select! {
-        read = stream.next() => Some(read),
+      let looked = tokio::select! {
+        step = followed.next() => {
+          match step? {
+            Step::Ended(end) => ended = Some(end),
+            Step::Event(Event { kind, .. }) => {
+              if kind == "system-prompt-changed"
+                && let Err(why) = generation::expect(db, agent, &session.id).await
+              {
+                eprintln!(
+                  "{agent}: session {}'s coming generation was not written down: {}",
+                  session.id, why.detail
+                );
+              }
+            }
+            // No turn of the session was named since the send went out: a send whose connection was cut goes
+            // again under its key, and one still waiting is waited on. A send that answered names a turn that
+            // ended with no end the round could read, so the round fails, uncounted.
+            Step::Unnamed if delivered.is_some() => {
+              return Err(Failure::Transport(format!(
+                "session {}'s turn ended with no event of it the agency still keeps",
+                session.id
+              )));
+            }
+            Step::Unnamed => {
+              if sent_done {
+                println!("session {}: its turn was never named, so it is sent again under its key", session.id);
+
+                let sent = turn.clone();
+                let port = agency.clone();
+
+                sending = tokio::spawn(async move { port.turn(&sent).await });
+                sent_done = false;
+              }
+            }
+          }
+
+          false
+        }
+        done = &mut sending, if !sent_done => {
+          sent_done = true;
+
+          match done {
+            Ok(Ok(delivery)) => delivered = Some(delivery),
+            Ok(Err(why)) if super::attach::unreachable(&why) => {
+              eprintln!("session {}: the turn's send was cut: {why}", session.id);
+              followed.cut();
+            }
+            Ok(Err(why)) => return Err(fault_of(why)),
+            Err(_) => followed.cut(),
+          }
+
+          false
+        }
         _ = look.tick() => {
-          if let Some(turning) = turning
+          if let Some(turning) = followed.turn()
             && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
           {
             quiet_until = pushed(agency.as_ref(), &session.id, turning, follower).await;
           }
 
-          None
+          true
         }
       };
 
-      let looked = read.is_none();
+      // The turn carrying the round, once the agency names it, carries the rows its prompt holds.
+      if followed.turn().is_some() && followed.turn() != carrying {
+        carrying = followed.turn();
 
-      match read {
-        None => {}
-        Some(None) => {
-          dropped = true;
-          break;
+        if let Some(turning) = carrying {
+          follower.carried_by(&session.id, turning).await;
         }
-        Some(Some(Ok(Event { kind, data, .. }))) => {
-          let body = &data;
-          let mine = body.get("session").and_then(Value::as_str).is_some_and(|one| one == session.id);
-
-          if mine && kind == "turn.created" {
-            run = body.get("run").and_then(Value::as_str).map(str::to_owned);
-            turning = body.get("turnId").and_then(Value::as_i64);
-          } else if mine && kind == "turn.ended" {
-            ended = Some(body.clone());
-          } else if mine
-            && kind == "system-prompt-changed"
-            && let Err(why) = generation::expect(db, agent, &session.id).await
-          {
-            eprintln!(
-              "{agent}: session {}'s coming generation was not written down: {}",
-              session.id, why.detail
-            );
-          }
-        }
-        Some(Some(Err(why))) => return Err(fault_of(why)),
       }
 
-      if let Some(run) = &run {
+      if ended.is_some() {
+        break;
+      }
+
+      if let Some(run) = followed.run() {
         let since = if after == 0 { None } else { Some(after) };
 
-        // A look's read that failed leaves the picture as it stands until the next; an event's ends the turn.
-        let lines = match agency.run_log(run, since).await {
+        // A read that failed leaves the picture as it stands until the next look.
+        let lines = match agency.run_log(&run, since).await {
           Ok(lines) => lines,
-          Err(why) if looked => {
-            eprintln!("session {}: the run's log was not read for its picture: {why}", session.id);
+          Err(why) => {
+            if looked {
+              eprintln!("session {}: the run's log was not read for its picture: {why}", session.id);
+            }
+
             continue;
           }
-          Err(why) => return Err(fault_of(why)),
         };
 
         for line in lines {
@@ -862,28 +1006,30 @@ impl Carry {
       }
     }
 
-    drop(stream);
+    let run = followed.run();
 
-    let delivered =
-      sending.await.map_err(|_| Failure::Failed("the turn's carrying went away".to_owned()))?;
-    let delivered = delivered.map_err(fault_of)?;
+    drop(followed);
 
-    // A turn whose end the stream never brought, because the stream ended first, is read from the agency; a turn
-    // it no longer holds has failed, and the round with it (docs/bmo-window.md, 「Quiet instruction」).
-    if ended.is_none() && dropped {
-      let lost = "the agency's event stream ended before the turn did";
-      let Some(turning) = turning else {
-        return Err(Failure::Failed(format!("{lost}, and the turn was never named")));
-      };
-
-      match agency.turn_read(&session.id, turning).await {
-        Ok(read) if read.ended() => {
-          ended = Some(serde_json::json!({ "outcome": read.outcome, "answer": read.answer }));
+    // The send answers once the turn has ended; one whose connection was cut leaves the turn's delivery to what
+    // its end says, the words taken where it names nothing else.
+    if !sent_done {
+      match sending.await {
+        Ok(Ok(delivery)) => delivered = Some(delivery),
+        Ok(Err(why)) if !super::attach::unreachable(&why) && delivered.is_none() => {
+          return Err(fault_of(why));
         }
-        Ok(_) => return Err(Failure::Failed(format!("{lost}, and the agency says it has not ended"))),
-        Err(why) => return Err(Failure::Failed(format!("{lost}, and the agency does not hold it: {why}"))),
+        _ => {}
       }
     }
+
+    let delivered = delivered
+      .or_else(|| {
+        ended
+          .as_ref()
+          .and_then(|end| end.get("delivery"))
+          .and_then(|delivery| serde_json::from_value(delivery.clone()).ok())
+      })
+      .unwrap_or(Delivery::Delivered);
 
     // A session's first turn opens it as the agency carries the turn; a state it has not answered for
     // yet is read as the fresh session's, with nothing of a request behind it.

@@ -243,13 +243,14 @@ fn said(said: &Said) -> String {
   }
 }
 
-/// How far the instruction named has gone; nothing found where it was withdrawn, replaced or lapsed.
+/// How far the instruction named has gone; nothing found where it was let go: withdrawn, replaced or lapsed, its
+/// row kept all the same.
 pub async fn instruction_state(State(served): State<Served>, Path(id): Path<i64>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
 
   let row = one(
     receiver.db(),
-    r#"SELECT "handed_at", "delivered_at" FROM "instructions" WHERE "id" = $1"#,
+    r#"SELECT "handed_at", "delivered_at" FROM "instructions" WHERE "id" = $1 AND "let_go" IS NULL"#,
     vec![id.into()],
   )
   .await
@@ -273,8 +274,9 @@ pub async fn withdraw(State(served): State<Served>, Path(id): Path<i64>) -> Acce
 
   run(
     receiver.db(),
-    r#"DELETE FROM "instructions" WHERE "id" = $1 AND "handed_at" IS NULL AND "delivered_at" IS NULL"#,
-    vec![id.into()],
+    r#"UPDATE "instructions" SET "delivered_at" = $2, "let_go" = $3
+       WHERE "id" = $1 AND "handed_at" IS NULL AND "delivered_at" IS NULL"#,
+    vec![id.into(), crate::now_ms().into(), crate::chat::instructions::why::WITHDRAWN.into()],
   )
   .await
   .map_err(store)?;

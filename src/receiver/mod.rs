@@ -251,6 +251,10 @@ pub trait Pass: Send + Sync {
   fn kick(&self);
 
   fn riders<'a>(&'a self, agent: &'a str, chat_id: i64) -> BoxFuture<'a, ()>;
+
+  /// An agent's rows held until the agency answers again, for a round of its that failed with the agency
+  /// unreachable.
+  fn hold(&self, _agent: &str) {}
 }
 
 /// Where a woken agent's turn goes: its conversations, which take the files leading up to the message ahead of
@@ -412,6 +416,8 @@ pub struct Receiver {
   // Whether the draft process's review gate stands: on for the service, off where a test stands the receiver
   // without that turn.
   review_gate: bool,
+  // How long a round waits between two tries to re-attach to a cut turn while the agency answers nothing.
+  re_attach_pace: Duration,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -469,6 +475,7 @@ impl Receiver {
       replacing: Arc::default(),
       situation_updates: true,
       review_gate: true,
+      re_attach_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.attach.pace_ms.max(1)),
     }
   }
 
@@ -522,6 +529,17 @@ impl Receiver {
   /// Whether the draft process's review gate stands.
   pub fn review_gate(&self) -> bool {
     self.review_gate
+  }
+
+  /// The same receiver, waiting `pace` between two tries to re-attach to a cut turn rather than the policy's.
+  pub fn re_attaching_every(mut self, pace: Duration) -> Self {
+    self.re_attach_pace = pace.max(Duration::from_millis(1));
+    self
+  }
+
+  /// How long a round waits between two tries to re-attach to a cut turn while the agency answers nothing.
+  pub fn re_attach_pace(&self) -> Duration {
+    self.re_attach_pace
   }
 
   /// The conversations that answer a line typed into the default answerer's program, and that take the warmer's touch

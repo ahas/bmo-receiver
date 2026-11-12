@@ -210,6 +210,15 @@ pub fn hearing(standing: &Standing) -> Hearing {
 /// the conversations' own clock and the restart; and the agency's events, heard for as long as the service runs.
 pub fn keep(standing: &Standing) {
   let watching = standing.receiver.clone();
+  let releasing = standing.receiver.clone();
+  let started = crate::now_ms();
+
+  // The double's slots a stopped process left are given back, with the role sessions bound to them, so no double's
+  // run goes on that no round of this process follows (docs/drafting.md, 「A round handed to the double」).
+  tokio::spawn(async move {
+    crate::chat::double_slots::release_left(releasing.db(), releasing.units().agency.as_ref(), started)
+      .await;
+  });
 
   tokio::spawn(async move {
     if let Err(why) = crate::receiver::wake::agents::watch_windows(&watching).await {
@@ -218,6 +227,6 @@ pub fn keep(standing: &Standing) {
   });
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();
-  keep_restart(standing.receiver.clone(), standing.conversations.clone());
+  keep_restart(standing.receiver.clone(), standing.runner.clone());
   hearing(standing).keep(standing.receiver.units().agency.clone());
 }

@@ -252,12 +252,15 @@ pub struct DoubleSeat {
   pub run: String,
 }
 
-/// One turn of a double's run: its prompt, its title, the room it answers and the turn's own variables.
+/// One turn of a double's run: its prompt, its title, the room it answers, the round it is a turn of, the
+/// carrying's own key a send made again attaches under, and the turn's own variables.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DoubleTurn {
   pub prompt: String,
   pub title: String,
   pub chat_id: i64,
+  pub round: Option<String>,
+  pub key: String,
   pub variables: Map<String, Value>,
 }
 
@@ -321,12 +324,18 @@ pub struct Turn {
   /// The name of the round the turn belongs to, which the turn's run keeps.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub round: Option<String>,
+  /// The carrying's own key, under which a send made again attaches to the turn standing rather than starting a
+  /// second.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub key: Option<String>,
 }
 
 /// Whether the program took a turn's words or refused them while it waits on a person.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Delivery {
+  /// The program took the words; a turn's end names it `taken`.
+  #[serde(alias = "taken")]
   Delivered,
   Blocked,
 }
@@ -469,6 +478,12 @@ pub struct TurnRead {
   pub outcome: Option<String>,
   #[serde(default)]
   pub answer: Option<String>,
+  /// Why it ended as it did, where the agency says.
+  #[serde(default)]
+  pub reason: Option<String>,
+  /// Whether its program took the turn's words, once it has ended.
+  #[serde(default)]
+  pub delivery: Option<Delivery>,
 }
 
 impl TurnRead {
@@ -581,6 +596,12 @@ pub struct OpenRun {
   /// The job the run is a turn of, where it is one.
   #[serde(default)]
   pub job_id: Option<i64>,
+  /// The round the run is a turn of, where it is one of the receiver's rounds.
+  #[serde(default)]
+  pub round: Option<String>,
+  /// The room the run's turn answers, where it answers one.
+  #[serde(default)]
+  pub room_id: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -679,6 +700,12 @@ pub trait Agency: Send + Sync {
     _outcome: &'a str,
     _cancel: bool,
   ) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async { Ok(()) })
+  }
+
+  /// Everything a double's slot asked under `owner` holds given back: the request, its reservation and the role
+  /// session bound to it, whose running turn the agency cuts.
+  fn double_release<'a>(&'a self, _owner: &'a str) -> BoxFuture<'a, Answer<()>> {
     Box::pin(async { Ok(()) })
   }
 
@@ -1104,6 +1131,8 @@ impl Agency for HttpAgency {
             "name": seat.run,
             "title": turn.title,
             "chat": turn.chat_id,
+            "round": turn.round,
+            "key": turn.key,
             "hearsWords": true,
             "variables": turn.variables,
           }),
@@ -1133,6 +1162,14 @@ impl Agency for HttpAgency {
           &json!({ "state": "finished", "outcome": outcome, "cancel": cancel }),
         )
         .await?;
+
+      Ok(())
+    })
+  }
+
+  fn double_release<'a>(&'a self, owner: &'a str) -> BoxFuture<'a, Answer<()>> {
+    Box::pin(async move {
+      let _: Value = self.caller.delete(&["slot-requests"], &[("owner", owner.to_owned())]).await?;
 
       Ok(())
     })

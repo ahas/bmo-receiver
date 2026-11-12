@@ -56,8 +56,14 @@ pub async fn queue(
 
   run(
     &transaction,
-    r#"DELETE FROM "instructions" WHERE "chat_id" = $1 AND "kind" = $2 AND "delivered_at" IS NULL AND "handed_at" IS NULL"#,
-    vec![chat_id.into(), kind.clone().into()],
+    r#"UPDATE "instructions" SET "delivered_at" = $3, "let_go" = $4
+       WHERE "chat_id" = $1 AND "kind" = $2 AND "delivered_at" IS NULL AND "handed_at" IS NULL"#,
+    vec![
+      chat_id.into(),
+      kind.clone().into(),
+      now.into(),
+      crate::chat::instructions::why::REPLACED.into(),
+    ],
   )
   .await?;
   run(

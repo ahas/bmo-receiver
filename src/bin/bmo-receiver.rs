@@ -255,8 +255,16 @@ async fn deliver_waiting(config: &Config) -> Result<u8, String> {
 /// Whether work stands under way, each one named on its own line.
 async fn quiet(config: &Config, jobs: bool) -> u8 {
   let units = config.units();
+  let db = match config.connect().await {
+    Ok(db) => db,
+    Err(why) => {
+      println!("the store did not answer which double's slots are held: {why}");
 
-  match bmo_receiver::quiet::asked(units.agency.as_ref(), jobs).await {
+      return 1;
+    }
+  };
+
+  match bmo_receiver::quiet::asked(units.agency.as_ref(), &db, jobs).await {
     Ok(under_way) if under_way.is_empty() => 0,
     Ok(under_way) => {
       for line in under_way {
@@ -266,7 +274,7 @@ async fn quiet(config: &Config, jobs: bool) -> u8 {
       1
     }
     Err(why) => {
-      println!("the agency did not answer which runs are open: {why}");
+      println!("what stands under way was not read: {why}");
 
       1
     }

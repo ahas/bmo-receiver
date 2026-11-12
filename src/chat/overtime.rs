@@ -137,8 +137,14 @@ pub async fn ask(receiver: &Receiver, asked: &Asked) -> Result<i64, Fault> {
 pub async fn withdraw(receiver: &Receiver, closed: &Closed) -> Result<u64, Fault> {
   run(
     receiver.db(),
-    r#"DELETE FROM "instructions" WHERE "chat_id" = $1 AND "kind" = $2 AND "handed_at" IS NULL AND "delivered_at" IS NULL"#,
-    vec![receiver.notices_room().into(), kind(&closed.run).into()],
+    r#"UPDATE "instructions" SET "delivered_at" = $3, "let_go" = $4
+       WHERE "chat_id" = $1 AND "kind" = $2 AND "handed_at" IS NULL AND "delivered_at" IS NULL"#,
+    vec![
+      receiver.notices_room().into(),
+      kind(&closed.run).into(),
+      crate::now_ms().into(),
+      super::instructions::why::WITHDRAWN.into(),
+    ],
   )
   .await
 }

@@ -550,10 +550,13 @@ async fn an_instruction_a_restart_interrupted_is_delivered_after_the_restart() {
   .await
   .unwrap();
 
-  // The row a turn was reading when the process stopped: handed.
+  // The row a turn was reading when the process stopped: handed, and carried by that turn.
   round
     .scratch
-    .run(r#"UPDATE "instructions" SET "handed_at" = 1 WHERE "id" = $1"#, vec![id.into()])
+    .run(
+      r#"UPDATE "instructions" SET "handed_at" = 1, "session" = 'session-a', "turn" = 4 WHERE "id" = $1"#,
+      vec![id.into()],
+    )
     .await;
   requeue_interrupted(round.scratch.db()).await.unwrap();
 

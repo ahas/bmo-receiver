@@ -152,8 +152,15 @@ impl crate::chat::conversation::Orders for FailureOrders {
 
         let _ = run(
           receiver.db(),
-          r#"DELETE FROM "instructions" WHERE "agent" = $1 AND "chat_id" = $2 AND "kind" = $3 AND "delivered_at" IS NULL AND "handed_at" IS NULL"#,
-          vec![agent.clone().into(), chat_id.into(), ORDER_KIND.into()],
+          r#"UPDATE "instructions" SET "delivered_at" = $4, "let_go" = $5
+             WHERE "agent" = $1 AND "chat_id" = $2 AND "kind" = $3 AND "delivered_at" IS NULL AND "handed_at" IS NULL"#,
+          vec![
+            agent.clone().into(),
+            chat_id.into(),
+            ORDER_KIND.into(),
+            crate::now_ms().into(),
+            super::instructions::why::WITHDRAWN.into(),
+          ],
         ).await;
       }
     });

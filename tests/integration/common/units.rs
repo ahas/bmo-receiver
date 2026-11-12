@@ -18,12 +18,13 @@ use bmo_receiver::receiver::{
   Deployment, How, Inbound, News, NotReceived, Receiver, Room, Runner, Units, Wake,
 };
 use bmo_receiver::roads::Roads;
+use futures_util::StreamExt;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
   Agency, Agent, Agents, Delivery, DoubleEnd, DoubleSeat, DoubleStart, DoubleTurn, Event, Events,
   FieldRefusal, Forgotten, KeptEvents, Load, NewSupervisor, OpenRun, Passed, Removal, Repository,
   ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine, RunningJob, Said, Scope, Session, SessionState,
-  Turn, Written,
+  Turn, TurnRead, Written,
 };
 use receiver_ports::brain::BrainUnit;
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
@@ -917,6 +918,8 @@ pub struct StandInAgency {
   pub double_starts: Mutex<Vec<DoubleStart>>,
   pub double_turns: Mutex<Vec<DoubleTurn>>,
   pub double_finishes: Mutex<Vec<(String, bool)>>,
+  /// Every owner whose slots it was asked to give back, in order.
+  pub double_releases: Mutex<Vec<String>>,
   /// Whether a double's start is refused, as an agency that lets no run of the role in refuses it.
   pub double_refused: Mutex<bool>,
   pub removals: Mutex<Vec<(String, Removal)>>,
@@ -969,6 +972,13 @@ pub struct StandInAgency {
   pub ends: Mutex<Vec<String>>,
   /// The events it keeps, as its page of kept events answers them.
   pub kept: Mutex<Vec<Event>>,
+  /// The streams it opens in their order where a test scripts them: each carries its events and then ends, as a
+  /// stream an agency's restart cuts; one opened past the script is refused as an agency that is down.
+  pub streams: Mutex<Option<std::collections::VecDeque<Vec<Event>>>>,
+  /// What its progress read answers for each turn, where a test sets it; `unknown-turn` for any other.
+  pub turns: Mutex<BTreeMap<i64, TurnRead>>,
+  /// The agency on a real port that carries its turns, their events and their reads, where a test stands one.
+  pub carrier: Mutex<Option<Arc<dyn Agency>>>,
 }
 
 impl StandInAgency {
@@ -979,6 +989,7 @@ impl StandInAgency {
       double_starts: Mutex::default(),
       double_turns: Mutex::default(),
       double_finishes: Mutex::default(),
+      double_releases: Mutex::default(),
       double_refused: Mutex::default(),
       removals: Mutex::default(),
       refusing: Mutex::default(),
@@ -1014,7 +1025,29 @@ impl StandInAgency {
       loads_forgotten: Mutex::default(),
       ends: Mutex::default(),
       kept: Mutex::default(),
+      streams: Mutex::default(),
+      turns: Mutex::default(),
+      carrier: Mutex::default(),
     }
+  }
+
+  /// Its turns, their events and their reads carried from now on by `carrier`.
+  pub fn carried_through(&self, carrier: Arc<dyn Agency>) {
+    *self.carrier.lock().unwrap() = Some(carrier);
+  }
+
+  fn carrier(&self) -> Option<Arc<dyn Agency>> {
+    self.carrier.lock().unwrap().clone()
+  }
+
+  /// The streams it opens from now on, each its events and then its end.
+  pub fn streaming(&self, streams: Vec<Vec<Event>>) {
+    *self.streams.lock().unwrap() = Some(streams.into());
+  }
+
+  /// What its progress read answers for the turn from now on.
+  pub fn reading(&self, turn: i64, read: TurnRead) {
+    self.turns.lock().unwrap().insert(turn, read);
   }
 
   /// The answers its double's turns give, in their order.
@@ -1195,6 +1228,10 @@ impl Agency for StandInAgency {
   }
 
   fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
+    if let Some(carrier) = self.carrier() {
+      return Box::pin(async move { carrier.turn(turn).await });
+    }
+
     let Some(session) = self.standing_session() else { return not_asked_agency("a turn") };
 
     Box::pin(async move { session.turn(turn).await })
@@ -1226,10 +1263,14 @@ impl Agency for StandInAgency {
 
   fn double_turn<'a>(
     &'a self,
-    _seat: &'a DoubleSeat,
+    seat: &'a DoubleSeat,
     turn: &'a DoubleTurn,
   ) -> BoxFuture<'a, Answer<DoubleEnd>> {
     self.double_turns.lock().unwrap().push(turn.clone());
+
+    if let Some(carrier) = self.carrier() {
+      return Box::pin(async move { carrier.double_turn(seat, turn).await });
+    }
 
     // A review's turn passes, as the session's own stand-in passes one it hides.
     let answer = if turn.prompt.contains(&receiver_policy::drafting::DRAFTING.review.marker) {
@@ -1279,6 +1320,12 @@ impl Agency for StandInAgency {
     };
 
     Box::pin(async move { session.state().await })
+  }
+
+  fn double_release<'a>(&'a self, owner: &'a str) -> BoxFuture<'a, Answer<()>> {
+    self.double_releases.lock().unwrap().push(owner.to_owned());
+
+    Box::pin(async { Ok(()) })
   }
 
   fn interrupt<'a>(&'a self, _session: &'a str, _turn: i64) -> BoxFuture<'a, Answer<()>> {
@@ -1399,7 +1446,30 @@ impl Agency for StandInAgency {
     Box::pin(async { Ok(()) })
   }
 
+  fn turn_read<'a>(&'a self, session: &'a str, turn: i64) -> BoxFuture<'a, Answer<TurnRead>> {
+    if let Some(carrier) = self.carrier() {
+      return Box::pin(async move { carrier.turn_read(session, turn).await });
+    }
+
+    let read = self.turns.lock().unwrap().get(&turn).cloned();
+
+    Box::pin(async move {
+      read.ok_or_else(|| PortFailure::Answered {
+        url: format!("http://agency.invalid/sessions/turns/{turn}"),
+        status: 404,
+        answer: Some(receiver_ports::WireError {
+          code: "unknown-turn".to_owned(),
+          error: "The session holds no such turn.".to_owned(),
+        }),
+      })
+    })
+  }
+
   fn kept_events(&self, after: Option<i64>) -> BoxFuture<'_, Answer<KeptEvents>> {
+    if let Some(carrier) = self.carrier() {
+      return Box::pin(async move { carrier.kept_events(after).await });
+    }
+
     let items = self
       .kept
       .lock()
@@ -1412,7 +1482,23 @@ impl Agency for StandInAgency {
     Box::pin(async move { Ok(KeptEvents { items, more: false }) })
   }
 
-  fn events<'a>(&'a self, _kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
+  fn events<'a>(&'a self, kinds: &'a [&'a str]) -> BoxFuture<'a, Answer<Events>> {
+    if let Some(carrier) = self.carrier() {
+      return Box::pin(async move { carrier.events(kinds).await });
+    }
+
+    if let Some(streams) = self.streams.lock().unwrap().as_mut() {
+      let Some(events) = streams.pop_front() else {
+        return agency_down("events");
+      };
+
+      return Box::pin(async move {
+        let stream: Events = futures_util::stream::iter(events.into_iter().map(Ok)).boxed();
+
+        Ok(stream)
+      });
+    }
+
     let Some(session) = self.standing_session() else {
       return not_asked_agency("the events");
     };

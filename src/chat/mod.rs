@@ -4,6 +4,7 @@
 
 pub mod around;
 pub mod ask;
+pub mod attach;
 pub mod briefing;
 pub mod briefing_turn;
 pub mod cache;
@@ -11,6 +12,7 @@ pub mod consolidation;
 pub mod context;
 pub mod conversation;
 pub mod cut_off;
+pub mod double_slots;
 pub mod draft;
 pub mod fallback;
 pub mod fold;

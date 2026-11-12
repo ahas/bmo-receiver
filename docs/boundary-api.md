@@ -55,13 +55,18 @@ road name with its base address and token.
   receiver's.
 - **`tool-env`** writes where the receiver's tools find it and ends.
 - **`quiet`** says whether work stands under way that a restart of the receiver would cut, for the testbed's wait
-  before a deployment's flip (`testbed.toml`, `quiet`): it asks the agency for the runs still open and names each
-  that counts, a run whose name carries one of the long-work words of `quiet.toml` however long it has run, and
-  a chat turn's run, named as the receiver names its turns' runs, however long it has run too. A job counts
+  before a deployment's flip (`testbed.toml`, `quiet`): it names each piece of work that counts by what it is,
+  never by a word of its name, however long it has run. It asks the agency for the runs still open and counts a
+  turn of one of the receiver's rounds, the run naming its `round`, and a turn answering a room that is no job's
+  turn, the run naming its `roomId` and no `jobId`, since a restart cuts the round that follows either. The agency
+  opens no run for a double's turn, so the double's rounds are counted off the receiver's own store: every slot
+  of the double's role the receiver asked for and has not yet given back (`docs/store.md`, `double_slots`). Any
+  other run counts not: a job's turn, a research run and every run of another unit go on through the receiver's
+  restart, and what they send it waits for it as rows of its own. A job counts
   only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
   agency answers as starting or running counts, however long it has run, each named by its role and its
   repository, with the checkout it runs in beside it. It ends 0 where none counts and 1 where some does or the
-  agency did not answer, each one named on its own line.
+  agency or the store did not answer, each one named on its own line.
 - **`owner-room --title <words>`** stands up the owner's private room once, on the record alone, under that
   title, and prints its number for the configuration's `owner_room`: numbered as a console room is, below every room the receiver has numbered, with
   the record as its one provider, the owner and the default answerer its members and the default answerer's number there one
@@ -164,8 +169,11 @@ Each call goes to the serving unit's configured base address, carrying that unit
 method, path and body the serving unit's own boundary document gives it. Every unit the receiver calls takes a
 token, the cache warmer included, and the receiver is configured with each. Each unit is a port of the crate
 `receiver-ports`: a trait the receiver's code is written against and the HTTP client that answers it. A call is
-offered again only where the connection was refused, every two seconds until the unit listens, since a refusal is
-the unit down or coming up; a call that reached a listener is never offered again. No request timeout cuts a call
+offered again where the connection was refused, every two seconds until the unit listens, since a refusal is the
+unit down or coming up. A read or another call that changes nothing by being made twice (`GET`, `PUT`, `DELETE`)
+is offered again the same way where its connection was cut before an answer came, as a unit stopping cuts it; a
+call that may have started work at a listener (`POST`, `PATCH`) is never offered again by the port, and the part
+that made it decides: a round's turn is re-attached to (`docs/bmo-window.md`, 「Quiet instruction」). No request timeout cuts a call
 short: it ends with its answer, a broken connection, or the peer gone, which the connection's TCP keep-alive
 tells.
 
@@ -186,7 +194,7 @@ room's matter.
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
 | start a session | `POST /sessions` | `agentName`, `scope`, `agent` or `room`, and `roomId` for a room's | the session's `id`, `agentName`, `scope`, `roomId` |
-| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to; no base persona, which the agency takes from the agent's brain | `id`, `delivery`; 409 `session-busy` where the session already carries a turn, which the receiver waits out on the events and asks again |
+| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to; `key`, the carrying's own key, the round's name and the turn's place in it, under which a repeat attaches to the turn standing; no base persona, which the agency takes from the agent's brain | `id`, `delivery`, answered once the turn ends, a cut connection being no end of the turn (`docs/bmo-window.md`, 「Quiet instruction」); 409 `session-busy` where the session already carries a turn, which the receiver waits out on the events and asks again |
 | read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation`, `context` (what the session carries: `carried` against its `window`, which the fold is judged from, and the turn's token counts), `foldRatio`, `foldsItself`, whether the session's program carries its own fold, in which case the receiver folds it never (`docs/wake.md`), `supervisor` or `role`, the row the session runs for, the other null, and `prefixChangeReason` where it names why the session's prefix changed, which tells the receiver whether the session's head moved (`docs/unified-bmo.md`, 「Replacing the session」) |
 | push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
@@ -196,8 +204,10 @@ room's matter.
 | a slot's admission | `PATCH /slot-requests/{token}` | nothing, asked again at a steady pace until the request is `active` | `request`, the request as it stands |
 | start the double's run | `POST /sessions` | `scope` `role`, `agentName`, the slot's role, `slot`, `cwd` and `supervisor` | the session's `id` |
 | bind a slot to its run | `PATCH /slot-requests/{token}` | `state` `bound`, `childId` | the request |
-| a turn of the double | `POST /sessions/{sessionId}/turns` | `prompt`, `resume` `auto`, `name`, `title`, `chat`, `hearsWords` and the turn's `variables` | answered once the run ends: `answer`, `outcome`, `reason` |
+| a turn of the double | `POST /sessions/{sessionId}/turns` | `prompt`, `resume` `auto`, `name`, `title`, `chat`, `round`, `key`, `hearsWords` and the turn's `variables` | answered once the run ends: `answer`, `outcome`, `reason`; a cut connection is followed as the agent's own turn's is |
+| stop the double's turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn; asked as a double hands its round back |
 | give a slot back | `PATCH /slot-requests/{token}` | `state` `finished`, `outcome`, `cancel` | the request |
+| give back what a stopped receiver held | `DELETE /slot-requests?owner=` | `owner`, the slot's own key as the receiver kept it | what was given back: the request, its reservation and the role session bound to it, whose running turn the agency cuts; asked at the start for each slot the store still holds, and for a slot whose admission failed |
 | list sessions | `GET /sessions` | | `items`, each a session's `id`, `agentName`, `scope` — `agent`, `room`, `role` or `conversation` — and `roomId` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
@@ -210,24 +220,30 @@ room's matter.
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
-| the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, newest first, each its `id`, `name` and `startedAt`, which `quiet` reads |
+| the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, newest first, each its `id`, `name`, `startedAt`, `round`, `roomId` and `jobId`, which `quiet` reads |
 | the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `roleName`, the role it runs as, `repositoryName`, the repository it runs in, or null for a checkout no repository holds any longer, `workerName`, the checkout of it the job runs in, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
 | a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, newest first; the round's last run is the one with the highest id, whatever the order |
 | an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |
 | the events | `GET /events?kinds=` | | a stream of the kinds named, each event its number (`id`), `kind`, the moment it was published (`at`) and its `data` |
 | the events kept | `GET /events?after=&limit=1000` with `Accept: application/json` | | `items`, the events the agency still keeps after that number, each as the stream carries it, oldest first, and `more` |
-| a turn read | `GET /sessions/{sessionId}/turns/{turnId}` | | `state` (`running` or `ended`), `outcome`, `answer`; `unknown-turn` where the session holds no such turn |
+| a turn read | `GET /sessions/{sessionId}/turns/{turnId}` | | `state` (`running` or `ended`), and the end's `outcome`, `answer`, `reason` and `delivery` where the read carries them, which the agency's read does not yet: the end is then `turn.ended`'s. `unknown-turn` where the agency holds no record of the turn, and `unknown-session` where it no longer holds the session; either, and a turn read as ended whose end no kept event holds, fails the round that follows it, uncounted |
 
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
 and is opened again when it drops: `turn.created`, `turn.ended`, `supervisor-reset.created`,
 `document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
 `overtime-request.created`, `overtime-request.changed`, `road.changed` and `session.deleted`. Each time it opens
 the receiver reads the events kept since the last one it heard and hands those it has not (`docs/wake.md`, 「What
-the agency's events wake」); a round whose own stream ended before its turn did reads the turn instead. The
+the agency's events wake」); a round whose own stream was cut before its turn ended opens its own again, reads the
+events kept since the last one heard before its turn went out and reads the turn (`docs/bmo-window.md`, 「Quiet
+instruction」). The
 agency's numbers only rise, across its restarts too, and it keeps its newest events in its store; a page asked
 after a number it no longer keeps answers `missed`, and the receiver then hands every event it keeps as new.
 
 Of the events whose shape the receiver reads:
+
+- **`turn.created`** names `session`, `turnId` and `run`. **`turn.ended`** names `session` and the turn's end as
+  the send answers it: the turn under `turn`, `run`, `outcome`, `answer`, `reason`, `engineError` and `delivery`,
+  `taken` or `blocked`, which the receiver reads as the send's `delivered` and `blocked`.
 
 - **`road.changed`** names its row as `supervisor` or `role`, the other null, beside its `fact` and what the fact
   carries.
@@ -298,7 +314,7 @@ receiver hands it the turn's envelope and the words on their way in and out, eve
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
-| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `records` | `entries`, each `path`, `text`, `source` and `holds?`: what attaches with no pick, which the gate hands the brain to count; the receiver puts each in the turn whole, as the turn's core |
+| a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `records` | `entries`, each `path`, `text`, `source` and `holds?`: what attaches with no pick, which the gate hands the brain to count; the receiver puts each in the turn whole, as the turn's core. A selection that fails costs a turn carrying no events its reference alone; one whose envelope carried events fails the turn, so the rows that brought them are given back rather than settled unread (`docs/bmo-window.md`, 「Quiet instruction」) |
 | a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`, each `slug`, `holds`, `path` and `memoryId?`; the receiver reads `group`, `unread` and `hint` into the index the room's block carries when the session opens, and an entry's `slug`, `holds`, `path` and `memoryId` into a round's reads (`docs/drafting.md`, 「The round log」) |
 | a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |
 | a round's judgements attached | `POST /judgements/attached` | `roomId`, `messageId`, `since` in epoch milliseconds | 204 |
@@ -408,6 +424,13 @@ Statements the receiver makes that a sibling's document does not yet match, each
   「Supervisors」).
 - **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
   and `version` and reads back only those, until the agency states the item.
+- **The agency's turns** are re-attached to by the receiver as its `docs/api.md` does not yet state: the send
+  carries `key`, and a repeat under the same key is to attach to the turn standing under it rather than start a
+  second; the progress read is to answer a turn the agency picked up across its restart under its own id. Until
+  the agency serves both, the receiver sends a turn again only where no event it kept names a turn of that
+  session since the turn went out, and a picked-up turn its read answers `unknown-turn` for fails the round,
+  uncounted, so the round runs again. The agency's own `docs/api.md` names `turn.ended`'s turn `turnId`, where
+  the event carries it as `turn`; the receiver reads either.
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
   did, and the tokens they spent. The console's room figures answer `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` null until the agency serves a tally by agent and room.

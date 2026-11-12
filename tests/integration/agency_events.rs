@@ -141,7 +141,7 @@ impl Heard {
     all(
       self.db(),
       r#"SELECT "agent", "chat_id", "text", "kind", "sort", "rides", "ride_until"
-         FROM "instructions" ORDER BY "id""#,
+         FROM "instructions" WHERE "let_go" IS NULL ORDER BY "id""#,
       vec![],
     )
     .await

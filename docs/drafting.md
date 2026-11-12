@@ -72,8 +72,11 @@ message passes, and the record each turn of it leaves.
   a run of the role the agency names for a supervisor's delegated work, started as that agent's double at the
   agent's scratch workspace (the agency's `docs/tools.md`, 「The delegate」): the room's block whole with the
   brain's index, every document of the turn opened in full, and the turn, under one line saying that the round
-  was handed over and that the double answers it as the agent itself. It is no instruction the agent writes:
-  the double reads what the agent read and follows the same process.
+  was handed over and that the double answers it as the agent itself, followed by every paragraph pushed into
+  the agent's own turn before it answered the sentinel. It is no instruction the agent writes: the double reads
+  what the agent read and follows the same process. Its turn names the round, so its run is the round's, and
+  it is followed as the agent's own turn is, re-attached across a cut (`docs/bmo-window.md`, 「Quiet
+  instruction」).
 - **The double's answer is the round's draft,** and everything after it is the same process: the closing
   check, the items, the review, a revision and the checks are turns of the double's run, each sent as its own
   words alone, since the double's kept session holds the round. The message goes out as the agent's, by the
@@ -83,12 +86,23 @@ message passes, and the record each turn of it leaves.
   handed over after another goes on in the same session, as a delegated task does, until the agency lets that
   session go. The agent's own session is free from the moment it answered the sentinel: it takes its other
   rooms' rounds while the double works.
+- **Every slot the double holds is the receiver's own record until it is given back.** The slot's key is kept
+  in the store before the slot is asked for and dropped once the agency took it back (`docs/store.md`,
+  `double_slots`), so `quiet` counts a double's round as under way, and the receiver's start gives back every
+  slot a stopped process left, with the role session bound to it, by the key it kept: no double's run outlives
+  the receiver that followed it, and the rows its turn carried wait again as a restart leaves them.
 - **Words that come meanwhile go to the double's turn,** pushed as they are pushed into the agent's own, and
   the turn's picture is drawn from the double's run.
 - **A double that does not take the round hands it back.** Where its slot or its run is refused, its turn
   fails, or it answers the sentinel itself, the agent's own session is asked once more, under one line saying
   the double did not take the round and why, to answer the round itself; that session holds the round already,
   so the line is the whole of the turn. The process then goes on in the agent's own session.
+- **A hand-back stops the double and returns its pushes.** The double's turn, where it may still run, is
+  interrupted and its slot given back as cancelled, so no run of the double goes on beside the agent. What was
+  pushed into the double's turn — the room's words and the quiet instructions — was never received by the
+  session that goes on, so it is not the round's: the words go back to wait at the front of the room's queue
+  and the rows back to the conversation with their carrying cleared, to be pushed into the agent's own turn or
+  shown at its next question boundary.
 - **The sentinel is never a message.** An answer of nothing but the sentinel from that second asking fails the
   round as a failed draft turn does, and one from any later turn of the process is read as a skip whose reason is
   that the answer carried the hand-off sentinel.
@@ -418,6 +432,10 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
     the round's line, and not the head of the block of words that came meanwhile.
   There is no length check, and no check reads the language an answer is written in: that is the agent's own
   judgement (`docs/answer-checks.md`, 「The language an answer goes out in」).
+- **A turn the process cannot do without fails the round where its run fails:** the review, the revision a
+  rejection asks for, and a check. The round then gives back what it took, as any failed round does
+  (`docs/bmo-window.md`, 「Quiet instruction」), and no message goes out unreviewed or unchecked. An item's turn
+  whose run fails gives back the words it showed, and the process goes on without it.
 - **A check that fails is asked once:** one more turn of the same session, the check's errand naming what is
   wrong, its answer the text from then on. The check then reads the new text. A `format` check that fails again
   sends nothing, and the end of the process records the check that failed. A check that fails only after

@@ -8,6 +8,7 @@
 //! the agency's event stream reconciles the rows handed with the conversations standing and brings the pass
 //! forward, and so does the agency ending a session.
 
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -426,10 +427,154 @@ impl<'a> Group<'a> {
   }
 }
 
+/// Why a row that no turn is to carry was let go: the producer replaced or withdrew it, no turn could ever take
+/// it, a stop asked of its round ended it, a reset cut its agent off, or its failures reached the limit.
+pub mod why {
+  pub const REPLACED: &str = "replaced";
+  pub const WITHDRAWN: &str = "withdrawn";
+  pub const UNREACHABLE: &str = "unreachable";
+  pub const STOPPED: &str = "stopped";
+  pub const RESET: &str = "reset";
+  pub const FAILED: &str = "failed";
+}
+
+// The placeholders of a list of row ids, numbered from the one after `from`.
+fn numbered(from: usize, ids: &[i64]) -> String {
+  (1..=ids.len()).map(|at| format!("${}", at + from)).collect::<Vec<_>>().join(", ")
+}
+
+/// Rows let go: kept on the table and settled with the reason they went and the round that let them go, where one
+/// did; never deleted (docs/bmo-window.md, 「Quiet instruction」).
+pub async fn let_go(
+  db: &DatabaseConnection,
+  ids: &[i64],
+  why: &str,
+  round: Option<&str>,
+) -> Result<(), Fault> {
+  if ids.is_empty() {
+    return Ok(());
+  }
+
+  let mut values: Vec<Value> = vec![now_ms().into(), why.into(), round.into()];
+
+  values.extend(ids.iter().map(|id| (*id).into()));
+  run(
+    db,
+    &format!(
+      r#"UPDATE "instructions" SET "delivered_at" = $1, "let_go" = $2, "round" = $3
+         WHERE "id" IN ({}) AND "delivered_at" IS NULL"#,
+      numbered(3, ids)
+    ),
+    values,
+  )
+  .await
+  .map(drop)
+}
+
 async fn discard(db: &DatabaseConnection, id: i64) -> Result<(), Fault> {
-  run(db, r#"DELETE FROM "instructions" WHERE "id" = $1"#, vec![id.into()])
-    .await
-    .map(drop)
+  let_go(db, &[id], why::UNREACHABLE, None).await
+}
+
+/// The rows a turn holds the text of, carried by it: its session and its turn written on each row not yet carried,
+/// so a row the round's own turn carried is not taken for one a later turn carried.
+pub async fn carried_by(
+  db: &DatabaseConnection,
+  ids: &[i64],
+  session: &str,
+  turn: i64,
+) -> Result<(), Fault> {
+  if ids.is_empty() {
+    return Ok(());
+  }
+
+  let mut values: Vec<Value> = vec![session.into(), turn.into()];
+
+  values.extend(ids.iter().map(|id| (*id).into()));
+  run(
+    db,
+    &format!(
+      r#"UPDATE "instructions" SET "session" = $1, "turn" = $2
+         WHERE "id" IN ({}) AND "delivered_at" IS NULL AND "turn" IS NULL"#,
+      numbered(2, ids)
+    ),
+    values,
+  )
+  .await
+  .map(drop)
+}
+
+/// The rows of a round that ended with its message or its skip: each a turn carried settled under the round, and
+/// each no turn carried back to pending (docs/bmo-window.md, 「Quiet instruction」). The rows given back.
+pub async fn settle(db: &DatabaseConnection, round: &str, ids: &[i64]) -> Result<Vec<i64>, Fault> {
+  if ids.is_empty() {
+    return Ok(vec![]);
+  }
+
+  let mut values: Vec<Value> = vec![now_ms().into(), round.into()];
+
+  values.extend(ids.iter().map(|id| (*id).into()));
+  run(
+    db,
+    &format!(
+      r#"UPDATE "instructions" SET "delivered_at" = $1, "round" = $2
+         WHERE "id" IN ({}) AND "delivered_at" IS NULL AND "turn" IS NOT NULL"#,
+      numbered(2, ids)
+    ),
+    values,
+  )
+  .await?;
+
+  let values: Vec<Value> = ids.iter().map(|id| (*id).into()).collect();
+  let given = all(
+    db,
+    &format!(
+      r#"UPDATE "instructions" SET "handed_at" = NULL
+         WHERE "id" IN ({}) AND "delivered_at" IS NULL AND "turn" IS NULL RETURNING "id""#,
+      numbered(0, ids)
+    ),
+    values,
+  )
+  .await?;
+  let given: Vec<i64> = given.iter().filter_map(|row| row.try_get::<i64>("", "id").ok()).collect();
+
+  if !given.is_empty() {
+    let named: Vec<String> = given.iter().map(i64::to_string).collect();
+
+    println!(
+      "instructions {} were taken by round {round}, which ended before a turn carried them, and are pending again",
+      named.join(", ")
+    );
+  }
+
+  Ok(given)
+}
+
+/// Rows back to pending with their carrying cleared, each whose text a session received marked as handed before;
+/// the rows given back. A round that failed and a double that handed its round back both give back this way.
+pub async fn returned(db: &DatabaseConnection, ids: &[i64]) -> Result<Vec<i64>, Fault> {
+  if ids.is_empty() {
+    return Ok(vec![]);
+  }
+
+  let values: Vec<Value> = ids.iter().map(|id| (*id).into()).collect();
+  let given = all(
+    db,
+    &format!(
+      r#"UPDATE "instructions"
+         SET "handed_at" = NULL, "session" = NULL, "turn" = NULL,
+             "restarts" = "restarts" + CASE WHEN "turn" IS NULL THEN 0 ELSE 1 END
+         WHERE "id" IN ({}) AND "delivered_at" IS NULL RETURNING "id""#,
+      numbered(0, ids)
+    ),
+    values,
+  )
+  .await?;
+
+  let mut given: Vec<i64> = given.iter().filter_map(|row| row.try_get::<i64>("", "id").ok()).collect();
+
+  given.sort_unstable();
+
+  Ok(given)
 }
 
 // The scope a room's turns go on: the agent's one session where its registration says so, the room's own
@@ -460,7 +605,7 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
 
   if !rooms.standing(&row.agent) {
     println!(
-      "instruction {} of {} for chat {} ({kind}) has no conversation to take it, discarding",
+      "instruction {} of {} for chat {} ({kind}) has no conversation to take it, letting it go",
       row.id, row.agent, row.chat_id
     );
     discard(receiver.db(), row.id).await?;
@@ -470,7 +615,7 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
 
   if providers::read_only(receiver.db(), receiver.roads(), row.chat_id).await? {
     println!(
-      "instruction {} for read-only chat {} ({kind}) is never taken, discarding",
+      "instruction {} for read-only chat {} ({kind}) is never taken, letting it go",
       row.id, row.chat_id
     );
     discard(receiver.db(), row.id).await?;
@@ -480,7 +625,7 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
 
   if crate::roads::archived::archived(receiver.db(), row.chat_id).await?.is_some() {
     println!(
-      "instruction {} for archived chat {} ({kind}) is never taken, discarding",
+      "instruction {} for archived chat {} ({kind}) is never taken, letting it go",
       row.id, row.chat_id
     );
     discard(receiver.db(), row.id).await?;
@@ -495,7 +640,7 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
     wake::agents::Account::Away => return Ok(false),
     wake::agents::Account::Left => {
       println!(
-        "instruction {} for {}, whose account left, is never taken, discarding",
+        "instruction {} for {}, whose account left, is never taken, letting it go",
         row.id, row.agent
       );
       discard(receiver.db(), row.id).await?;
@@ -506,7 +651,7 @@ async fn deliverable(receiver: &Receiver, rooms: &dyn Rooms, row: &Row) -> Resul
 
   if !wake::agents::answers(receiver, &row.agent, row.chat_id).await.unwrap_or(false) {
     println!(
-      "instruction {} of {} for chat {} ({kind}) has no conversation to take it, discarding",
+      "instruction {} of {} for chat {} ({kind}) has no conversation to take it, letting it go",
       row.id, row.agent, row.chat_id
     );
     discard(receiver.db(), row.id).await?;
@@ -626,53 +771,67 @@ pub async fn deliver_riders(
   Ok(handed)
 }
 
-/// The room replies of a round that failed given back to pending, each with the failure counted on it as a restart
-/// is counted, so the next pass hands it again; one already given back the policy's times is settled under the
-/// round instead, and so is every row that is not a room reply (docs/bmo-window.md, 「Quiet instruction」). The
-/// rows given back.
-pub async fn give_back(db: &DatabaseConnection, round: &str, ids: &[i64]) -> Result<Vec<i64>, Fault> {
+/// Every row of a round that failed given back to pending, whatever its cause (docs/bmo-window.md, 「Quiet
+/// instruction」): where the agency answered the failure (`counted`), it is counted on each row, and a row counted
+/// the policy's `failure_limit` times is let go as failed under the round instead. A failure where the agency was
+/// unreachable counts nothing. The rows given back.
+pub async fn give_back(
+  db: &DatabaseConnection,
+  round: &str,
+  ids: &[i64],
+  counted: bool,
+) -> Result<Vec<i64>, Fault> {
   if ids.is_empty() {
     return Ok(vec![]);
   }
 
-  let numbered = (1..=ids.len()).map(|at| format!("${}", at + 1)).collect::<Vec<_>>().join(", ");
-  let mut values: Vec<Value> = vec![CHAT_ROUND.instructions.restart_limit.into()];
+  if counted {
+    let values: Vec<Value> = ids.iter().map(|id| (*id).into()).collect();
 
-  values.extend(ids.iter().map(|id| (*id).into()));
-
-  let given = all(
-    db,
-    &format!(
-      r#"UPDATE "instructions" SET "handed_at" = NULL, "restarts" = "restarts" + 1
-         WHERE "id" IN ({numbered}) AND "delivered_at" IS NULL AND "cause" = 'reply' AND "restarts" < $1
-         RETURNING "id""#
-    ),
-    values,
-  )
-  .await?;
-  let given: Vec<i64> = given.iter().filter_map(|row| row.try_get::<i64>("", "id").ok()).collect();
-  let settled: Vec<i64> = ids.iter().copied().filter(|id| !given.contains(id)).collect();
-
-  if !settled.is_empty() {
-    let numbered = (1..=settled.len()).map(|at| format!("${}", at + 2)).collect::<Vec<_>>().join(", ");
-    let mut values: Vec<Value> = vec![now_ms().into(), round.into()];
-
-    values.extend(settled.iter().map(|id| (*id).into()));
     run(
       db,
       &format!(
-        r#"UPDATE "instructions" SET "delivered_at" = $1, "round" = $2 WHERE "id" IN ({numbered}) AND "delivered_at" IS NULL"#
+        r#"UPDATE "instructions" SET "failures" = "failures" + 1 WHERE "id" IN ({}) AND "delivered_at" IS NULL"#,
+        numbered(0, ids)
       ),
       values,
     )
     .await?;
+
+    let mut values: Vec<Value> = vec![CHAT_ROUND.instructions.failure_limit.into()];
+
+    values.extend(ids.iter().map(|id| (*id).into()));
+
+    let spent = all(
+      db,
+      &format!(
+        r#"SELECT "id" FROM "instructions" WHERE "id" IN ({}) AND "delivered_at" IS NULL AND "failures" >= $1"#,
+        numbered(1, ids)
+      ),
+      values,
+    )
+    .await?;
+    let spent: Vec<i64> = spent.iter().filter_map(|row| row.try_get::<i64>("", "id").ok()).collect();
+
+    if !spent.is_empty() {
+      let named: Vec<String> = spent.iter().map(i64::to_string).collect();
+
+      eprintln!(
+        "instructions {} failed in {} rounds the agency answered and are let go with round {round}",
+        named.join(", "),
+        CHAT_ROUND.instructions.failure_limit
+      );
+      let_go(db, &spent, why::FAILED, Some(round)).await?;
+    }
   }
+
+  let given = returned(db, ids).await?;
 
   if !given.is_empty() {
     let named: Vec<String> = given.iter().map(i64::to_string).collect();
 
     println!(
-      "instructions {} were room replies of a round that failed and are pending again",
+      "instructions {} were taken by round {round}, which failed, and are pending again",
       named.join(", ")
     );
   }
@@ -703,7 +862,9 @@ pub async fn reconcile(db: &DatabaseConnection, rooms: &dyn Rooms) -> Result<Vec
 
     run(
       db,
-      r#"UPDATE "instructions" SET "handed_at" = NULL WHERE "id" = $1 AND "delivered_at" IS NULL"#,
+      r#"UPDATE "instructions" SET "handed_at" = NULL, "session" = NULL, "turn" = NULL,
+           "restarts" = "restarts" + CASE WHEN "turn" IS NULL THEN 0 ELSE 1 END
+         WHERE "id" = $1 AND "delivered_at" IS NULL"#,
       vec![id.into()],
     )
     .await?;
@@ -722,46 +883,23 @@ pub async fn reconcile(db: &DatabaseConnection, rooms: &dyn Rooms) -> Result<Vec
   Ok(given)
 }
 
-/// What a stopped process left handed and unsettled goes back to pending before anything is delivered, each
-/// row given back at most the policy's times before it is dropped.
+/// What a stopped process left handed and unsettled goes back to pending before anything is delivered, its
+/// carrying cleared and each whose text a session received marked as handed before; no row is dropped, however
+/// often a restart cut it off.
 pub async fn requeue_interrupted(db: &DatabaseConnection) -> Result<(), Fault> {
   let rows = all(
     db,
-    r#"SELECT "id", "restarts" FROM "instructions" WHERE "handed_at" IS NOT NULL AND "delivered_at" IS NULL ORDER BY "id""#,
+    r#"SELECT "id" FROM "instructions" WHERE "handed_at" IS NOT NULL AND "delivered_at" IS NULL ORDER BY "id""#,
     vec![],
   )
-    .await?;
-  let mut requeued = Vec::new();
-  let mut dropped = Vec::new();
-
-  for row in rows {
-    let id: i64 = row.try_get("", "id")?;
-    let restarts: i64 = row.try_get("", "restarts")?;
-
-    if restarts >= CHAT_ROUND.instructions.restart_limit {
-      discard(db, id).await?;
-      dropped.push(id.to_string());
-    } else {
-      run(
-        db,
-        r#"UPDATE "instructions" SET "handed_at" = NULL, "restarts" = "restarts" + 1 WHERE "id" = $1"#,
-        vec![id.into()],
-      )
-      .await?;
-      requeued.push(id.to_string());
-    }
-  }
+  .await?;
+  let ids: Vec<i64> = rows.iter().filter_map(|row| row.try_get::<i64>("", "id").ok()).collect();
+  let requeued = returned(db, &ids).await?;
 
   if !requeued.is_empty() {
-    println!("instructions {} were cut off by a restart and are pending again", requeued.join(", "));
-  }
+    let named: Vec<String> = requeued.iter().map(i64::to_string).collect();
 
-  if !dropped.is_empty() {
-    eprintln!(
-      "instructions {} were cut off by restarts {} times and are dropped",
-      dropped.join(", "),
-      CHAT_ROUND.instructions.restart_limit
-    );
+    println!("instructions {} were cut off by a restart and are pending again", named.join(", "));
   }
 
   Ok(())
@@ -831,10 +969,11 @@ pub async fn queue(
   if let Some(kind) = queued.kind {
     run(
       &transaction,
-      r#"DELETE FROM "instructions" WHERE "chat_id" = $1 AND "kind" = $2 AND "delivered_at" IS NULL AND "handed_at" IS NULL"#,
-      vec![chat_id.into(), kind.into()],
+      r#"UPDATE "instructions" SET "delivered_at" = $3, "let_go" = $4
+         WHERE "chat_id" = $1 AND "kind" = $2 AND "delivered_at" IS NULL AND "handed_at" IS NULL"#,
+      vec![chat_id.into(), kind.into(), now_ms().into(), why::REPLACED.into()],
     )
-      .await?;
+    .await?;
   }
 
   let publisher = queued
@@ -877,12 +1016,54 @@ pub async fn queue(
   Ok(id)
 }
 
-/// The pass as the running process keeps it.
+/// The rooms the pass hands to, with the rows of every agent held for an agency that did not answer kept back as a
+/// silenced room's are, until the agency answers again.
+struct Holding<'a> {
+  rooms: &'a dyn Rooms,
+  held: &'a HashSet<String>,
+}
+
+impl Rooms for Holding<'_> {
+  fn instruct(
+    &self,
+    agent: &str,
+    chat_id: i64,
+    text: String,
+    id: i64,
+    via: Option<String>,
+    events: Vec<TurnEvent>,
+  ) -> BoxFuture<'_, ()> {
+    self.rooms.instruct(agent, chat_id, text, id, via, events)
+  }
+
+  fn is_active(&self, agent: &str, chat_id: i64) -> bool {
+    self.rooms.is_active(agent, chat_id)
+  }
+
+  fn standing(&self, agent: &str) -> bool {
+    self.rooms.standing(agent)
+  }
+
+  fn silenced(&self, agent: &str, chat_id: i64) -> BoxFuture<'_, bool> {
+    if self.held.contains(agent) {
+      return Box::pin(async { true });
+    }
+
+    self.rooms.silenced(agent, chat_id)
+  }
+
+  fn busy(&self, agent: &str) -> bool {
+    self.rooms.busy(agent)
+  }
+}
+
+/// The pass as the running process keeps it, with the agents whose rows it holds until the agency answers.
 pub struct Pass {
   receiver: Receiver,
   rooms: Arc<dyn Rooms>,
   last_cold_wake: Mutex<i64>,
   kicked: Notify,
+  held: Mutex<HashSet<String>>,
 }
 
 impl Pass {
@@ -892,7 +1073,35 @@ impl Pass {
       rooms,
       last_cold_wake: Mutex::new(0),
       kicked: Notify::new(),
+      held: Mutex::default(),
     })
+  }
+
+  /// An agent's rows held back until the agency answers a read again: its round failed with the agency
+  /// unreachable, so a round handed now could not reach it either (docs/bmo-window.md, 「Quiet instruction」).
+  pub fn hold(&self, agent: &str) {
+    self.held.lock().unwrap_or_else(PoisonError::into_inner).insert(agent.to_owned());
+  }
+
+  // The agents still held: none once the agency answers a read.
+  async fn still_held(&self) -> HashSet<String> {
+    let held = self.held.lock().unwrap_or_else(PoisonError::into_inner).clone();
+
+    if held.is_empty() {
+      return held;
+    }
+
+    match self.receiver.units().agency.rest().await {
+      Ok(_) => {
+        let names: Vec<String> = held.into_iter().collect();
+
+        println!("instructions: the agency answers again, so the rows of {} are handed", names.join(", "));
+        self.held.lock().unwrap_or_else(PoisonError::into_inner).clear();
+
+        HashSet::new()
+      }
+      Err(_) => held,
+    }
   }
 
   /// The next pass brought forward to now, for a row the receiver queued that should not wait for the tick.
@@ -918,10 +1127,15 @@ impl Pass {
   }
 
   async fn once(&self) -> bool {
+    let agents_held = self.still_held().await;
+    let holding = Holding {
+      rooms: self.rooms.as_ref(),
+      held: &agents_held,
+    };
     let mut last = *self.last_cold_wake.lock().unwrap_or_else(PoisonError::into_inner);
     let held = deliver_pending(
       &self.receiver,
-      self.rooms.as_ref(),
+      &holding,
       &mut last,
       now_ms(),
       CHAT_ROUND.instructions.cold_wake_gap_ms,
@@ -934,7 +1148,7 @@ impl Pass {
       eprintln!("instructions: {}", why.detail);
 
       false
-    })
+    }) || !agents_held.is_empty()
   }
 
   /// The pass for as long as the process stands: the rows a stopped process left handed made pending first,
@@ -988,6 +1202,10 @@ impl crate::receiver::Pass for Pass {
 
   fn riders<'a>(&'a self, agent: &'a str, chat_id: i64) -> BoxFuture<'a, ()> {
     Box::pin(async move { self.riders(agent, chat_id).await })
+  }
+
+  fn hold(&self, agent: &str) {
+    Pass::hold(self, agent)
   }
 }
 

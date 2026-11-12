@@ -22,7 +22,8 @@ use super::conversation::Conversations;
 use super::notices;
 use super::notices::Voiced;
 use super::relaunch::{Deployed, deployment};
-use crate::receiver::wake::{rest, standing};
+use super::runner::Runner;
+use crate::receiver::wake::{self, rest, standing};
 use crate::receiver::{Inbound, Receiver, rows};
 use crate::store::{Fault, settings};
 use crate::{all, now_ms, one, run};
@@ -324,11 +325,12 @@ async fn answerer_numbers(receiver: &Receiver, chat_id: i64, road: &str) -> Hash
   HashSet::from_iter(rows.iter().filter_map(|row| row.try_get::<i64>("", "sender_id").ok()))
 }
 
-/// The words a restart left unread, handed to every room that answers, one room at a time in room order, each
-/// room's session taking the lines after its read mark as one turn before the next room is served. The read mark
-/// the conversation writes after the turn keeps a line from being served twice; a room with nothing waiting is
-/// not served and says nothing.
-pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) -> Result<(), Fault> {
+/// The words a restart left unread, handed to every room that answers, one room at a time in room order, to every
+/// agent that answers the room, whichever it is (docs/wake.md, 「The room's queue and the round」): a room one agent
+/// answers hands it every line after its read mark as one turn, and a room several answer hands each the lines that
+/// wake it by the one rule. The read mark the conversation writes after the turn keeps a line from being served
+/// twice; a room with nothing waiting is not served and says nothing.
+pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), Fault> {
   let db = receiver.db();
   let owner = receiver.deployment().owner_id;
   let rooms = receiver.roads();
@@ -342,7 +344,7 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
   open.dedup();
 
   for chat_id in open {
-    if !answers(receiver, chat_id).await || conversations.silenced(chat_id).await {
+    if !answers(receiver, chat_id).await {
       continue;
     }
 
@@ -382,17 +384,54 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
       continue;
     }
 
-    let count = unread.len();
+    let agents = match wake::agents::room_designated(receiver, chat_id, room).await {
+      Ok((agents, _)) => agents.into_iter().map(|agent| agent.name).collect::<Vec<_>>(),
+      Err(why) => {
+        eprintln!("restart: chat {chat_id}'s answerers were not read, so its backlog waits: {why}");
+        continue;
+      }
+    };
     let last = unread.last().map(|message| message.message_id).unwrap_or_default();
+    let mut served: Vec<Conversations> = vec![];
 
-    println!("resuming backlog in chat {chat_id}: {count} message(s)");
-    conversations.wake(unread, room).await;
+    for agent in &agents {
+      let conversations = runner.of(agent);
 
-    // One room at a time: the next room waits until this room's turn has gone out and its read mark stands at
+      if conversations.silenced(chat_id).await {
+        continue;
+      }
+
+      let words: Vec<Inbound> = if agents.len() == 1 {
+        unread.clone()
+      } else {
+        let mut words = vec![];
+
+        for message in &unread {
+          if wake::wakes(receiver, agent, message, room).await.unwrap_or(false) {
+            words.push(message.clone());
+          }
+        }
+
+        words
+      };
+
+      if words.is_empty() {
+        continue;
+      }
+
+      println!("resuming backlog in chat {chat_id} for {agent}: {} message(s)", words.len());
+      conversations.wake(words, room).await;
+      served.push(conversations);
+    }
+
+    // One room at a time: the next room waits until this room's turns have gone out and its read mark stands at
     // the last line handed, which is what keeps a served line from being served again, or until the room holds
-    // nothing more to answer, as a turn that failed or was stopped leaves it. However long the turn takes, the
-    // next room waits for it.
-    while !rows::is_read(db, chat_id, last).await.unwrap_or(false) && !conversations.settled(chat_id) {
+    // nothing more to answer for any agent served, as a turn that failed or was stopped leaves it. However long
+    // the turns take, the next room waits for them.
+    while !served.is_empty()
+      && !rows::is_read(db, chat_id, last).await.unwrap_or(false)
+      && !served.iter().all(|conversations| conversations.settled(chat_id))
+    {
       tokio::time::sleep(Duration::from_millis(50)).await;
     }
   }
@@ -402,7 +441,7 @@ pub async fn resume_backlog(receiver: &Receiver, conversations: &Conversations) 
 
 /// The restart for as long as the process stands: the back notice now, the backlog once the start has settled —
 /// a rest past its end lifted first — and a rest looked for on the rest policy's clock after.
-pub fn keep(receiver: Receiver, conversations: Conversations) {
+pub fn keep(receiver: Receiver, runner: Runner) {
   tokio::spawn(async move {
     queue_back_notice(&receiver).await;
 
@@ -412,7 +451,7 @@ pub fn keep(receiver: Receiver, conversations: Conversations) {
       eprintln!("restart: the rest: {}", why.detail);
     }
 
-    if let Err(why) = resume_backlog(&receiver, &conversations).await {
+    if let Err(why) = resume_backlog(&receiver, &runner).await {
       eprintln!("restart: the backlog: {}", why.detail);
     }
 

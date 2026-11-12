@@ -104,6 +104,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     answers: vec![11],
     began: Some(1_000),
     round: Some("round:-7:1:1".to_owned()),
+    key: Some("round:-7:1:1:-7:1000".to_owned()),
   };
 
   assert_eq!(agency.turn(&turn).await.unwrap(), Delivery::Blocked);
@@ -169,6 +170,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
           "answers": [11],
           "began": 1000,
           "round": "round:-7:1:1",
+          "key": "round:-7:1:1:-7:1000",
         }))
       ),
       call("GET /sessions/agent-a@-7", "", None),
@@ -489,7 +491,7 @@ async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_f
     "GET /runs",
     200,
     json!({ "items": [
-      { "id": 12, "name": "agent-a:chat:-7:2", "startedAt": 2_000, "jobId": null, "state": "open" },
+      { "id": 12, "name": "agent-a:chat:-7:2", "startedAt": 2_000, "jobId": null, "round": "round-9", "roomId": -7, "state": "open" },
       { "id": 11, "name": "unit-a:research-1", "startedAt": 1_000, "state": "open" },
     ], "more": false }),
   );
@@ -509,13 +511,17 @@ async fn the_runs_open_and_the_jobs_running_are_read_off_the_live_lists_newest_f
         id: 12,
         name: "agent-a:chat:-7:2".to_owned(),
         started_at: 2_000,
-        job_id: None
+        job_id: None,
+        round: Some("round-9".to_owned()),
+        room_id: Some(-7),
       },
       OpenRun {
         id: 11,
         name: "unit-a:research-1".to_owned(),
         started_at: 1_000,
-        job_id: None
+        job_id: None,
+        round: None,
+        room_id: None,
       },
     ]
   );
@@ -565,7 +571,7 @@ async fn the_kept_events_are_read_after_a_number_and_a_turn_is_read_by_its_id() 
   unit.answer(
     "GET /sessions/agent-a@agent/turns/3",
     200,
-    json!({ "id": 3, "state": "ended", "outcome": "answered", "answer": "hi", "text": "hi" }),
+    json!({ "id": 3, "state": "ended", "outcome": "answered", "answer": "hi", "text": "hi", "delivery": "delivered" }),
   );
 
   let agency = HttpAgency::new(&unit.peer("t"));
@@ -588,6 +594,8 @@ async fn the_kept_events_are_read_after_a_number_and_a_turn_is_read_by_its_id() 
       state: "ended".to_owned(),
       outcome: Some("answered".to_owned()),
       answer: Some("hi".to_owned()),
+      reason: None,
+      delivery: Some(Delivery::Delivered),
     }
   );
   assert!(read.ended());

@@ -165,6 +165,7 @@ async fn a_handoff_turn_that_meets_the_session_in_a_turn_waits_for_it_to_end() {
           answers: vec![],
           began: None,
           round: None,
+          key: None,
         })
         .await
     })

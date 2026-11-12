@@ -130,6 +130,7 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
     answers: vec![],
     began: Some(now_ms()),
     round: rounds::current(),
+    key: None,
   };
   let agency = receiver.units().agency.clone();
 

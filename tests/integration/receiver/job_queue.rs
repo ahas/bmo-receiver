@@ -187,7 +187,12 @@ async fn an_instruction_withdrawn_before_a_took_it_leaves_nothing_and_a_handed_o
     (StatusCode::NO_CONTENT, json!({}))
   );
   assert_eq!(
-    rows(&scratch, r#"SELECT COUNT(*) FROM "instructions" WHERE "id" = $1"#, vec![id.into()]).await,
+    rows(
+      &scratch,
+      r#"SELECT COUNT(*) FROM "instructions" WHERE "id" = $1 AND "let_go" IS DISTINCT FROM 'withdrawn'"#,
+      vec![id.into()]
+    )
+    .await,
     0
   );
   assert_eq!(get(&front, &format!("/instructions/{id}")).await.0, StatusCode::NOT_FOUND);
@@ -447,7 +452,7 @@ async fn a_notice_voiced_in_a_room_is_queued_for_the_rooms_voice_and_replaces_on
   assert_eq!(
     rows(
       &scratch,
-      r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = 7 AND "kind" = 'rest-lifted'"#,
+      r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = 7 AND "kind" = 'rest-lifted' AND "let_go" IS NULL"#,
       vec![]
     )
     .await,

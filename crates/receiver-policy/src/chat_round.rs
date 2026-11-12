@@ -222,6 +222,15 @@ pub struct Pushing {
   pub refused_gap_ms: u64,
 }
 
+/// How a turn cut from the round that follows it is re-attached to: the wait between two tries while the agency
+/// answers nothing, and how long the round keeps trying before it fails.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Attach {
+  pub pace_ms: u64,
+  pub reattach_ms: u64,
+}
+
 /// How often a working turn's picture is published where only its counts changed.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -237,15 +246,16 @@ pub struct Thinking {
   pub ceiling_chars: usize,
 }
 
-/// The instruction pass's clock, its pacing, what a row given back by a restart opens with, and what a row for a
-/// room whose registration is gone opens with in the owner's private chat, `{room}` the room's number.
+/// The instruction pass's clock, its pacing, how many failures the agency answered a row goes through before it
+/// is let go, what a row given back opens with, and what a row for a room whose registration is gone opens with in
+/// the owner's private chat, `{room}` the room's number.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Instructions {
   pub tick_seconds: u64,
   pub watch_ms: u64,
   pub cold_wake_gap_ms: i64,
-  pub restart_limit: i64,
+  pub failure_limit: i64,
   /// The marker a row given back by a restart carries, its line as data, and the rule the marker stands for in
   /// the room's block.
   pub restarted_marker: String,
@@ -327,6 +337,7 @@ pub struct ChatRound {
   pub push: Push,
   pub notice: Notice,
   pub pushing: Pushing,
+  pub attach: Attach,
   pub progress: Progress,
   pub thinking: Thinking,
   pub typing: Typing,

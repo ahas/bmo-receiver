@@ -202,22 +202,28 @@ async fn the_owners_setting_command_changes_the_room_and_is_acknowledged_in_its_
   assert_eq!(
     scratch
       .count(
-        r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = -104 AND "kind" = 'setting:photos'"#,
+        r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = -104 AND "kind" = 'setting:photos' AND "let_go" IS NULL"#,
         vec![]
       )
       .await,
     1
   );
   assert!(
-    text(&scratch, r#"SELECT "text" FROM "instructions" WHERE "chat_id" = -104"#)
-      .await
-      .unwrap()
-      .contains("The owner switched photo viewing off for this chat alone")
+    text(
+      &scratch,
+      r#"SELECT "text" FROM "instructions" WHERE "chat_id" = -104 AND "let_go" IS NULL"#
+    )
+    .await
+    .unwrap()
+    .contains("The owner switched photo viewing off for this chat alone")
   );
   assert_eq!(
-    text(&scratch, r#"SELECT "agent" FROM "instructions" WHERE "chat_id" = -104"#)
-      .await
-      .as_deref(),
+    text(
+      &scratch,
+      r#"SELECT "agent" FROM "instructions" WHERE "chat_id" = -104 AND "let_go" IS NULL"#
+    )
+    .await
+    .as_deref(),
     Some("agent-a")
   );
 
@@ -279,7 +285,7 @@ async fn a_mute_names_the_person_answered_and_never_the_owner_or_the_agent() {
   assert!(
     text(
       &scratch,
-      r#"SELECT "text" FROM "instructions" WHERE "chat_id" = -105 AND "kind" = 'setting:mute'"#
+      r#"SELECT "text" FROM "instructions" WHERE "chat_id" = -105 AND "kind" = 'setting:mute' AND "let_go" IS NULL"#
     )
     .await
     .unwrap()

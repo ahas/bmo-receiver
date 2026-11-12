@@ -125,18 +125,18 @@ pub async fn cut_off(receiver: &Receiver, runner: &Runner, event: &Value) {
     return;
   }
 
-  let numbered = (2..cut.instructions.len() + 2)
+  let numbered = (3..cut.instructions.len() + 3)
     .map(|place| format!("${place}"))
     .collect::<Vec<_>>()
     .join(", ");
-  let mut values: Vec<sea_orm::Value> = vec![at.into()];
+  let mut values: Vec<sea_orm::Value> = vec![at.into(), super::instructions::why::RESET.into()];
 
   values.extend(cut.instructions.iter().map(|id| (*id).into()));
 
   if let Err(why) = run(
     receiver.db(),
     &format!(
-      r#"UPDATE "instructions" SET "delivered_at" = $1 WHERE "id" IN ({numbered}) AND "delivered_at" IS NULL"#
+      r#"UPDATE "instructions" SET "delivered_at" = $1, "let_go" = $2 WHERE "id" IN ({numbered}) AND "delivered_at" IS NULL"#
     ),
     values,
   )
