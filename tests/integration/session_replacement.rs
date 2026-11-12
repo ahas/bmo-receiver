@@ -504,3 +504,22 @@ async fn a_change_that_leaves_the_process_instructions_as_they_were_replaces_not
   unified.round(4, "the fourth words").await;
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }
+
+// A state of the session that names no provider or model — the agency restarting, or a session opened afresh and
+// not yet through its first turn — says nothing of the road: it replaces nothing, while another model named does.
+#[test]
+fn a_state_naming_no_road_moves_no_road() {
+  use bmo_receiver::chat::cache::{Route, route_reason};
+  use receiver_codes::SessionReason;
+
+  let held = Route {
+    provider: "provider-a".to_owned(),
+    model: "model-a".to_owned(),
+    ..Route::default()
+  };
+
+  assert_eq!(route_reason(&held, "", "", "", None), None, "an unread state");
+  assert_eq!(route_reason(&held, "provider-a", "", "", None), None, "a state naming no model");
+  assert_eq!(route_reason(&held, "provider-a", "model-a", "", None), None);
+  assert_eq!(route_reason(&held, "provider-a", "model-b", "", None), Some(SessionReason::Route));
+}

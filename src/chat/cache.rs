@@ -129,7 +129,9 @@ async fn forget_setting(db: &DatabaseConnection, key: &str) -> Result<(), Fault>
 }
 
 /// Why the road the room stands on is not one this turn may go on: another provider, model or effort, or another
-/// login.
+/// login. A provider or model the agency's state does not name — a state it could not answer while it restarts,
+/// or a session opened afresh and not yet through its first turn — says nothing of the road, so it moves nothing
+/// (docs/unified-bmo.md, 「Replacing the session」).
 pub fn route_reason(
   held: &Route,
   provider: &str,
@@ -137,6 +139,10 @@ pub fn route_reason(
   effort: &str,
   account: Option<&str>,
 ) -> Option<SessionReason> {
+  if provider.is_empty() || model.is_empty() {
+    return None;
+  }
+
   if held.provider != provider || held.model != model || held.effort != effort {
     return Some(SessionReason::Route);
   }

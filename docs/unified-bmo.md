@@ -185,7 +185,9 @@
 
 - **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
   effort, or another login), the draft process's instructions it was handed changed, or the owner asked for a
-  fresh start. The agency carries the replacement as the session's provider declares.
+  fresh start. A road moved only where the agency's state of the session names a provider and a model that differ
+  from the ones it stood on: a state the agency could not answer — while it restarts — or one naming none — a
+  session opened afresh and not yet through its first turn — says nothing of the road and replaces nothing. The agency carries the replacement as the session's provider declares.
   A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
   folded: the owner's word to start it afresh is written for it, with the reason `full`, and its next turn
   replaces it. A cache lifetime passed replaces nothing: the next turn resumes the session, and the provider
