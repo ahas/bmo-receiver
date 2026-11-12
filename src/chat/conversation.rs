@@ -255,13 +255,7 @@ pub struct Made {
 /// first question the turn carries, and the rest of it once the turn answered. Filled by the module that owns the
 /// process.
 pub trait Drafting: Send + Sync {
-  fn plan<'a>(
-    &'a self,
-    agent: &'a str,
-    chat_id: i64,
-    batch: &'a [Inbound],
-    instructions: usize,
-  ) -> BoxFuture<'a, Plan>;
+  fn plan<'a>(&'a self, agent: &'a str, chat_id: i64) -> BoxFuture<'a, Plan>;
 
   fn draft<'a>(
     &'a self,
@@ -1854,7 +1848,7 @@ impl Conversations {
     let queue_line = self.queue_line(chat_id).await;
     let woken = self.state().woken.get(&chat_id).cloned();
     // The process is read before the turn goes out, since the turn carries its first question.
-    let plan = self.0.drafting.plan(self.agent(), chat_id, &batch, instructions.len()).await;
+    let plan = self.0.drafting.plan(self.agent(), chat_id).await;
     let composed = prompt::compose(
       &receiver,
       &Round {
@@ -2264,13 +2258,13 @@ impl Conversations {
 
   // The situation notes the agent owes written before a round goes on in `entering` (docs/drafting.md, 「The
   // situation note」): each room it answered in since that room's note was last updated, other than the room the
-  // round is in, updated by one light turn of the agent's one session, in that room. A turn whose run failed leaves
+  // round is in, updated by one turn of the agent's one session, in that room. A turn whose run failed leaves
   // its room owed and the round goes on; a stop ends the round.
   async fn leave_notes(&self, entering: i64, held: &Held) -> Result<(), Failure> {
     self.owed_notes(Some(entering), held.session.as_deref()).await.map(drop)
   }
 
-  /// The situation notes the agent owes written, each by one light turn of its one session in the room the note
+  /// The situation notes the agent owes written, each by one turn of its one session in the room the note
   /// is of: every room it answered in since that room's note was last updated, but `staying`, the room a round is
   /// about to go on in. A turn whose run failed leaves its room owed and the rest go on; a stop ends them. How
   /// many turns went in.
@@ -2315,7 +2309,7 @@ impl Conversations {
   }
 
   // The agent's own judgement of whether to answer words that did not name it (docs/wake.md, 「The room's queue and
-  // the round」): one light turn of the same session carrying the room's situation note where the session has not
+  // the round」): one turn of the same session carrying the room's situation note where the session has not
   // read it, the room's recent words and the words judged, in the room shape; no reference and no gate. Its row stands in the
   // round log of its own kind. Answers whether the agent passed the words over.
   async fn supervise(
@@ -2435,7 +2429,7 @@ impl Conversations {
     Ok(passed)
   }
 
-  // A notice turn's summary, written by the same session in one light turn of the summary's quiet instruction once
+  // A notice turn's summary, written by the same session in one turn of the summary's quiet instruction once
   // the line has gone out, and handed to the voice engine with the line it speaks; a session that gives none has
   // the line's opening spoken.
   async fn summarise(&self, chat_id: i64, held: &mut Held, via: &str, sent: &Sent) {
@@ -2492,7 +2486,7 @@ impl Conversations {
   }
 
   /// A line written as a spoken script by the agent's own session in the line's room (docs/voiced-notices.md,
-  /// 「The full reading on a line's chip」): one light turn of the reading's quiet instruction, held behind any
+  /// 「The full reading on a line's chip」): one turn of the reading's quiet instruction, held behind any
   /// round of the agent's; none where the session wrote nothing or the turn failed.
   pub async fn spoken(&self, chat_id: i64, line: &str) -> Option<String> {
     // A session past its cache lifetime is never woken (docs/unified-bmo.md, 「Replacing the session」).
@@ -3526,7 +3520,7 @@ async fn settle_instructions(db: &DatabaseConnection, now: i64, round: &str, ids
 }
 
 /// Whether the agent's turns go on one session across its rooms, as its registration says.
-/// One room's situation note updated by a light turn of the agent's one session, in that room (docs/drafting.md,
+/// One room's situation note updated by one turn of the agent's one session, in that room (docs/drafting.md,
 /// 「The situation note」): the note as it stands and what the room's record holds past it go in, the answer is the
 /// note, and the room is owed none from then on. A room whose record holds nothing the note has not read is
 /// settled with no turn. A turn whose run failed leaves the room owed. The turn goes on the session as it stands:

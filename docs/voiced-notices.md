@@ -211,8 +211,7 @@ spoken, and the session writes what is said.
 - **A turn qualifies** when all of these hold: it is the owner's private chat; nobody spoke in its round, so it
   carried quiet instructions and no message of anyone; it sent a line, so a skip or a wait is not
   spoken; the switch is on; and its agent has a voice.
-- **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one light
-  turn once the line has gone out and before the round lets go of the room. The instruction is marked and
+- **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one turn once the line has gone out and before the round lets go of the room. The instruction is marked and
   carries the line as the facts; what the marker asks for — a one-line title saying what the briefing is about,
   in the agent's own words for this briefing, then one or two sentences of the line's gist as a spoken script,
   never the line read out, every notice of the turn covered in its newest state — stands in the room's block
@@ -243,8 +242,7 @@ spoken, and the session writes what is said.
   send, with words of its own; any other message is `not-found`.
 - **Nothing is made before it is asked for.** The receiver asks the engine for the line's full reading
   (`GET /briefings` by room, line and kind): one waiting or speaking answers `making`, one done answers `ready`.
-  Where there is none, or the last one failed, it answers `making` at once and asks the line's agent, in one light
-  turn of its session in the line's room, for the whole line as a spoken script: the turn is marked and carries
+  Where there is none, or the last one failed, it answers `making` at once and asks the line's agent, in one turn of its session in the line's room, for the whole line as a spoken script: the turn is marked and carries
   the line as data, and what the marker asks for stands in the room's block (`policy/chat-round.toml`, `[voice]`,
   `reading_marker`, `reading_rule`), every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
   `full`; a session that gives no script, or one past its cache lifetime, which is never woken for it

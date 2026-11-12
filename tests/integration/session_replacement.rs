@@ -421,7 +421,7 @@ async fn a_full_session_handed_over_by_its_note_is_replaced_at_its_next_turn_thr
 }
 
 // The process row the supervisor's turns read, as the console sets it.
-async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str], light_chars: u32) {
+async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str]) {
   use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
 
   let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
@@ -434,9 +434,7 @@ async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str], light_cha
       agent: AGENT.to_owned(),
       rounds: named(rounds),
       send_from: String::new(),
-      light: vec![],
       off: named(off),
-      light_chars,
       ceiling_seconds: 0,
       past_ceiling: PastCeiling::Send,
       set: true,
@@ -457,7 +455,7 @@ async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() 
   assert!(unified.standing.agency.ended().is_empty());
 
   // A question asked that was not: the block's stage lines are no longer the ones the session read.
-  process_row(&unified, &["final"], &[], 12).await;
+  process_row(&unified, &["final"], &[]).await;
 
   let db = unified.scratch.db();
   let route = active_route(db, AGENT).await.unwrap().expect("the first round kept its road");
@@ -487,22 +485,22 @@ async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() 
 async fn a_change_that_leaves_the_process_instructions_as_they_were_replaces_nothing() {
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
 
-  process_row(&unified, &["information", "final"], &[], 12).await;
+  process_row(&unified, &["information", "final"], &[]).await;
   unified.round(1, "the first words").await;
 
-  // A light bound is no line of the block.
-  process_row(&unified, &["information", "final"], &[], 40).await;
+  // The same row set again is no change of the block.
+  process_row(&unified, &["information", "final"], &[]).await;
   unified.round(2, "the second words").await;
-  assert!(unified.standing.agency.ended().is_empty(), "a light bound replaces nothing");
+  assert!(unified.standing.agency.ended().is_empty(), "the same row set again replaces nothing");
 
   // A question switched off and on again before the session's next turn leaves the block as it was.
-  process_row(&unified, &["information", "final"], &["information"], 40).await;
-  process_row(&unified, &["information", "final"], &[], 40).await;
+  process_row(&unified, &["information", "final"], &["information"]).await;
+  process_row(&unified, &["information", "final"], &[]).await;
   unified.round(3, "the third words").await;
   assert!(unified.standing.agency.ended().is_empty(), "a change set back replaces nothing");
 
   // Switched off, it leaves the block, and the session that read its line is replaced.
-  process_row(&unified, &["information", "final"], &["information"], 40).await;
+  process_row(&unified, &["information", "final"], &["information"]).await;
   unified.round(4, "the fourth words").await;
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }

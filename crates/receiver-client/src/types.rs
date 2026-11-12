@@ -1164,15 +1164,12 @@ pub struct DraftProcess {
   pub tier: String,
   /// An agent, or `*` for any.
   pub agent_name: String,
-  /// The questions an ordinary turn's round follows, in order.
+  /// The questions every turn's round follows, in order.
   pub rounds: Vec<String>,
   /// The question a row once read a send from: kept as it came and read by nothing.
   pub send_from: String,
-  /// The questions a light turn's round follows, in order.
-  pub light: Vec<String>,
-  /// The questions of `rounds` and `light` that are switched off: each keeps its place and is not followed.
+  /// The questions of `rounds` that are switched off: each keeps its place and is not followed.
   pub off: Vec<String>,
-  pub light_chars: u32,
   pub ceiling_seconds: u32,
   /// `send` or `skip`.
   pub past_ceiling: String,
@@ -1188,11 +1185,9 @@ pub struct DraftProcessSet {
   /// Read and ignored: the draft turn's answer is the message.
   #[serde(default)]
   pub send_from: String,
-  pub light: Vec<String>,
-  /// The questions of `rounds` and `light` that are switched off; left out for none.
+  /// The questions of `rounds` that are switched off; left out for none.
   #[serde(default)]
   pub off: Vec<String>,
-  pub light_chars: u32,
   pub ceiling_seconds: u32,
   /// `send` or `skip`.
   pub past_ceiling: String,

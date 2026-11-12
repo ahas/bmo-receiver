@@ -588,20 +588,8 @@
             "minimum": 0,
             "type": "integer"
           },
-          "light": {
-            "description": "The questions a light turn's round follows, in order.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "lightChars": {
-            "format": "uint32",
-            "minimum": 0,
-            "type": "integer"
-          },
           "off": {
-            "description": "The questions of `rounds` and `light` that are switched off: each keeps its place and is not followed.",
+            "description": "The questions of `rounds` that are switched off: each keeps its place and is not followed.",
             "items": {
               "type": "string"
             },
@@ -616,7 +604,7 @@
             "type": "string"
           },
           "rounds": {
-            "description": "The questions an ordinary turn's round follows, in order.",
+            "description": "The questions every turn's round follows, in order.",
             "items": {
               "type": "string"
             },
@@ -641,9 +629,7 @@
           "agentName",
           "rounds",
           "sendFrom",
-          "light",
           "off",
-          "lightChars",
           "ceilingSeconds",
           "pastCeiling",
           "source"
@@ -658,20 +644,9 @@
             "minimum": 0,
             "type": "integer"
           },
-          "light": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "lightChars": {
-            "format": "uint32",
-            "minimum": 0,
-            "type": "integer"
-          },
           "off": {
             "default": [],
-            "description": "The questions of `rounds` and `light` that are switched off; left out for none.",
+            "description": "The questions of `rounds` that are switched off; left out for none.",
             "items": {
               "type": "string"
             },
@@ -696,9 +671,7 @@
         "required": [
           "rounds",
           "sendFrom",
-          "light",
           "off",
-          "lightChars",
           "ceilingSeconds",
           "pastCeiling"
         ],

@@ -475,13 +475,7 @@ async fn stages(db: &DatabaseConnection, agent: &str) -> Result<String, Fault> {
   if let Some(row) = row {
     let catalogue = super::draft::table::questions(db, Some(agent)).await?;
     // A question the row has switched off is not asked, so the block carries no line for it.
-    let mut names = row.asked(&row.rounds);
-
-    for name in &row.asked(&row.light) {
-      if !names.contains(name) {
-        names.push(name.clone());
-      }
-    }
+    let names = row.asked(&row.rounds);
 
     if !names.is_empty() {
       parts.push(fill_marks(&DRAFTING.stages_head, &[("voice", &DRAFTING.voice)]));

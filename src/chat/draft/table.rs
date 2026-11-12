@@ -37,9 +37,6 @@ pub const TEXT_CHARS: usize = 4000;
 /// The longest ceiling a row may name, in seconds.
 pub const LONGEST_CEILING: u32 = 3600;
 
-/// The largest light bound a row may name, in characters.
-pub const LARGEST_LIGHT: u32 = 1000;
-
 /// What becomes of a turn once its ceiling has passed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PastCeiling {
@@ -67,8 +64,8 @@ impl PastCeiling {
 }
 
 /// A row of the table: its key, the policy's `*/*/*` or a supervisor's name under any provider and tier, the
-/// questions of an ordinary and of a light turn, those of them switched off, the question a send is read from,
-/// the light bound, the ceiling and what is done past it, and whether the console set it.
+/// questions every turn's round follows, those of them switched off, the question a send is read from, the
+/// ceiling and what is done past it, and whether the console set it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Process {
   pub provider: String,
@@ -77,10 +74,8 @@ pub struct Process {
   pub rounds: Vec<String>,
   /// The question a row once read a send from: kept as it came and read by nothing.
   pub send_from: String,
-  pub light: Vec<String>,
-  /// The questions of the two lists that are switched off: each keeps its place in its list and is not asked.
+  /// The questions of the list that are switched off: each keeps its place in it and is not asked.
   pub off: Vec<String>,
-  pub light_chars: u32,
   pub ceiling_seconds: u32,
   pub past_ceiling: PastCeiling,
   /// Whether the console set the row.
@@ -95,9 +90,7 @@ impl Process {
       agent: row.agent.clone(),
       rounds: row.rounds.clone(),
       send_from: row.send_from.clone().unwrap_or_default(),
-      light: row.light.clone(),
       off: row.off.clone(),
-      light_chars: row.light_chars,
       ceiling_seconds: row.ceiling_seconds.unwrap_or(0),
       past_ceiling: row.past_ceiling.as_deref().and_then(PastCeiling::of).unwrap_or(PastCeiling::Send),
       set: false,
@@ -105,12 +98,12 @@ impl Process {
     .settled()
   }
 
-  /// The row with `off` naming only questions its lists hold, each once and in the lists' order: a name neither
-  /// list holds is dropped.
+  /// The row with `off` naming only questions its list holds, each once and in the list's order: a name the list
+  /// does not hold is dropped.
   pub fn settled(mut self) -> Self {
     let mut off: Vec<String> = vec![];
 
-    for name in self.rounds.iter().chain(&self.light) {
+    for name in &self.rounds {
       if self.off.contains(name) && !off.contains(name) {
         off.push(name.clone());
       }
@@ -121,7 +114,7 @@ impl Process {
     self
   }
 
-  /// The questions of one of the row's lists a round follows: the list without those switched off, in its order.
+  /// The questions of the row's list a round follows: the list without those switched off, in its order.
   pub fn asked(&self, list: &[String]) -> Vec<String> {
     list.iter().filter(|name| !self.off.contains(name)).cloned().collect()
   }
@@ -140,9 +133,7 @@ impl Process {
       "agentName": self.agent,
       "rounds": self.rounds,
       "sendFrom": self.send_from,
-      "light": self.light,
       "off": self.off,
-      "lightChars": self.light_chars,
       "ceilingSeconds": self.ceiling_seconds,
       "pastCeiling": self.past_ceiling.word(),
       "source": if self.set { "set" } else { "default" },
@@ -179,9 +170,7 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
     agent: text("agent")?,
     rounds: names(&text("rounds")?),
     send_from: text("send_from")?,
-    light: names(&text("light")?),
     off: names(&text("off")?),
-    light_chars: u32::try_from(number("light_chars")?).unwrap_or(0),
     ceiling_seconds: u32::try_from(number("ceiling_seconds")?).unwrap_or(0),
     past_ceiling: PastCeiling::of(&text("past_ceiling")?).unwrap_or(PastCeiling::Send),
     set: true,
@@ -197,8 +186,7 @@ pub fn policy_row() -> Option<Process> {
 pub async fn rows<C: ConnectionTrait>(db: &C) -> Result<Vec<Process>, Fault> {
   let read = all(
     db,
-    r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "light", "off", "light_chars",
-            "ceiling_seconds", "past_ceiling"
+    r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "off", "ceiling_seconds", "past_ceiling"
          FROM "draft_processes" ORDER BY "agent""#,
     vec![],
   )
@@ -297,30 +285,25 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
     ));
   }
 
-  for (what, list) in [("rounds", &process.rounds), ("light", &process.light)] {
-    if list.iter().any(|name| name == SUPERVISOR) {
-      return Some(format!("{what} names {SUPERVISOR}, which is asked before any process and in no list."));
-    }
+  let list = &process.rounds;
 
-    if let Some(unknown) =
-      list.iter().find(|name| !catalogue.iter().any(|question| &question.name == *name))
-    {
-      return Some(format!("{what} names the question {unknown}, which the catalogue does not hold."));
-    }
+  if list.iter().any(|name| name == SUPERVISOR) {
+    return Some(format!("rounds names {SUPERVISOR}, which is asked before any process and in no list."));
+  }
 
-    let finals = list.iter().filter(|name| name.as_str() == LAST).count();
+  if let Some(unknown) = list.iter().find(|name| !catalogue.iter().any(|question| &question.name == *name))
+  {
+    return Some(format!("rounds names the question {unknown}, which the catalogue does not hold."));
+  }
 
-    if !list.is_empty() && (list.last().map(String::as_str) != Some(LAST) || finals != 1) {
-      return Some(format!("{what} must end in {LAST} and hold it nowhere else."));
-    }
+  let finals = list.iter().filter(|name| name.as_str() == LAST).count();
+
+  if !list.is_empty() && (list.last().map(String::as_str) != Some(LAST) || finals != 1) {
+    return Some(format!("rounds must end in {LAST} and hold it nowhere else."));
   }
 
   if process.off.iter().any(|name| name == LAST) {
     return Some(format!("off names {LAST}, which writes the message and is never switched off."));
-  }
-
-  if process.light_chars > LARGEST_LIGHT {
-    return Some(format!("lightChars must be from 0 to {LARGEST_LIGHT}."));
   }
 
   None
@@ -352,13 +335,11 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
   run(
     db,
     r#"INSERT INTO "draft_processes"
-         ("provider", "tier", "agent", "rounds", "send_from", "light", "off", "light_chars", "ceiling_seconds",
-          "past_ceiling", "set_at")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         ("provider", "tier", "agent", "rounds", "send_from", "off", "ceiling_seconds", "past_ceiling", "set_at")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT ("provider", "tier", "agent") DO UPDATE SET
-         "rounds" = EXCLUDED."rounds", "send_from" = EXCLUDED."send_from", "light" = EXCLUDED."light",
-         "off" = EXCLUDED."off",
-         "light_chars" = EXCLUDED."light_chars", "ceiling_seconds" = EXCLUDED."ceiling_seconds",
+         "rounds" = EXCLUDED."rounds", "send_from" = EXCLUDED."send_from", "off" = EXCLUDED."off",
+         "ceiling_seconds" = EXCLUDED."ceiling_seconds",
          "past_ceiling" = EXCLUDED."past_ceiling",
          "set_at" = EXCLUDED."set_at""#,
     vec![
@@ -367,9 +348,7 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
       process.agent.clone().into(),
       listed(&process.rounds).into(),
       process.send_from.clone().into(),
-      listed(&process.light).into(),
       listed(&process.off).into(),
-      i64::from(process.light_chars).into(),
       i64::from(process.ceiling_seconds).into(),
       process.past_ceiling.word().into(),
       now_ms().into(),

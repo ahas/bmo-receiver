@@ -299,7 +299,7 @@ memory = "the room's memories now due"
 room = "the room"
 archive = "the room's archive"
 
-# The room's situation note, updated by one light turn in every round with words, before its judgement or its own
+# The room's situation note, updated by one turn in every round with words, before its judgement or its own
 # turn (docs/drafting.md, 「The situation note」), the owner's private chat included: the instruction the room's
 # block carries once per session, the mark the note turn carries, and the lines the note as it stands and the
 # messages that came in since it last read the room's record stand under.

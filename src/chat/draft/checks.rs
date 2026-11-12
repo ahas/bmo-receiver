@@ -1,10 +1,9 @@
-//! What the draft process reads of a text with no model (docs/drafting.md, 「The checks on the final text」 and 「A
-//! light turn」): the skip standing in an answer, whether a turn is light, and the checks a final text passes.
+//! What the draft process reads of a text with no model (docs/drafting.md, 「The checks on the final text」): the
+//! skip standing in an answer and the checks a final text passes.
 
 use receiver_policy::drafting::DRAFTING;
 
 use super::super::sentinels::skip;
-use crate::receiver::Inbound;
 
 // How long a fixed head of a line of the process must run before the format check reads it.
 const HEAD_CHARS: usize = 12;
@@ -33,21 +32,6 @@ pub struct Reading<'a> {
 /// What it names, where it names a reason, is read by `super::super::sentinels::skip`.
 pub fn has_skip(text: &str) -> bool {
   skip(text).is_some()
-}
-
-/// Whether a turn is light: it carried quiet instructions and none of the room's words, or room words that hold
-/// no file and run together, white space aside, to at most the bound.
-pub fn light(batch: &[Inbound], instructions: usize, light_chars: u32) -> bool {
-  if batch.is_empty() {
-    return instructions > 0;
-  }
-
-  let chars: usize = batch
-    .iter()
-    .map(|message| message.text.chars().filter(|one| !one.is_whitespace()).count())
-    .sum();
-
-  batch.iter().all(|message| message.image_path.is_none()) && chars <= light_chars as usize
 }
 
 /// The fixed head of a line of the process: what stands before its first mark, where it runs long enough to be

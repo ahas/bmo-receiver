@@ -22,7 +22,7 @@ voice = "Write the message as the message itself, in the voice your persona sets
 
 # The stage instructions, as the room's block (the session's system prompt) carries them (docs/drafting.md,
 # 「The questions」): a head, then one line a question by its name, each from `[questions]` below with the
-# console's row standing over it. The block names the questions the process's row follows, ordinary and light.
+# console's row standing over it. The block names the questions the process's row follows.
 # A round's turn names only the questions its round follows.
 stages_head = "THE DRAFT ROUND — WHAT IT FOLLOWS. A turn that closes on a DRAFT ROUND line is the round's draft turn, and the line names the questions it follows, joined by +. Follow each named question in the order named, in that one turn and with your tools, before you write; the text of each stands below by its name. Then write the message: it is your answer to the turn, and no question is asked again as a turn of its own. {voice}"
 stage = "{name}: {text}"
@@ -57,10 +57,10 @@ memory = "Bring the brain up to date with its tools: recall the memories this an
 promises = "Where something is said like a promise, was it actually done? Where it was not, do it now with your tools, or change the words."
 final = "Looking at what this turn established, write the message to send to this room now, in the voice your persona sets for the person you answer. To send nothing, answer <<SKIP: <why>>> alone: the reason one line in English saying why, never left out, since a skip naming no reason is not taken as a skip."
 
-# The process table: one process for every provider, tier and agent. `rounds` are the questions an ordinary
-# turn's round follows, in order, `light` a light turn's (quiet instructions alone, or room words of at most
-# `light_chars` characters and no file), `off` the questions of those lists that are switched off, each keeping
-# its place and not followed (left out for none). A deployment that still carries the old two rows loads with them
+# The process table: one process for every provider, tier and agent. `rounds` are the questions every turn's
+# round follows, in order, whatever the turn carried — a quiet instruction alone or the room's words, short or
+# long — and `off` the questions of that list that are switched off, each keeping its place and not followed
+# (left out for none). A deployment that still carries the old two rows loads with them
 # ignored in favour of this one, and so do the console's per-key rows. `ceiling_seconds` and `past_ceiling` are
 # read and ignored: no clock ends a round.
 [[process]]
@@ -68,5 +68,3 @@ provider = "*"
 tier = "*"
 agent = "*"
 rounds = ["intent", "information", "facts", "memory", "promises", "final"]
-light = ["final"]
-light_chars = 12

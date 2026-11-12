@@ -37,7 +37,7 @@ use crate::now_ms;
 use crate::one;
 use crate::receiver::{Inbound, Receiver};
 
-use checks::{Check, Reading, failing, light, own_lines};
+use checks::{Check, Reading, failing, own_lines};
 use log::{Answered, Ended, Kind, Log, NO_REASON};
 
 // What the round log records for a skip the code itself reads out of an answer: the hand-off sentinel standing in
@@ -760,7 +760,7 @@ impl Item {
 impl Drafter {
   // The process a round opens: the supervisor's row, its own or the policy's, and the questions that row asks of
   // a turn that took what this one took, in the supervisor's texts.
-  async fn plan(&self, agent: &str, chat: i64, batch: &[Inbound], instructions: usize) -> Plan {
+  async fn plan(&self, agent: &str, chat: i64) -> Plan {
     let receiver = &self.receiver;
     let row = table::row_of(receiver.db(), agent).await.unwrap_or_else(|why| {
       eprintln!("chat {chat}: the draft process table could not be read: {}", why.detail);
@@ -772,9 +772,9 @@ impl Drafter {
         ..Plan::default()
       };
     };
-    let is_light = light(batch, instructions, process.light_chars);
-    // A question the row has switched off keeps its place in its list and is not followed.
-    let list = process.asked(if is_light { &process.light } else { &process.rounds });
+    // Every turn follows the same list, whatever it carried; a question the row has switched off keeps its place
+    // in it and is not followed.
+    let list = process.asked(&process.rounds);
     let catalogue = table::questions(receiver.db(), Some(agent)).await.unwrap_or_default();
     let questions = list
       .iter()
@@ -1254,14 +1254,8 @@ fn onespace(text: &str) -> String {
 }
 
 impl Drafting for Drafter {
-  fn plan<'a>(
-    &'a self,
-    agent: &'a str,
-    chat_id: i64,
-    batch: &'a [Inbound],
-    instructions: usize,
-  ) -> BoxFuture<'a, Plan> {
-    Box::pin(Drafter::plan(self, agent, chat_id, batch, instructions))
+  fn plan<'a>(&'a self, agent: &'a str, chat_id: i64) -> BoxFuture<'a, Plan> {
+    Box::pin(Drafter::plan(self, agent, chat_id))
   }
 
   fn draft<'a>(

@@ -254,7 +254,7 @@
   turn releases nothing, and neither does a session resumed after the agency's restart or a deploy, nor a return
   to another room of the one session across rooms.
 - **Before the old session is asked for its handoff it writes the notes it owes.** The situation note of every
-  room the agent answered in since that room's note was last updated is updated first, one light turn a room on
+  room the agent answered in since that room's note was last updated is updated first, one turn a room on
   the session that is about to end (`docs/drafting.md`, 「The situation note」). The notes are the rooms' own and
   no part of the handoff document: the fresh session reads each room's note in its first round there. The
   handoff the agency asks for ahead of a fresh session writes them the same way.

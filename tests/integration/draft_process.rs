@@ -1,6 +1,6 @@
 //! A round's draft process carried whole (docs/drafting.md): the round's turn is its one draft turn, naming the
 //! questions its row follows, and its answer is what goes back to the room; a skip sends nothing, a failed check is
-//! asked once and the repaired text goes out, a light turn follows the last question alone, words that came
+//! asked once and the repaired text goes out, every turn follows its row's whole list, words that came
 //! meanwhile are pushed into the working turn where it takes them and otherwise stand in the closing check, each
 //! answered with the message, marked done or marked separate, and the code's readings are items of the process
 //! rather than askings of their own.
@@ -131,32 +131,21 @@ struct Drafting {
 }
 
 impl Drafting {
-  async fn new(session: StandInSession, rounds: &[&str], light: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, light, ceiling_seconds, true, false).await
+  async fn new(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
+    Self::with_hiding(session, rounds, ceiling_seconds, true, false).await
   }
 
-  async fn new_visible(
-    session: StandInSession,
-    rounds: &[&str],
-    light: &[&str],
-    ceiling_seconds: u32,
-  ) -> Self {
-    Self::with_hiding(session, rounds, light, ceiling_seconds, false, false).await
+  async fn new_visible(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
+    Self::with_hiding(session, rounds, ceiling_seconds, false, false).await
   }
 
-  async fn new_reviewing(
-    session: StandInSession,
-    rounds: &[&str],
-    light: &[&str],
-    ceiling_seconds: u32,
-  ) -> Self {
-    Self::with_hiding(session, rounds, light, ceiling_seconds, true, true).await
+  async fn new_reviewing(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
+    Self::with_hiding(session, rounds, ceiling_seconds, true, true).await
   }
 
   async fn with_hiding(
     session: StandInSession,
     rounds: &[&str],
-    light: &[&str],
     ceiling_seconds: u32,
     hide: bool,
     review: bool,
@@ -166,7 +155,7 @@ impl Drafting {
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER).agent_in(OWNER, IDENTITY));
 
     documents(data.path());
-    drafting(scratch.db(), rounds, light, ceiling_seconds).await;
+    drafting(scratch.db(), rounds, ceiling_seconds).await;
 
     let mut standing =
       woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
@@ -230,7 +219,7 @@ async fn the_draft_is_one_turn_naming_its_questions_and_its_answer_goes_out() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the message itself"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
 
   round
     .scratch
@@ -362,7 +351,7 @@ const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
 #[tokio::test]
 async fn a_draft_turn_that_hands_its_round_over_is_carried_again_by_the_double_whose_answer_goes_out() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<HANDOFF>>"]);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
 
   round.standing.agency.doubling(&["the double's message"]);
   round.hear(1, ASKED).await;
@@ -435,7 +424,7 @@ async fn a_draft_turn_that_hands_its_round_over_is_carried_again_by_the_double_w
 async fn a_double_that_does_not_take_the_round_hands_it_back_to_the_agent_s_own_session() {
   let session =
     StandInSession::new(SESSION, "unscripted").answering(&["<<HANDOFF>>", "the agent's own message"]);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
 
   *round.standing.agency.double_refused.lock().unwrap() = true;
   round.hear(1, ASKED).await;
@@ -472,7 +461,7 @@ fn only_an_answer_of_nothing_but_the_sentinel_hands_a_round_over() {
 async fn an_ordinary_round_carries_its_round_line_no_stage_text_and_only_the_words_never_handed_it() {
   // The session already holds the room's conversation: the agency opened it before this round.
   let session = StandInSession::new(SESSION, "unscripted").at_generation(1);
-  let round = Drafting::new(session, &["information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["information", "final"], 150).await;
 
   // Words the agent never answered or noted, behind what an opening turn would carry.
   round
@@ -527,7 +516,7 @@ async fn an_ordinary_round_carries_its_round_line_no_stage_text_and_only_the_wor
 #[tokio::test]
 async fn a_console_question_text_reaches_the_rooms_block_and_not_the_turn() {
   let session = StandInSession::new(SESSION, "unscripted");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let text = "the console's own final instruction";
 
   bmo_receiver::chat::draft::table::set_question(round.scratch.db(), AGENT, "final", text)
@@ -546,7 +535,7 @@ async fn a_console_question_text_reaches_the_rooms_block_and_not_the_turn() {
 #[tokio::test]
 async fn an_instruction_a_restart_interrupted_is_delivered_after_the_restart() {
   let session = StandInSession::new(SESSION, "the recovered answer");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let text = "an instruction a restart cut off";
   let id = queue(
     round.scratch.db(),
@@ -605,7 +594,7 @@ async fn an_instruction_a_restart_interrupted_is_delivered_after_the_restart() {
 #[tokio::test]
 async fn an_instruction_queued_while_a_turn_works_is_held_by_it_and_delivered_when_it_ends() {
   let session = StandInSession::new(SESSION, "here").working_for(Duration::from_millis(300));
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   until("the turn working", || round.session.working()).await;
@@ -654,7 +643,7 @@ async fn an_instruction_queued_while_a_turn_works_is_held_by_it_and_delivered_wh
 #[tokio::test]
 async fn an_instruction_however_old_still_opens_a_turn() {
   let session = StandInSession::new(SESSION, "the late answer");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let text = "a notice that waited a long time";
   let id = queue(round.scratch.db(), AGENT, OWNER, text, &Queued::default()).await.unwrap();
 
@@ -681,7 +670,7 @@ async fn a_long_turn_in_a_room_does_not_starve_a_later_message() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the first answer", "the second answer"])
     .working_for(Duration::from_millis(400));
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   until("the turn working", || round.session.working()).await;
@@ -700,7 +689,7 @@ async fn a_long_turn_in_a_room_does_not_starve_a_later_message() {
 #[tokio::test]
 async fn an_agent_only_notice_reaches_the_agent_and_leaves_no_room_message() {
   let session = StandInSession::new(SESSION, "Here.");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let text = "Nothing needs saying in the room: this only tells you what your tools are now.";
   let id = queue(
     round.scratch.db(),
@@ -732,7 +721,7 @@ async fn an_agent_only_notice_reaches_the_agent_and_leaves_no_room_message() {
 #[tokio::test]
 async fn a_notice_meant_for_the_room_still_goes_there() {
   let session = StandInSession::new(SESSION, "Here.");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let text = "The room hears this notice.";
   let id = queue(
     round.scratch.db(),
@@ -766,7 +755,7 @@ async fn a_notice_meant_for_the_room_still_goes_there() {
 #[tokio::test]
 async fn a_round_writes_no_note_and_reads_the_rooms_note_once_in_its_session() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["message one", "message two"]);
-  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_visible(session, &["final"], 150).await;
 
   round
     .scratch
@@ -839,9 +828,7 @@ async fn a_supervisor_s_row_is_read_by_that_supervisor_alone() {
     agent: agent.to_owned(),
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
     send_from: "facts".to_owned(),
-    light: vec!["final".to_owned()],
     off: vec![],
-    light_chars: 12,
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
     set: true,
@@ -891,7 +878,7 @@ async fn a_question_switched_off_is_not_followed_and_stands_in_no_line_of_the_bl
   use bmo_receiver::chat::draft::table;
 
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
-  let round = Drafting::new(session, FIVE, &["final"], 150).await;
+  let round = Drafting::new(session, FIVE, 150).await;
   let mut row = table::row_of(round.scratch.db(), AGENT).await.unwrap().unwrap();
 
   row.off = vec!["facts".to_owned(), "memory".to_owned()];
@@ -933,7 +920,7 @@ async fn every_provider_s_agent_follows_the_same_questions_in_one_turn() {
     let session = StandInSession::new(SESSION, "unscripted")
       .on_provider(provider)
       .answering(&["the message"]);
-    let round = Drafting::new(session, FIVE, &["final"], 150).await;
+    let round = Drafting::new(session, FIVE, 150).await;
 
     round.hear(1, ASKED).await;
     round.ended(1).await;
@@ -951,17 +938,21 @@ async fn every_provider_s_agent_follows_the_same_questions_in_one_turn() {
 }
 
 #[tokio::test]
-async fn a_light_turn_still_runs_final_alone_with_the_one_process() {
+async fn a_short_greeting_follows_every_question_of_the_process_as_any_turn_does() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["hello to you too"]);
-  let round = Drafting::new(session, FIVE, &["final"], 150).await;
+  let round = Drafting::new(session, FIVE, 150).await;
 
   round.hear(1, "hi").await;
   round.ended(1).await;
 
   let prompts = round.session.prompts();
 
-  assert_eq!(prompts.len(), 1, "a light turn follows final alone: {prompts:#?}");
-  assert!(turn_of(&prompts[0]).contains("DRAFT ROUND (final)."));
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(
+    turn_of(&prompts[0]).contains("DRAFT ROUND (information+facts+memory+promises+final)."),
+    "no turn is light: {}",
+    turn_of(&prompts[0])
+  );
   assert!(!turn_of(&prompts[0]).contains(question("final")));
   assert!(round.sent()[0].contains("hello to you too"));
 }
@@ -970,7 +961,7 @@ async fn a_light_turn_still_runs_final_alone_with_the_one_process() {
 async fn a_send_marker_opening_the_draft_turn_s_answer_is_taken_out_of_the_message() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["<<SEND>> the answer, ready at once", "never asked"]);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -987,7 +978,7 @@ async fn a_send_marker_opening_the_draft_turn_s_answer_is_taken_out_of_the_messa
 async fn a_draft_that_holds_the_answer_is_sent_and_a_repeated_request_is_answered_again() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["<<SEND>> 400207-005: 1,500,000", "400207-005: 1,500,000"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, "what is the price of 400207-005?").await;
   round.ended(1).await;
@@ -1022,7 +1013,7 @@ async fn a_skip_in_the_draft_turn_sends_nothing() {
   // The owner's own chat owes an answer, so the skip is asked over once, and a skip again stands.
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["<<SKIP: the plan stands as the room has it>>", "<<SKIP: nothing to add>>"]);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1076,7 +1067,7 @@ async fn a_skip_in_the_draft_turn_sends_nothing() {
 async fn a_bare_skip_asks_the_same_turn_once_over_and_a_second_one_ends_the_round() {
   let session =
     StandInSession::new(SESSION, "unscripted").answering(&["<<SKIP>>", "<<SKIP>>", "<<SKIP>>", "<<SKIP>>"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(4).await;
@@ -1144,7 +1135,7 @@ fn the_note_turn_carries_only_its_mark_the_note_and_the_messages() {
 #[tokio::test]
 async fn the_block_carries_the_note_instruction_and_a_round_s_turn_only_its_line() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
-  let round = Drafting::new_visible(session, FIVE, &["final"], 150).await;
+  let round = Drafting::new_visible(session, FIVE, 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -1174,7 +1165,7 @@ async fn the_block_carries_the_note_instruction_and_a_round_s_turn_only_its_line
 async fn a_note_claiming_a_reply_does_not_skip_the_owners_directive() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["<<SKIP: the note says the owner has it>>", "the corrected answer"]);
-  let round = Drafting::new_visible(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_visible(session, &["final"], 150).await;
 
   // The room's note claims the reply went out, which only the room's record can say.
   round
@@ -1218,7 +1209,7 @@ async fn a_note_claiming_a_reply_does_not_skip_the_owners_directive() {
 #[tokio::test]
 async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
-  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1244,7 +1235,7 @@ async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
 #[tokio::test]
 async fn the_review_audits_the_one_draft_turn_and_is_shown_the_questions_it_followed() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
-  let round = Drafting::new_reviewing(session, FIVE, &["final"], 150).await;
+  let round = Drafting::new_reviewing(session, FIVE, 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1329,7 +1320,7 @@ async fn a_rejected_message_is_written_again_with_the_reason() {
     "the second message",
     "PASS",
   ]);
-  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(4).await;
@@ -1365,7 +1356,7 @@ async fn a_rejected_message_is_written_again_with_the_reason() {
 async fn a_review_that_rejects_with_the_draft_as_its_reason_does_not_loop() {
   let session =
     StandInSession::new(SESSION, "unscripted").answering(&["the message", "REJECT: the message"]);
-  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1390,7 +1381,7 @@ async fn a_review_that_rejects_twice_with_the_same_reason_stops() {
     "the second message",
     "REJECT: the date is missing",
   ]);
-  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(4).await;
@@ -1414,7 +1405,7 @@ async fn a_turn_hands_its_material_once_and_later_rounds_carry_lines() {
   let body = "BODY OF A LONG RULE ".repeat(120);
   let room = "A LONG LINE OF THE ROOM ".repeat(80);
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
-  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
 
   *round.standing.gate.entries.lock().unwrap() = vec![Entry {
     path: "docs/long-rule.md".to_owned(),
@@ -1468,7 +1459,7 @@ async fn eight_rejections_send_the_last_draft_and_report_the_reasons() {
 
   let borrowed: Vec<&str> = answers.iter().map(String::as_str).collect();
   let session = StandInSession::new(SESSION, "unscripted").answering(&borrowed);
-  let round = Drafting::new_reviewing(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(16).await;
@@ -1489,7 +1480,7 @@ async fn eight_rejections_send_the_last_draft_and_report_the_reasons() {
 async fn a_long_answer_goes_out_with_no_length_check() {
   let long = "x".repeat(10_000);
   let session = StandInSession::new(SESSION, "unscripted").answering(&[&long]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -1504,7 +1495,7 @@ async fn a_long_answer_goes_out_with_no_length_check() {
 async fn an_answer_folds_only_where_the_message_itself_carries_the_fold_mark() {
   let body = "The lead.\n\n- the first point of a long body\n- the second point\n- the third point";
   let session = StandInSession::new(SESSION, "unscripted").answering(&[body]);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -1519,7 +1510,7 @@ async fn an_answer_folds_only_where_the_message_itself_carries_the_fold_mark() {
 
   let marked = format!("{body}\n\n<<FOLD>>");
   let session = StandInSession::new(SESSION, "unscripted").answering(&[&marked]);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -1535,7 +1526,7 @@ async fn an_answer_folds_only_where_the_message_itself_carries_the_fold_mark() {
 async fn a_check_that_fails_twice_withholds_the_message() {
   let lines = "DRAFT ROUND (final).";
   let session = StandInSession::new(SESSION, "unscripted").answering(&[lines, lines]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1556,7 +1547,7 @@ async fn a_check_that_fails_twice_withholds_the_message() {
 async fn a_korean_answer_to_a_korean_speaker_is_never_asked_again() {
   let answer = fixture("answer-korean.txt");
   let session = StandInSession::new(SESSION, "unscripted").answering(&[&answer, "never asked"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, &fixture("addressing-korean.txt")).await;
   round.ended(1).await;
@@ -1577,7 +1568,7 @@ async fn a_korean_answer_to_a_korean_speaker_is_never_asked_again() {
 async fn a_korean_answer_to_a_korean_owner_goes_out_untouched() {
   let korean = fixture("answer-korean.txt");
   let session = StandInSession::new(SESSION, "unscripted").answering(&[&korean]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, &fixture("addressing-korean.txt")).await;
   round.ended(1).await;
@@ -1593,7 +1584,7 @@ async fn a_korean_answer_to_a_korean_owner_goes_out_untouched() {
 async fn an_answer_in_a_language_the_person_does_not_write_also_goes_out() {
   let answer = fixture("answer-japanese.txt");
   let session = StandInSession::new(SESSION, "unscripted").answering(&[&answer]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -1611,7 +1602,7 @@ async fn a_draft_turn_past_the_old_ceiling_still_follows_every_question_and_send
     .answering(&["the message final wrote"])
     .working_for(Duration::from_millis(1500));
   let rounds = ["intent", "information", "facts", "final"];
-  let round = Drafting::new(session, &rounds, &["final"], 1).await;
+  let round = Drafting::new(session, &rounds, 1).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -1636,7 +1627,7 @@ async fn a_failing_answer_after_the_old_ceiling_gets_its_repair_round() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&[first, "the repaired message"])
     .working_for(Duration::from_millis(700));
-  let round = Drafting::new(session, &["final"], &["final"], 1).await;
+  let round = Drafting::new(session, &["final"], 1).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1665,9 +1656,9 @@ async fn a_failing_answer_after_the_old_ceiling_gets_its_repair_round() {
 }
 
 #[tokio::test]
-async fn a_greeting_follows_the_last_question_alone() {
+async fn a_greeting_follows_every_question_of_its_row() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["hello to you too"]);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
 
   round.hear(1, "hi there").await;
   round.ended(1).await;
@@ -1675,10 +1666,12 @@ async fn a_greeting_follows_the_last_question_alone() {
   let prompts = round.session.prompts();
   let sent = round.sent();
 
-  assert_eq!(prompts.len(), 1, "the round's turn follows the last question alone");
+  assert_eq!(prompts.len(), 1, "the round's one turn");
   assert!(
-    turn_of(&prompts[0]).contains("DRAFT ROUND (final).")
-      && !turn_of(&prompts[0]).contains(question("final"))
+    turn_of(&prompts[0]).contains("DRAFT ROUND (intent+information+final).")
+      && !turn_of(&prompts[0]).contains(question("final")),
+    "a greeting is no lighter than any turn: {}",
+    turn_of(&prompts[0])
   );
   assert!(
     prompts[0].contains(&CHAT_ROUND.closing.rule)
@@ -1686,14 +1679,14 @@ async fn a_greeting_follows_the_last_question_alone() {
     "the closing rules stand in the block, not the turn"
   );
   assert!(sent.len() == 1 && sent[0].contains("hello to you too"), "{sent:?}");
-  assert_eq!(round.log().await, ["question final answered", "end  message"]);
+  assert_eq!(round.log().await, ["question intent+information+final answered", "end  message"]);
 }
 
 #[tokio::test]
 async fn a_promise_is_an_item_of_the_process_and_no_asking_of_its_own() {
   let promise = fixture("promises-waiting.txt");
   let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise, "CHECK"]);
-  let round = Drafting::new(session, &[], &[], 150).await;
+  let round = Drafting::new(session, &[], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1756,7 +1749,7 @@ async fn a_promise_from_now_on_is_recorded_without_writing_the_message_again() {
   let promise = fixture("promises-recorded.txt");
   let rewritten = "the promise, written again";
   let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise, rewritten]);
-  let round = Drafting::new(session, &[], &[], 150).await;
+  let round = Drafting::new(session, &[], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(2).await;
@@ -1801,7 +1794,7 @@ async fn every_event_of_the_chat_agent_s_round_names_it_as_the_room_s_own_voice(
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the message itself"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &[], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   round.hear(1, ASKED).await;
   until("the draft turn", || round.session.prompts().len() == 1 && round.session.working()).await;
@@ -1824,7 +1817,7 @@ async fn every_event_of_the_chat_agent_s_round_names_it_as_the_room_s_own_voice(
   }
 }
 
-/// Words short enough that a round taking them alone is a light one.
+/// Short words that come in while a round's turn works.
 const SHORT: &str = "and this?";
 
 // The round's own turn held working while `SHORT` comes into the room, then let go once it waits there.
@@ -1865,7 +1858,7 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_as_data_under_a_ma
   const INSTRUCTION: &str = "a quiet instruction from the service";
 
   let session = StandInSession::new(SESSION, "unscripted");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let receiver = &round.standing.receiver;
   let id = queue(
     receiver.db(),
@@ -1940,7 +1933,7 @@ async fn a_push_carries_the_room_s_words_and_the_instructions_as_data_under_a_ma
 async fn three_identical_quiet_notices_ride_one_block_naming_the_unit_that_published_them() {
   const NOTE: &str = "the research model has waited twenty minutes for its card";
 
-  let round = Drafting::new(StandInSession::new(SESSION, "unscripted"), &["final"], &["final"], 150).await;
+  let round = Drafting::new(StandInSession::new(SESSION, "unscripted"), &["final"], 150).await;
   let receiver = &round.standing.receiver;
   let mut ids = vec![];
 
@@ -2014,7 +2007,7 @@ async fn three_identical_quiet_notices_ride_one_block_naming_the_unit_that_publi
 async fn the_same_quiet_words_for_two_items_name_each_item_once() {
   const NOTE: &str = "the job of an item ended";
 
-  let round = Drafting::new(StandInSession::new(SESSION, "unscripted"), &["final"], &["final"], 150).await;
+  let round = Drafting::new(StandInSession::new(SESSION, "unscripted"), &["final"], 150).await;
   let receiver = &round.standing.receiver;
   let mut ids = vec![];
 
@@ -2186,7 +2179,7 @@ async fn words_a_turn_does_not_take_while_it_works_stand_in_the_closing_check() 
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the first message", "the message that takes both"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "information", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
 
   // A provider that takes no words mid-turn: the agency refuses every push.
   *round.standing.agency.saying.lock().unwrap() = Some(Said::Refused);
@@ -2225,7 +2218,7 @@ async fn words_marked_done_are_read_and_answered_by_nothing() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the message, the call needing nothing", "<<DONE #2>>"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   said_during_the_first(&round).await;
   round.ended(2).await;
@@ -2248,7 +2241,7 @@ async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the message for the first words", "<<SEPARATE #2>>", "the answer to the second"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   said_during_the_first(&round).await;
   round.ended(3).await;
@@ -2261,7 +2254,7 @@ async fn words_marked_separate_open_a_round_of_their_own_after_the_message() {
     "the closing check shows them: {}",
     prompts[1]
   );
-  assert_eq!(prompts.len(), 3, "the words marked separate open one round of their own, a light one");
+  assert_eq!(prompts.len(), 3, "the words marked separate open one round of their own");
   assert!(
     prompts[2].contains(SHORT) && !prompts[2].contains(&DRAFTING.arrived_marker),
     "{}",
@@ -2280,7 +2273,7 @@ async fn words_pushed_with_no_mark_are_the_round_s_own_and_shown_no_more() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the message that takes both"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   pushed_during_the_first(&round).await;
   round.ended(1).await;
@@ -2312,7 +2305,7 @@ async fn a_pushed_message_held_stays_unsettled_and_opens_the_round_after() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["<<SEPARATE #2>> the message for the first words", "the answer to the second"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   pushed_during_the_first(&round).await;
   round.ended(2).await;
@@ -2339,7 +2332,7 @@ async fn a_pushed_message_set_aside_is_read_and_answered_by_nothing() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["<<DONE #2>> the message for the first words"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   pushed_during_the_first(&round).await;
   round.ended(1).await;
@@ -2358,7 +2351,7 @@ async fn words_said_during_the_draft_turn_stand_in_the_closing_check_before_the_
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the first message", "<<DONE #2>>"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   said_during_the_draft(&round).await;
 
@@ -2395,7 +2388,7 @@ async fn a_closing_check_answered_with_the_fold_mark_alone_sends_the_message_as_
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the first message", "<<FOLD>>"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   said_during_the_draft(&round).await;
 
@@ -2419,7 +2412,7 @@ async fn the_closing_checks_answer_is_the_whole_message_in_the_standing_ones_pla
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the first message", "the first message, and the newest words answered"])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   said_during_the_draft(&round).await;
 
@@ -2444,7 +2437,7 @@ async fn the_live_pair_goes_out_once_as_the_closing_check_wrote_it() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&[&standing, &answer])
     .holding_turn(1);
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   // The people write Korean, as the room's did, so the answers stand in their language.
   round.hear(1, &fixture("addressing-korean.txt")).await;
@@ -2474,7 +2467,7 @@ async fn a_long_turn_still_sends_what_it_produced() {
   let session = StandInSession::new(SESSION, "unscripted")
     .answering(&["the message after a long while"])
     .working_for(Duration::from_millis(1300));
-  let round = Drafting::new(session, &["intent", "final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -2492,7 +2485,7 @@ async fn the_end_row_names_the_core_the_turn_carried_and_the_pieces_the_agent_re
   use receiver_ports::gate::{Entry, IndexEntry, IndexGroup, Source};
 
   let session = StandInSession::new(SESSION, "the message itself").holding_the_first();
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let entry = |path: &str, text: &str, source: Source| Entry {
     path: path.to_owned(),
     text: text.to_owned(),
@@ -2661,7 +2654,7 @@ async fn answered_rows(round: &Drafting) -> (serde_json::Value, Vec<serde_json::
 #[tokio::test]
 async fn a_sessions_first_round_in_a_room_has_read_nothing_before_it() {
   let session = StandInSession::new(SESSION, "the message");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let full = serde_json::json!([{"path": "knowledge/plans", "holds": null, "how": "read"}]);
 
   // What the same session read in another room, and what another session read in this one, carry nothing over.
@@ -2693,7 +2686,7 @@ async fn a_sessions_first_round_in_a_room_has_read_nothing_before_it() {
 #[tokio::test]
 async fn the_end_row_counts_what_its_session_read_in_full_in_the_room_before_it() {
   let session = StandInSession::new(SESSION, "the message");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   earlier_end(&round, "long ago", OWNER, SESSION, 40, serde_json::json!([])).await;
   earlier_end(
@@ -2739,7 +2732,7 @@ async fn the_end_row_counts_what_its_session_read_in_full_in_the_room_before_it(
 #[tokio::test]
 async fn a_new_generation_of_the_same_session_counts_from_nothing() {
   let session = StandInSession::new(SESSION, "the message");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let full = serde_json::json!([{"path": "knowledge/plans", "holds": null, "how": "attached"}]);
 
   // The ended generation's rounds in the room, then its release as a handover replaces it: the agency's id of the
@@ -2762,7 +2755,7 @@ async fn a_new_generation_of_the_same_session_counts_from_nothing() {
 #[tokio::test]
 async fn a_generations_rounds_after_its_cut_count_and_those_before_it_do_not() {
   let session = StandInSession::new(SESSION, "the message");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let full = serde_json::json!([{"path": "knowledge/plans", "holds": null, "how": "read"}]);
 
   earlier_end(&round, "the old generation", OWNER, SESSION, 347, full.clone()).await;
@@ -2797,7 +2790,7 @@ async fn pinned_rows(round: &Drafting) -> Vec<String> {
 #[tokio::test]
 async fn a_picture_with_no_caption_reaches_the_turn_as_its_saved_path() {
   let session = StandInSession::new(SESSION, "unscripted");
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
   let mut picture = Cursor::new(Vec::new());
 
   RgbImage::from_pixel(8, 8, Rgb([10, 200, 30]))
@@ -2843,7 +2836,7 @@ async fn a_picture_with_no_caption_reaches_the_turn_as_its_saved_path() {
 #[tokio::test]
 async fn an_answer_to_the_newest_line_goes_unpinned() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message itself"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;
@@ -2858,7 +2851,7 @@ async fn an_answer_to_the_newest_line_goes_unpinned() {
 #[tokio::test]
 async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY:1>> the message itself"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.hear(2, "and this?").await;
@@ -2874,7 +2867,7 @@ async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
 #[tokio::test]
 async fn an_unmarked_answer_goes_out_plain_though_an_older_line_asked() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message itself"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, "what does the plan for this week hold?").await;
   round.hear(2, "noted").await;
@@ -2890,7 +2883,7 @@ async fn an_unmarked_answer_goes_out_plain_though_an_older_line_asked() {
 #[tokio::test]
 async fn a_bare_reply_mark_pins_the_newest_line_the_round_answers() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY>> the message itself"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.hear(2, "and this?").await;
@@ -2911,7 +2904,7 @@ async fn a_bare_reply_mark_pins_the_newest_line_the_round_answers() {
 #[tokio::test]
 async fn an_explicit_reply_mark_pins_even_the_newest_line() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY #1>> the message itself"]);
-  let round = Drafting::new(session, &["final"], &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.ended(1).await;

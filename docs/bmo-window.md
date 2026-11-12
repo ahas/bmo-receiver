@@ -391,7 +391,7 @@ Beside the reference, a turn carries the room's messages the agent has not read:
   prompt.
 - **A touch writes the notes the session owes.** Where the agent answered in rooms whose situation note has not
   been updated since (`docs/drafting.md`, 「The situation note」), the touch updates each room's note with one
-  light turn of the session, in that room, and those turns are what keeps the prefix warm: the keepalive prompt
+  turn of the session, in that room, and those turns are what keeps the prefix warm: the keepalive prompt
   goes in only where no room is owed a note. The touch answers `warmed` where a turn of either kind went in.
 - **It is never beside another turn:** while any room is in a conversation or a compaction it answers `busy`;
   while the default answerer keeps a session per room, or its provider is off, resting or down, it answers `skipped`.

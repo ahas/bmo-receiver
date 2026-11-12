@@ -139,10 +139,8 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
   }
 
   for process in &DRAFTING.process {
-    for list in [&process.rounds, &process.light] {
-      assert!(list.iter().all(|name| DRAFTING.questions.contains_key(name)), "{process:?}");
-      assert_eq!(list.last().map(String::as_str), Some("final"), "{process:?}");
-    }
+    assert!(process.rounds.iter().all(|name| DRAFTING.questions.contains_key(name)), "{process:?}");
+    assert_eq!(process.rounds.last().map(String::as_str), Some("final"), "{process:?}");
   }
 
   assert!(DRAFTING.process.iter().any(|process| process.provider == "*" && process.agent == "*"));
@@ -215,7 +213,7 @@ fn a_process_row_that_still_names_a_ceiling_loads_and_ignores_it() {
   let policy = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml"))
     .expect("the drafting policy reads");
   let text = format!(
-    "{policy}\n[[process]]\nprovider = \"*\"\ntier = \"*\"\nagent = \"*\"\nrounds = [\"final\"]\nsend_from = \"\"\nlight = [\"final\"]\nlight_chars = 12\nceiling_seconds = 150\npast_ceiling = \"send\"\n"
+    "{policy}\n[[process]]\nprovider = \"*\"\ntier = \"*\"\nagent = \"*\"\nrounds = [\"final\"]\nsend_from = \"\"\nceiling_seconds = 150\npast_ceiling = \"send\"\n"
   );
   let parsed: receiver_policy::drafting::Drafting = toml::from_str(&text).expect("the old keys load");
 
@@ -250,9 +248,7 @@ fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
       agent: "*".to_owned(),
       rounds: vec!["information".to_owned(), "facts".to_owned(), "final".to_owned()],
       send_from: Some("facts".to_owned()),
-      light: vec!["final".to_owned()],
       off: vec![],
-      light_chars: 12,
       ceiling_seconds: Some(150),
       past_ceiling: Some("send".to_owned()),
       turn_seconds: None,
@@ -263,9 +259,7 @@ fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
       agent: "*".to_owned(),
       rounds: five.iter().map(|name| (*name).to_owned()).collect(),
       send_from: Some("facts".to_owned()),
-      light: vec!["final".to_owned()],
       off: vec![],
-      light_chars: 12,
       ceiling_seconds: Some(150),
       past_ceiling: Some("send".to_owned()),
       turn_seconds: None,

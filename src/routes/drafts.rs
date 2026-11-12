@@ -20,11 +20,16 @@ pub struct ProcessSet {
   rounds: Vec<String>,
   #[serde(default)]
   send_from: String,
-  light: Vec<String>,
-  /// The questions of the lists that are switched off; left out for none.
+  /// The questions of the list that are switched off; left out for none.
   #[serde(default)]
   off: Vec<String>,
-  light_chars: u32,
+  /// A light list and bound an older console still sends: read and ignored, since every turn follows the rounds.
+  #[serde(default)]
+  #[allow(dead_code)]
+  light: Option<Vec<String>>,
+  #[serde(default)]
+  #[allow(dead_code)]
+  light_chars: Option<u32>,
   /// A row set before rounds were left without a ceiling may carry this; it is read and ignored.
   #[serde(default)]
   ceiling_seconds: Option<u32>,
@@ -90,9 +95,7 @@ pub async fn set_process(
     agent,
     rounds: asked.rounds,
     send_from: asked.send_from,
-    light: asked.light,
     off: asked.off,
-    light_chars: asked.light_chars,
     ceiling_seconds: asked.ceiling_seconds.unwrap_or(0),
     past_ceiling,
     set: true,
@@ -181,9 +184,7 @@ pub async fn remove_question(
 
   if !table::policy_holds(&name) {
     let rows = table::rows(db).await.map_err(store)?;
-    let named = rows.iter().any(|row| {
-      row.own() && row.agent == agent && (row.rounds.contains(&name) || row.light.contains(&name))
-    });
+    let named = rows.iter().any(|row| row.own() && row.agent == agent && row.rounds.contains(&name));
 
     if named {
       return Err(refused(

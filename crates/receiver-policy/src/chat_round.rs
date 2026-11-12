@@ -340,7 +340,7 @@ pub struct ChatRound {
   pub index: Index,
 }
 
-/// The room's situation note, updated by one light turn before the supervisor's judgement.
+/// The room's situation note, updated by one turn before the supervisor's judgement.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Situation {

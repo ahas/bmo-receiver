@@ -1601,17 +1601,13 @@ export interface components {
             agentName: string;
             /** Format: uint32 */
             ceilingSeconds: number;
-            /** @description The questions a light turn's round follows, in order. */
-            light: string[];
-            /** Format: uint32 */
-            lightChars: number;
-            /** @description The questions of `rounds` and `light` that are switched off: each keeps its place and is not followed. */
+            /** @description The questions of `rounds` that are switched off: each keeps its place and is not followed. */
             off: string[];
             /** @description `send` or `skip`. */
             pastCeiling: string;
             /** @description A provider's key, or `*` for any. */
             provider: string;
-            /** @description The questions an ordinary turn's round follows, in order. */
+            /** @description The questions every turn's round follows, in order. */
             rounds: string[];
             /** @description The question a row once read a send from: kept as it came and read by nothing. */
             sendFrom: string;
@@ -1624,11 +1620,8 @@ export interface components {
         DraftProcessSet: {
             /** Format: uint32 */
             ceilingSeconds: number;
-            light: string[];
-            /** Format: uint32 */
-            lightChars: number;
             /**
-             * @description The questions of `rounds` and `light` that are switched off; left out for none.
+             * @description The questions of `rounds` that are switched off; left out for none.
              * @default []
              */
             off: string[];

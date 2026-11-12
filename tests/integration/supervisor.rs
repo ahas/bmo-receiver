@@ -87,7 +87,7 @@ fn turn_of(prompt: &str) -> &str {
 }
 
 async fn until(what: &str, holds: impl Fn() -> bool) {
-  // The suite runs the whole file's tests beside the machine's other work, so a round's two light turns can be
+  // The suite runs the whole file's tests beside the machine's other work, so a round's two turns can be
   // starved for longer than a quiet run needs; the bound is long enough that slowness is not a failure.
   let waited = tokio::time::timeout(Duration::from_secs(90), async {
     while !holds() {
@@ -242,9 +242,7 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
     agent: AGENT.into(),
     rounds: vec![SUPERVISOR.into(), "final".into()],
     send_from: String::new(),
-    light: vec![],
     off: vec![],
-    light_chars: 0,
     ceiling_seconds: 60,
     past_ceiling: table::PastCeiling::Send,
     set: true,

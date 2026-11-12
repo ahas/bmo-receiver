@@ -16,11 +16,9 @@ pub struct Process {
   /// The question a row once read a send from: read and ignored, since the draft turn's answer is the message.
   #[serde(default)]
   pub send_from: Option<String>,
-  pub light: Vec<String>,
-  /// The questions of those lists that are switched off: each keeps its place and is not asked.
+  /// The questions of the list that are switched off: each keeps its place and is not asked.
   #[serde(default)]
   pub off: Vec<String>,
-  pub light_chars: u32,
   /// A time ceiling a row set before rounds were left without one: read and ignored.
   #[serde(default)]
   pub ceiling_seconds: Option<u32>,

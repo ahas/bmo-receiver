@@ -55,7 +55,7 @@ pub struct StandInSession {
   acting: Mutex<Option<Act>>,
   // The lines its runs' log holds, where a test writes some.
   pub logged: Mutex<Vec<RunLine>>,
-  // Whether the situation update's light turn is answered and kept out of the test's list of prompts.
+  // Whether the situation update's turn is answered and kept out of the test's list of prompts.
   hide_situation: Mutex<bool>,
   // Whether the review gate's turn is answered with PASS and kept out of the test's list of prompts.
   hide_review: Mutex<bool>,
@@ -111,14 +111,14 @@ impl StandInSession {
     *self.ending.lock().unwrap() = ending;
   }
 
-  /// The situation update's light turn answers its default and stays out of `prompts`, so a test about the draft
+  /// The situation update's turn answers its default and stays out of `prompts`, so a test about the draft
   /// process reads the same turns it did.
   pub fn hiding_situations(self) -> Self {
     *self.hide_situation.lock().unwrap() = true;
     self
   }
 
-  /// The situation update's light turn is shown and answered from the script, for a test about that turn.
+  /// The situation update's turn is shown and answered from the script, for a test about that turn.
   pub fn showing_situations(self) -> Self {
     *self.hide_situation.lock().unwrap() = false;
     self
@@ -389,23 +389,16 @@ impl StandInSession {
 /// The supervisors the suites stand, each of which reads the draft process a test sets.
 pub const SUPERVISORS: [&str; 3] = ["agent-a", "agent-b", "agent-c"];
 
-/// The draft process every turn reads, set as the console sets each supervisor its row: the questions of an
-/// ordinary and a light turn, the light bound and the ceiling, past which `final` is asked at once.
-pub async fn drafting(
-  db: &sea_orm::DatabaseConnection,
-  rounds: &[&str],
-  light: &[&str],
-  ceiling_seconds: u32,
-) {
-  drafting_past(db, rounds, light, ceiling_seconds, bmo_receiver::chat::draft::table::PastCeiling::Send)
-    .await;
+/// The draft process every turn reads, set as the console sets each supervisor its row: the questions every turn
+/// follows and the ceiling, read and ignored.
+pub async fn drafting(db: &sea_orm::DatabaseConnection, rounds: &[&str], ceiling_seconds: u32) {
+  drafting_past(db, rounds, ceiling_seconds, bmo_receiver::chat::draft::table::PastCeiling::Send).await;
 }
 
 /// The draft process every turn reads, with what is done past its ceiling.
 pub async fn drafting_past(
   db: &sea_orm::DatabaseConnection,
   rounds: &[&str],
-  light: &[&str],
   ceiling_seconds: u32,
   past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
 ) {
@@ -422,9 +415,7 @@ pub async fn drafting_past(
         agent: supervisor.to_owned(),
         rounds: named(rounds),
         send_from: String::new(),
-        light: named(light),
         off: vec![],
-        light_chars: 12,
         ceiling_seconds,
         past_ceiling,
         set: true,
@@ -437,7 +428,7 @@ pub async fn drafting_past(
 
 /// No question follows a turn: its own answer is the message, as a test of something else needs it.
 pub async fn no_drafting(db: &sea_orm::DatabaseConnection) {
-  drafting(db, &[], &[], 150).await;
+  drafting(db, &[], 150).await;
 }
 
 /// The prompt documents a room's block is composed from, stood under `data` so a turn can name its room.

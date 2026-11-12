@@ -1,14 +1,13 @@
 //! What the draft process reads without a model and the table it is matched by (docs/drafting.md): the skip in an
-//! answer, a light turn, the checks on the final text, the row a turn reads and what a set may hold.
+//! answer, the checks on the final text, the row a turn reads and what a set may hold.
 
-use bmo_receiver::chat::draft::checks::{Check, Reading, errand, failing, has_skip, light, own_lines};
+use bmo_receiver::chat::draft::checks::{Check, Reading, errand, failing, has_skip, own_lines};
 use bmo_receiver::chat::draft::log::Answered;
 use bmo_receiver::chat::draft::table::{
   ANY, PastCeiling, Process, Question, question_refusal, refusal, resolve,
 };
 use bmo_receiver::chat::draft::{Plan, read_answer, record_errand, wake_errand, words};
 use bmo_receiver::chat::prompt::Scope;
-use bmo_receiver::receiver::Inbound;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::second_asks::SECOND_ASKS;
@@ -22,27 +21,6 @@ fn scope() -> Scope {
   }
 }
 
-fn said(text: &str, picture: bool) -> Inbound {
-  Inbound {
-    chat_id: -5,
-    message_id: 1,
-    sender_id: Some(2),
-    sender_name: "tester".into(),
-    sent_at: 1,
-    text: text.into(),
-    image_path: picture.then(|| "a.jpg".to_owned()),
-    image_state: None,
-    transcript: None,
-    voice_seconds: None,
-    voice_state: None,
-    reply_to_message_id: None,
-    via: "road-a".into(),
-    mode: None,
-    via_reader: None,
-    album: None,
-  }
-}
-
 fn row(provider: &str, tier: &str, agent: &str, rounds: &[&str]) -> Process {
   Process {
     provider: provider.to_owned(),
@@ -50,9 +28,7 @@ fn row(provider: &str, tier: &str, agent: &str, rounds: &[&str]) -> Process {
     agent: agent.to_owned(),
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
     send_from: String::new(),
-    light: vec!["final".to_owned()],
     off: vec![],
-    light_chars: 12,
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
     set: false,
@@ -188,15 +164,6 @@ fn a_skip_counts_outside_code_alone() {
 }
 
 #[test]
-fn a_turn_is_light_for_short_words_with_no_file_or_instructions_alone() {
-  assert!(light(&[said("hi there", false)], 0, 12));
-  assert!(!light(&[said("hi there", true)], 0, 12), "a file makes no turn light");
-  assert!(!light(&[said("what does the plan for this week hold", false)], 0, 12));
-  assert!(light(&[], 1, 12), "quiet instructions alone");
-  assert!(!light(&[], 0, 12));
-}
-
-#[test]
 fn the_check_reads_the_process_s_own_lines_and_no_length() {
   let asked = vec!["why was it said?".to_owned()];
   let lines = own_lines(&asked);
@@ -258,7 +225,6 @@ fn a_question_switched_off_keeps_its_place_and_is_not_asked() {
   );
   assert_eq!(process.rounds, ["information", "facts", "memory", "final"], "each keeps its place");
   assert_eq!(process.asked(&process.rounds), ["information", "final"]);
-  assert_eq!(process.asked(&process.light), ["final"]);
   assert_eq!(refusal(&process, &catalogue()), None);
   assert!(
     refusal(&switched(&["final"]), &catalogue()).is_some(),

@@ -570,15 +570,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body | Answers |
 |---|---|---|
 | `GET /draft-processes` | query `agentName?` | a page of `DraftProcess`: the policy's row and each supervisor's own; with `agentName`, the one row that supervisor reads |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}`, the provider and the tier `*` and the agent a supervisor's name | `rounds`, `light`, `off?`, `lightChars`; `sendFrom?`, `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
+| `PUT /draft-processes/{provider}/{tier}/{agentName}`, the provider and the tier `*` and the agent a supervisor's name | `rounds`, `off?`; `light?`, `lightChars?`, `sendFrom?`, `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
 | `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
 | `GET /draft-questions` | query `agentName?` | a page of `DraftQuestion`: that supervisor's catalogue, or the policy's alone where none is named |
 | `PUT /draft-questions/{agentName}/{name}` | `text` | the `DraftQuestion` as it now stands |
 | `DELETE /draft-questions/{agentName}/{name}` | | 204; `not-found` where the console set that supervisor no text of the name, `conflict` where a list of its row still names a question the console added |
 
-- **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds` and `light`, the
-  names of the questions an ordinary and a light turn's round follows, in order; `off`, the questions of those
-  lists that are switched off, each keeping its place and not followed; `lightChars`; no turn bound stands; and `source`,
+- **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds`, the
+  names of the questions every turn's round follows, in order; `off`, the questions of that list that are switched
+  off, each keeping its place and not followed; no turn bound stands; and `source`,
   `set` where the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process
   table」). A
   row that still carries `sendFrom`, `ceilingSeconds` or `pastCeiling` is read with them ignored, and they stand
@@ -589,10 +589,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   names it is refused `bad-request`.
 - **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
   hold, where a list that holds questions does not end in `final` or holds it before its end, where `off` names
-  `final`, where the light
-  bound is outside 0 to 1,000 characters, and where a question's name is not a lowercase word of letters, digits
+  `final`, and where a question's name is not a lowercase word of letters, digits
   and dashes of at most 40 characters or its text is empty or past 4,000 characters. A name `off` holds that
-  neither list holds is dropped, and the answer carries `off` as it now stands.
+  the list does not hold is dropped, and the answer carries `off` as it now stands.
 - **A question's text taken away** leaves the catalogue where the console added the question, and stands again
   in the policy's text where the policy holds it.
 - **A set or a removal that changes the instructions a session reads for the process** has the agent's one

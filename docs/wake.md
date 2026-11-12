@@ -211,7 +211,7 @@ its rounds.
   a room that is not the owner's private chat, a round whose every message reached the session on its open window
   alone — none of them names the agent (「The names and the window」), replies to its words or stands in a private
   chat — opens with the agent's own judgement of whether to answer, before every pregate. The
-  judgement is one light turn of the same session carrying a marker, the room's situation note where the session
+  judgement is one turn of the same session carrying a marker, the room's situation note where the session
   has not read it (`docs/drafting.md`, 「The situation note」), the room's
   recent words in the room shape and the words being judged as data — whether they are said to it or want its
   answer. What the marker asks is the draft catalogue's `supervisor` text (the round policy's head and question,

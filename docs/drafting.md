@@ -141,7 +141,7 @@ message passes, and the record each turn of it leaves.
   across rooms carried, that session is not handed the new text beside the old: it is replaced through its
   handoff before its next turn, with the reason `process`, and the fresh session reads the block as it now
   stands (`docs/unified-bmo.md`, 「Replacing the session」). A change that leaves that part of the block as it
-  was — a light bound, the text of a question no list names — replaces nothing, and neither does a change set
+  was — the same row set again, the text of a question no list names — replaces nothing, and neither does a change set
   back before the session's next turn. A session an agent keeps in each room is the agency's to resume, and
   reads the changed block in full as a new version.
 - **The round's line rides the round's own turn:** the room's words as the window composes them, then the line;
@@ -155,18 +155,18 @@ message passes, and the record each turn of it leaves.
 - **One table says which questions a round follows,** a row to a supervisor. A row's key is a provider, a tier
   and an agent, each a name or `*` for any: the policy's one row is `*/*/*`, and a supervisor's own row, which the
   console sets, names the supervisor under any provider and any tier. A row holds:
-  - `rounds`, the questions an ordinary turn's round follows, in order;
-  - `light`, the questions a light turn's round follows (「A light turn」 below);
-  - `off`, the questions of those lists that are switched off: each keeps its place in its list and is not
-    followed;
-  - `lightChars`, how short the room's words must be for a turn to be light;
+  - `rounds`, the questions every turn's round follows, in order, whatever the turn carried: a quiet instruction
+    alone, a word of thanks or a long request alike. No turn is lighter than another, since what a supervisor does
+    on a short word or a quiet instruction — a launch, a hold, a review's move, a deployment — is held to the
+    same questions as anything it does;
+  - `off`, the questions of that list that are switched off: each keeps its place in it and is not followed;
 - **A question switched off is not part of the process until it is switched on again.** A round follows its
   list without the questions `off` names, in the list's order: the round's line names only the questions
   followed, and the room's block carries no line for one switched off.
   Switching it on again puts it back at the place it kept. `final` writes the message and is never switched off,
   so a list that holds questions always follows at least that one. `off` names only questions the row's lists
-  hold: a name neither list holds is dropped as the row is set, so a question taken out of both lists leaves
-  `off` with them.
+  holds: a name the list does not hold is dropped as the row is set, so a question taken out of the list leaves
+  `off` with it.
 - **The message is written in the persona's voice.** The room's block says once, beside the stage lines, that
   the draft turn's answer is the message itself, in the voice the agent's persona sets for the person it
   answers, its register toward them included, and in their language, never as notes or a report
@@ -174,8 +174,7 @@ message passes, and the record each turn of it leaves.
   line again where a message already stands. The receiver carries no register of its own and names no person's
   register: that is the persona's.
 - **The policy's one row is what a supervisor reads until it has a row of its own** (`drafting.toml`): `intent`,
-  `information`, `facts`, `memory`, `promises` and `final`, in that order; every light turn is `final` alone; 12
-  characters make a light turn.
+  `information`, `facts`, `memory`, `promises` and `final`, in that order, for every turn.
 - **The console sets a supervisor's row and no other** (「The routes」 below): a row is one supervisor's, read by
   that supervisor alone, and no row the console sets stands for every supervisor. The policy's row is the
   deployment's, changed in the policy file.
@@ -184,13 +183,6 @@ message passes, and the record each turn of it leaves.
 - **A list that holds questions ends in `final` and holds it nowhere else.** An empty list follows nothing: the
   round's turn goes out as the window composed it and its answer is the message, held to the items and checks
   below like any.
-
-## A light turn
-
-- **A turn is light** where it carried quiet instructions and none of the room's words, or where the room's words
-  it carried hold no file and run together, white space aside, to at most the row's `lightChars` characters: a
-  greeting, a word of thanks, a short call. A light turn's round follows the row's `light` list. Whether a turn
-  is light is read of what the round took when its turn went out.
 
 ## The situation note
 
@@ -209,8 +201,7 @@ message passes, and the record each turn of it leaves.
   replaced when it changes, with the row of the room's record it has read to. It is the room's live state, not the
   agent's long-term memory: the brain's `situation` rows are rules for a situation, while this note is written and
   read by the receiver alone. It is no reference document and stands nowhere in the turn's core.
-- **The note is written when a session leaves a room, never by a round.** Three moments write it, each one light
-  turn a room on the agent's one session across rooms:
+- **The note is written when a session leaves a room, never by a round.** Three moments write it, each one turn a room on the agent's one session across rooms:
   - **another room's words:** where a round with words opens in a room and the agent last answered in another,
     the note of the room it last answered in is updated first, and then the round goes on in the new room;
   - **a handoff:** before a session is asked for its handoff file (`docs/unified-bmo.md`, 「Replacing the
@@ -258,7 +249,7 @@ message passes, and the record each turn of it leaves.
   left alone, and a line that asks the agent or resumes an earlier thread with it is answered.
 - **The note stays under `ceiling_chars`, 600 characters.** A longer answer is cut at the ceiling and marked with
   the policy's `cut`; the instruction in the room's block names the ceiling, and the ceiling leaves room for the
-  state, what came in and the course to take together. The cost is one light turn for a room left, never one a
+  state, what came in and the course to take together. The cost is one turn for a room left, never one a
   round: the note it reads, under the ceiling, and the room's messages since the note last read the record. A
   room with no note yet pays the `recent_messages` window once.
 - **The console reads the note beside each judgement.** The note as it stood when a round opened stands on every
@@ -526,10 +517,9 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 - **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a supervisor's row and answers it as it now
   stands: the provider and the tier are `*` and the agent a supervisor's name, and any other key is refused
   `bad-request`. `off` is left out for none. A list naming a question the supervisor's catalogue does not hold,
-  a list that holds questions and does not end in `final` or holds it before the end, an `off` that names
-  `final`, or a light bound outside 0 to 1,000 characters is refused
-  `bad-request`, and nothing is written. A row that still carries `sendFrom`, `turnSeconds`, `ceilingSeconds` or
-  `pastCeiling` loads with them ignored.
+  a list that holds questions and does not end in `final` or holds it before the end, or an `off` that names
+  `final` is refused `bad-request`, and nothing is written. A row that still carries `light`, `lightChars`,
+  `sendFrom`, `turnSeconds`, `ceilingSeconds` or `pastCeiling` loads with them ignored.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes a supervisor's row away, and the supervisor
   reads the policy's again. A key the console set no row for is `not-found`.
 - **`GET /draft-questions`** answers a supervisor's catalogue where `agentName` names one, and the policy's
