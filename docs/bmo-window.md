@@ -305,15 +305,17 @@ block goes in full — the session's opening on that room — and the agent read
   what came in before it decides whether to look anything up. The turn carries no closing lines: the closing
   rules, the queue rule and the brain's rule stand in the room's block.
 
-Beside the reference, a turn that opens a session or returns to a room carries the room's messages since the
-agent last answered there:
+Beside the reference, a turn carries the room's messages the agent has not read:
 
-- **Only where it opens or returns:** the archived block rides the turn that opens a session holding nothing (a
-  handover, whether the session was replaced or the agency opened it fresh) and the first turn in a room the
-  agent's one session has not answered in (a return). An ordinary round, whose session already holds the
-  conversation, carries no archived block; the words that
-  arrived after its draft turn went out and no push put in still stand in the closing check
-  (`docs/drafting.md`, 「What came in meanwhile」).
+- **A turn that opens or returns carries everything since the agent last answered there:** the archived block
+  rides the turn that opens a session holding nothing (a handover, whether the session was replaced or the
+  agency opened it fresh) and the first turn in a room the agent's one session has not answered in (a return),
+  with every message after the room's read marker.
+- **An ordinary round carries what its session was never handed:** its session holds every message a turn put
+  into it, so the block carries only the messages after the room's read marker that no turn handed it — words
+  that called nobody, said in a group room before someone called the agent — leaving the agent's own out. A
+  round with none such carries no block. The words that arrived after its draft turn went out and no push put
+  in still stand in the closing check (`docs/drafting.md`, 「What came in meanwhile」).
 - **At most a set number of them:** the archived block carries the newest unread messages in their order, as
   many as the chat round's policy sets (`archived_messages`, 100 by default). Where more were unread, the block
   says in one line how many older ones it left out and that they stand in the room's archive, where the agent's

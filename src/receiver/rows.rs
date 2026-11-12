@@ -332,6 +332,32 @@ pub async fn messages_after(
   Ok(rows.iter().map(|row| inbound_of(row, via)).collect::<Result<_, _>>()?)
 }
 
+/// Which of `messages` in a room the agent itself wrote: the rows its own sends were written as.
+pub async fn agent_message_ids(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  messages: &[Inbound],
+) -> Result<std::collections::HashSet<i64>, Fault> {
+  let Some(first) = messages.iter().map(|message| message.message_id).min() else {
+    return Ok(Default::default());
+  };
+  let rows = all(
+    db,
+    r#"SELECT "message_id" FROM "messages" WHERE "chat_id" = $1 AND "agent_name" IS NOT NULL AND "message_id" >= $2"#,
+    vec![chat_id.into(), first.into()],
+  )
+  .await?;
+  let named: std::collections::HashSet<i64> = messages.iter().map(|message| message.message_id).collect();
+
+  Ok(
+    rows
+      .iter()
+      .filter_map(|row| row.try_get::<i64>("", "message_id").ok())
+      .filter(|id| named.contains(id))
+      .collect(),
+  )
+}
+
 /// The name a room's own service last showed a sender by there: their latest row that came in on any road but
 /// the record's own, whose rows are the console's; none where no such row names them.
 pub async fn shown_name(

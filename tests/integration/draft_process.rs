@@ -469,7 +469,7 @@ fn only_an_answer_of_nothing_but_the_sentinel_hands_a_round_over() {
 }
 
 #[tokio::test]
-async fn an_ordinary_round_carries_its_round_line_and_no_stage_text_or_archived_block() {
+async fn an_ordinary_round_carries_its_round_line_no_stage_text_and_only_the_words_never_handed_it() {
   // The session already holds the room's conversation: the agency opened it before this round.
   let session = StandInSession::new(SESSION, "unscripted").at_generation(1);
   let round = Drafting::new(session, &["information", "final"], &["final"], 150).await;
@@ -479,7 +479,7 @@ async fn an_ordinary_round_carries_its_round_line_and_no_stage_text_or_archived_
     .scratch
     .run(
       r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
-         VALUES ($1, 5, $1, 'tester', 1760000000000, 'unread words from before', 'road-a')"#,
+         VALUES ($1, 5, $1, 'tester', 1759999990, 'unread words from before', 'road-a')"#,
       vec![OWNER.into()],
     )
     .await;
@@ -487,8 +487,17 @@ async fn an_ordinary_round_carries_its_round_line_and_no_stage_text_or_archived_
   round.hear(1, ASKED).await;
   round.ended(1).await;
 
-  // The window the round held closed; the next words open a conversation of their own on the same session.
+  // The window the round held closed; words that called nobody come in, never handed to the session, and the next
+  // words open a conversation of their own on the same session.
   round.runner.of(AGENT).close(OWNER).await;
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
+         VALUES ($1, 7, $1, 'tester', $2, 'words that called nobody', 'road-a')"#,
+      vec![OWNER.into(), 1_760_000_001_i64.into()],
+    )
+    .await;
   round.hear(2, ASKED).await;
   round.ended(2).await;
 
@@ -501,8 +510,12 @@ async fn an_ordinary_round_carries_its_round_line_and_no_stage_text_or_archived_
     "the stage text stays in the block"
   );
   assert!(
-    !ordinary.contains(&CHAT_ROUND.blocks.archived_end) && !ordinary.contains("unread words from before"),
-    "an ordinary round the session already holds carries no archived block: {ordinary}"
+    !ordinary.contains("unread words from before"),
+    "what the session read before stays out of an ordinary round: {ordinary}"
+  );
+  assert!(
+    ordinary.contains("words that called nobody"),
+    "the words after the read marker no turn handed the session ride the ordinary round: {ordinary}"
   );
   assert!(
     !turn_of(&prompts[0]).contains(question("information")),

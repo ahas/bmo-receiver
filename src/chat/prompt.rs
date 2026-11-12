@@ -173,20 +173,23 @@ async fn opening_turn(
   )
 }
 
-// What the session missed since it last answered, which only a turn that opens or returns carries; the batch's
-// own messages are shown a few lines further on.
+// What the session missed: everything since the agent last answered on a turn that opens or returns, and on an
+// ordinary round the messages after the read marker no turn handed it, the agent's own left out
+// (docs/bmo-window.md, 「What every turn carries」); the batch's own messages are shown a few lines further on.
 async fn archived(
   receiver: &Receiver,
   round: &Round<'_>,
   standing: Option<&str>,
   opening: bool,
 ) -> Result<Vec<Inbound>, Fault> {
-  if !opening {
-    return Ok(vec![]);
-  }
-
   let db = receiver.db();
   let last_read = rows::last_read(db, round.chat_id).await?;
+
+  // A later call of the round carries none: its first call already handed the session what it missed.
+  if !opening {
+    return if round.first_call { never_handed(db, round, last_read).await } else { Ok(vec![]) };
+  }
+
   let unified = unified_session(receiver, round.agent).await;
   let seen = match standing {
     Some(session) if unified => one(
@@ -205,6 +208,33 @@ async fn archived(
   let batch: HashSet<i64> = round.batch.iter().map(|message| message.message_id).collect();
 
   Ok(context.into_iter().filter(|message| !batch.contains(&message.message_id)).collect())
+}
+
+// The messages after the room's read marker that an ordinary round's session was never handed: those of nobody
+// calling the agent, which no turn put in, the agent's own and the round's batch left out. A room with no read
+// marker has none such, since its first turn opens.
+async fn never_handed(
+  db: &sea_orm::DatabaseConnection,
+  round: &Round<'_>,
+  last_read: Option<i64>,
+) -> Result<Vec<Inbound>, Fault> {
+  let Some(last) = last_read else {
+    return Ok(vec![]);
+  };
+  let batch: HashSet<i64> = round.batch.iter().map(|message| message.message_id).collect();
+  let after: Vec<Inbound> = rows::messages_after(db, round.chat_id, last, "")
+    .await?
+    .into_iter()
+    .filter(|message| !batch.contains(&message.message_id))
+    .collect();
+
+  if after.is_empty() {
+    return Ok(after);
+  }
+
+  let own: HashSet<i64> = rows::agent_message_ids(db, round.chat_id, &after).await?;
+
+  Ok(after.into_iter().filter(|message| !own.contains(&message.message_id)).collect())
 }
 
 /// The unread messages an archived block carries of those it is handed, oldest first: the newest `cap` of them in
