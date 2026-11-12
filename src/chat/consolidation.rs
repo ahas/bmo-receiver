@@ -61,7 +61,7 @@ pub async fn before_fold(receiver: &Receiver, agent: &str, session: &str, chat_i
     privileged: None,
     answers: vec![],
     began: Some(now_ms()),
-    round: rounds::current(),
+    round: Some(rounds::of_turn(chat_id)),
     key: None,
   };
 

@@ -36,3 +36,13 @@ async fn a_held_slot_counts_as_under_way_until_the_next_start_gives_it_back() {
   assert_eq!(*agency.double_releases.lock().unwrap(), ["slot-left"]);
   assert_eq!(held(scratch.db()).await.unwrap(), [slot("slot-own", 30)]);
 }
+
+#[tokio::test]
+async fn a_store_not_yet_migrated_to_hold_slots_holds_none() {
+  let scratch = Scratch::new().await;
+
+  // The store the running release keeps, read by the release about to go live before its migrations run.
+  scratch.run(r#"DROP TABLE "double_slots""#, vec![]).await;
+
+  assert_eq!(asked(&StandInAgency::new(), scratch.db(), false).await.unwrap(), Vec::<String>::new());
+}

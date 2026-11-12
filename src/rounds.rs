@@ -32,3 +32,9 @@ pub async fn within<F: Future>(round: String, work: F) -> F::Output {
 pub fn current() -> Option<String> {
   ROUND.try_with(Clone::clone).ok()
 }
+
+/// The round a turn sent for the room names: the work's own, or one of the turn's own outside any round, so every
+/// run of a turn the receiver follows names a round (docs/boundary-api.md, `quiet`).
+pub fn of_turn(chat_id: i64) -> String {
+  current().unwrap_or_else(|| new_name(chat_id))
+}

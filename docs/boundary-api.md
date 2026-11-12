@@ -56,11 +56,15 @@ road name with its base address and token.
 - **`tool-env`** writes where the receiver's tools find it and ends.
 - **`quiet`** says whether work stands under way that a restart of the receiver would cut, for the testbed's wait
   before a deployment's flip (`testbed.toml`, `quiet`): it names each piece of work that counts by what it is,
-  never by a word of its name, however long it has run. It asks the agency for the runs still open and counts a
-  turn of one of the receiver's rounds, the run naming its `round`, and a turn answering a room that is no job's
-  turn, the run naming its `roomId` and no `jobId`, since a restart cuts the round that follows either. The agency
+  never by a word of its name, however long it has run. It asks the agency for the runs still open and counts
+  every turn the receiver carries, the run naming its `round`: each turn the receiver sends names one, its
+  round's, or one of its own for a turn outside any round (a console talk, the warmer's touch), and a restart cuts
+  the following of each. A run naming no round is no turn of the receiver's: a job's run names its room and no
+  round, and the agency answers `jobId` on no run, so a room is no sign of a chat turn. The agency
   opens no run for a double's turn, so the double's rounds are counted off the receiver's own store: every slot
-  of the double's role the receiver asked for and has not yet given back (`docs/store.md`, `double_slots`). Any
+  of the double's role the receiver asked for and has not yet given back (`docs/store.md`, `double_slots`); a
+  store the running release has not migrated that far yet holds none, since `quiet` runs from the release about
+  to go live against the store the running one keeps. Any
   other run counts not: a job's turn, a research run and every run of another unit go on through the receiver's
   restart, and what they send it waits for it as rows of its own. A job counts
   only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
@@ -194,7 +198,7 @@ room's matter.
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
 | start a session | `POST /sessions` | `agentName`, `scope`, `agent` or `room`, and `roomId` for a room's | the session's `id`, `agentName`, `scope`, `roomId` |
-| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to; `key`, the carrying's own key, the round's name and the turn's place in it, under which a repeat attaches to the turn standing; no base persona, which the agency takes from the agent's brain | `id`, `delivery`, answered once the turn ends, a cut connection being no end of the turn (`docs/bmo-window.md`, 「Quiet instruction」); 409 `session-busy` where the session already carries a turn, which the receiver waits out on the events and asks again |
+| send a turn | `POST /sessions/{sessionId}/turns` | `prompt`, the context: the room's block, the answers, the privilege and `round`, the name of the round the turn belongs to, or one of its own for a turn outside any round; `key`, the carrying's own key, the round's name and the turn's place in it, under which a repeat attaches to the turn standing; no base persona, which the agency takes from the agent's brain | `id`, `delivery`, answered once the turn ends, a cut connection being no end of the turn (`docs/bmo-window.md`, 「Quiet instruction」); 409 `session-busy` where the session already carries a turn, which the receiver waits out on the events and asks again |
 | read a session | `GET /sessions/{sessionId}` | | `id`, `agentName`, `scope`, `provider`, `model`, `place`, `generation`, `context` (what the session carries: `carried` against its `window`, which the fold is judged from, and the turn's token counts), `foldRatio`, `foldsItself`, whether the session's program carries its own fold, in which case the receiver folds it never (`docs/wake.md`), `supervisor` or `role`, the row the session runs for, the other null, and `prefixChangeReason` where it names why the session's prefix changed, which tells the receiver whether the session's head moved (`docs/unified-bmo.md`, 「Replacing the session」) |
 | push words | `POST /sessions/{sessionId}/turns/{turnId}/inputs` | `words` | `said` |
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
@@ -220,7 +224,7 @@ room's matter.
 | a session's loads kept | `PUT /session-loads/{sessionId}` | `documents`, every load the session now holds | `sessionId`, `documents` |
 | a session's loads forgotten | `DELETE /session-loads/{sessionId}` | | nothing |
 | a run | `GET /runs/{id}` | | the run's row, its `startedAt` in epoch milliseconds |
-| the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, newest first, each its `id`, `name`, `startedAt`, `round`, `roomId` and `jobId`, which `quiet` reads |
+| the runs under way | `GET /runs?live=true&limit=500` | | `items`, the runs still open, newest first, each its `id`, `name`, `startedAt` and `round`, which `quiet` reads |
 | the jobs under way | `GET /jobs?running=true&limit=500` | | `items`, the jobs starting or running, newest first, each its `id`, `roleName`, the role it runs as, `repositoryName`, the repository it runs in, or null for a checkout no repository holds any longer, `workerName`, the checkout of it the job runs in, `itemId` and `startedAt`, which `quiet --with-jobs` reads |
 | a round's runs | `GET /runs?round=` | | `items`, the runs the round's turns opened, each its `id`, newest first; the round's last run is the one with the highest id, whatever the order |
 | an answer attached to its run | `PATCH /runs/{runId}` | `messageId` alone | the run |

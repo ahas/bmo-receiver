@@ -290,7 +290,7 @@ fn turn_of(asking: &Asking, session: &Session, room: &RoomContext, prompt: &str)
     privileged: Some(asking.privileged),
     answers: asking.answers.to_vec(),
     began: Some(asking.began),
-    round: rounds::current(),
+    round: Some(rounds::of_turn(asking.chat_id)),
     key: Some(key_of(asking)),
   }
 }

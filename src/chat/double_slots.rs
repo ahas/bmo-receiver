@@ -5,7 +5,7 @@
 use receiver_ports::agency::Agency;
 use sea_orm::DatabaseConnection;
 
-use crate::{Fault, all, run};
+use crate::{Fault, all, one, run};
 
 /// A slot the receiver holds: its key, the agent and the room whose round it carries, and when it was asked.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,8 +42,18 @@ pub async fn given_back(db: &DatabaseConnection, key: &str) -> Result<(), Fault>
   Ok(())
 }
 
-/// Every slot held, oldest first.
+/// Every slot held, oldest first; none in a store not yet migrated to hold them, as `quiet` reads it from the
+/// release about to go live against the store the running one keeps.
 pub async fn held(db: &DatabaseConnection) -> Result<Vec<Held>, Fault> {
+  let kept = one(db, r#"SELECT to_regclass('double_slots') IS NOT NULL AS "kept""#, vec![])
+    .await?
+    .and_then(|row| row.try_get::<bool>("", "kept").ok())
+    .unwrap_or(false);
+
+  if !kept {
+    return Ok(vec![]);
+  }
+
   let rows = all(
     db,
     r#"SELECT "key", "agent", "chat_id", "asked_at" FROM "double_slots" ORDER BY "asked_at", "key""#,

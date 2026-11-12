@@ -1,6 +1,6 @@
-//! What `quiet` counts as work under way (docs/boundary-api.md, 「The service and its commands」): a turn of a
-//! round, or a turn answering a room that is no job's, however long it has run, and no other run, whatever its
-//! name says.
+//! What `quiet` counts as work under way (docs/boundary-api.md, 「The service and its commands」): a turn the
+//! receiver carries, which names its round, however long it has run, and no other run, whatever its name or its
+//! room says.
 
 use bmo_receiver::quiet::{jobs_under_way, under_way};
 use receiver_ports::agency::{OpenRun, RunningJob};
@@ -20,37 +20,32 @@ fn open(id: i64, name: &str, minutes_ago: i64) -> OpenRun {
 }
 
 #[test]
-fn a_round_s_turn_and_a_room_s_turn_count_by_what_they_are_and_no_name_counts() {
+fn a_turn_the_receiver_carries_counts_by_its_round_and_no_room_or_name_counts() {
   let runs = [
-    // A double's round: a role's run that names its round and its room.
+    // A round's turn, and a turn outside any round under a round of its own.
     OpenRun {
       round: Some("round-7".to_owned()),
       room_id: Some(-3),
-      ..open(1, "round-agent-a--3-100", 240)
+      ..open(1, "agent-a:chat:-3:100", 240)
     },
-    // A room's chat turn that names no round.
+    OpenRun {
+      round: Some("round-8".to_owned()),
+      ..open(2, "agent-a:talk", 2)
+    },
+    // A job's turn names its room and no round, and the agency answers no job on it.
     OpenRun {
       room_id: Some(-3),
-      ..open(2, "agent-a:chat:-3:100", 2)
-    },
-    // A job's turn in a room, and a job on a checkout whose name holds a long-work word.
-    OpenRun {
-      room_id: Some(-3),
-      job_id: Some(40),
       ..open(3, "unit-a:job-17", 2)
     },
-    OpenRun {
-      job_id: Some(41),
-      ..open(4, "repo-research:job-906913", 2)
-    },
-    // A run of another unit that answers no room.
-    open(5, "agent-a:research:7", 300),
+    // A job on a checkout whose name holds a long-work word, and a run of another unit.
+    open(4, "repo-research:job-906913", 2),
+    open(5, "agent-a:chat:7", 300),
   ];
   let named = under_way(&runs);
 
-  assert_eq!(named.len(), 2, "only a round's or a room's own turn counts: {named:?}");
-  assert!(named[0].starts_with("run 1 round-agent-a--3-100"));
-  assert!(named[1].starts_with("run 2 agent-a:chat:-3:100"));
+  assert_eq!(named.len(), 2, "only a turn naming its round counts: {named:?}");
+  assert!(named[0].starts_with("run 1 agent-a:chat:-3:100"));
+  assert!(named[1].starts_with("run 2 agent-a:talk"));
   assert!(under_way(&[]).is_empty(), "nothing open is quiet");
 }
 

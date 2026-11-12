@@ -7,10 +7,11 @@ use sea_orm::DatabaseConnection;
 
 use crate::chat::double_slots;
 
-/// Whether a restart of the receiver would cut the round that follows the run: a turn of one of its rounds, or a
-/// turn answering a room that is no job's turn. What a run is decides, never a word of its name.
+/// Whether a restart of the receiver would cut what follows the run: a turn the receiver carries, every one of
+/// which names a round. What a run is decides, never a word of its name; a room it answers is no sign, since a
+/// job's run names its room too.
 pub fn counts(run: &OpenRun) -> bool {
-  run.round.is_some() || (run.room_id.is_some() && run.job_id.is_none())
+  run.round.is_some()
 }
 
 /// The open runs that count as under way, each named as a line, however long it has run.
