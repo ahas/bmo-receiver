@@ -394,7 +394,11 @@ Beside the reference, a turn carries the room's messages the agent has not read:
     rows the round took and is settled with the round, under its name.
   - **What the agency answers.** Words it answers `delivered` are the round's from then on; words it answers
     `waiting` or `refused` go back to the front of what waits, and a `waiting` turn is offered nothing more
-    (`docs/boundary-api.md`, 「The agency」).
+    (`docs/boundary-api.md`, 「The agency」). Until the agency answers, the words a push took stand with the
+    working turn rather than with the push alone, so an agent's reset reaches them: a cut-off heard meanwhile
+    lets them go unread with everything else waiting for the agent (`docs/wake.md`, 「An agent's reset」), a push
+    it overtook before it went out does not go out, and whatever the agency answers one already sent, nothing
+    of it joins the round or goes back to wait.
 - **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): the closing
   check, an item, the review, a revision it sent back or a check; the draft turn itself rides the round's own
   turn. It carries its marker and its data and no instruction text, which stands in the room's block, and no

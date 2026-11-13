@@ -930,6 +930,8 @@ pub struct StandInAgency {
   pub resets: Mutex<Vec<(String, Value)>>,
   pub pushes: Mutex<Vec<(String, i64, String)>>,
   pub saying: Mutex<Option<Said>>,
+  /// Where a test holds pushes: each one, once recorded, answers only after the test lets one go here.
+  pub held_pushes: Mutex<Option<Arc<tokio::sync::Notify>>>,
   pub agents: Mutex<Vec<Agent>>,
   /// How often it was asked for its agents.
   pub agents_asked: AtomicUsize,
@@ -997,6 +999,7 @@ impl StandInAgency {
       resets: Mutex::default(),
       pushes: Mutex::default(),
       saying: Mutex::default(),
+      held_pushes: Mutex::default(),
       agents: Mutex::default(),
       agents_asked: AtomicUsize::new(0),
       supervisors_read: Mutex::default(),
@@ -1510,8 +1513,13 @@ impl Agency for StandInAgency {
     self.pushes.lock().unwrap().push((session.to_owned(), turn, words.to_owned()));
 
     let said = *self.saying.lock().unwrap();
+    let held = self.held_pushes.lock().unwrap().clone();
 
     Box::pin(async move {
+      if let Some(held) = held {
+        held.notified().await;
+      }
+
       said.ok_or(PortFailure::Transport {
         url: "agency/session/push".to_owned(),
         why: "the stand-in says nothing".to_owned(),

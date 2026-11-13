@@ -428,6 +428,9 @@ pub struct Carried {
   open: bool,
   shut: bool,
   pushing: bool,
+  // What the push under way took out of the conversation, until the agency answers for it; a cut-off takes it
+  // from here.
+  taken: Option<Taken>,
   // The rows the round's own turn holds in its prompt, and the session and turn carrying the round now, as the
   // agency named the turn.
   own: Vec<i64>,
@@ -469,6 +472,7 @@ impl Carried {
       open: true,
       shut: false,
       pushing: false,
+      taken: None,
       own: vec![],
       turn: None,
     }
@@ -487,14 +491,14 @@ impl Carried {
   }
 }
 
-// The words a push took out of the conversation, held until the turn says what became of them.
-struct Offered {
+// The words a push took out of the conversation, held with the working turn until the agency says what became of
+// them.
+struct Taken {
   messages: Vec<Inbound>,
   instructions: Vec<String>,
   ids: Vec<i64>,
   roads: Vec<String>,
   events: Vec<TurnEvent>,
-  paragraph: Paragraph,
 }
 
 /// What became of words pushed into a working turn: the turn took them, its program waits on a person so it
@@ -565,6 +569,13 @@ impl Conv {
     self.instruction_ids.splice(0..0, ids);
     self.instruction_roads.splice(0..0, roads);
     self.instruction_events.splice(0..0, events);
+  }
+
+  // What the push under way took, back at the front of what waits; nothing where a cut-off let it go meanwhile.
+  fn give_back_taken(&mut self) {
+    if let Some(taken) = self.carried.as_mut().and_then(|carried| carried.taken.take()) {
+      self.give_back(taken.messages, taken.instructions, taken.ids, taken.roads, taken.events);
+    }
   }
 
   // The words a failed round left for this conversation, at the front of what waits, under the room their road
@@ -787,8 +798,9 @@ impl Conversations {
   }
 
   /// Everything waiting for the agent's turns in every room let go unread, as its reset cuts it off: the words the
-  /// queue gathers and those a conversation holds or waits on, and its quiet instructions, whose rows it answers
-  /// with the runs of its own going now (docs/wake.md, 「An agent's reset」).
+  /// queue gathers, those a conversation holds or waits on and those a push took for a working turn the agency
+  /// has not answered for, and its quiet instructions, among them a push's, whose rows it answers with the runs of
+  /// its own going now (docs/wake.md, 「An agent's reset」).
   pub fn cut_off(&self) -> CutOff {
     let mut state = self.state();
     let mut rooms: Vec<i64> = state.queue.drain().map(|(chat_id, _)| chat_id).collect();
@@ -805,6 +817,10 @@ impl Conversations {
       conv.instruction_roads.clear();
       conv.instruction_events.clear();
       instructions.append(&mut conv.instruction_ids);
+
+      if let Some(taken) = conv.carried.as_mut().and_then(|carried| carried.taken.take()) {
+        instructions.extend(taken.ids);
+      }
     }
 
     let going = state.going.keys().cloned().collect();
@@ -3184,7 +3200,7 @@ pub struct Follower {
   conversations: Conversations,
   chat_id: i64,
   drawn: Mutex<Option<(Value, i64)>>,
-  offered: Mutex<Option<Offered>>,
+  offered: Mutex<Option<Paragraph>>,
 }
 
 impl Follower {
@@ -3197,7 +3213,7 @@ impl Follower {
     }
   }
 
-  fn offered(&self) -> MutexGuard<'_, Option<Offered>> {
+  fn offered(&self) -> MutexGuard<'_, Option<Paragraph>> {
     self.offered.lock().unwrap_or_else(PoisonError::into_inner)
   }
 
@@ -3220,7 +3236,9 @@ impl Follower {
       carried.privileged
     };
     let messages = conversations.meanwhile(chat_id, privileged).await;
-    let (instructions, ids, roads, events, holds, round, consumed, tools_allowed) = {
+    // What the push takes stands with the turn until the agency answers, where a cut-off reaches it; the paragraph
+    // is built from a copy.
+    let (instructions, ids, events, holds, round, consumed, tools_allowed) = {
       let mut state = conversations.state();
       let conv = state.active.get_mut(&chat_id)?;
       let Some(takes_instructions) = conv.carried.as_ref().map(|carried| carried.takes_instructions) else {
@@ -3248,18 +3266,26 @@ impl Follower {
         return None;
       }
 
-      let carried = conv.carried.as_ref()?;
+      let consumed = conv.held.last_consumed_id;
+      let carried = conv.carried.as_mut()?;
+      let built = (
+        instructions.clone(),
+        ids.clone(),
+        events.clone(),
+        carried.holds.clone(),
+        carried.round.clone(),
+        consumed,
+        carried.tools_allowed,
+      );
 
-      (
+      carried.taken = Some(Taken {
+        messages: messages.clone(),
         instructions,
         ids,
         roads,
         events,
-        carried.holds.clone(),
-        carried.round.clone(),
-        conv.held.last_consumed_id,
-        carried.tools_allowed,
-      )
+      });
+      built
     };
     let built = super::mid_turn::paragraph(&Push {
       receiver: &conversations.0.receiver,
@@ -3280,20 +3306,14 @@ impl Follower {
     .await;
     let mut state = conversations.state();
     let conv = state.active.get_mut(&chat_id)?;
-    let open = conv.carried.as_ref().is_some_and(|carried| carried.open);
+    // A cut-off heard while the paragraph was built let go what it carries, so it does not go out.
+    let goes = conv.carried.as_ref().is_some_and(|carried| carried.open && carried.taken.is_some());
 
     match built {
-      Ok(paragraph) if open => {
+      Ok(paragraph) if goes => {
         let text = paragraph.text.clone();
 
-        *self.offered() = Some(Offered {
-          messages,
-          instructions,
-          ids,
-          roads,
-          events,
-          paragraph,
-        });
+        *self.offered() = Some(paragraph);
 
         Some(text)
       }
@@ -3302,7 +3322,7 @@ impl Follower {
           eprintln!("chat {chat_id}: words for the working turn could not be put in: {}", why.detail);
         }
 
-        conv.give_back(messages, instructions, ids, roads, events);
+        conv.give_back_taken();
 
         if let Some(carried) = conv.carried.as_mut() {
           carried.pushing = false;
@@ -3419,64 +3439,50 @@ impl Follower {
 
   // What the turn took joins the round: its messages shown to the round, waiting for the marks that settle them,
   // its instructions among the rows the round settles, carried by the turn that took them. What it refused goes
-  // back to the front of what waits, and a turn that says it is waiting takes no more.
+  // back to the front of what waits, and a turn that says it is waiting takes no more. What a cut-off let go while
+  // the push was out neither joins the round nor goes back.
   pub async fn settle(&self, outcome: AsideOutcome) {
     let chat_id = self.chat_id;
-    let Some(offered) = self.offered().take() else { return };
+    let Some(paragraph) = self.offered().take() else { return };
     let conversations = &self.conversations;
     let taken = {
       let mut state = conversations.state();
       let Some(conv) = state.active.get_mut(&chat_id) else { return };
+      let Some(carried) = conv.carried.as_mut() else { return };
 
-      if let Some(carried) = conv.carried.as_mut() {
-        carried.pushing = false;
+      carried.pushing = false;
+
+      if outcome == AsideOutcome::Waiting {
+        carried.shut = true;
       }
 
-      match (outcome, conv.carried.as_mut()) {
-        (AsideOutcome::Delivered, Some(carried)) => {
-          let Offered {
-            messages,
-            instructions,
-            ids,
-            roads,
-            paragraph,
-            ..
-          } = offered;
-          let took =
-            (messages.len(), instructions.len(), messages.clone(), ids.clone(), carried.turn.clone());
+      let Some(taken) = carried.taken.take() else { return };
 
-          carried.shown.extend(messages);
-          carried.roads.extend(roads);
-          carried.settling.extend(ids);
-          carried.pushed.push(paragraph.text);
-          carried.holds.extend(paragraph.reference);
+      if outcome == AsideOutcome::Delivered {
+        let Taken {
+          messages,
+          instructions,
+          ids,
+          roads,
+          ..
+        } = taken;
+        let took =
+          (messages.len(), instructions.len(), messages.clone(), ids.clone(), carried.turn.clone());
 
-          if !paragraph.instructions.is_empty() {
-            carried.pushed_instructions.push(paragraph.instructions);
-          }
+        carried.shown.extend(messages);
+        carried.roads.extend(roads);
+        carried.settling.extend(ids);
+        carried.pushed.push(paragraph.text);
+        carried.holds.extend(paragraph.reference);
 
-          Some(took)
+        if !paragraph.instructions.is_empty() {
+          carried.pushed_instructions.push(paragraph.instructions);
         }
-        (outcome, _) => {
-          let Offered {
-            messages,
-            instructions,
-            ids,
-            roads,
-            events,
-            ..
-          } = offered;
 
-          conv.give_back(messages, instructions, ids, roads, events);
-
-          if outcome == AsideOutcome::Waiting
-            && let Some(carried) = conv.carried.as_mut()
-          {
-            carried.shut = true;
-          }
-
-          None
-        }
+        Some(took)
+      } else {
+        conv.give_back(taken.messages, taken.instructions, taken.ids, taken.roads, taken.events);
+        None
       }
     };
     let Some((messages, pushed, took, ids, turn)) = taken else { return };
@@ -3497,22 +3503,12 @@ impl Follower {
   // The working turn is over: it takes no more, words offered and never answered for go back, and what the
   // pushes grew the round by is the round's to decide on.
   pub fn finish(&self) -> Option<Carried> {
-    let offered = self.offered().take();
+    self.offered().take();
+
     let mut state = self.conversations.state();
     let conv = state.active.get_mut(&self.chat_id)?;
 
-    if let Some(Offered {
-      messages,
-      instructions,
-      ids,
-      roads,
-      events,
-      ..
-    }) = offered
-    {
-      conv.give_back(messages, instructions, ids, roads, events);
-    }
-
+    conv.give_back_taken();
     conv.carried.take()
   }
 

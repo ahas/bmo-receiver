@@ -288,7 +288,10 @@ fields: a cut-off names the `point` alone, a reset names its `ranges`.
 - **The cut-off is the live signal,** heard for as long as the service runs. Its point is kept as the agent's
   reset point, a later point in place of an earlier one. Everything waiting for the
   agent's turns in every room is let go unread: the words its rooms' queues are gathering, the words its conversations hold or wait on,
-  and its quiet instructions, whose rows are let go as `reset` so no turn takes them again. An agent whose
+  the words a push took for a working turn that the agency has not yet answered for, and its quiet instructions,
+  among them those such a push took, whose rows are let go as `reset` so no turn takes them again. The rows are
+  settled as the cut-off is heard, whatever the agency later answers the push; a push it overtook adds nothing to
+  its round and gives nothing back to wait (`docs/bmo-window.md`, 「The openings」, `push`). An agent whose
   conversations do not stand in this process has nothing waiting. A turn under way is the agency's to stop, and
   a stopped round ends as any stopped round does.
 

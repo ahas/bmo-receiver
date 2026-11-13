@@ -1,6 +1,7 @@
 //! Every supervisor is alike (docs/wake.md, 「The room's queue and the round」; 「An agent's reset」): another
 //! supervisor's round is the same round the default answerer's is, every event of it names the supervisor under its
-//! own number, and its reset's cut-off lets go unread what waited for its turns.
+//! own number, and its reset's cut-off lets go unread what waited for its turns, a push under way into its working
+//! turn among it.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -19,6 +20,7 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 use serde_json::json;
+use tokio::sync::Notify;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::session::StandInSession;
@@ -40,6 +42,11 @@ const SAID_FROM: i64 = 1_760_000_000;
 
 const FIRST: &str = "the first words";
 const LATER: &str = "words said after the first";
+const WAITED: &str = "an instruction that waited";
+
+/// How long a wait on what the rounds do stands before the test fails: what each waits on comes within
+/// milliseconds even on a loaded machine, so a condition that never comes fails the test fast.
+const BOUND: Duration = Duration::from_secs(3);
 
 // The owner's private chat, the room every round of these tests runs in.
 fn owners_room() -> Room {
@@ -94,7 +101,7 @@ fn documents(data: &Path) {
 
 // Waits, bounded, until `holds` does.
 async fn until(what: &str, holds: impl Fn() -> bool) {
-  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+  let waited = tokio::time::timeout(BOUND, async {
     while !holds() {
       tokio::time::sleep(Duration::from_millis(5)).await;
     }
@@ -190,6 +197,25 @@ impl Rounds {
     self.chat.sent().iter().map(|send| serde_json::to_string(send).unwrap()).collect()
   }
 
+  // Waits, bounded, until the instruction's row is settled.
+  async fn until_delivered(&self, id: i64) {
+    let waited = tokio::time::timeout(BOUND, async {
+      while !self.delivered(id).await {
+        tokio::time::sleep(Duration::from_millis(5)).await;
+      }
+    })
+    .await;
+
+    assert!(waited.is_ok(), "the instruction that waited is settled by the cut-off");
+  }
+
+  // The cut-off heard on the session's stream, as the service hears it.
+  async fn hearing_cut_offs(&self) {
+    Hearing::new(vec![Arc::new(CutOffs::new(self.standing.receiver.clone(), self.runner.clone()))])
+      .keep(self.standing.agency.clone());
+    until("the cut-off heard", || self.session.listeners() == 1).await;
+  }
+
   async fn delivered(&self, id: i64) -> bool {
     let row = one(
       self.standing.receiver.db(),
@@ -245,27 +271,17 @@ async fn a_round_s_quiet_block_names_the_unit_that_published_the_row() {
 async fn a_cut_off_lets_go_unread_what_waited_for_the_agents_turns() {
   let rounds = Rounds::on(StandInSession::new(SESSION, ANSWER).holding_the_first()).await;
 
-  Hearing::new(vec![Arc::new(CutOffs::new(rounds.standing.receiver.clone(), rounds.runner.clone()))])
-    .keep(rounds.standing.agency.clone());
-  until("the cut-off heard", || rounds.session.listeners() == 1).await;
+  rounds.hearing_cut_offs().await;
   rounds.hear(1, FIRST).await;
   until("the turn", || rounds.session.working()).await;
   // What comes while the agent's turn works waits for the round after it.
   rounds.hear(2, LATER).await;
 
-  let waiting = rounds.instruct("an instruction that waited", None).await;
+  let waiting = rounds.instruct(WAITED, None).await;
   let point = now_ms();
 
   rounds.session.told(CUT_OFF, json!({ "agent": ADDED, "point": point }));
-
-  let waited = tokio::time::timeout(Duration::from_secs(20), async {
-    while !rounds.delivered(waiting).await {
-      tokio::time::sleep(Duration::from_millis(5)).await;
-    }
-  })
-  .await;
-
-  assert!(waited.is_ok(), "the instruction that waited is settled by the cut-off");
+  rounds.until_delivered(waiting).await;
   assert_eq!(
     cut_off::point(rounds.standing.receiver.db(), ADDED).await.unwrap(),
     Some(point),
@@ -280,6 +296,40 @@ async fn a_cut_off_lets_go_unread_what_waited_for_the_agents_turns() {
     !rounds.session.prompts()[0].contains(LATER),
     "the words the cut-off let go reach no turn"
   );
+}
+
+#[tokio::test]
+async fn a_cut_off_lets_go_unread_what_a_push_holds_for_the_working_turn() {
+  let rounds = Rounds::on(StandInSession::new(SESSION, ANSWER).holding_the_first()).await;
+  let push = Arc::new(Notify::new());
+
+  *rounds.standing.agency.held_pushes.lock().unwrap() = Some(push.clone());
+  rounds.hearing_cut_offs().await;
+  rounds.hear(1, FIRST).await;
+  until("the turn", || rounds.session.working()).await;
+
+  let pushed = rounds.instruct(WAITED, None).await;
+
+  until("the push into the working turn", || {
+    rounds
+      .standing
+      .agency
+      .pushes
+      .lock()
+      .unwrap()
+      .iter()
+      .any(|(_, _, words)| words.contains(WAITED))
+  })
+  .await;
+  // The cut-off comes while the agency has not yet answered the push.
+  rounds.session.told(CUT_OFF, json!({ "agent": ADDED, "point": now_ms() }));
+  rounds.until_delivered(pushed).await;
+  // The agency refuses the push, which gives nothing back to wait.
+  push.notify_one();
+  rounds.session.let_go();
+  rounds.settled().await;
+
+  assert_eq!(rounds.session.prompts().len(), 1, "what the push held calls no turn");
 }
 
 #[tokio::test]
