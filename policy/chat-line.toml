@@ -1,6 +1,6 @@
 # The room's block a chat turn carries ahead of its prompt (docs/unified-bmo.md, 「The system prompt and the room
-# switch」): every fixed line of it, what the turn is told of what its road can send, and the notices of a
-# downgrade and a fallback. The chat line's system prompt and tools are the agency's, which keeps them.
+# switch」): every fixed line of it, what the turn is told of what its road can send, and the notice of a
+# downgrade. The chat line's system prompt and tools are the agency's, which keeps them.
 
 # The persona's layers in the room's block: the room's tone layer and its own persona, each under its header.
 [persona]
@@ -60,16 +60,6 @@ follow_up = "The session will be woken fresh to bring it back."
 # The room as the fact names it: the owner's own chat, or another by its title ({title}).
 owner_room = "in this chat, the owner's own"
 room = "in the room \"{title}\""
-
-# What the owner is told, by the default answerer in the owner's own chat, as a stand-in takes a run over: {label} names
-# the stand-in now answering and {model} its model, {previous} the one that could not answer this run.
-[fallback]
-taken = "Claude is not answering, so a stand-in has taken over: you now answer through {label} on {model}."
-moved = "{previous} could not answer this run, so the next stand-in in the owner's order took it: you now answer through {label} on {model}."
-intent = "tell the owner which stand-in and model you are answering on now."
-# Claude answering again, which ends whichever fallback stood.
-lifted = "Claude is answering again, so the borrowed stand-in is done and you are back on your own model."
-lifted_intent = "tell the owner you are back on Claude."
 
 # What is in force in a room: the room's rules ({rows} is its rows as JSON), or the room's grants once the account
 # model is in force.

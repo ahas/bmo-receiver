@@ -1,6 +1,5 @@
 //! The room's block a chat turn carries ahead of its prompt (docs/unified-bmo.md, 「The system prompt and the room
-//! switch」): its fixed lines, what the turn is told of what its road can send, and the notices of a downgrade and
-//! a fallback.
+//! switch」): its fixed lines, what the turn is told of what its road can send, and the notice of a downgrade.
 
 use serde::Deserialize;
 
@@ -85,22 +84,11 @@ pub struct Downgrade {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Fallback {
-  pub taken: String,
-  pub moved: String,
-  pub intent: String,
-  pub lifted: String,
-  pub lifted_intent: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ChatLine {
   pub persona: Persona,
   pub room: Room,
   pub capabilities: Capabilities,
   pub downgrade: Downgrade,
-  pub fallback: Fallback,
   pub rules: Rules,
 }
 

@@ -6,7 +6,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use bmo_receiver::chat::fallback::{self, Fallbacks};
 use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::logins::{LOGIN_NOTICE, Logins};
 use bmo_receiver::chat::overtime::{self, Overtime};
@@ -15,7 +14,6 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::hearing::{Hearer, Hearing};
 use bmo_receiver::receiver::wake::rest::{RESTING, Rests};
 use bmo_receiver::road_facts::{ROAD_CHANGED, RoadChanges, RoadFact};
-use bmo_receiver::store::settings;
 use bmo_receiver::verbs::reload::{DOCUMENTS_MOVED, Places, Reloads};
 use bmo_receiver::workers::{DOWNGRADED, Workers};
 use bmo_receiver::{all, now_ms, run};
@@ -83,7 +81,6 @@ impl Heard {
     let hearers: Vec<Arc<dyn Hearer>> = vec![
       Arc::new(Resets::new(receiver.clone())),
       Arc::new(Reloads::new(receiver.clone(), places)),
-      Arc::new(Fallbacks::new(receiver.clone())),
       Arc::new(Rests::new(receiver.clone())),
       Arc::new(Logins::new(receiver.clone())),
       Arc::new(Workers::new(receiver.clone())),
@@ -502,34 +499,6 @@ fn a_supervisors_road_is_named_as_the_supervisor_and_keyed_by_it() {
     "{}",
     fact.fact()
   );
-}
-
-#[tokio::test]
-async fn a_stand_in_answering_is_kept_and_told_and_its_end_clears_it() {
-  let heard = Heard::on().await;
-
-  heard.session.told(
-    fallback::CHANGED,
-    json!({ "ownerId": OWNER, "previous": "codex", "provider": "openrouter", "model": "model-b" }),
-  );
-
-  let taken = heard.kept("fallback", 1).await;
-
-  assert!(taken[0].text.contains("codex could not answer this run"), "{}", taken[0].text);
-  assert!(taken[0].text.contains("through openrouter on model-b"));
-  assert_eq!(
-    settings::get(heard.db(), fallback::PROVIDER_KEY).await.unwrap().as_deref(),
-    Some("openrouter")
-  );
-  assert!(settings::get(heard.db(), fallback::SINCE_KEY).await.unwrap().is_some());
-
-  heard
-    .session
-    .told(fallback::CHANGED, json!({ "ownerId": OWNER, "previous": "openrouter" }));
-  heard.kept("fallback-lifted", 1).await;
-
-  assert!(settings::get(heard.db(), fallback::SINCE_KEY).await.unwrap().is_none());
-  assert!(settings::get(heard.db(), fallback::PROVIDER_KEY).await.unwrap().is_none());
 }
 
 #[tokio::test]

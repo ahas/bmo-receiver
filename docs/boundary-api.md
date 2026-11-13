@@ -235,8 +235,8 @@ room's matter.
 
 The events read, each by the part of the receiver its effect belongs to, on one stream that names every kind read
 and is opened again when it drops: `turn.created`, `turn.ended`, `supervisor-reset.created`,
-`document-move.created`, `fallback.changed`, `rest.changed`, `account.changed`, `worker.changed`,
-`overtime-request.created`, `overtime-request.changed`, `road.changed` and `session.deleted`. Each time it opens
+`document-move.created`, `rest.changed`, `account.changed`, `worker.changed`, `overtime-request.created`,
+`overtime-request.changed`, `road.changed` and `session.deleted`. Each time it opens
 the receiver reads the events kept since the last one it heard and hands those it has not (`docs/wake.md`, 「What
 the agency's events wake」); a round whose own stream was cut before its turn ended opens its own again, reads the
 events kept since the last one heard before its turn went out and reads the turn (`docs/bmo-window.md`, 「Quiet

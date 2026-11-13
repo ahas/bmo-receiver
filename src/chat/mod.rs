@@ -14,7 +14,6 @@ pub mod conversation;
 pub mod cut_off;
 pub mod double_slots;
 pub mod draft;
-pub mod fallback;
 pub mod fold;
 pub mod generation;
 pub mod handed;

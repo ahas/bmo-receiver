@@ -103,7 +103,6 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `voice_briefing` | `off` while voice briefings are switched off | the voice switch |
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
 | `restart_reason` | what a deployment recorded before the receiver stopped: its purpose and the items going live, taken once at start-up | the restart |
-| `fallback_since`, `fallback_provider` | since when, in epoch milliseconds, a stand-in has answered for the default answerer, and which one | the agency's `fallback.changed` |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |
 | `console_pinned_rooms` | the rooms the console stands over the rest, as a JSON list of room numbers in the owner's order; a room's removal takes its number out, and a number the record no longer has stands for nothing | the console's pinned order (`docs/boundary-api.md`, 「The pinned order」), read by the console's room list |

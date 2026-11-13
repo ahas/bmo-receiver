@@ -199,7 +199,7 @@ that wants something said there hands the words to that supervisor, and the supe
 - **So every round shows typing from the moment an answer is let through,** one that read new messages and one
   that carries only a quiet instruction alike, through the send, and a round that ends without
   sending anything never shows it at all.
-- **Nothing shows it** during a rest in a room no stand-in is carrying, before the provider has answered again
+- **Nothing shows it** in a room whose turn the rest's gate holds back, before the provider has answered again
   after an outage, or while that room's compaction is in progress, and a turn of a console talk never moves a
   room's typing state.
 - **A chat service's typing state fades after a few seconds,** so it is renewed every four while on, one renewal

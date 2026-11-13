@@ -17,7 +17,6 @@ use sea_orm::DatabaseConnection;
 use crate::chat::around::Around;
 use crate::chat::conversation::{Conversations, Timings};
 use crate::chat::cut_off::CutOffs;
-use crate::chat::fallback::Fallbacks;
 use crate::chat::instructions::{Pass, Rooms};
 use crate::chat::logins::Logins;
 use crate::chat::overtime::Overtime;
@@ -192,7 +191,6 @@ pub fn hearing(standing: &Standing) -> Hearing {
     Arc::new(CutOffs::new(receiver.clone(), standing.runner.clone())),
     Arc::new(Resets::new(receiver.clone())),
     Arc::new(Reloads::new(receiver.clone(), standing.places.clone())),
-    Arc::new(Fallbacks::new(receiver.clone())),
     Arc::new(Rests::new(receiver.clone())),
     Arc::new(Logins::new(receiver.clone())),
     Arc::new(Workers::new(receiver.clone())),

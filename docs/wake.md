@@ -414,8 +414,8 @@ Each event the receiver reads (`docs/boundary-api.md`, 「The agency」) is hear
 to, and those that tell the default answerer something wake it as an instruction in the owner's private chat, which
 opens a round there like any instruction:
 
-- **A voiced notice:** a stand-in answering or ended, and a job's run fallen to a lesser model, named by its role
-  and its repository with the checkout it ran in beside it (`docs/voiced-notices.md`, 「Rest and fallback」).
+- **A voiced notice:** a job's run fallen to a lesser model, named by its role and its repository with the
+  checkout it ran in beside it (`docs/voiced-notices.md`, 「Rest and a run's fall」).
 - **An order:** a run past its clock, withdrawn where its ask closes first (`docs/voiced-notices.md`, 「A turn
   past its clock」).
 - **No session at all:** the deployment resting, told in its fixed line, and a login's end, said as the agency

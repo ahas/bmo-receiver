@@ -695,7 +695,7 @@ impl Receiver {
   }
 
   /// The owner's notices room (docs/boundary-api.md, 「Configuration」): the room the system's notices to the
-  /// owner go to, the tool host's changes and a rest's and a fallback's among them, but never a briefing's; his
+  /// owner go to, the tool host's changes and a rest's among them, but never a briefing's; his
   /// private room where the configuration names none. A briefing goes to [`Self::owner_room`] alone.
   pub fn notices_room(&self) -> i64 {
     self.deployment.notices_room.unwrap_or_else(|| self.owner_room())
