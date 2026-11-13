@@ -42,6 +42,7 @@ fn every_manual_the_manifest_names_stands_beside_it() {
 
     assert!(folder().join(manual).is_file(), "{manual}");
     assert_eq!(entry["unbounded"].as_bool(), Some(true), "{manual}");
+    assert_eq!(entry["ends_at_stop"].as_bool(), Some(true), "a wait never holds the tool host's stop");
   }
 }
 

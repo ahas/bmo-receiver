@@ -40,6 +40,15 @@ send tool's (`docs/chat-mcp.md`). A session reaches it through the toolbook and 
 - **Cancelling one** is stopping its unit, `bmo-use-<id>` as `bmo use --async` answered it; the stop is that
   unit's end, and its last word wakes the agent with the failure, so the agent learns the wait is gone.
 
+## A wait the tool host's restart ends
+
+- **A call of the wait never holds the tool host's stop.** Its entry is `ends_at_stop` (the pocket unit's
+  `docs/api.md`, 「The manifest」): a deployment of the tool host waits for no wait to end before its flip, and the
+  stop ends every call of it as it begins, each answering as failed because the host stopped.
+- **That end wakes the agent like any other,** so the agent reads that the host stopped and sets the reminder or
+  the watch again from its note and its memory, for the moment or the check it had; a moment past by then is
+  answered at once.
+
 ## Its end wakes the agent in its room
 
 - **The end is an instruction,** `POST /instructions` with the sort `use-ended` and the call's answer as a fact,

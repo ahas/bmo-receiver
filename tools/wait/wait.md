@@ -4,6 +4,9 @@ A reminder or a watch: the call waits for a moment, or runs a shell check until 
 note. Run it through `bmo use --async` so the turn goes on and the call's end wakes you in the room with the
 note and the memory you gave it.
 
+A deployment of the tool host ends every wait as it restarts, and you are woken with the failure saying the
+host stopped: set the same reminder or watch again.
+
 ## Arguments
 
 - `seconds`: how many seconds to wait. Give this, `until`, or `check`.

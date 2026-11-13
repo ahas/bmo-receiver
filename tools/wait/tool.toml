@@ -22,3 +22,7 @@ input = "wait.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
 unbounded = true
+# A wait is no work a restart would cut, so a call of it never holds the tool host's stop or a deployment's quiet:
+# it is ended as the stop begins, its wake says the host stopped, and the agent sets it again (docs/reminders.md,
+# 「A wait the tool host's restart ends」).
+ends_at_stop = true
