@@ -31,7 +31,8 @@ flowchart TD
   - the wake: which designated agents of the room a message wakes, by the one rule (`docs/wake.md`), with
     everything that stops a message before it:
     - the owner's answer to a job's open question in the owner's private chat, handed to bmo-job;
-    - the rest's gate, read off the agency's rest (`GET /rest`, and `GET /stand-in` for a road the rest closes);
+    - the rest's gate, read off the agency's rest (`GET /rest`, and `GET /supervisors/{supervisorName}/road`
+      for a turn the rest closes);
     - the read mark and a mute;
     - the window each agent keeps in the room, and the one a call opens for it;
     - the files a person posted just before the words of theirs that woke the default answerer;
@@ -65,13 +66,14 @@ flowchart TD
   - the going-down line said to the owner as it stops (`docs/voiced-notices.md`, 「System notices」);
   - the event stream and the live board (「The event stream」 below).
 - **What it does not carry:** a chat service's platform (its reading, its sending, its gathering of files and its
-  numbering are the chat service's, behind bmo-chat), the agent sessions and their stand-ins (the agency's), the
-  gate stage (the gate's), the memories and digests (the brain's), reminders, waits and watches (the wait tool's,
+  numbering are the chat service's, behind bmo-chat), the agent sessions and the road each supervisor stands on
+  (the agency's), the gate stage (the gate's), the memories and digests (the brain's), reminders, waits and watches (the wait tool's,
   run through bmo-cli's `bmo use`, `docs/reminders.md`), the job queue (bmo-job's), the accounts and grants (the web unit's), the voice (the voice
   unit's), and the keepalive pass (the cache warmer's).
 - **A woken agent's turn is its conversations' own:** the message goes into its room's queue with the files
   leading up to it ahead of it, opening the window where its ground does. A turn the rest's gate closed is taken
-  only where the agent is pinned to a provider the rest does not close, or a stand-in answers on its road. A
+  only where the agent is pinned to a provider the rest does not close, or the agency answers that the
+  supervisor's one road takes a turn now. A
   message read through somebody else's account, or by a read mode its chat service declares answers cannot be
   pinned to, goes in as read through a reader, so no answer is aimed at it. The owner's words from the screen go
   into the owner's conversation the same way, opening nothing.

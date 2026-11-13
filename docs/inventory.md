@@ -52,13 +52,13 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 
 | Old member | Count | Owner |
 |---|---|---|
-| `chat/stand_in.rs` | 1 | bmo-agency |
+| `chat/stand_in.rs`, `stand_in.rs` | 2 | none: a supervisor stands on one road, and the rest's gate asks the agency whether that road answers |
 | `door/` | 17 | bmo-agency |
 | `lines/` | 17 | bmo-agency |
 | `worker_session/` | 4 | bmo-agency |
 | `run_log/` | 6 | bmo-agency |
 | the added supervisors' folder: guard, handoff, overtaken, run, sessions | 5 | bmo-agency |
-| `conversational.rs`, `host_run.rs`, `stand_in.rs`, `doctor.rs` | 4 | bmo-agency |
+| `conversational.rs`, `host_run.rs`, `doctor.rs` | 3 | bmo-agency |
 | `watches/mod.rs`, `live_runs.rs`, `links.rs` | 3 | bmo-agency |
 | `gates/` | 22 | bmo-gate |
 | `reference/` | 7 | bmo-gate |

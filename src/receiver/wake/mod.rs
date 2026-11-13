@@ -22,7 +22,7 @@ use agents::{
   Designated, default_designated, group_room, holds_own, own_number, owned_by, room_designated,
   window_until,
 };
-use rest::{resting, stand_in};
+use rest::{resting, road_answers};
 
 /// How a message is woken on: the words its call is read from, a file's caption where it carries one, and
 /// whether an agent filed it.
@@ -364,8 +364,8 @@ async fn files_leading_up(
 
 /// A woken agent's turn handed to its conversations: the files leading up to the message first, then the
 /// message, opening the window where its ground does, each read through a reader where it came by a mode its
-/// road cannot pin an answer to; whether it was taken. A turn the rest's gate closed is taken only where a
-/// stand-in answers on the agent's road.
+/// road cannot pin an answer to; whether it was taken. A turn the rest's gate closed is taken only where the
+/// agent's one road answers through the rest.
 #[allow(clippy::too_many_arguments)]
 pub async fn hand(
   receiver: &Receiver,
@@ -378,7 +378,7 @@ pub async fn hand(
   rest_gated: bool,
 ) -> bool {
   if rest_gated
-    && asked("whether a stand-in answers the agent", stand_in(receiver, agent).await) != Some(true)
+    && asked("whether the agent's road answers", road_answers(receiver, agent).await) != Some(true)
   {
     return false;
   }

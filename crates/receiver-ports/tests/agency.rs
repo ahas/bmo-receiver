@@ -52,7 +52,19 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
     200,
     json!({ "items": [{ "name": "repo-a", "label": "Repo A", "checkouts": [] }], "more": false }),
   );
-  unit.answer("GET /stand-in", 200, json!({ "answers": true }));
+  unit.answer(
+    "GET /supervisors/agent-a/road",
+    200,
+    json!({
+      "supervisor": "agent-a",
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "effort": null,
+      "thinking": null,
+      "answers": true,
+      "reason": null,
+    }),
+  );
   unit.answer("POST /sessions", 201, session.clone());
   unit.answer("POST /sessions/agent-a@-7/turns", 201, json!({ "delivery": "blocked" }));
   unit.answer("GET /sessions/agent-a@-7", 200, session.clone());
@@ -85,7 +97,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
   assert_eq!((roles[0].name.as_str(), roles[0].label.as_deref()), ("video", Some("Video")));
   assert!(roles[0].gives("room.send") && !roles[0].gives("graph.read"));
   assert_eq!(agency.repositories().await.unwrap()[0].name, "repo-a");
-  assert!(agency.stand_in("agent-a").await.unwrap());
+  assert!(agency.road_answers("agent-a").await.unwrap());
 
   let started = agency.start("agent-a", Scope::Room { room: -7 }).await.unwrap();
 
@@ -154,7 +166,7 @@ async fn every_agency_call_goes_out_as_its_document_states_and_its_answer_reads(
       call("GET /supervisors", "", None),
       call("GET /roles", "", None),
       call("GET /repositories", "", None),
-      call("GET /stand-in", "agent=agent-a", None),
+      call("GET /supervisors/agent-a/road", "", None),
       call(
         "POST /sessions",
         "",
@@ -362,7 +374,7 @@ async fn words_pushed_into_a_working_turn_read_each_answer_the_agency_gives() {
 }
 
 #[tokio::test]
-async fn a_passed_rest_reads_its_empty_answer_and_a_stand_in_for_no_agent_is_refused() {
+async fn a_passed_rest_reads_its_empty_answer_and_a_road_for_no_supervisor_is_refused() {
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
 
@@ -385,18 +397,18 @@ async fn a_passed_rest_reads_its_empty_answer_and_a_stand_in_for_no_agent_is_ref
   assert_eq!(agency.passed_rest().await.unwrap().kind, None);
 
   unit.answer(
-    "GET /stand-in",
+    "GET /supervisors/no-agent/road",
     404,
-    json!({ "code": "not-found", "error": "No agent is named no-agent." }),
+    json!({ "code": "not-found", "error": "No supervisor is named no-agent." }),
   );
 
-  assert_eq!(agency.stand_in("no-agent").await.unwrap_err().status(), Some(404));
+  assert_eq!(agency.road_answers("no-agent").await.unwrap_err().status(), Some(404));
   assert_eq!(
     unit.took(),
     [
       call("PATCH /rest", "", Some(cleared.clone())),
       call("PATCH /rest", "", Some(cleared)),
-      call("GET /stand-in", "agent=no-agent", None),
+      call("GET /supervisors/no-agent/road", "", None),
     ]
   );
 }

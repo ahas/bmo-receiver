@@ -906,7 +906,7 @@ pub fn registration(name: &str, label: &str, words: Vec<&str>, window: Option<i6
   }
 }
 
-/// The agency: the agents it registers, whether a stand-in answers an agent while the rest closes its road,
+/// The agency: the agents it registers, the supervisors whose road answers through the rest,
 /// the deployment's rest, every other agent removal it was asked, the field it refuses another agent's call on
 /// where a test sets one, every push it was asked with what it says of it (a push failing where it says
 /// nothing), and the session its turns go on where a test stands one.
@@ -941,7 +941,7 @@ pub struct StandInAgency {
   pub reset_points_read: Mutex<Vec<String>>,
   /// Every supervisor an add handed it, in order.
   pub added_rows: Mutex<Vec<NewSupervisor>>,
-  pub stand_ins: Mutex<BTreeSet<String>>,
+  pub roads_answering: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
   pub written: Mutex<Vec<Resting>>,
   pub passed: Mutex<Option<RestKind>>,
@@ -1005,7 +1005,7 @@ impl StandInAgency {
       supervisors_read: Mutex::default(),
       reset_points_read: Mutex::default(),
       added_rows: Mutex::default(),
-      stand_ins: Mutex::default(),
+      roads_answering: Mutex::default(),
       rest: Mutex::new(Rest {
         resting: false,
         until: None,
@@ -1096,8 +1096,8 @@ impl StandInAgency {
     *self.agents.lock().unwrap() = agents.clone();
   }
 
-  pub fn standing_in(&self, agents: Vec<String>) {
-    *self.stand_ins.lock().unwrap() =
+  pub fn answering_on_their_roads(&self, agents: Vec<String>) {
+    *self.roads_answering.lock().unwrap() =
       agents.iter().map(|agent| agent.to_owned()).collect::<BTreeSet<String>>();
   }
 
@@ -1198,8 +1198,8 @@ impl Agency for StandInAgency {
     Box::pin(async move { Ok(repositories) })
   }
 
-  fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>> {
-    let answers = self.stand_ins.lock().unwrap().contains(agent);
+  fn road_answers<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    let answers = self.roads_answering.lock().unwrap().contains(supervisor);
 
     Box::pin(async move { Ok(answers) })
   }

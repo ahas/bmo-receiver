@@ -1,5 +1,5 @@
 //! The rest's gate as the agency holds it (docs/receiver.md, 「What it carries」): the receiver closes a room's
-//! turn while the deployment rests, and takes it only where a stand-in answers on the agent's road. A rest
+//! turn while the deployment rests, and takes it only where the agent's one road answers through it. A rest
 //! lifted past its end is reported here for the restart's clock, and a run's usage that left one of its login's
 //! windows past its ceiling begins that login's rest here, and a rest that silenced the deployment, as the agency
 //! publishes it, is told to the owner in its fixed line. The rest itself, and the logins it is read against,
@@ -60,9 +60,9 @@ pub async fn resting(receiver: &Receiver) -> Result<bool, NotReceived> {
   Ok(rest(receiver).await?.resting)
 }
 
-/// Whether a stand-in answers an agent while the rest closes its road.
-pub async fn stand_in(receiver: &Receiver, agent: &str) -> Result<bool, NotReceived> {
-  receiver.units.agency.stand_in(agent).await.map_err(NotReceived::from)
+/// Whether an agent's one road takes a turn now, while the rest closes Claude Code's.
+pub async fn road_answers(receiver: &Receiver, agent: &str) -> Result<bool, NotReceived> {
+  receiver.units.agency.road_answers(agent).await.map_err(NotReceived::from)
 }
 
 /// A rest written down, answering whether it is the one that silenced the agent: a limit's rest is its login's,

@@ -10,7 +10,7 @@ use receiver_policy::fill_marks;
 
 use super::conversation::{BoxFuture, Failure};
 use super::instructions::{Queued, queue as queue_row};
-use crate::receiver::wake::rest::{resting, stand_in};
+use crate::receiver::wake::rest::{resting, road_answers};
 use crate::receiver::{Receiver, rows};
 use crate::store::Fault;
 use crate::{all, now_ms, run};
@@ -26,7 +26,7 @@ pub async fn silenced(receiver: &Receiver, chat_id: i64) -> bool {
 
   let agent = receiver.default_answerer();
 
-  resting(receiver).await.unwrap_or(false) && !stand_in(receiver, &agent).await.unwrap_or(false)
+  resting(receiver).await.unwrap_or(false) && !road_answers(receiver, &agent).await.unwrap_or(false)
 }
 
 /// The order a broken run raises in its room, as a quiet instruction row the round opens on.

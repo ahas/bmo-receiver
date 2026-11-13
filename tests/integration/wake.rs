@@ -644,7 +644,7 @@ async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_cha
     .await
     .unwrap();
 
-  // With no stand-in answering the room, the closed room's turn is not taken; the owner's chat's is.
+  // With the agent's road closed by the rest, the closed room's turn is not taken; the owner's chat's is.
   assert_eq!(
     standing.taken.handed(),
     [Handed {
@@ -657,8 +657,8 @@ async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_cha
     }]
   );
 
-  // A stand-in answering on the agent's road takes the closed room's turn.
-  standing.agency.standing_in(vec![AGENT.to_owned()]);
+  // The agent's road answering through the rest takes the closed room's turn.
+  standing.agency.answering_on_their_roads(vec![AGENT.to_owned()]);
   standing
     .receiver
     .message(&inbound(-125, 2, OWNER, "agent-a, still there"), &Context::default(), room())

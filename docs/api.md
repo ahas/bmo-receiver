@@ -685,7 +685,7 @@ and in this repository's delivery report.
 
 | Unit | What the receiver reaches it for |
 |---|---|
-| the agency | supervisors, roles and repositories, sessions and their turns, events and hooks, the rest and its stand-in, a room's holdings, the supervisors added and removed, a supervisor's reset, a run's log, a room forgotten, a session's loaded documents, the deployment's documents |
+| the agency | supervisors, roles and repositories, sessions and their turns, events and hooks, the rest and whether a supervisor's road answers through it, a room's holdings, the supervisors added and removed, a supervisor's reset, a run's log, a room forgotten, a session's loaded documents, the deployment's documents |
 | bmo-job | a room's holdings, the questions the owner answers in his chat, the items a turn filed, the queue moved |
 | the gate | a turn's reference, the brain's index, a room's judgements, a new supervisor's gate options |
 | the brain | the agent's brain, whether a consolidation is due for a turn, a session's fold reported |

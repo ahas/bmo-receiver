@@ -658,8 +658,9 @@ pub trait Agency: Send + Sync {
   /// Every repository a job runs in.
   fn repositories(&self) -> BoxFuture<'_, Answer<Vec<Repository>>>;
 
-  /// Whether a stand-in answers an agent while the rest closes its road.
-  fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>>;
+  /// Whether a supervisor's one road takes a turn now, as a turn's start would judge it; refused 404 where
+  /// no supervisor has the name.
+  fn road_answers<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>>;
 
   /// The deployment's rest: whether it stands, until when, and why.
   fn rest(&self) -> BoxFuture<'_, Answer<Rest>>;
@@ -921,10 +922,9 @@ fn run_line(line: RunLine) -> RunLine {
   read
 }
 
-/// Whether a stand-in answers the agent asked about.
+/// A supervisor's road as the agency answers it, of which the receiver reads whether it takes a turn now.
 #[derive(Deserialize)]
-struct StandIn {
-  #[serde(default)]
+struct SupervisorRoad {
   answers: bool,
 }
 
@@ -957,11 +957,11 @@ impl Agency for HttpAgency {
     })
   }
 
-  fn stand_in<'a>(&'a self, agent: &'a str) -> BoxFuture<'a, Answer<bool>> {
+  fn road_answers<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
     Box::pin(async move {
-      let read: StandIn = self.caller.get(&["stand-in"], &[("agent", agent.to_owned())]).await?;
+      let road: SupervisorRoad = self.caller.get(&["supervisors", supervisor, "road"], &[]).await?;
 
-      Ok(read.answers)
+      Ok(road.answers)
     })
   }
 

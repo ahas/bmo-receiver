@@ -194,7 +194,7 @@ room's matter.
 | a supervisor's reset point | `GET /supervisors/{supervisorName}/reset-point` | | `supervisor` and `resetPoint`, the moment in epoch milliseconds its last reset cut its turns off at, or null where it was never reset; 404 where no supervisor has the name, read as none. Asked afresh, never kept, by every send for its agent's reset point (`docs/wake.md`, 「An agent's reset」) |
 | the roles | `GET /roles` | | `roles`, each its `name`, `label`, `description` and `bundles` (each its `name`), which the owner's roster and a role's send read |
 | the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which a supervisor added on the console is checked against |
-| a stand-in | `GET /stand-in?agent=` | | `answers`, whether a stand-in answers the agent while the rest closes its road |
+| a supervisor's road | `GET /supervisors/{supervisorName}/road` | | `supervisor`, `provider`, `model`, `effort`, `thinking`, `answers` and `reason`, of which the receiver reads `answers`, whether a turn would go out on the supervisor's one road now; asked afresh, never kept, by a turn the rest's gate closed, which it takes where `answers` is true. 404 where no supervisor has the name, read as not answering |
 | the rest | `GET /rest` | | `resting`, `until`, `kind` |
 | a rest written | `PATCH /rest` | `until`, `kind`, `account` | `silenced` |
 | a rest passed | `PATCH /rest` | `clearPassed` | `kind` |
