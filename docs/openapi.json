@@ -821,6 +821,14 @@
               "string",
               "null"
             ]
+          },
+          "versions": {
+            "default": [],
+            "description": "On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in\norder, the row's answer built from them; empty on every other row.",
+            "items": {
+              "$ref": "#/components/schemas/DraftVersion"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -838,7 +846,26 @@
           "at",
           "reads",
           "session",
-          "loaded"
+          "loaded",
+          "versions"
+        ],
+        "type": "object"
+      },
+      "DraftVersion": {
+        "description": "One answer of the program's turns a turn of the process spanned (docs/drafting.md, 「The round log」).",
+        "properties": {
+          "opened": {
+            "description": "What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or\n`program`, the program on its own (a background task's notice).",
+            "type": "string"
+          },
+          "text": {
+            "description": "That turn's answer as it wrote it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "opened"
         ],
         "type": "object"
       },

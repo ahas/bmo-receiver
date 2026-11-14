@@ -102,6 +102,54 @@ pub fn read_answer(text: &str) -> (String, Answered, Option<String>) {
   }
 }
 
+/// One answer of the turns of the agent's program a turn of the process spanned, as the agency hands it: its
+/// words, and whether words handed over opened that turn — the turn's own prompt or words pushed into it — or
+/// the program opened it on its own.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Spanned {
+  pub text: String,
+  pub handed: bool,
+}
+
+impl Spanned {
+  /// Each answer of a turn's end as the agency hands it under `answers`; none where it hands none.
+  pub fn of(ended: &serde_json::Value) -> Vec<Self> {
+    ended
+      .get("answers")
+      .and_then(serde_json::Value::as_array)
+      .map(|answers| {
+        answers
+          .iter()
+          .map(|answer| Spanned {
+            text: answer.get("text").and_then(serde_json::Value::as_str).unwrap_or_default().to_owned(),
+            handed: answer.get("opened").and_then(serde_json::Value::as_str) != Some("program"),
+          })
+          .collect()
+      })
+      .unwrap_or_default()
+  }
+}
+
+/// The answer of a turn of the process, built from the answers of the program's turns it spanned
+/// (docs/drafting.md, 「What the receiver reads of an answer」): a turn opened by words handed over replaces it, a
+/// turn the program opened on its own adds to it, and a turn whose answer says nothing never displaces an answer
+/// that says something. Where the agency handed no turns, the answer it built stands.
+pub fn spanned_answer(built: &str, turns: &[Spanned]) -> String {
+  if turns.is_empty() {
+    return built.to_owned();
+  }
+
+  turns.iter().filter(|turn| !turn.text.is_empty()).fold(String::new(), |standing, turn| {
+    if usable(&standing) && !usable(&turn.text) {
+      standing
+    } else if standing.is_empty() || turn.handed {
+      turn.text.clone()
+    } else {
+      format!("{standing}\n\n{}", turn.text)
+    }
+  })
+}
+
 /// A turn's answer as the process holds it: the reply, with what its run left of the session, how its row of the
 /// round log ends and, where the turn skipped, the reason the log keeps.
 #[derive(Clone, Debug)]
@@ -606,7 +654,14 @@ impl Run<'_> {
         self.spoken.extend(answer.reply.run.clone());
         self
           .log
-          .turn(kind, name, Some(&answer.reply.text), answer.ended, answer.detail(), now_ms() - started)
+          .turn(
+            kind,
+            name,
+            Some(&answer.reply.text),
+            answer.ended,
+            answer.detail(),
+            log::Timed::of(now_ms() - started, &answer.reply.spanned),
+          )
           .await;
         self.latest = answer.reply.clone();
 
@@ -615,7 +670,10 @@ impl Run<'_> {
       Err(failure) => {
         // A turn whose run failed showed nothing: what was pushed into it goes back to wait.
         self.conversations.give_back_words(chat, pushed);
-        self.log.turn(kind, name, None, Answered::Failed, None, now_ms() - started).await;
+        self
+          .log
+          .turn(kind, name, None, Answered::Failed, None, log::Timed::of(now_ms() - started, &[]))
+          .await;
 
         // A turn the process cannot do without fails the round with it: the review, a revision and a check. Only
         // an item's turn lets the process go on without it (docs/drafting.md, 「The checks on the final text」).
@@ -877,7 +935,7 @@ impl Drafter {
         Some(&first.reply.text),
         first.ended,
         first.detail(),
-        now_ms() - drafted.began,
+        log::Timed::of(now_ms() - drafted.began, &first.reply.spanned),
       )
       .await;
 
@@ -1046,9 +1104,16 @@ impl Drafter {
       };
       // A skip in a review's answer is the review giving no verdict, never the round's own skip: where it names a
       // reason that reason rejects the draft, and where none was given even when asked over, the reason says so.
+      // A review that writes the message again gives no reason: the draft unchanged passes, and a changed one takes
+      // the draft's place and is reviewed again.
+      let rewritten = (answer.ended == Answered::Send).then_some(&answer.reply);
       let (pass, reason) = match (answer.ended, answer.reason.as_deref()) {
         (Answered::Skip, Some(reason)) if reason != NO_REASON => (false, reason.to_owned()),
         (Answered::Skip, _) => (false, "the review gave no verdict".to_owned()),
+        (Answered::Send, _) if onespace(&answer.reply.text) == onespace(&message.text) => {
+          (true, String::new())
+        }
+        (Answered::Send, _) => (false, REWROTE.to_owned()),
         _ => review_verdict(&answer.reply.text),
       };
 
@@ -1077,9 +1142,17 @@ impl Drafter {
 
       reasons.push(reason.clone());
 
+      if let Some(rewrite) = rewritten {
+        message = rewrite.clone();
+      }
+
       if reviews >= 8 {
         eight = true;
         break;
+      }
+
+      if rewritten.is_some() {
+        continue;
       }
 
       // A reason that names nothing is no guidance, and a reason that comes back unchanged means the revision
@@ -1222,6 +1295,9 @@ async fn answered_after(receiver: &Receiver, chat_id: i64, own: Option<i64>, mes
 
   row.try_get::<i64>("", "sent").unwrap_or(0) > 0
 }
+
+/// The reason a review's row records where the review wrote the message again rather than giving a verdict.
+pub const REWROTE: &str = "the review wrote the message again; the rewrite is reviewed as the draft";
 
 /// The verdict a review's answer gives: PASS, or REJECT with the reason it named; an answer naming neither is a
 /// rejection carrying its own words.

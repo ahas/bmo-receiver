@@ -41,6 +41,16 @@ message passes, and the record each turn of it leaves.
   answer is taken out of it, the answer being the message with the marker or without, and a marker with nothing
   after it names no reason. A skip anywhere in an answer wins, and where an answer carries skips naming reasons and
   not, one that names a reason wins.
+- **A later turn of the program that says nothing leaves the answer written before it.** One turn of the process
+  can span several turns of the agent's program: words pushed after its last tool call, or a background task's
+  notice, each open one, and the agency hands each one's answer with what opened it (its `docs/agent-control.md`,
+  「The round's answer」). The receiver builds the answer from them as the agency does — a turn opened by words
+  handed over replaces it, a turn the program opened on its own adds to it — save that a turn whose answer says
+  nothing, a skip of either shape, a wait or no words, never displaces an answer that says something: the answer
+  written before it stands and is read as above. So a turn opened by a quiet instruction alone that skips does
+  not take away the message written before it. A cancellation pushed into the turn is answered with a reply
+  saying so (`chat-round.toml`, `[push]`), never with a skip. Where the agency hands no turns, the answer it built
+  stands.
 - **A turn of a round skips in its form: `<<SKIP: <reason>>>`,** the reason one non-empty line in English saying
   why the round sends nothing. A skip that names none is not a skip: the bare marker, or the form with nothing
   after its colon, is read as no verdict, and the same turn is asked once more under one line saying that a skip
@@ -415,6 +425,10 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   verdict too, and is never the round's own skip: one naming a reason is a rejection carrying the reason it names,
   and one naming none is asked once over as any round turn's is and, naming none again, is a rejection whose reason
   is that the review gave no verdict.
+- **A review that writes the message again gives no reason.** An answer of the review opening on `<<SEND>>` is
+  the message as the review would send it, not a reason for a revision: where it is the draft unchanged, white
+  space aside, the review passes; otherwise it takes the draft's place and is reviewed again, its row a rejection
+  whose reason says the review wrote the message again, counted among the eight.
 - **A rejection that gives no guidance ends the review.** Where the reason is empty, or is the draft's own
   text after trimming and collapsing white space, no revision is asked: the draft as it stands is sent
   and the end row says the review gave no usable reason. The same holds where two consecutive rejections carry
@@ -457,6 +471,9 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   round it belongs to, the room, the agent, its number (from 1, the draft turn and then each item, review and
   check in the order asked), its name, its kind, how long its answer is in characters, whether the answer differs
   from the one before it, how it ended, the answer itself and how long the turn took.
+- **A turn that spanned several turns of the agent's program keeps each one's answer on its row,** its
+  `versions`, in order and with what opened each (「What the receiver reads of an answer」), so the round log shows
+  every version the turn wrote beside the answer built from them; a turn that spanned one keeps none.
 - **The round's own turn is the draft turn's row:** number 1, of kind `question`, named for the questions it
   followed, in their order and joined by `+` as the round's line names them, its time counted from the round's
   start. Its kind is `turn` only where the row's list is empty and the turn followed no question, its answer

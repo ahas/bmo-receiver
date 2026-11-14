@@ -248,8 +248,11 @@ after a number it no longer keeps answers `missed`, and the receiver then hands 
 Of the events whose shape the receiver reads:
 
 - **`turn.created`** names `session`, `turnId` and `run`. **`turn.ended`** names `session` and the turn's end as
-  the send answers it: the turn under `turn`, `run`, `outcome`, `answer`, `reason`, `engineError` and `delivery`,
-  `taken` or `blocked`, which the receiver reads as the send's `delivered` and `blocked`.
+  the send answers it: the turn under `turn`, `run`, `outcome`, `answer`, `answers`, `reason`, `engineError` and
+  `delivery`, `taken` or `blocked`, which the receiver reads as the send's `delivered` and `blocked`. `answers` is
+  each turn's answer of the program the round spanned, `text` and `opened` (`handed` or `program`), which the
+  round's answer is built from (`docs/drafting.md`, 「What the receiver reads of an answer」); an end that carries
+  none is read by its `answer` alone.
 
 - **`road.changed`** names its row as `supervisor` or `role`, the other null, beside its `fact` and what the fact
   carries.
@@ -480,8 +483,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The gate's `draft` stage** reads the receiver's event stream (`GET /events`) and takes every frame whose
   data's `type` is `draft` as one row of a round's draft process, with the fields the receiver's
   `docs/receiver.md`, 「The event stream」, names: `chatId`, `round`, `agentName`, `number` (from 1), `question`,
-  `kind`, `answerChars`, `changed`, `outcome`, `detail`, `ms`, `at`, `reads`, `session` and `loaded`, the last
-  three of which the gate does not read. A `draft` event of kind `start` is no row:
+  `kind`, `answerChars`, `changed`, `outcome`, `detail`, `ms`, `at`, `reads`, `session`, `loaded` and
+  `versions`, the last four of which the gate does not read. A `draft` event of kind `start` is no row:
   it tells a question as it starts, with its `number`, the process's `count` and the question's name, for the
   console's running line, and carries no `answerChars`, `changed`, `outcome` or `ms`. The gate is to let a
   `start` frame go by its `kind` before it reads a row's fields; its port reads every `draft` frame as a row and

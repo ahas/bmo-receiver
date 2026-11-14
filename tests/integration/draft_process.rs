@@ -339,6 +339,7 @@ async fn the_draft_is_one_turn_naming_its_questions_and_its_answer_goes_out() {
         "round",
         "session",
         "type",
+        "versions",
       ]
     };
 
@@ -1374,6 +1375,87 @@ async fn a_review_that_rejects_with_the_draft_as_its_reason_does_not_loop() {
   assert!(sent[0].contains("the message"), "{sent:?}");
   assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 1, "{log:?}");
   assert!(end[0].contains("no usable reason"), "{end:?}");
+}
+
+#[tokio::test]
+async fn a_later_program_turn_that_skips_leaves_the_message_and_the_row_keeps_both_versions() {
+  let session = StandInSession::new(SESSION, "unscripted");
+  let skipped = "<<SKIP: the instruction was handled; no room words>>";
+
+  session.end_as(Some(serde_json::json!({
+    "outcome": "answered",
+    "answer": skipped,
+    "answers": [
+      { "text": "<<SEND>> the reply written first", "opened": "handed" },
+      { "text": skipped, "opened": "handed" },
+    ],
+  })));
+
+  let round = Drafting::new(session, &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+  let versions = round
+    .scratch
+    .texts(r#"SELECT "versions" FROM "draft_rounds" WHERE "kind" <> 'end' AND "versions" IS NOT NULL"#)
+    .await;
+
+  assert_eq!(sent.len(), 1, "the message written before the skip goes out: {sent:?}");
+  assert!(sent[0].contains("the reply written first"), "{sent:?}");
+  assert_eq!(versions.len(), 1, "{versions:?}");
+
+  let kept: serde_json::Value = serde_json::from_str(&versions[0]).unwrap();
+
+  assert_eq!(kept[0]["text"], "<<SEND>> the reply written first", "{kept}");
+  assert_eq!(kept[1]["text"], skipped, "{kept}");
+  assert_eq!(kept[1]["opened"], "handed", "{kept}");
+}
+
+#[tokio::test]
+async fn a_review_that_writes_the_draft_again_unchanged_passes_it() {
+  let session =
+    StandInSession::new(SESSION, "unscripted").answering(&["the message", "<<SEND>>\nthe   message"]);
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+  let log = round.log().await;
+
+  assert_eq!(prompts.len(), 2, "no revision follows: {prompts:#?}");
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the message"), "{sent:?}");
+  assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
+}
+
+#[tokio::test]
+async fn a_review_that_writes_the_message_again_has_its_rewrite_reviewed_and_sent() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[
+    "the first message",
+    "<<SEND>> the rewritten message",
+    "PASS",
+  ]);
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(3).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+  let log = round.log().await;
+
+  assert_eq!(prompts.len(), 3, "the rewrite is reviewed, with no revision turn between: {prompts:#?}");
+  assert!(prompts[2].contains("the rewritten message"), "{prompts:#?}");
+  assert!(!prompts[2].contains("The review rejected the message"), "{prompts:#?}");
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("the rewritten message"), "{sent:?}");
+  assert!(!sent[0].contains("the first message"), "{sent:?}");
+  assert_eq!(log.iter().filter(|line| line.contains("review REJECT")).count(), 1, "{log:?}");
+  assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
 }
 
 #[tokio::test]

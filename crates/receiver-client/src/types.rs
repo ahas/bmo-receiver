@@ -1224,6 +1224,21 @@ pub struct DraftRound {
   /// `read`), 0 for a session's first round in the room or a round on no session; null on every other row.
   #[serde(default)]
   pub loaded: Option<i64>,
+  /// On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in
+  /// order, the row's answer built from them; empty on every other row.
+  #[serde(default)]
+  pub versions: Vec<DraftVersion>,
+}
+
+/// One answer of the program's turns a turn of the process spanned (docs/drafting.md, 「The round log」).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftVersion {
+  /// That turn's answer as it wrote it.
+  pub text: String,
+  /// What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or
+  /// `program`, the program on its own (a background task's notice).
+  pub opened: String,
 }
 
 /// One thing a round read from the brain (docs/drafting.md, 「The round log」).

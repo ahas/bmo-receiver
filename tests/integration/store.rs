@@ -66,7 +66,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     .map(str::to_owned)
     .collect();
 
-  assert_eq!(migrate(db).await.unwrap(), 45);
+  assert_eq!(migrate(db).await.unwrap(), 46);
   assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
 
@@ -176,7 +176,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
 
   // The line's index is made thirteen migrations before the forwards, every migration since standing between them.
   // Down to the same version as before the note's columns were added, one step further back.
-  Migrator::down(db, Some(35)).await.unwrap();
+  Migrator::down(db, Some(36)).await.unwrap();
 
   let before = stated(database.texts(MESSAGE_INDEXES).await);
 
@@ -187,7 +187,7 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
   );
 
-  assert_eq!(migrate(db).await.unwrap(), 35);
+  assert_eq!(migrate(db).await.unwrap(), 36);
   assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
 }
 
@@ -196,7 +196,7 @@ async fn the_thinking_messages_a_record_holds_take_their_kind_and_lose_their_mar
   let database = Scratch::new().await;
   let db = database.db();
   let marker = bmo_receiver::store::migration::m20261109_000037_thinking_kind::MARKER;
-  Migrator::down(db, Some(9)).await.unwrap();
+  Migrator::down(db, Some(10)).await.unwrap();
 
   // A thinking message as it was kept, an answer that only quotes the marker, a person's words opening on it, and a
   // round's answer opening on it: the first alone is a thinking message.
@@ -217,7 +217,7 @@ async fn the_thinking_messages_a_record_holds_take_their_kind_and_lose_their_mar
       .await;
   }
 
-  assert_eq!(migrate(db).await.unwrap(), 9);
+  assert_eq!(migrate(db).await.unwrap(), 10);
 
   let kept = all(
     db,
@@ -242,7 +242,7 @@ async fn the_thinking_messages_a_record_holds_take_their_kind_and_lose_their_mar
   assert_eq!(kept[3].1, None, "a round's answer is an answer whatever it opens on");
 
   // Stepping back hands the message its marker again.
-  Migrator::down(db, Some(9)).await.unwrap();
+  Migrator::down(db, Some(10)).await.unwrap();
   assert_eq!(
     one(db, r#"SELECT "text" FROM "messages" WHERE "message_id" = 1 AND "kind" IS NULL"#, vec![])
       .await
@@ -257,7 +257,7 @@ async fn what_stood_for_every_supervisor_becomes_each_supervisor_s_own() {
   let database = Scratch::new().await;
   let db = database.db();
 
-  Migrator::down(db, Some(8)).await.unwrap();
+  Migrator::down(db, Some(9)).await.unwrap();
 
   for row in [
     r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (1, 'agent-a'), (2, 'agent-a'), (2, 'agent-b')"#,
@@ -271,7 +271,7 @@ async fn what_stood_for_every_supervisor_becomes_each_supervisor_s_own() {
     database.run(row, vec![]).await;
   }
 
-  assert_eq!(migrate(db).await.unwrap(), 8);
+  assert_eq!(migrate(db).await.unwrap(), 9);
   assert_eq!(
     database
       .texts(r#"SELECT "agent" || ' ' || "name" || ' ' || "text" FROM "draft_questions" ORDER BY "agent""#)
@@ -290,7 +290,7 @@ async fn what_stood_for_every_supervisor_becomes_each_supervisor_s_own() {
   );
 
   // Stepping back keeps one text a name.
-  Migrator::down(db, Some(8)).await.unwrap();
+  Migrator::down(db, Some(9)).await.unwrap();
   assert_eq!(
     database.texts(r#"SELECT "name" || ' ' || "text" FROM "draft_questions""#).await,
     ["facts check the facts"]
@@ -302,13 +302,13 @@ async fn the_stand_ins_settings_go_and_every_other_stays() {
   let database = Scratch::new().await;
   let db = database.db();
 
-  Migrator::down(db, Some(2)).await.unwrap();
+  Migrator::down(db, Some(3)).await.unwrap();
   for (key, value) in [("fallback_since", "1"), ("fallback_provider", "provider-a"), ("photos_look", "on")]
   {
     settings::set(db, key, value).await.unwrap();
   }
 
-  assert_eq!(migrate(db).await.unwrap(), 2);
+  assert_eq!(migrate(db).await.unwrap(), 3);
   assert_eq!(database.texts(r#"SELECT "key" FROM "settings" ORDER BY "key""#).await, ["photos_look"]);
 }
 
@@ -417,7 +417,7 @@ async fn the_rows_under_the_consoles_former_key_are_the_records_and_an_agent_kee
     database.run(row, vec![]).await;
   }
 
-  assert_eq!(migrate(db).await.unwrap(), 27);
+  assert_eq!(migrate(db).await.unwrap(), 28);
   assert_eq!(
     database.texts(r#"SELECT "via" FROM "messages""#).await,
     ["record"],

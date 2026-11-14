@@ -612,8 +612,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
   `read`; `docs/drafting.md`, 「The round log」), and empty on every other row; `session` and `loaded`: on the end,
   the agency session the round's turn ran on (or null) and how many pieces that session's earlier rounds in the room
-  read in full (`docs/drafting.md`, 「The round log」), and null on every other row. The rows of a round stand in the
-  order they were written.
+  read in full (`docs/drafting.md`, 「The round log」), and null on every other row; `versions`: on a turn's row
+  whose turn spanned more than one turn of the agent's program, each of those turns' answers in order, `text` and
+  `opened` (`handed` or `program`), the row's `answer` built from them (`docs/drafting.md`, 「The round log」), and
+  empty on every other row. The rows of a round stand in the order they were written.
 
 ## The draft process
 

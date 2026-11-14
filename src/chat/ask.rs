@@ -703,6 +703,7 @@ impl Carry {
           names: super::context::core_names(&asking.prompt),
           loads: loaded,
         },
+        spanned: vec![],
       }),
     }
   }
@@ -1051,7 +1052,13 @@ impl Carry {
     }
 
     let ended: Value = ended.clone().unwrap_or(Value::Null);
-    let answer = ended.get("answer").and_then(Value::as_str).unwrap_or_default();
+    let built = ended.get("answer").and_then(Value::as_str).unwrap_or_default();
+    // A later turn of the program that says nothing leaves the answer written before it (docs/drafting.md,
+    // 「What the receiver reads of an answer」).
+    let spanned = super::draft::Spanned::of(&ended);
+    let answer = super::draft::spanned_answer(built, &spanned);
+    let answer = answer.as_str();
+    let spanned = if spanned.len() > 1 { spanned } else { vec![] };
     let outcome = ended.get("outcome").and_then(Value::as_str).unwrap_or_default();
 
     if delivered == Delivery::Delivered {
@@ -1121,6 +1128,7 @@ impl Carry {
         replaced: replaced.clone(),
         run: run.clone(),
         before,
+        spanned,
       }),
     }
   }

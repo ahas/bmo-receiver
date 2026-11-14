@@ -130,6 +130,21 @@ impl Read {
   }
 }
 
+/// How long a turn of the process took, and the answers of the program's turns it spanned where it spanned more
+/// than one: what a turn's row carries beside its answer.
+#[derive(Clone, Copy, Debug)]
+pub struct Timed<'a> {
+  pub ms: i64,
+  pub versions: &'a [super::Spanned],
+}
+
+impl<'a> Timed<'a> {
+  /// A turn that took `ms` and spanned the program's turns given.
+  pub fn of(ms: i64, versions: &'a [super::Spanned]) -> Self {
+    Timed { ms, versions }
+  }
+}
+
 /// The log of one round's process as it is written: the round, the room and the agent, whose conversations tell
 /// each row, the number the next row takes, counted from 1, and the answer the last turn gave, which the next is
 /// compared with.
@@ -172,8 +187,9 @@ impl Log {
     answer: Option<&str>,
     ended: Answered,
     detail: Option<&str>,
-    ms: i64,
+    timed: Timed<'_>,
   ) {
+    let Timed { ms, versions } = timed;
     let changed = match (answer, self.last.as_deref()) {
       (Some(answer), Some(last)) => answer.trim() != last.trim(),
       _ => false,
@@ -188,6 +204,7 @@ impl Log {
       ms,
       reads: &[],
       session: None,
+      versions,
     };
 
     self.write(&row).await;
@@ -209,6 +226,7 @@ impl Log {
       ms,
       reads: &[],
       session: None,
+      versions: &[],
     };
 
     self.write(&row).await;
@@ -227,6 +245,7 @@ impl Log {
       ms,
       reads,
       session,
+      versions: &[],
     };
 
     self.write(&row).await;
@@ -251,8 +270,8 @@ impl Log {
     let written = run(
       self.receiver.db(),
       r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
-           "changed", "outcome", "detail", "answer", "ms", "at", "reads", "session", "loaded")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)"#,
+           "changed", "outcome", "detail", "answer", "ms", "at", "reads", "session", "loaded", "versions")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)"#,
       vec![
         self.round.clone().into(),
         self.chat_id.into(),
@@ -270,6 +289,7 @@ impl Log {
         (!row.reads.is_empty()).then(|| serde_json::to_string(row.reads).unwrap_or_default()).into(),
         row.session.map(str::to_owned).into(),
         loaded.into(),
+        (!row.versions.is_empty()).then(|| versions_json(row.versions).to_string()).into(),
       ],
     )
     .await;
@@ -295,6 +315,7 @@ impl Log {
       "reads": row.reads,
       "session": row.session,
       "loaded": loaded,
+      "versions": versions_json(row.versions),
     });
 
     self.conversations.publish(crate::events::draft(self.chat_id, &member));
@@ -311,6 +332,19 @@ struct Row<'a> {
   ms: i64,
   reads: &'a [Read],
   session: Option<&'a str>,
+  versions: &'a [super::Spanned],
+}
+
+// The program's turns a row's turn spanned, as the log keeps and tells them: each answer and what opened it.
+fn versions_json(versions: &[super::Spanned]) -> Value {
+  Value::Array(
+    versions
+      .iter()
+      .map(|version| {
+        json!({ "text": version.text, "opened": if version.handed { "handed" } else { "program" } })
+      })
+      .collect(),
+  )
 }
 
 impl Row<'_> {
@@ -392,6 +426,10 @@ pub fn member(row: &QueryResult) -> Result<Value, Fault> {
       .unwrap_or_default(),
     "session": row.try_get::<Option<String>>("", "session")?,
     "loaded": row.try_get::<Option<i64>>("", "loaded")?,
+    "versions": row
+      .try_get::<Option<String>>("", "versions")?
+      .and_then(|versions| serde_json::from_str::<Value>(&versions).ok())
+      .unwrap_or_else(|| json!([])),
   }))
 }
 
@@ -407,7 +445,7 @@ pub async fn read<C: ConnectionTrait>(
     let rows = all(
       db,
       r#"SELECT "id", "agent", "number", "question", "kind", "answer_chars", "changed", "outcome", "detail",
-                "answer", "ms", "at", "reads", "session", "loaded"
+                "answer", "ms", "at", "reads", "session", "loaded", "versions"
            FROM "draft_rounds" WHERE "chat_id" = $1 AND "round" = $2 ORDER BY "id""#,
       vec![chat_id.into(), round.clone().into()],
     )

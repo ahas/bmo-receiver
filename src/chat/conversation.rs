@@ -131,6 +131,9 @@ pub struct Reply {
   pub run: Option<String>,
   /// What the session held as the turn went out, which what a round read is counted from.
   pub before: super::draft::Before,
+  /// The answers of the program's turns the turn spanned, where it spanned more than one; `text` was built from
+  /// them (docs/drafting.md, 「What the receiver reads of an answer」).
+  pub spanned: Vec<super::draft::Spanned>,
 }
 
 impl Reply {
@@ -2470,7 +2473,7 @@ impl Conversations {
           Some(&reply.text),
           ended,
           reason.as_deref(),
-          now_ms() - began,
+          super::draft::log::Timed::of(now_ms() - began, &reply.spanned),
         )
         .await;
 

@@ -6,7 +6,9 @@ use bmo_receiver::chat::draft::log::Answered;
 use bmo_receiver::chat::draft::table::{
   ANY, PastCeiling, Process, Question, question_refusal, refusal, resolve,
 };
-use bmo_receiver::chat::draft::{Plan, read_answer, record_errand, wake_errand, words};
+use bmo_receiver::chat::draft::{
+  Plan, Spanned, read_answer, record_errand, spanned_answer, wake_errand, words,
+};
 use bmo_receiver::chat::prompt::Scope;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
@@ -330,4 +332,54 @@ fn the_closing_check_shows_the_message_as_it_stands_and_asks_for_it_whole() {
     "the instruction stands in the room's block: {turn}"
   );
   assert!(DRAFTING.arrived.contains("whole") && !DRAFTING.arrived.contains("sent after it"));
+}
+
+fn handed(text: &str) -> Spanned {
+  Spanned {
+    text: text.to_owned(),
+    handed: true,
+  }
+}
+
+fn program(text: &str) -> Spanned {
+  Spanned {
+    text: text.to_owned(),
+    handed: false,
+  }
+}
+
+#[test]
+fn a_later_turn_that_says_nothing_leaves_the_answer_written_before_it() {
+  let sent = "<<SEND>> the reply";
+  let skipped = "<<SKIP: the instruction was handled; no room words>>";
+
+  assert_eq!(spanned_answer(skipped, &[handed(sent), handed(skipped)]), sent);
+  assert_eq!(spanned_answer("<<WAIT>>", &[handed(sent), handed("<<WAIT>>")]), sent);
+  assert_eq!(spanned_answer("x", &[handed(sent), program("<<SKIP>>")]), sent);
+  assert_eq!(
+    spanned_answer("x", &[handed(sent), handed("<<SEND>> the reply, written again")]),
+    "<<SEND>> the reply, written again"
+  );
+  assert_eq!(
+    spanned_answer("x", &[handed(sent), program("the task ended")]),
+    "<<SEND>> the reply\n\nthe task ended"
+  );
+  assert_eq!(spanned_answer("x", &[handed(skipped), handed(sent)]), sent);
+  assert_eq!(spanned_answer("x", &[handed("<<SKIP>>"), handed(skipped)]), skipped);
+  assert_eq!(spanned_answer("as built", &[]), "as built");
+
+  let (text, ended, _) = read_answer(&spanned_answer(skipped, &[handed(sent), handed(skipped)]));
+
+  assert_eq!((text.as_str(), ended), ("the reply", Answered::Send));
+}
+
+#[test]
+fn the_answers_of_a_turns_end_are_read_with_what_opened_each() {
+  let ended = serde_json::json!({
+    "answer": "b",
+    "answers": [{ "text": "a", "opened": "handed" }, { "text": "b", "opened": "program" }],
+  });
+
+  assert_eq!(Spanned::of(&ended), [handed("a"), program("b")]);
+  assert!(Spanned::of(&serde_json::json!({ "answer": "b" })).is_empty());
 }
