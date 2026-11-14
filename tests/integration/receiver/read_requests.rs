@@ -24,6 +24,9 @@ const BOT_ROOM: i64 = -181;
 const MARKED_ROOM: i64 = -182;
 /// A room that states the service's own voice beside the owner's, though no identity of its own stands there.
 const SPOKEN_ROOM: i64 = -183;
+/// A room of the owner's account the service answers in as the person, with no account of its own there: not
+/// read-only, and read by the service only where it is asked.
+const ACCOUNT_ROOM: i64 = -184;
 /// The number the service's own account carries.
 const BOT_NUMBER: i64 = 7;
 /// The bearer the protocol's receiving-side routes take here.
@@ -35,12 +38,13 @@ async fn front(scratch: &Scratch) -> (Front, Arc<StandInChat>) {
   let every = [ChatVoice::BotAccount, ChatVoice::HumanReader, ChatVoice::HumanAvatar];
   let road = Arc::new(
     StandInChat::new("road-a")
-      .holding(&[READER_ROOM, BOT_ROOM, MARKED_ROOM, SPOKEN_ROOM])
+      .holding(&[READER_ROOM, BOT_ROOM, MARKED_ROOM, SPOKEN_ROOM, ACCOUNT_ROOM])
       .agent_in(READER_ROOM, BOT_NUMBER)
       .agent_in(BOT_ROOM, BOT_NUMBER)
       .room_moding(READER_ROOM, &[ChatVoice::HumanReader])
       .room_moding(BOT_ROOM, &every)
       .room_moding(SPOKEN_ROOM, &[ChatVoice::BotAccount, ChatVoice::HumanReader])
+      .room_moding(ACCOUNT_ROOM, &[ChatVoice::HumanReader, ChatVoice::HumanAvatar])
       .titling(READER_ROOM, "Reader Room")
       .titling(BOT_ROOM, "Bot Room")
       .canning(&[ChatCapability::RoomList]),
@@ -146,4 +150,25 @@ async fn a_read_only_room_takes_no_mode_that_answers_though_its_service_offers_o
     "{refused}"
   );
   assert_eq!(post(&front, "/rooms", adding(BOT_ROOM, "avatar")).await.0.as_u16(), 201);
+}
+
+#[tokio::test]
+async fn a_room_added_avatar_in_the_owners_account_is_asked_to_be_read_as_a_record_only_room_is() {
+  let scratch = Scratch::new().await;
+  let (front, _road) = front(&scratch).await;
+  let roads = front.standing.receiver.roads();
+
+  assert!(
+    !roads.reads_only("road-a", ACCOUNT_ROOM).await,
+    "the service answers there as the person"
+  );
+  assert!(!read(&front, ACCOUNT_ROOM, "road-a").await, "a room never added is not asked for");
+
+  let (status, added) = post(&front, "/rooms", adding(ACCOUNT_ROOM, "avatar")).await;
+
+  assert_eq!(status.as_u16(), 201, "{added}");
+  assert!(
+    read(&front, ACCOUNT_ROOM, "road-a").await,
+    "the people's words its agents answer are the service's to read"
+  );
 }
