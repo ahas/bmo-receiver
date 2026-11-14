@@ -579,6 +579,24 @@ pub struct RoomProviders {
   pub chosen: bool,
 }
 
+/// One person in a room, as the room's own chat service lists them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomMember {
+  /// The sender number the room's messages carry for the person; null where the service gave the person none.
+  pub person: Option<i64>,
+  /// What the room calls the person.
+  pub name: String,
+  /// The person's status line, or null where the service gave none.
+  pub status_message: Option<String>,
+}
+
+/// The people in a room, as the room's own chat service lists them, whole.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RoomMembers {
+  pub members: Vec<RoomMember>,
+}
+
 /// A room's chat providers set whole: at least one, each once.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

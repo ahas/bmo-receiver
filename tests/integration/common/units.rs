@@ -9,10 +9,10 @@ use std::time::Duration;
 
 use bmo_chat_client::{
   AccountRoomsQuery, ChatCapability, ChatContact, ChatContactKind, ChatDeclaration, ChatDialectDeclaration,
-  ChatDialectLimits, ChatHealth, ChatMediaRequest, ChatModeStanding, ChatNumberRanges, ChatNumberSpace,
-  ChatNumbering, ChatReach, ChatReadMode, ChatReceiver, ChatSendRequest, ChatSent, ChatStart,
-  ChatStartRequest, ChatVerb, ChatVoice, ClientFailure, ContactsQuery, DialectChecked, DialectReading,
-  MessageFile, Page, ProviderRoom, RoomKind, RoomQuery,
+  ChatDialectLimits, ChatHealth, ChatMediaRequest, ChatMember, ChatMembers, ChatModeStanding,
+  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatReach, ChatReadMode, ChatReceiver, ChatSendRequest,
+  ChatSent, ChatStart, ChatStartRequest, ChatVerb, ChatVoice, ClientFailure, ContactsQuery, DialectChecked,
+  DialectReading, MessageFile, Page, ProviderRoom, RoomKind, RoomQuery,
 };
 
 use bmo_receiver::data_root::DataRoot;
@@ -83,6 +83,8 @@ pub struct StandInChat {
   /// The contacts of its account, every listing of them it was asked for, and every conversation it was asked
   /// to start.
   pub contacts: Vec<ChatContact>,
+  /// The members of each room it has read, by the room's number; a room not here holds none it has read.
+  pub members: BTreeMap<i64, Vec<ChatMember>>,
   pub contacts_asked: Mutex<Vec<ContactsQuery>>,
   pub starts: Mutex<Vec<ChatStartRequest>>,
   /// What each send is answered with; where none is set, each send is numbered anew, the first 900, as a
@@ -165,6 +167,12 @@ impl StandInChat {
   /// The kinds of send a voice refuses with the platform's own reason.
   pub fn refusing_in(mut self, voice: ChatVoice, verbs: &[ChatVerb]) -> Self {
     self.voice_refusals.extend(verbs.iter().map(|verb| (voice, *verb)));
+    self
+  }
+
+  /// The members it has read of a room.
+  pub fn membering(mut self, room: i64, members: Vec<ChatMember>) -> Self {
+    self.members.insert(room, members);
     self
   }
 
@@ -479,6 +487,33 @@ impl Chat for StandInChat {
         items: listed,
         more,
       })
+    })
+  }
+
+  fn members(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ChatMembers>> {
+    if let Some(refused) = self.refusing(&format!("rooms/{chat_id}/members")) {
+      return refused;
+    }
+
+    Box::pin(async move {
+      if !self.cans.lock().unwrap().contains(&ChatCapability::MemberList) {
+        return Err(answered_with(
+          422,
+          bmo_chat_client::ErrorCode::UnsupportedCapability,
+          "The stand-in cannot list the members of a room.",
+        ));
+      }
+
+      match self.members.get(&chat_id) {
+        Some(members) => Ok(ChatMembers {
+          members: members.clone(),
+        }),
+        None => Err(answered_with(
+          404,
+          bmo_chat_client::ErrorCode::NotFound,
+          &format!("The stand-in has read no members of room {chat_id}."),
+        )),
+      }
     })
   }
 

@@ -15,7 +15,7 @@ use bmo_chat_client::{
   AccountRoomsQuery, ChatCapability, ChatContactKind, ChatDeclaration, ChatStart, ChatStartRequest,
   ClientFailure, ContactsQuery, ErrorCode, ProviderRoom, RoomKind,
 };
-use receiver_codes::{RoomAdditionRefusal, RoomModeRefusal};
+use receiver_codes::{RoomAdditionRefusal, RoomMembersRefusal, RoomModeRefusal};
 use receiver_ports::chat::Chat;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -786,6 +786,37 @@ pub async fn room_providers(State(served): State<Served>, Path(room): Path<i64>)
 
   held(&receiver, room).await?;
   standing(&receiver, room).await
+}
+
+/// A room's members as its own chat service lists them (docs/api.md, 「Rooms」): asked of the room's own road, read
+/// only, and refused with the service's own sentence where it gives none.
+pub async fn room_members(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+
+  held(&receiver, room).await?;
+
+  let Some(Road::Service(key)) = receiver.roads().own(room).await else {
+    return Err(code(&RoomMembersRefusal::RecordOnlyRoom { room }));
+  };
+  let Some(service) = receiver.roads().chats().road(&key) else {
+    return Err(code(&RoomMembersRefusal::RecordOnlyRoom { room }));
+  };
+
+  match service.members(room).await {
+    Ok(listed) => answered(json!(listed)),
+    Err(failure) if failure.code() == Some(ErrorCode::UnsupportedCapability) => {
+      let label = receiver.roads().facts(&Road::Service(key)).await.label;
+
+      Err(code(&RoomMembersRefusal::MembersUnlisted { label }))
+    }
+    Err(ClientFailure::Answered { status, answer, .. }) if status < 500 => {
+      let label = receiver.roads().facts(&Road::Service(key)).await.label;
+      let detail = answer.map_or_else(|| format!("it answered {status}"), |said| said.error);
+
+      Err(code(&RoomMembersRefusal::MembersUnheld { label, detail }))
+    }
+    Err(why) => Err(unanswered(&key, why)),
+  }
 }
 
 /// A room's providers set whole: a list of providers that stand, each once, and at least one.

@@ -712,6 +712,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The people in a room as its own chat service lists them, each by the sender number the room's messages carry. */
+        get: operations["roomMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/messages": {
         parameters: {
             query?: never;
@@ -2439,6 +2456,22 @@ export interface components {
             leaders: number[];
             /** Format: int64 */
             room: number;
+        };
+        /** @description One person in a room, as the room's own chat service lists them. */
+        RoomMember: {
+            /** @description What the room calls the person. */
+            name: string;
+            /**
+             * Format: int64
+             * @description The sender number the room's messages carry for the person; null where the service gave the person none.
+             */
+            person: number | null;
+            /** @description The person's status line, or null where the service gave none. */
+            statusMessage: string | null;
+        };
+        /** @description The people in a room, as the room's own chat service lists them, whole. */
+        RoomMembers: {
+            members: components["schemas"]["RoomMember"][];
         };
         /** @description What a room added is to the agents: answered as the user, or the user alone. */
         RoomMode: "avatar" | "record-only";
@@ -4362,6 +4395,37 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomMembers"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-found, record-only-room, members-unlisted, members-unheld, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

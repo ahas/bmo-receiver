@@ -158,6 +158,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/providers/{key}/contacts", get(rooms::contacts)),
     ("GET", "/rooms/{roomId}/providers", get(rooms::room_providers)),
     ("PUT", "/rooms/{roomId}/providers", put(rooms::choose_providers)),
+    ("GET", "/rooms/{roomId}/members", get(rooms::room_members)),
     ("GET", "/rooms/{roomId}/roads", get(brain::roads)),
     ("GET", "/rooms/{roomId}/own-number", get(brain::own_number)),
     ("GET", "/rooms/{roomId}/spoke-between", get(brain::spoke_between)),

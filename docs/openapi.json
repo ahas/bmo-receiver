@@ -2844,6 +2844,51 @@
         ],
         "type": "object"
       },
+      "RoomMember": {
+        "description": "One person in a room, as the room's own chat service lists them.",
+        "properties": {
+          "name": {
+            "description": "What the room calls the person.",
+            "type": "string"
+          },
+          "person": {
+            "description": "The sender number the room's messages carry for the person; null where the service gave the person none.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "statusMessage": {
+            "description": "The person's status line, or null where the service gave none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "person",
+          "name",
+          "statusMessage"
+        ],
+        "type": "object"
+      },
+      "RoomMembers": {
+        "description": "The people in a room, as the room's own chat service lists them, whole.",
+        "properties": {
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/RoomMember"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "members"
+        ],
+        "type": "object"
+      },
       "RoomMode": {
         "description": "What a room added is to the agents: answered as the user, or the user alone.",
         "oneOf": [
@@ -6111,6 +6156,57 @@
         ],
         "x-codes": [
           "unauthorized",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/members": {
+      "get": {
+        "operationId": "roomMembers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomMembers"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, record-only-room, members-unlisted, members-unheld, upstream-failed, failed"
+          }
+        },
+        "summary": "The people in a room as its own chat service lists them, each by the sender number the room's messages carry.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "record-only-room",
+          "members-unlisted",
+          "members-unheld",
           "upstream-failed",
           "failed"
         ]

@@ -607,6 +607,25 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "not-found", "failed"]
   );
   add!(
+    "GET",
+    "/rooms/{roomId}/members",
+    "roomMembers",
+    "Rooms",
+    "The people in a room as its own chat service lists them, each by the sender number the room's messages carry.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomMembers>(&mut generator))],
+    vec![
+      "unauthorized",
+      "not-found",
+      "record-only-room",
+      "members-unlisted",
+      "members-unheld",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
     "PUT",
     "/rooms/{roomId}/providers",
     "chooseProviders",

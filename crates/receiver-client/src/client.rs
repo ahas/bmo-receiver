@@ -384,6 +384,11 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "providers"])).await
   }
 
+  /// `GET /rooms/{roomId}/members`.
+  pub async fn room_members(&self, room_id: i64) -> Answer<RoomMembers> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "members"])).await
+  }
+
   /// `PUT /rooms/{roomId}/providers`.
   pub async fn choose_providers(&self, room_id: i64, chosen: &ChooseProviders) -> Answer<RoomProviders> {
     Self::answered(self.send(Method::PUT, &["rooms", &room_id.to_string(), "providers"], chosen)).await

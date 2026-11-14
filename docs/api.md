@@ -111,6 +111,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /providers/{key}/contacts` | `after` (a contact number), `limit`, `accountId` (the account whose contacts are listed) | a page of `AccountContact` (`id`, `name`, `kind`, `roomId`, `held`, `mode`): the contacts of the provider's account, or of the account `accountId` names |
 | `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, and `chosen`, whether the list was set |
 | `PUT /rooms/{roomId}/providers` | `providers`, the whole list | `providers` and `chosen`, as the list now stands |
+| `GET /rooms/{roomId}/members` | | `members`, the people in the room as its own chat service lists them, each `person` (the sender number the room's messages carry, or null where the service gave the person none), `name` and `statusMessage` (or null) |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
 | `PUT /pinned-rooms` | `roomIds`, the whole order | `roomIds`, the order as it now stands |
 | `POST /pinned-rooms` | `room`, one room stood last | `roomIds` |
@@ -199,6 +200,14 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
     refuses 409 `start-refused` with its sentence; a room the service does not say is its own 409 `room-unknown`;
     and a room already added 409 `room-added`. A service that does not answer is 502 `upstream-failed` on each
     route.
+- **A room's members are asked of the room's own road** (`docs/receiver.md`, 「A room's chat providers」), its first
+  provider where its list was chosen, through bmo-chat's `GET /rooms/{roomId}/members`, and answered as that service
+  lists them; nothing is written and the room is not changed. A person is named by the number the room's messages
+  carry as their sender, never by a platform's own identifier, so a screen links an account and a kept picture by
+  that number. A room the receiver holds nothing of is refused 404 `not-found`; a room on the record alone 409
+  `record-only-room`; a room whose service does not declare `memberList` 409 `members-unlisted`; a room whose
+  service holds no members of it, or refuses, 409 `members-unheld` with the service's own sentence as `detail`;
+  and a service that does not answer 502 `upstream-failed`.
 - **A body naming no `provider`, a `title` and the `supervisors` that answer it** makes an agent room: the
   receiver numbers it in the record's own range, sets its one provider to the record, writes its title and its
   answering agents, and answers the room as it stands. No chat service stands behind it, and its members wake

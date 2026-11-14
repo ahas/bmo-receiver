@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bmo_chat_client::{
-  AccountRoomsQuery, ChatContact, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatPatience,
+  AccountRoomsQuery, ChatContact, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatMembers, ChatPatience,
   ChatProviderClient, ChatSendRequest, ChatSent, ChatStartRequest, ClientFailure, ContactsQuery,
   DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RealClock, RoomKind,
 };
@@ -52,6 +52,10 @@ pub trait Chat: Send + Sync {
   /// A page of the contacts of the service's account; refused where the service does not declare
   /// `contactList`.
   fn contacts<'a>(&'a self, query: &'a ContactsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatContact>>>;
+
+  /// The members of a room, whole; refused where the service does not declare `memberList`, and answered
+  /// `not-found` with the service's reason where it holds none of them.
+  fn members(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ChatMembers>>;
 
   /// A conversation started on the service, answered with its room; refused where the service does not declare
   /// the shape's capability.
@@ -116,6 +120,10 @@ impl Chat for ChatProviderClient {
 
   fn contacts<'a>(&'a self, query: &'a ContactsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatContact>>> {
     Box::pin(ChatProviderClient::contacts(self, query))
+  }
+
+  fn members(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ChatMembers>> {
+    Box::pin(ChatProviderClient::members(self, chat_id))
   }
 
   fn start_chat<'a>(&'a self, start: &'a ChatStartRequest) -> BoxFuture<'a, ChatAnswer<ProviderRoom>> {

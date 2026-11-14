@@ -130,6 +130,14 @@ family. No code carries a sentence in a room's language.
 | `contact-unknown` | 409 | `label` | the provider does not know a contact the start names |
 | `start-refused` | 409 | `label`, `detail` | the provider refused to start the conversation, for its own reason |
 
+### RoomMembersRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `record-only-room` | 409 | `room` | the room stands on the record alone, so no chat service lists its members |
+| `members-unlisted` | 409 | `label` | the room's chat service does not declare that it lists the members of a room |
+| `members-unheld` | 409 | `label`, `detail` | the room's chat service holds no members of the room, or refused them, for its own reason |
+
 ### RoomModeRefusal
 
 | Code | Status | Fields | When |
