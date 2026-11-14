@@ -9,6 +9,7 @@ mod console_rooms;
 mod file_fills;
 mod files;
 mod job_queue;
+mod listening;
 mod message_files;
 mod message_metadata;
 mod notices;
