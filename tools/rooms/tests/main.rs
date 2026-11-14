@@ -39,6 +39,7 @@ fn room() -> Value {
     "supervisors": [],
     "ownerRoom": false,
     "registered": true,
+    "listened": false,
     "workRoom": ROOM,
     "mode": "record-only",
   })
