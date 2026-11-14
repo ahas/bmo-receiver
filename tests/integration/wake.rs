@@ -398,6 +398,44 @@ async fn a_private_room_whose_person_owns_no_supervisor_falls_back_to_the_defaul
 }
 
 #[tokio::test]
+async fn the_owners_one_to_one_on_a_road_wakes_on_his_words_and_a_room_of_his_account_alone_wants_a_call() {
+  let (scratch, _data, standing) = stood(&[-161, -162]).await;
+  let his_one_to_one = Room {
+    private_to: Some(OWNER),
+    ..room()
+  };
+
+  standing
+    .agency
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
+  everyone_heard(&scratch).await;
+  standing.web.linking(OWNER, "user-1".into());
+
+  standing
+    .receiver
+    .message(&inbound(-161, 1, OWNER, "what is for supper"), &Context::default(), his_one_to_one)
+    .await
+    .unwrap();
+  standing
+    .receiver
+    .message(&inbound(-162, 1, OWNER, "what is for supper"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  assert_eq!(
+    standing.taken.handed(),
+    [Handed {
+      agent: AGENT.into(),
+      chat_id: -161,
+      message_id: 1,
+      files: vec![],
+      opens_window: false,
+      read_through: Some(false),
+    }]
+  );
+}
+
+#[tokio::test]
 async fn a_group_room_is_answered_by_the_supervisor_its_leader_names() {
   let (scratch, _data, standing) = stood(&[-151]).await;
 
