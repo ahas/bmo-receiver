@@ -2311,6 +2311,11 @@ export interface components {
              * @description Epoch milliseconds; null where the room holds no message.
              */
             lastMessageAt: number | null;
+            /**
+             * @description Whether the room stands on the listen list, the rooms the owner allowed with his allow command and has not
+             *     denied since; always true for the owner's private room.
+             */
+            listened: boolean;
             /** Format: int64 */
             messageCount: number;
             /** @description The mode the room was added in; null for a room never added. */

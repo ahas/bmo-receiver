@@ -134,6 +134,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     .cloned()
     .collect();
   let modes = crate::roads::added::modes(db).await.map_err(store)?;
+  let listen_list = rows::listen_list(db).await.map_err(store)?;
   let mut items: Vec<Value> = vec![];
 
   for room in listed {
@@ -152,6 +153,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "supervisors": supervisors,
       "ownerRoom": owner_room,
       "registered": registered,
+      "listened": owner_room || listen_list.contains(&room.chat_id),
       "workRoom": work.chat_id,
       "mode": modes.get(&room.chat_id).map(|mode| mode.as_str()),
     }));

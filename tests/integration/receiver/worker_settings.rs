@@ -4,7 +4,8 @@
 //! archive of its own.
 
 use axum::http::StatusCode;
-use serde_json::json;
+use bmo_receiver::receiver::rows;
+use serde_json::{Value, json};
 
 use crate::integration::common::Scratch;
 use crate::integration::common::queue::{get, stood};
@@ -36,6 +37,7 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "supervisors": [],
         "ownerRoom": false,
         "registered": true,
+        "listened": false,
         "workRoom": 7,
         "mode": null,
       })
@@ -55,11 +57,43 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "supervisors": [],
         "ownerRoom": false,
         "registered": false,
+        "listened": false,
         "workRoom": OWNER,
         "mode": null,
       })
     ),
   );
+}
+
+#[tokio::test]
+async fn a_room_is_listened_while_the_owner_allows_it_and_his_private_room_always_is() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let listened = |rooms: Value| -> Vec<(i64, bool)> {
+    let mut marks: Vec<(i64, bool)> = rooms["items"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|room| (room["id"].as_i64().unwrap(), room["listened"].as_bool().unwrap()))
+      .collect();
+    marks.sort();
+    marks
+  };
+
+  for room in [7, 8, OWNER] {
+    scratch.message(room, 1, OWNER).await;
+  }
+  rows::allow_chat(scratch.db(), 7).await.unwrap();
+
+  let mut expected = vec![(7, true), (8, false), (OWNER, true)];
+  expected.sort();
+  assert_eq!(listened(get(&front, "/rooms").await.1), expected);
+  assert_eq!(get(&front, "/rooms/7").await.1["listened"], true);
+  assert_eq!(get(&front, &format!("/rooms/{OWNER}")).await.1["listened"], true);
+
+  rows::deny_chat(scratch.db(), 7).await.unwrap();
+
+  assert_eq!(get(&front, "/rooms/7").await.1["listened"], false);
 }
 
 #[tokio::test]

@@ -2519,6 +2519,10 @@
               "null"
             ]
           },
+          "listened": {
+            "description": "Whether the room stands on the listen list, the rooms the owner allowed with his allow command and has not\ndenied since; always true for the owner's private room.",
+            "type": "boolean"
+          },
           "messageCount": {
             "format": "int64",
             "type": "integer"
@@ -2580,6 +2584,7 @@
           "supervisors",
           "ownerRoom",
           "registered",
+          "listened",
           "workRoom",
           "mode"
         ],

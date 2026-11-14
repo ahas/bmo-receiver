@@ -121,8 +121,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
   people that have stood as a sender, `supervisors`, the names of the supervisors the room names to answer it, in
   name order, empty where it names none,
-  `ownerRoom`, `registered`, `workRoom`, where the news, questions and answers of work filed from it are told, and `mode`, the mode it was
-  added in:
+  `ownerRoom`, `registered`, `listened`, whether the room stands on the listen list (`allowed_chats`,
+  `docs/store.md`): a room the owner allowed with his allow command and has not denied since, and always his
+  private room; the list gates no message, since the receiver listens to every room, and the console reads it
+  to tell a room the owner uses from one a chat service merely numbered; `workRoom`, where the news, questions
+  and answers of work filed from it are told, and `mode`, the mode it was added in:
   - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
     no agent is woken in it.
   - `avatar`: the room's designated agents answer it as any room's do, and every line the receiver sends there

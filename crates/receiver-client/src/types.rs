@@ -40,6 +40,9 @@ pub struct Room {
   pub supervisors: Vec<String>,
   pub owner_room: bool,
   pub registered: bool,
+  /// Whether the room stands on the listen list, the rooms the owner allowed with his allow command and has not
+  /// denied since; always true for the owner's private room.
+  pub listened: bool,
   /// The room where work filed from this one is told.
   pub work_room: i64,
   /// The mode the room was added in; null for a room never added.

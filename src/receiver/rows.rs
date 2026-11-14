@@ -1,6 +1,8 @@
 //! The rows the receiver reads and writes as it judges a message (docs/store.md): a room's settings, its title and
 //! read position, the messages themselves, and the mode the deployment listens in.
 
+use std::collections::BTreeSet;
+
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, QueryResult};
 
 use super::Inbound;
@@ -94,6 +96,30 @@ pub async fn deny_chat(db: &DatabaseConnection, chat_id: i64) -> Result<(), Faul
   run(db, r#"DELETE FROM "allowed_chats" WHERE "chat_id" = $1"#, vec![chat_id.into()])
     .await
     .map(drop)
+}
+
+/// The listen list: the rooms the owner allowed with his allow command and has not denied since (docs/store.md,
+/// 「The tables」). It gates no message; the console reads it to tell a room he uses from one a chat service
+/// merely numbered.
+pub async fn listen_list<C: ConnectionTrait>(db: &C) -> Result<BTreeSet<i64>, Fault> {
+  all(db, r#"SELECT "chat_id" FROM "allowed_chats""#, vec![])
+    .await?
+    .iter()
+    .map(|row| row.try_get::<i64>("", "chat_id").map_err(Fault::from))
+    .collect()
+}
+
+/// Whether a room stands on the listen list.
+pub async fn is_on_listen_list<C: ConnectionTrait>(db: &C, chat_id: i64) -> Result<bool, Fault> {
+  Ok(
+    one(
+      db,
+      r#"SELECT 1 AS "one" FROM "allowed_chats" WHERE "chat_id" = $1"#,
+      vec![chat_id.into()],
+    )
+    .await?
+    .is_some(),
+  )
 }
 
 pub async fn set_chat_title<C: ConnectionTrait>(db: &C, chat_id: i64, title: &str) -> Result<(), Fault> {
