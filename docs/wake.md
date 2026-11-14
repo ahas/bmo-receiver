@@ -29,11 +29,16 @@ its rounds.
   rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
   agent with its own words.
 - **A user's own private chat needs no name and no open window,** the owner's and every other user's alike.
-  - Which room is the owner's is each chat service's own answer (`POST /room/is-owner`), not a number the
-    receiver reads.
-  - Another user's is a room its chat service says is a one-to-one with the agent, with a person whose sender is
-    linked to that user (`GET /senders/{sender}/user` on the web unit), so it holds only once the account model
-    links them.
+  - The owner's private chat is his private room alone, the room numbered as his own number or the one the
+    configuration's `owner_room` names (`docs/receiver.md`, 「Identity, and reaching the owner」); a chat
+    service's `kind` of `owner` is read for no other room.
+  - A user's own private chat is a room its chat service says is a one-to-one with the agent (its `privateTo`),
+    with a person whose sender is linked to that user (`GET /senders/{sender}/user` on the web unit), so it holds
+    only once the account model links them. The owner's own one-to-one on a messenger is such a chat, his sender
+    being linked to his user like anyone's.
+  - A room its chat service answers as a group with no `privateTo` is no one's private chat, whoever is in it, a
+    room only the owner's own account is in among them: words there reach the session on the three grounds below
+    alone.
   - The turn tells the agent which of the three a room is (the owner's chat, another user's own chat or a group)
     since in a group most words are not for it.
 - **A private chat needs no name for a person's words alone.** An agent's words filed there, another agent's
