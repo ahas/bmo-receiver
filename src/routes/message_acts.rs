@@ -12,7 +12,7 @@ use axum::{
   extract::{Path, State},
   http::{HeaderMap, StatusCode},
 };
-use bmo_chat_client::{ChatSend, ChatVoice};
+use bmo_chat_client::{ChatSend, ChatSticker, ChatVoice};
 use receiver_codes::MessageActRefusal;
 use receiver_policy::roads::ROADS;
 use serde::Deserialize;
@@ -369,9 +369,9 @@ pub async fn sticker(
       reply_to: None,
       owner: true,
       standing: vec![Road::Record.key().to_owned()],
-      carried: Carried::Send(ChatSend::Sticker {
+      carried: Carried::Send(ChatSend::Sticker(ChatSticker::Emoji {
         emoji: emoji.clone(),
-      }),
+      })),
     };
 
     providers::deliver(receiver.db(), receiver.roads(), &delivery).await;

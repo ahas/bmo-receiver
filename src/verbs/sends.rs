@@ -8,8 +8,8 @@
 //! where the road is that one.
 
 use bmo_chat_client::{
-  AlbumItem, ChatCapability, ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure, MessageFile,
-  MissedPicture,
+  AlbumItem, ChatCapability, ChatSend, ChatSendRequest, ChatSent, ChatSticker, ChatVoice, ClientFailure,
+  MessageFile, MissedPicture,
 };
 
 use receiver_codes::SendRefusal;
@@ -561,7 +561,8 @@ fn puts_message(send: &ChatSend) -> bool {
 }
 
 /// What a send's words are, as the room's record keeps them: a line as it stands, a picture or an album under
-/// its caption, a file, a sound and a voice under the marks the policy keeps them with.
+/// its caption, a file, a sound and a voice under the marks the policy keeps them with, a sticker as its emoji or
+/// a platform item under its title, else its key.
 fn kept_line(send: &ChatSend) -> String {
   match send {
     ChatSend::Text { text, .. } => text.clone(),
@@ -571,7 +572,8 @@ fn kept_line(send: &ChatSend) -> String {
     ChatSend::Document { file_name, .. } => fill_marks(&ROADS.record.document_kept, &[("name", file_name)]),
     ChatSend::Audio { file_name, .. } => fill_marks(&ROADS.record.audio_kept, &[("name", file_name)]),
     ChatSend::Voice { said, .. } => fill_marks(&ROADS.record.voice_kept, &[("said", said)]),
-    ChatSend::Sticker { emoji, .. } => emoji.clone(),
+    ChatSend::Sticker(ChatSticker::Emoji { emoji }) => emoji.clone(),
+    ChatSend::Sticker(ChatSticker::Item { item }) => item.title.clone().unwrap_or_else(|| item.id.clone()),
     ChatSend::Edit { text, .. } => text.clone(),
     ChatSend::Reaction { .. }
     | ChatSend::Pin { .. }

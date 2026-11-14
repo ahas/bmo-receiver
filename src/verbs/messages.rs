@@ -9,7 +9,7 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, FileItem, MissedPictureReason};
+use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, ChatSticker, FileItem, MissedPictureReason};
 use room_calls::procedures;
 use room_calls::reading::count_text;
 use room_calls::turn::AGENT_VARIABLE as TURN_AGENT;
@@ -580,9 +580,9 @@ pub async fn sticker(
       &replying(
         ChatSendRequest::new(
           chat_id,
-          ChatSend::Sticker {
+          ChatSend::Sticker(ChatSticker::Emoji {
             emoji: emoji.to_owned(),
-          },
+          }),
         ),
         reply_to,
       ),
