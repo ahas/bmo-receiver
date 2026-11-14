@@ -382,14 +382,17 @@ impl ChatReceiver for Receiver {
   }
 
   async fn room(&self, room_id: i64, query: RoomQuery) -> Result<Option<ReceiverRoom>, WireError> {
-    let room = self.roads().room_facts(room_id).await;
+    // Read off what is kept alone: the asking service may be answering the receiver's own question about this room,
+    // and asking it again would start that pair of questions over (docs/receiver.md, 「What is kept for a moment」).
+    let roads = self.roads().kept_alone();
+    let room = roads.room_facts(room_id).await;
     let held = reads::oldest(self.db(), room_id)
       .await
       .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;
     let listened = Receiver::listened(room_id, room);
     // The people's words of a room added on the asking service, in whatever mode, are its to read
     // (docs/receiver.md, 「A read-only room」).
-    let read = providers::read_asked(self.db(), self.roads(), room_id, &query.via)
+    let read = providers::read_asked(self.db(), &roads, room_id, &query.via)
       .await
       .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;
     let Some((message_id, sent_at)) = held else {

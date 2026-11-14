@@ -204,8 +204,9 @@ pub fn hearing(standing: &Standing) -> Hearing {
     .telling(standing.pass.clone())
 }
 
-/// The clocks of a running service: the window ends still to come, the instruction pass over every agent's rows,
-/// the conversations' own clock and the restart; and the agency's events, heard for as long as the service runs.
+/// The clocks of a running service: the window ends still to come, the open-file watch, the instruction pass over
+/// every agent's rows, the conversations' own clock and the restart; and the agency's events, heard for as long as
+/// the service runs.
 pub fn keep(standing: &Standing) {
   let watching = standing.receiver.clone();
   let releasing = standing.receiver.clone();
@@ -232,6 +233,7 @@ pub fn keep(standing: &Standing) {
       crate::chat::briefing::silence(&silencing);
     }
   });
+  crate::open_files::keep();
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();
   keep_restart(standing.receiver.clone(), standing.runner.clone());

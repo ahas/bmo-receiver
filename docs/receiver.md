@@ -531,10 +531,31 @@ flowchart TD
   (「A room's chat providers」), and an answer that did not come kept not at all, so the next read asks again.
   Within the span every reader of the facts reads the kept answer: the room list and one room, the message page's
   `by`, the wake, the roads a line goes out on.
+- **A chat service asking the receiver for a room is answered off what the receiver holds,** and no chat service is
+  asked afresh for that answer (`docs/api.md`, 「The chat services」): the room's record and list of providers, the
+  owner's private room by its number, what each service declared and said of the room as it is kept, and a service
+  with nothing kept read as one that did not answer. A chat service may ask the receiver about a room while it
+  answers the receiver's own question about that room, so an answer that asked a service again could start the
+  same pair of questions again, with no end while either side can still open a connection. Each such exchange ends
+  at the receiver's answer.
 - **The agents are kept as the agency's one list,** awake or not, and every reader of an agent's registration reads
   it: the wake, the answerers of a room, the room list, a page asked by an agent, the labels a room is told. The
   room list reads it once for all its rooms.
 - **What the receiver changes itself is let go at once:** an agent it registers or takes out lets the kept list
   go, and a room added or removed lets go what is kept of that room. A change made elsewhere is read once the span
   has passed.
+
+## The open-file ceiling
+
+- **The receiver watches how many files it holds open against the ceiling the system sets for the process,** every
+  `check_seconds` the policy sets (`open-files.toml`). Every connection it opens or takes is one of those files, so
+  at the ceiling every call it makes and every connection it would take fails, each saying there are too many open
+  files.
+- **The journal says so once as the count reaches `near_percent` of the ceiling,** with the count and the ceiling,
+  and once more as it falls back under; between the two it says nothing more. The ceiling is read afresh each
+  time, so one raised while the receiver runs is the one the next reading measures against.
+- **Where the system does not list a process's open files or does not bound them,** nothing is watched.
+- **A chat service is reached through one client per road for the receiver's whole life,** whose connections are
+  kept open and used again by the next call (`docs/boundary-api.md`, 「The chat services」); a call that ends hands
+  its connection back.
 

@@ -1,14 +1,15 @@
-//! An in-process stand-in for another unit. It takes every call on a loopback port, records it, and answers it
-//! from the fixture set for its method and path. A call with no fixture is answered 500 with the code
-//! `no-fixture`.
+//! An in-process stand-in for another unit. It takes every call on a loopback port, records it and the connection
+//! it came over, and answers it from the fixture set for its method and path. A call with no fixture is answered
+//! 500 with the code `no-fixture`.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use axum::Router;
 use axum::body::{Body, Bytes};
-use axum::extract::State;
+use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use receiver_ports::Peer;
@@ -40,6 +41,8 @@ struct Fixture {
 #[derive(Default)]
 struct Book {
   calls: Vec<Call>,
+  // The caller's end of every connection a call came over.
+  connections: BTreeSet<SocketAddr>,
   fixtures: HashMap<String, Fixture>,
 }
 
@@ -54,6 +57,7 @@ pub struct StandIn {
 
 async fn take(
   State(book): State<Shared>,
+  ConnectInfo(from): ConnectInfo<SocketAddr>,
   method: Method,
   uri: Uri,
   headers: HeaderMap,
@@ -67,6 +71,7 @@ async fn take(
   let fixture = {
     let mut book = book.lock().expect("the book is not poisoned");
 
+    book.connections.insert(from);
     book.calls.push(Call {
       route: route.clone(),
       query: uri.query().unwrap_or_default().to_owned(),
@@ -105,6 +110,8 @@ impl StandIn {
     let book = Shared::default();
     let app = Router::new().fallback(take).with_state(book.clone());
     let server = tokio::spawn(async move {
+      let app = app.into_make_service_with_connect_info::<SocketAddr>();
+
       axum::serve(listener, app).await.expect("the stand-in serves");
     });
 
@@ -168,6 +175,11 @@ impl StandIn {
         delay,
       },
     );
+  }
+
+  /// How many connections the calls it took came over.
+  pub fn connections(&self) -> usize {
+    self.book().connections.len()
   }
 
   /// Every call taken so far, in order.

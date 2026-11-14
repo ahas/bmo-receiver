@@ -111,6 +111,8 @@ pub struct Roads {
   owners: Arc<OnceLock<i64>>,
   // Where the account a send goes out in is read; given once the receiver stands, and the last given stands.
   accounts: Arc<Mutex<Option<Arc<dyn SendingAccount>>>>,
+  // Whether a fact nothing keeps is asked of its chat service; the roads reading what is kept alone ask none.
+  afresh: bool,
 }
 
 // A chat service's answer that did not come is said once and read as no answer, so one service that does not
@@ -136,6 +138,18 @@ impl Roads {
       store: Arc::default(),
       owners: Arc::default(),
       accounts: Arc::default(),
+      afresh: true,
+    }
+  }
+
+  /// The same roads reading a chat service's facts only as they are kept: what a service declares and says of a
+  /// room, and the room it reaches the owner in, are read where kept and read as no answer where not, and no
+  /// service is asked afresh. A chat service's question about a room is answered through these (docs/receiver.md,
+  /// 「What is kept for a moment」), since the service may be asking while it answers the receiver's own question.
+  pub fn kept_alone(&self) -> Self {
+    Self {
+      afresh: false,
+      ..self.clone()
     }
   }
 
@@ -285,6 +299,10 @@ impl Roads {
       return Some(declared.clone());
     }
 
+    if !self.afresh {
+      return None;
+    }
+
     let declared = heard(key, "its declaration", self.service(key)?.declaration().await)?;
 
     self
@@ -298,8 +316,12 @@ impl Roads {
 
   /// What a chat service declares of itself now, asked afresh and kept in place of what was kept; none where it is
   /// not listed or does not answer. A mode's standing moves while the service runs, so a choice that turns on it
-  /// asks here.
+  /// asks here. The roads reading what is kept alone read the kept declaration.
   pub async fn declaration_now(&self, key: &str) -> Option<ChatDeclaration> {
+    if !self.afresh {
+      return self.declaration(key).await;
+    }
+
     let declared = heard(key, "its declaration", self.service(key)?.declaration().await)?;
 
     self
@@ -334,7 +356,8 @@ impl Roads {
 
   /// What a chat service says of a room, kept for the span: the room as it answers it, none where it does not
   /// hold the room, and nothing where it is not listed or did not answer, which is kept not at all. A room the
-  /// record holds alone is held by no service, and no service is asked of it.
+  /// record holds alone is held by no service, and no service is asked of it; the roads reading what is kept alone
+  /// read nothing where nothing is kept.
   async fn room_of(&self, key: &str, chat_id: i64) -> Option<Option<ProviderRoom>> {
     if self.record_alone(chat_id).await {
       return Some(None);
@@ -344,6 +367,10 @@ impl Roads {
 
     if let Some(kept) = self.rooms.get(&held) {
       return Some(kept);
+    }
+
+    if !self.afresh {
+      return None;
     }
 
     let said = match self.service(key)?.room(chat_id).await {
@@ -499,7 +526,8 @@ impl Roads {
     }
 
     self.holds(key, chat_id).await
-      || heard(key, "the owner's room", service.owner_room().await).flatten() == Some(chat_id)
+      || (self.afresh
+        && heard(key, "the owner's room", service.owner_room().await).flatten() == Some(chat_id))
   }
 
   /// Whether the record is where a line nobody asked for goes in a room: a road reaching the room shows its whole

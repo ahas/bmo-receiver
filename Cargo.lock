@@ -321,6 +321,7 @@ dependencies = [
  "reqwest",
  "resvg",
  "room-calls",
+ "rustix",
  "sea-orm",
  "sea-orm-migration",
  "serde",

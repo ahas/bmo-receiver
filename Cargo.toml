@@ -45,6 +45,8 @@ schemars = "1.0.4"
 reqwest = { version = "0.13.5", features = ["json", "query", "stream"] }
 # The seed a fair draw starts from, out of the system's cryptographic random source.
 rand = "0.9.2"
+# The ceiling the system sets on the files the process holds open.
+rustix = { version = "1.1.5", default-features = false, features = ["std", "process"] }
 # The digest a labelled picture is named by, so the same picture labelled twice is one file.
 sha2 = "0.10.9"
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-postgres"] }
@@ -130,6 +132,8 @@ percent-encoding.workspace = true
 reqwest.workspace = true
 # The seed a fair draw starts from.
 rand.workspace = true
+# The ceiling on the files the process holds open, which the open-file watch reads.
+rustix.workspace = true
 # The digest a labelled picture is named by.
 sha2.workspace = true
 

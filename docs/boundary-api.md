@@ -406,7 +406,10 @@ Every provider route of bmo-chat's `docs/protocol.md`, through `bmo-chat-client`
 `GET /health`, `POST /sends`, `GET /rooms/{roomId}/messages/{messageId}/files` (a replied-to picture, and a row
 filled in later, `docs/room-files.md`, 「Files filled in later」), `POST /dialect/readings`,
 `POST /dialect/checks`, the room routes, `GET /rooms` for the rooms of a service's account, `GET /contacts` for
-its contacts, `POST /rooms` to start a conversation on it, and `GET /owner`. The
+its contacts, `POST /rooms` to start a conversation on it, and `GET /owner`. Each service is reached through
+one `ChatProviderClient` built as the receiver starts and held for its whole life, so every call on that service,
+the room list's walk over every room among them, shares that client's connections, each handed back as its call
+ends. The
 receiver holds no per-provider code: what differs between providers is read from what each declares. The
 declaration is asked once and kept, except where a room is added: there it is asked afresh, since a mode's
 standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road

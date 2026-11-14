@@ -115,6 +115,23 @@ async fn the_rooms_of_an_account_are_relayed_page_by_page_and_refused_where_the_
 }
 
 #[tokio::test]
+async fn a_service_that_cannot_be_reached_is_answered_upstream_failed_on_its_listings() {
+  let scratch = Scratch::new().await;
+  let down = Arc::new(StandInChat::new("road-down").down());
+  let front = stood_on(&scratch, OWNER, vec![down.clone()]).await;
+
+  for path in ["/providers/road-down/rooms", "/providers/road-down/contacts"] {
+    let (answered, body) = get(&front, path).await;
+
+    assert_eq!(
+      (answered.as_u16(), body["code"].as_str()),
+      (502, Some("upstream-failed")),
+      "{path}: {body}"
+    );
+  }
+}
+
+#[tokio::test]
 async fn a_room_added_is_kept_with_its_mode_its_title_and_its_service_beside_the_record() {
   let scratch = Scratch::new().await;
   let (front, _listing, _plain) = front(&scratch).await;

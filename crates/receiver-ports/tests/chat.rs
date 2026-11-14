@@ -98,3 +98,35 @@ async fn a_refused_road_is_skipped_at_once_and_a_live_slow_one_still_waits() {
   assert_eq!(sent.message_id, Some(7));
   assert!(started.elapsed() >= Duration::from_millis(150), "a live slow road still waits");
 }
+
+#[tokio::test]
+async fn a_run_of_calls_on_a_road_goes_over_the_one_connection_its_client_keeps() {
+  let unit = StandIn::start().await;
+  let chats = ChatServices::from_peers(&BTreeMap::from([("road-a".to_owned(), unit.peer("t"))]));
+
+  unit.answer("GET /health", 200, json!({ "ready": true, "reason": null, "version": "0.1.0" }));
+  unit.answer(
+    "GET /rooms/-7",
+    200,
+    json!({ "id": -7, "owns": true, "identity": null, "kind": "group", "privateTo": null, "title": "a room" }),
+  );
+  unit.answer("POST /sends", 200, json!({ "messageId": 7 }));
+
+  let road = chats.road("road-a").unwrap();
+
+  // Each round makes a call the room list makes, a send, a health read and a call answered with a failure, so a
+  // connection held past any of them would show as one more.
+  for _ in 0..100 {
+    assert_eq!(road.room_title(-7).await.unwrap().as_deref(), Some("a room"));
+    assert_eq!(road.send(&text("hello")).await.unwrap().message_id, Some(7));
+    assert_eq!(road.health().await.unwrap(), ChatHealth::ready("0.1.0"));
+    assert!(road.room_owns(-8).await.is_err(), "a room with no fixture is answered 500");
+  }
+
+  assert_eq!(unit.calls().len(), 400);
+  assert_eq!(
+    unit.connections(),
+    1,
+    "every call after the first reuses the connection the first opened"
+  );
+}

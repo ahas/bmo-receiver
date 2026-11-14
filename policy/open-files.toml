@@ -1,0 +1,9 @@
+# The files the process holds open, watched against the ceiling the system sets for it (docs/receiver.md, 「The
+# open-file ceiling」). Every connection the receiver opens or takes is one of them.
+
+# How often the open files are counted, in seconds.
+check_seconds = 15
+
+# The share of the ceiling, in percent, at which the journal says the count stands near it, once, and says once more
+# as it falls back under.
+near_percent = 80

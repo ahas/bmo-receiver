@@ -10,10 +10,11 @@ use std::time::Duration;
 use bmo_chat_client::{
   AccountRoomsQuery, ChatCapability, ChatContact, ChatContactKind, ChatDeclaration, ChatDialectDeclaration,
   ChatDialectLimits, ChatHealth, ChatMediaRequest, ChatModeStanding, ChatNumberRanges, ChatNumberSpace,
-  ChatNumbering, ChatReach, ChatReadMode, ChatSendRequest, ChatSent, ChatStart, ChatStartRequest, ChatVerb,
-  ChatVoice, ClientFailure, ContactsQuery, DialectChecked, DialectReading, MessageFile, Page, ProviderRoom,
-  RoomKind,
+  ChatNumbering, ChatReach, ChatReadMode, ChatReceiver, ChatSendRequest, ChatSent, ChatStart,
+  ChatStartRequest, ChatVerb, ChatVoice, ClientFailure, ContactsQuery, DialectChecked, DialectReading,
+  MessageFile, Page, ProviderRoom, RoomKind, RoomQuery,
 };
+
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{
   Deployment, How, Inbound, News, NotReceived, Receiver, Room, Runner, Units, Wake,
@@ -95,7 +96,13 @@ pub struct StandInChat {
   // The next send, held until the test lets it go, and whether one stands held now.
   held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
   holding_send: Mutex<bool>,
+  // The receiving side it asks about a room before it answers what it says of that room, where one is given.
+  asking_back: Mutex<Option<Arc<dyn ChatReceiver>>>,
 }
+
+/// How many questions about a room a service asking back asks the receiver at most, so a receiver that asked it
+/// again each time ends rather than asking for ever.
+const ASKED_BACK_AT_MOST: usize = 8;
 
 impl StandInChat {
   pub fn new(key: &str) -> Self {
@@ -103,6 +110,12 @@ impl StandInChat {
       key: key.to_owned(),
       ..Self::default()
     }
+  }
+
+  /// Asks `receiver` about a room each time it is asked what it says of that room, before it answers, as a
+  /// service that reads a room in the owner's account asks whether the receiver reads it.
+  pub fn asks_back(&self, receiver: Arc<dyn ChatReceiver>) {
+    *self.asking_back.lock().unwrap() = Some(receiver);
   }
 
   /// A service nothing listens for: every question of its declaration, a room or the owner's room is refused as
@@ -405,8 +418,16 @@ impl Chat for StandInChat {
     let private_to = self.private.get(&chat_id).copied();
     let title = self.titles.get(&chat_id).cloned();
     let modes = self.room_modes.get(&chat_id).cloned();
+    let asking_back = (self.rooms_asked.load(Ordering::SeqCst) <= ASKED_BACK_AT_MOST)
+      .then(|| self.asking_back.lock().unwrap().clone())
+      .flatten();
+    let via = self.key.clone();
 
     Box::pin(async move {
+      if let Some(receiver) = asking_back {
+        let _ = receiver.room(chat_id, RoomQuery { via }).await;
+      }
+
       if !owns {
         return Err(ClientFailure::Answered {
           url: "the stand-in chat service".to_owned(),
