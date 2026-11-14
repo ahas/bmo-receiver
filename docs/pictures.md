@@ -102,6 +102,12 @@ receiver keeps the pictures and decides what a session is shown.
   are kept under, the owner's own account being the person his words on that road stand under. It is laid on white
   and filed as a JPEG under the data root as `avatars/room/<roomId>.jpg` or `avatars/person/<personId>.jpg`; one
   that cannot be read as a picture is said in the log and not kept. Taking a picture never stops a room's words.
+- **The console asks one number for one person:** a message's face by the number its sender is archived under,
+  and a member sheet's row by the number the members route answers. Both are the number the road gives the person
+  now, so a picture is found under it from either surface. A sender kept under a number the road gave before is
+  matched to the room's member of the same nickname as the service starts (`docs/messages.md`, 「A sender matched
+  to the room's members」), so the message moves to the person's number and a kept picture never moves for it; a
+  sender left unmatched keeps the first letter of its name.
 - **The `avatars` table** keeps each subject's stored path and when its picture was taken: the `takenAt` the
   road's list gave, else the moment the receiver fetched it. Every room and person the archive numbers has its
   row there once a road serves its picture, the supervisors added on the console and their rooms among them.

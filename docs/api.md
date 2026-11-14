@@ -204,9 +204,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
     route.
 - **A room's members are asked of the room's own road** (`docs/receiver.md`, 「A room's chat providers」), its first
   provider where its list was chosen, through bmo-chat's `GET /rooms/{roomId}/members`, and answered as that service
-  lists them; nothing is written and the room is not changed. A person is named by the number the room's messages
-  carry as their sender, never by a platform's own identifier, so a screen links an account and a kept picture by
-  that number. A room the receiver holds nothing of is refused 404 `not-found`; a room on the record alone 409
+  lists them; nothing is written and the room is not changed. A person is named by the number the room's road gives
+  that person, the number the room's messages carry as their sender, never by a platform's own identifier, so a
+  screen links an account and a kept picture by that number; a sender the road numbered otherwise before is
+  matched to the member of its nickname as the service starts (`docs/messages.md`, 「A sender matched to the room's
+  members」). A room the receiver holds nothing of is refused 404 `not-found`; a room on the record alone 409
   `record-only-room`; a room whose service does not declare `memberList`, or serves no members route at all, 409 `members-unlisted`; a room whose
   service holds no members of it, or refuses, 409 `members-unheld`, its sentence carrying the service's own;
   and a service that does not answer 502 `upstream-failed`.
@@ -283,7 +285,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   room's, a person's and the owner's own account's. The receiver takes each chat service's pictures from that
   service's avatar routes and serves them here under the number the service gave the subject, so the console
   never asks a chat service for one and a new chat service adds no route the console reads (`docs/pictures.md`,
-  「Profile pictures」).
+  「Profile pictures」). A message's face and a member row ask under the same number, the one a message's sender
+  carries: a sender a road numbered otherwise before is matched to the room's member of its nickname, so the
+  message moves to the number the picture is kept under and the picture stays where it is (`docs/messages.md`,
+  「A sender matched to the room's members」).
 - **`agentName` and `voice`** stand on a send the receiver archived itself, naming the agent whose words these are
   and the voice the send went out in (`bot-account`, `human-avatar`, `human-reader`); both are null on a message
   that came in from a provider, which the provider's echo of the receiver's own send keeps, since that message is

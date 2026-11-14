@@ -234,10 +234,14 @@ pub fn keep(standing: &Standing) {
     }
   });
   // Every chat service's profile pictures taken as the service starts, so a word that they changed missed while
-  // it was down is caught up (docs/pictures.md, 「Profile pictures」).
+  // it was down is caught up (docs/pictures.md, 「Profile pictures」); then every sender left holding none is
+  // matched to its room's members (docs/messages.md, 「A sender matched to the room's members」).
   let picturing = standing.receiver.clone();
 
-  tokio::spawn(async move { crate::receiver::avatars::walk_every(&picturing).await });
+  tokio::spawn(async move {
+    crate::receiver::avatars::walk_every(&picturing).await;
+    crate::receiver::senders::match_every(&picturing).await;
+  });
   crate::open_files::keep();
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();

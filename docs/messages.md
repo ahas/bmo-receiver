@@ -16,6 +16,27 @@ and when a room sees it typing.
 - **A scan answers under the standing ceiling on what a verb returns**: the messages that fit, a long one cut in
   place, and the id to carry on from, while `--id` hands back the one message it names whole.
 
+## A sender matched to the room's members
+
+- **A message's sender is the person the room's member list names,** under the number the room's own road gives
+  that person, so the face the console draws beside a message, the member sheet (`docs/api.md`, 「Rooms」) and the
+  profile pictures (`docs/pictures.md`, 「Profile pictures」) name one person by one number.
+- **A road can number one person twice:** words kept under a number the road gave when it read the room another
+  way, and the same person in the room's member list under the number the road gives now. Such a sender holds no
+  profile picture, since the road keeps its pictures under the number it gives now.
+- **As the service starts, once the profile pictures are taken,** every room whose own road carried words from a
+  sender that holds no picture has that road's member list asked once. Each such sender of the words that came on
+  that road is compared by nickname, the name its words were archived under, with the names the list gives:
+  - **one member of that nickname, with a number:** the sender's messages in that room, its mute there and its
+    reactions there move to that member's number, in one write; the names the messages were archived under stay
+    as they were;
+  - **no member of that nickname:** nothing moves, since the person left the room or the list does not show them;
+  - **two or more members of that nickname, or several nicknames of the sender naming different members:** nothing
+    moves, and the log names the room and the nickname, since the name alone cannot say which person it is.
+- **Never moved:** the owner's number and every number the room's road maps onto the owner, every number an
+  agent's own words stand under, and a sender the member list already names. A room whose road lists no members,
+  holds none of the room or does not answer is left as it stands and asked again at the next start.
+
 ## Secrets taken out
 
 - **A message's words are read for secret-shaped runs before anything keeps or forwards them,** and each run is

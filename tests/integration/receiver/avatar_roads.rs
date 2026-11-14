@@ -30,7 +30,7 @@ const BLUE: [u8; 3] = [30, 30, 220];
 const YELLOW: [u8; 3] = [220, 220, 30];
 
 // A small picture of one colour, as a chat service serves one.
-fn png(colour: [u8; 3]) -> Vec<u8> {
+pub(super) fn png(colour: [u8; 3]) -> Vec<u8> {
   let mut out = Cursor::new(vec![]);
 
   RgbImage::from_pixel(4, 4, Rgb(colour)).write_to(&mut out, ImageFormat::Png).unwrap();
@@ -38,7 +38,7 @@ fn png(colour: [u8; 3]) -> Vec<u8> {
 }
 
 // The receiver's answer for one picture: a JPEG of the colour the road served.
-async fn served(front: &Front, path: &str, colour: [u8; 3]) {
+pub(super) async fn served(front: &Front, path: &str, colour: [u8; 3]) {
   let answer = fetched(front, path, &[]).await;
 
   assert_eq!(answer.status(), StatusCode::OK, "{path}");

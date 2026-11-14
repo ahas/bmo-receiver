@@ -32,6 +32,7 @@ mod room_providers;
 mod room_titles;
 mod secrets;
 mod send_kinds;
+mod sender_matching;
 mod voice;
 mod worker_settings;
 

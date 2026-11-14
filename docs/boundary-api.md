@@ -409,7 +409,9 @@ filled in later, `docs/room-files.md`, 「Files filled in later」), `POST /dial
 its contacts, `POST /rooms` to start a conversation on it, `GET /owner`, and `GET /avatars`,
 `GET /rooms/{roomId}/avatar` and `GET /people/{personId}/avatar` for the profile pictures the receiver takes
 on a service's word that they changed, walks as it starts and asks for each subject that holds none
-(`docs/pictures.md`, 「Profile pictures」). Each service is reached through
+(`docs/pictures.md`, 「Profile pictures」), and `GET /rooms/{roomId}/members` for the members route and, as the
+receiver starts, for each room whose senders hold no picture (`docs/messages.md`, 「A sender matched to the room's
+members」). Each service is reached through
 one `ChatProviderClient` built as the receiver starts and held for its whole life, so every call on that service,
 the room list's walk over every room among them, shares that client's connections, each handed back as its call
 ends. The

@@ -21,6 +21,7 @@ pub mod pinned;
 pub mod platform;
 pub mod reads;
 pub mod rows;
+pub mod senders;
 pub mod speech;
 pub mod wake;
 
