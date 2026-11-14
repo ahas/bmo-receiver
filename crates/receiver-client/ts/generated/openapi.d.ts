@@ -1084,7 +1084,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The verbs the road a room is answered on performs. */
+        /** The verbs of the road a send naming `via` goes out on in the room; one provider's own are its `can` on `GET /providers`. */
         get: operations["sendVerbs"];
         put?: never;
         post?: never;
@@ -2299,10 +2299,15 @@ export interface components {
             waits: boolean;
         };
         /**
-         * @description A chat provider a room may be on: its key, what it is called, whether it lists the rooms of its account, and the
-         *     modes a room added on it may take, as it declares.
+         * @description A chat provider a room may be on: its key, what it is called, the verbs it performs, whether it lists the rooms
+         *     of its account, and the modes a room added on it may take, as it declares.
          */
         Provider: {
+            /**
+             * @description Every chat verb it declares it performs, by bmo-chat's names: one provider's own, whatever room it is on.
+             * @default []
+             */
+            can: string[];
             key: string;
             label: string;
             /** @default false */
@@ -2532,7 +2537,7 @@ export interface components {
              */
             tool: string;
         };
-        /** @description The verbs the road a room is answered on performs. */
+        /** @description The verbs of the road a send naming `via` goes out on in a room; one provider's own are its `can`. */
         SendVerbs: {
             items: string[];
             more: boolean;

@@ -176,6 +176,7 @@ pub async fn providers(State(served): State<Served>) -> Answered {
       json!({
         "key": provider.key,
         "label": provider.label,
+        "can": provider.can,
         "listsRooms": provider.lists_rooms,
         "listsContacts": provider.lists_contacts,
         "startsChats": provider.starts_chats,

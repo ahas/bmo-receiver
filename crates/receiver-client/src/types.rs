@@ -545,13 +545,16 @@ pub struct Window {
   pub closes_at: Option<i64>,
 }
 
-/// A chat provider a room may be on: its key, what it is called, whether it lists the rooms of its account, and the
-/// modes a room added on it may take, as it declares.
+/// A chat provider a room may be on: its key, what it is called, the verbs it performs, whether it lists the rooms
+/// of its account, and the modes a room added on it may take, as it declares.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Provider {
   pub key: String,
   pub label: String,
+  /// Every chat verb it declares it performs, by bmo-chat's names: one provider's own, whatever room it is on.
+  #[serde(default)]
+  pub can: Vec<String>,
   pub lists_rooms: bool,
   #[serde(default)]
   pub lists_contacts: bool,
@@ -712,7 +715,7 @@ pub struct Notice {
   pub created_at: i64,
 }
 
-/// The verbs the road a room is answered on performs.
+/// The verbs of the road a send naming `via` goes out on in a room; one provider's own are its `can`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SendVerbs {

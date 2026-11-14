@@ -431,6 +431,11 @@ Statements the receiver makes that a sibling's document does not yet match, each
   them, to the receiver's one add (`docs/api.md`, 「Supervisors」); its language pack words the add's refusal
   `provider` as a provider that cannot supervise, where the code stands for any road the agency refuses
   (`docs/codes.md`).
+- **The web unit's console** names a room's providers whose account lists rooms where the room's own road performs
+  `history`, reading `send-verbs` for that road, and its `docs/web.md` (「Where a room's line begins」) says the
+  receiver answers a road's verbs for the room's own road alone. Each provider's own verbs stand as its `can` on
+  `GET /providers` (`docs/api.md`, 「Rooms」), so the console can name the providers that perform `history`
+  themselves, until it reads them there.
 - **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
   and `version` and reads back only those, until the agency states the item.
 - **The agency's turns** are re-attached to by the receiver as its `docs/api.md` does not yet state: the send

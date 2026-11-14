@@ -3,9 +3,11 @@
 //! mode, its title and its providers, every refusal where the service does not declare what the choice needs, and
 //! a room answered as the user sending in the account of the person the service reads.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use bmo_chat_client::{ChatCapability, ChatModeStanding, ChatSend, ChatSendRequest, ChatVoice};
+use bmo_receiver::roads::Facts;
 use serde_json::{Value, json};
 
 use crate::integration::common::Scratch;
@@ -48,16 +50,31 @@ async fn each_provider_offers_what_it_declares_and_the_record_offers_nothing() {
   let (front, listing, _plain) = front(&scratch).await;
 
   let (status, every) = get(&front, "/providers").await;
+  let can = |at: usize| -> BTreeSet<String> {
+    serde_json::from_value(every["items"][at]["can"].clone()).expect("a provider's verbs")
+  };
+  let verbs =
+    |names: &[&str]| -> BTreeSet<String> { names.iter().map(|name| (*name).to_owned()).collect() };
 
   assert_eq!(status.as_u16(), 200, "{every}");
+  // Each provider's verbs are its own declaration's, whatever room it is on, so two of one room stand apart.
+  assert_eq!(can(0), Facts::record().can.into_iter().collect::<BTreeSet<String>>());
+  assert_eq!(
+    can(1),
+    verbs(&["text", "delete", "pin", "roomList", "contactList", "startChat", "startGroup"])
+  );
+  assert_eq!(can(2), verbs(&["text", "delete", "pin"]));
   assert_eq!(
     every["items"],
     json!([
-      { "key": "record", "label": every["items"][0]["label"], "listsRooms": false, "listsContacts": false,
+      { "key": "record", "label": every["items"][0]["label"], "can": every["items"][0]["can"],
+        "listsRooms": false, "listsContacts": false,
         "startsChats": false, "startsGroups": false, "roomModes": [] },
-      { "key": "road-a", "label": "the road-a road", "listsRooms": true, "listsContacts": true,
+      { "key": "road-a", "label": "the road-a road", "can": every["items"][1]["can"],
+        "listsRooms": true, "listsContacts": true,
         "startsChats": true, "startsGroups": true, "roomModes": ["avatar", "record-only"] },
-      { "key": "road-b", "label": "the road-b road", "listsRooms": false, "listsContacts": false,
+      { "key": "road-b", "label": "the road-b road", "can": every["items"][2]["can"],
+        "listsRooms": false, "listsContacts": false,
         "startsChats": false, "startsGroups": false, "roomModes": ["record-only"] },
     ])
   );

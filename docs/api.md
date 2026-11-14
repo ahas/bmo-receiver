@@ -106,7 +106,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/owner-spoke` | `person`, `before`, `windowMs` | `owner` and `spoke`: whether the person is the owner, and whether the owner spoke in the span |
 | `GET /rooms/{roomId}/situation` | | `text`, the room's situation note as it stands, and `updatedAt`, when it last changed in epoch milliseconds, both null where the room has none |
 | `GET /rooms/{roomId}/window` | | `openForMs`, the default answerer's window left, and `closesAt` in epoch milliseconds, or null |
-| `GET /providers` | | a page of `Provider` (`key`, `label`, `listsRooms`, `listsContacts`, `startsChats`, `startsGroups`, `roomModes`): every chat provider a room may be on |
+| `GET /providers` | | a page of `Provider` (`key`, `label`, `can`, `listsRooms`, `listsContacts`, `startsChats`, `startsGroups`, `roomModes`): every chat provider a room may be on |
 | `GET /providers/{key}/rooms` | `after` (a room number), `limit` | a page of `AccountRoom` (`id`, `title`, `kind`, `privateTo`, `held`, `mode`): the rooms the provider's account is in |
 | `GET /providers/{key}/contacts` | `after` (a contact number), `limit` | a page of `AccountContact` (`id`, `name`, `kind`, `roomId`, `held`, `mode`): the contacts of the provider's account |
 | `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, and `chosen`, whether the list was set |
@@ -167,6 +167,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
     `startChat` and `startsGroups` whether it declares `startGroup` (「Starting a conversation」 there), and its
     `roomModes` holds `record-only` for every chat service and `avatar` beside it where the service's
     `human-avatar` mode stands active. The record lists nothing, starts nothing and takes no mode.
+  - A `Provider`'s `can` is every chat verb it declares it performs, by bmo-chat's names for them (its
+    `docs/contract.md`, 「Capabilities」), the record's own verbs for the record and none for a chat service that
+    does not answer its declaration. It is the one read of what a provider performs, whatever room it is asked
+    for, so a screen tells two providers of one room apart by it.
   - An `AccountRoom` is the room as the service answers it, `id`, `title` (or null), `kind` (`owner` or
     `group`) and `privateTo` (or null), with `held`, whether the receiver already holds the room (its own, one it
     keeps a title or a message of, or one added), and `mode`, the mode the receiver added it in, or null. A room
@@ -351,11 +355,17 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `began?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor; `own` true for a `speak` asked in the asker's own round |
-| `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs the road a room is answered on performs |
+| `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs of the road a send naming `via` goes out on in the room |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
 
+- **`send-verbs`** answers what a send could do in the room, never what one provider declares: the road it reads is
+  the one `POST /sends` chooses for the same `via`, the road `via` names where the room answers on it and the
+  room's own road otherwise, and the road a send naming none goes out on where `via` is absent
+  (`docs/receiver.md`, 「A room's chat providers」). So every `via` the room does not answer on, a provider it is
+  not on among them, answers the room's own road's verbs. A room no road answers is refused 409 `conflict`. One
+  provider's own verbs are its `can` on `GET /providers`.
 - **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` and
   `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`), and `speak`, a spoken talk asked by its
   `voice`, its written `text` and its `spoken?` words. The act goes out as the asker's agent, on the road the turn

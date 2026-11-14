@@ -760,7 +760,7 @@ pub fn openapi() -> Value {
     "/rooms/{roomId}/send-verbs",
     "sendVerbs",
     "Sends",
-    "The verbs the road a room is answered on performs.",
+    "The verbs of the road a send naming `via` goes out on in the room; one provider's own are its `can` on `GET /providers`.",
     vec![path_parameter("roomId"), parameter("via", "string", false)],
     None,
     vec![(200, json_answer::<SendVerbs>(&mut generator))],
