@@ -271,9 +271,15 @@ pub async fn wakes(
   )
 }
 
-// Whether the room wakes no agent at all: one added for the user alone, or a read-only room, which only the
-// owner's account reads (docs/receiver.md, 「A read-only room」).
+// Whether the room wakes no agent at all: one the receiver does not listen to, one added for the user alone, an
+// archived room, or a read-only room, which only the owner's account reads (docs/receiver.md, 「A read-only room」).
 async fn wakes_nobody(receiver: &Receiver, chat_id: i64) -> Result<bool, NotReceived> {
+  // A room the console's room list does not hold is kept and not listened to (docs/wake.md, 「Who reaches the
+  // session」).
+  if !receiver.listens(chat_id).await? {
+    return Ok(true);
+  }
+
   if added::mode_of(receiver.db(), chat_id).await? == Some(RoomMode::RecordOnly) {
     return Ok(true);
   }

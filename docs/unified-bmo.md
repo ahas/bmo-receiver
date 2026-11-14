@@ -364,12 +364,14 @@ at those moments and tells the brain of a fold it asks of the session itself.
 
 ### Everyone is welcome
 
-- **Defaults:** the receiver listens to every room and every room's run holds the same tools; no room waits on
-  an opt-in, and there is no tool opt-in command.
-- **The listen list marks a room and gates nothing.** The owner's allow command puts a room on the receiver's
-  listen list and his deny command takes it off; the list is the rooms he allowed and has not denied since. The
-  console reads it, as a room's `listened`, true as well for his private room, to tell a room he uses from one a
-  chat service merely numbered (`docs/api.md`, 「Rooms」).
+- **Defaults:** the receiver keeps every room's messages and every room's run holds the same tools; there is no
+  tool opt-in command.
+- **The receiver listens to the rooms the console's room list holds.** The owner's allow command puts a room on
+  the receiver's listen list and his deny command takes it off; the list is the rooms he allowed and has not
+  denied since, and it is one of the ways a room stands on the console's room list, beside his private room, a
+  room added in a mode, a room naming supervisors and a pinned room. Only those rooms wake an agent
+  (`docs/wake.md`, 「Who reaches the session」); a room's `listened` says whether it is one (`docs/api.md`,
+  「Rooms」).
 - **No friend registration:** every participant is treated warmly without one.
 
 ### Owner-only work is the agent's judgement

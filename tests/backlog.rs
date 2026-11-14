@@ -63,6 +63,9 @@ impl Group {
     documents(data.path());
 
     let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+    // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
+    bmo_receiver::receiver::rows::allow_chat(scratch.db(), ROOM).await.unwrap();
+    bmo_receiver::receiver::rows::allow_chat(scratch.db(), ROOM_B).await.unwrap();
     let session = Arc::new(session);
     let receiver = standing.receiver.clone();
     let timings = Timings {

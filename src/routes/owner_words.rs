@@ -55,7 +55,7 @@ pub async fn instruct(State(served): State<Served>, body: Bytes) -> Accepted {
   }
 
   // A chat the service does not serve is not woken, whoever asks; the owner's own room always is.
-  if asked.chat_id != receiver.owner_room() && !rows::is_chat_allowed(asked.chat_id) {
+  if asked.chat_id != receiver.owner_room() && !rows::is_numbered_whole(asked.chat_id) {
     return Err(refused(
       StatusCode::FORBIDDEN,
       "forbidden",

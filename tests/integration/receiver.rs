@@ -82,6 +82,11 @@ async fn stood(rooms: &[i64]) -> (Scratch, tempfile::TempDir, Standing) {
   let chat = Arc::new(StandInChat::new("road-a").holding(rooms));
   let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![chat]);
 
+  // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
+  for room in rooms {
+    bmo_receiver::receiver::rows::allow_chat(scratch.db(), *room).await.unwrap();
+  }
+
   (scratch, data, standing)
 }
 

@@ -344,7 +344,9 @@ pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), 
   open.dedup();
 
   for chat_id in open {
-    if !answers(receiver, chat_id).await {
+    // A room the receiver does not listen to starts no session, however much it holds unread (docs/wake.md,
+    // 「The room's queue and the round」).
+    if !receiver.listens(chat_id).await.unwrap_or(false) || !answers(receiver, chat_id).await {
       continue;
     }
 

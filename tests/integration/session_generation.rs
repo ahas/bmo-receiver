@@ -138,6 +138,8 @@ impl Round {
     documents(data.path());
 
     let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+    // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
+    bmo_receiver::receiver::rows::allow_chat(scratch.db(), OTHER).await.unwrap();
     let receiver = standing.receiver.clone();
     let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 

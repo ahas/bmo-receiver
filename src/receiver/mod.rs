@@ -12,6 +12,7 @@ pub mod handover;
 pub mod hearing;
 pub mod labels;
 pub mod left_board;
+pub mod listening;
 pub mod metadata;
 pub mod notices;
 pub mod pictures;
@@ -788,10 +789,16 @@ impl Receiver {
     inbound.sender_id.is_some() && inbound.sender_id == room.identity
   }
 
-  // Whether the room is listened to: the owner's private chat on every road, and every room the database can
-  // number.
-  fn listened(chat_id: i64, room: Room) -> bool {
-    room.owner_room || rows::is_chat_allowed(chat_id)
+  // Whether the room's messages are kept: the owner's private chat on every road, and every room whose number the
+  // database holds whole, listened to or not (docs/wake.md, 「Who reaches the session」).
+  fn keeps(chat_id: i64, room: Room) -> bool {
+    room.owner_room || rows::is_numbered_whole(chat_id)
+  }
+
+  /// Whether the receiver listens to a room: one the console's room list holds, the owner's private room always
+  /// among them (docs/wake.md, 「Who reaches the session」).
+  pub async fn listens(&self, chat_id: i64) -> Result<bool, Fault> {
+    listening::listens(&self.db, self.owner_room(), chat_id).await
   }
 
   /// Words that arrived in a room.
@@ -812,8 +819,10 @@ impl Receiver {
       return self.acknowledge(chat_id, SettingFact::ChatAllowed).await;
     }
 
-    if !Self::listened(chat_id, room) {
-      println!("bmo-receiver: a message from the room {chat_id}, which is not allowed, was not kept");
+    if !Self::keeps(chat_id, room) {
+      println!(
+        "bmo-receiver: a message from the room {chat_id}, whose number the record cannot hold whole, was not kept"
+      );
 
       return Ok(());
     }
@@ -833,6 +842,11 @@ impl Receiver {
     }
 
     if is_owner && let Some(command) = command {
+      // A setting is acknowledged by the room's own session, which a room not listened to never starts.
+      if !self.listens(chat_id).await? {
+        return Ok(());
+      }
+
       return self.command(inbound, context, room, command).await;
     }
 
@@ -895,9 +909,10 @@ impl Receiver {
     Ok(())
   }
 
-  /// A past message read back from a room, kept for the rooms the receiver listens to and waking nobody.
+  /// A past message read back from a room, kept for every room whose number the record holds whole and waking
+  /// nobody.
   pub async fn history(&self, inbound: &Inbound, context: &Context, room: Room) -> Result<(), NotReceived> {
-    if !Self::listened(inbound.chat_id, room) {
+    if !Self::keeps(inbound.chat_id, room) {
       return Ok(());
     }
 
@@ -913,7 +928,7 @@ impl Receiver {
     room: Room,
     handed: &[bmo_chat_client::MessageFile],
   ) -> Result<(), NotReceived> {
-    if !Self::listened(inbound.chat_id, room) {
+    if !Self::keeps(inbound.chat_id, room) {
       return Ok(());
     }
 

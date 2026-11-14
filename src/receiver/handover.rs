@@ -385,11 +385,14 @@ impl ChatReceiver for Receiver {
     // Read off what is kept alone: the asking service may be answering the receiver's own question about this room,
     // and asking it again would start that pair of questions over (docs/receiver.md, 「What is kept for a moment」).
     let roads = self.roads().kept_alone();
-    let room = roads.room_facts(room_id).await;
     let held = reads::oldest(self.db(), room_id)
       .await
       .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;
-    let listened = Receiver::listened(room_id, room);
+    // Listened to only where the console's room list holds the room (docs/wake.md, 「Who reaches the session」).
+    let listened = self
+      .listens(room_id)
+      .await
+      .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;
     // The people's words of a room added on the asking service, in whatever mode, are its to read
     // (docs/receiver.md, 「A read-only room」).
     let read = providers::read_asked(self.db(), &roads, room_id, &query.via)

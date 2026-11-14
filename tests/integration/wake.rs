@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use bmo_chat_client::MessageFile;
 use bmo_receiver::data_root::DataRoot;
+use bmo_receiver::receiver::rows;
 use bmo_receiver::receiver::wake::agents;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use bmo_receiver::roads::added::{self, RoomMode};
@@ -65,13 +66,18 @@ fn inbound(chat_id: i64, message_id: i64, sender_id: i64, text: &str) -> Inbound
   }
 }
 
-// A receiver over a scratch database and data root of its own, reaching one chat service that holds the rooms.
+// A receiver over a scratch database and data root of its own, reaching one chat service that holds the rooms, each
+// on the listen list so the receiver listens to it (docs/wake.md, 「Who reaches the session」).
 async fn stood(rooms: &[i64]) -> (Scratch, tempfile::TempDir, Standing) {
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").holding(rooms));
 
   let stood = woken(standing(scratch.db(), DataRoot::new(data.path()), vec![chat]));
+
+  for room in rooms {
+    rows::allow_chat(scratch.db(), *room).await.unwrap();
+  }
 
   (scratch, data, stood)
 }
@@ -307,6 +313,8 @@ async fn another_users_private_room_wakes_the_chat_agent_on_every_word_and_a_gro
     .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
   everyone_heard(&scratch).await;
   standing.web.linking(person, "user-9".into());
+  // The person's own private room stands on the console's room list as any other listened room does.
+  rows::allow_chat(scratch.db(), person).await.unwrap();
 
   standing
     .receiver

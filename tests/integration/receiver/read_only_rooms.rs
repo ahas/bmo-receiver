@@ -51,6 +51,9 @@ async fn stood() -> (Scratch, TempDir, Standing, Arc<StandInChat>) {
   road.moding(ChatVoice::HumanReader, ChatModeStanding::Active);
 
   let standing = woken(standing(scratch.db(), DataRoot::new(data.path()), vec![road.clone()]));
+  // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
+  bmo_receiver::receiver::rows::allow_chat(scratch.db(), READER_ROOM).await.unwrap();
+  bmo_receiver::receiver::rows::allow_chat(scratch.db(), BOT_ROOM).await.unwrap();
   let mut agent = registration(AGENT, SENDER, vec![ADDRESS], None);
 
   agent.row.insert("role".to_owned(), json!("chat"));

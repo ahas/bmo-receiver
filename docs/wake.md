@@ -59,6 +59,12 @@ its rounds.
   and stand in the archive, and no ground below is weighed for them, a call by name, a reply to an agent's words,
   an open window and a picture alike. The owner's answer to a job's open question is still handed to bmo-job,
   since that wakes no agent.
+- **Only a room the receiver listens to wakes an agent.** It listens to the rooms the console's room list
+  holds: the owner's private room, which needs nothing more, a room added in a mode, a room naming
+  supervisors, a pinned room, and a room on the listen list (`docs/store.md`, `allowed_chats`). Every other
+  room's messages are kept and stand in the archive, and nothing past that is decided for them: no ground below
+  is weighed, no session starts, and the start-up backlog passes the room by. The owner's answer to a job's
+  open question in his private chat is still handed to bmo-job.
 - **Three grounds, decided before any gate or session.** In any other chat the receiver itself decides, and a
   message reaches the agent's session on exactly three grounds: it calls the agent by name, it replies to a
   message of the agent's own, or that room's window is open.
@@ -205,8 +211,8 @@ its rounds.
 - **An empty queue has no timer,** so a quiet room costs nothing and a busy one costs one run per five seconds
   instead of one per message.
 - **Quiet instructions, touches and the start-up backlog do not queue.** The start-up backlog is one turn per room
-  with unread lines, handed in room order to every agent the room's words wake by the one rule a message is
-  judged by, whichever agent answers the room; its lines are read as the turn goes out, a room with nothing
+  with unread lines, in a room the receiver listens to, handed in room order to every agent the room's words
+  wake by the one rule a message is judged by, whichever agent answers the room; its lines are read as the turn goes out, a room with nothing
   waiting is not served, and a line served is not served again.
 - **A session answers one round at a time, and a round is over only once its answer has gone out.** Sending is
   not instant (the road's send may have to be waited out) so a round that counted

@@ -15,6 +15,7 @@ use serde_json::{Value, json};
 use super::message_files::{inside, type_of};
 use super::{Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::data_root::room_path;
+use crate::receiver::listening::Standing;
 use crate::receiver::reads::PictureWalk;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, metadata, pinned, reads, rows};
@@ -146,6 +147,13 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
     let registered = rows::is_registered(db, room.chat_id).await.map_err(store)?;
     let work = rows::KeptWorkRoom::of(room.chat_id, receiver.owner_room(), registered);
+    let standing = Standing {
+      owner_room: owner_room || room.chat_id == receiver.owner_room(),
+      allowed: listen_list.contains(&room.chat_id),
+      added: modes.contains_key(&room.chat_id),
+      supervised: !supervisors.is_empty(),
+      pinned: pinned.contains(&room.chat_id),
+    };
     items.push(json!({
       "id": room.chat_id,
       "title": title,
@@ -156,7 +164,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "supervisors": supervisors,
       "ownerRoom": owner_room,
       "registered": registered,
-      "listened": owner_room || listen_list.contains(&room.chat_id),
+      "listened": standing.listened(),
       "workRoom": work.chat_id,
       "mode": modes.get(&room.chat_id).map(|mode| mode.as_str()),
     }));

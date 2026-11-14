@@ -122,10 +122,12 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
   people that have stood as a sender, `supervisors`, the names of the supervisors the room names to answer it, in
   name order, empty where it names none,
-  `ownerRoom`, `registered`, `listened`, whether the room stands on the listen list (`allowed_chats`,
-  `docs/store.md`): a room the owner allowed with his allow command and has not denied since, and always his
-  private room; the list gates no message, since the receiver listens to every room, and the console reads it
-  to tell a room the owner uses from one a chat service merely numbered; `workRoom`, where the news, questions
+  `ownerRoom`, `registered`, `listened`, whether the receiver listens to the room: it stands on the console's
+  room list, being the owner's private room, a room added in a mode, a room naming supervisors, a pinned room,
+  or a room on the listen list (`allowed_chats`, `docs/store.md`), one the owner allowed with his allow
+  command and has not denied since. Every room's messages are kept whether it is listened to or not; a room
+  that is not wakes no agent and starts no session (`docs/wake.md`, 「Who reaches the session」), and a chat
+  service asking about it is answered that it is not listened to; `workRoom`, where the news, questions
   and answers of work filed from it are told, and `mode`, the mode it was added in:
   - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
     no agent is woken in it.
@@ -706,7 +708,7 @@ states it; it is repeated here only so one document holds every route the receiv
 |---|---|
 | `PUT /chat/rooms/{roomId}/messages/{messageId}` | hands over a message, live, edited or read back |
 | `PATCH /chat/rooms/{roomId}/messages/{messageId}` | hands over the files a gathering message promised |
-| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room added on the asking provider and still on its list, whatever its mode, and false for every other room (`docs/receiver.md`, 「A read-only room」); the answer is read off what the receiver holds, and no chat service is asked for it (`docs/receiver.md`, 「What is kept for a moment」) |
+| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room added on the asking provider and still on its list, whatever its mode, and false for every other room (`docs/receiver.md`, 「A read-only room」); `listened` is the room's own, as a `Room` answers it (「Rooms」); the answer is read off what the receiver holds, and no chat service is asked for it (`docs/receiver.md`, 「What is kept for a moment」) |
 | `GET /chat/rooms` | asks the rooms whose past it may read back |
 | `POST /chat/avatar-changes` | tells of kept profile pictures that changed |
 

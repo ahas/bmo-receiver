@@ -26,8 +26,8 @@ crate::room_holding!(RoomHolding::Goes {
 // The largest number a room is told apart by without losing a digit on any reader of the database.
 const SAFE_INTEGER: i64 = (1 << 53) - 1;
 
-/// Whether a room is listened to: every room the database can number is.
-pub fn is_chat_allowed(chat_id: i64) -> bool {
+/// Whether a room's messages can be kept: every room whose number the database holds whole.
+pub fn is_numbered_whole(chat_id: i64) -> bool {
   (-SAFE_INTEGER..=SAFE_INTEGER).contains(&chat_id)
 }
 
@@ -107,19 +107,6 @@ pub async fn listen_list<C: ConnectionTrait>(db: &C) -> Result<BTreeSet<i64>, Fa
     .iter()
     .map(|row| row.try_get::<i64>("", "chat_id").map_err(Fault::from))
     .collect()
-}
-
-/// Whether a room stands on the listen list.
-pub async fn is_on_listen_list<C: ConnectionTrait>(db: &C, chat_id: i64) -> Result<bool, Fault> {
-  Ok(
-    one(
-      db,
-      r#"SELECT 1 AS "one" FROM "allowed_chats" WHERE "chat_id" = $1"#,
-      vec![chat_id.into()],
-    )
-    .await?
-    .is_some(),
-  )
 }
 
 pub async fn set_chat_title<C: ConnectionTrait>(db: &C, chat_id: i64, title: &str) -> Result<(), Fault> {

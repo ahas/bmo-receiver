@@ -52,7 +52,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let db = receiver.db();
   let owner_room = receiver.roads().is_owner_room(room).await;
   let registered = rows::is_registered(db, room).await.map_err(store)?;
-  let listened = owner_room || rows::is_on_listen_list(db, room).await.map_err(store)?;
+  let listened = owner_room || receiver.listens(room).await.map_err(store)?;
   let work = rows::KeptWorkRoom::of(room, receiver.owner_room(), registered);
   let shown = reads::shown(db).await.map_err(store)?;
   let line = shown.iter().find(|line| line.chat_id == room);
