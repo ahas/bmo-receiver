@@ -602,7 +602,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /supervisors` | `name`, `label`, `repository` (optional), `room`, and the order: `order` and `quotaShare`, or `provider` and `model`, or both | 201, `supervisor`, the agency's read of it, `brain`, what became of its brain, and `room` (`id`, `takenBack`, `said`) |
+| `POST /supervisors` | `name`, `label`, `repository` (optional), `room`, and the road: `provider`, `model`, and `effort`, `thinking` and `answerTokens` (each optional) | 201, `supervisor`, the agency's read of it, `brain`, what became of its brain, and `room` (`id`, `takenBack`, `said`) |
 | `DELETE /supervisors/{supervisorName}` | `by`, `forgetBrain`, `force` | 204; `unknown-supervisor` (404), `seeded` (409), `default-answerer` (409), `running` (409), `action` (400) |
 | `POST /supervisors/{supervisorName}/resets` | `conversation`, `person`, `dryRun`, `by` | the agency's answer to the reset as it came; `unknown-supervisor` (404) |
 | `GET /supervisors/{supervisorName}/rooms` | | a page of `SupervisorRoom` (`id`, `title`, `named`, `alone`): the rooms it answers |
@@ -629,15 +629,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   room's one provider, the record, and the room's `supervisors`, naming it alone; the supervisor's half is the
   agency's `POST /supervisors`, and its gate options are copied from the default answerer's as they stand. What a
   name may be is the agency's to say. A field the agency refuses comes back as the refusal of that field (`name`,
-  `label`, `provider`, `model`, `repository`; an order's member, `order` or `order[<n>]`, as `order` naming it;
-  `quotaShare` as `quota-share`; a name the agency holds already as `name-taken`; any other as
+  `label`, `provider`, `model`, `repository`; a name the agency holds already as `name-taken`; any other as
   `upstream-failed`). A name the agency registers already is refused `name-taken` before anything is written.
-- **The order is added with it, in one ask.** `order` is its provider order whole, each entry a `provider`, a
-  `model`, and the `effort`, `thinking` and `answerTokens` the agency's order takes, and `quotaShare` the share
-  beside it; the receiver hands both to the agency's add as they came, and the agency judges them as a
-  supervisor's order is judged and writes the row with them. Where the console names `provider` and `model`
-  alone, the order is that one entry at the agency's default share; where it names both, the order's first entry
-  must be that provider and model, or the agency refuses it as `order`.
+- **Its road is added with it, in one ask.** A supervisor stands on one road: `provider` and `model`, with
+  `effort` (a level of the reasoning policy), `thinking` (`on` or `off`) and `answerTokens` (the answer ceiling,
+  on the registry's provider) where the console names them, each left to the provider's own where it does not.
+  The receiver hands the road to the agency's add as it came, and the agency judges it as a road is judged and
+  writes the row with it; a road it refuses, an effort the model does not take among them, comes back as
+  `provider`. A supervisor holds no provider order: the add reads no `order` and no `quotaShare`, and a
+  body naming either is added without it.
 - **`repository` names the repository** the supervisor's items go to, where it names one: a repository the agency
   does not hold (`GET /repositories`) is refused as `repository` before anything is written.
 - **Removing a supervisor asks the agency for its half and takes the receiver's.** Before it asks the agency

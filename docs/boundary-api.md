@@ -216,7 +216,7 @@ room's matter.
 | list sessions | `GET /sessions` | | `items`, each a session's `id`, `agentName`, `scope` — `agent`, `room`, `role` or `conversation` — and `roomId` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |
-| a supervisor registered | `POST /supervisors` | `name`, `label`, `repository` where the console names one, and its order as the console hands it — `order` whole with `quotaShare`, or `provider` and `model`, or both | 201, `supervisor` and `brain`. A field the agency refuses names itself under `field`, an order's member as `order[<n>]`; a name it holds already is 409 `name-taken` |
+| a supervisor registered | `POST /supervisors` | `name`, `label`, `repository` where the console names one, and its road as the console hands it: `provider` and `model`, with `effort`, `thinking` and `answerTokens` where the console names them | 201, `supervisor` and `brain`. A field the agency refuses names itself under `field`, a road it refuses as `provider`; a name it holds already is 409 `name-taken` |
 | a supervisor's registration ended | `DELETE /supervisors/{supervisorName}?rooms=&forgetBrain=&force=` | `rooms`, the room numbers that name it, joined by commas | 204; 409 `seeded` and `running`. A seeded supervisor, and the one the default answerer setting names, is never asked to be taken out: the receiver reads `seeded` off the supervisor first and refuses the console itself |
 | a supervisor started afresh | `POST /supervisors/{supervisorName}/resets` | `conversation`, `person`, `dryRun`, `by`, and `alone` and `shared`, the rooms that name it alone and beside another | the reset's counts as the agency answers them, handed to the console as they came |
 | a run's log | `GET /log-lines?run=&after=` | | `items` |
@@ -424,10 +424,9 @@ or whose number is the one that service gave a delivery, is answered as held and
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:
 
-- **The web unit's console** adds a supervisor in two asks, the receiver's add on the order's first entry and then
-  the whole order on the agency's supervisor, and its language pack holds no wording for the add's refusals
-  `order` and `quota-share`, until it hands the order whole to the receiver's one add (`docs/api.md`,
-  「Supervisors」).
+- **The web unit's console** adds a supervisor on its provider and model alone and sets the rest of its road on
+  the agency's supervisor afterwards, until it hands the whole road, `effort`, `thinking` and `answerTokens` with
+  them, to the receiver's one add (`docs/api.md`, 「Supervisors」).
 - **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
   and `version` and reads back only those, until the agency states the item.
 - **The agency's turns** are re-attached to by the receiver as its `docs/api.md` does not yet state: the send

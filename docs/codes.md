@@ -156,12 +156,10 @@ The refusals of the supervisor routes and of a room's list of supervisors (`docs
 | `name` | 400 | | a name that is no name |
 | `name-taken` | 409 | `name` | the name is another supervisor's |
 | `label` | 400 | | no label |
-| `provider` | 400 | `provider` | a provider that cannot carry the chat line |
+| `provider` | 400 | `provider` | a road the agency refuses, on the provider named: one it does not carry or that cannot carry the chat line, a model the provider does not hold, an effort the model does not take |
 | `model` | 400 | | a model that is no registered model with an address |
 | `repository` | 400 | `repository` | a repository the agency does not hold |
 | `room` | 400 | | no room title |
-| `order` | 400 | `member` | the agency refused the order at the member named, `order` for the whole list or `order[<n>]` for one entry |
-| `quota-share` | 400 | | a quota share that is no fraction from 0 to 1 |
 | `seeded` | 409 | `label` | a supervisor the deployment seeds asked to be removed |
 | `default-answerer` | 409 | `label` | the supervisor the default answerer setting names asked to be removed |
 | `running` | 409 | `label` | a supervisor a turn holds now asked to be removed without `force` |

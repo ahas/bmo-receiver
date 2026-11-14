@@ -18,7 +18,7 @@ pub enum SupervisorRefusal {
   NameTaken { name: String },
   #[error("a supervisor needs a label")]
   Label,
-  #[error("the provider {provider} cannot carry the chat line")]
+  #[error("the agency refused the road on the provider {provider}")]
   Provider { provider: String },
   #[error("the model is chosen among the registered models that have an address")]
   Model,
@@ -26,10 +26,6 @@ pub enum SupervisorRefusal {
   Repository { repository: String },
   #[error("the room needs a title")]
   Room,
-  #[error("the agency refused the order at {member}")]
-  Order { member: String },
-  #[error("the quota share is a fraction from 0 to 1")]
-  QuotaShare,
   #[error("{label} is seeded by the deployment, so it cannot be removed")]
   Seeded { label: String },
   #[error("{label} is the default answerer, so it cannot be removed until another supervisor is")]
@@ -54,8 +50,6 @@ impl SupervisorRefusal {
       | Self::Model
       | Self::Repository { .. }
       | Self::Room
-      | Self::Order { .. }
-      | Self::QuotaShare
       | Self::Action => StatusCode::BAD_REQUEST,
     }
   }

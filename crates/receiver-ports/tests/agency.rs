@@ -271,8 +271,9 @@ async fn a_supervisor_is_added_removed_and_reset_on_the_routes_the_agency_serves
     provider: Some("provider-a".to_owned()),
     model: Some("model-a".to_owned()),
     repository: Some("repository-a".to_owned()),
-    order: Some(json!([{ "provider": "provider-a", "model": "model-a", "effort": "high" }])),
-    quota_share: Some(json!(0.2)),
+    effort: Some("high".to_owned()),
+    thinking: Some("on".to_owned()),
+    answer_tokens: Some(8000),
   };
   let removal = Removal {
     rooms: vec![-5, 7],
@@ -326,8 +327,9 @@ async fn a_supervisor_is_added_removed_and_reset_on_the_routes_the_agency_serves
     "provider": "provider-a",
     "model": "model-a",
     "repository": "repository-a",
-    "order": [{ "provider": "provider-a", "model": "model-a", "effort": "high" }],
-    "quotaShare": 0.2,
+    "effort": "high",
+    "thinking": "on",
+    "answerTokens": 8000,
   });
   let removed = "rooms=-5%2C7&forgetBrain=true&force=false";
 

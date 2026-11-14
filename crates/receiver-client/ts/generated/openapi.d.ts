@@ -2048,16 +2048,6 @@ export interface components {
             id: number;
             text: string;
         };
-        /** @description One entry of an agent's provider order, as the agency's order takes it. */
-        OrderEntry: {
-            /** Format: int64 */
-            answerTokens?: number | null;
-            effort?: string | null;
-            model: string;
-            provider: string;
-            /** @description `on`, `off`, or none for the provider's own. */
-            thinking?: string | null;
-        };
         /** @description The sender an agent's own words stand under in a room. */
         OwnNumber: {
             /** Format: int64 */
@@ -2523,23 +2513,26 @@ export interface components {
             supervisor: unknown;
         };
         /**
-         * @description A supervisor added with a room of the console's own. Its order is `order` whole with `quotaShare`, or
-         *     `provider` and `model` alone, or both, the order's first entry then being that provider and model.
+         * @description A supervisor added with a room of the console's own, on its one road: `provider` and `model`, with `effort`,
+         *     `thinking` and `answerTokens` where it names them, each the provider's own where it does not.
          */
         SupervisorRequest: {
+            /**
+             * Format: int64
+             * @description The answer ceiling, on the registry's provider.
+             */
+            answerTokens?: number | null;
+            /** @description A level of the reasoning policy the model takes. */
+            effort?: string | null;
             label: string;
             model?: string | null;
             name: string;
-            order?: components["schemas"]["OrderEntry"][] | null;
             provider?: string | null;
-            /**
-             * Format: double
-             * @description The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.
-             */
-            quotaShare?: number | null;
             /** @description The repository its items go to, one the agency holds. */
             repository?: string | null;
             room: string;
+            /** @description `on`, `off`, or none for the provider's own. */
+            thinking?: string | null;
         };
         /** @description A reset asked of a supervisor: its ranges, whether it only counts, and who asks. */
         SupervisorReset: {

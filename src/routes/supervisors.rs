@@ -63,9 +63,11 @@ pub struct Added {
   repository: Option<String>,
   room: String,
   #[serde(default)]
-  order: Option<Value>,
+  effort: Option<String>,
   #[serde(default)]
-  quota_share: Option<Value>,
+  thinking: Option<String>,
+  #[serde(default)]
+  answer_tokens: Option<i64>,
 }
 
 #[derive(Deserialize, Default)]
@@ -114,10 +116,6 @@ fn refused_field(refusal: FieldRefusal, provider: &str, repository: &str) -> Ref
     "model" => code(&SupervisorRefusal::Model),
     "repository" => code(&SupervisorRefusal::Repository {
       repository: repository.to_owned(),
-    }),
-    "quotaShare" => code(&SupervisorRefusal::QuotaShare),
-    member if member == "order" || member.starts_with("order[") => code(&SupervisorRefusal::Order {
-      member: member.to_owned(),
     }),
     field => refused(
       StatusCode::BAD_GATEWAY,
@@ -225,8 +223,9 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
     provider: asked.provider.clone(),
     model: asked.model.clone(),
     repository: repository.clone(),
-    order: asked.order.clone(),
-    quota_share: asked.quota_share.clone(),
+    effort: asked.effort.clone(),
+    thinking: asked.thinking.clone(),
+    answer_tokens: asked.answer_tokens,
   };
 
   // The agency stands the supervisor's row and the gate its options; the receiver writes the room half.

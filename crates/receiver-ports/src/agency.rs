@@ -385,9 +385,9 @@ pub struct SessionState {
 }
 
 /// A supervisor the console registers: the name it is registered by, what it is called in the room, the
-/// repository its items go to where it names one, and its order: the order whole with its quota share, or one
-/// provider and model, or both, each handed on as the console gave it for the agency to judge. The rooms it
-/// answers are the receiver's.
+/// repository its items go to where it names one, and its one road: its provider and model, with the effort,
+/// thinking and answer ceiling the console names, each handed on as the console gave it for the agency to judge.
+/// The rooms it answers are the receiver's.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewSupervisor {
@@ -399,10 +399,15 @@ pub struct NewSupervisor {
   pub model: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub repository: Option<String>,
+  /// A level of the reasoning policy; the provider's own where none is named.
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub order: Option<Value>,
+  pub effort: Option<String>,
+  /// `on` or `off`; the provider's own where none is named.
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub quota_share: Option<Value>,
+  pub thinking: Option<String>,
+  /// The answer ceiling, on the registry's provider.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub answer_tokens: Option<i64>,
 }
 
 /// A supervisor's registration ended: the rooms that name it, read as rooms it shares so each keeps its record,

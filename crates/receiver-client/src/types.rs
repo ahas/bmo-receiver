@@ -953,8 +953,8 @@ pub struct TalkAnswer {
   pub answer: Option<String>,
 }
 
-/// A supervisor added with a room of the console's own. Its order is `order` whole with `quotaShare`, or
-/// `provider` and `model` alone, or both, the order's first entry then being that provider and model.
+/// A supervisor added with a room of the console's own, on its one road: `provider` and `model`, with `effort`,
+/// `thinking` and `answerTokens` where it names them, each the provider's own where it does not.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SupervisorRequest {
@@ -968,24 +968,13 @@ pub struct SupervisorRequest {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub repository: Option<String>,
   pub room: String,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub order: Option<Vec<OrderEntry>>,
-  /// The remaining quota, a fraction from 0 to 1, at or below which a provider of its order is passed over.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub quota_share: Option<f64>,
-}
-
-/// One entry of an agent's provider order, as the agency's order takes it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct OrderEntry {
-  pub provider: String,
-  pub model: String,
+  /// A level of the reasoning policy the model takes.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub effort: Option<String>,
   /// `on`, `off`, or none for the provider's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub thinking: Option<String>,
+  /// The answer ceiling, on the registry's provider.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub answer_tokens: Option<i64>,
 }

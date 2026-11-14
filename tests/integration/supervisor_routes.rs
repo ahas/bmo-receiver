@@ -260,7 +260,7 @@ async fn a_field_the_agency_refuses_comes_back_as_the_receivers_code_and_nothing
   let (status, answer) = post(&front, "/supervisors", added()).await;
 
   assert_eq!((status, answer["code"].clone()), (StatusCode::BAD_REQUEST, json!("provider")));
-  assert_eq!(answer["error"], "the provider provider-a cannot carry the chat line");
+  assert_eq!(answer["error"], "the agency refused the road on the provider provider-a");
   assert_eq!(naming(&scratch).await, 0);
   assert_eq!(
     scratch
@@ -292,13 +292,9 @@ async fn a_field_the_agency_refuses_comes_back_as_the_receivers_code_and_nothing
 }
 
 #[tokio::test]
-async fn an_order_handed_whole_goes_to_the_agencys_one_add_with_its_share() {
+async fn the_whole_road_goes_to_the_agencys_one_add_and_an_order_is_not_handed_on() {
   let scratch = Scratch::new().await;
   let front = bench(&scratch).await;
-  let order = json!([
-    { "provider": "provider-a", "model": "model-a", "effort": "high", "thinking": "on" },
-    { "provider": "provider-b", "model": "model-b" },
-  ]);
   let (status, answer) = post(
     &front,
     "/supervisors",
@@ -306,7 +302,12 @@ async fn an_order_handed_whole_goes_to_the_agencys_one_add_with_its_share() {
       "name": ADDED,
       "label": "Agent D",
       "room": "A room of its own",
-      "order": order,
+      "provider": "provider-a",
+      "model": "model-a",
+      "effort": "high",
+      "thinking": "on",
+      "answerTokens": 8000,
+      "order": [{ "provider": "provider-b", "model": "model-b" }],
       "quotaShare": 0.2,
     }),
   )
@@ -316,64 +317,21 @@ async fn an_order_handed_whole_goes_to_the_agencys_one_add_with_its_share() {
 
   let rows = front.standing.agency.added_rows.lock().unwrap().clone();
 
-  assert_eq!(rows.len(), 1, "the supervisor and its order go to the agency in one ask");
+  assert_eq!(rows.len(), 1, "the supervisor and its road go to the agency in one ask");
   assert_eq!(
     serde_json::to_value(&rows[0]).unwrap(),
     json!({
       "name": ADDED,
       "label": "Agent D",
-      "order": order,
-      "quotaShare": 0.2,
+      "provider": "provider-a",
+      "model": "model-a",
+      "effort": "high",
+      "thinking": "on",
+      "answerTokens": 8000,
     }),
-    "the order and its share are handed on as they came, with nothing the console did not name"
+    "the road is handed on as it came, and no order nor share the agency refuses"
   );
   assert_eq!(naming(&scratch).await, 1);
-}
-
-#[tokio::test]
-async fn an_order_or_a_share_the_agency_refuses_comes_back_as_its_own_code() {
-  let scratch = Scratch::new().await;
-  let front = bench(&scratch).await;
-  let refusing = |field: &str| {
-    *front.standing.agency.refusing.lock().unwrap() = Some(FieldRefusal {
-      field: field.to_owned(),
-      error: "Refused.".to_owned(),
-    });
-  };
-  let ordered = || {
-    json!({
-      "name": ADDED,
-      "label": "Agent D",
-      "room": "A room of its own",
-      "order": [{ "provider": "provider-a", "model": "model-a" }],
-      "quotaShare": 2,
-    })
-  };
-
-  refusing("order[0]");
-
-  let (status, answer) = post(&front, "/supervisors", ordered()).await;
-
-  assert_eq!(
-    (status, answer["code"].clone(), answer["error"].clone()),
-    (
-      StatusCode::BAD_REQUEST,
-      json!("order"),
-      json!("the agency refused the order at order[0]")
-    ),
-    "{answer}"
-  );
-
-  refusing("quotaShare");
-
-  let (status, answer) = post(&front, "/supervisors", ordered()).await;
-
-  assert_eq!(
-    (status, answer["code"].clone()),
-    (StatusCode::BAD_REQUEST, json!("quota-share")),
-    "{answer}"
-  );
-  assert_eq!(naming(&scratch).await, 0, "nothing of the room is written");
 }
 
 #[tokio::test]
