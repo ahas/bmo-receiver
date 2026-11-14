@@ -279,6 +279,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   for a kind other than the three, 400 `no-picture-given`
   where the form holds no `picture`, 400 `not-a-picture` where it cannot be read as one, 413 `picture-too-large`
   past `files.toml`'s `largest_bytes`, and an agent standing under no number 404 `no-number`.
+- **These picture routes are the console's one source of profile pictures,** every chat service's among them: a
+  room's, a person's and the owner's own account's. The receiver takes each chat service's pictures from that
+  service's avatar routes and serves them here under the number the service gave the subject, so the console
+  never asks a chat service for one and a new chat service adds no route the console reads (`docs/pictures.md`,
+  「Profile pictures」).
 - **`agentName` and `voice`** stand on a send the receiver archived itself, naming the agent whose words these are
   and the voice the send went out in (`bot-account`, `human-avatar`, `human-reader`); both are null on a message
   that came in from a provider, which the provider's echo of the receiver's own send keeps, since that message is
@@ -710,7 +715,7 @@ states it; it is repeated here only so one document holds every route the receiv
 | `PATCH /chat/rooms/{roomId}/messages/{messageId}` | hands over the files a gathering message promised |
 | `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room added on the asking provider and still on its list, whatever its mode, and false for every other room (`docs/receiver.md`, 「A read-only room」); `listened` is the room's own, as a `Room` answers it (「Rooms」); the answer is read off what the receiver holds, and no chat service is asked for it (`docs/receiver.md`, 「What is kept for a moment」) |
 | `GET /chat/rooms` | asks the rooms whose past it may read back |
-| `POST /chat/avatar-changes` | tells of kept profile pictures that changed |
+| `POST /chat/avatar-changes` | tells of kept profile pictures that changed; the receiver takes each subject named from the provider's avatar routes before it answers (`docs/pictures.md`, 「Profile pictures」) |
 
 The receiver serves the protocol's shapes as `bmo-chat-client` defines them: the client is the published one, and
 the receiver holds no hand-written copy of them. What differs between providers is read from what each declares.
@@ -730,7 +735,7 @@ and in this repository's delivery report.
 | the brain | the agent's brain, whether a consolidation is due for a turn, a session's fold reported |
 | the web unit | the account model: a sender's user, the checks, the grants, a fixed line rendered |
 | the cache warmer | the consumer and its one target, the chat touch |
-| each chat service | every provider route of the protocol, through `bmo-chat-client` |
+| each chat service | every provider route of the protocol, through `bmo-chat-client`, its avatar routes among them for the profile pictures the receiver keeps and serves |
 
 A call is offered again only where the connection was refused, every two seconds until the unit listens; a call
 that reached a listener is never offered again, and nothing bounds how long a unit takes to answer. A call on the

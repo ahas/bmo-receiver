@@ -306,8 +306,8 @@ impl ChatReceiver for Receiver {
     ))
   }
 
-  async fn avatars_changed(&self, _change: AvatarChange) -> Result<(), WireError> {
-    self.news().publish(&crate::events::avatars());
+  async fn avatars_changed(&self, change: AvatarChange) -> Result<(), WireError> {
+    super::avatars::changed(self, &change.via, &change.room_ids, &change.person_ids).await;
 
     Ok(())
   }

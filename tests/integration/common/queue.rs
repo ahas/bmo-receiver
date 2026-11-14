@@ -82,11 +82,17 @@ impl Front {
     self.standing.receiver.clone()
   }
 
+  /// The chat services' hand-over routes of the same receiver, served by the base library's own router behind the
+  /// receiver's token, beside the front a test keeps asking.
+  pub fn handover_routes(&self) -> Router {
+    bmo_receiver::receiver::handover::routes(self.receiver(), TOKEN)
+  }
+
   /// The same front asked on the chat services' hand-over routes, served by the base library's own router behind
   /// the receiver's token.
   pub fn handovers(self) -> Front {
     Front {
-      routes: bmo_receiver::receiver::handover::routes(self.receiver(), TOKEN),
+      routes: self.handover_routes(),
       data: self.data,
       standing: self.standing,
       kicked: self.kicked,
@@ -96,9 +102,12 @@ impl Front {
 
 /// A JSON body posted to the front with the token; the status and the JSON answered.
 pub async fn post(front: &Front, path: &str, body: Value) -> (StatusCode, Value) {
-  let answer = front
-    .routes
-    .clone()
+  posted_to(front.routes.clone(), path, body).await
+}
+
+/// A JSON body posted to routes with the token; the status and the JSON answered.
+pub async fn posted_to(routes: Router, path: &str, body: Value) -> (StatusCode, Value) {
+  let answer = routes
     .oneshot(
       Request::post(path)
         .header("authorization", format!("Bearer {TOKEN}"))

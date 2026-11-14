@@ -8,11 +8,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use bmo_chat_client::{
-  AccountRoomsQuery, ChatCapability, ChatContact, ChatContactKind, ChatDeclaration, ChatDialectDeclaration,
-  ChatDialectLimits, ChatHealth, ChatMediaRequest, ChatMember, ChatMembers, ChatModeStanding,
-  ChatNumberRanges, ChatNumberSpace, ChatNumbering, ChatReach, ChatReadMode, ChatReceiver, ChatSendRequest,
-  ChatSent, ChatStart, ChatStartRequest, ChatVerb, ChatVoice, ClientFailure, ContactsQuery, DialectChecked,
-  DialectReading, MessageFile, Page, ProviderRoom, RoomKind, RoomQuery,
+  AccountRoomsQuery, AvatarsQuery, ChatAvatar, ChatAvatarKind, ChatCapability, ChatContact,
+  ChatContactKind, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits, ChatHealth,
+  ChatMediaRequest, ChatMember, ChatMembers, ChatModeStanding, ChatNumberRanges, ChatNumberSpace,
+  ChatNumbering, ChatPicture, ChatReach, ChatReadMode, ChatReceiver, ChatSendRequest, ChatSent, ChatStart,
+  ChatStartRequest, ChatVerb, ChatVoice, ClientFailure, ContactsQuery, DialectChecked, DialectReading,
+  MessageFile, Page, ProviderRoom, RoomKind, RoomQuery,
 };
 
 use bmo_receiver::data_root::DataRoot;
@@ -96,6 +97,8 @@ pub struct StandInChat {
   pub files: BTreeMap<i64, FilesAnswer>,
   /// Every message whose files were asked again, in the order asked, with the sent time the ask named.
   pub files_asked: Mutex<Vec<(i64, Option<i64>)>>,
+  /// The profile pictures it keeps, by kind and number.
+  pub pictures: Mutex<BTreeMap<(ChatAvatarKind, i64), StandInPicture>>,
   numbered: AtomicI64,
   // The next send, held until the test lets it go, and whether one stands held now.
   held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
@@ -255,6 +258,40 @@ impl StandInChat {
   pub fn send_held(&self) -> bool {
     *self.holding_send.lock().unwrap()
   }
+
+  /// A profile picture it keeps for a room or a person, taken at `taken_at`, on its own list where `listed`, as a
+  /// service whose list leaves out a picture its picture route still serves.
+  pub fn picturing(
+    self,
+    kind: ChatAvatarKind,
+    id: i64,
+    taken_at: i64,
+    bytes: Vec<u8>,
+    listed: bool,
+  ) -> Self {
+    self.pictures.lock().unwrap().insert(
+      (kind, id),
+      StandInPicture {
+        taken_at,
+        bytes,
+        listed,
+      },
+    );
+    self
+  }
+
+  /// A profile picture it no longer keeps.
+  pub fn unpicturing(&self, kind: ChatAvatarKind, id: i64) {
+    self.pictures.lock().unwrap().remove(&(kind, id));
+  }
+}
+
+/// A profile picture a chat stand-in keeps: when it was taken, its bytes, and whether its list names it.
+#[derive(Clone, Debug)]
+pub struct StandInPicture {
+  pub taken_at: i64,
+  pub bytes: Vec<u8>,
+  pub listed: bool,
 }
 
 // A refusal of the stand-in in the error shape, as bmo-chat-client reads one.
@@ -652,6 +689,42 @@ impl Chat for StandInChat {
     let reaches = self.reaches_owner;
 
     Box::pin(async move { Ok(reaches) })
+  }
+
+  fn avatars<'a>(&'a self, query: &'a AvatarsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatAvatar>>> {
+    if let Some(refused) = self.refusing("avatars") {
+      return refused;
+    }
+
+    let mut items: Vec<ChatAvatar> = self
+      .pictures
+      .lock()
+      .unwrap()
+      .iter()
+      .filter(|(_, picture)| picture.listed && query.after.is_none_or(|after| picture.taken_at > after))
+      .map(|((kind, id), picture)| ChatAvatar {
+        kind: *kind,
+        id: *id,
+        taken_at: picture.taken_at,
+      })
+      .collect();
+
+    items.sort_by_key(|listed| listed.taken_at);
+
+    Box::pin(async move { Ok(Page { items, more: false }) })
+  }
+
+  fn avatar(&self, kind: ChatAvatarKind, id: i64) -> BoxFuture<'_, ChatAnswer<Option<ChatPicture>>> {
+    if let Some(refused) = self.refusing("avatar") {
+      return refused;
+    }
+
+    let kept = self.pictures.lock().unwrap().get(&(kind, id)).map(|picture| ChatPicture {
+      mime: "image/png".to_owned(),
+      bytes: picture.bytes.clone(),
+    });
+
+    Box::pin(async move { Ok(kept) })
   }
 }
 

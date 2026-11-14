@@ -78,18 +78,40 @@ receiver keeps the pictures and decides what a session is shown.
 ## Profile pictures
 
 - **Every room and every person the archive knows wears, in the console, the picture its chat service shows for
-  it.** The chat service that can see them hands them over, and tells the receiver with `POST /events`
-  `avatars-updated`; the receiver keeps them under the data root as `avatars/room/<chatId>.jpg` or
-  `avatars/person/<userId>.jpg`.
-- **The `avatars` table** keeps each subject's photo id, its stored path and when it was last taken, for every
-  room and person the archive numbers, the supervisors added on the console and their rooms among them.
+  it**: a room's, a person's and the owner's own account's, from whichever chat service carries it.
+- **The receiver is the console's one source of them.** Every chat service's pictures reach the console through
+  the receiver's picture routes alone; a chat service's own picture routes are the receiver's to read and never
+  the console's, so a chat service never decides how the console learns a picture, and one more chat service
+  adds no path to the console. A profile picture is the first of the elements every chat service has in common,
+  keyed by its kind and its subject; a further common element takes the same shape.
+- **The receiver takes each chat service's pictures from that service,** through bmo-chat's avatar routes
+  (`GET /avatars`, `GET /rooms/{roomId}/avatar`, `GET /people/{personId}/avatar`), on every road the
+  configuration lists. This pull is the one road a picture takes. bmo-chat's contract already has every provider
+  keep its own pictures, serve them on those routes and tell the receiving side which subjects changed, so the
+  receiver reads them on that word and no provider carries a picture to the receiver by a road of its own or is
+  changed for it. A picture is taken three ways:
+  - **on word that pictures changed** (`POST /chat/avatar-changes`, its `roomIds` and `personIds`): each subject
+    the word names is asked of the road that sent it before the word is answered. A picture the road serves is
+    kept, one it answers `not-found` for is let go, and a road that does not answer leaves the kept one standing;
+  - **as the service starts**, each road's list is walked whole, and every picture on it taken later than the one
+    kept is asked for, so a word missed while the receiver was down is caught up;
+  - **then every room and person whose words came on a road and that holds no picture from a chat service** is
+    asked of that road by its subject, so a picture a road serves but leaves off its own list still reaches the
+    console.
+- **A picture is kept under the number the road gave its subject,** the number the room's and the person's lines
+  are kept under, the owner's own account being the person his words on that road stand under. It is laid on white
+  and filed as a JPEG under the data root as `avatars/room/<roomId>.jpg` or `avatars/person/<personId>.jpg`; one
+  that cannot be read as a picture is said in the log and not kept. Taking a picture never stops a room's words.
+- **The `avatars` table** keeps each subject's stored path and when its picture was taken: the `takenAt` the
+  road's list gave, else the moment the receiver fetched it. Every room and person the archive numbers has its
+  row there once a road serves its picture, the supervisors added on the console and their rooms among them.
 - **The receiver serves the kept pictures** on the shape every chat service's protocol gives them: `GET /avatars`
   is a page of the pictures kept, each `kind`, `id` and `takenAt`, oldest taken first; `GET /rooms/{roomId}/avatar`
   and `GET /people/{personId}/avatar` are the picture's bytes, typed by `Content-Type`, 404 `not-found` where none
   is kept or its file is gone. Only a file inside the data root's `avatars/` folder goes out. The console reads
-  the receiver for every number it shows and a chat service's own route for what the receiver does not keep, and
-  carries `takenAt` in the address, so a browser reuses the picture it holds until the picture itself changes.
-  Wherever there is no picture, a name's first letter stands in for one.
+  these routes for every picture it shows, and carries `takenAt` in the address, so a browser reuses the picture
+  it holds until the picture itself changes. Every picture taken, let go, set or unset tells the console with
+  `avatars.changed`. Wherever there is no picture, a name's first letter stands in for one.
 - **A picture is set from the console too,** on one route shape for three kinds of subject:
   `PUT /avatars/{kind}/{subject}`, the body a form with one `picture`, where `kind` is `room` (a room's number),
   `person` (a person's number, the owner's own among them) or `agent` (an agent's registration name, the picture
@@ -100,7 +122,7 @@ receiver keeps the pictures and decides what a session is shown.
   and the one set from the console, on every route that serves one (`GET /rooms/{roomId}/avatar`,
   `GET /people/{personId}/avatar`) and in `GET /avatars`, which lists each subject once, `takenAt` the moment its
   standing picture was taken. `DELETE /avatars/{kind}/{subject}` lets the console-set picture go, so the chat
-  service's stands where one is kept. Each change tells the console with `avatars.changed`.
+  service's stands where one is kept.
 - **Who may set one** is read off the console relay's `Owner-Key`, the signed-in login's user id, and
   `Owner-Role`, `administrator` or `member`: an agent's and a room's picture are the administrator's to set or
   let go; a person's is the administrator's, and any user's whose own senders, as the web unit's account model

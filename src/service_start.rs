@@ -205,8 +205,8 @@ pub fn hearing(standing: &Standing) -> Hearing {
 }
 
 /// The clocks of a running service: the window ends still to come, the open-file watch, the instruction pass over
-/// every agent's rows, the conversations' own clock and the restart; and the agency's events, heard for as long as
-/// the service runs.
+/// every agent's rows, the conversations' own clock and the restart; the chat services' profile pictures taken once;
+/// and the agency's events, heard for as long as the service runs.
 pub fn keep(standing: &Standing) {
   let watching = standing.receiver.clone();
   let releasing = standing.receiver.clone();
@@ -233,6 +233,11 @@ pub fn keep(standing: &Standing) {
       crate::chat::briefing::silence(&silencing);
     }
   });
+  // Every chat service's profile pictures taken as the service starts, so a word that they changed missed while
+  // it was down is caught up (docs/pictures.md, 「Profile pictures」).
+  let picturing = standing.receiver.clone();
+
+  tokio::spawn(async move { crate::receiver::avatars::walk_every(&picturing).await });
   crate::open_files::keep();
   standing.pass.clone().keep();
   standing.conversations.clone().keep_clocks();

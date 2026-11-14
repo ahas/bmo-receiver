@@ -9,9 +9,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bmo_chat_client::{
-  AccountRoomsQuery, ChatContact, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatMembers, ChatPatience,
-  ChatProviderClient, ChatSendRequest, ChatSent, ChatStartRequest, ClientFailure, ContactsQuery,
-  DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RealClock, RoomKind,
+  AccountRoomsQuery, AvatarsQuery, ChatAvatar, ChatAvatarKind, ChatContact, ChatDeclaration, ChatHealth,
+  ChatMediaRequest, ChatMembers, ChatPatience, ChatPicture, ChatProviderClient, ChatSendRequest, ChatSent,
+  ChatStartRequest, ClientFailure, ContactsQuery, DialectChecked, DialectReading, MessageFile, Page,
+  ProviderRoom, RealClock, RoomKind,
 };
 use futures_util::future::BoxFuture;
 
@@ -77,6 +78,22 @@ pub trait Chat: Send + Sync {
 
   /// The room the owner is reached in unprompted.
   fn owner_room(&self) -> BoxFuture<'_, ChatAnswer<Option<i64>>>;
+
+  /// A page of the profile pictures the service keeps, oldest taken first. A service that keeps none answers an
+  /// empty page, which is what one that is asked nothing answers too.
+  fn avatars<'a>(&'a self, _query: &'a AvatarsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatAvatar>>> {
+    Box::pin(async {
+      Ok(Page {
+        items: vec![],
+        more: false,
+      })
+    })
+  }
+
+  /// The profile picture the service keeps for a room or a person, or none where it keeps none.
+  fn avatar(&self, _kind: ChatAvatarKind, _id: i64) -> BoxFuture<'_, ChatAnswer<Option<ChatPicture>>> {
+    Box::pin(async { Ok(None) })
+  }
 }
 
 impl Chat for ChatProviderClient {
@@ -164,6 +181,14 @@ impl Chat for ChatProviderClient {
 
   fn owner_room(&self) -> BoxFuture<'_, ChatAnswer<Option<i64>>> {
     Box::pin(async move { self.owner().await.map(|owner| owner.room_id) })
+  }
+
+  fn avatars<'a>(&'a self, query: &'a AvatarsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatAvatar>>> {
+    Box::pin(ChatProviderClient::avatars(self, query))
+  }
+
+  fn avatar(&self, kind: ChatAvatarKind, id: i64) -> BoxFuture<'_, ChatAnswer<Option<ChatPicture>>> {
+    Box::pin(ChatProviderClient::avatar(self, kind, id))
   }
 }
 

@@ -6,11 +6,10 @@ use axum::extract::{Multipart, Path, State};
 use axum::http::HeaderMap;
 use receiver_codes::AvatarRefusal;
 use receiver_policy::files::FILES;
-use receiver_policy::roads::ROADS;
 use serde_json::{Value, json};
 
 use super::{Answered, Refusal, Served, answered, code, store};
-use crate::receiver::{Receiver, pictures};
+use crate::receiver::{Receiver, avatars};
 use crate::store::Fault;
 use crate::{all, now_ms, one, run};
 
@@ -37,15 +36,7 @@ async fn picture(mut form: Multipart) -> Result<Vec<u8>, Refusal> {
 
 // The picture laid on white and drawn as a JPEG.
 async fn drawn(bytes: Vec<u8>) -> Result<Vec<u8>, Refusal> {
-  let quality = ROADS.pictures.kept_quality;
-
-  tokio::task::spawn_blocking(move || {
-    pictures::decode(&bytes).and_then(|picture| pictures::jpeg(&pictures::on_white(&picture), quality))
-  })
-  .await
-  .ok()
-  .and_then(Result::ok)
-  .ok_or_else(|| code(&AvatarRefusal::NotAPicture))
+  avatars::drawn(bytes).await.ok_or_else(|| code(&AvatarRefusal::NotAPicture))
 }
 
 // Every number an agent stands under in the rooms: each a road or the record gave it, and each its own words are

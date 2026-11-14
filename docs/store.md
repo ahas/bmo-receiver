@@ -52,7 +52,7 @@ takes it outright: the table holds no default agent.
 | `bmo_session_notes` | the rooms whose situation note a chat session holds, each with the version it read or wrote, by its fingerprint (`docs/bmo-window.md`, 「What every turn carries」) | session and room |
 | `collected_items` | a file a message carried, kept in the message-file store (`docs/room-files.md`) | its number; one per room, message and the file's id among its message's files, `file_unique_id` |
 | `message_file_asks` | a message whose files a pass asked its chat service for again, and what the service answered: the outcome, the service's sentence where it gave one, how many files were kept, their bytes and when it was asked (`docs/room-files.md`, 「Files filled in later」) | room and message |
-| `avatars` | the picture a room or a person wears, its photo id, stored path and when it was taken (`docs/pictures.md`) | kind and subject |
+| `avatars` | the picture a chat service shows for a room or a person, taken from that service: its stored path and when it was taken (`docs/pictures.md`) | kind and subject |
 | `avatar_sets` | the picture set on a room or a person from the console, its stored path and when it was set (`docs/pictures.md`) | kind and subject |
 | `random_draws` | a fair draw made in a room (`docs/random-draw.md`) | its number |
 | `random_draw_rooms` | the seed a room's next draw will use and its commitment | room |

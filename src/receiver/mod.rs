@@ -3,6 +3,7 @@
 //! owner setting something, is it the agent's own — keeps it, and hands it to the wake, which decides whom it
 //! wakes. Nothing here reads which service a message came from in order to decide anything.
 
+pub mod avatars;
 pub mod commands;
 pub mod default_answerer;
 pub mod figures;
