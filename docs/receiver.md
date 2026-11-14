@@ -464,8 +464,8 @@ flowchart TD
 
 - **What a chat service says of a room is asked through its room route** (bmo-chat's `GET /rooms/{roomId}`): whether
   the service holds the room, the room's kind, the agent's number there and whose one-to-one it is. These four are
-  the room's facts, and none of them needs the room's title, which the receiver reads off its own record; the
-  route's title is read only where a room is added (「Adding a room」 above).
+  the room's facts. Every screen and turn reads a room's title off the receiver's own record, which follows what
+  the room's chat service calls it (「A room's title」 below).
 - **Who the agent is differs per room,** so it is asked per room, the room route's `identity`. A chat service where
   the agent holds an ordinary account has the agent's own words under an ordinary sender number, and a receiver that
   derived the agent's identity from one service's token would count its own words as unread and fail to recognise a
@@ -495,6 +495,23 @@ flowchart TD
   kept work whose room is gone reaches, the room a console talk and a line typed into the agent's program run as,
   the room that is always served, and `GET /owner`'s `room`. The owner as a
   sender stays his number on each road; a room is never read off it.
+
+## A room's title
+
+- **A room's title is what its chat service calls the room now,** kept on the receiver's record so every screen,
+  turn and hook reads it there without asking a service. The service says it in two places, and either replaces
+  the kept title: a message it hands over carrying the room's title, and its answer for the room (bmo-chat's
+  `GET /rooms/{roomId}`) each time the receiver asks it afresh rather than reading a kept answer (「What is kept
+  for a moment」). So a room whose service renames it, or comes to read another chat under the same number, takes
+  the new title within a span of its facts being read, with no message handed again: the room list reads every
+  room's facts.
+- **The answer that titles a room is the room's own service's:** the first chat service its chosen list names,
+  where the list was chosen; any service that holds the room, where it was not.
+- **A title the service does not give changes nothing:** an answer or a message with no title, or an empty one,
+  leaves the kept title as it stands, and a title equal to the kept one writes nothing.
+- **A room added** takes the title the addition names, else the one its service answers then (「Adding a room」),
+  and follows its service from then on as any room does. A room on the record alone keeps the title it was made
+  under, since no service is asked of it.
 
 ## The room's situation
 

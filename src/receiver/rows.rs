@@ -133,6 +133,26 @@ pub async fn set_chat_title<C: ConnectionTrait>(db: &C, chat_id: i64, title: &st
   .map(drop)
 }
 
+/// A room's kept title replaced by what its chat service calls the room now (docs/receiver.md, 「A room's
+/// title」): a blank title changes nothing, and one equal to the kept title writes nothing. Whether the kept title
+/// changed.
+pub async fn retitle<C: ConnectionTrait>(db: &C, chat_id: i64, title: &str) -> Result<bool, Fault> {
+  if title.trim().is_empty() {
+    return Ok(false);
+  }
+
+  let written = run(
+    db,
+    r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES ($1, $2)
+       ON CONFLICT ("chat_id") DO UPDATE SET "title" = excluded."title"
+       WHERE "chat_titles"."title" IS DISTINCT FROM excluded."title""#,
+    vec![chat_id.into(), title.into()],
+  )
+  .await?;
+
+  Ok(written > 0)
+}
+
 /// A message written down, or written over where the room already holds its number: what was measured of an
 /// earlier answer under that number goes with it. The agent whose words these are and the voice they went out in
 /// are the receiver's own, set on a send the receiver archives itself and none on a message a provider handed

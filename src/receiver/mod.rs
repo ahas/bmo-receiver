@@ -768,7 +768,7 @@ impl Receiver {
   // alike.
   async fn keep(&self, inbound: &Inbound, context: &Context) -> Result<(), NotReceived> {
     if let Some(title) = &context.room_title {
-      rows::set_chat_title(&self.db, inbound.chat_id, title).await?;
+      rows::retitle(&self.db, inbound.chat_id, title).await?;
     }
 
     rows::save_message(&self.db, inbound, None, None).await?;

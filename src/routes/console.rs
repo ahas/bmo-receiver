@@ -138,14 +138,17 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
   let mut items: Vec<Value> = vec![];
 
   for room in listed {
+    // The room's facts are read before its title, since an answer asked afresh carries the title its service
+    // gives it now (docs/receiver.md, 「A room's title」).
+    let owner_room = receiver.roads().is_owner_room(room.chat_id).await;
+    let title = reads::title(db, room.chat_id).await.map_err(store)?;
     let supervisors = crate::receiver::figures::answerers(db, room.chat_id).await.map_err(store)?;
     let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
-    let owner_room = receiver.roads().is_owner_room(room.chat_id).await;
     let registered = rows::is_registered(db, room.chat_id).await.map_err(store)?;
     let work = rows::KeptWorkRoom::of(room.chat_id, receiver.owner_room(), registered);
     items.push(json!({
       "id": room.chat_id,
-      "title": room.title,
+      "title": title,
       "messageCount": room.message_count,
       "lastMessageAt": room.last_message_at,
       "pinned": pinned.contains(&room.chat_id),

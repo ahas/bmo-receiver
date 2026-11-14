@@ -412,7 +412,8 @@ declaration is asked once and kept, except where a room is added: there it is as
 standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road
 and room for a short span (`docs/receiver.md`, 「What is kept for a moment」), except a room the record holds
 alone, of which no service is asked (`docs/receiver.md`, 「A room's chat providers」); a room added reads its
-title there afresh. Whether a service reads a room in the owner's account alone is read off that answer's `modes`, and where
+title there afresh, and an answer asked afresh carries the room's title onto the record (`docs/receiver.md`,
+「A room's title」). Whether a service reads a room in the owner's account alone is read off that answer's `modes`, and where
 the answer states none, off the service's declared modes and the answer's `identity` (`docs/receiver.md`,
 「A read-only room」).
 
@@ -449,9 +450,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
   did, and the tokens they spent. The console's room figures answer `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` null until the agency serves a tally by agent and room.
-- **bmo-chat's `GET /rooms/{roomId}`** answers a room's title beside its facts, and a provider may look the title
-  up on its platform on every ask. The receiver reads the facts alone outside a room's addition and keeps the
-  answer for a short span, until the protocol offers the facts without the title.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver

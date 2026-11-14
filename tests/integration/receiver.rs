@@ -25,6 +25,7 @@ mod room_figures;
 mod room_mode;
 mod room_pictures;
 mod room_providers;
+mod room_titles;
 mod secrets;
 mod send_kinds;
 mod voice;

@@ -358,7 +358,35 @@ impl Roads {
 
     self.rooms.keep(held, said.clone());
 
+    if let Some(title) = said.as_ref().and_then(|room| room.title.as_deref()) {
+      self.retitle(key, chat_id, title).await;
+    }
+
     Some(said)
+  }
+
+  // The room's kept title replaced by what a chat service answered for it afresh, where that service is the
+  // room's own (docs/receiver.md, 「A room's title」): the first chat service its chosen list names, or, where none
+  // was chosen, any service that holds it. A title that could not be written is said and the facts stand.
+  async fn retitle(&self, key: &str, chat_id: i64, title: &str) {
+    let Some(db) = self.store.get() else { return };
+    let titles = match self.chosen(chat_id).await {
+      Some(chosen) => {
+        chosen.iter().find(|named| self.service(named).is_some()).is_some_and(|own| own == key)
+      }
+      None => true,
+    };
+
+    if !titles {
+      return;
+    }
+
+    if let Err(why) = crate::receiver::rows::retitle(db, chat_id, title).await {
+      eprintln!(
+        "bmo-receiver: room {chat_id} kept its title, since the {key} road's could not be written: {}",
+        why.detail
+      );
+    }
   }
 
   /// Whether a chat service holds a room, as it says.
