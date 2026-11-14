@@ -249,6 +249,11 @@ impl ReceiverClient {
     .await
   }
 
+  /// `POST /rooms/{roomId}/file-fills`.
+  pub async fn fill_files(&self, room_id: i64, fill: &FileFill) -> Answer<FileFills> {
+    Self::answered(self.send(Method::POST, &["rooms", &room_id.to_string(), "file-fills"], fill)).await
+  }
+
   /// `GET /rooms/{roomId}/messages/{messageId}/files/{place}`.
   pub async fn message_file(
     &self,

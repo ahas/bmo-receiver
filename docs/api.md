@@ -219,6 +219,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/messages/{messageId}/files` | | a page of `FileEntry` |
 | `GET /rooms/{roomId}/messages/{messageId}/files/{place}` | `download` | the file's bytes |
 | `GET /rooms/{roomId}/messages/{messageId}/picture` | | the picture's bytes |
+| `POST /rooms/{roomId}/file-fills` | `FileFill`: `rows`, `dryRun` | `FileFills` |
 | `GET /rooms/{roomId}/day-start` | `from` (epoch milliseconds) | `messageId`, the first message a person said at or after it, or null |
 | `GET /rooms/{roomId}/pictures` | `at`, `before`, `after`, `limit` | a page of `Picture`, `before` and `total` |
 | `GET /avatars` | `after`, `limit` | a page of `Avatar`: the profile pictures kept, oldest taken first |
@@ -271,6 +272,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **The bytes** answer as a file does over HTTP: `Content-Type`, `Content-Length`, `Accept-Ranges`, and `Range`
   answered 206 or 416. `download=true` adds `Content-Disposition: attachment`. Only bytes inside the room's own
   folder are served; anything else is 404 `not-found`.
+- **A file fill** asks the room's chat service again for the files of placeholder rows that kept none
+  (`docs/room-files.md`, 「Files filled in later」). `FileFill` is `rows` (how many rows the pass may ask, or
+  null for the policy's default; more than the policy's ceiling is read as the ceiling) and `dryRun` (list the
+  rows, ask nothing). `FileFills` is `room`, `rows`, each a `FilledRow` the pass reached, newest first, and
+  `unreached`, the sentence of a road that could not be reached and ended the pass there, or null. A
+  `FilledRow` is `message`, `sentAt`, `outcome` (`filled`, `none`, `unavailable`, `refused`, or null on a dry
+  run), `reason` (the road's own sentence, or null) and `files`, each `kind` (`image` for a picture, else the
+  kind its `collected_items` row names) and `bytes` (what the store holds of it). A room whose road declares no
+  `fetchMedia` is refused 409 `room-fetches-no-files`, and one where a pass already runs 409 `room-files-filling`.
 - **The metadata is opaque:** it is kept and handed back unread, so what it holds is the chat service's to state;
   only its strings are read, each for secret-shaped runs as a message's words are (`docs/messages.md`, 「Secrets
   taken out」).

@@ -8,7 +8,9 @@
 use std::io::Read;
 
 use clap::{Args, Subcommand};
-use receiver_client::{HandoverAsked, ReceiverClient, RoomMode, RoomRegistration};
+use receiver_client::{
+  FileFill, FileFills, FillOutcome, HandoverAsked, ReceiverClient, RoomMode, RoomRegistration,
+};
 use room_calls::additions;
 use room_calls::sends::{
   Act, PhotoInput, Picture, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
@@ -22,10 +24,11 @@ use crate::verbs::{VerbError, asked_sends, messages};
 
 /// The nouns `bmo` dispatches to this command, each marked `home`: the receiver's rooms, the draws its store
 /// keeps and the sessions it hands over are the operations machine's.
-pub const NOUNS: [&str; 10] = [
+pub const NOUNS: [&str; 11] = [
   "room say\thome",
   "room registration\thome",
   "room add\thome",
+  "room fill-files\thome",
   "talk\thome",
   "photo\thome",
   "react\thome",
@@ -68,6 +71,20 @@ pub struct RegistrationArgs {
   /// The administrator's name, as the web unit knows it.
   #[arg(long)]
   pub by: String,
+}
+
+/// The words of `room fill-files`: one room's placeholder rows asked of its chat service again, a bounded pass.
+#[derive(Args, Debug)]
+pub struct FillArgs {
+  /// The room.
+  #[arg(long)]
+  pub room: i64,
+  /// How many rows the pass may ask; the policy's default where none is named, never past its ceiling.
+  #[arg(long)]
+  pub rows: Option<u32>,
+  /// Print the rows the pass would ask, and ask nothing.
+  #[arg(long = "dry-run")]
+  pub dry_run: bool,
 }
 
 /// The words of `room add`: a chat-service room added in record-only mode on the owner's word in the turn, or the
@@ -320,6 +337,60 @@ pub async fn room_registration(config: &Config, args: RegistrationArgs) -> Resul
   .map_err(|why| VerbError::Refused(why.to_string()))?;
 
   Ok(registration_lines(&registration))
+}
+
+// A pass as the verb prints it: a line for each row it reached, then the rows filled, their files and bytes, and
+// where it ended on a road that could not be reached.
+fn fill_lines(filled: &FileFills) -> Vec<String> {
+  let mut lines: Vec<String> = filled
+    .rows
+    .iter()
+    .map(|row| {
+      let outcome = row.outcome.map_or("would ask", |outcome| outcome.as_str());
+      let files: Vec<String> =
+        row.files.iter().map(|file| format!("{} {} bytes", file.kind, file.bytes)).collect();
+      let mut line = format!("message {} sent {}: {outcome}", row.message, row.sent_at);
+
+      if !files.is_empty() {
+        line.push_str(&format!(" ({})", files.join(", ")));
+      }
+      if let Some(reason) = &row.reason {
+        line.push_str(&format!(": {reason}"));
+      }
+
+      line
+    })
+    .collect();
+  let filled_rows: Vec<_> =
+    filled.rows.iter().filter(|row| row.outcome == Some(FillOutcome::Filled)).collect();
+  let files: usize = filled_rows.iter().map(|row| row.files.len()).sum();
+  let bytes: u64 = filled_rows.iter().flat_map(|row| &row.files).map(|file| file.bytes).sum();
+
+  lines.push(format!(
+    "room {}: {} rows reached, {} filled with {files} files, {bytes} bytes",
+    filled.room,
+    filled.rows.len(),
+    filled_rows.len()
+  ));
+  if let Some(why) = &filled.unreached {
+    lines.push(format!("the pass ended on a road it could not reach: {why}"));
+  }
+
+  lines
+}
+
+/// `room fill-files`: a bounded pass over a room's placeholder rows through `POST /rooms/{roomId}/file-fills`.
+pub async fn room_fill_files(config: &Config, args: FillArgs) -> Result<Vec<String>, VerbError> {
+  let asked = FileFill {
+    rows: args.rows,
+    dry_run: args.dry_run,
+  };
+  let filled = client(config)?
+    .fill_files(args.room, &asked)
+    .await
+    .map_err(|why| VerbError::Refused(why.to_string()))?;
+
+  Ok(fill_lines(&filled))
 }
 
 /// `room add`: a chat-service room added in record-only mode through the receiver's own `POST /rooms` on the

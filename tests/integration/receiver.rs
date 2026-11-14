@@ -6,6 +6,7 @@
 mod avatars;
 mod commands;
 mod console_rooms;
+mod file_fills;
 mod files;
 mod job_queue;
 mod message_files;

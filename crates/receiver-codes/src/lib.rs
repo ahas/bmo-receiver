@@ -37,6 +37,7 @@ macro_rules! refused {
 
 pub mod avatars;
 pub mod draws;
+pub mod file_fills;
 pub mod fixed_lines;
 pub mod health;
 pub mod kinds;
@@ -55,6 +56,7 @@ pub mod voice;
 
 pub use avatars::AvatarRefusal;
 pub use draws::{DrawAsked, DrawLine, DrawResult};
+pub use file_fills::FileFillRefusal;
 pub use fixed_lines::FixedLine;
 pub use health::HealthFact;
 pub use kinds::{RunTitle, SessionReason, SkipReason, TurnOpening};
@@ -85,6 +87,8 @@ pub trait Refused: Code + Display {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ReceiverError {
   #[error(transparent)]
+  FileFill(#[from] FileFillRefusal),
+  #[error(transparent)]
   Supervisor(#[from] SupervisorRefusal),
   #[error(transparent)]
   OwnerSend(#[from] OwnerSendRefusal),
@@ -109,6 +113,7 @@ pub enum ReceiverError {
 impl ReceiverError {
   fn inner(&self) -> &dyn Refused {
     match self {
+      Self::FileFill(refusal) => refusal,
       Self::Supervisor(refusal) => refusal,
       Self::OwnerSend(refusal) => refusal,
       Self::RoomAddition(refusal) => refusal,

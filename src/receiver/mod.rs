@@ -6,6 +6,7 @@
 pub mod commands;
 pub mod default_answerer;
 pub mod figures;
+pub mod file_fills;
 pub mod files;
 pub mod handover;
 pub mod hearing;

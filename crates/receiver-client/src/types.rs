@@ -356,6 +356,78 @@ pub struct FileEntry {
   pub kept: bool,
 }
 
+/// `POST /rooms/{roomId}/file-fills`: a pass over a room's placeholder rows, asking its chat service for their
+/// files again.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FileFill {
+  /// How many rows the pass may ask; null for the policy's default, and never more than its ceiling.
+  #[serde(default)]
+  pub rows: Option<u32>,
+  /// List the rows the pass would ask, and ask nothing.
+  #[serde(default)]
+  pub dry_run: bool,
+}
+
+/// What the chat service answered for one row a pass asked for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum FillOutcome {
+  /// Files came back and were kept.
+  Filled,
+  /// The service answered no file.
+  None,
+  /// The platform would not give the files.
+  Unavailable,
+  /// The service refused the ask.
+  Refused,
+}
+
+impl FillOutcome {
+  /// The outcome as the store and the wire name it.
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::Filled => "filled",
+      Self::None => "none",
+      Self::Unavailable => "unavailable",
+      Self::Refused => "refused",
+    }
+  }
+}
+
+/// One file a filled row kept: its kind and the bytes the store holds of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FilledFile {
+  /// `image` for a picture, else the kind its kept row names.
+  pub kind: String,
+  pub bytes: u64,
+}
+
+/// One row a pass reached.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FilledRow {
+  pub message: i64,
+  /// Epoch milliseconds.
+  pub sent_at: i64,
+  /// What the service answered; null on a dry run.
+  pub outcome: Option<FillOutcome>,
+  /// The service's own sentence, where it gave one.
+  pub reason: Option<String>,
+  pub files: Vec<FilledFile>,
+}
+
+/// `POST /rooms/{roomId}/file-fills`: the rows a pass reached, newest first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FileFills {
+  pub room: i64,
+  pub rows: Vec<FilledRow>,
+  /// Why the room's road could not be reached, where that ended the pass; null otherwise.
+  pub unreached: Option<String>,
+}
+
 /// One picture of a room.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

@@ -22,8 +22,10 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 - **Voice notes, ordinary audio, videos, animations, stickers and documents are kept from every sender** in allowed rooms, silently and
   within the configured attachment size cap, in the message-file store: the `collected_items` table and the files
   under `collected/<chatId>/` of the data root. Keeping a file launches nothing and notifies nobody.
-- **The bytes come from the chat service:** with the hand-over (`POST /attachment`), or later as the message's
-  `gathering` promised (`POST /gathered`), or fetched on asking (`POST /media`).
+- **The bytes come from the chat service:** with the hand-over, or later as the message's `gathering` promised,
+  or asked of the service again on its route of a message's files (bmo-chat's `docs/protocol.md`): for a
+  replied-to picture (`docs/pictures.md`, 「Whether an agent looks」) and for a row filled in later (「Files filled
+  in later」).
 - **A file an agent sent is kept from the send itself.** The bytes a send hands over — a file send's document
   or album, a sound, a voice note — are filed under the message the send is kept as, the way a received file
   is and within the same cap: a picture in the picture store (`docs/pictures.md`, 「A picture an agent sent」),
@@ -91,6 +93,50 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   invented for it.
 - **What a room rule asks to be done with the file** is the session's to carry out with a tool: the rule is free
   text the owner can revoke, and a revoked rule stops the action with it.
+
+## Files filled in later
+
+A chat service may hand a message over with only the words it writes for a file it did not carry, and come to
+carry such files later (bmo-chat's `docs/contract.md`, 「Files」). Such a row stands in the room as bare text until
+its files are asked for again.
+
+```mermaid
+flowchart TD
+  A[pass asked for one room] --> B{room's road declares fetchMedia?}
+  B -- no --> R[refused, nothing asked]
+  B -- yes --> C[placeholder rows never asked, newest first, up to the pass's rows]
+  C --> D[ask the road for the row's files]
+  D -- files --> E[kept as a live line's files are]
+  D -- no file, unavailable, refused --> F[outcome recorded on the row]
+  D -- road not reached --> G[pass ends, nothing recorded]
+  E --> F
+```
+
+- **Which rows a pass asks for:** a message of the room whose words are one of the placeholder heads of
+  `policy/roads.toml` (`[filling]`, `heads`), or open with one followed by a space or a line break; with no
+  picture on its row and no row in `collected_items`; not deleted; and never asked before. The heads are data
+  the chat services' placeholder words are matched on, never read as one service's.
+- **Only a room whose road declares `fetchMedia` is filled.** A room no road holds, or whose road declares no
+  `fetchMedia`, is refused before anything is asked.
+- **Each row is asked by its room, its number and its sent time,** one row at a time, the newest first, so a
+  file still on the platform's side is reached before it expires.
+- **What comes back is kept as a live line's files are** (「Message files」; `docs/pictures.md`, 「Pictures
+  received」): the first picture under the message in the picture store with its path on the row and its picture
+  state `stored`, an album's later pictures beside it, and every other file in the message-file store with its
+  row. The row's words are left as they stand. The console reads the row through its usual routes, so it draws
+  the picture and lists the files with nothing more.
+- **Each row is asked once.** What the road answered is recorded in `message_file_asks`, by room and message:
+  `filled` with how many files were kept and their bytes, `none` where the road answered no file, `unavailable`
+  where the platform would not give them, `refused` for any other refusal, with the road's own sentence. A pass
+  never asks a recorded row again. A road that could not be reached at all records nothing and ends the pass
+  there, so a later pass asks the same rows.
+- **A pass is bounded and started by hand:** `POST /rooms/{roomId}/file-fills` (`docs/api.md`, 「Messages」), or
+  the unit command's `room fill-files` (`docs/boundary-api.md`, 「The unit command」). It asks at most `rows` rows
+  of one room, `default_rows` where none is named and never more than `most_rows` (`policy/roads.toml`,
+  `[filling]`); `dryRun` lists the rows it would ask and asks nothing. One pass runs in a room at a time, and a
+  second asked while one runs is refused. Nothing starts a pass on its own.
+- **The answer names every row the pass reached:** its number, its sent time, what the road answered and why,
+  and each file kept with its kind and bytes.
 
 ## Tools that take a path
 

@@ -139,6 +139,13 @@ family. No code carries a sentence in a room's language.
 | `avatar-unoffered` | 409 | `label` | a chat service on the room's list does not offer the avatar mode |
 | `room-takes-no-avatar` | 409 | `label`, `room` | a chat service says the room is never answered in, so it takes no avatar |
 
+### FileFillRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `room-fetches-no-files` | 409 | `room` | no road holds the room, or its road declares no `fetchMedia`, so no row of it can be filled |
+| `room-files-filling` | 409 | `room` | a pass already fills the room's rows |
+
 ### RoomReadRefusal
 
 | Code | Status | Fields | When |

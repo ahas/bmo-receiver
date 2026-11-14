@@ -18,6 +18,8 @@ export type AccountRoom = Schemas["AccountRoom"];
 export type Answerers = Schemas["Answerers"];
 export type Message = Schemas["Message"];
 export type Pictures = Schemas["Pictures"];
+export type FileFill = Schemas["FileFill"];
+export type FileFills = Schemas["FileFills"];
 export type Avatar = Schemas["Avatar"];
 export type Avatars = Schemas["Avatars"];
 export type Figures = Schemas["Figures"];
@@ -161,6 +163,16 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(
         await client.PUT("/rooms/{roomId}/registration", {
           params: { path: { roomId }, query: { by } },
+          body,
+        }),
+      );
+    },
+
+    /** `POST /rooms/{roomId}/file-fills`: a bounded pass over the room's placeholder rows. */
+    async fillFiles(roomId: number, body: FileFill): Promise<FileFills> {
+      return answered(
+        await client.POST("/rooms/{roomId}/file-fills", {
+          params: { path: { roomId } },
           body,
         }),
       );

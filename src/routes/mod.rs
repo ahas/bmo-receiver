@@ -10,6 +10,7 @@ mod console;
 mod drafts;
 mod events;
 mod figures;
+mod file_fills;
 mod handoffs;
 mod handovers;
 mod hooks;
@@ -128,6 +129,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/rooms/{roomId}/messages/{messageId}/files", get(message_files::files)),
     ("GET", "/rooms/{roomId}/messages/{messageId}/files/{place}", get(message_files::file)),
     ("GET", "/rooms/{roomId}/messages/{messageId}/picture", get(message_files::picture)),
+    ("POST", "/rooms/{roomId}/file-fills", post(file_fills::fill)),
     ("GET", "/rooms/{roomId}/day-start", get(console::day_start)),
     ("GET", "/rooms/{roomId}/pictures", get(console::pictures)),
     ("GET", "/avatars", get(message_files::avatars)),

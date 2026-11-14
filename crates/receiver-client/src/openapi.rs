@@ -418,6 +418,17 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "not-found"]
   );
   add!(
+    "POST",
+    "/rooms/{roomId}/file-fills",
+    "fillFiles",
+    "Messages",
+    "A bounded pass over a room's placeholder rows that kept no file, asking its chat service for their files again, each row asked once.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<FileFill>()),
+    vec![(200, json_answer::<FileFills>(&mut generator))],
+    vec!["unauthorized", "bad-request", "room-fetches-no-files", "room-files-filling", "failed"]
+  );
+  add!(
     "GET",
     "/rooms/{roomId}/day-start",
     "dayStart",

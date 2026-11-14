@@ -101,7 +101,7 @@ road name with its base address and token.
 ### The unit command
 
 `bmo-receiver` is the unit command bmo-cli finds (bmo-cli's `docs/api.md`, 「The unit command」). Asked `nouns`,
-it declares ten, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
+it declares eleven, each marked `home` after a tab, since the receiver, its store and the rooms it answers are
 the operations machine's:
 
 | Noun | Words | What it asks |
@@ -109,6 +109,7 @@ the operations machine's:
 | `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to; `--by` names the chat that set it off, the turn's own room where none is named |
 | `room registration` | `--room <id> --by <administrator> [--mode record-only\|avatar]` | `GET /rooms/{roomId}/registration` where no mode is named, printing the mode, the providers and whether the list was chosen, whether the room is read-only and by which chat services, and the answerers; a mode named goes through `PUT /rooms/{roomId}/registration`, and the registration as it now stands is printed the same way |
 | `room add` | `--provider <key> [--room-id <id> \| --contact-id <id> \| --contact-ids <id,…>] [--title <words>]` | `POST /rooms` in `record-only` mode, carrying `provider` and the one of `roomId`, `contactId` or `contactIds` named, with `title` where one is; a call naming none prints the provider's rooms and contacts by name, each with whether the receiver holds it, through `GET /providers`, `GET /providers/{key}/rooms` and `GET /providers/{key}/contacts`; the room's refusals are the receiver's own. Only the owner's word in the turn is served, and no grant names it |
+| `room fill-files` | `--room <id> [--rows <n>] [--dry-run]` | `POST /rooms/{roomId}/file-fills` (`docs/room-files.md`, 「Files filled in later」): one line for each row the pass reached, its number, what the road answered and the kinds and bytes kept, and a last line counting the rows filled and the bytes; `--dry-run` prints the rows it would ask and asks nothing |
 | `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is first asked as the act `speak`: outside the agent's own round that hands the voice note over as its words, and inside it the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the act `voice`, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it; `--spoken`, taken only with `--voice`, names the spoken words the voice synthesises in their place |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
@@ -402,7 +403,8 @@ target-ping hook; `PUT /consumers/{consumer}/targets/chat-touch` with the target
 ### The chat services
 
 Every provider route of bmo-chat's `docs/protocol.md`, through `bmo-chat-client`: `GET /declaration`,
-`GET /health`, `POST /sends`, `POST /rooms/{roomId}/messages/{messageId}/files`, `POST /dialect/readings`,
+`GET /health`, `POST /sends`, `GET /rooms/{roomId}/messages/{messageId}/files` (a replied-to picture, and a row
+filled in later, `docs/room-files.md`, 「Files filled in later」), `POST /dialect/readings`,
 `POST /dialect/checks`, the room routes, `GET /rooms` for the rooms of a service's account, `GET /contacts` for
 its contacts, `POST /rooms` to start a conversation on it, and `GET /owner`. The
 receiver holds no per-provider code: what differs between providers is read from what each declares. The

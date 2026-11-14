@@ -52,10 +52,11 @@ const LISTED: [&str; 19] = [
 ];
 
 // The nouns `bmo` dispatches to this command, each on the operations machine.
-const NOUNS: [&str; 10] = [
+const NOUNS: [&str; 11] = [
   "room say\thome",
   "room registration\thome",
   "room add\thome",
+  "room fill-files\thome",
   "talk\thome",
   "photo\thome",
   "react\thome",

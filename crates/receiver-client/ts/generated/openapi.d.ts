@@ -678,6 +678,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/file-fills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A bounded pass over a room's placeholder rows that kept no file, asking its chat service for their files again, each row asked once. */
+        post: operations["fillFiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/leaders": {
         parameters: {
             query?: never;
@@ -1745,6 +1762,55 @@ export interface components {
             /** Format: uint64 */
             size: number | null;
             type: string | null;
+        };
+        /**
+         * @description `POST /rooms/{roomId}/file-fills`: a pass over a room's placeholder rows, asking its chat service for their
+         *     files again.
+         */
+        FileFill: {
+            /**
+             * @description List the rows the pass would ask, and ask nothing.
+             * @default false
+             */
+            dryRun: boolean;
+            /**
+             * Format: uint32
+             * @description How many rows the pass may ask; null for the policy's default, and never more than its ceiling.
+             * @default null
+             */
+            rows: number | null;
+        };
+        /** @description `POST /rooms/{roomId}/file-fills`: the rows a pass reached, newest first. */
+        FileFills: {
+            /** Format: int64 */
+            room: number;
+            rows: components["schemas"]["FilledRow"][];
+            /** @description Why the room's road could not be reached, where that ended the pass; null otherwise. */
+            unreached: string | null;
+        };
+        /** @description What the chat service answered for one row a pass asked for. */
+        FillOutcome: "filled" | "none" | "unavailable" | "refused";
+        /** @description One file a filled row kept: its kind and the bytes the store holds of it. */
+        FilledFile: {
+            /** Format: uint64 */
+            bytes: number;
+            /** @description `image` for a picture, else the kind its kept row names. */
+            kind: string;
+        };
+        /** @description One row a pass reached. */
+        FilledRow: {
+            files: components["schemas"]["FilledFile"][];
+            /** Format: int64 */
+            message: number;
+            /** @description What the service answered; null on a dry run. */
+            outcome: components["schemas"]["FillOutcome"] | null;
+            /** @description The service's own sentence, where it gave one. */
+            reason: string | null;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            sentAt: number;
         };
         /** @description What a delete of an agent's marks let go. */
         Forgotten: {
@@ -4219,6 +4285,41 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    fillFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileFill"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileFills"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, room-fetches-no-files, room-files-filling, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

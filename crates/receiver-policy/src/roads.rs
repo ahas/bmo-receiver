@@ -73,6 +73,20 @@ pub struct Gathering {
   pub video_extensions: BTreeMap<String, String>,
 }
 
+/// How a row a chat service handed over with its placeholder alone is filled later (docs/room-files.md, 「Files
+/// filled in later」).
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Filling {
+  /// The words a chat service writes for a file it did not carry: a row whose words are one, or open with one
+  /// followed by a space or a line break, is asked for.
+  pub heads: Vec<String>,
+  /// How many rows a pass asks where it names none.
+  pub default_rows: u32,
+  /// How many rows a pass asks at most.
+  pub most_rows: u32,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Roads {
@@ -80,6 +94,7 @@ pub struct Roads {
   pub marks: Marks,
   pub pictures: Pictures,
   pub gathering: Gathering,
+  pub filling: Filling,
 }
 
 crate::part!(pub ROADS: Roads = "roads.toml");

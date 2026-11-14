@@ -970,6 +970,149 @@
         ],
         "type": "object"
       },
+      "FileFill": {
+        "description": "`POST /rooms/{roomId}/file-fills`: a pass over a room's placeholder rows, asking its chat service for their\nfiles again.",
+        "properties": {
+          "dryRun": {
+            "default": false,
+            "description": "List the rows the pass would ask, and ask nothing.",
+            "type": "boolean"
+          },
+          "rows": {
+            "default": null,
+            "description": "How many rows the pass may ask; null for the policy's default, and never more than its ceiling.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rows",
+          "dryRun"
+        ],
+        "type": "object"
+      },
+      "FileFills": {
+        "description": "`POST /rooms/{roomId}/file-fills`: the rows a pass reached, newest first.",
+        "properties": {
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FilledRow"
+            },
+            "type": "array"
+          },
+          "unreached": {
+            "description": "Why the room's road could not be reached, where that ended the pass; null otherwise.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "room",
+          "rows",
+          "unreached"
+        ],
+        "type": "object"
+      },
+      "FillOutcome": {
+        "description": "What the chat service answered for one row a pass asked for.",
+        "oneOf": [
+          {
+            "const": "filled",
+            "description": "Files came back and were kept.",
+            "type": "string"
+          },
+          {
+            "const": "none",
+            "description": "The service answered no file.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "The platform would not give the files.",
+            "type": "string"
+          },
+          {
+            "const": "refused",
+            "description": "The service refused the ask.",
+            "type": "string"
+          }
+        ]
+      },
+      "FilledFile": {
+        "description": "One file a filled row kept: its kind and the bytes the store holds of it.",
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "description": "`image` for a picture, else the kind its kept row names.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "FilledRow": {
+        "description": "One row a pass reached.",
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FilledFile"
+            },
+            "type": "array"
+          },
+          "message": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FillOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the service answered; null on a dry run."
+          },
+          "reason": {
+            "description": "The service's own sentence, where it gave one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sentAt": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "message",
+          "sentAt",
+          "outcome",
+          "reason",
+          "files"
+        ],
+        "type": "object"
+      },
       "Forgotten": {
         "description": "What a delete of an agent's marks let go.",
         "properties": {
@@ -5838,6 +5981,65 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/file-fills": {
+      "post": {
+        "operationId": "fillFiles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileFill"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileFills"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, room-fetches-no-files, room-files-filling, failed"
+          }
+        },
+        "summary": "A bounded pass over a room's placeholder rows that kept no file, asking its chat service for their files again, each row asked once.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "room-fetches-no-files",
+          "room-files-filling",
           "failed"
         ]
       }

@@ -84,6 +84,10 @@ pub struct StandInChat {
   /// What each send is answered with; where none is set, each send is numbered anew, the first 900, as a
   /// platform numbers the messages of a room.
   pub answer: Mutex<Option<ChatSent>>,
+  /// What each message's files are answered with when asked again, by the message's number.
+  pub files: BTreeMap<i64, FilesAnswer>,
+  /// Every message whose files were asked again, in the order asked, with the sent time the ask named.
+  pub files_asked: Mutex<Vec<(i64, Option<i64>)>>,
   numbered: AtomicI64,
   // The next send, held until the test lets it go, and whether one stands held now.
   held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
@@ -186,6 +190,18 @@ impl StandInChat {
   }
 
   /// Every send carried through so far, in order.
+  /// The service answers a message's files as given when they are asked again, and declares `fetchMedia`.
+  pub fn filing(mut self, message: i64, answer: FilesAnswer) -> Self {
+    self.cans.get_mut().unwrap().insert(ChatCapability::FetchMedia);
+    self.files.insert(message, answer);
+    self
+  }
+
+  /// The messages whose files were asked again, in the order asked.
+  pub fn asked_files(&self) -> Vec<i64> {
+    self.files_asked.lock().unwrap().iter().map(|(message, _)| *message).collect()
+  }
+
   pub fn sent(&self) -> Vec<ChatSendRequest> {
     self.sends.lock().unwrap().clone()
   }
@@ -216,6 +232,14 @@ fn answered_with(status: u16, code: bmo_chat_client::ErrorCode, error: &str) -> 
     status,
     answer: Some(bmo_chat_client::WireError::new(code, error)),
   }
+}
+
+/// What a stand-in service answers when a message's files are asked again.
+#[derive(Clone, Debug)]
+pub enum FilesAnswer {
+  Files(Vec<MessageFile>),
+  Refused(u16, bmo_chat_client::ErrorCode, &'static str),
+  Unreachable,
 }
 
 fn not_asked<T>(what: &str) -> BoxFuture<'_, ChatAnswer<T>> {
@@ -336,9 +360,25 @@ impl Chat for StandInChat {
 
   fn message_files<'a>(
     &'a self,
-    _request: &'a ChatMediaRequest,
+    request: &'a ChatMediaRequest,
   ) -> BoxFuture<'a, ChatAnswer<Page<MessageFile>>> {
-    not_asked("for a message's files")
+    let Some(answer) = self.files.get(&request.message_id).cloned() else {
+      return not_asked("for the files of a message no test sets");
+    };
+
+    self.files_asked.lock().unwrap().push((request.message_id, request.sent_at));
+
+    Box::pin(async move {
+      match answer {
+        FilesAnswer::Files(items) => Ok(Page { items, more: false }),
+        FilesAnswer::Refused(status, code, error) => Err(answered_with(status, code, error)),
+        FilesAnswer::Unreachable => Err(ClientFailure::Unreachable {
+          url: "http://the-stand-in.invalid/files".to_owned(),
+          waited: Duration::ZERO,
+          why: "connection refused".to_owned(),
+        }),
+      }
+    })
   }
 
   fn dialect_read<'a>(&'a self, _text: &'a str) -> BoxFuture<'a, ChatAnswer<DialectReading>> {

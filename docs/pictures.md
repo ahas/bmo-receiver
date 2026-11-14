@@ -47,6 +47,8 @@ receiver keeps the pictures and decides what a session is shown.
 - **Photos posted in an allowed room are kept**, as the chat service hands them over or fetches them, as
   `images/<chatId>/<messageId>.jpg` under the data root. An image the chat service hands over as a document of an
   image type goes down the same path.
+- **A picture the chat service did not carry with its message** is filed the same way when a pass fills the row
+  later (`docs/room-files.md`, 「Files filled in later」).
 - **A picture larger than the resize threshold** is downscaled to the maximum dimension and re-encoded as JPEG
   before it is stored, so a session always reads a file it can afford to open; a picture that is not a JPEG and has
   transparency is laid on white and stored as JPEG whatever its size.
