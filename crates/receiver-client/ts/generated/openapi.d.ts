@@ -1744,6 +1744,22 @@ export interface components {
              * @default null
              */
             session: string | null;
+            /**
+             * @description On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in
+             *     order, the row's answer built from them; empty on every other row.
+             * @default []
+             */
+            versions: components["schemas"]["DraftVersion"][];
+        };
+        /** @description One answer of the program's turns a turn of the process spanned (docs/drafting.md, 「The round log」). */
+        DraftVersion: {
+            /**
+             * @description What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or
+             *     `program`, the program on its own (a background task's notice).
+             */
+            opened: string;
+            /** @description That turn's answer as it wrote it. */
+            text: string;
         };
         /** @description The new words of the signed-in person's own message. */
         Editing: {
