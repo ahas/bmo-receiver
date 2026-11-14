@@ -418,8 +418,9 @@ the answer states none, off the service's declared modes and the answer's `ident
 
 A message kept in a room goes to each other chat service on the room's list of providers as a `POST /sends` of
 its words or its files (`docs/receiver.md`, 「A room's chat providers」): `mode` `human-reader` where the owner said
-it and none otherwise, a `tag` naming the delivery, and `replyToMessageId` only where the message it answers stands
-on that service under the service's own number. A hand-over whose `context.tag` names a delivery to that service,
+it and otherwise the voice that service answers the room by, read off the room's mode and the service's
+declared modes, none where that names none, a `tag` naming the delivery, and `replyToMessageId` only where the
+message it answers stands on that service under the service's own number. A hand-over whose `context.tag` names a delivery to that service,
 or whose number is the one that service gave a delivery, is answered as held and kept no second time.
 
 ## Contract gaps

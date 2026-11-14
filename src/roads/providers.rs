@@ -539,7 +539,7 @@ pub async fn carry_act(
         continue;
       }
     };
-    let own = added::voice_in(db, chat_id).await;
+    let own = added::voice_in(db, roads, &key, chat_id).await;
 
     if voice.is_none() || own == voice || roads.reads_only(&key, chat_id).await {
       name(&key, Carriage::Refused(refused.to_string()));
@@ -569,9 +569,9 @@ pub async fn carry_act(
 
 /// A kept message carried to each provider of its room it does not already stand on. The record holds it by being
 /// the archive; each chat service is handed it through its own sends, in the owner's own voice where the owner
-/// said it and in the voice the room answers in otherwise, each send tagged and the number its copy went out as
-/// kept. A service that reads the room in the owner's account alone is handed the owner's words alone. A provider
-/// that refuses or does not answer is said in the journal and leaves the message as it was kept.
+/// said it and in the voice that service answers the room by otherwise, each send tagged and the number its copy
+/// went out as kept. A service that reads the room in the owner's account alone is handed the owner's words alone.
+/// A provider that refuses or does not answer is said in the journal and leaves the message as it was kept.
 pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery) {
   let chat_id = delivery.chat_id;
   let listed = match listed(db, roads, chat_id).await {
@@ -581,12 +581,6 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
 
       return;
     }
-  };
-
-  let voice = if delivery.owner {
-    Some(ChatVoice::HumanReader)
-  } else {
-    added::voice_in(db, chat_id).await
   };
 
   for key in listed.providers {
@@ -605,6 +599,11 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
       continue;
     }
 
+    let voice = if delivery.owner {
+      Some(ChatVoice::HumanReader)
+    } else {
+      added::voice_in(db, roads, &key, chat_id).await
+    };
     let reply = match delivery.reply_to {
       Some(target) => number_on(db, chat_id, target, &key).await,
       None => None,

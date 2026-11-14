@@ -131,7 +131,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   - `avatar`: the room's designated agents answer it as any room's do, and every line the receiver sends there
     that names no voice of its own goes in the provider's `human-avatar` voice, the account of the person the
     provider reads.
-  - null for a room never added: it stands as the roads that handed it messages make it.
+  - null for a room never added: it stands as the roads that handed it messages make it, and every line the
+    receiver sends there that names no voice of its own goes in the provider's `human-avatar` voice where
+    that is the one mode the provider declares active, and names none otherwise (`docs/receiver.md`, 「A room's
+    chat providers」).
 - **A room's registration is read and its mode changed by the administrator alone,** `by` naming him as the web
   unit knows him. `GET /rooms/{roomId}/registration` answers `room`, `mode`, `providers`, `chosen`,
   `answerers`, `readOnly`, whether every chat service on the list reads the room in the owner's account alone,

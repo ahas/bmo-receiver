@@ -8,7 +8,7 @@ use bmo_chat_client::{ChatCapability, ChatDeclaration, ChatModeStanding, ChatVoi
 use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 use serde::{Deserialize, Serialize};
 
-use super::{Road, providers};
+use super::{Road, Roads, providers};
 use crate::receiver::rows;
 use crate::{Fault, all, now_ms, one, run};
 
@@ -107,13 +107,31 @@ pub fn voice_key(voice: ChatVoice) -> Option<String> {
   serde_json::to_value(voice).ok().and_then(|value| value.as_str().map(str::to_owned))
 }
 
-/// The voice a send the receiver makes in a room goes in where it names none of its own: the account of the
-/// person the service reads in a room added `avatar`, and the voice the service answers the room by everywhere
-/// else. A room whose mode cannot be read is said in the journal and answered as any room.
-pub async fn voice_in<C: ConnectionTrait>(db: &C, chat_id: i64) -> Option<ChatVoice> {
+/// The voice a service stands on alone: `human-avatar` where that is the one mode it declares active. The owner's
+/// own voice is never it, since that voice goes on the owner's words alone and is the one a read-only room takes.
+pub fn sole_voice(declared: &ChatDeclaration) -> Option<ChatVoice> {
+  let mut active = declared.modes.iter().filter(|mode| mode.standing == ChatModeStanding::Active);
+
+  match (active.next(), active.next()) {
+    (Some(mode), None) if mode.voice == ChatVoice::HumanAvatar => Some(mode.voice),
+    _ => None,
+  }
+}
+
+/// The voice the service under `key` answers a room by, the one a send the receiver makes there goes in where it
+/// names none of its own (docs/receiver.md, 「A room's chat providers」): the account of the person the service
+/// reads in a room added `avatar`, the one voice the service stands on in a room never added, and none otherwise,
+/// the service answering in its own. A room whose mode cannot be read is said in the journal and names none.
+pub async fn voice_in<C: ConnectionTrait>(
+  db: &C,
+  roads: &Roads,
+  key: &str,
+  chat_id: i64,
+) -> Option<ChatVoice> {
   match mode_of(db, chat_id).await {
     Ok(Some(RoomMode::Avatar)) => Some(ChatVoice::HumanAvatar),
-    Ok(_) => None,
+    Ok(Some(RoomMode::RecordOnly)) => None,
+    Ok(None) => roads.declaration(key).await.as_ref().and_then(sole_voice),
     Err(why) => {
       eprintln!("chat {chat_id}: the room's mode could not be read: {}", why.detail);
 

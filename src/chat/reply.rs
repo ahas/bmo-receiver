@@ -172,9 +172,9 @@ async fn carry(
       // the console and every other reader of the room's conversation read, and which goes on to the room's
       // providers but that road. The copy is the answer as the room holds it: the round's judgements, its
       // mark and its wait are filed under it, where it was kept. The copy names the agent that answered and
-      // the voice the send went out in, the room's avatar voice where it has one.
+      // the voice the send went out in, the one the road answers the room by where it names one.
       Some(id) => {
-        let voice = added::voice_in(receiver.db(), chat_id).await;
+        let voice = added::voice_in(receiver.db(), receiver.roads(), &key, chat_id).await;
         let line = KeptLine {
           sent: Some((&key, Some(id))),
           voice,

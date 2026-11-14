@@ -6,7 +6,9 @@
 use std::sync::Arc;
 
 use axum::{Router, body::Body, extract::Request, http::StatusCode};
-use bmo_chat_client::{ChatSend, ChatVoice};
+use bmo_chat_client::{ChatModeStanding, ChatSend, ChatVoice};
+use bmo_receiver::roads::Road;
+use bmo_receiver::roads::providers::{self, Carried, Delivery};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -18,7 +20,20 @@ const ROOM: i64 = -100;
 
 // A front reaching one chat service that holds the room, the room titled so the receiver holds it.
 async fn front(scratch: &Scratch) -> (Front, Arc<StandInChat>) {
+  declaring(scratch, &[]).await
+}
+
+// The same front, its chat service declaring the read modes given, each by its voice and where it stands.
+async fn declaring(
+  scratch: &Scratch,
+  modes: &[(ChatVoice, ChatModeStanding)],
+) -> (Front, Arc<StandInChat>) {
   let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER));
+
+  for (voice, standing) in modes {
+    road.moding(*voice, *standing);
+  }
+
   let front = stood_on(scratch, OWNER, vec![road.clone()]).await;
 
   scratch
@@ -527,4 +542,84 @@ async fn an_answer_folds_only_where_its_own_mark_asks_it() {
     1,
     "the room's record keeps the words without the mark, a quoted one aside"
   );
+}
+
+// The voice of each send the room's chat service was handed, in order.
+fn voices(road: &StandInChat) -> Vec<Option<ChatVoice>> {
+  road.sent().iter().map(|sent| sent.mode).collect()
+}
+
+#[tokio::test]
+async fn a_room_never_added_is_answered_in_the_one_voice_its_service_stands_on_and_the_owner_in_his_own() {
+  let scratch = Scratch::new().await;
+  let (front, road) = declaring(
+    &scratch,
+    &[
+      (ChatVoice::OwnAccount, ChatModeStanding::Inactive),
+      (ChatVoice::HumanAvatar, ChatModeStanding::Active),
+    ],
+  )
+  .await;
+  let receiver = front.receiver();
+
+  // A line that names no voice goes in human-avatar, the one mode the service has active.
+  let line = receiver.speech().kept(ROOM, "answered as the person", None, None, None).await.unwrap();
+
+  assert_eq!(voices(&road), vec![Some(ChatVoice::HumanAvatar)]);
+
+  // The owner's own words still go in his own voice, above the one the service stands on.
+  let delivery = Delivery {
+    chat_id: ROOM,
+    message_id: line,
+    reply_to: None,
+    owner: true,
+    standing: vec![Road::Record.key().to_owned()],
+    carried: Carried::words("said by the owner"),
+  };
+
+  providers::deliver(receiver.db(), receiver.roads(), &delivery).await;
+  assert_eq!(voices(&road), vec![Some(ChatVoice::HumanAvatar), Some(ChatVoice::HumanReader)]);
+}
+
+#[tokio::test]
+async fn a_rooms_mode_stands_above_the_one_voice_its_service_stands_on() {
+  let scratch = Scratch::new().await;
+  let (front, road) = declaring(&scratch, &[(ChatVoice::HumanAvatar, ChatModeStanding::Active)]).await;
+
+  scratch
+    .run(
+      r#"INSERT INTO "room_modes" ("chat_id", "mode", "added_at") VALUES (-100, 'record-only', 0)"#,
+      vec![],
+    )
+    .await;
+  front
+    .receiver()
+    .speech()
+    .kept(ROOM, "kept for the user alone", None, None, None)
+    .await
+    .unwrap();
+
+  assert_eq!(voices(&road), vec![None], "a record-only room names no voice, as it always has");
+}
+
+#[tokio::test]
+async fn a_room_on_a_service_with_several_modes_active_names_no_voice() {
+  let scratch = Scratch::new().await;
+  let (front, road) = declaring(
+    &scratch,
+    &[
+      (ChatVoice::HumanAvatar, ChatModeStanding::Active),
+      (ChatVoice::OwnAccount, ChatModeStanding::Active),
+    ],
+  )
+  .await;
+
+  front
+    .receiver()
+    .speech()
+    .kept(ROOM, "the service picks", None, None, None)
+    .await
+    .unwrap();
+
+  assert_eq!(voices(&road), vec![None], "the service answers in its own voice");
 }

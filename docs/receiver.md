@@ -131,6 +131,16 @@ flowchart TD
     message stands on that provider under a number of the provider's own.
   - A message the owner said goes in the owner's own voice, `human-reader`, as the chat protocol names a send in
     the owner's own words; any other goes in the voice the provider answers the room by.
+  - The voice a provider answers a room by is the one every send the receiver makes there goes in where the
+    send names none of its own, an agent's answer, a line, a typing indicator or a message carried, and the
+    one an act refused in the voice named is tried again in: `human-avatar` in a room added `avatar`
+    (「Adding a room」); in a room never added, `human-avatar` where the service's declaration holds exactly
+    one mode active and that mode is `human-avatar`, the one voice the service stands on; and none otherwise,
+    the send naming no voice and the service answering in its own. A room in `record-only`, and a room on a
+    service that declares several modes active or none, keep naming none. A voice the send names, the
+    owner's own among them, stands above it. The owner's own voice, `human-reader`, is never the voice a room
+    is answered by, even where it is the one mode a service has active: it goes on the owner's words alone, and
+    a send in it is the one a read-only room takes (「A read-only room」).
   - Each send carries a `tag`, and the number the provider gave it is kept beside the message. A message a
     provider hands over that is the echo of such a send, by its tag or by that number, is the message already
     kept: it is answered as held, kept no second time and wakes nobody.
@@ -246,7 +256,9 @@ flowchart TD
   name, each with whether the receiver holds it, so the owner picks; the addition is the receiver's own
   `POST /rooms` (`docs/api.md`, 「Rooms」) and its refusals are the receiver's own. Avatar mode and an existing
   room's mode are not this road's: the console's registration screen alone changes a mode.
-- **A room never added has no mode** and stands as the roads that handed it messages make it.
+- **A room never added has no mode** and stands as the roads that handed it messages make it. A send there that
+  names no voice of its own goes in `human-avatar` where that is the one mode its service declares active
+  (「A room's chat providers」).
 
 ## Reading and changing a room's mode
 

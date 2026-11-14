@@ -300,8 +300,9 @@ impl Speech {
   }
 
   /// One send carried on a road, its result as the road answers it: what went and its number, or the refusal. A
-  /// send that names no voice goes in the one its room answers in (docs/receiver.md, 「Adding a room」); a road
-  /// that reads the room in the owner's account alone is sent nothing but in the owner's own voice.
+  /// send that names no voice goes in the one the road answers its room by (docs/receiver.md, 「A room's chat
+  /// providers」); a road that reads the room in the owner's account alone is sent nothing but in the owner's own
+  /// voice.
   pub async fn carried(&self, key: &str, request: &ChatSendRequest) -> Result<ChatSent, NotSaid> {
     let service = self.units.roads.chats().road(key).ok_or_else(|| NotSaid::Unlisted {
       road: key.to_owned(),
@@ -309,7 +310,7 @@ impl Speech {
     let mut request = request.clone();
 
     if request.mode.is_none() {
-      request.mode = added::voice_in(&self.db, request.room_id).await;
+      request.mode = added::voice_in(&self.db, &self.units.roads, key, request.room_id).await;
     }
 
     if request.mode != Some(ChatVoice::HumanReader)

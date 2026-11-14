@@ -198,7 +198,7 @@ impl Sends {
       .unwrap_or_else(|| self.receiver.default_answerer());
     let voice = match request.mode {
       Some(mode) => Some(mode),
-      None => added::voice_in(self.receiver.db(), chat_id).await,
+      None => added::voice_in(self.receiver.db(), self.receiver.roads(), key, chat_id).await,
     };
     let text = kept_line(&request.send);
     let line = KeptLine {
@@ -440,7 +440,7 @@ impl Sends {
   async fn carried(&self, key: &str, going: &Going, asked: &ChatSendRequest) -> Result<Sent, NotSent> {
     let mode = match asked.mode {
       Some(mode) => Some(mode),
-      None => added::voice_in(self.receiver.db(), asked.room_id).await,
+      None => added::voice_in(self.receiver.db(), self.receiver.roads(), key, asked.room_id).await,
     };
 
     if mode != Some(ChatVoice::HumanReader) && self.receiver.roads().reads_only(key, asked.room_id).await {
