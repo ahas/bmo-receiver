@@ -387,8 +387,8 @@ impl ChatReceiver for Receiver {
       .await
       .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;
     let listened = Receiver::listened(room_id, room);
-    // The people's words of a read-only room added on the asking service are its to read (docs/receiver.md,
-    // 「A read-only room」).
+    // The people's words of a room added on the asking service, in whatever mode, are its to read
+    // (docs/receiver.md, 「A read-only room」).
     let read = providers::read_asked(self.db(), self.roads(), room_id, &query.via)
       .await
       .map_err(|why| WireError::new(ErrorCode::Failed, format!("The room could not be read: {why}.")))?;

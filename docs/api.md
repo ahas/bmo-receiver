@@ -695,7 +695,7 @@ states it; it is repeated here only so one document holds every route the receiv
 |---|---|
 | `PUT /chat/rooms/{roomId}/messages/{messageId}` | hands over a message, live, edited or read back |
 | `PATCH /chat/rooms/{roomId}/messages/{messageId}` | hands over the files a gathering message promised |
-| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true only for a read-only room added on the asking provider and still on its list (`docs/receiver.md`, 「A read-only room」) |
+| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room added on the asking provider and still on its list, whatever its mode, and false for every other room (`docs/receiver.md`, 「A read-only room」) |
 | `GET /chat/rooms` | asks the rooms whose past it may read back |
 | `POST /chat/avatar-changes` | tells of kept profile pictures that changed |
 

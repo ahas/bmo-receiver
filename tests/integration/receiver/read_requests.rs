@@ -1,7 +1,7 @@
 //! A read-only room's modes and its read request (docs/receiver.md, 「A read-only room」 and 「Adding a room」): a
 //! room's stated modes decide whether its service reads it in the owner's account alone before the marker of no
 //! identity does; the receiver asks a service to read the people's words of a room only where the room was added
-//! on that service, is still on its list and is read-only; and a read-only room takes no mode that answers.
+//! on that service and is still on its list, whatever its mode; and a read-only room takes no mode that answers.
 
 use std::sync::Arc;
 
@@ -105,8 +105,7 @@ async fn a_room_s_stated_modes_decide_whether_it_is_read_in_the_owner_s_account_
 }
 
 #[tokio::test]
-async fn a_read_only_room_is_asked_to_be_read_only_once_added_on_the_asking_service_and_while_on_its_list()
-{
+async fn a_room_is_asked_to_be_read_only_once_added_on_the_asking_service_and_while_on_its_list() {
   let scratch = Scratch::new().await;
   let (front, _road) = front(&scratch).await;
 
@@ -122,8 +121,8 @@ async fn a_read_only_room_is_asked_to_be_read_only_once_added_on_the_asking_serv
 
   assert_eq!(status.as_u16(), 201, "{added}");
   assert!(
-    !read(&front, BOT_ROOM, "road-a").await,
-    "a room the service answers in is not read-only"
+    read(&front, BOT_ROOM, "road-a").await,
+    "an added room is asked for though the service answers in it"
   );
 
   // Taken off the service's list, the room is no longer the service's to read.

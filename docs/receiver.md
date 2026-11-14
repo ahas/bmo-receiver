@@ -186,11 +186,14 @@ flowchart TD
   on the record alone is answered in the console as any room is.
 - **A read-only room is listed, read and kept like any other,** and its messages stand in the archive, where the
   agents read them as archived messages from their turns elsewhere.
-- **The people's words in a read-only room are read only where the room was added.** A chat service reading a
-  room through the owner's account asks the receiver for the room (`docs/api.md`, 「The chat services」), and the
-  answer's `read` is true only for a room added on that service (「Adding a room」) that is still on its list of
-  providers and is read-only; for every other room it is false. So a room of the owner's account that was never
-  added hands over the owner's own words alone, and one added hands over everyone's.
+- **The people's words in a room of the owner's account are read only where the room was added.** A chat
+  service reading a room through the owner's account asks the receiver for the room (`docs/api.md`, 「The chat
+  services」), and the answer's `read` is true for a room added on that service (「Adding a room」) that is still
+  on its list of providers, whatever its mode; for every other room it is false. So a room of the owner's account
+  that was never added hands over the owner's own words alone, and one added hands over everyone's: a room added
+  `avatar`, which is not read-only once its service answers there as the person, is read as a room added
+  `record-only` is, so the words its agents answer reach it. A service that reads a room through an account of its
+  own reads it whether asked or not, and a `read` there asks it nothing more.
 - **The agents never answer in it:** no message wakes an agent there, whether it calls one by name, replies to
   one's words, falls in an open window or carries a picture (`docs/wake.md`, 「Who reaches the session」); a quiet
   instruction queued for it is let go undelivered; a send an agent asks into it is refused `read-only-room`
