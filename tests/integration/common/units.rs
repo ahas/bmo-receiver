@@ -85,6 +85,8 @@ pub struct StandInChat {
   pub contacts: Vec<ChatContact>,
   /// The members of each room it has read, by the room's number; a room not here holds none it has read.
   pub members: BTreeMap<i64, Vec<ChatMember>>,
+  /// Whether it was built before the protocol carried the members route, so no route answers there.
+  pub routeless_members: bool,
   pub contacts_asked: Mutex<Vec<ContactsQuery>>,
   pub starts: Mutex<Vec<ChatStartRequest>>,
   /// What each send is answered with; where none is set, each send is numbered anew, the first 900, as a
@@ -167,6 +169,12 @@ impl StandInChat {
   /// The kinds of send a voice refuses with the platform's own reason.
   pub fn refusing_in(mut self, voice: ChatVoice, verbs: &[ChatVerb]) -> Self {
     self.voice_refusals.extend(verbs.iter().map(|verb| (voice, *verb)));
+    self
+  }
+
+  /// A service built before the protocol carried the members route: asking it answers that no route stands there.
+  pub fn routeless_members(mut self) -> Self {
+    self.routeless_members = true;
     self
   }
 
@@ -496,6 +504,14 @@ impl Chat for StandInChat {
     }
 
     Box::pin(async move {
+      if self.routeless_members {
+        return Err(answered_with(
+          404,
+          bmo_chat_client::ErrorCode::NoRoute,
+          &format!("There is no route at GET /rooms/{chat_id}/members."),
+        ));
+      }
+
       if !self.cans.lock().unwrap().contains(&ChatCapability::MemberList) {
         return Err(answered_with(
           422,

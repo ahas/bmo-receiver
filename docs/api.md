@@ -205,8 +205,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   lists them; nothing is written and the room is not changed. A person is named by the number the room's messages
   carry as their sender, never by a platform's own identifier, so a screen links an account and a kept picture by
   that number. A room the receiver holds nothing of is refused 404 `not-found`; a room on the record alone 409
-  `record-only-room`; a room whose service does not declare `memberList` 409 `members-unlisted`; a room whose
-  service holds no members of it, or refuses, 409 `members-unheld` with the service's own sentence as `detail`;
+  `record-only-room`; a room whose service does not declare `memberList`, or serves no members route at all, 409 `members-unlisted`; a room whose
+  service holds no members of it, or refuses, 409 `members-unheld`, its sentence carrying the service's own;
   and a service that does not answer 502 `upstream-failed`.
 - **A body naming no `provider`, a `title` and the `supervisors` that answer it** makes an agent room: the
   receiver numbers it in the record's own range, sets its one provider to the record, writes its title and its

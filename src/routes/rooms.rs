@@ -804,7 +804,11 @@ pub async fn room_members(State(served): State<Served>, Path(room): Path<i64>) -
 
   match service.members(room).await {
     Ok(listed) => answered(json!(listed)),
-    Err(failure) if failure.code() == Some(ErrorCode::UnsupportedCapability) => {
+    // A service built before the protocol carried the route answers that no route stands there, which says the
+    // same as a service that does not declare the capability.
+    Err(failure)
+      if matches!(failure.code(), Some(ErrorCode::UnsupportedCapability | ErrorCode::NoRoute)) =>
+    {
       let label = receiver.roads().facts(&Road::Service(key)).await.label;
 
       Err(code(&RoomMembersRefusal::MembersUnlisted { label }))

@@ -135,7 +135,7 @@ family. No code carries a sentence in a room's language.
 | Code | Status | Fields | When |
 |---|---|---|---|
 | `record-only-room` | 409 | `room` | the room stands on the record alone, so no chat service lists its members |
-| `members-unlisted` | 409 | `label` | the room's chat service does not declare that it lists the members of a room |
+| `members-unlisted` | 409 | `label` | the room's chat service does not declare that it lists the members of a room, or serves no route for them |
 | `members-unheld` | 409 | `label`, `detail` | the room's chat service holds no members of the room, or refused them, for its own reason |
 
 ### RoomModeRefusal
