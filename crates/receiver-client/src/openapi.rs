@@ -584,11 +584,12 @@ pub fn openapi() -> Value {
     "/providers/{key}/contacts",
     "accountContacts",
     "Rooms",
-    "The contacts of a provider's account, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in.",
+    "The contacts of a provider's account, or of the account `accountId` names, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in.",
     vec![
       name_parameter("key"),
       parameter("after", "integer", false),
-      parameter("limit", "integer", false)
+      parameter("limit", "integer", false),
+      parameter("accountId", "integer", false)
     ],
     None,
     vec![(200, json_answer::<Page<AccountContact>>(&mut generator))],

@@ -495,7 +495,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The contacts of a provider's account, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in. */
+        /** The contacts of a provider's account, or of the account `accountId` names, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in. */
         get: operations["accountContacts"];
         put?: never;
         post?: never;
@@ -2563,9 +2563,14 @@ export interface components {
         };
         /**
          * @description `POST /rooms`: a conversation a chat service starts, a one-to-one with `contact_id` or a group of
-         *     `contact_ids` under `title`, added in a mode as the room it comes to.
+         *     `contact_ids` under `title`, in the account `account_id` names, added in a mode as the room it comes to.
          */
         StartRoom: {
+            /**
+             * Format: int64
+             * @description The account the conversation is started in; unnamed, the service's own.
+             */
+            accountId?: number | null;
             /** Format: int64 */
             contactId?: number | null;
             contactIds?: number[] | null;
@@ -3848,6 +3853,7 @@ export interface operations {
             query?: {
                 after?: number;
                 limit?: number;
+                accountId?: number;
             };
             header?: never;
             path: {

@@ -10,8 +10,9 @@ use std::time::Duration;
 use bmo_chat_client::{
   AccountRoomsQuery, ChatCapability, ChatContact, ChatContactKind, ChatDeclaration, ChatDialectDeclaration,
   ChatDialectLimits, ChatHealth, ChatMediaRequest, ChatModeStanding, ChatNumberRanges, ChatNumberSpace,
-  ChatNumbering, ChatReach, ChatReadMode, ChatSendRequest, ChatSent, ChatStart, ChatVerb, ChatVoice,
-  ClientFailure, ContactsQuery, DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RoomKind,
+  ChatNumbering, ChatReach, ChatReadMode, ChatSendRequest, ChatSent, ChatStart, ChatStartRequest, ChatVerb,
+  ChatVoice, ClientFailure, ContactsQuery, DialectChecked, DialectReading, MessageFile, Page, ProviderRoom,
+  RoomKind,
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{
@@ -78,9 +79,11 @@ pub struct StandInChat {
   pub voice_refusals: Vec<(ChatVoice, ChatVerb)>,
   /// How often a send was turned down for the voice it was asked in.
   pub turn_downs: AtomicUsize,
-  /// The contacts of its account, and every conversation it was asked to start.
+  /// The contacts of its account, every listing of them it was asked for, and every conversation it was asked
+  /// to start.
   pub contacts: Vec<ChatContact>,
-  pub starts: Mutex<Vec<ChatStart>>,
+  pub contacts_asked: Mutex<Vec<ContactsQuery>>,
+  pub starts: Mutex<Vec<ChatStartRequest>>,
   /// What each send is answered with; where none is set, each send is numbered anew, the first 900, as a
   /// platform numbers the messages of a room.
   pub answer: Mutex<Option<ChatSent>>,
@@ -164,7 +167,7 @@ impl StandInChat {
   }
 
   /// Every conversation it was asked to start, in order.
-  pub fn started(&self) -> Vec<ChatStart> {
+  pub fn started(&self) -> Vec<ChatStartRequest> {
     self.starts.lock().unwrap().clone()
   }
 
@@ -460,6 +463,8 @@ impl Chat for StandInChat {
 
   fn contacts<'a>(&'a self, query: &'a ContactsQuery) -> BoxFuture<'a, ChatAnswer<Page<ChatContact>>> {
     Box::pin(async move {
+      self.contacts_asked.lock().unwrap().push(*query);
+
       if !self.cans.lock().unwrap().contains(&ChatCapability::ContactList) {
         return Err(answered_with(
           422,
@@ -491,14 +496,14 @@ impl Chat for StandInChat {
 
   /// A one-to-one comes to the contact's room, or to a room numbered by the contact, read-only; a group to room
   /// -700, read as any room of the service's; a group titled "Refused" is refused by the platform.
-  fn start_chat<'a>(&'a self, start: &'a ChatStart) -> BoxFuture<'a, ChatAnswer<ProviderRoom>> {
+  fn start_chat<'a>(&'a self, request: &'a ChatStartRequest) -> BoxFuture<'a, ChatAnswer<ProviderRoom>> {
     Box::pin(async move {
-      self.starts.lock().unwrap().push(start.clone());
+      self.starts.lock().unwrap().push(request.clone());
 
       let contact = |id: i64| self.contacts.iter().find(|contact| contact.id == id);
       let unknown = || answered_with(404, bmo_chat_client::ErrorCode::NotFound, "No such contact.");
 
-      match start {
+      match &request.start {
         ChatStart::OneToOne { contact_id } => {
           let contact = contact(*contact_id).ok_or_else(unknown)?;
 

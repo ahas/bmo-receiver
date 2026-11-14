@@ -3,15 +3,20 @@
 //! own words are filed under. The agents themselves are the agency's registrations, read through its port, so
 //! an agent added as a row is judged the same way with nothing here naming it.
 
+use std::sync::Arc;
 use std::time::Duration;
 
+use futures_util::future::BoxFuture;
 use serde_json::{Map, Value};
 
-use receiver_ports::agency::{Agent, Agents};
+use receiver_ports::agency::{Agency, Agent, Agents};
+use receiver_ports::http::Answer;
 use sea_orm::DatabaseConnection;
 
 use super::asked;
+use crate::kept::Kept;
 use crate::receiver::{NotReceived, Receiver, Room};
+use crate::roads::SendingAccount;
 use crate::secrets;
 use crate::{all, now_ms, one, run};
 
@@ -164,6 +169,100 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
         default_answerer: true,
       }),
   )
+}
+
+/// A room's leaders (docs/api.md, 「Rooms」): the accounts that own one of its named agents, each once, in order.
+pub fn leaders_of(named: &[Designated]) -> Vec<i64> {
+  let mut leaders: Vec<i64> = named.iter().filter_map(|agent| agent.owner_account).collect();
+
+  leaders.sort_unstable();
+  leaders.dedup();
+  leaders
+}
+
+/// The account a send into a room goes out in, of the room's named agents (docs/receiver.md, 「A room's chat
+/// providers」): the account of the agent the send speaks as where it is one of them and names one, else the one
+/// leader of a room that has exactly one, and none otherwise.
+pub fn sending_account(named: &[Designated], speaker: Option<&str>) -> Option<i64> {
+  let speaking = speaker.and_then(|speaker| named.iter().find(|agent| agent.name == speaker));
+
+  if let Some(account) = speaking.and_then(|agent| agent.owner_account) {
+    return Some(account);
+  }
+
+  match leaders_of(named).as_slice() {
+    [only] => Some(*only),
+    _ => None,
+  }
+}
+
+/// The agency's list of agents as the receiver keeps it for a moment (docs/receiver.md, 「What is kept for a
+/// moment」), and the account each send goes out in, read from the room's leaders over that list. Where the list
+/// or the room's record cannot be read, a send names no account, and the journal says why.
+pub struct Leaders {
+  db: DatabaseConnection,
+  agency: Arc<dyn Agency>,
+  agents: Kept<(), Agents>,
+}
+
+impl Leaders {
+  /// The leaders read from the receiver's store and the agency, the agency's list kept for `span`.
+  pub fn new(db: DatabaseConnection, agency: Arc<dyn Agency>, span: Duration) -> Self {
+    Self {
+      db,
+      agency,
+      agents: Kept::new(span),
+    }
+  }
+
+  /// Every agent the agency registers, awake or not, as the agency last answered within the span, and asked of it
+  /// where it has not.
+  pub async fn agents(&self) -> Answer<Agents> {
+    if let Some(kept) = self.agents.get(&()) {
+      return Ok(kept);
+    }
+
+    let listed = self.agency.supervisors().await?;
+
+    self.agents.keep((), listed.clone());
+
+    Ok(listed)
+  }
+
+  /// The kept list let go, so the next read asks the agency.
+  pub fn forget(&self) {
+    self.agents.forget(|_| true);
+  }
+}
+
+impl SendingAccount for Leaders {
+  fn of<'a>(&'a self, chat_id: i64, speaker: Option<&'a str>) -> BoxFuture<'a, Option<i64>> {
+    Box::pin(async move {
+      let named = match self.agents().await {
+        Ok(listed) => {
+          let awake: Vec<Designated> = listed
+            .agents
+            .iter()
+            .filter(|agent| agent.awake)
+            .map(|agent| Designated::of(agent, ""))
+            .collect();
+
+          named_among(&self.db, chat_id, &awake).await.map_err(|why| why.to_string())
+        }
+        Err(why) => Err(why.to_string()),
+      };
+
+      match named {
+        Ok(named) => sending_account(&named, speaker),
+        Err(why) => {
+          eprintln!(
+            "chat {chat_id}: a send names no account, since the room's leaders could not be read: {why}"
+          );
+          None
+        }
+      }
+    })
+  }
 }
 
 /// The awake agents a room records as its answerers; none where it names nobody.

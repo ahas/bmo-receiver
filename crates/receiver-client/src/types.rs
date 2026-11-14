@@ -82,7 +82,7 @@ pub struct AddRoom {
 }
 
 /// `POST /rooms`: a conversation a chat service starts, a one-to-one with `contact_id` or a group of
-/// `contact_ids` under `title`, added in a mode as the room it comes to.
+/// `contact_ids` under `title`, in the account `account_id` names, added in a mode as the room it comes to.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StartRoom {
@@ -95,6 +95,9 @@ pub struct StartRoom {
   /// The room's title; a group's, which a group needs.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub title: Option<String>,
+  /// The account the conversation is started in; unnamed, the service's own.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account_id: Option<i64>,
 }
 
 /// The body of `POST /rooms`: a room of a chat service's account, or a conversation the service starts.

@@ -460,9 +460,10 @@ impl Sends {
       tag: asked.tag.clone(),
       prefix: asked.prefix.clone(),
       reply_to_message_id: asked.reply_to_message_id,
+      account_id: asked.account_id,
     };
-    let service = self.receiver.roads().chats().road(key).ok_or_else(|| NotSent::Failed(unlisted(key)));
-    let result = service?.send(&request).await;
+    let service = self.receiver.roads().chats().road(key).ok_or_else(|| NotSent::Failed(unlisted(key)))?;
+    let result = self.receiver.roads().send(service.as_ref(), &request).await;
 
     match result {
       Ok(ChatSent { message_id, missed }) => Ok(Sent { message_id, missed }),

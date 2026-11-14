@@ -15,11 +15,13 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use bmo_chat_client::{
-  ChatDeclaration, ChatModeStanding, ChatVoice, ClientFailure, ProviderRoom, RoomKind,
+  ChatDeclaration, ChatModeStanding, ChatSendRequest, ChatSent, ChatVoice, ClientFailure, ProviderRoom,
+  RoomKind,
 };
+use futures_util::future::BoxFuture;
 use receiver_policy::kept::KEPT;
 use receiver_policy::roads::ROADS;
-use receiver_ports::chat::{Chat, ChatServices};
+use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 
 pub use declared::Facts;
 
@@ -87,6 +89,14 @@ impl Road {
   }
 }
 
+/// The account a send into a room goes out in (docs/receiver.md, 「A room's chat providers」), read from the
+/// room's leaders by the receiver that gives it to the roads.
+pub trait SendingAccount: Send + Sync {
+  /// The account a send into the room goes out in where it speaks as `speaker`; none where the room's leaders
+  /// give none.
+  fn of<'a>(&'a self, chat_id: i64, speaker: Option<&'a str>) -> BoxFuture<'a, Option<i64>>;
+}
+
 /// The chat services, what each has declared, read once and kept, and what each said of a room, kept for a
 /// short span by road and room: the room as the service answered it, or none where it does not hold the room.
 #[derive(Clone)]
@@ -99,6 +109,8 @@ pub struct Roads {
   // The owner's private room: the configuration's `owner_room`, else the room numbered as his own number; given
   // once the receiver stands.
   owners: Arc<OnceLock<i64>>,
+  // Where the account a send goes out in is read; given once the receiver stands, and the last given stands.
+  accounts: Arc<Mutex<Option<Arc<dyn SendingAccount>>>>,
 }
 
 // A chat service's answer that did not come is said once and read as no answer, so one service that does not
@@ -123,6 +135,7 @@ impl Roads {
       rooms: Kept::new(span),
       store: Arc::default(),
       owners: Arc::default(),
+      accounts: Arc::default(),
     }
   }
 
@@ -138,6 +151,26 @@ impl Roads {
       Some(room) => *room == chat_id,
       None => said,
     }
+  }
+
+  /// The roads reading the account each send goes out in from `accounts`; the last given stands.
+  pub fn with_accounts(&self, accounts: Arc<dyn SendingAccount>) {
+    *self.accounts.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(accounts);
+  }
+
+  /// One send handed to a chat service (docs/receiver.md, 「A room's chat providers」): a send that names no account
+  /// of its own names the one the room's leaders give it, and none where the roads were given no reading of them.
+  pub async fn send(&self, service: &dyn Chat, request: &ChatSendRequest) -> ChatAnswer<ChatSent> {
+    let accounts = self.accounts.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
+    let mut request = request.clone();
+
+    if request.account_id.is_none()
+      && let Some(accounts) = accounts
+    {
+      request.account_id = accounts.of(request.room_id, request.speaker.as_deref()).await;
+    }
+
+    service.send(&request).await
   }
 
   /// The roads reading the receiver's store for the rooms on the record alone; the first given stands.

@@ -457,6 +457,27 @@ async fn a_group_room_is_answered_by_the_supervisor_its_leader_names() {
   assert!(alone);
 }
 
+#[test]
+fn a_send_goes_out_in_the_account_of_the_leader_it_speaks_as_or_of_the_one_leader() {
+  let named = |name: &str, account: Option<i64>| agents::Designated {
+    name: name.to_owned(),
+    call_names: vec![],
+    window_seconds: None,
+    owner_account: account,
+    default_answerer: false,
+  };
+  let two = [named("agent-a", Some(77)), named("agent-b", Some(79)), named("agent-c", None)];
+  let one = [named("agent-a", Some(77)), named("agent-d", Some(77)), named("agent-c", None)];
+
+  assert_eq!(agents::sending_account(&two, Some("agent-b")), Some(79));
+  assert_eq!(agents::sending_account(&two, Some("agent-c")), None);
+  assert_eq!(agents::sending_account(&two, None), None);
+  assert_eq!(agents::sending_account(&one, Some("agent-c")), Some(77));
+  assert_eq!(agents::sending_account(&one, None), Some(77));
+  assert_eq!(agents::sending_account(&[], Some("agent-a")), None);
+  assert_eq!(agents::leaders_of(&two), [77, 79]);
+}
+
 #[tokio::test]
 async fn a_group_room_naming_no_supervisor_stays_with_the_default_answerer() {
   let (_scratch, _data, standing) = stood(&[-152]).await;

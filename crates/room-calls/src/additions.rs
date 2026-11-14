@@ -92,6 +92,7 @@ pub async fn add(
           contact_id: Some(*contact_id),
           contact_ids: None,
           title,
+          account_id: None,
         })
         .await
     }
@@ -106,6 +107,7 @@ pub async fn add(
           contact_id: None,
           contact_ids: Some(contact_ids.clone()),
           title: Some(group.clone()),
+          account_id: None,
         })
         .await
     }
@@ -155,7 +157,10 @@ pub async fn candidates(client: &ReceiverClient, key: &str) -> Result<Candidates
     let mut after = None;
 
     loop {
-      let page = client.account_contacts(key, after, Some(PAGE)).await.map_err(|why| why.to_string())?;
+      let page = client
+        .account_contacts(key, after, Some(PAGE), None)
+        .await
+        .map_err(|why| why.to_string())?;
       let last = page.items.last().map(|contact| contact.id);
 
       contacts.extend(page.items);

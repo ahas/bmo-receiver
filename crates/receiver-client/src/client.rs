@@ -363,14 +363,16 @@ impl ReceiverClient {
     Self::answered(self.get(&["providers", key, "rooms"], &given)).await
   }
 
-  /// `GET /providers/{key}/contacts`.
+  /// `GET /providers/{key}/contacts`: the contacts of the service's own account, or of the account `account_id`
+  /// names.
   pub async fn account_contacts(
     &self,
     key: &str,
     after: Option<i64>,
     limit: Option<i64>,
+    account_id: Option<i64>,
   ) -> Answer<Page<AccountContact>> {
-    let query = [("after", after), ("limit", limit)];
+    let query = [("after", after), ("limit", limit), ("accountId", account_id)];
     let given: Vec<(&str, i64)> =
       query.iter().filter_map(|(name, value)| value.map(|value| (*name, value))).collect();
 

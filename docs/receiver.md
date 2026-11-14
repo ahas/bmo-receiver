@@ -141,6 +141,13 @@ flowchart TD
     owner's own among them, stands above it. The owner's own voice, `human-reader`, is never the voice a room
     is answered by, even where it is the one mode a service has active: it goes on the owner's words alone, and
     a send in it is the one a read-only room takes (「A read-only room」).
+  - Every send the receiver makes to a chat service names the account it goes out in, as `accountId` (bmo-chat's
+    `docs/contract.md`, 「The account a call is for」), from the room's leaders, the accounts that own a supervisor
+    the room names (`docs/api.md`, 「Rooms」): the account of the supervisor the send speaks as where that
+    supervisor is one of them, else the one leader of a room that has exactly one; a room with no leader, or
+    with several and a send that speaks as none of theirs, names no account, and the service sends in its own.
+    The leaders are read as the agency's list of agents is kept (「What is kept for a moment」); where that list
+    cannot be read, the send names no account.
   - Each send carries a `tag`, and the number the provider gave it is kept beside the message. A message a
     provider hands over that is the echo of such a send, by its tag or by that number, is the message already
     kept: it is answered as held, kept no second time and wakes nobody.

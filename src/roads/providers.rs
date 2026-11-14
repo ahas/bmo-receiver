@@ -522,7 +522,7 @@ pub async fn carry_act(
 
     request.mode = voice;
 
-    let refused = match service.send(&request).await {
+    let refused = match roads.send(service.as_ref(), &request).await {
       Ok(_) => {
         name(&key, Carriage::Carried);
 
@@ -549,7 +549,7 @@ pub async fn carry_act(
     );
     request.mode = own;
 
-    let went = service.send(&request).await;
+    let went = roads.send(service.as_ref(), &request).await;
 
     name(
       &key,
@@ -637,7 +637,7 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
       request.tag = Some(tag.to_string());
       request.reply_to_message_id = if at == 0 { reply } else { None };
 
-      match service.send(&request).await {
+      match roads.send(service.as_ref(), &request).await {
         Ok(sent) => {
           let kept = run(
             db,

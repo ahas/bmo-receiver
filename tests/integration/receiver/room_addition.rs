@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 
 use crate::integration::common::Scratch;
 use crate::integration::common::queue::{Front, get, post, stood_on};
-use crate::integration::common::units::{OWNER, StandInChat};
+use crate::integration::common::units::{OWNER, StandInChat, registration};
 
 // A service that lists its account's rooms and answers as the person it reads, and one that does neither.
 async fn front(scratch: &Scratch) -> (Front, Arc<StandInChat>, Arc<StandInChat>) {
@@ -206,6 +206,18 @@ async fn a_room_answered_as_the_user_sends_in_the_account_of_the_person_the_serv
   post(&front, "/rooms", adding("road-a", -100, "avatar")).await;
   post(&front, "/rooms", adding("road-a", -200, "record-only")).await;
 
+  // Room -100 is led by the account that owns the supervisor it names; room -200 names none.
+  let mut leader = registration("agent-b", "Agent B", vec!["agent-b"], None);
+
+  leader.row.insert("ownerAccount".to_owned(), json!(77));
+  front.standing.agency.registering(vec![leader]);
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (-100, 'agent-b')"#,
+      vec![],
+    )
+    .await;
+
   // A line the record keeps goes on to the service, and a send on the service's road goes out the same way.
   receiver.speech().kept(-100, "kept in the record", None, None, None).await.unwrap();
   receiver
@@ -221,16 +233,20 @@ async fn a_room_answered_as_the_user_sends_in_the_account_of_the_person_the_serv
   receiver.speech().act("road-a", &owners).await.unwrap();
   receiver.speech().kept(-200, "for the user alone", None, None, None).await.unwrap();
 
-  let voices: Vec<(i64, Option<ChatVoice>)> =
-    listing.sent().iter().map(|request| (request.room_id, request.mode)).collect();
+  // Each send into the led room goes out in its leader's account, and one into a room led by no one names none.
+  let voices: Vec<(i64, Option<ChatVoice>, Option<i64>)> = listing
+    .sent()
+    .iter()
+    .map(|request| (request.room_id, request.mode, request.account_id))
+    .collect();
 
   assert_eq!(
     voices,
     [
-      (-100, Some(ChatVoice::HumanAvatar)),
-      (-100, Some(ChatVoice::HumanAvatar)),
-      (-100, Some(ChatVoice::HumanReader)),
-      (-200, None),
+      (-100, Some(ChatVoice::HumanAvatar), Some(77)),
+      (-100, Some(ChatVoice::HumanAvatar), Some(77)),
+      (-100, Some(ChatVoice::HumanReader), Some(77)),
+      (-200, None, None),
     ]
   );
 }
@@ -267,7 +283,7 @@ async fn a_room_the_receiver_holds_is_marked_held_whether_or_not_it_was_added() 
 #[tokio::test]
 async fn the_contacts_of_an_account_are_relayed_with_their_room_held_or_not() {
   let scratch = Scratch::new().await;
-  let (front, _listing, _plain) = front(&scratch).await;
+  let (front, listing, _plain) = front(&scratch).await;
 
   post(&front, "/rooms", adding("road-a", -100, "record-only")).await;
 
@@ -290,11 +306,22 @@ async fn the_contacts_of_an_account_are_relayed_with_their_room_held_or_not() {
     ("/providers/record/contacts", 409, "contacts-unlisted"),
     ("/providers/road-z/contacts", 404, "not-found"),
     ("/providers/road-a/contacts?limit=many", 400, "bad-request"),
+    ("/providers/road-a/contacts?accountId=seven", 400, "bad-request"),
   ] {
     let (answered, body) = get(&front, path).await;
 
     assert_eq!((answered.as_u16(), body["code"].as_str()), (status, Some(code)), "{path}: {body}");
   }
+
+  // The account a listing is for is handed to the service as it came, and a listing naming none names none.
+  let (status, page) = get(&front, "/providers/road-a/contacts?accountId=77").await;
+
+  assert_eq!((status.as_u16(), page["items"].as_array().map(Vec::len)), (200, Some(3)), "{page}");
+
+  let accounts: Vec<Option<i64>> =
+    listing.contacts_asked.lock().unwrap().iter().map(|query| query.account_id).collect();
+
+  assert_eq!(accounts, [None, Some(77)]);
 }
 
 #[tokio::test]
@@ -319,7 +346,9 @@ async fn a_conversation_started_on_the_service_is_added_as_the_room_it_comes_to(
     json!({ "providers": ["road-a", "record"], "chosen": true })
   );
 
-  let group = json!({ "provider": "road-a", "contactIds": [51, 53], "title": "Plans", "mode": "avatar" });
+  let group = json!({
+    "provider": "road-a", "contactIds": [51, 53], "title": "Plans", "mode": "avatar", "accountId": 77,
+  });
   let (status, room) = post(&front, "/rooms", group).await;
 
   assert_eq!(status.as_u16(), 201, "{room}");
@@ -327,7 +356,11 @@ async fn a_conversation_started_on_the_service_is_added_as_the_room_it_comes_to(
     (room["id"].as_i64(), room["title"].as_str(), room["mode"].as_str()),
     (Some(-700), Some("Plans"), Some("avatar"))
   );
-  assert_eq!(listing.started().len(), 2);
+
+  // The account a start names is the one the service is asked to start it in; a start naming none names none.
+  let accounts: Vec<Option<i64>> = listing.started().iter().map(|start| start.account_id).collect();
+
+  assert_eq!(accounts, [None, Some(77)]);
 }
 
 #[tokio::test]
@@ -367,6 +400,16 @@ async fn a_start_the_service_does_not_declare_know_or_make_is_refused_and_writes
       400,
       "bad-request",
     ),
+    (
+      start(json!({ "roomId": -200, "accountId": 77, "mode": "record-only" })),
+      400,
+      "bad-request",
+    ),
+    (
+      start(json!({ "contactId": 52, "accountId": "seven", "mode": "record-only" })),
+      400,
+      "bad-request",
+    ),
   ] {
     let (answered, refused) = post(&front, "/rooms", body.clone()).await;
 
@@ -385,7 +428,7 @@ async fn a_start_the_service_does_not_declare_know_or_make_is_refused_and_writes
 
   assert_eq!((answered.as_u16(), refused["code"].as_str()), (409, Some("avatar-unsupported")));
 
-  let asked: Vec<String> = listing.started().iter().map(|start| format!("{start:?}")).collect();
+  let asked: Vec<String> = listing.started().iter().map(|start| format!("{:?}", start.start)).collect();
 
   assert_eq!(
     asked,

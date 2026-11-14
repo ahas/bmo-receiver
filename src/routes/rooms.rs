@@ -12,8 +12,8 @@ use axum::{
   http::StatusCode,
 };
 use bmo_chat_client::{
-  AccountRoomsQuery, ChatCapability, ChatContactKind, ChatDeclaration, ChatStart, ClientFailure,
-  ContactsQuery, ErrorCode, ProviderRoom, RoomKind,
+  AccountRoomsQuery, ChatCapability, ChatContactKind, ChatDeclaration, ChatStart, ChatStartRequest,
+  ClientFailure, ContactsQuery, ErrorCode, ProviderRoom, RoomKind,
 };
 use receiver_codes::{RoomAdditionRefusal, RoomModeRefusal};
 use receiver_ports::chat::Chat;
@@ -346,6 +346,9 @@ struct Adding {
   contact_ids: Option<Vec<i64>>,
   #[serde(default)]
   title: Option<String>,
+  /// The account a conversation to start is started in.
+  #[serde(default)]
+  account_id: Option<i64>,
   /// The supervisors an agent room answers: a room created on the record alone, with no chat service.
   #[serde(default)]
   supervisors: Option<Vec<String>>,
@@ -354,7 +357,7 @@ struct Adding {
 /// What a room to add is chosen as: a room of the account, or a conversation to start.
 enum Chosen {
   Room(i64),
-  Start(ChatStart),
+  Start(ChatStartRequest),
 }
 
 impl Adding {
@@ -362,11 +365,21 @@ impl Adding {
   fn chosen(&self) -> Result<Chosen, Refusal> {
     let bad = |why: &str| refused(StatusCode::BAD_REQUEST, "bad-request", why);
 
+    let start = |start| {
+      Chosen::Start(ChatStartRequest {
+        start,
+        account_id: self.account_id,
+      })
+    };
+
     match (self.room_id, self.contact_id, &self.contact_ids) {
+      (Some(_), None, None) if self.account_id.is_some() => Err(bad(
+        "A room of the account is added under no accountId; only a conversation to start names one.",
+      )),
       (Some(room), None, None) => Ok(Chosen::Room(room)),
-      (None, Some(contact_id), None) => Ok(Chosen::Start(ChatStart::OneToOne { contact_id })),
+      (None, Some(contact_id), None) => Ok(start(ChatStart::OneToOne { contact_id })),
       (None, None, Some(contact_ids)) => match self.title.as_deref().map(str::trim) {
-        Some(title) if !title.is_empty() => Ok(Chosen::Start(ChatStart::Group {
+        Some(title) if !title.is_empty() => Ok(start(ChatStart::Group {
           title: title.to_owned(),
           contact_ids: contact_ids.clone(),
         })),
@@ -383,10 +396,10 @@ async fn started(
   service: &dyn Chat,
   declared: &ChatDeclaration,
   key: &str,
-  start: &ChatStart,
+  start: &ChatStartRequest,
 ) -> Result<ProviderRoom, Refusal> {
   let label = || declared.label.clone();
-  let capability = match start {
+  let capability = match start.start {
     ChatStart::OneToOne { .. } => ChatCapability::StartChat,
     ChatStart::Group { .. } => ChatCapability::StartGroup,
   };
@@ -835,15 +848,10 @@ pub async fn room_archive(State(served): State<Served>, Path(room): Path<i64>) -
 /// `GET /rooms/{roomId}/leaders`: the accounts that own a supervisor the room names, which lead it.
 pub async fn room_leaders(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let mut leaders: Vec<i64> = crate::receiver::wake::agents::named_designated(&receiver, room)
+  let named = crate::receiver::wake::agents::named_designated(&receiver, room)
     .await
-    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?
-    .iter()
-    .filter_map(|agent| agent.owner_account)
-    .collect();
-
-  leaders.sort_unstable();
-  leaders.dedup();
+    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?;
+  let leaders = crate::receiver::wake::agents::leaders_of(&named);
 
   answered(json!({ "room": room, "leaders": leaders }))
 }
@@ -865,12 +873,10 @@ pub async fn change_room_archive(
     return Err(refused(StatusCode::NOT_FOUND, "not-found", &format!("no chat {room} is held")));
   }
 
-  let leaders: Vec<i64> = crate::receiver::wake::agents::named_designated(&receiver, room)
+  let named = crate::receiver::wake::agents::named_designated(&receiver, room)
     .await
-    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?
-    .iter()
-    .filter_map(|agent| agent.owner_account)
-    .collect();
+    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?;
+  let leaders = crate::receiver::wake::agents::leaders_of(&named);
   let mut leads = by.parse::<i64>().is_ok_and(|account| leaders.contains(&account));
 
   // A head of the unit the room belongs to, its leader's, leads it as well.

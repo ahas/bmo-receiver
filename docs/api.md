@@ -88,7 +88,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `GET /rooms` | | a page of `Room`, the pinned ones first |
-| `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title. With no `provider`, `title` and `supervisors`, the agents that answer it, make an agent room on the record alone, with no chat service behind it | 201, the `Room` added |
+| `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title; `accountId`, optional with `contactId` or `contactIds`, the account the conversation is started in. With no `provider`, `title` and `supervisors`, the agents that answer it, make an agent room on the record alone, with no chat service behind it | 201, the `Room` added |
 | `GET /rooms/{roomId}` | | one `Room` |
 | `GET /rooms/{roomId}/registration` | `by` (the administrator) | the room's registration: `mode`, `providers` and `chosen`, `answerers`, `readOnly`, and `readOnlyBy`, the chat services reading it in the owner's account alone |
 | `PUT /rooms/{roomId}/registration` | `by` (the administrator); `mode`, `avatar` or `record-only` | the registration as it now stands |
@@ -108,7 +108,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/window` | | `openForMs`, the default answerer's window left, and `closesAt` in epoch milliseconds, or null |
 | `GET /providers` | | a page of `Provider` (`key`, `label`, `can`, `listsRooms`, `listsContacts`, `startsChats`, `startsGroups`, `roomModes`): every chat provider a room may be on |
 | `GET /providers/{key}/rooms` | `after` (a room number), `limit` | a page of `AccountRoom` (`id`, `title`, `kind`, `privateTo`, `held`, `mode`): the rooms the provider's account is in |
-| `GET /providers/{key}/contacts` | `after` (a contact number), `limit` | a page of `AccountContact` (`id`, `name`, `kind`, `roomId`, `held`, `mode`): the contacts of the provider's account |
+| `GET /providers/{key}/contacts` | `after` (a contact number), `limit`, `accountId` (the account whose contacts are listed) | a page of `AccountContact` (`id`, `name`, `kind`, `roomId`, `held`, `mode`): the contacts of the provider's account, or of the account `accountId` names |
 | `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, and `chosen`, whether the list was set |
 | `PUT /rooms/{roomId}/providers` | `providers`, the whole list | `providers` and `chosen`, as the list now stands |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
@@ -181,11 +181,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
     `limit` are handed to it as they came.
   - An `AccountContact` is the contact as the service answers it, `id`, `name`, `kind` (`person` or `bot`) and
     `roomId`, the one-to-one the service's account already has with it (or null), with `held` and `mode` of that
-    room as an `AccountRoom` carries them, false and null where it has none. The page is the service's, as above.
+    room as an `AccountRoom` carries them, false and null where it has none. The page is the service's, as above,
+    and `accountId` is handed to it as it came (bmo-chat's `docs/contract.md`, 「The account a call is for」).
   - `POST /rooms` with `roomId` keeps the room under the service's number: its mode, its title (the one given,
     else the one the service gives, else none) and its list of providers set to that service and the record, so
     every mode's messages stand in the archive. With `contactId` or with `contactIds` and `title` it first asks
-    the service to start the conversation and keeps the room it comes to the same way; a one-to-one the account
+    the service to start the conversation, in the account `accountId` names where it names one, and keeps the
+    room it comes to the same way; a one-to-one the account
     already has comes to that room. It answers 201 with the room as `GET /rooms/{roomId}` reads it.
   - `GET /providers/{key}/rooms` and `GET /providers/{key}/contacts` for a key no provider stands under are
     refused 404 `not-found`; the first for one that does not declare `roomList` 409 `rooms-unlisted`, the second

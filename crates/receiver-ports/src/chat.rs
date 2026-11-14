@@ -10,8 +10,8 @@ use std::time::Duration;
 
 use bmo_chat_client::{
   AccountRoomsQuery, ChatContact, ChatDeclaration, ChatHealth, ChatMediaRequest, ChatPatience,
-  ChatProviderClient, ChatSendRequest, ChatSent, ChatStart, ClientFailure, ContactsQuery, DialectChecked,
-  DialectReading, MessageFile, Page, ProviderRoom, RealClock, RoomKind,
+  ChatProviderClient, ChatSendRequest, ChatSent, ChatStartRequest, ClientFailure, ContactsQuery,
+  DialectChecked, DialectReading, MessageFile, Page, ProviderRoom, RealClock, RoomKind,
 };
 use futures_util::future::BoxFuture;
 
@@ -55,7 +55,7 @@ pub trait Chat: Send + Sync {
 
   /// A conversation started on the service, answered with its room; refused where the service does not declare
   /// the shape's capability.
-  fn start_chat<'a>(&'a self, start: &'a ChatStart) -> BoxFuture<'a, ChatAnswer<ProviderRoom>>;
+  fn start_chat<'a>(&'a self, start: &'a ChatStartRequest) -> BoxFuture<'a, ChatAnswer<ProviderRoom>>;
 
   /// Whether the room is the service's.
   fn room_owns(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<bool>>;
@@ -118,7 +118,7 @@ impl Chat for ChatProviderClient {
     Box::pin(ChatProviderClient::contacts(self, query))
   }
 
-  fn start_chat<'a>(&'a self, start: &'a ChatStart) -> BoxFuture<'a, ChatAnswer<ProviderRoom>> {
+  fn start_chat<'a>(&'a self, start: &'a ChatStartRequest) -> BoxFuture<'a, ChatAnswer<ProviderRoom>> {
     Box::pin(ChatProviderClient::start_chat(self, start))
   }
 

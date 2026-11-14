@@ -3214,8 +3214,16 @@
         "type": "object"
       },
       "StartRoom": {
-        "description": "`POST /rooms`: a conversation a chat service starts, a one-to-one with `contact_id` or a group of\n`contact_ids` under `title`, added in a mode as the room it comes to.",
+        "description": "`POST /rooms`: a conversation a chat service starts, a one-to-one with `contact_id` or a group of\n`contact_ids` under `title`, in the account `account_id` names, added in a mode as the room it comes to.",
         "properties": {
+          "accountId": {
+            "description": "The account the conversation is started in; unnamed, the service's own.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "contactId": {
             "format": "int64",
             "type": [
@@ -5293,6 +5301,14 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -5317,7 +5333,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed, failed"
           }
         },
-        "summary": "The contacts of a provider's account, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in.",
+        "summary": "The contacts of a provider's account, or of the account `accountId` names, relayed from its own list, each with its one-to-one, whether the receiver holds it and the mode it was added in.",
         "tags": [
           "Rooms"
         ],
