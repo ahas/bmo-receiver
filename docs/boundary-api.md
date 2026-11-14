@@ -426,7 +426,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
 
 - **The web unit's console** adds a supervisor on its provider and model alone and sets the rest of its road on
   the agency's supervisor afterwards, until it hands the whole road, `effort`, `thinking` and `answerTokens` with
-  them, to the receiver's one add (`docs/api.md`, 「Supervisors」).
+  them, to the receiver's one add (`docs/api.md`, 「Supervisors」); its language pack words the add's refusal
+  `provider` as a provider that cannot supervise, where the code stands for any road the agency refuses
+  (`docs/codes.md`).
 - **The agency's session loads** state `documents` as items of no fixed shape; the receiver writes each as `path`
   and `version` and reads back only those, until the agency states the item.
 - **The agency's turns** are re-attached to by the receiver as its `docs/api.md` does not yet state: the send
