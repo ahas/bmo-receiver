@@ -36,6 +36,10 @@ send tool's (`docs/chat-mcp.md`). A session reaches it through the toolbook and 
   comes or someone stops it, whether the tool host keeps it (the pocket unit's `docs/api.md`, `POST /use`) or the
   caller's own unit does (bmo-cli's `docs/api.md`, 「The caller's own unit」).
 - **A watch** is `bmo use bmo/wait --async` with the `check`, the `note`, and `every` as it needs.
+- **Either names its room and its agent,** `--room` and `--agent`. A session that spans several rooms carries no
+  turn room in its shell, so a call naming none is kept with no room: the receiver queues its wake in the owner's
+  private chat, and the console's list of what waits for a room stands it there rather than under the room it was
+  for.
 - **A repeating reminder** is one reminder at a time: the turn its end opens sets the next.
 - **Cancelling one** is stopping its unit, `bmo-use-<id>` as `bmo use --async` answered it; the stop is that
   unit's end, and its last word wakes the agent with the failure, so the agent learns the wait is gone.

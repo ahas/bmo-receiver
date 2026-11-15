@@ -4,6 +4,10 @@ A reminder or a watch: the call waits for a moment, or runs a shell check until 
 note. Run it through `bmo use --async` so the turn goes on and the call's end wakes you in the room with the
 note and the memory you gave it.
 
+Name the room the wake is for with `--room <room>` and yourself with `--agent <name>`. Where your shell carries
+no turn room — a session that spans several rooms — a call that names none is kept with no room: its wake goes to
+the owner's private chat, and the console cannot show it under the room it was for.
+
 A deployment of the tool host ends every wait as it restarts, and you are woken with the failure saying the
 host stopped: set the same reminder or watch again.
 
@@ -22,19 +26,19 @@ host stopped: set the same reminder or watch again.
 
 Remind yourself in ten minutes, in this room:
 
-    bmo use bmo/wait --async --arg seconds=600 --arg note="Ask whether the build finished" --memory "They asked to be told before lunch"
+    bmo use bmo/wait --async --room -1001 --agent agent-a --arg seconds=600 --arg note="Ask whether the build finished" --memory "They asked to be told before lunch"
 
 A moment days away is set the same way; nothing but the moment or a stop ends the wait:
 
-    bmo use bmo/wait --async --arg until=2026-10-26T09:00:00+09:00 --arg note="The meeting starts in an hour"
+    bmo use bmo/wait --async --room -1001 --agent agent-a --arg until=2026-10-26T09:00:00+09:00 --arg note="The meeting starts in an hour"
 
 Wake when a file appears, checking every minute:
 
-    bmo use bmo/wait --async --arg check="test -e /srv/export/done" --arg every=60 --arg note="The export is done"
+    bmo use bmo/wait --async --room -1001 --agent agent-a --arg check="test -e /srv/export/done" --arg every=60 --arg note="The export is done"
 
 Wake when a page answers:
 
-    bmo use bmo/wait --async --arg check="curl -fsS https://example.org/health" --arg every=300 --arg note="The site is back"
+    bmo use bmo/wait --async --room -1001 --agent agent-a --arg check="curl -fsS https://example.org/health" --arg every=300 --arg note="The site is back"
 
 ## What happens
 
