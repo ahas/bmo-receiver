@@ -12,6 +12,7 @@ use receiver_ports::brain::{BrainUnit, HttpBrain};
 use receiver_ports::chat::ChatServices;
 use receiver_ports::gate::HttpGate;
 use receiver_ports::hearing::{Hearing, HttpHearing};
+use receiver_ports::holders::HttpHolders;
 use receiver_ports::http::Peer;
 use receiver_ports::job::HttpJob;
 use receiver_ports::voice::{HttpVoice, VoiceEngine};
@@ -155,7 +156,20 @@ impl Config {
       hearing: self.tool_host().map(|(socket, token)| {
         Arc::new(HttpHearing::new(socket, token, self.data_root.clone())) as Arc<dyn Hearing>
       }),
+      holders: Arc::new(HttpHolders::new(self.peers())),
     }
+  }
+
+  /// Every unit this configuration names, in the order a declared holder's token is looked up in
+  /// (docs/boundary-api.md, 「A declared holder」).
+  pub fn peers(&self) -> Vec<Peer> {
+    [&self.agency, &self.gate, &self.job, &self.web, &self.warmer]
+      .into_iter()
+      .cloned()
+      .chain(self.voice.clone())
+      .chain(self.brain())
+      .chain(self.roads.values().cloned())
+      .collect()
   }
 
   /// Where the brain answers and the token it takes (docs/boundary-api.md, 「Configuration」): the `brain` the

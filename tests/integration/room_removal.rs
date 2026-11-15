@@ -1,8 +1,9 @@
 //! A room's registration removed from the console (docs/receiver.md, 「Removing a room's registration」): a room
 //! filled across the receiver's own record, its files and the units it reaches is shown with nothing written,
 //! then taken whole as shown; every other room stands untouched; a caller other than the administrator, the
-//! infrastructure room the configuration names and the administrator's own private chat write nothing; and a room
-//! that speaks again afterwards is a new registration with an empty record.
+//! infrastructure room the configuration names and the administrator's own private chat write nothing; a declared
+//! holder's answer is shown in the preview and the removal; and a room that speaks again afterwards is a new
+//! registration with an empty record.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -17,9 +18,10 @@ use bmo_receiver::events::Events;
 use bmo_receiver::receiver::{Context, Deployment, Inbound, Room};
 use bmo_receiver::room_record::chat_tables;
 use bmo_receiver::routes::routes;
+use receiver_ports::holders::Holding;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{Front, Kicked, TOKEN, remove};
+use crate::integration::common::queue::{Front, Kicked, TOKEN, put, remove};
 use crate::integration::common::units::{AGENT, StandInChat, deployment, standing_on};
 
 const ADMIN: &str = "the-administrator";
@@ -287,6 +289,36 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
   );
 
   assert_eq!(front.standing.agency.forgotten.lock().unwrap().clone(), [(ROOM, true), (ROOM, false)]);
+}
+
+#[tokio::test]
+async fn a_declared_holder_is_asked_at_its_address_and_its_holdings_are_shown() {
+  let (scratch, front, _news) = bench().await;
+  let address = "http://127.0.0.1:9";
+  let held = vec![Holding {
+    code: "room_grants".to_owned(),
+    count: 6,
+  }];
+
+  fill(&scratch, front.data.path(), ROOM).await;
+  front.standing.holders.holds(address, held.clone());
+  assert_eq!(
+    put(&front, "/room-holders/unit-a", json!({ "address": address, "holdings": [] }))
+      .await
+      .0,
+    StatusCode::NO_CONTENT
+  );
+
+  let answered = json!([{ "unit": "unit-a", "holdings": held, "failure": null }]);
+  let (_, shown) = remove(&front, &format!("/rooms/{ROOM}?by={ADMIN}&dryRun=true")).await;
+  let (_, taken) = remove(&front, &format!("/rooms/{ROOM}?by={ADMIN}")).await;
+
+  assert_eq!(shown["warns"], answered, "{shown}");
+  assert_eq!(taken["holders"], answered, "{taken}");
+  assert_eq!(
+    front.standing.holders.asked.lock().unwrap().clone(),
+    [(address.to_owned(), ROOM), (address.to_owned(), ROOM)]
+  );
 }
 
 #[tokio::test]

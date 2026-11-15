@@ -316,6 +316,16 @@ stand under the brain root a document reload reads.
 Its `docs/api.md`, snake_case. The receiver reads a room's holdings and the items a turn filed, reads and answers
 the questions of a job the owner answers in his chat, and tells the queue it moved.
 
+### A declared holder
+
+A unit that declares itself a holder of rows naming a room (`PUT /room-holders/{holderName}`, `docs/api.md`)
+names the address it is reached at, and a room's removal asks it `GET <address>/rooms/{chat}/holdings`. The call
+carries the token of the unit the configuration names at the same origin (scheme, host and port) as that
+address, the first in the configuration's order where several do: the agency, the gate, bmo-job, the web unit,
+the cache warmer, the voice engine, the brain, then each chat service. A holder at an origin the configuration
+names no unit at is called with no token. The answer is `holdings`, each holding the room has at least one of
+as `code` and `count`; the codes are the holder's own, and the receiver shows them as they come.
+
 ### The gate
 
 Its `docs/api.md` and `docs/boundary-api.md`, in the common format: camelCase keys and epoch milliseconds. The

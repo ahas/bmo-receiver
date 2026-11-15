@@ -430,8 +430,9 @@ flowchart TD
   and the outboxes, `docs/room-files.md`).
 - **Every other unit's part goes through that unit:** the agency forgets the room
   (`DELETE /room-holdings/{roomId}`), and every declared holder (`PUT /room-holders/{unit}`) is asked what it holds
-  (`GET <address>/rooms/{chat}/holdings`): what it keeps stays and keeps the room's chat, what it warns of is shown
-  in the confirmation.
+  (`GET <address>/rooms/{chat}/holdings`, behind the token the configuration names for the unit standing at that
+  address, `docs/boundary-api.md`, 「A declared holder」): what it keeps stays and keeps the room's chat, what it
+  warns of is shown in the confirmation.
 - **The brain is not asked.** A room is one of its subjects, and what an agent remembers of the room stays as that
   agent's own memory after the room's registration is gone.
 - **What stays is work filed from the room, and accounting:** its items, jobs, job questions and searches, each

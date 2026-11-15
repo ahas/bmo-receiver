@@ -8,6 +8,7 @@ pub mod brain;
 pub mod chat;
 pub mod gate;
 pub mod hearing;
+pub mod holders;
 pub mod http;
 pub mod job;
 pub mod tool_host;

@@ -8,6 +8,7 @@ mod agency;
 mod brain;
 mod chat;
 mod gate;
+mod holders;
 mod http;
 mod job;
 mod tool_host;

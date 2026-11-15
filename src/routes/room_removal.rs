@@ -11,8 +11,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use receiver_codes::RoomRemovalRefusal;
-use receiver_ports::http::{Caller, Peer, PortFailure};
-use receiver_ports::job::RoomHolding;
+use receiver_ports::http::PortFailure;
 
 use sqlx::{AnyConnection, Connection};
 
@@ -132,7 +131,8 @@ fn shown(receiver: &Receiver, path: &Path) -> String {
     .into_owned()
 }
 
-// Every unit declared a holder of rows naming the room, asked what it holds of it.
+// Every unit declared a holder of rows naming the room, asked what it holds of it behind the token of the
+// configured unit at its address (docs/boundary-api.md, 「A declared holder」).
 async fn holders(receiver: &Receiver, room: i64) -> Vec<Value> {
   let named = settings::named(receiver.db(), HOLDER_KEY).await.unwrap_or_default();
   let mut answers: Vec<Value> = vec![];
@@ -143,16 +143,7 @@ async fn holders(receiver: &Receiver, room: i64) -> Vec<Value> {
         url: unit.clone(),
         why: why.to_string(),
       }),
-      Ok(holder) => {
-        let peer = Peer {
-          base: holder.address,
-          token: String::new(),
-        };
-
-        let named = room.to_string();
-
-        Caller::new(&peer).get::<Vec<RoomHolding>>(&["rooms", &named, "holdings"], &[]).await
-      }
+      Ok(holder) => receiver.units().holders.holdings(&holder.address, room).await,
     };
     let (held, failure) = match asked {
       Ok(held) => (json!(held), Value::Null),

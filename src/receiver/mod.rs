@@ -36,6 +36,7 @@ use receiver_ports::agency::{Agency, Agents};
 use receiver_ports::brain::BrainUnit;
 use receiver_ports::gate::Gate;
 use receiver_ports::hearing::Hearing;
+use receiver_ports::holders::Holders;
 use receiver_ports::http::{Answer, PortFailure};
 use receiver_ports::job::Job;
 use receiver_ports::voice::VoiceEngine;
@@ -367,8 +368,8 @@ pub struct Deployment {
 }
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
-/// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, and the cache warmer the
-/// default answerer's one session prefix is kept warm through.
+/// sessions carry a woken turn, bmo-job whose questions the owner answers in his chat, the cache warmer the
+/// default answerer's one session prefix is kept warm through, and the units declared holders of a room's rows.
 #[derive(Clone)]
 pub struct Units {
   pub roads: Roads,
@@ -384,6 +385,8 @@ pub struct Units {
   /// The brain, where the deployment names it: a deployment without it tells no turn of a due consolidation and
   /// reports no fold.
   pub brain: Option<Arc<dyn BrainUnit>>,
+  /// The units declared holders of rows naming a room, each asked at the address its declaration names.
+  pub holders: Arc<dyn Holders>,
 }
 
 /// The receiver: the database it keeps messages in, the deployment it answers for, the data root it keeps files

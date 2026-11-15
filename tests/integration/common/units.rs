@@ -1,7 +1,7 @@
 //! In-memory stand-ins for the units a receiver reaches, each answering its port as a test sets it and keeping
 //! what it was asked: a chat service, the gate, the web unit, where the receiver's news is heard, and the wake.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -33,6 +33,7 @@ use receiver_ports::brain::BrainUnit;
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
 use receiver_ports::hearing::{Heard as HearingHeard, Hearing};
+use receiver_ports::holders::{Holders, Holding};
 use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
@@ -2199,6 +2200,29 @@ impl VoiceEngine for StandInVoice {
   }
 }
 
+/// The declared holders, each answering what a test sets for its address and keeping every address asked.
+#[derive(Default)]
+pub struct StandInHolders {
+  pub held: Mutex<HashMap<String, Vec<Holding>>>,
+  pub asked: Mutex<Vec<(String, i64)>>,
+}
+
+impl StandInHolders {
+  /// The holder at `address` keeping `held` of every room it is asked about.
+  pub fn holds(&self, address: &str, held: Vec<Holding>) {
+    self.held.lock().unwrap().insert(address.to_owned(), held);
+  }
+}
+
+impl Holders for StandInHolders {
+  fn holdings<'a>(&'a self, address: &'a str, room: i64) -> BoxFuture<'a, Answer<Vec<Holding>>> {
+    self.asked.lock().unwrap().push((address.to_owned(), room));
+    let held = self.held.lock().unwrap().get(address).cloned().unwrap_or_default();
+
+    Box::pin(async move { Ok(held) })
+  }
+}
+
 /// The cache warmer, keeping what the receiver registered and reported.
 pub struct StandInWarmer {
   pub registered: Mutex<Vec<(String, String)>>,
@@ -2277,6 +2301,7 @@ pub struct Standing {
   pub voice: Arc<StandInVoice>,
   pub hearing: Arc<StandInHearing>,
   pub brain: Arc<StandInBrain>,
+  pub holders: Arc<StandInHolders>,
 }
 
 /// The same standing, with the receiver's own wake in place of the recording one: the rule every message is
@@ -2323,6 +2348,7 @@ pub fn unrun(
   let voice = Arc::new(StandInVoice::new());
   let hearing = Arc::new(StandInHearing::new());
   let brain = Arc::new(StandInBrain::new());
+  let holders = Arc::new(StandInHolders::default());
   let services = ChatServices::of(chats.into_iter().map(|chat| (chat.key.clone(), chat as Arc<dyn Chat>)));
   let units = Units {
     roads: Roads::new(services),
@@ -2334,6 +2360,7 @@ pub fn unrun(
     voice: Some(voice.clone()),
     hearing: Some(hearing.clone()),
     brain: Some(brain.clone()),
+    holders: holders.clone(),
   };
   // The stand-in agency's registrations move as a test sets them, so the receiver asks it on every read; a test of
   // the kept list keeps it itself.
@@ -2358,5 +2385,6 @@ pub fn unrun(
     voice,
     hearing,
     brain,
+    holders,
   }
 }
