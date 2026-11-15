@@ -106,6 +106,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `thread_mark:<path>` | the last line of a person's own thread handed, as `room:messageId`; it is the thread's own, so a session folded, replaced or started again is handed only what came after it (`docs/bmo-window.md`, 「What every turn carries」) | the thread |
 | `voice_briefing` | `off` while voice briefings are switched off | the voice switch |
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
+| `private_rooms_adopted` | `done` once the one start that assigns each BMO's own room to the owner its registration names has read the agency (`docs/receiver.md`, 「Console rooms and accounts」); its migration taken down forgets it | the settling of private rooms at start |
 | `restart_reason` | what a deployment recorded before the receiver stopped: its purpose and the items going live, taken once at start-up | the restart |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |

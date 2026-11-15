@@ -34,12 +34,15 @@ pub enum SupervisorRefusal {
   Running { label: String },
   #[error("the asked action is not one this route takes")]
   Action,
+  #[error("a supervisor is added for account {account} by that account or the administrator alone")]
+  NotOwnersAccount { account: i64 },
 }
 
 impl SupervisorRefusal {
   fn answers(&self) -> StatusCode {
     match self {
       Self::UnknownSupervisor { .. } => StatusCode::NOT_FOUND,
+      Self::NotOwnersAccount { .. } => StatusCode::FORBIDDEN,
       Self::NameTaken { .. }
       | Self::Seeded { .. }
       | Self::DefaultAnswerer { .. }

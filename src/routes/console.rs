@@ -147,6 +147,14 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     // The room's facts are read before its title, since an answer asked afresh carries the title its service
     // gives it now (docs/receiver.md, 「A room's title」).
     let owner_room = receiver.roads().is_owner_room(room.chat_id).await;
+    let privacy = match private.get(&room.chat_id) {
+      Some(Privacy::Of(account)) => Privacy::Of(*account),
+      // The owner's private chat on a chat service is his private room as the configured one is.
+      _ if accounts::owners_room(&receiver, room.chat_id).await => {
+        accounts::privacy(&receiver, room.chat_id).await.unwrap_or(Privacy::Sealed)
+      }
+      kept => kept.copied().unwrap_or(Privacy::Shared),
+    };
     let title = reads::title(db, room.chat_id).await.map_err(store)?;
     let supervisors = crate::receiver::figures::answerers(db, room.chat_id).await.map_err(store)?;
     let senders = reads::senders(db, room.chat_id).await.map_err(store)?;
@@ -172,8 +180,8 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "listened": standing.listened(),
       "workRoom": work.chat_id,
       "mode": modes.get(&room.chat_id).map(|mode| mode.as_str()),
-      "privateOf": private.get(&room.chat_id).and_then(|privacy| privacy.account()),
-      "sealed": private.get(&room.chat_id).is_some_and(|privacy| privacy.sealed()),
+      "privateOf": privacy.account(),
+      "sealed": privacy.sealed(),
     }));
   }
 

@@ -175,7 +175,7 @@ The refusals of the supervisor routes and of a room's list of supervisors (`docs
 |---|---|---|---|
 | `unknown-supervisor` | 404 | `supervisor` | the agency registers no supervisor of the name |
 | `name` | 400 | | a name that is no name |
-| `name-taken` | 409 | `name` | the name is another supervisor's |
+| `name-taken` | 409 | `name` | the name is another supervisor's, or its room stands already and the record keeps it as no private room of the account the addition names |
 | `label` | 400 | | no label |
 | `provider` | 400 | `provider` | a road the agency refuses, on the provider named: one it does not carry or that cannot carry the chat line, a model the provider does not hold, an effort the model does not take |
 | `model` | 400 | | a model that is no registered model with an address |
@@ -184,6 +184,7 @@ The refusals of the supervisor routes and of a room's list of supervisors (`docs
 | `seeded` | 409 | `label` | a supervisor the deployment seeds asked to be removed |
 | `default-answerer` | 409 | `label` | the supervisor the default answerer setting names asked to be removed |
 | `running` | 409 | `label` | a supervisor a turn holds now asked to be removed without `force` |
+| `not-owners-account` | 403 | `account` | an addition naming `ownerAccount` for another account than the one `Owner-Key` names, not on the administrator's `Owner-Role` |
 | `action` | 400 | | an action the route does not take |
 
 ## Facts

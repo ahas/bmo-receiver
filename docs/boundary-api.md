@@ -78,6 +78,15 @@ road name with its base address and token.
   of the console's own. Run again, it prints the room it stood up before and stands up nothing. It writes the
   store and never the configuration, and the room is the owner's private room once the configuration names it
   and the service starts on it.
+- **`private-rooms`** prints how every room the store holds would be settled as a private room, one a line: its
+  number, `private to <account>`, `sealed` or `shared` (each `kept` where the record keeps it so already and `to be
+  kept` where the start would keep it), `unknown` where what would settle it was not read, its title and why
+  (`docs/receiver.md`, 「Console rooms and accounts」). It writes nothing, reads a store from before the private
+  rooms were kept as keeping none, and asks no other unit unless named: `--ask-agency` reads the agency's
+  supervisors, which settle a BMO's own room the store keeps nothing of (left out, those print `unknown`), and
+  `--ask-web` reads the web unit's link of the owner's sender (left out, the owner's private room prints sealed).
+  Run it against a copy of the store with `bmo-receiver --config <file> private-rooms [--ask-agency] [--ask-web]`,
+  the configuration naming that copy as its database.
 - **`redact-kept`** reads the secret shapes (`docs/messages.md`, 「Secrets taken out」) over the rows the store
   the configuration names already holds and replaces each run in place: a message's words, what was heard in its
   voice note and the room's situation note its round read, every string of the payload kept beside it, and each

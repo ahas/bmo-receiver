@@ -7,7 +7,7 @@ use std::process::{Command, Output};
 use bmo_receiver::routes::served;
 
 // The commands the binary declares, as its subcommands' names come to.
-const COMMANDS: [&str; 18] = [
+const COMMANDS: [&str; 19] = [
   "serve",
   "routes",
   "deliver-waiting",
@@ -15,6 +15,7 @@ const COMMANDS: [&str; 18] = [
   "health",
   "redact-kept",
   "nouns",
+  "private-rooms",
   "quiet",
   "owner-room",
   "import",
@@ -29,7 +30,7 @@ const COMMANDS: [&str; 18] = [
 ];
 
 // What the help lists: the commands, and the built-in `help` beside them.
-const LISTED: [&str; 19] = [
+const LISTED: [&str; 20] = [
   "serve",
   "routes",
   "deliver-waiting",
@@ -37,6 +38,7 @@ const LISTED: [&str; 19] = [
   "health",
   "redact-kept",
   "nouns",
+  "private-rooms",
   "quiet",
   "owner-room",
   "import",

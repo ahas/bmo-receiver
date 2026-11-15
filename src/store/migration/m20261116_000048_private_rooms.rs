@@ -33,7 +33,10 @@ impl MigrationTrait for Migration {
   async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
     manager
       .get_connection()
-      .execute_unprepared(r#"DROP TABLE IF EXISTS "private_rooms""#)
+      .execute_unprepared(
+        r#"DROP TABLE IF EXISTS "private_rooms";
+           DELETE FROM "settings" WHERE "key" = 'private_rooms_adopted'"#,
+      )
       .await?;
 
     Ok(())

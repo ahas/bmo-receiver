@@ -20,13 +20,68 @@ use crate::integration::common::units::OWNER;
 use bmo_receiver::routes::served;
 
 // The routes the base library's own router serves, mounted under `/chat` beside the receiver's table.
-const HANDOVERS: [&str; 5] = [
+const HANDOVERS: [&str; 7] = [
   "GET /chat/rooms",
   "GET /chat/rooms/{room_id}",
   "PUT /chat/rooms/{room_id}/messages/{message_id}",
   "PATCH /chat/rooms/{room_id}/messages/{message_id}",
   "POST /chat/avatar-changes",
+  "POST /chat/reaction-changes",
+  "POST /chat/deletions",
 ];
+
+// The receiving side of the chat protocol as its published contract states it, which the base library's router
+// serves.
+const PROTOCOL: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../base/chat/docs/openapi/receiver.json");
+
+// A route with each path parameter's name left out, so two spellings of one route read alike.
+fn shape(route: &str) -> String {
+  let mut shaped = String::new();
+  let mut naming = false;
+
+  for one in route.chars() {
+    match one {
+      '{' => {
+        naming = true;
+        shaped.push('{');
+      }
+      '}' => {
+        naming = false;
+        shaped.push('}');
+      }
+      _ if naming => {}
+      _ => shaped.push(one),
+    }
+  }
+
+  shaped
+}
+
+#[test]
+fn every_route_the_protocol_serves_on_the_receiving_side_stands_in_the_list() {
+  let contract: Value = serde_json::from_str(&std::fs::read_to_string(PROTOCOL).unwrap()).unwrap();
+  let listed: Vec<String> = served().iter().map(|route| shape(route)).collect();
+  let mut seen = 0;
+
+  for (path, methods) in contract["paths"].as_object().unwrap() {
+    for method in methods.as_object().unwrap().keys() {
+      if !["get", "put", "post", "patch", "delete"].contains(&method.as_str()) {
+        continue;
+      }
+
+      let route = format!("{} /chat{path}", method.to_uppercase());
+
+      assert!(listed.contains(&shape(&route)), "{route} is served and missing from the routes list");
+      assert!(
+        HANDOVERS.iter().any(|one| shape(one) == shape(&route)),
+        "{route} is missing from the hand-overs"
+      );
+      seen += 1;
+    }
+  }
+
+  assert_eq!(seen, HANDOVERS.len(), "the hand-overs list names no route the protocol does not serve");
+}
 
 /// A response's status and JSON body.
 async fn read(answer: Response) -> (StatusCode, Value) {

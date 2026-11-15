@@ -149,9 +149,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   owner's private room before the web unit links an account to his sender, and false for every other room; its
   `privateOf` is null. A room is written in for account A only where it is not `sealed` and its `privateOf` is null
   or A. The receiver answers both from the room's record, never from a room's members or providers, so a group room
-  every other member has left reads null and not sealed. The room list asks the agency nothing for them, and the
-  web unit only for the owner's private room until its account is kept; a room's own read asks the agency or the
-  web unit only for a room the record keeps no account of, answering it as the record keeps it where they do not
+  every other member has left reads null and not sealed. No read asks the agency for them, and the web unit is
+  asked only for the owner's private room until its account is kept, the room read as sealed where it does not
   answer.
 - **Every write in a room names the account it acts for** where the console acts for a person: `account`, a number,
   in the body or the query; `by` where a route takes one; or the relay's `Owner-Key`. Wherever it is named it is one
@@ -783,6 +782,8 @@ states it; it is repeated here only so one document holds every route the receiv
 | `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room added on the asking provider and still on its list, whatever its mode, and false for every other room (`docs/receiver.md`, 「A read-only room」); `listened` is the room's own, as a `Room` answers it (「Rooms」); the answer is read off what the receiver holds, and no chat service is asked for it (`docs/receiver.md`, 「What is kept for a moment」) |
 | `GET /chat/rooms` | asks the rooms whose past it may read back |
 | `POST /chat/avatar-changes` | tells of kept profile pictures that changed; the receiver takes each subject named from the provider's avatar routes before it answers (`docs/pictures.md`, 「Profile pictures」) |
+| `POST /chat/reaction-changes` | tells one message's reactions as the platform shows them now |
+| `POST /chat/deletions` | tells of messages of one room deleted on the platform |
 
 The receiver serves the protocol's shapes as `bmo-chat-client` defines them: the client is the published one, and
 the receiver holds no hand-written copy of them. What differs between providers is read from what each declares.

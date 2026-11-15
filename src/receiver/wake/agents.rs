@@ -249,16 +249,11 @@ impl RecordPrivacy for Leaders {
         eprintln!("chat {chat_id}: whose private room it is could not be read, so it is sealed: {why}");
         RecordPrivate::Sealed
       };
-      // What the record keeps is read first; a room it keeps nothing of is asked of the agency, and kept where it
-      // names the room's account.
+      // Whose private room it is is the record's own row alone, never what the agency lists now.
       let account = match crate::accounts::kept_privacy(&self.db, chat_id).await {
         Ok(Some(Privacy::Of(account))) => account,
         Ok(Some(Privacy::Sealed)) => return RecordPrivate::Sealed,
-        Ok(Some(Privacy::Shared) | None) => match self.learned(chat_id).await {
-          Ok(Some(account)) => account,
-          Ok(None) => return RecordPrivate::Shared,
-          Err(why) => return sealed(why),
-        },
+        Ok(Some(Privacy::Shared) | None) => return RecordPrivate::Shared,
         Err(why) => return sealed(why.detail),
       };
 
@@ -268,33 +263,6 @@ impl RecordPrivacy for Leaders {
         Err(why) => sealed(why.detail),
       }
     })
-  }
-}
-
-impl Leaders {
-  // The account the agency names as the owner of the supervisor whose own room a room is, kept on the room's record:
-  // none for a room that stands under no name of its own, or whose supervisor names no owner. A room under a name
-  // of its own is sealed while the agency or the store cannot say whose it is.
-  async fn learned(&self, chat_id: i64) -> Result<Option<i64>, String> {
-    let Some(named) = crate::accounts::own_room_name(&self.db, chat_id).await.map_err(|why| why.detail)?
-    else {
-      return Ok(None);
-    };
-    let agents = self.agents().await.map_err(|why| format!("the agents were not read: {why}"))?;
-    let Some(account) = agents
-      .agents
-      .iter()
-      .find(|agent| agent.name == named)
-      .and_then(|agent| Designated::of(agent, "").owner_account)
-    else {
-      return Ok(None);
-    };
-
-    crate::accounts::keep_private(&self.db, chat_id, Some(account))
-      .await
-      .map_err(|why| why.detail)?;
-
-    Ok(Some(account))
   }
 }
 

@@ -70,6 +70,16 @@ enum Command {
   },
   /// The nouns `bmo` dispatches to this command, one a line.
   Nouns,
+  /// How every room the store holds would be settled as a private room, and why, one a line; nothing is written.
+  /// The agency and the web unit are asked only where named, and only read.
+  PrivateRooms {
+    /// Reads the agency's supervisors, which settle a BMO's own room the store keeps nothing of.
+    #[arg(long)]
+    ask_agency: bool,
+    /// Reads the web unit's link of the owner's sender, which settles the owner's private room.
+    #[arg(long)]
+    ask_web: bool,
+  },
   /// Whether work stands under way that a restart would cut: 0 where none does, 1 where some does, each one
   /// named, and 2 where the agency or the store did not answer.
   Quiet {
@@ -204,9 +214,9 @@ async fn serve(config: &Config) -> Result<(), String> {
     let receiver = standing.receiver.clone();
 
     tokio::spawn(async move {
-      match bmo_receiver::accounts::keep_known_private_rooms(&receiver).await {
-        Ok(written) => println!("bmo-receiver: {written} private room(s) newly kept on their record"),
-        Err(why) => println!("bmo-receiver: the private rooms were kept as far as could be read: {why}"),
+      match bmo_receiver::private_rooms::at_start(&receiver).await {
+        Ok(settled) => println!("bmo-receiver: the private rooms of {} room(s) settled", settled.len()),
+        Err(why) => println!("bmo-receiver: the private rooms were not settled: {}", why.detail),
       }
     })
   };
@@ -316,6 +326,28 @@ async fn owner_room(config: &Config, title: &str) -> Result<u8, String> {
     println!("{room}");
     eprintln!("bmo-receiver: the owner's private room already stands as {room}");
   }
+
+  Ok(0)
+}
+
+/// How every room would be settled as a private room, printed and never written.
+async fn private_rooms(config: &Config, ask_agency: bool, ask_web: bool) -> Result<u8, String> {
+  let db = config.connect().await?;
+  let units = config.units();
+  let asked = bmo_receiver::private_rooms::Asked {
+    agency: ask_agency.then_some(units.agency.as_ref()),
+    web: ask_web.then_some(units.web.as_ref()),
+  };
+  let owner = (config.owner, config.owner_room.unwrap_or(config.owner));
+  let settled = bmo_receiver::private_rooms::settle(&db, owner, asked, false)
+    .await
+    .map_err(|why| why.detail.to_owned())?;
+
+  for room in &settled {
+    println!("{}", room.line());
+  }
+
+  println!("dry run, nothing written: {} rooms", settled.len());
 
   Ok(0)
 }
@@ -484,6 +516,10 @@ async fn main() -> ExitCode {
     Command::Quiet { with_jobs } => Ok(quiet(&config, with_jobs).await),
     Command::Health => ask_health(&config).await.map(|()| 0),
     Command::RedactKept { dry_run } => redact_kept(&config, dry_run).await,
+    Command::PrivateRooms {
+      ask_agency,
+      ask_web,
+    } => private_rooms(&config, ask_agency, ask_web).await,
     Command::ToolEnv => write_env(&config).map(|written| {
       match written {
         Written::Written(path) => println!("bmo-receiver: wrote {}", path.display()),

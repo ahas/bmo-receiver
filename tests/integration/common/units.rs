@@ -834,6 +834,8 @@ pub struct StandInWeb {
   pub nodes: Mutex<BTreeMap<String, UserNode>>,
   // Each (head, user) where the head heads the user's unit.
   pub heads: Mutex<BTreeSet<(String, String)>>,
+  // Whether it answers no sender's user, as a web unit restarting does.
+  pub down: Mutex<bool>,
 }
 
 impl StandInWeb {
@@ -846,7 +848,13 @@ impl StandInWeb {
       watched: Mutex::default(),
       nodes: Mutex::default(),
       heads: Mutex::default(),
+      down: Mutex::default(),
     }
+  }
+
+  /// Answering no sender's user from now on.
+  pub fn going_down(&self) {
+    *self.down.lock().unwrap() = true;
   }
 
   /// The rooms the console has open, as the web unit answers.
@@ -900,6 +908,16 @@ impl Web for StandInWeb {
   }
 
   fn user_of_sender(&self, sender: i64) -> BoxFuture<'_, Answer<Option<String>>> {
+    if *self.down.lock().unwrap() {
+      return Box::pin(async move {
+        Err(PortFailure::Answered {
+          url: format!("http://web.invalid/senders/{sender}/user"),
+          status: 503,
+          answer: None,
+        })
+      });
+    }
+
     let user = self.users.lock().unwrap().get(&sender).cloned();
 
     Box::pin(async move { Ok(user) })

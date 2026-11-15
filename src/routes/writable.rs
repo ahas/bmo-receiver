@@ -24,16 +24,16 @@ use crate::receiver::{NotReceived, Receiver};
 enum Actor {
   /// An account the console acts for.
   Account(i64),
-  /// The owner on his own road, `POST /owner/messages` and its kin, which act for his account.
-  Owner,
-  /// No one: a unit acting as itself under the receiver's token.
-  Unit,
+  /// No account named.
+  Unnamed,
 }
 
 /// Who a write acts for and what it carries: the one way a write route reads its body, so no route that changes a
-/// room reads one without the guard.
+/// room reads one without the guard. A write on the owner's own road, `POST /owner/messages` and its kin, writes in
+/// his private room always, and elsewhere for the account it names, or for his account where it names none.
 pub(super) struct Writer {
   actor: Actor,
+  owners_road: bool,
   body: Bytes,
   kind: Option<HeaderValue>,
 }
@@ -103,7 +103,7 @@ impl Writer {
   pub fn account(&self) -> Option<i64> {
     match self.actor {
       Actor::Account(account) => Some(account),
-      Actor::Owner | Actor::Unit => None,
+      Actor::Unnamed => None,
     }
   }
 
@@ -112,11 +112,9 @@ impl Writer {
     &self.body
   }
 
-  /// The write on the owner's own road: for the owner's account where it names no account of its own.
+  /// The write on the owner's own road.
   pub fn owners(mut self) -> Self {
-    if self.actor == Actor::Unit {
-      self.actor = Actor::Owner;
-    }
+    self.owners_road = true;
 
     self
   }
@@ -136,23 +134,27 @@ impl Writer {
   }
 
   /// A room the write changes, refused 403 `private-room` where it is another account's private room, or a sealed
-  /// one, for any account; the owner's road writes in his own private room always, and a unit acting as itself is
+  /// one, for any account. The owner's own road writes in his private room always, and in a room private to an
+  /// account only where the web unit links that account to his sender, asked only then; a unit acting as itself is
   /// refused nowhere.
   pub async fn room(&self, receiver: &Receiver, room: i64) -> Result<(), Refusal> {
-    let account = match self.actor {
-      Actor::Unit => return Ok(()),
-      Actor::Owner if room == receiver.owner_room() => return Ok(()),
-      Actor::Owner => accounts::owner_account(receiver).await.map_err(reached)?,
-      Actor::Account(account) => Some(account),
-    };
+    if self.owners_road && accounts::owners_room(receiver, room).await {
+      return Ok(());
+    }
+
+    if !self.owners_road && self.actor == Actor::Unnamed {
+      return Ok(());
+    }
+
     let privacy = accounts::privacy(receiver, room).await.map_err(reached)?;
-    let allowed = match privacy {
-      Privacy::Shared => true,
-      Privacy::Of(own) => account == Some(own),
-      Privacy::Sealed => false,
+    let account = match (self.actor, privacy) {
+      (_, Privacy::Shared) => return Ok(()),
+      (Actor::Account(account), _) => Some(account),
+      (Actor::Unnamed, Privacy::Of(_)) => accounts::owner_account(receiver).await.map_err(reached)?,
+      (Actor::Unnamed, Privacy::Sealed) => None,
     };
 
-    if allowed {
+    if matches!(privacy, Privacy::Of(own) if account == Some(own)) {
       return Ok(());
     }
 
@@ -183,11 +185,12 @@ impl FromRequest<Served> for Writer {
     let body = Bytes::from_request(request, served).await.map_err(|why| bad(&why.body_text()))?;
     let actor = match named_in(&headers, query.as_deref(), &body)? {
       Some(account) => Actor::Account(account),
-      None => Actor::Unit,
+      None => Actor::Unnamed,
     };
 
     Ok(Self {
       actor,
+      owners_road: false,
       body,
       kind: headers.get(CONTENT_TYPE).cloned(),
     })

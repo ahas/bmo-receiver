@@ -253,6 +253,8 @@ pub fn served() -> Vec<String> {
         "PUT /chat/rooms/{room_id}/messages/{message_id}",
         "PATCH /chat/rooms/{room_id}/messages/{message_id}",
         "POST /chat/avatar-changes",
+        "POST /chat/reaction-changes",
+        "POST /chat/deletions",
         "POST /warmer/ping",
       ]
       .into_iter()

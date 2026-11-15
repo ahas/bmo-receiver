@@ -8,7 +8,7 @@
 use axum::{
   body::Bytes,
   extract::{Path, RawQuery, State},
-  http::StatusCode,
+  http::{HeaderMap, StatusCode},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -20,6 +20,7 @@ use receiver_ports::http::PortFailure;
 
 use sea_orm::DatabaseConnection;
 
+use crate::accounts::{self, Privacy};
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, figures, reads};
 use crate::roads::record::{next_room, next_sender};
@@ -179,9 +180,20 @@ pub(super) async fn registered(receiver: &Receiver, name: &str) -> Result<Agent,
 }
 
 /// `POST /supervisors`: a supervisor added with a room of the console's own.
-pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
+pub async fn add(State(served): State<Served>, headers: HeaderMap, body: Bytes) -> Accepted {
   let asked = read::<Added>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
+  let header = |name: &str| headers.get(name).and_then(|value| value.to_str().ok()).map(str::trim);
+
+  // An account adds a supervisor for itself; only the administrator names another's. A call the relay names no
+  // account for is a unit's, judged by the console before it calls.
+  if let (Some(account), Some(caller)) =
+    (asked.owner_account, header("owner-key").and_then(|key| key.parse::<i64>().ok()))
+    && account != caller
+    && header("owner-role") != Some("administrator")
+  {
+    return Err(code(&SupervisorRefusal::NotOwnersAccount { account }));
+  }
 
   // What a name may be is the agency's to say: a name it does not take is refused as the field `name`, before
   // anything of the room is written.
@@ -216,22 +228,43 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
   }
 
   let road = console_road();
-  // A room left by a supervisor of the name before is taken back, but never one the record keeps as another
-  // account's private room, which stays that account's: the name is refused as taken.
-  let standing = room_of(receiver.db(), &asked.name).await.ok().flatten();
+  let standing = room_of(receiver.db(), &asked.name).await.map_err(store)?;
 
-  if let Some(room) = standing
-    && let Some(crate::accounts::Privacy::Of(own)) =
-      crate::accounts::kept_privacy(receiver.db(), room).await.map_err(store)?
-    && Some(own) != asked.owner_account
-  {
-    return Err(code(&SupervisorRefusal::NameTaken { name: asked.name }));
+  // A room left standing under the name is taken back only for the account the record keeps it as the private room
+  // of. Any other, a room the record keeps nothing of among them, is sealed against every account and the name is
+  // refused as taken, so no supervisor added under a retired one's name reads what was said there.
+  if let Some(room) = standing {
+    let kept = accounts::kept_privacy(receiver.db(), room).await.map_err(store)?;
+
+    if !matches!(kept, Some(Privacy::Of(own)) if Some(own) == asked.owner_account) {
+      if kept.is_none() {
+        accounts::keep_private(receiver.db(), room, None).await.map_err(store)?;
+      }
+
+      return Err(code(&SupervisorRefusal::NameTaken { name: asked.name }));
+    }
   }
 
   let (chat_id, taken_back) = match standing {
     Some(room) => (room, true),
     None => (next_room(receiver.db()).await.map_err(store)?, false),
   };
+  let half = RoomHalf {
+    road: &road,
+    name: &asked.name,
+    title: &asked.room,
+    chat_id,
+    taken_back,
+    owner_account: asked.owner_account,
+  };
+
+  // The room half is written before the agency is asked, so a failure of it leaves nothing in the agency, and it is
+  // taken back again where the agency does not stand the supervisor.
+  if let Err(why) = half.write(receiver.db()).await {
+    half.release(receiver.db()).await;
+    return Err(store(why));
+  }
+
   let row = NewSupervisor {
     name: asked.name.clone(),
     label: asked.label.clone(),
@@ -243,26 +276,30 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
     answer_tokens: asked.answer_tokens,
     owner_account: asked.owner_account,
   };
-
-  // The agency stands the supervisor's row and the gate its options; the receiver writes the room half.
-  let added = match receiver.units().agency.add_supervisor(&row).await {
-    Ok(added) => added,
-    Err(failure) if failure.code() == Some("name-taken") => {
-      receiver.forget_agents();
-      return Err(code(&SupervisorRefusal::NameTaken { name: asked.name }));
-    }
-    Err(failure) => return Err(unit(failure)),
-  };
+  let added = receiver.units().agency.add_supervisor(&row).await;
 
   receiver.forget_agents();
 
-  let added = added.map_err(|refusal| {
-    refused_field(
-      refusal,
-      asked.provider.as_deref().unwrap_or_default(),
-      repository.as_deref().unwrap_or_default(),
-    )
-  })?;
+  let added = match added {
+    Ok(Ok(added)) => added,
+    Ok(Err(refusal)) => {
+      half.release(receiver.db()).await;
+      return Err(refused_field(
+        refusal,
+        asked.provider.as_deref().unwrap_or_default(),
+        repository.as_deref().unwrap_or_default(),
+      ));
+    }
+    Err(failure) => {
+      half.release(receiver.db()).await;
+
+      if failure.code() == Some("name-taken") {
+        return Err(code(&SupervisorRefusal::NameTaken { name: asked.name }));
+      }
+
+      return Err(unit(failure));
+    }
+  };
   let default = receiver.default_answerer();
 
   if let Err(why) = receiver.units().gate.copy_options(&asked.name, &default).await {
@@ -271,49 +308,6 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
       asked.name
     );
   }
-
-  let sender = next_sender(receiver.db(), &road).await.map_err(store)?;
-
-  run(
-    receiver.db(),
-    r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ($1, $2, $3, $4)"#,
-    vec![
-      road.clone().into(),
-      asked.name.clone().into(),
-      chat_id.into(),
-      asked.room.clone().into(),
-    ],
-  )
-  .await
-  .map_err(store)?;
-
-  // Its own room is its owner account's private room, kept on the room's record from now on.
-  if let Some(account) = asked.owner_account {
-    crate::accounts::keep_private(receiver.db(), chat_id, Some(account))
-      .await
-      .map_err(store)?;
-  }
-  // A console room is born on the record alone: its one provider is the record, so its answers stand there.
-  crate::roads::providers::choose(receiver.db(), chat_id, std::slice::from_ref(&road))
-    .await
-    .map_err(store)?;
-  run(
-    receiver.db(),
-    r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES ($1, $2) ON CONFLICT ("chat_id") DO UPDATE SET "title" = excluded."title""#,
-    vec![chat_id.into(), asked.room.clone().into()],
-  )
-  .await
-  .map_err(store)?;
-  name_alone(receiver.db(), chat_id, std::slice::from_ref(&asked.name))
-    .await
-    .map_err(store)?;
-  run(
-    receiver.db(),
-    r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ($1, $2, $3)"#,
-    vec![road.clone().into(), asked.name.clone().into(), sender.into()],
-  )
-  .await
-  .map_err(store)?;
 
   let said = taken_back.then(|| {
     json!(SupervisorFact::RoomTakenBack {
@@ -330,6 +324,99 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
       "room": { "id": chat_id, "takenBack": taken_back, "said": said },
     })),
   ))
+}
+
+/// A supervisor's own room as the receiver writes it on an addition: its row on the record under the supervisor's
+/// name, its one provider the record, its title, the supervisor named alone, the supervisor's number there, and the
+/// account it is the private room of where the addition names one.
+struct RoomHalf<'a> {
+  road: &'a str,
+  name: &'a str,
+  title: &'a str,
+  chat_id: i64,
+  taken_back: bool,
+  owner_account: Option<i64>,
+}
+
+impl RoomHalf<'_> {
+  async fn write(&self, db: &DatabaseConnection) -> Result<(), Fault> {
+    if !self.taken_back {
+      run(
+        db,
+        r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ($1, $2, $3, $4)"#,
+        vec![self.road.into(), self.name.into(), self.chat_id.into(), self.title.into()],
+      )
+      .await?;
+    }
+
+    if let Some(account) = self.owner_account {
+      accounts::keep_private(db, self.chat_id, Some(account)).await?;
+    }
+
+    // A console room is born on the record alone: its one provider is the record, so its answers stand there.
+    crate::roads::providers::choose(db, self.chat_id, &[self.road.to_owned()]).await?;
+    run(
+      db,
+      r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES ($1, $2) ON CONFLICT ("chat_id") DO UPDATE SET "title" = excluded."title""#,
+      vec![self.chat_id.into(), self.title.into()],
+    )
+    .await?;
+    name_alone(db, self.chat_id, &[self.name.to_owned()]).await?;
+
+    let held = one(
+      db,
+      r#"SELECT 1 AS "one" FROM "provider_users" WHERE "provider" = $1 AND "user_id" = $2"#,
+      vec![self.road.into(), self.name.into()],
+    )
+    .await?;
+
+    if held.is_none() || !self.taken_back {
+      let sender = next_sender(db, self.road).await?;
+
+      run(
+        db,
+        r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ($1, $2, $3)"#,
+        vec![self.road.into(), self.name.into(), sender.into()],
+      )
+      .await?;
+    }
+
+    Ok(())
+  }
+
+  // What the addition wrote taken back where the supervisor did not stand: a room made for it goes whole, and a room
+  // taken back names no supervisor again. A failure is said in the journal, since the refusal it follows stands.
+  async fn release(&self, db: &DatabaseConnection) {
+    let mut statements =
+      vec![(r#"DELETE FROM "room_supervisors" WHERE "chat_id" = $1"#, self.chat_id.into())];
+
+    if !self.taken_back {
+      statements.extend([
+        (r#"DELETE FROM "room_providers" WHERE "chat_id" = $1"#, self.chat_id.into()),
+        (r#"DELETE FROM "chat_titles" WHERE "chat_id" = $1"#, self.chat_id.into()),
+        (r#"DELETE FROM "private_rooms" WHERE "chat_id" = $1"#, self.chat_id.into()),
+        (r#"DELETE FROM "provider_rooms" WHERE "chat_id" = $1"#, self.chat_id.into()),
+      ]);
+    }
+
+    for (statement, value) in statements {
+      if let Err(why) = run(db, statement, vec![value]).await {
+        eprintln!("supervisors: room {} was not taken back whole: {}", self.chat_id, why.detail);
+      }
+    }
+
+    if !self.taken_back
+      && let Err(why) = run(
+        db,
+        r#"DELETE FROM "provider_users" WHERE "provider" = $1 AND "user_id" = $2
+           AND NOT EXISTS (SELECT 1 FROM "messages" m WHERE m."sender_id" = "provider_users"."sender_id")"#,
+        vec![self.road.into(), self.name.into()],
+      )
+      .await
+    {
+      eprintln!("supervisors: {}'s number was not taken back: {}", self.name, why.detail);
+    }
+  }
 }
 
 /// A room's list of supervisors written whole, in place of the one it held.

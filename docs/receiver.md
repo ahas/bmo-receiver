@@ -365,17 +365,27 @@ flowchart TD
   the owner's private room is one-to-one with the owner's account, the one the web unit links to his sender. That account is its one member and the room's one-to-one person is its record identity
   once that stands, so its words wake the supervisor with no name and no open window, as a user's own private chat's do
   (`docs/wake.md`, 「Who reaches the session」), and the room is no group: no member's supervisor reads it.
-- **Whose private room a room is is a fact kept on its record** (`private_rooms`, `docs/store.md`), read before
-  anything is asked of another unit, so no read of it needs the agency or the web unit once it is kept. It is
-  written when a BMO is added naming its owner account, when its owner account or the owner's link becomes known
-  later (a read that asks the agency or the web unit keeps what it learns), and by a pass at start that keeps
-  every private room the agency and the web unit name now; the pass and every such read write only what is not
-  kept yet, so running them again changes nothing. The record keeps it as one row a room: no row is no private
-  room, a row naming an account is that account's private room, and a row naming none is a private room whose
-  account is not known yet, sealed: the owner's private room until the web unit links an account to his sender. A
-  sealed row is filled in once its account is known. Once kept, the account never
-  changes or clears by itself: a retired BMO's room, a supervisor no longer listed and an account that has left
-  all stay that account's private room.
+- **Whose private room a room is is a fact kept on its record** (`private_rooms`, `docs/store.md`), and no read
+  asks another unit for it but the owner's link. The record keeps one row a room: no row is no private room, a row
+  naming an account is that account's private room, and a row naming none is a private room whose account is not
+  known, sealed. A row naming none is filled in once its account is known; a row naming an account never changes
+  or clears by itself, so a retired BMO's room, a supervisor no longer listed and an account that has left all stay
+  that account's private room. No read assigns a room to an account on what the agency lists now. A room is
+  assigned by these alone:
+  - **a BMO's own room by the addition that makes it,** `POST /supervisors` naming its `ownerAccount` onto a room
+    this addition writes. An addition under a name whose room stands already takes it back only where the record
+    keeps it as the private room of the account the addition names; any other standing room, one the record keeps
+    nothing of among them, is sealed and the name refused `name-taken`, so a supervisor added under a retired
+    one's name never reads what was said there. The room's half is written before the agency is asked and taken
+    back where the agency does not stand the supervisor, so a refusal leaves nothing in either;
+  - **every BMO's own room once, by the first start that reads the agency after the record began keeping private
+    rooms:** each own room the record keeps nothing of is assigned to the owner its supervisor's registration
+    names, and the pass is marked done in the record. Every start after only seals the own rooms no registered
+    supervisor claims and assigns none; a BMO's own room is one standing on the record under a supervisor's name
+    whose number on the record stands;
+  - **the owner's private room by the web unit's link of his sender alone,** asked only while the record keeps no
+    account of it, and kept once the web unit names one. The owner's private room is the one the configuration
+    names and the one a chat service says is his private chat with the agent.
 - **Which rooms are private is the receiver's to say,** from these rules alone: every room read answers
   `privateOf`, the account whose private room it is, or null, and `sealed`, whether it is a private room whose
   account is not known yet (`docs/api.md`, 「Rooms」). A room is never private by how many members it holds or
@@ -407,8 +417,15 @@ flowchart TD
   BMO leaves its room standing and kept as its account's, and an account that leaves keeps its private rooms as
   they stand. The account reads its room while it exists, the administrator reads it and writes nothing there, and
   no other account writes in it; nothing removes a private room but its removal by its own account.
-- **The owner's own road acts for his account:** `POST /owner/messages`, `POST /owner/message-files` and
-  `POST /owner/instructions` write in his own private room always and in another account's private room never.
+- **The owner's own road writes as the owner:** `POST /owner/messages`, `POST /owner/message-files` and
+  `POST /owner/instructions` write in his own private room always, whether or not an account is linked to his
+  sender yet, and in a room no account's private room always; a room the record keeps nothing of is no one's, and
+  the web unit is not asked of it. In a room private to an account they write where the call names that account,
+  or, naming none, where the web unit links that account to the owner's sender, asked only then; in a sealed room
+  other than his own they never write. So while no account is linked to his sender the owner speaks as before in
+  his own private room and in every group room, from the console's owner road and from a chat service alike, and
+  writes in no account's private room, his own BMO's among them, until the link names his account. A chat
+  service's hand-over of his words is a unit's and judged nowhere.
 - **A unit acting as itself names no account,** under the receiver's token, and is refused in no room: an agent's
   own acts through its tools (`POST /sends`, a handoff, a handover, a talk), a unit's instruction or notice into a
   room (bmo-job and the agency: `POST /instructions`, `POST /rooms/{roomId}/notices`), the brain's read marks of an

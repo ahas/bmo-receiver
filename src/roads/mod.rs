@@ -190,6 +190,22 @@ impl Roads {
     }
   }
 
+  /// Whether a chat service says a room is the owner's private chat, whatever room the configuration names his own.
+  pub async fn said_owner_room(&self, chat_id: i64) -> bool {
+    // A room the record holds alone no chat service carries, so none is asked of it.
+    if self.record_alone(chat_id).await {
+      return false;
+    }
+
+    for key in self.chats.names() {
+      if let Some(Some(room)) = self.room_of(key, chat_id).await {
+        return room.kind == RoomKind::Owner;
+      }
+    }
+
+    false
+  }
+
   /// The roads reading the account each send goes out in from `accounts`; the last given stands.
   pub fn with_accounts(&self, accounts: Arc<dyn SendingAccount>) {
     *self.accounts.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(accounts);
