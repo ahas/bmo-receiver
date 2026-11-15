@@ -60,7 +60,7 @@ takes it outright: the table holds no default agent.
 | `reload_pending` | a document moved that a room's session has not been told of yet | room and path |
 | `reload_sent` | when a room was last told of moved documents | room |
 | `provider_rooms` | a room a chat service numbered: its own room id, the number and its title | chat service and room id; one per number |
-| `provider_users` | a person a chat service numbered: their own user id and the number | chat service and user id; one per number |
+| `provider_users` | a person a chat service numbered: their own user id and the number; on the record, an agent under its name and an account under `account:<account>`, the account's record identity (`docs/receiver.md`, 「Console rooms and accounts」) | chat service and user id; one per number |
 | `provider_private_rooms` | a room a chat service says is one person's one-to-one with the agent | chat service and room |
 | `provider_owner_users` | a user id of a chat service that is the owner in a room | chat service, room and user id |
 | `message_number_marks` | the lowest number the room's own record has handed out, to a message no road numbered, so a number whose message left the record is never handed out again (`docs/unified-bmo.md`, 「The cases」) | room |
@@ -72,6 +72,7 @@ takes it outright: the table holds no default agent.
 | `draft_processes` | a supervisor's row of the draft process table, which the console set and which stands for that supervisor over the policy's (`docs/drafting.md`, 「The process table」): the questions every turn follows, those of them switched off, the question a send is read from, the ceiling and what is done past it, and when it was set | provider, tier and agent |
 | `draft_questions` | a question's text the console set for a supervisor, over the policy's catalogue, and when | the supervisor and the question's name |
 | `draft_rounds` | one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」): the round, the room, the agent, its number, the question, its kind, its answer's length, whether it changed, how it ended, a detail, the answer, how long it took and when, and on the end what the round read from the brain, the session its turn ran on and how many pieces that session's earlier rounds in the room read in full, and on a turn's row that spanned several turns of the agent's program each one's answer | its number |
+| `room_accounts` | an account that is a member of a room in the console: who let it in and when, and, once it went out or was taken out, who and when, both null while it is a member; let in again, the row stands as let in anew (`docs/receiver.md`, 「Console rooms and accounts」) | room and account |
 | `room_situations` | a room's situation note, the receiver's own (`docs/drafting.md`, 「The situation note」): its text, replaced when it changes, when it last did, and the row of the room's record it has read to | room |
 
 A room's situation note is the receiver's own row, one a room: the room's live state, not the agent's memory. The
@@ -81,6 +82,7 @@ text is the version the round's record names.
 A room's line is read newest first or from a message the reader holds, by when each message was sent and then by
 its row, so `messages` is indexed by room, time and row, and a page reads only the messages it answers. The roads a
 room's messages came in on are read off an index of the messages that name one, by room and road.
+The rooms an account is a member of are read off an index of `room_accounts` by account.
 A round's end reads the end of its room and session written last before it, so the round log's end rows are indexed
 by room and session in the order they were written.
 

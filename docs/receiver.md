@@ -7,7 +7,7 @@ What the receiver is, what it carries, and how it stands among the units around 
 ```mermaid
 flowchart TD
   CS[Chat services<br/>through bmo-chat] -->|POST /message, /attachment, /edited, /gathered| Rx[Receiver: rooms, wake, roads]
-  Console[Console] -->|POST /owner/messages, /owner/message-files, /owner/instructions, reads| Rx
+  Console[Console] -->|an account's words, members, the owner's road, reads| Rx
   Rx --> DB[(The receiver's database)]
   Rx --> Conv[The one runner:<br/>each agent's conversations]
   Pass[The instruction pass] --> Conv
@@ -58,8 +58,10 @@ flowchart TD
   - the one runner: each woken agent's turns in its conversations, every supervisor's alike,
     every agent's rows of the instruction pass, and the words the room sessions left untaken taken up as the
     receiver starts, each answer handed back to the receiver like any word filed in the room;
-  - the console's road in: `POST /owner/messages` and `POST /owner/message-files` into any room it holds, the
-    second with `voice` for a recording;
+  - the console's road in (「Console rooms and accounts」 below): an account's words and files said in a room
+    (`POST /rooms/{roomId}/words`, `POST /rooms/{roomId}/word-files`), a room's members by account, and the
+    record identity of each account; and the owner's road, `POST /owner/messages` and `POST /owner/message-files`
+    into any room it holds, the second with `voice` for a recording;
   - the delivery of every kept message to the room's chat providers (「A room's chat providers」 below);
   - the words' form of its own sends: the scaffolding guard, the dash net, and the words handed to the room's chat
     service in the form its dialect reads; refused where nothing but scaffolding is left;
@@ -130,7 +132,8 @@ flowchart TD
     files the message carried, the caption with the first file, answering the message it answers where that
     message stands on that provider under a number of the provider's own.
   - A message the owner said goes in the owner's own voice, `human-reader`, as the chat protocol names a send in
-    the owner's own words; any other goes in the voice the provider answers the room by.
+    the owner's own words; words another account said in the console go as 「An account's words on a messenger」
+    below says; any other goes in the voice the provider answers the room by.
   - The voice a provider answers a room by is the one every send the receiver makes there goes in where the
     send names none of its own, an agent's answer, a line, a typing indicator or a message carried, and the
     one an act refused in the voice named is tried again in: `human-avatar` in a room added `avatar`
@@ -171,7 +174,8 @@ flowchart TD
 - **No chat service is asked of a room the record holds alone by its own rows:** one whose chosen list names no
   chat service the configuration lists, or one whose list was never chosen and whose number the record gave. What
   such a room is comes from its record, whether every chat service is up or down: it is the owner's private chat
-  only where it is the owner's private room the configuration names, it is no one-to-one, the agent's words there
+  only where it is the owner's private room the configuration names, it is a one-to-one only where it is a BMO's
+  private room, with its owner account's record identity (「Console rooms and accounts」 below), the agent's words there
   stand under no number of a road's, no road reads it in the owner's account, and its own road is the record. Its
   words are kept and wake its answerers by the one rule every room's words are judged by (`docs/wake.md`). Every
   other room's facts are asked of the chat services that may hold it.
@@ -312,6 +316,75 @@ flowchart TD
   console and carrying his text as data, read for secret-shaped runs first (`docs/messages.md`, 「Secrets taken
   out」) and delivered as a quiet instruction, with the rule the marker stands for in the room's block, so the
   room sees nothing but the answer it leads to; a chat the archive has never seen is refused.
+
+## Console rooms and accounts
+
+The console comes first and a provider only supplies chat and connects it; in the console a person is their
+account (`STRUCTURE.md`, 「Accounts, companies and units」). The console server acts for the accounts and calls the
+receiver under its token; the receiver judges no right of an account, which the console asks the web unit before
+it calls, but it holds the rules below whoever calls.
+
+```mermaid
+flowchart TD
+  A[An account's words in the console] --> S{The account the web unit links to the owner's sender?}
+  S -->|yes| O[Filed under the owner's sender]
+  S -->|no| R[Filed under the account's record identity]
+  O --> P[The one pipeline: kept, judged, woken, carried]
+  R --> P
+```
+
+- **The console's road is not the owner's road.** What is granted to the owner hangs on his sender, which the web
+  unit links to his account, and never on words having come through the console: his commands, a grant made on
+  his message, his wake in his private chat, the owner's directive a round owes an answer to, the turn marked his
+  that files work as asked by the owner, his answer to a job's open question, `sender-is-owner` and `owner-spoke`,
+  and his own voice on a messenger. `POST /owner/messages`, `POST /owner/message-files` and
+  `POST /owner/instructions` are the owner's road; the console uses them for the owner's account alone.
+- **An account's record identity** is the number its words stand under on the record, the console's road: a row
+  of the record's numbered people keyed by the account, made the first time it is asked for
+  (`PUT /accounts/{account}/identity`) and the same one ever after. The web unit links it to the account's user
+  as it links any chat service's identity, so every reading that asks whose user a sender is reads it as that
+  account's: a member's own supervisor reading the room, and the call of one's own supervisor where the room grants
+  `ask` (`docs/wake.md`, 「Who reaches the session」).
+- **An account's words** (`POST /rooms/{roomId}/words`, `POST /rooms/{roomId}/word-files`) are filed under the
+  owner's sender where the account is the one the web unit links to the owner's sender, and under the account's
+  record identity otherwise, made where it is missing; under the owner's name in the room for the owner, as his
+  words from the console always stood, and under the shown name the console gives for any other account. From
+  there they are kept, judged, woken on and carried exactly as any message, whether the sender is the owner read
+  off the sender as for every message. A web unit that cannot say which account the owner's is refuses the words
+  502 `upstream-failed` and nothing is kept.
+- **A room's members are accounts.** In a room on the record alone they are the accounts let into it; in a room a
+  chat service carries they are those beside the people the service lists, whom the console links to accounts
+  itself. An account is let in by another (`by`), and goes out by itself or is taken out; each of those writes a
+  line into the room saying who did what to whom, a fixed line the room's members all read (`docs/voiced-notices.md`,
+  「Lines that stay fixed」). A member taken out is no longer listed and no longer reads the room through its
+  membership. An agent room opened by an account (`POST /rooms`, `openedBy`) has that account as its first member,
+  let in by itself and with no line.
+- **A BMO's private room is the record room written when the supervisor was added,** naming it alone: its own
+  room under the supervisor's name on the record. It is one-to-one with the supervisor's owner account, the
+  account the agency's registration names as its `ownerAccount`; the owner's private room is one-to-one with the
+  owner's account alike. That account is its one member and the room's one-to-one person is its record identity
+  once that stands, so its words wake the supervisor with no name and no open window, as a user's own private chat's do
+  (`docs/wake.md`, 「Who reaches the session」), and the room is no group: no member's supervisor reads it.
+- **Who reads a private room:** its account, and the administrator, who reads every room (`STRUCTURE.md`, 「The
+  superadmin reaches everything and changes nothing of another's」). This is the one place the receiver states
+  it. The administrator's read changes nothing of another's: no read route of the receiver keeps anything of who
+  read, so his read leaves no mark, no window opened, no wake and no event; and in a private room that is not his
+  own, his words and files are refused like any other account's.
+- **Nothing in a private room is said or changed by another account:** words or files there from any account but
+  its own are refused 403 `private-room` before anything is kept, and a member let in or taken out of a private
+  room is refused 403 `private-room` for every account, its own among them.
+- **An account's words on a messenger.** The room's chat services are handed the words as every kept message is
+  (「A room's chat providers」), each provider deciding by what it declares how the speaker reaches its room:
+  - the owner's words go in his own voice, `human-reader`, the account his reader on that service is;
+  - another account's words go in the provider's own voice, a `bot-account` or `own-account` mode it declares
+    active, and name that account as the one they go out in (`accountId`), never the room's leader's, so a
+    provider that holds an account for each person sends them in that person's own or refuses them. A provider
+    that declares `speakers` is handed the account as the speaker, `account:<account>`, and speaks as the identity
+    it links to that account where it holds one; where it refuses that speaker, or declares no `speakers`, the
+    words go in its own voice with the speaker's shown name before them, as the policy's `[relay]` form writes it
+    (`roads.toml`);
+  - a provider with no voice of its own active is handed nothing of another account's words, and the journal says
+    so, so no account's words go out in another person's account.
 
 ## The event stream
 
@@ -491,6 +564,8 @@ flowchart TD
   configured `agent`), each message naming the agent that said it, so one room holds every speaker apart.
 - **Every agent holds one number on the record,** under the record's own key, the one it was first given in
   whichever room: its words in every room the record numbers stand under it, and its kept picture with them.
+- **Every account holds one number on the record too,** its record identity (「Console rooms and accounts」 above),
+  whichever rooms it speaks in; the owner's own words stay under his own number.
 - **Reaching the owner without naming a transport** (the login notice, the restart notice and a briefing's
   lines) is the owner's private room, kept in its record and carried to the providers its list names. A rest
   notice and the other system notices go to the notices room where one is named, as below.

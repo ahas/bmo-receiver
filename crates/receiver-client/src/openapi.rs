@@ -864,6 +864,101 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "not-found", "forbidden", "failed"]
   );
   add!(
+    "GET",
+    "/rooms/{roomId}/accounts",
+    "roomAccounts",
+    "Rooms",
+    "A room's members by account in the console; a private room's own account alone.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomAccounts>(&mut generator))],
+    vec!["unauthorized", "not-found", "upstream-failed", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/accounts/{account}",
+    "letIn",
+    "Rooms",
+    "An account let into a room by another, with a line saying so; the member as it stands where it already is one.",
+    vec![path_parameter("roomId"), path_parameter("account")],
+    Some(generator.subschema_for::<LetIn>()),
+    vec![(200, json_answer::<RoomAccount>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/rooms/{roomId}/accounts/{account}",
+    "takeOut",
+    "Rooms",
+    "A member taken out of a room, or leaving it where by is itself, with a line saying so.",
+    vec![path_parameter("roomId"), path_parameter("account"), parameter("by", "integer", true)],
+    None,
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
+  );
+  add!(
+    "PUT",
+    "/accounts/{account}/identity",
+    "accountIdentity",
+    "Rooms",
+    "An account's record identity, made where it does not stand and the same one ever after.",
+    vec![path_parameter("account")],
+    None,
+    vec![(200, json_answer::<AccountIdentity>(&mut generator))],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "GET",
+    "/accounts/{account}/rooms",
+    "accountMemberships",
+    "Rooms",
+    "The rooms an account is a member of in the console now, its private rooms among them.",
+    vec![path_parameter("account")],
+    None,
+    vec![(200, json_answer::<AccountMemberships>(&mut generator))],
+    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/words",
+    "accountWords",
+    "Sends",
+    "Words an account said in a room in the console, kept under the owner's sender for the owner's account and under the account's record identity for any other.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<AccountWords>()),
+    vec![(201, json_answer::<Created>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "no-route",
+      "conflict",
+      "room-archived",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/word-files",
+    "accountWordFiles",
+    "Sends",
+    "Files an account sent into a room in the console, as a form: the owner's files form with account and name in place of chatId.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<Value>()),
+    vec![(200, json_answer::<Value>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "no-route",
+      "room-archived",
+      "private-room",
+      "too-large",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
     "PUT",
     "/room-holders/{holderName}",
     "declareHolder",

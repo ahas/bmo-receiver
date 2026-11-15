@@ -746,6 +746,7 @@ impl Receiver {
     let leaders = Arc::new(wake::agents::Leaders::new(db.clone(), units.agency.clone(), span));
 
     units.roads.with_accounts(leaders.clone());
+    units.roads.with_privacy(leaders.clone());
     leaders
   }
 

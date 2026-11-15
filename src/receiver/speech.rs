@@ -17,7 +17,7 @@ use serde_json::{Map, Value};
 use super::default_answerer::DefaultAnswerer;
 use super::{Deployment, News, Units};
 use crate::Fault;
-use crate::roads::providers::{self, Carried, Delivery};
+use crate::roads::providers::{self, Carried, Delivery, SaidBy};
 use crate::roads::{Road, added, record};
 
 /// Why a line was not said.
@@ -255,7 +255,7 @@ impl Speech {
       chat_id,
       message_id,
       reply_to,
-      owner: false,
+      said_by: SaidBy::Room,
       standing,
       carried,
     };

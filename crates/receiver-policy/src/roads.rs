@@ -87,11 +87,20 @@ pub struct Filling {
   pub most_rows: u32,
 }
 
+/// How another account's words said in the console go to a chat service that cannot speak as that account there.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Relay {
+  /// The words as they go, the shown name `{name}` before the words `{text}`.
+  pub named: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Roads {
   pub record: Record,
   pub marks: Marks,
+  pub relay: Relay,
   pub pictures: Pictures,
   pub gathering: Gathering,
   pub filling: Filling,

@@ -2,6 +2,7 @@
 //! tool and the `bmo` command line reach the receiver on. Every one answers only a request carrying the
 //! receiver's token, and a refusal with its code and the English sentence naming it.
 
+mod accounts;
 mod as_owner;
 mod avatars;
 mod brain;
@@ -159,6 +160,11 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/rooms/{roomId}/providers", get(rooms::room_providers)),
     ("PUT", "/rooms/{roomId}/providers", put(rooms::choose_providers)),
     ("GET", "/rooms/{roomId}/members", get(rooms::room_members)),
+    ("GET", "/rooms/{roomId}/accounts", get(accounts::members)),
+    ("PUT", "/rooms/{roomId}/accounts/{account}", put(accounts::let_in)),
+    ("DELETE", "/rooms/{roomId}/accounts/{account}", delete(accounts::take_out)),
+    ("PUT", "/accounts/{account}/identity", put(accounts::identity)),
+    ("GET", "/accounts/{account}/rooms", get(accounts::rooms)),
     ("GET", "/rooms/{roomId}/roads", get(brain::roads)),
     ("GET", "/rooms/{roomId}/own-number", get(brain::own_number)),
     ("GET", "/rooms/{roomId}/spoke-between", get(brain::spoke_between)),
@@ -182,6 +188,8 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("POST", "/sends", post(sends)),
     ("POST", "/owner/messages", post(say)),
     ("POST", "/owner/message-files", post(say_file)),
+    ("POST", "/rooms/{roomId}/words", post(accounts::words)),
+    ("POST", "/rooms/{roomId}/word-files", post(accounts::word_files)),
     ("POST", "/talks", post(talk)),
     ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
     ("POST", "/handovers/{agentName}", post(handovers::hand_over)),

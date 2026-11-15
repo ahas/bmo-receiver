@@ -12,6 +12,9 @@ going-down-for-update = "업데이트를 위해 잠시 내려갔다가 곧 돌�
 going-down = "잠시 다시 시작했다가 곧 돌아옵니다."
 memory-tidying = "기억 정리 중입니다. 완료 시 대답합니다. 잠시만 기다려주세요."
 draw = "추첨 {number}번 결과: {result} (시드 {seed}, 다음 시드 약속 {next})"
+account-let-in = "계정 {by}이(가) 계정 {account}을(를) 이 방에 들였어요."
+account-left = "계정 {account}이(가) 이 방에서 나갔어요."
+account-taken-out = "계정 {by}이(가) 계정 {account}을(를) 이 방에서 내보냈어요."
 
 [sentences.en]
 rest-begins = "A usage limit has been reached, so I cannot answer for a while. I will answer again once it lifts."
@@ -22,3 +25,6 @@ going-down-for-update = "Going down for an update for a moment; back shortly."
 going-down = "Restarting for a moment; back shortly."
 memory-tidying = "Tidying my memory. I will answer once it is done; one moment, please."
 draw = "Draw {number}: {result} (seed {seed}, next seed commitment {next})"
+account-let-in = "Account {by} let account {account} into this room."
+account-left = "Account {account} left this room."
+account-taken-out = "Account {by} took account {account} out of this room."

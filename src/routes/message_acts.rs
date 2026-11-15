@@ -22,7 +22,7 @@ use super::rooms::message_shape;
 use super::{Answered, Refusal, Served, answered, code, read, refused, store};
 use crate::all;
 use crate::receiver::{Receiver, reads, rows};
-use crate::roads::providers::{self, ActCarriage, Carriage, Carried, Delivery};
+use crate::roads::providers::{self, ActCarriage, Carriage, Carried, Delivery, SaidBy};
 use crate::roads::{Road, record};
 use crate::secrets;
 
@@ -367,7 +367,7 @@ pub async fn sticker(
       chat_id: room,
       message_id: message,
       reply_to: None,
-      owner: true,
+      said_by: SaidBy::Owner,
       standing: vec![Road::Record.key().to_owned()],
       carried: Carried::Send(ChatSend::Sticker(ChatSticker::Emoji {
         emoji: emoji.clone(),

@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use crate::receiver::speech::KeptLine;
 use crate::receiver::{Receiver, files, rows, speech, wake};
-use crate::roads::providers::{self, Carried, Delivery};
+use crate::roads::providers::{self, Carried, Delivery, SaidBy};
 use crate::roads::{Road, added, record};
 use crate::verbs::{Launch, NoLaunch, VerbError};
 
@@ -424,7 +424,7 @@ impl Sends {
       chat_id: request.room_id,
       message_id,
       reply_to: request.reply_to_message_id,
-      owner: false,
+      said_by: SaidBy::Room,
       standing: vec![Road::Record.key().to_owned()],
       carried: Carried::Send(request.send.clone()),
     };

@@ -341,5 +341,6 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `run-broken`, the last resort when a run broke and the agent cannot answer the order about it | No session is able to say it; it is composed out of what the broken run left. |
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
+| `account-let-in`, `account-left`, `account-taken-out` (an account let into a room, leaving it, or taken out, each naming the accounts by their keys, `docs/receiver.md`, 「Console rooms and accounts」) | It records who did it, as it was done, for every member to read; no session is woken for it. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
 | Pass-through content (search, browse and say results) | An agent, or whoever set it, already wrote it. |

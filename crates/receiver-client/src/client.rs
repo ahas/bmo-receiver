@@ -389,6 +389,40 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "members"])).await
   }
 
+  /// `GET /rooms/{roomId}/accounts`.
+  pub async fn room_accounts(&self, room_id: i64) -> Answer<RoomAccounts> {
+    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "accounts"])).await
+  }
+
+  /// `PUT /rooms/{roomId}/accounts/{account}`.
+  pub async fn let_in(&self, room_id: i64, account: i64, by: i64) -> Answer<RoomAccount> {
+    let path = ["rooms", &room_id.to_string(), "accounts", &account.to_string()];
+
+    Self::answered(self.send(Method::PUT, &path, &LetIn { by })).await
+  }
+
+  /// `DELETE /rooms/{roomId}/accounts/{account}`, the member itself as `by` where it leaves.
+  pub async fn take_out(&self, room_id: i64, account: i64, by: i64) -> Answer<()> {
+    let path = ["rooms", &room_id.to_string(), "accounts", &account.to_string()];
+
+    Self::nothing(self.request(Method::DELETE, &path).query(&[("by", by.to_string())])).await
+  }
+
+  /// `PUT /accounts/{account}/identity`.
+  pub async fn account_identity(&self, account: i64) -> Answer<AccountIdentity> {
+    Self::answered(self.request(Method::PUT, &["accounts", &account.to_string(), "identity"])).await
+  }
+
+  /// `GET /accounts/{account}/rooms`.
+  pub async fn account_memberships(&self, account: i64) -> Answer<AccountMemberships> {
+    Self::answered(self.request(Method::GET, &["accounts", &account.to_string(), "rooms"])).await
+  }
+
+  /// `POST /rooms/{roomId}/words`.
+  pub async fn account_words(&self, room_id: i64, words: &AccountWords) -> Answer<Created> {
+    Self::answered(self.send(Method::POST, &["rooms", &room_id.to_string(), "words"], words)).await
+  }
+
   /// `PUT /rooms/{roomId}/providers`.
   pub async fn choose_providers(&self, room_id: i64, chosen: &ChooseProviders) -> Answer<RoomProviders> {
     Self::answered(self.send(Method::PUT, &["rooms", &room_id.to_string(), "providers"], chosen)).await

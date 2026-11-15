@@ -119,8 +119,9 @@
 
 - **Words from another chat service** are answered on that service, in the words' form its dialect reads.
 - **Words from the web console** are the console's own road.
-  - Console input goes straight into the archive as the owner's message and on to the agent, and from the archive
-    to the room's other providers, in the owner's own voice.
+  - The owner's console input goes straight into the archive as the owner's message and on to the agent, and from
+    the archive to the room's other providers, in the owner's own voice. Another account's console input is that
+    account's, under its record identity (`docs/receiver.md`, 「Console rooms and accounts」).
   - The console has no name of its own for the owner, so the owner's row stands under the name the room's own
     service last showed the owner by in that room, else under the owner's registered name, the user the web
     unit's account model links the owner's number to, and under the owner's number where neither stands. The

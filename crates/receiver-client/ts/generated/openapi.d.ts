@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/accounts/{account}/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** An account's record identity, made where it does not stand and the same one ever after. */
+        put: operations["accountIdentity"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{account}/rooms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The rooms an account is a member of in the console now, its private rooms among them. */
+        get: operations["accountMemberships"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/answerers": {
         parameters: {
             query?: never;
@@ -587,6 +621,41 @@ export interface paths {
         post?: never;
         /** A room's registration removed, or with dryRun what the removal would do. */
         delete: operations["removeRoom"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A room's members by account in the console; a private room's own account alone. */
+        get: operations["roomAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/accounts/{account}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** An account let into a room by another, with a line saying so; the member as it stands where it already is one. */
+        put: operations["letIn"];
+        post?: never;
+        /** A member taken out of a room, or leaving it where by is itself, with a line saying so. */
+        delete: operations["takeOut"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1213,6 +1282,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/word-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Files an account sent into a room in the console, as a form: the owner's files form with account and name in place of chatId. */
+        post: operations["accountWordFiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Words an account said in a room in the console, kept under the owner's sender for the owner's account and under the account's record identity for any other. */
+        post: operations["accountWords"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rounds/drafts": {
         parameters: {
             query?: never;
@@ -1440,6 +1543,17 @@ export interface components {
              */
             roomId: number | null;
         };
+        /** @description `PUT /accounts/{account}/identity`: an account's record identity. */
+        AccountIdentity: {
+            /** Format: int64 */
+            account: number;
+            /** Format: int64 */
+            sender: number;
+        };
+        /** @description `GET /accounts/{account}/rooms`: the rooms an account is a member of in the console. */
+        AccountMemberships: {
+            rooms: number[];
+        };
         /**
          * @description A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode
          *     the receiver added it in.
@@ -1462,6 +1576,15 @@ export interface components {
              */
             privateTo: number | null;
             title: string | null;
+        };
+        /** @description `POST /rooms/{roomId}/words`: words an account said in the console, with the name it is shown by. */
+        AccountWords: {
+            /** Format: int64 */
+            account: number;
+            name: string;
+            /** Format: int64 */
+            replyTo?: number | null;
+            text: string;
         };
         /**
          * @description `POST /rooms`: a room to add, on a chat service by its key, as that service numbers it, in a mode, under a title
@@ -1507,6 +1630,16 @@ export interface components {
             totalTokens: number | null;
             /** Format: int64 */
             weekTokens: number | null;
+        };
+        /**
+         * @description `POST /rooms` with no chat service: an agent room on the record alone, answered by `supervisors`, its first
+         *     member the account `opened_by` names where one opens it.
+         */
+        AgentRoom: {
+            /** Format: int64 */
+            openedBy?: number | null;
+            supervisors: string[];
+            title: string;
         };
         /** @description One agent answering a room. */
         Answerer: {
@@ -1982,6 +2115,11 @@ export interface components {
             storedPath: string | null;
             summary: string | null;
         };
+        /** @description `PUT /rooms/{roomId}/accounts/{account}`: the account letting another in. */
+        LetIn: {
+            /** Format: int64 */
+            by: number;
+        };
         /**
          * @description A line's full reading: `making` while its script is written and the voice engine speaks it, `ready` once it
          *     can be heard, and the engine's briefing, whose sound the engine serves.
@@ -2441,8 +2579,24 @@ export interface components {
              */
             workRoom: number;
         };
-        /** @description The body of `POST /rooms`: a room of a chat service's account, or a conversation the service starts. */
-        RoomAddition: components["schemas"]["AddRoom"] | components["schemas"]["StartRoom"];
+        /** @description A member of a room by account: who let it in and when, both null for a private room's own account. */
+        RoomAccount: {
+            /** Format: int64 */
+            account: number;
+            /** Format: int64 */
+            addedAt: number | null;
+            /** Format: int64 */
+            addedBy: number | null;
+        };
+        /** @description `GET /rooms/{roomId}/accounts`: a room's members by account. */
+        RoomAccounts: {
+            accounts: components["schemas"]["RoomAccount"][];
+        };
+        /**
+         * @description The body of `POST /rooms`: a room of a chat service's account, a conversation the service starts, or an agent
+         *     room on the record alone.
+         */
+        RoomAddition: components["schemas"]["AddRoom"] | components["schemas"]["StartRoom"] | components["schemas"]["AgentRoom"];
         /** @description Every room with its agents answering it. */
         RoomAnswerers: {
             agents: string[];
@@ -2736,6 +2890,68 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    accountIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountIdentity"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    accountMemberships: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountMemberships"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     answerers: {
         parameters: {
             query?: {
@@ -4149,6 +4365,105 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, forbidden, not-found, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomAccounts"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, not-found, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    letIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LetIn"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomAccount"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    takeOut: {
+        parameters: {
+            query: {
+                by: number;
+            };
+            header?: never;
+            path: {
+                roomId: number;
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5665,6 +5980,76 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    accountWordFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, no-route, room-archived, private-room, too-large, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    accountWords: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountWords"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Created"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, no-route, conflict, room-archived, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

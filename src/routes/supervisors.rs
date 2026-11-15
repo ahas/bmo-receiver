@@ -528,7 +528,7 @@ pub async fn member_messages(
 }
 
 /// Whether a supervisor may read a group room: the room is a group, and the supervisor answers it or belongs to
-/// an account one of whose senders has stood in the room.
+/// an account that is a member of the room or one of whose senders has stood in the room.
 async fn membership(receiver: &Receiver, agent: &str, room: i64) -> Result<(), Refusal> {
   let facts = receiver.roads().room_facts(room).await;
 
@@ -547,6 +547,14 @@ async fn membership(receiver: &Receiver, agent: &str, room: i64) -> Result<(), R
       supervisor: agent.to_owned(),
     }));
   };
+
+  // A member by account reads it as it stands, whatever senders the account has spoken under.
+  if let Some(account) = registered.owner_account
+    && crate::accounts::member(receiver.db(), room, account).await.map_err(store)?.is_some()
+  {
+    return Ok(());
+  }
+
   let senders = match registered.owner_account {
     Some(account) => receiver.units().web.senders_of_user(&account.to_string()).await.unwrap_or_default(),
     None => Vec::new(),

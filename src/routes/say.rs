@@ -1,7 +1,7 @@
-//! Words and files the owner typed into a room on the screen (docs/receiver.md, 「The owner's words」): in every
-//! room they are kept under a console number, the owner's number and his own name, handed to the room's
-//! conversations as any of his words are, and carried to the room's other providers in his own voice. A room the
-//! receiver does not hold is refused before anything is written.
+//! Words and files typed into a room on the screen (docs/receiver.md, 「The owner's words」, 「Console rooms and
+//! accounts」): in every room they are kept under a console number and under who speaks them, the owner on his road
+//! or an account on its own, handed to the room's conversations as any words are, and carried to the room's other
+//! providers as who said them goes. A room the receiver does not hold is refused before anything is written.
 
 use axum::{
   Json,
@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::data_root::room_path;
 use crate::receiver::{Context, Inbound, NotReceived, Receiver, rows};
-use crate::roads::providers::{self, Carried, Delivery};
+use crate::roads::providers::{self, Carried, Delivery, SaidBy};
 use crate::roads::{Road, record};
 use crate::routes::as_owner::{OwnerFile, refusal};
 use crate::routes::message_files::inside;
@@ -110,11 +110,39 @@ fn failed(why: NotReceived) -> Refusal {
   }
 }
 
+/// Who words put into a room on the screen stand under: the sender and the name they are kept under, and who said
+/// them as the room's other providers are handed them.
+pub(super) struct Speaking {
+  pub sender_id: i64,
+  pub name: String,
+  pub said_by: SaidBy,
+}
+
+impl Speaking {
+  /// The owner, under his number and the name the room shows him by.
+  pub async fn owner(receiver: &Receiver, chat_id: i64) -> Self {
+    Self {
+      sender_id: receiver.owner_id(),
+      name: receiver.owner_name(chat_id).await,
+      said_by: SaidBy::Owner,
+    }
+  }
+}
+
 pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
   let asked = read::<SayBody>(&body)?;
   let receiver: Receiver = (*served.receiver).clone();
-  let text = secrets::redacted(asked.text.trim());
-  let text = text.as_str();
+  let text = speakable(&receiver, asked.chat_id, &asked.text).await?;
+  let speaking = Speaking::owner(&receiver, asked.chat_id).await;
+  let id = said(&receiver, asked.chat_id, &text, asked.reply_to.as_ref(), speaking).await?;
+
+  answered(json!({ "id": id }))
+}
+
+/// Words to put into a room, their secret-shaped runs taken out: refused where nothing is left, where the receiver
+/// does not hold the room, and where the room is archived.
+pub(super) async fn speakable(receiver: &Receiver, chat_id: i64, text: &str) -> Result<String, Refusal> {
+  let text = secrets::redacted(text.trim());
 
   if text.is_empty() {
     return Err(refused(
@@ -124,19 +152,31 @@ pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
     ));
   }
 
-  if !known(&receiver, asked.chat_id).await? {
-    return Err(refused(StatusCode::NOT_FOUND, "no-route", &format!("unknown chat {}", asked.chat_id)));
+  if !known(receiver, chat_id).await? {
+    return Err(refused(StatusCode::NOT_FOUND, "no-route", &format!("unknown chat {chat_id}")));
   }
 
-  locked(&receiver, asked.chat_id).await?;
+  locked(receiver, chat_id).await?;
 
-  let reply = reply_target(&receiver, asked.chat_id, asked.reply_to.as_ref()).await?;
-  let message_id = record::next_number(receiver.db(), asked.chat_id).await.map_err(store)?;
+  Ok(text)
+}
+
+/// Words kept in a room under who speaks them, handed to the room's conversations as any words are and carried to
+/// the room's other providers: the number they are kept under.
+pub(super) async fn said(
+  receiver: &Receiver,
+  chat_id: i64,
+  text: &str,
+  reply_to: Option<&Value>,
+  speaking: Speaking,
+) -> Result<i64, Refusal> {
+  let reply = reply_target(receiver, chat_id, reply_to).await?;
+  let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
   let message = Inbound {
-    chat_id: asked.chat_id,
+    chat_id,
     message_id,
-    sender_id: Some(receiver.owner_id()),
-    sender_name: receiver.owner_name(asked.chat_id).await,
+    sender_id: Some(speaking.sender_id),
+    sender_name: speaking.name,
     sent_at: now_ms(),
     text: text.to_owned(),
     image_path: None,
@@ -151,22 +191,22 @@ pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
     album: None,
   };
 
-  Receiver::message(
-    &receiver,
-    &message,
-    &Context::default(),
-    receiver.roads().room_facts(asked.chat_id).await,
-  )
-  .await
-  .map_err(failed)?;
-  carried(&receiver, &message, Carried::words(text)).await?;
+  Receiver::message(receiver, &message, &Context::default(), receiver.roads().room_facts(chat_id).await)
+    .await
+    .map_err(failed)?;
+  carried(receiver, &message, speaking.said_by, Carried::words(text)).await?;
 
-  answered(json!({ "id": message_id }))
+  Ok(message_id)
 }
 
-// The owner's words, once the room kept them, carried to the room's other providers in the owner's own voice
-// (docs/receiver.md, 「A room's chat providers」); words the room did not keep go nowhere.
-async fn carried(receiver: &Receiver, kept: &Inbound, carried: Carried) -> Result<(), Refusal> {
+// The words, once the room kept them, carried to the room's other providers as who said them goes (docs/receiver.md,
+// 「A room's chat providers」); words the room did not keep go nowhere.
+async fn carried(
+  receiver: &Receiver,
+  kept: &Inbound,
+  said_by: SaidBy,
+  carried: Carried,
+) -> Result<(), Refusal> {
   let held = rows::message(receiver.db(), kept.chat_id, kept.message_id, &kept.via)
     .await
     .map_err(store)?;
@@ -179,7 +219,7 @@ async fn carried(receiver: &Receiver, kept: &Inbound, carried: Carried) -> Resul
     chat_id: kept.chat_id,
     message_id: kept.message_id,
     reply_to: kept.reply_to_message_id,
-    owner: true,
+    said_by,
     standing: vec![kept.via.clone()],
     carried,
   };
@@ -189,62 +229,47 @@ async fn carried(receiver: &Receiver, kept: &Inbound, carried: Carried) -> Resul
   Ok(())
 }
 
-pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered {
-  let receiver: Receiver = (*served.receiver).clone();
-  let mut form = form;
-  let mut chat_id: Option<i64> = None;
-  let mut caption = String::new();
-  let mut reply_field: Option<String> = None;
-  let mut voice = false;
-  let mut given: Vec<OwnerFile> = vec![];
+/// A form of files put into a room on the screen, as it was read: its room and the account speaking where the form
+/// names them, the caption, the message it answers, whether it is a voice note, and the files.
+#[derive(Default)]
+pub(super) struct FilesForm {
+  pub chat_id: Option<i64>,
+  pub account: Option<i64>,
+  pub name: Option<String>,
+  caption: String,
+  reply: Option<String>,
+  voice: bool,
+  given: Vec<OwnerFile>,
+}
 
-  while let Some(field) = form
-    .next_field()
-    .await
-    .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?
-  {
-    let name = field.name().unwrap_or_default();
+fn unreadable(why: axum::extract::multipart::MultipartError) -> Refusal {
+  refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text())
+}
 
-    match name {
-      "chatId" => {
-        let written = field
-          .text()
-          .await
-          .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?;
+/// The form read whole.
+pub(super) async fn files_form(mut form: Multipart) -> Result<FilesForm, Refusal> {
+  let mut read = FilesForm::default();
 
-        chat_id = leading_integer(&written);
-      }
-      "text" | "caption" => {
-        caption = field
-          .text()
-          .await
-          .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?
-      }
-      "replyTo" => {
-        reply_field = Some(
-          field
-            .text()
-            .await
-            .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?,
-        )
-      }
+  while let Some(field) = form.next_field().await.map_err(unreadable)? {
+    let name = field.name().unwrap_or_default().to_owned();
+
+    match name.as_str() {
+      "chatId" => read.chat_id = leading_integer(&field.text().await.map_err(unreadable)?),
+      "account" => read.account = leading_integer(&field.text().await.map_err(unreadable)?),
+      "name" => read.name = Some(field.text().await.map_err(unreadable)?),
+      "text" | "caption" => read.caption = field.text().await.map_err(unreadable)?,
+      "replyTo" => read.reply = Some(field.text().await.map_err(unreadable)?),
       "voice" => {
-        let written = field
-          .text()
-          .await
-          .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?;
+        let written = field.text().await.map_err(unreadable)?;
 
-        voice = matches!(written.trim().to_ascii_lowercase().as_str(), "true" | "1" | "yes" | "on");
+        read.voice = matches!(written.trim().to_ascii_lowercase().as_str(), "true" | "1" | "yes" | "on");
       }
       "file" => {
         let name = field.file_name().unwrap_or_default().to_owned();
         let mime = field.content_type().unwrap_or_default().to_owned();
-        let bytes = field
-          .bytes()
-          .await
-          .map_err(|why| refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text()))?;
+        let bytes = field.bytes().await.map_err(unreadable)?;
 
-        given.push(OwnerFile {
+        read.given.push(OwnerFile {
           name,
           mime,
           bytes: bytes.to_vec(),
@@ -254,32 +279,64 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
     }
   }
 
-  let Some(chat_id) = chat_id else {
-    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "chatId (number) and file are required"));
-  };
-  // The caption is read for secret-shaped runs before anything keeps or carries it (docs/messages.md, 「Secrets
-  // taken out」).
-  let caption = secrets::redacted(&caption);
+  Ok(read)
+}
 
-  if given.is_empty() {
+/// A form of files that can be put into a room: refused where it carries none, where the receiver does not hold the
+/// room, and where the room is archived.
+pub(super) async fn sendable(receiver: &Receiver, chat_id: i64, form: &FilesForm) -> Result<(), Refusal> {
+  if form.given.is_empty() {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "chatId (number) and file are required"));
   }
 
-  if !known(&receiver, chat_id).await? {
+  if !known(receiver, chat_id).await? {
     return Err(refused(StatusCode::NOT_FOUND, "no-route", &format!("unknown chat {chat_id}")));
   }
 
-  locked(&receiver, chat_id).await?;
+  locked(receiver, chat_id).await
+}
 
-  let reply_value = reply_field.map(Value::String);
-  let reply = reply_target(&receiver, chat_id, reply_value.as_ref()).await?;
+pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered {
+  let receiver: Receiver = (*served.receiver).clone();
+  let form = files_form(form).await?;
+  let Some(chat_id) = form.chat_id else {
+    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "chatId (number) and file are required"));
+  };
+
+  sendable(&receiver, chat_id, &form).await?;
+
+  let speaking = Speaking::owner(&receiver, chat_id).await;
+
+  files_said(&receiver, chat_id, form, speaking).await
+}
+
+/// The files of a form kept in a room under who speaks them, each as its own message with the caption beside it,
+/// and carried to the room's other providers as one send of files; or one recording, where the form is a voice note.
+pub(super) async fn files_said(
+  receiver: &Receiver,
+  chat_id: i64,
+  form: FilesForm,
+  speaking: Speaking,
+) -> Answered {
+  let FilesForm {
+    caption,
+    reply,
+    voice,
+    mut given,
+    ..
+  } = form;
+  // The caption is read for secret-shaped runs before anything keeps or carries it (docs/messages.md, 「Secrets
+  // taken out」).
+  let caption = secrets::redacted(&caption);
+  let reply_value = reply.map(Value::String);
+  let reply = reply_target(receiver, chat_id, reply_value.as_ref()).await?;
 
   if voice {
     if given.len() != 1 {
       return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "a voice note carries one sound file"));
     }
 
-    return say_voice(&receiver, chat_id, reply, caption, given.remove(0)).await;
+    return say_voice(receiver, chat_id, reply, caption, given.remove(0), speaking).await;
   }
 
   let mut turned_away: Vec<Value> = vec![];
@@ -303,15 +360,14 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
 
   let mut sent: Vec<Value> = vec![];
   let mut first: Option<Inbound> = None;
-  let owner_name = receiver.owner_name(chat_id).await;
 
   for (at, file) in kept.iter().enumerate() {
     let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
     let message = Inbound {
       chat_id,
       message_id,
-      sender_id: Some(receiver.owner_id()),
-      sender_name: owner_name.clone(),
+      sender_id: Some(speaking.sender_id),
+      sender_name: speaking.name.clone(),
       sent_at: now_ms(),
       text: caption.clone(),
       image_path: None,
@@ -336,7 +392,7 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
     let room = receiver.roads().room_facts(chat_id).await;
 
     Receiver::attachment(
-      &receiver,
+      receiver,
       &message,
       &Context {
         carries_file: true,
@@ -362,7 +418,7 @@ pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered
       })
       .collect();
 
-    carried(&receiver, &first, Carried::Files { files, caption }).await?;
+    carried(receiver, &first, speaking.said_by, Carried::Files { files, caption }).await?;
   }
 
   answered(
@@ -378,6 +434,7 @@ async fn say_voice(
   reply: Option<i64>,
   caption: String,
   file: OwnerFile,
+  speaking: Speaking,
 ) -> Answered {
   if let Some(reason) = refusal(&file.name, u64::try_from(file.bytes.len()).unwrap_or(0)) {
     return Err(refused(StatusCode::PAYLOAD_TOO_LARGE, "too-large", &reason));
@@ -397,8 +454,8 @@ async fn say_voice(
   let message = Inbound {
     chat_id,
     message_id,
-    sender_id: Some(receiver.owner_id()),
-    sender_name: receiver.owner_name(chat_id).await,
+    sender_id: Some(speaking.sender_id),
+    sender_name: speaking.name,
     sent_at: now_ms(),
     text,
     image_path: None,
@@ -437,6 +494,7 @@ async fn say_voice(
   carried(
     receiver,
     &message,
+    speaking.said_by,
     Carried::Voice {
       audio: file.bytes,
       caption,
@@ -564,7 +622,7 @@ pub async fn forward(
     chat_id: asked.to,
     message_id: copy,
     reply_to: None,
-    owner: true,
+    said_by: SaidBy::Owner,
     standing: vec![Road::Record.key().to_owned()],
     carried: match picture {
       Some(file) => Carried::Files {

@@ -100,12 +100,25 @@ pub struct StartRoom {
   pub account_id: Option<i64>,
 }
 
-/// The body of `POST /rooms`: a room of a chat service's account, or a conversation the service starts.
+/// `POST /rooms` with no chat service: an agent room on the record alone, answered by `supervisors`, its first
+/// member the account `opened_by` names where one opens it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentRoom {
+  pub title: String,
+  pub supervisors: Vec<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub opened_by: Option<i64>,
+}
+
+/// The body of `POST /rooms`: a room of a chat service's account, a conversation the service starts, or an agent
+/// room on the record alone.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum RoomAddition {
   Room(AddRoom),
   Start(StartRoom),
+  Agent(AgentRoom),
 }
 
 /// A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode
@@ -595,6 +608,53 @@ pub struct RoomMember {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RoomMembers {
   pub members: Vec<RoomMember>,
+}
+
+/// A member of a room by account: who let it in and when, both null for a private room's own account.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomAccount {
+  pub account: i64,
+  pub added_by: Option<i64>,
+  pub added_at: Option<i64>,
+}
+
+/// `GET /rooms/{roomId}/accounts`: a room's members by account.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RoomAccounts {
+  pub accounts: Vec<RoomAccount>,
+}
+
+/// `PUT /rooms/{roomId}/accounts/{account}`: the account letting another in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LetIn {
+  pub by: i64,
+}
+
+/// `PUT /accounts/{account}/identity`: an account's record identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountIdentity {
+  pub account: i64,
+  pub sender: i64,
+}
+
+/// `GET /accounts/{account}/rooms`: the rooms an account is a member of in the console.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AccountMemberships {
+  pub rooms: Vec<i64>,
+}
+
+/// `POST /rooms/{roomId}/words`: words an account said in the console, with the name it is shown by.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountWords {
+  pub account: i64,
+  pub name: String,
+  pub text: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub reply_to: Option<i64>,
 }
 
 /// A room's chat providers set whole: at least one, each once.

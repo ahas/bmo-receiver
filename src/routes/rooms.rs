@@ -352,6 +352,9 @@ struct Adding {
   /// The supervisors an agent room answers: a room created on the record alone, with no chat service.
   #[serde(default)]
   supervisors: Option<Vec<String>>,
+  /// The account that opens an agent room, its first member.
+  #[serde(default)]
+  opened_by: Option<i64>,
 }
 
 /// What a room to add is chosen as: a room of the account, or a conversation to start.
@@ -518,9 +521,10 @@ pub async fn add_room(State(served): State<Served>, body: Bytes) -> Accepted {
   Ok((StatusCode::CREATED, axum::Json(room_read(&receiver, room).await?)))
 }
 
-/// A room on the record alone: an agent room with its answering agents, and no chat service behind it. The
-/// room API creates it as any other, so an agent room is not a messenger's concern: its members wake by a
-/// call by name or a reply to their words, and the owner reads it as any room.
+/// A room on the record alone: an agent room with its answering agents, and no chat service behind it, its first
+/// member the account that opened it where one did. The room API creates it as any other, so an agent room is not a
+/// messenger's concern: its members wake by a call by name or a reply to their words, and the owner reads it as any
+/// room.
 async fn agent_room(served: Served, asked: Adding) -> Accepted {
   let bad = |why: &str| refused(StatusCode::BAD_REQUEST, "bad-request", why);
 
@@ -576,6 +580,11 @@ async fn agent_room(served: Served, asked: Adding) -> Accepted {
     )
     .await
     .map_err(store)?;
+  }
+
+  // The account that opened it is its first member, let in by itself, and no line is said of it.
+  if let Some(opener) = asked.opened_by {
+    crate::accounts::let_in(receiver.db(), room, opener, opener).await.map_err(store)?;
   }
 
   Ok((StatusCode::CREATED, axum::Json(room_read(&receiver, room).await?)))

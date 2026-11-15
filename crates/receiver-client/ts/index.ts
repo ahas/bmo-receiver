@@ -28,6 +28,13 @@ export type Provider = Schemas["Provider"];
 export type RoomProviders = Schemas["RoomProviders"];
 export type RoomMembers = Schemas["RoomMembers"];
 export type RoomMember = Schemas["RoomMember"];
+export type AgentRoom = Schemas["AgentRoom"];
+export type RoomAccount = Schemas["RoomAccount"];
+export type RoomAccounts = Schemas["RoomAccounts"];
+export type LetIn = Schemas["LetIn"];
+export type AccountIdentity = Schemas["AccountIdentity"];
+export type AccountMemberships = Schemas["AccountMemberships"];
+export type AccountWords = Schemas["AccountWords"];
 export type ChooseProviders = Schemas["ChooseProviders"];
 export type RoomRegistration = Schemas["RoomRegistration"];
 export type ChangeRoomMode = Schemas["ChangeRoomMode"];
@@ -345,6 +352,47 @@ export function receiverClient(options: ReceiverOptions) {
     /** `PUT /rooms/{roomId}/providers`. */
     async chooseProviders(roomId: number, body: ChooseProviders): Promise<RoomProviders> {
       return answered(await client.PUT("/rooms/{roomId}/providers", { params: { path: { roomId } }, body }));
+    },
+
+    /** `POST /rooms` with no chat service: an agent room on the record alone, opened by an account. */
+    async addAgentRoom(body: AgentRoom): Promise<Room> {
+      return answered(await client.POST("/rooms", { body }));
+    },
+
+    /** `GET /rooms/{roomId}/accounts`. */
+    async roomAccounts(roomId: number): Promise<RoomAccounts> {
+      return answered(await client.GET("/rooms/{roomId}/accounts", { params: { path: { roomId } } }));
+    },
+
+    /** `PUT /rooms/{roomId}/accounts/{account}`. */
+    async letIn(roomId: number, account: number, body: LetIn): Promise<RoomAccount> {
+      return answered(
+        await client.PUT("/rooms/{roomId}/accounts/{account}", { params: { path: { roomId, account } }, body }),
+      );
+    },
+
+    /** `DELETE /rooms/{roomId}/accounts/{account}`, the member itself as `by` where it leaves. */
+    async takeOut(roomId: number, account: number, by: number): Promise<void> {
+      answered(
+        await client.DELETE("/rooms/{roomId}/accounts/{account}", {
+          params: { path: { roomId, account }, query: { by } },
+        }),
+      );
+    },
+
+    /** `PUT /accounts/{account}/identity`. */
+    async accountIdentity(account: number): Promise<AccountIdentity> {
+      return answered(await client.PUT("/accounts/{account}/identity", { params: { path: { account } } }));
+    },
+
+    /** `GET /accounts/{account}/rooms`. */
+    async accountMemberships(account: number): Promise<AccountMemberships> {
+      return answered(await client.GET("/accounts/{account}/rooms", { params: { path: { account } } }));
+    },
+
+    /** `POST /rooms/{roomId}/words`. */
+    async accountWords(roomId: number, body: AccountWords): Promise<Schemas["Created"]> {
+      return answered(await client.POST("/rooms/{roomId}/words", { params: { path: { roomId } }, body }));
     },
 
     /** `GET /rooms/{roomId}/notices`. */

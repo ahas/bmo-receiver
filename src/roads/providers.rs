@@ -7,8 +7,12 @@
 use std::path::Path;
 
 use bmo_chat_client::{
-  AlbumItem, ChatCapability, ChatSend, ChatSendRequest, ChatVoice, ClientFailure, FileItem,
+  AlbumItem, ChatCapability, ChatDeclaration, ChatModeStanding, ChatSend, ChatSendRequest, ChatVoice,
+  ClientFailure, ErrorCode, FileItem,
 };
+use receiver_policy::fill_marks;
+use receiver_policy::roads::ROADS;
+use receiver_ports::chat::Chat;
 use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 
 use super::added::{self, RoomMode};
@@ -217,18 +221,81 @@ impl Carried {
       fold: false,
     })
   }
+
+  /// The same words with the speaker's shown name before them, as the policy writes a relay in a provider's own
+  /// voice (docs/receiver.md, 「Console rooms and accounts」): the words of a send, or the caption of files and of
+  /// a voice; a send carrying neither goes as it stands.
+  pub fn named(&self, name: &str) -> Self {
+    let named = |text: &str| fill_marks(&ROADS.relay.named, &[("name", name), ("text", text)]);
+
+    match self {
+      Self::Send(ChatSend::Text { text, silent, fold }) => Self::Send(ChatSend::Text {
+        text: named(text),
+        silent: *silent,
+        fold: *fold,
+      }),
+      Self::Send(send) => Self::Send(send.clone()),
+      Self::Files { files, caption } => Self::Files {
+        files: files.clone(),
+        caption: named(caption),
+      },
+      Self::Voice { audio, caption } => Self::Voice {
+        audio: audio.clone(),
+        caption: named(caption),
+      },
+    }
+  }
+}
+
+/// Who said a kept message, as its carriage to a chat service reads it (docs/receiver.md, 「A room's chat
+/// providers」, 「Console rooms and accounts」).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SaidBy {
+  /// The owner, whose words go in his own voice.
+  Owner,
+  /// An account other than the owner's, in the console: its key and the name it is shown by.
+  Account { account: i64, name: String },
+  /// Anyone else: a person a chat service handed over, an agent, a line of the receiver's own.
+  Room,
+}
+
+impl SaidBy {
+  /// The owner where `owner` says the owner said it, and the room's voice otherwise.
+  pub fn owner_or_room(owner: bool) -> Self {
+    if owner { Self::Owner } else { Self::Room }
+  }
 }
 
 /// One kept message on its way to the room's providers: the room, the number it is kept under, the message it
-/// answers, whether the owner said it, the providers it already stands on, and what it carries.
+/// answers, who said it, the providers it already stands on, and what it carries.
 #[derive(Clone, Debug)]
 pub struct Delivery {
   pub chat_id: i64,
   pub message_id: i64,
   pub reply_to: Option<i64>,
-  pub owner: bool,
+  pub said_by: SaidBy,
   pub standing: Vec<String>,
   pub carried: Carried,
+}
+
+/// How a kept message goes to one chat service: the voice, the speaker and the account its sends name, and what
+/// they carry.
+struct Going {
+  voice: Option<ChatVoice>,
+  speaker: Option<String>,
+  account: Option<i64>,
+  carried: Carried,
+}
+
+/// The voice a provider speaks in as itself: a `bot-account` or `own-account` mode it declares active, never a
+/// person's account; none where it declares neither.
+fn own_voice(declared: &ChatDeclaration) -> Option<ChatVoice> {
+  declared
+    .modes
+    .iter()
+    .filter(|mode| mode.standing == ChatModeStanding::Active)
+    .map(|mode| mode.voice)
+    .find(|voice| matches!(voice, ChatVoice::BotAccount | ChatVoice::OwnAccount))
 }
 
 /// What a file is to a road.
@@ -565,9 +632,10 @@ pub async fn carry_act(
 
 /// A kept message carried to each provider of its room it does not already stand on. The record holds it by being
 /// the archive; each chat service is handed it through its own sends, in the owner's own voice where the owner
-/// said it and in the voice that service answers the room by otherwise, each send tagged and the number its copy
-/// went out as kept. A service that reads the room in the owner's account alone is handed the owner's words alone.
-/// A provider that refuses or does not answer is said in the journal and leaves the message as it was kept.
+/// said it, as another account's words go where an account said it in the console, and in the voice that service
+/// answers the room by otherwise, each send tagged and the number its copy went out as kept. A service that reads
+/// the room in the owner's account alone is handed the owner's words alone. A provider that refuses or does not
+/// answer is said in the journal and leaves the message as it was kept.
 pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery) {
   let chat_id = delivery.chat_id;
   let listed = match listed(db, roads, chat_id).await {
@@ -586,7 +654,7 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
 
     let Some(service) = roads.chats().road(&key) else { continue };
 
-    if !delivery.owner && roads.reads_only(&key, chat_id).await {
+    if delivery.said_by != SaidBy::Owner && roads.reads_only(&key, chat_id).await {
       println!(
         "chat {chat_id}: message {} is not carried to {key}, which reads the room in the owner's account alone",
         delivery.message_id
@@ -595,67 +663,152 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
       continue;
     }
 
-    let voice = if delivery.owner {
-      Some(ChatVoice::HumanReader)
-    } else {
-      added::voice_in(db, roads, &key, chat_id).await
-    };
-    let reply = match delivery.reply_to {
-      Some(target) => number_on(db, chat_id, target, &key).await,
-      None => None,
-    };
-    let sends = match &delivery.carried {
-      Carried::Send(send) => vec![send.clone()],
-      Carried::Files { files, caption } => {
-        let limit = roads.declaration(&key).await.and_then(|declared| declared.dialect.limits.caption);
+    let Some(going) = going(db, roads, &key, delivery).await else { continue };
+    let refused = carry(db, roads, service.as_ref(), &key, delivery, &going).await;
 
-        file_sends(files, caption, limit)
-      }
-      Carried::Voice { audio, caption } => vec![ChatSend::Voice {
-        audio: audio.clone(),
-        said: caption.clone(),
-        caption: (!caption.trim().is_empty()).then(|| caption.clone()),
-        transcript: None,
-      }],
-    };
-
-    for (at, send) in sends.into_iter().enumerate() {
-      let tag = match stood(db, chat_id, delivery.message_id, &key, None).await {
-        Ok(tag) => tag,
-        Err(why) => {
-          eprintln!(
-            "chat {chat_id}: message {} was not carried to {key}: {}",
-            delivery.message_id, why.detail
-          );
-
-          break;
-        }
+    // A provider that refuses the account as a speaker is handed the words again in its own voice with the
+    // account's name before them.
+    if refused
+      && let SaidBy::Account { name, .. } = &delivery.said_by
+      && going.speaker.is_some()
+    {
+      let named = Going {
+        speaker: None,
+        carried: delivery.carried.named(name),
+        ..going
       };
-      let mut request = ChatSendRequest::new(chat_id, send);
 
-      request.mode = voice;
-      request.tag = Some(tag.to_string());
-      request.reply_to_message_id = if at == 0 { reply } else { None };
-
-      match roads.send(service.as_ref(), &request).await {
-        Ok(sent) => {
-          let kept = run(
-            db,
-            r#"UPDATE "room_deliveries" SET "provider_message_id" = $1 WHERE "id" = $2"#,
-            vec![sent.message_id.into(), tag.into()],
-          )
-          .await;
-
-          if let Err(why) = kept {
-            eprintln!("chat {chat_id}: the number {key} gave its copy was not kept: {}", why.detail);
-          }
-        }
-        Err(ClientFailure::Answered {
-          answer: Some(answer),
-          ..
-        }) => eprintln!("chat {chat_id}: {key} refused message {}: {}", delivery.message_id, answer.error),
-        Err(why) => eprintln!("chat {chat_id}: {key} did not take message {}: {why}", delivery.message_id),
-      }
+      carry(db, roads, service.as_ref(), &key, delivery, &named).await;
     }
   }
+}
+
+// How a kept message goes to one chat service: in the owner's own voice for the owner's words; for another
+// account's, in the provider's own voice and in that account, never the room's leader's, naming the account as the
+// speaker where the provider takes speakers and with the account's name before the words where it does not, and
+// not at all where it has no voice of its own; and in the voice the service answers the room by for everything
+// else, in the account the room's leaders give.
+async fn going(db: &DatabaseConnection, roads: &Roads, key: &str, delivery: &Delivery) -> Option<Going> {
+  match &delivery.said_by {
+    SaidBy::Owner => Some(Going {
+      voice: Some(ChatVoice::HumanReader),
+      speaker: None,
+      account: None,
+      carried: delivery.carried.clone(),
+    }),
+    SaidBy::Room => Some(Going {
+      voice: added::voice_in(db, roads, key, delivery.chat_id).await,
+      speaker: None,
+      account: None,
+      carried: delivery.carried.clone(),
+    }),
+    SaidBy::Account { account, name } => {
+      let declared = roads.declaration(key).await;
+      let Some(voice) = declared.as_ref().and_then(own_voice) else {
+        println!(
+          "chat {}: message {} is not carried to {key}, which has no voice of its own to say another account's words in",
+          delivery.chat_id, delivery.message_id
+        );
+
+        return None;
+      };
+      let speakers = declared.as_ref().is_some_and(|declared| declared.speakers);
+
+      Some(Going {
+        voice: Some(voice),
+        speaker: speakers.then(|| crate::accounts::identity_key(*account)),
+        account: Some(*account),
+        carried: if speakers { delivery.carried.clone() } else { delivery.carried.named(name) },
+      })
+    }
+  }
+}
+
+// The sends one kept message makes on one chat service, each tagged and the number its copy went out as kept:
+// whether the service refused the speaker the first send named, so nothing of it went.
+async fn carry(
+  db: &DatabaseConnection,
+  roads: &Roads,
+  service: &dyn Chat,
+  key: &str,
+  delivery: &Delivery,
+  going: &Going,
+) -> bool {
+  let chat_id = delivery.chat_id;
+  let reply = match delivery.reply_to {
+    Some(target) => number_on(db, chat_id, target, key).await,
+    None => None,
+  };
+  let sends = match &going.carried {
+    Carried::Send(send) => vec![send.clone()],
+    Carried::Files { files, caption } => {
+      let limit = roads.declaration(key).await.and_then(|declared| declared.dialect.limits.caption);
+
+      file_sends(files, caption, limit)
+    }
+    Carried::Voice { audio, caption } => vec![ChatSend::Voice {
+      audio: audio.clone(),
+      said: caption.clone(),
+      caption: (!caption.trim().is_empty()).then(|| caption.clone()),
+      transcript: None,
+    }],
+  };
+
+  for (at, send) in sends.into_iter().enumerate() {
+    let tag = match stood(db, chat_id, delivery.message_id, key, None).await {
+      Ok(tag) => tag,
+      Err(why) => {
+        eprintln!(
+          "chat {chat_id}: message {} was not carried to {key}: {}",
+          delivery.message_id, why.detail
+        );
+
+        break;
+      }
+    };
+    let mut request = ChatSendRequest::new(chat_id, send);
+
+    request.mode = going.voice;
+    request.speaker = going.speaker.clone();
+    request.account_id = going.account;
+    request.tag = Some(tag.to_string());
+    request.reply_to_message_id = if at == 0 { reply } else { None };
+
+    match roads.send(service, &request).await {
+      Ok(sent) => {
+        let kept = run(
+          db,
+          r#"UPDATE "room_deliveries" SET "provider_message_id" = $1 WHERE "id" = $2"#,
+          vec![sent.message_id.into(), tag.into()],
+        )
+        .await;
+
+        if let Err(why) = kept {
+          eprintln!("chat {chat_id}: the number {key} gave its copy was not kept: {}", why.detail);
+        }
+      }
+      Err(failure)
+        if at == 0
+          && going.speaker.is_some()
+          && matches!(
+            failure.code(),
+            Some(ErrorCode::SpeakerNotAllowed | ErrorCode::SpeakerUnnumbered)
+          ) =>
+      {
+        println!(
+          "chat {chat_id}: {key} took no speaker for message {}, so it goes named in its own voice",
+          delivery.message_id
+        );
+
+        return true;
+      }
+      Err(ClientFailure::Answered {
+        answer: Some(answer),
+        ..
+      }) => eprintln!("chat {chat_id}: {key} refused message {}: {}", delivery.message_id, answer.error),
+      Err(why) => eprintln!("chat {chat_id}: {key} did not take message {}: {why}", delivery.message_id),
+    }
+  }
+
+  false
 }

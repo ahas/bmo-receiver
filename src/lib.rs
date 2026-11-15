@@ -3,6 +3,7 @@
 //! and wakes the agents a room's words, a quiet instruction or a job's end call for. Every other unit is
 //! reached through a port over HTTP; the chat services through bmo-chat-client.
 
+pub mod accounts;
 pub mod chat;
 pub mod command;
 pub mod config;

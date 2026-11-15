@@ -130,6 +130,12 @@ family. No code carries a sentence in a room's language.
 | `contact-unknown` | 409 | `label` | the provider does not know a contact the start names |
 | `start-refused` | 409 | `label`, `detail` | the provider refused to start the conversation, for its own reason |
 
+### RoomAccountRefusal
+
+| Code | Status | Fields | When |
+|---|---|---|---|
+| `private-room` | 403 | `room`, `account` | the room is one account's private room with its BMO, or the owner's private room: words or files from any other account, or a member let in or taken out by any account (`docs/receiver.md`, 「Console rooms and accounts」) |
+
 ### RoomMembersRefusal
 
 | Code | Status | Fields | When |
@@ -236,6 +242,9 @@ session once the setting has changed, one waiting per setting.
 | `going-down` | | the service restarts with no deployment behind it: a system notice |
 | `memory-tidying` | | the agent's one session is being replaced and its memory tidied; a room whose words arrive meanwhile is told once that the answer comes when it is done |
 | `draw` | `label`, `asked`, `result`, `number`, `seed`, `method`, `answered`, `next` | a fair draw's room line (`docs/random-draw.md`) |
+| `account-let-in` | `account`, `by` | an account let into a room in the console by another (`docs/receiver.md`, 「Console rooms and accounts」) |
+| `account-left` | `account` | an account went out of a room in the console by itself |
+| `account-taken-out` | `account`, `by` | an account taken out of a room in the console by another |
 
 ## Kinds
 

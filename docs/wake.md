@@ -20,7 +20,8 @@ its rounds.
   room which BMO answers it. A member's own BMO reads the room without answering it (`docs/api.md`,
   「Messages」).
 - **A member calls their own supervisor into a group room by name where the room grants them `ask`.** A person
-  whose sender the account model links to a user, and who holds the room's `ask` relation (the web unit's room
+  whose sender the account model links to a user, a messenger's identity or an account's record identity alike,
+  and who holds the room's `ask` relation (the web unit's room
   check), wakes the awake supervisor that user owns by calling it by its name, though the room does not name it:
   that call reaches the supervisor's session as a call does, and opens its window in the room. Without the grant,
   or without the name, the person's own supervisor only reads the room. The grant is set room by room, by the
@@ -36,6 +37,9 @@ its rounds.
     with a person whose sender is linked to that user (`GET /senders/{sender}/user` on the web unit), so it holds
     only once the account model links them. The owner's own one-to-one on a messenger is such a chat, his sender
     being linked to his user like anyone's.
+  - A BMO's private room in the console is such a chat too: the record room written as the supervisor was added,
+    one-to-one with the supervisor's owner account by that account's record identity (`docs/receiver.md`,
+    「Console rooms and accounts」), so that account's words wake it with no name and no open window.
   - A room its chat service answers as a group with no `privateTo` is no one's private chat, whoever is in it, a
     room only the owner's own account is in among them: words there reach the session on the three grounds below
     alone.
@@ -152,6 +156,10 @@ its rounds.
 - **The round is where this is held, because the round is what consumed the messages:** they are spliced out of
   the room's buffer as it opens and are nowhere else to be found once it has them, so a silence taken there is a
   question of the owner's that nothing will ever come back to.
+- **The owner's own words are those filed under his sender,** on a messenger and in the console alike: words the
+  account the web unit links to his sender says in the console stand under it, and another account's words stand
+  under that account's record identity and are owed nothing of this (`docs/receiver.md`, 「Console rooms and
+  accounts」).
 - **A room is judged the other way round and keeps its silence,** because there the agent is one voice among
   several and staying out of an exchange is an answer.
 

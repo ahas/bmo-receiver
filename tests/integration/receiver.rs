@@ -6,6 +6,7 @@
 mod avatar_roads;
 mod avatars;
 mod commands;
+mod console_accounts;
 mod console_rooms;
 mod file_fills;
 mod files;

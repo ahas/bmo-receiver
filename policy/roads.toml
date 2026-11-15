@@ -40,6 +40,12 @@ writing = "This room shows your markdown as you wrote it: the marks stand as mar
 picture = "[사진]"
 voice = "[음성]"
 
+# How another account's words said in the console go to a chat service that cannot speak as that account's own
+# identity there: in its own voice, the account's shown name {name} before the words {text}
+# (docs/receiver.md, 「Console rooms and accounts」).
+[relay]
+named = "{name}: {text}"
+
 # How a picture a message carried is filed under its message: one past this many bytes, or one with transparency,
 # is brought inside this many pixels on its longer side, laid on white and written as JPEG at this quality.
 [pictures]

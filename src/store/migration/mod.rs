@@ -50,6 +50,7 @@ pub mod m20261112_000043_double_slots;
 pub mod m20261113_000044_no_stand_in;
 pub mod m20261114_000045_message_file_asks;
 pub mod m20261115_000046_draft_versions;
+pub mod m20261116_000047_room_accounts;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -106,6 +107,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261113_000044_no_stand_in::Migration),
       Box::new(m20261114_000045_message_file_asks::Migration),
       Box::new(m20261115_000046_draft_versions::Migration),
+      Box::new(m20261116_000047_room_accounts::Migration),
     ]
   }
 }

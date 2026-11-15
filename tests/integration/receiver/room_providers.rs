@@ -8,7 +8,7 @@ use std::sync::Arc;
 use axum::{Router, body::Body, extract::Request, http::StatusCode};
 use bmo_chat_client::{ChatModeStanding, ChatSend, ChatVoice};
 use bmo_receiver::roads::Road;
-use bmo_receiver::roads::providers::{self, Carried, Delivery};
+use bmo_receiver::roads::providers::{self, Carried, Delivery, SaidBy};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -572,7 +572,7 @@ async fn a_room_never_added_is_answered_in_the_one_voice_its_service_stands_on_a
     chat_id: ROOM,
     message_id: line,
     reply_to: None,
-    owner: true,
+    said_by: SaidBy::Owner,
     standing: vec![Road::Record.key().to_owned()],
     carried: Carried::words("said by the owner"),
   };

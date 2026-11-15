@@ -100,6 +100,10 @@ pub struct StandInChat {
   pub files_asked: Mutex<Vec<(i64, Option<i64>)>>,
   /// The profile pictures it keeps, by kind and number.
   pub pictures: Mutex<BTreeMap<(ChatAvatarKind, i64), StandInPicture>>,
+  /// Whether it declares `speakers`, and the speakers it holds an identity for; any other a send names is refused
+  /// `speaker-unnumbered`.
+  pub speakers: bool,
+  pub speaks_for: BTreeSet<String>,
   numbered: AtomicI64,
   // The next send, held until the test lets it go, and whether one stands held now.
   held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
@@ -124,6 +128,13 @@ impl StandInChat {
   /// service that reads a room in the owner's account asks whether the receiver reads it.
   pub fn asks_back(&self, receiver: Arc<dyn ChatReceiver>) {
     *self.asking_back.lock().unwrap() = Some(receiver);
+  }
+
+  /// A service that declares `speakers` and holds an identity for the speakers named alone.
+  pub fn speaking_for(mut self, speakers: &[&str]) -> Self {
+    self.speakers = true;
+    self.speaks_for = speakers.iter().map(|speaker| (*speaker).to_owned()).collect();
+    self
   }
 
   /// A service nothing listens for: every question of its declaration, a room or the owner's room is refused as
@@ -384,7 +395,7 @@ impl Chat for StandInChat {
         messages: ChatNumberSpace::Native,
         ranges: ChatNumberRanges::default(),
       },
-      speakers: false,
+      speakers: self.speakers,
     };
 
     Box::pin(async move { Ok(declared) })
@@ -405,6 +416,21 @@ impl Chat for StandInChat {
           422,
           bmo_chat_client::ErrorCode::Platform,
           "The stand-in's account does not send that kind in this voice.",
+        ))
+      });
+    }
+
+    if let Some(speaker) = &request.speaker
+      && self.speakers
+      && !self.speaks_for.contains(speaker)
+    {
+      self.turn_downs.fetch_add(1, Ordering::SeqCst);
+
+      return Box::pin(async {
+        Err(answered_with(
+          422,
+          bmo_chat_client::ErrorCode::SpeakerUnnumbered,
+          "The stand-in has no number for that speaker.",
         ))
       });
     }

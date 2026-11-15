@@ -97,6 +97,14 @@ pub trait SendingAccount: Send + Sync {
   fn of<'a>(&'a self, chat_id: i64, speaker: Option<&'a str>) -> BoxFuture<'a, Option<i64>>;
 }
 
+/// Whose one-to-one a room the record holds alone is (docs/receiver.md, 「Console rooms and accounts」), read by the
+/// receiver that gives it to the roads.
+pub trait RecordPrivacy: Send + Sync {
+  /// The record identity of the account a room on the record alone is one-to-one with, where it is a BMO's private
+  /// room; none for every other room, and where it cannot be read.
+  fn private_to<'a>(&'a self, chat_id: i64) -> BoxFuture<'a, Option<i64>>;
+}
+
 /// The chat services, what each has declared, read once and kept, and what each said of a room, kept for a
 /// short span by road and room: the room as the service answered it, or none where it does not hold the room.
 #[derive(Clone)]
@@ -111,6 +119,9 @@ pub struct Roads {
   owners: Arc<OnceLock<i64>>,
   // Where the account a send goes out in is read; given once the receiver stands, and the last given stands.
   accounts: Arc<Mutex<Option<Arc<dyn SendingAccount>>>>,
+  // Where whose private room a room on the record alone is, is read; given once the receiver stands, and the last
+  // given stands.
+  privacy: Arc<Mutex<Option<Arc<dyn RecordPrivacy>>>>,
   // Whether a fact nothing keeps is asked of its chat service; the roads reading what is kept alone ask none.
   afresh: bool,
 }
@@ -138,6 +149,7 @@ impl Roads {
       store: Arc::default(),
       owners: Arc::default(),
       accounts: Arc::default(),
+      privacy: Arc::default(),
       afresh: true,
     }
   }
@@ -170,6 +182,11 @@ impl Roads {
   /// The roads reading the account each send goes out in from `accounts`; the last given stands.
   pub fn with_accounts(&self, accounts: Arc<dyn SendingAccount>) {
     *self.accounts.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(accounts);
+  }
+
+  /// The roads reading whose private room a room on the record alone is from `privacy`; the last given stands.
+  pub fn with_privacy(&self, privacy: Arc<dyn RecordPrivacy>) {
+    *self.privacy.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(privacy);
   }
 
   /// One send handed to a chat service (docs/receiver.md, 「A room's chat providers」): a send that names no account
@@ -438,8 +455,9 @@ impl Roads {
   }
 
   /// What the road a room is on says of it: whether it is the owner's private chat, who the agent is there, and
-  /// whose one-to-one with the agent it is; nothing where no road holds the room. Each road's answer is kept for
-  /// the span, and the road that holds the room answers all three.
+  /// whose one-to-one with the agent it is. Each road's answer is kept for the span, and the road that holds the
+  /// room answers all three. A room no road holds is the owner's private chat where it is his private room, and,
+  /// where it stands on the record alone as a BMO's private room, one-to-one with its account's record identity.
   pub async fn room_facts(&self, chat_id: i64) -> Room {
     for key in self.chats.names() {
       let Some(Some(room)) = self.room_of(key, chat_id).await else { continue };
@@ -451,8 +469,16 @@ impl Roads {
       };
     }
 
+    let owner_room = self.owners_room(chat_id, false);
+    let privacy = self.privacy.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
+    let private_to = match privacy {
+      Some(privacy) if !owner_room && self.record_alone(chat_id).await => privacy.private_to(chat_id).await,
+      _ => None,
+    };
+
     Room {
-      owner_room: self.owners_room(chat_id, false),
+      owner_room,
+      private_to,
       ..Room::default()
     }
   }

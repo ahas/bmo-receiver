@@ -440,8 +440,11 @@ the answer states none, off the service's declared modes and the answer's `ident
 
 A message kept in a room goes to each other chat service on the room's list of providers as a `POST /sends` of
 its words or its files (`docs/receiver.md`, 「A room's chat providers」): `mode` `human-reader` where the owner said
-it and otherwise the voice that service answers the room by, read off the room's mode and the service's
-declared modes, none where that names none, a `tag` naming the delivery, and `replyToMessageId` only where the
+it; where another account said it in the console, the service's own `bot-account` or `own-account` mode with
+`accountId` naming that account, and `speaker` `account:<account>` where the service declares `speakers`, else the
+words with the account's shown name before them (`docs/receiver.md`, 「Console rooms and accounts」); and otherwise
+the voice that service answers the room by, read off the room's mode and the service's declared modes, none
+where that names none; each with a `tag` naming the delivery, and `replyToMessageId` only where the
 message it answers stands on that service under the service's own number. A hand-over whose `context.tag` names a delivery to that service,
 or whose number is the one that service gave a delivery, is answered as held and kept no second time.
 
@@ -478,6 +481,15 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **bmo-chat's `POST /sends`** carries no word of who said a message the receiver carries to another provider
   beyond the voice: a message of a person or of an agent other than the room's voice goes in the provider's own
   voice, under no name of its own, until the protocol states one.
+- **The web unit** is to link each account's record identity (`PUT /accounts/{account}/identity`) to that
+  account's user as it links any chat service's identity, and to ask it for every account that stands already,
+  and its language packs to render `account-let-in`, `account-left` and `account-taken-out` with the accounts'
+  names and word `private-room` (`docs/codes.md`). Until then an account's words stand under its record identity
+  all the same, its own supervisor reads a room by its membership alone, and the lines fall back to the policy's
+  plain sentences, which name the accounts by their keys.
+- **A chat service that declares `speakers`** is handed `account:<account>` as the speaker of another account's
+  console words, the receiver's own opaque string; one that links no identity of its own to it refuses
+  `speaker-unnumbered`, and the words go again in its own voice with the account's name before them.
 - **A room the console made** is no room any chat service numbers, so a chat service put on its list refuses
   what is carried to it until that service holds the room; each refusal is said in the journal.
 - **The agency's `docs/api.md`** names `turn-submitting` as its one hook point, while the agency asks the

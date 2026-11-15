@@ -33,6 +33,12 @@ pub enum FixedLine {
   MemoryTidying,
   /// A fair draw's room line.
   Draw(DrawLine),
+  /// An account let into a room in the console by another, both by their keys.
+  AccountLetIn { account: i64, by: i64 },
+  /// An account that went out of a room in the console by itself.
+  AccountLeft { account: i64 },
+  /// An account taken out of a room in the console by another, both by their keys.
+  AccountTakenOut { account: i64, by: i64 },
 }
 
 coded!(FixedLine);

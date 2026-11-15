@@ -9,10 +9,10 @@ use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
   AvatarRefusal, Code, Fact, FileFillRefusal, FileUnsent, FixedLine, HealthFact, MessageActRefusal,
-  OwnerSendRefusal, ReceiverError, Refused, RoomAdditionRefusal, RoomGrantRefusal, RoomMembersRefusal,
-  RoomModeRefusal, RoomReadRefusal, RoomRemovalRefusal, RoomRemovalWarning, RunTitle, SendRefusal,
-  SessionReason, SettingFact, SkipReason, SupervisorFact, SupervisorRefusal, TalkRefusal, TurnOpening,
-  VoiceFact, VoiceRefusal,
+  OwnerSendRefusal, ReceiverError, Refused, RoomAccountRefusal, RoomAdditionRefusal, RoomGrantRefusal,
+  RoomMembersRefusal, RoomModeRefusal, RoomReadRefusal, RoomRemovalRefusal, RoomRemovalWarning, RunTitle,
+  SendRefusal, SessionReason, SettingFact, SkipReason, SupervisorFact, SupervisorRefusal, TalkRefusal,
+  TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -39,6 +39,7 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("RoomRemovalRefusal", Codes, RoomRemovalRefusal::VARIANTS),
     ("SendRefusal", Codes, SendRefusal::VARIANTS),
     ("RoomGrantRefusal", Codes, RoomGrantRefusal::VARIANTS),
+    ("RoomAccountRefusal", Codes, RoomAccountRefusal::VARIANTS),
     ("RoomAdditionRefusal", Codes, RoomAdditionRefusal::VARIANTS),
     ("RoomMembersRefusal", Codes, RoomMembersRefusal::VARIANTS),
     ("RoomModeRefusal", Codes, RoomModeRefusal::VARIANTS),

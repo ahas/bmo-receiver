@@ -18,7 +18,7 @@ use bmo_chat_client::{
 use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
 use crate::all;
 use crate::receiver::reads;
-use crate::roads::providers::{self, Carried, Delivery};
+use crate::roads::providers::{self, Carried, Delivery, SaidBy};
 use crate::secrets;
 
 /// The message as the receiver keeps it, its moment in epoch milliseconds as the record keeps it.
@@ -246,7 +246,7 @@ impl ChatReceiver for Receiver {
           chat_id: room_id,
           message_id,
           reply_to: said.reply_to_message_id,
-          owner: said.sender_id == Some(self.owner_id()),
+          said_by: SaidBy::owner_or_room(said.sender_id == Some(self.owner_id())),
           standing: vec![said.via.clone()],
           carried,
         };
@@ -283,7 +283,7 @@ impl ChatReceiver for Receiver {
         chat_id: room_id,
         message_id,
         reply_to: inbound.reply_to_message_id,
-        owner: inbound.sender_id == Some(self.owner_id()),
+        said_by: SaidBy::owner_or_room(inbound.sender_id == Some(self.owner_id())),
         standing: vec![inbound.via.clone()],
         carried: Carried::Files {
           files: patch.files.iter().map(file_item).collect(),

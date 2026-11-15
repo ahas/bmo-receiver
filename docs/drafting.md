@@ -378,7 +378,9 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   own chat, the session is asked once more with the silence withdrawn (`docs/wake.md`, 「The owner's own chat is
   always answered」); a skip again sends nothing.
 - **`owner_directive`:** where the owner's words of the turn have no sent answer, the session is asked once more
-  for it.
+  for it. The owner's words are those filed under the owner's sender, never words read as the owner's for having
+  come through the console: another account's console words stand under its record identity and carry no
+  directive (`docs/receiver.md`, 「Console rooms and accounts」).
 - **`record`:** the message promises what the agent will do from now on and no turn of the process wrote it down
   (`docs/answer-checks.md`, 「A promise stands on a record」).
 - **`wake`:** the message promises to act once something happens and no turn of the process set what wakes the

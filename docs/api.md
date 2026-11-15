@@ -88,7 +88,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | Route | Body or query | Answers |
 |---|---|---|
 | `GET /rooms` | | a page of `Room`, the pinned ones first |
-| `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title; `accountId`, optional with `contactId` or `contactIds`, the account the conversation is started in. With no `provider`, `title` and `supervisors`, the agents that answer it, make an agent room on the record alone, with no chat service behind it | 201, the `Room` added |
+| `POST /rooms` | `provider`, a chat service's key; `mode`, `avatar` or `record-only`; and one of `roomId`, the room as that service numbers it, `contactId`, a contact to start a one-to-one with, or `contactIds`, the contacts to start a group with; `title`, optional, and required with `contactIds` as the group's title; `accountId`, optional with `contactId` or `contactIds`, the account the conversation is started in. With no `provider`, `title` and `supervisors`, the agents that answer it, make an agent room on the record alone, with no chat service behind it, and `openedBy`, optional, the account that opens it and is its first member | 201, the `Room` added |
 | `GET /rooms/{roomId}` | | one `Room` |
 | `GET /rooms/{roomId}/registration` | `by` (the administrator) | the room's registration: `mode`, `providers` and `chosen`, `answerers`, `readOnly`, and `readOnlyBy`, the chat services reading it in the owner's account alone |
 | `PUT /rooms/{roomId}/registration` | `by` (the administrator); `mode`, `avatar` or `record-only` | the registration as it now stands |
@@ -112,6 +112,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, and `chosen`, whether the list was set |
 | `PUT /rooms/{roomId}/providers` | `providers`, the whole list | `providers` and `chosen`, as the list now stands |
 | `GET /rooms/{roomId}/members` | | `members`, the people in the room as its own chat service lists them, each `person` (the sender number the room's messages carry, or null where the service gave the person none), `name` and `statusMessage` (or null) |
+| `GET /rooms/{roomId}/accounts` | | `accounts`, the room's members by account, each `account`, `addedBy` and `addedAt` (both null for a private room's own account, which nobody let in) |
+| `PUT /rooms/{roomId}/accounts/{account}` | `by`, the account letting it in | the member, `account`, `addedBy` and `addedAt`; the same member where it already is one |
+| `DELETE /rooms/{roomId}/accounts/{account}` | `by`, the account taking it out, the member itself where it leaves | 204 |
+| `PUT /accounts/{account}/identity` | | `account` and `sender`, the account's record identity, made where it does not stand |
+| `GET /accounts/{account}/rooms` | | `rooms`, the numbers of the rooms the account is a member of in the console, its private rooms among them |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
 | `PUT /pinned-rooms` | `roomIds`, the whole order | `roomIds`, the order as it now stands |
 | `POST /pinned-rooms` | `room`, one room stood last | `roomIds` |
@@ -215,7 +220,21 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A body naming no `provider`, a `title` and the `supervisors` that answer it** makes an agent room: the
   receiver numbers it in the record's own range, sets its one provider to the record, writes its title and its
   answering agents, and answers the room as it stands. No chat service stands behind it, and its members wake
-  by a call by name or a reply to their words as those of any room do.
+  by a call by name or a reply to their words as those of any room do. `openedBy` names the account that opened
+  it, which stands as its first member, let in by itself, with no line written.
+- **A room's members by account** are the console's (`docs/receiver.md`, 「Console rooms and accounts」), beside
+  the members a chat service lists (`GET /rooms/{roomId}/members`), whom the console links to accounts itself. An
+  account is a key of the web unit's, as decimal text in a path and a number in a body. `PUT` lets an account in,
+  writing a line into the room naming who let whom in (the fixed line `account-let-in`, its fields `account` and
+  `by`); `DELETE` takes one out, writing `account-left` (its field `account`) where `by` is the member itself and
+  `account-taken-out` (`account` and `by`) otherwise; a member let in again, or one not a member taken out,
+  writes nothing and answers as it stands. The receiver judges no right of `by`: the console asks the web unit who
+  may before it calls. A room the receiver does not hold is refused 404 `not-found`, a `by` missing 400
+  `bad-request`, and either change in a private room 403 `private-room`. `GET /rooms/{roomId}/accounts` of a
+  private room answers its own account alone. `GET /accounts/{account}/rooms` answers the rooms the account is a
+  member of now with its private rooms: those of the supervisors it owns, and the owner's private room for the
+  owner's account; the rooms it reaches through a chat service's identities are the console's to compose.
+  `PUT /accounts/{account}/identity` answers the same sender every time it is asked for one account.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
@@ -255,8 +274,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   narrows it as it narrows any page, and a deleted message's cleared words carry nothing.
 - **A supervisor reads a group room's messages through its own route,** `GET
   /supervisors/{supervisorName}/rooms/{roomId}/messages`, newest page first and walked by `before` or `after`.
-  The room's answerers read it, and so does a member's own supervisor where the account model links the
-  supervisor's `ownerAccount` to a sender that has stood in the room; a member's read writes nothing, so it
+  The room's answerers read it, and so does a member's own supervisor: one whose `ownerAccount` is a member of
+  the room by account, or one where the account model links that account to a sender that has stood in the room,
+  its record identity among them; a member's read writes nothing, so it
   opens no window, wakes nobody and makes no answerer of the reader. A room that is the owner's private chat or
   a one-to-one is refused 403 `not-a-group`, and a supervisor that is neither its answerer nor a member's is
   refused 403 `not-a-member`; an unregistered name is 404 `unknown-supervisor`.
@@ -383,6 +403,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `began?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor; `own` true for a `speak` asked in the asker's own round |
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs of the road a send naming `via` goes out on in the room |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
+| `POST /rooms/{roomId}/words` | `account`, `name` (the account's shown name), `text`, `replyTo?` | 201, `id`, the message kept |
+| `POST /rooms/{roomId}/word-files` | a form as `POST /owner/message-files` takes but for `chatId`, which the path gives, with `account` and `name` | the answer `POST /owner/message-files` gives |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
 
@@ -433,6 +455,14 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the room's other providers as the chat protocol's `voice` kind with the caption. A call with no file, more than
   one, or one that is no sound is refused 400 `bad-request`; a file past the ceiling a road takes is refused 413
   `too-large`.
+- **An account's words** (`POST /rooms/{roomId}/words`, `POST /rooms/{roomId}/word-files`) are filed under the
+  owner's sender for the owner's account and under the account's record identity for any other, and from there are
+  the words the owner's routes below take, kept, woken on and carried as any message, whether they are the owner's
+  read off the sender (`docs/receiver.md`, 「Console rooms and accounts」). Their refusals are those of the owner's
+  routes, and beside them: words from any account but its own in a private room 403 `private-room`, an `account`
+  or `name` missing 400 `bad-request`, and a web unit that cannot say which account is the owner's 502
+  `upstream-failed`. `POST /owner/messages`, `POST /owner/message-files` and `POST /owner/instructions` are the
+  owner's road, which the console takes for the owner's account alone.
 - **The owner's words** from the console are archived in the room under a console number, the owner's number and
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
   room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413
