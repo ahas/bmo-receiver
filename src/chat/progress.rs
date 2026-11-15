@@ -410,6 +410,14 @@ impl RunProgress {
     }
 
     if event.get("type").and_then(Json::as_str) == Some("user") {
+      // Words handed over open the program's next turn, so what the turn before held was its answer, never a line.
+      if handed_words(&event) {
+        return (!self.held.is_empty()).then(|| Self {
+          held: vec![],
+          ..self.clone()
+        });
+      }
+
       let answered = record_lines(&event)
         .into_iter()
         .find(|line| line.kind == "tool-result" && line.reference.is_some())?;
@@ -719,4 +727,23 @@ fn phase_of(block: Option<&str>, held: &'static str) -> &'static str {
 /// The picture as the room's screens are told it.
 pub fn picture_of(progress: &RunProgress) -> Value {
   serde_json::to_value(progress.counted_open()).unwrap_or(json!({}))
+}
+
+/// Whether a record's user event hands words over — a prompt, or words pushed into the turn — rather than carrying a
+/// tool's result or the program's own bookkeeping: such words open the program's next turn.
+pub fn handed_words(event: &Json) -> bool {
+  if event.get("isMeta").and_then(Json::as_bool) == Some(true)
+    || event.get("isSidechain").and_then(Json::as_bool) == Some(true)
+  {
+    return false;
+  }
+
+  match event.get("message").and_then(|message| message.get("content")) {
+    Some(Json::String(text)) => !trim(text).is_empty(),
+    Some(Json::Array(blocks)) => blocks.iter().any(|block| {
+      block.get("type").and_then(Json::as_str) == Some("text")
+        && block.get("text").and_then(Json::as_str).is_some_and(|text| !trim(text).is_empty())
+    }),
+    _ => false,
+  }
 }

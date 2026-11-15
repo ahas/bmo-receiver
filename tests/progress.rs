@@ -626,3 +626,31 @@ fn the_requests_measured_output_adds_up_once_each_beside_the_estimates() {
 
   assert_eq!(streamed.written_tokens, Some(100));
 }
+
+#[test]
+fn what_a_turn_wrote_before_words_handed_over_opened_the_next_is_its_answer_and_no_line() {
+  let read = read_all(
+    RunProgress::default(),
+    &[
+      assistant("message-1", json!([{ "type": "text", "text": "<<SEND>> the reply written first" }])),
+      json!({ "type": "user", "message": { "content": "MORE FOR THIS TURN.\n1 quiet instruction" } }),
+      assistant("message-2", json!([{ "type": "text", "text": "Looking at the job." }])),
+      assistant(
+        "message-2",
+        json!([{ "type": "tool_use", "id": "call-1", "name": "Bash", "input": {} }]),
+      ),
+      json!({ "type": "user", "message": { "content": [
+        { "type": "tool_result", "tool_use_id": "call-1", "content": "ok", "is_error": false },
+      ] } }),
+      assistant("message-3", json!([{ "type": "text", "text": "<<SKIP: the job passed its check>>" }])),
+      json!({ "type": "user", "message": { "content": [{ "type": "text", "text": "REVIEW ROUND." }] } }),
+      assistant(
+        "message-4",
+        json!([{ "type": "tool_use", "id": "call-2", "name": "Read", "input": {} }]),
+      ),
+    ],
+  );
+
+  assert_eq!(said(&read), vec![("Looking at the job.", 0)]);
+  assert!(!serde_json::to_string(&read).unwrap().contains("<<"), "{:?}", read.said);
+}

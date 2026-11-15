@@ -397,8 +397,10 @@ flowchart TD
   works and no part of its message. A text block the turn writes is held until a call of the same turn follows it,
   which makes it a progress line: in an agent's own road a `tool_use` block after the text block, in the same line
   or a later one, and in a rollout a `function_call` or `custom_tool_call` item after an assistant `message` item.
-  What the turn writes last, with no call after it, is its answer and never a progress line, a failed request's
-  text is none, and thinking never is one; a pane program's record carries no text, so its turns have none. The
+  What the turn writes last, with no call after it, is its answer and never a progress line, and so is what a turn
+  of the program wrote before words handed over opened the next — the round's next question, the review, words
+  pushed in — since those words close the turn before them: a draft, a rewrite or a skip a later turn replaced is
+  never shown as a line. A failed request's text is none, and thinking never is one; a pane program's record carries no text, so its turns have none. The
   picture carries the last three as `said`, oldest first, each `{text, before}`: `text` is the line with its
   secret-shaped runs taken out (`docs/messages.md`, 「Secrets taken out」), its whitespace run together into one
   line and cut at 240 characters with an ellipsis; `before` is how many actions the turn had made when the call
