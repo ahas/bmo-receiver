@@ -12,6 +12,7 @@ use serde_json::{Map, Value};
 use receiver_ports::agency::{Agency, Agent, Agents};
 use receiver_ports::http::Answer;
 use sea_orm::DatabaseConnection;
+use tokio::task::JoinHandle;
 
 use super::asked;
 use crate::kept::Kept;
@@ -533,8 +534,9 @@ pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) ->
 
 /// An agent's window in a room watched to its end: once `until` passes, where it still stands as the window's end,
 /// the room's screens are told the window closed then (docs/wake.md, 「The names and the window」). An end moved
-/// meanwhile is another end, watched by whoever moved it.
-pub fn watch_window(receiver: &Receiver, chat_id: i64, agent: &str, until: i64) {
+/// meanwhile is another end, watched by whoever moved it. The watch runs on its own; its handle ends once it has
+/// told the close or found the end moved.
+pub fn watch_window(receiver: &Receiver, chat_id: i64, agent: &str, until: i64) -> JoinHandle<()> {
   let receiver = receiver.clone();
   let agent = agent.to_owned();
 
@@ -544,28 +546,38 @@ pub fn watch_window(receiver: &Receiver, chat_id: i64, agent: &str, until: i64) 
     if window_until(receiver.db(), chat_id, &agent).await.ok() == Some(until) {
       receiver.news().window_closed(chat_id, &agent, until);
     }
-  });
+  })
 }
 
 /// Every window end the database holds still to come, watched as the receiver starts.
 pub async fn watch_windows(receiver: &Receiver) -> Result<(), NotReceived> {
+  watch_windows_after(receiver, now_ms()).await.map(drop)
+}
+
+/// Every window end the database holds past `after`, in epoch milliseconds, watched; each watch's handle, in no
+/// particular order.
+pub async fn watch_windows_after(
+  receiver: &Receiver,
+  after: i64,
+) -> Result<Vec<JoinHandle<()>>, NotReceived> {
   let rows = all(
     receiver.db(),
     r#"SELECT "chat_id", "agent", "open_until" FROM "room_windows" WHERE "open_until" > $1"#,
-    vec![now_ms().into()],
+    vec![after.into()],
   )
   .await?;
+  let mut watches = vec![];
 
   for row in rows {
-    watch_window(
+    watches.push(watch_window(
       receiver,
       row.try_get("", "chat_id")?,
       &row.try_get::<String>("", "agent")?,
       row.try_get("", "open_until")?,
-    );
+    ));
   }
 
-  Ok(())
+  Ok(watches)
 }
 
 /// An agent's window in a room opened until `until`, in epoch milliseconds; a window already open longer keeps
