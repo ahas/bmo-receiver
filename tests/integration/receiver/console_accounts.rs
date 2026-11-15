@@ -1667,3 +1667,71 @@ async fn the_dry_run_writes_nothing_and_says_how_every_room_would_settle() {
   );
   assert_eq!(everything(&stood.scratch).await, before);
 }
+
+#[tokio::test]
+async fn an_ownerless_persons_bmo_is_adopted_by_the_account_its_name_names() {
+  let stood = stood(false).await;
+  let db = stood.scratch.db();
+  let names = [
+    ("u7", -9000000000091),
+    ("agent-x", -9000000000092),
+    ("u7x", -9000000000093),
+    ("u07", -9000000000094),
+  ];
+
+  for (place, (name, room)) in names.iter().enumerate() {
+    let sender = -980 - place as i64;
+
+    stood
+      .scratch
+      .run(
+        r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ('record', $1, $2, $1)"#,
+        vec![(*name).into(), (*room).into()],
+      )
+      .await;
+    stood
+      .scratch
+      .run(
+        r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ('record', $1, $2)"#,
+        vec![(*name).into(), sender.into()],
+      )
+      .await;
+  }
+
+  // Each registered with no owner, as a registration made before the owner account was handed on.
+  let mut own = registration(AGENT, SENDER, vec![ADDRESS], None);
+
+  own.row.insert("ownerAccount".to_owned(), json!(OWNERS));
+
+  let listed = std::iter::once(own)
+    .chain(names.iter().map(|(name, _)| registration(name, name, vec![name], None)))
+    .collect();
+
+  stood.standing.agency.registering(listed);
+  stood.standing.receiver.forget_agents();
+
+  // The first start after the record began keeping private rooms.
+  Migrator::down(db, Some(1)).await.unwrap();
+  migrate(db).await.unwrap();
+
+  let settled = private_rooms::at_start(&stood.standing.receiver).await.unwrap();
+  let kept = kept_private(&stood).await;
+
+  assert!(kept.iter().any(|row| row.starts_with(&format!("{} 7 ", names[0].1))), "{kept:?}");
+
+  for (name, room) in &names[1..] {
+    assert!(
+      !kept.iter().any(|row| row.starts_with(&format!("{room} "))),
+      "{name}'s room is no one's: {kept:?}"
+    );
+  }
+
+  let why = settled.iter().find(|one| one.room == names[0].1).map(|one| one.why.clone()).unwrap();
+
+  assert!(why.contains("owner from name"), "{why}");
+  assert_eq!(private_rooms::owner_from_name("u7"), Some(7));
+  assert_eq!(private_rooms::owner_from_name("u07"), None, "a leading zero names no account");
+  assert_eq!(private_rooms::owner_from_name("u0"), None);
+  assert_eq!(private_rooms::owner_from_name("u"), None);
+  assert_eq!(private_rooms::owner_from_name("u-7"), None);
+}

@@ -380,7 +380,11 @@ flowchart TD
     back where the agency does not stand the supervisor, so a refusal leaves nothing in either;
   - **every BMO's own room once, by the first start that reads the agency after the record began keeping private
     rooms:** each own room the record keeps nothing of is assigned to the owner its supervisor's registration
-    names, and the pass is marked done in the record. Every start after only seals the own rooms no registered
+    names, and the pass is marked done in the record. Registrations made before the receiver handed the agency the
+    addition's owner account name none, so a supervisor whose registration names none and whose name is exactly
+    `u<n>`, `n` a positive number written without a leading zero, the name the console gives the BMO it stands for
+    account `n`, is read as account `n`'s; the name gives the room only to the account it names, never to whoever
+    registered it, and any other ownerless supervisor's room is left no one's. Every start after only seals the own rooms no registered
     supervisor claims and assigns none; a BMO's own room is one standing on the record under a supervisor's name
     whose number on the record stands;
   - **the owner's private room by the web unit's link of his sender alone,** asked only while the record keeps no

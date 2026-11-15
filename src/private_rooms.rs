@@ -135,17 +135,37 @@ fn own_room(name: &str, agents: Option<&[Designated]>, adopting: bool) -> (Verdi
     );
   };
 
-  match agents.iter().find(|agent| agent.name == name) {
-    None => (Verdict::Seal, format!("{name}'s own room, which no registered supervisor claims")),
-    Some(agent) => match (agent.owner_account, adopting) {
-      (Some(account), true) => (Verdict::Assign(account), format!("{name} names {account} as its owner")),
-      (Some(account), false) => (
-        Verdict::Shared,
-        format!("{name} names {account} as its owner, which only its addition or the first pass assigns"),
-      ),
-      (None, _) => (Verdict::Shared, format!("{name} names no owner")),
-    },
+  let Some(agent) = agents.iter().find(|agent| agent.name == name) else {
+    return (Verdict::Seal, format!("{name}'s own room, which no registered supervisor claims"));
+  };
+  let (account, whence) = match (agent.owner_account, owner_from_name(name)) {
+    (Some(account), _) => (account, "its owner"),
+    (None, Some(account)) => (account, "its owner, owner from name"),
+    (None, None) => return (Verdict::Shared, format!("{name} names no owner")),
+  };
+
+  if adopting {
+    (Verdict::Assign(account), format!("{name} names {account} as {whence}"))
+  } else {
+    (
+      Verdict::Shared,
+      format!("{name} names {account} as {whence}, which only its addition or the first pass assigns"),
+    )
   }
+}
+
+/// The account a person's own BMO is named for: `u<n>`, `n` a positive number written without a leading zero, the
+/// name the console gives the BMO it stands for account `n` (the web unit's `docs/accounts.md`). Registrations made
+/// before the receiver handed the agency the owner account name none, so the adopting pass reads the account off
+/// such a name; the name can only give a room to the account it names. Any other name names no account.
+pub fn owner_from_name(name: &str) -> Option<i64> {
+  let digits = name.strip_prefix('u')?;
+
+  if digits.is_empty() || digits.starts_with('0') || !digits.bytes().all(|digit| digit.is_ascii_digit()) {
+    return None;
+  }
+
+  digits.parse::<i64>().ok().filter(|account| *account > 0)
 }
 
 /// Every room the store holds, settled: written where `write` asks it, and only read otherwise, a store from before
