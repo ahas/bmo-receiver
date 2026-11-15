@@ -1373,6 +1373,9 @@ pub struct DraftProcess {
   pub send_from: String,
   /// The questions of `rounds` that are switched off: each keeps its place and is not followed.
   pub off: Vec<String>,
+  /// The stages after the message that are switched off: `review`, the items and the checks, by name.
+  #[serde(default)]
+  pub stages_off: Vec<String>,
   pub ceiling_seconds: u32,
   /// `send` or `skip`.
   pub past_ceiling: String,
@@ -1391,6 +1394,9 @@ pub struct DraftProcessSet {
   /// The questions of `rounds` that are switched off; left out for none.
   #[serde(default)]
   pub off: Vec<String>,
+  /// The stages after the message that are switched off; left out for none.
+  #[serde(default)]
+  pub stages_off: Vec<String>,
   pub ceiling_seconds: u32,
   /// `send` or `skip`.
   pub past_ceiling: String,

@@ -1216,6 +1216,8 @@ pub struct StandInAgency {
   pub turns: Mutex<BTreeMap<i64, TurnRead>>,
   /// The agency on a real port that carries its turns, their events and their reads, where a test stands one.
   pub carrier: Mutex<Option<Arc<dyn Agency>>>,
+  /// The supervisors whose settings switch their brain off, where a test names any.
+  pub brain_off: Mutex<BTreeSet<String>>,
 }
 
 impl StandInAgency {
@@ -1231,6 +1233,7 @@ impl StandInAgency {
       removals: Mutex::default(),
       refusing: Mutex::default(),
       removal_refused: Mutex::default(),
+      brain_off: Mutex::default(),
       resets: Mutex::default(),
       pushes: Mutex::default(),
       saying: Mutex::default(),
@@ -1372,6 +1375,12 @@ fn agency_down<T: Send + 'static>(path: &str) -> BoxFuture<'static, Answer<T>> {
 }
 
 impl Agency for StandInAgency {
+  fn brain_on<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    let on = !self.brain_off.lock().unwrap().contains(supervisor);
+
+    Box::pin(async move { Ok(on) })
+  }
+
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {
     self.agents_asked.fetch_add(1, Ordering::SeqCst);
 

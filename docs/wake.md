@@ -150,7 +150,8 @@ its rounds.
 - **The turn is told so in as many words**: the permission a quiet instruction brings covers the instruction
   alone, and the line a closed window puts in front of the turn withholds the silence too.
 - **A skip that comes back anyway is not taken.** Where the draft process ends in a skip, the session is
-  asked once more with the silence withdrawn, the process's `owed` item (`docs/drafting.md`), and what it writes
+  asked once more with the silence withdrawn, the process's `owed` item (`docs/drafting.md`), where the
+  supervisor's row does not switch that item off, and what it writes
   then is the message; a session that stays silent through that asking ends the round the way it stood, with
   every turn of it in the round log.
 - **The round is where this is held, because the round is what consumed the messages:** they are spliced out of

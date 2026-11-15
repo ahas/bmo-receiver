@@ -670,6 +670,12 @@ pub trait Agency: Send + Sync {
   /// no supervisor has the name.
   fn road_answers<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>>;
 
+  /// Whether a supervisor's brain is on, as its settings say (docs/drafting.md, 「A supervisor whose brain is
+  /// off」): on where they do not say, where no supervisor has the name, and on an agency that keeps no such setting.
+  fn brain_on<'a>(&'a self, _supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    Box::pin(async { Ok(true) })
+  }
+
   /// The deployment's rest: whether it stands, until when, and why.
   fn rest(&self) -> BoxFuture<'_, Answer<Rest>>;
 
@@ -936,6 +942,25 @@ struct SupervisorRoad {
   answers: bool,
 }
 
+/// A supervisor as its settings page answers it, of which the receiver reads whether its brain is on.
+#[derive(Deserialize)]
+struct SupervisorSettingsPage {
+  #[serde(default)]
+  settings: Option<SupervisorSettings>,
+}
+
+/// A supervisor's settings, of which the receiver reads whether its brain is on.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SupervisorSettings {
+  #[serde(default = "on")]
+  brain_on: bool,
+}
+
+fn on() -> bool {
+  true
+}
+
 impl Agency for HttpAgency {
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {
     Box::pin(self.caller.get(&["supervisors"], &[]))
@@ -970,6 +995,15 @@ impl Agency for HttpAgency {
       let road: SupervisorRoad = self.caller.get(&["supervisors", supervisor, "road"], &[]).await?;
 
       Ok(road.answers)
+    })
+  }
+
+  fn brain_on<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
+    Box::pin(async move {
+      let page: Option<SupervisorSettingsPage> =
+        self.caller.found(&["supervisors", supervisor, "settings"], &[]).await?;
+
+      Ok(page.and_then(|page| page.settings).is_none_or(|settings| settings.brain_on))
     })
   }
 

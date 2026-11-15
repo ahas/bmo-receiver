@@ -34,6 +34,11 @@ pub const NAME_CHARS: usize = 40;
 /// The longest a question's text may run.
 pub const TEXT_CHARS: usize = 4000;
 
+/// The stages after the message a row may switch off, in the order a settled row names them: the review, the
+/// items after the message and the checks on the final text (docs/drafting.md, 「The process table」).
+pub const STAGES: [&str; 8] =
+  ["arrived", "owed", "owner_directive", "record", "wake", "rule", "review", "format"];
+
 /// The longest ceiling a row may name, in seconds.
 pub const LONGEST_CEILING: u32 = 3600;
 
@@ -76,6 +81,8 @@ pub struct Process {
   pub send_from: String,
   /// The questions of the list that are switched off: each keeps its place in it and is not asked.
   pub off: Vec<String>,
+  /// The stages after the message that are switched off, out of `STAGES`, in its order.
+  pub stages_off: Vec<String>,
   pub ceiling_seconds: u32,
   pub past_ceiling: PastCeiling,
   /// Whether the console set the row.
@@ -91,6 +98,7 @@ impl Process {
       rounds: row.rounds.clone(),
       send_from: row.send_from.clone().unwrap_or_default(),
       off: row.off.clone(),
+      stages_off: row.stages_off.clone(),
       ceiling_seconds: row.ceiling_seconds.unwrap_or(0),
       past_ceiling: row.past_ceiling.as_deref().and_then(PastCeiling::of).unwrap_or(PastCeiling::Send),
       set: false,
@@ -110,8 +118,18 @@ impl Process {
     }
 
     self.off = off;
+    self.stages_off = STAGES
+      .iter()
+      .filter(|stage| self.stages_off.iter().any(|named| named == *stage))
+      .map(|stage| (*stage).to_owned())
+      .collect();
 
     self
+  }
+
+  /// Whether the row switches off the stage of that name.
+  pub fn stage_off(&self, stage: &str) -> bool {
+    self.stages_off.iter().any(|named| named == stage)
   }
 
   /// The questions of the row's list a round follows: the list without those switched off, in its order.
@@ -134,6 +152,7 @@ impl Process {
       "rounds": self.rounds,
       "sendFrom": self.send_from,
       "off": self.off,
+      "stagesOff": self.stages_off,
       "ceilingSeconds": self.ceiling_seconds,
       "pastCeiling": self.past_ceiling.word(),
       "source": if self.set { "set" } else { "default" },
@@ -171,6 +190,7 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
     rounds: names(&text("rounds")?),
     send_from: text("send_from")?,
     off: names(&text("off")?),
+    stages_off: names(&text("stages_off")?),
     ceiling_seconds: u32::try_from(number("ceiling_seconds")?).unwrap_or(0),
     past_ceiling: PastCeiling::of(&text("past_ceiling")?).unwrap_or(PastCeiling::Send),
     set: true,
@@ -186,7 +206,8 @@ pub fn policy_row() -> Option<Process> {
 pub async fn rows<C: ConnectionTrait>(db: &C) -> Result<Vec<Process>, Fault> {
   let read = all(
     db,
-    r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "off", "ceiling_seconds", "past_ceiling"
+    r#"SELECT "provider", "tier", "agent", "rounds", "send_from", "off", "stages_off", "ceiling_seconds",
+              "past_ceiling"
          FROM "draft_processes" ORDER BY "agent""#,
     vec![],
   )
@@ -306,6 +327,13 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
     return Some(format!("off names {LAST}, which writes the message and is never switched off."));
   }
 
+  if let Some(unknown) = process.stages_off.iter().find(|name| !STAGES.contains(&name.as_str())) {
+    return Some(format!(
+      "stagesOff names {unknown}, which is no stage after the message; the stages are {}.",
+      STAGES.join(", ")
+    ));
+  }
+
   None
 }
 
@@ -335,10 +363,12 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
   run(
     db,
     r#"INSERT INTO "draft_processes"
-         ("provider", "tier", "agent", "rounds", "send_from", "off", "ceiling_seconds", "past_ceiling", "set_at")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ("provider", "tier", "agent", "rounds", "send_from", "off", "stages_off", "ceiling_seconds",
+          "past_ceiling", "set_at")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT ("provider", "tier", "agent") DO UPDATE SET
          "rounds" = EXCLUDED."rounds", "send_from" = EXCLUDED."send_from", "off" = EXCLUDED."off",
+         "stages_off" = EXCLUDED."stages_off",
          "ceiling_seconds" = EXCLUDED."ceiling_seconds",
          "past_ceiling" = EXCLUDED."past_ceiling",
          "set_at" = EXCLUDED."set_at""#,
@@ -349,6 +379,7 @@ pub async fn set<C: ConnectionTrait>(db: &C, process: &Process) -> Result<(), Fa
       listed(&process.rounds).into(),
       process.send_from.clone().into(),
       listed(&process.off).into(),
+      listed(&process.stages_off).into(),
       i64::from(process.ceiling_seconds).into(),
       process.past_ceiling.word().into(),
       now_ms().into(),

@@ -62,9 +62,16 @@ pub fn words(marker: &str, scope: &Scope, pending: &[i64]) -> String {
 pub struct Plan {
   pub questions: Vec<(String, String)>,
   pub row: String,
+  /// The stages after the message the row switches off (docs/drafting.md, 「The process table」).
+  pub stages_off: Vec<String>,
 }
 
 impl Plan {
+  /// Whether the round runs the stage of that name: every stage its row does not switch off.
+  pub fn runs(&self, stage: &str) -> bool {
+    !self.stages_off.iter().any(|named| named == stage)
+  }
+
   /// The questions the round follows as its line and its row of the round log name them: in their order, joined
   /// by `+`; none where the round follows none.
   pub fn names(&self) -> Option<String> {
@@ -852,6 +859,7 @@ impl Drafter {
     Plan {
       questions,
       row: format!("{}/{}/{}", process.provider, process.tier, process.agent),
+      stages_off: process.stages_off.clone(),
     }
   }
 
@@ -964,6 +972,7 @@ impl Drafter {
 
     // Once the message stands, the room's words that waited since the last answer are shown in one closing check.
     if let Some(standing) = &message
+      && plan.runs("arrived")
       && let Some((block, took)) = run.arrived().await
     {
       let words = closing_words(&standing.text, &block);
@@ -1015,7 +1024,9 @@ impl Drafter {
 
     // The owner's own chat is always answered: a process that ended with no message over the owner's words is
     // asked once more, whatever the time. So is any round carrying an owner's directive with no sent answer.
-    if message.is_none() && (owed > 0 || directed) {
+    let owed_item = if owed > 0 { "owed" } else { "owner_directive" };
+
+    if message.is_none() && (owed > 0 || directed) && plan.runs(owed_item) {
       let errand = if owed > 0 {
         let count = fill_marks(&SECOND_ASKS.data.owed, &[("count", &owed.to_string())]);
 
@@ -1050,6 +1061,11 @@ impl Drafter {
     // `CHECK`, never a new message, so the message that stands goes out unchanged (docs/drafting.md, 「The items
     // after the message」).
     for item in [Item::Record, Item::Wake, Item::Rule] {
+      // An item the row switches off is not asked, whatever the reading of the message says.
+      if !plan.runs(item.word()) {
+        continue;
+      }
+
       let errand = match item {
         Item::Record => (promises_later(&message.text)
           && !recorded(receiver, agent, &run.spoken, None).await)
@@ -1096,7 +1112,7 @@ impl Drafter {
     let mut previous: Option<String> = None;
     let mut reviews = 0;
 
-    while receiver.review_gate() && reviews < 8 {
+    while receiver.review_gate() && plan.runs("review") && reviews < 8 {
       let started = now_ms();
       let answered = run.ask(Kind::Review, "review", &run.review_prompt(&message.text)).await?;
       let Some(answer) = answered else {
@@ -1203,7 +1219,10 @@ impl Drafter {
     loop {
       let lines = own_lines(&run.asked);
       let reading = Reading { own_lines: &lines };
-      let failed = failing(&message.text, &reading);
+      let failed: Vec<Check> = failing(&message.text, &reading)
+        .into_iter()
+        .filter(|check| plan.runs(check.word()))
+        .collect();
 
       if failed.is_empty() {
         break;

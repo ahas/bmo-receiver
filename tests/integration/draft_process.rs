@@ -29,7 +29,7 @@ use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_ports::agency::Said;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::session::{StandInSession, drafting};
+use crate::integration::common::session::{StandInSession, drafting, drafting_with};
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
@@ -834,6 +834,7 @@ async fn a_supervisor_s_row_is_read_by_that_supervisor_alone() {
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
     send_from: "facts".to_owned(),
     off: vec![],
+    stages_off: vec![],
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
     set: true,
@@ -3001,4 +3002,113 @@ async fn an_explicit_reply_mark_pins_even_the_newest_line() {
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert_eq!(pinned(&sent), Some(1), "the mark pins the newest line: {sent:?}");
   assert_eq!(pinned_rows(&round).await, ["1"], "the record names the pinned message");
+}
+
+// The stages after the message a row switches off, and a supervisor whose brain is off (docs/drafting.md, 「The
+// process table」 and 「A supervisor whose brain is off」).
+
+#[tokio::test]
+async fn a_row_that_switches_no_stage_off_asks_the_items_the_review_and_the_checks_as_before() {
+  let promise = fixture("promises-recorded.txt");
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise, "CHECK", "PASS"]);
+  let round = Drafting::new_reviewing(session, &[], 150).await;
+
+  drafting_with(round.scratch.db(), &[], &[]).await;
+  round.hear(1, ASKED).await;
+  round.ended(3).await;
+
+  let prompts = round.session.prompts();
+
+  assert_eq!(
+    round.log().await,
+    [
+      "turn turn answered",
+      "item record answered",
+      "review review answered",
+      "review review PASS",
+      "end  message"
+    ]
+  );
+  assert!(prompts[0].contains(&SECOND_ASKS.errands.record), "the block carries the item's rule");
+  assert!(
+    prompts[0].contains(&DRAFTING.review.revise),
+    "the block carries the review's instructions"
+  );
+  assert!(prompts[0].contains(&SECOND_ASKS.errands.format), "the block carries the check's rule");
+}
+
+#[tokio::test]
+async fn a_row_that_switches_every_stage_off_sends_the_draft_turn_s_answer_as_it_stands() {
+  let promise = fixture("promises-recorded.txt");
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise]);
+  let round = Drafting::new_reviewing(session, &[], 150).await;
+
+  drafting_with(round.scratch.db(), &[], &bmo_receiver::chat::draft::table::STAGES).await;
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 1, "no item, review or check is asked: {prompts:#?}");
+  assert_eq!(round.log().await, ["turn turn answered", "end  message"]);
+  assert!(sent.len() == 1 && sent[0].contains(&promise), "{sent:?}");
+  assert!(!prompts[0].contains(&SECOND_ASKS.errands.record), "no rule for an item switched off");
+  assert!(
+    !prompts[0].contains(&DRAFTING.review.revise),
+    "no review instructions for a review switched off"
+  );
+  assert!(!prompts[0].contains(&SECOND_ASKS.errands.format), "no rule for a check switched off");
+}
+
+#[tokio::test]
+async fn a_format_check_switched_off_withholds_nothing_and_asks_no_repair() {
+  let answer = "DRAFT ROUND (final). and then the words";
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[answer]);
+  let round = Drafting::new(session, &["final"], 150).await;
+
+  drafting_with(round.scratch.db(), &["final"], &["format"]).await;
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let sent = round.sent();
+
+  assert_eq!(round.log().await, ["question final answered", "end  message"]);
+  assert!(sent.len() == 1 && sent[0].contains("and then the words"), "{sent:?}");
+}
+
+#[tokio::test]
+async fn a_supervisor_whose_brain_is_on_is_handed_the_index_and_its_core_as_before() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
+  let round = Drafting::new(session, &["final"], 150).await;
+
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+
+  assert!(prompts[0].contains(&CHAT_ROUND.index.rule), "the block carries the index's rule");
+  assert!(prompts[0].contains(&CHAT_ROUND.index.hint), "the block carries the index");
+  assert!(
+    *round.standing.gate.referred.lock().unwrap() >= 1,
+    "the gate is asked for the turn's core"
+  );
+}
+
+#[tokio::test]
+async fn a_supervisor_whose_brain_is_off_is_handed_no_index_and_asks_the_gate_for_no_core() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
+  let round = Drafting::new(session, &["final"], 150).await;
+
+  round.standing.agency.brain_off.lock().unwrap().insert(AGENT.to_owned());
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert!(!prompts[0].contains(&CHAT_ROUND.index.rule), "no rule about an index: {}", prompts[0]);
+  assert!(!prompts[0].contains(&CHAT_ROUND.index.hint), "no index: {}", prompts[0]);
+  assert_eq!(*round.standing.gate.referred.lock().unwrap(), 0, "the gate is asked for no core");
+  assert!(sent.len() == 1 && sent[0].contains("the message"), "the round still answers: {sent:?}");
 }

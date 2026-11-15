@@ -13,8 +13,8 @@ message passes, and the record each turn of it leaves.
   touch, and a session reads a room's note once (「The situation note」 below).
 - **The draft is one turn, and its answer is the message.** A round's turn goes to the agent as every round's
   does (`docs/wake.md`, 「The room's queue and the round」), after that judgement where one is asked, and after
-  the window's pregate: the core the gate attaches. The brain's index rides the room's block at session opening,
-  never the turn. The turn carries only the line naming the questions its round follows; each question's text
+  the window's pregate: the core the gate attaches, where the supervisor's brain is on (「A supervisor whose brain
+  is off」 below). The brain's index rides the room's block at session opening, never the turn. The turn carries only the line naming the questions its round follows; each question's text
   stands in the room's block, which the session is handed as its system prompt. In that one turn the agent
   follows the questions in the order the line names them — it reads, finds the facts the message rests on,
   engraves what it establishes in the brain with its tools and does what it promised — and then writes the
@@ -68,9 +68,11 @@ message passes, and the record each turn of it leaves.
   nothing else.
 - **A round whose draft turn answers `<<WAIT>>` runs no further process:** the wait stands as `docs/wake.md`,
   「Waiting」, says, and the round that takes the waited words opens the process again.
-- **Every agent's round runs the process,** every supervisor's alike: no agent's turns are
-  exempt from it. A console talk, a typed line, the touch and the line before a fold are no rounds of a room and
-  run none.
+- **A round runs what its row holds,** every supervisor's alike: no agent's turns are exempt from the process,
+  and what a round leaves out is what its row of the process table switches off — a question, the review, an
+  item after the message or a check on the final text (「The process table」 below). A row that switches nothing
+  off runs the whole process. A console talk, a typed line, the touch and the line before a fold are no rounds of
+  a room and run none.
 
 ## A round handed to the double
 
@@ -184,6 +186,9 @@ message passes, and the record each turn of it leaves.
     on a short word or a quiet instruction — a launch, a hold, a review's move, a deployment — is held to the
     same questions as anything it does;
   - `off`, the questions of that list that are switched off: each keeps its place in it and is not followed;
+  - `stagesOff`, the stages after the message that are switched off, each by its name: `review`, the items
+    `arrived`, `owed`, `owner_directive`, `record`, `wake` and `rule`, and the check `format`. None is switched
+    off where the row names none, which is the policy's row and every row the console set without it.
 - **A question switched off is not part of the process until it is switched on again.** A round follows its
   list without the questions `off` names, in the list's order: the round's line names only the questions
   followed, and the room's block carries no line for one switched off.
@@ -205,8 +210,30 @@ message passes, and the record each turn of it leaves.
 - **A round reads its row before its turn goes out,** since the turn carries the round's line: the row of the
   supervisor whose turn it is where the console set it one, and the policy's where it did not.
 - **A list that holds questions ends in `final` and holds it nowhere else.** An empty list follows nothing: the
-  round's turn goes out as the window composed it and its answer is the message, held to the items and checks
-  below like any.
+  round's turn goes out as the window composed it and its answer is the message, held to the items, the review
+  and the checks below that the row does not switch off.
+- **A stage switched off is not asked, and the room's block carries no rule for it.** The review switched off
+  sends the message as the draft turn, the closing check and the items left it, with no review row and no
+  revision; an item switched off is not asked whatever the code's reading of the message says; the `format` check
+  switched off reads nothing of the final text and withholds nothing. The process's fixed rules in the room's
+  block stand whatever the row switches off. A row that switches off every question and every stage makes the
+  draft turn's answer the message as it stands, with no further turn.
+
+## A supervisor whose brain is off
+
+- **A supervisor's brain switch is the agency's setting,** `brainOn` among its settings (the agency's
+  `docs/supervisors.md`, 「Its settings」), read by the receiver as a round composes its turn; a supervisor whose
+  settings do not say, or an agency that does not answer, reads as on, so every round runs as it did.
+- **Where it is off, nothing of the brain reaches the supervisor's turns from the receiver:**
+  - the room's block carries no index, no hint and no due line, and none of the block's rules about the index
+    (`docs/bmo-window.md`, 「What every turn carries」);
+  - the turn's core is not asked of the gate's reference selection, so no sheet, memory, errand or woken row is
+    attached; a person's own thread, which is the room's record, still goes in;
+  - a round handed to the double carries the room's block as composed above.
+- **The tools that reach the brain are the agency's to leave out** of the supervisor's session record under the
+  same switch (the agency's `docs/supervisors.md`). The process asks no question about the brain by itself: a
+  row that keeps `memory` or `information` while the brain is off leaves the agent to answer them with what it
+  holds, so a supervisor run with its brain off switches those questions off on its row.
 
 ## The situation note
 
@@ -301,8 +328,8 @@ message passes, and the record each turn of it leaves.
   person's words among them are his, an agent's line neither keeping them out nor letting them in; a round that is
   not his never takes words that are his alone. The others wait and open the round after, where the owner's own
   words carry his privilege.
-- **Once the message stands, one closing check.** Where words waited when the message came to stand, the session
-  is asked once more before the items and the checks: the
+- **Once the message stands, one closing check.** Where words waited when the message came to stand, and the
+  row does not switch off `arrived`, the session is asked once more before the items and the checks: the
   marker that names the check (`arrived_marker`), the message as it stands, then the block of what arrived. What
   the check does stands in the room's block (`arrived`). The answer, marks taken out, is the whole
   message as it should now go out, answering the words that arrived as well, and it takes the standing message's
@@ -364,8 +391,8 @@ message passes, and the record each turn of it leaves.
 
 ## The items after the message
 
-The code's own readings of the message are items of the process, asked once the message stands (the draft
-turn's answer) and after the closing check where one was asked
+The code's own readings of the message are items of the process, each asked where its row does not switch it
+off, once the message stands (the draft turn's answer) and after the closing check where one was asked
 (「What came in meanwhile」 above), each asked once as one more turn of the same session. The turn carries only
 the marker naming the item or the check and the data its rule reads; the rule itself stands in the room's block
 (`second-asks.toml`, `[errands]`, `[data]`).
@@ -403,8 +430,8 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 
 ## The review
 
-- **The review audits the draft turn before the message goes out.** It is one more turn of the same session,
-  the first of the gate, and it audits whether the draft turn did what it was asked: whether each question its
+- **The review audits the draft turn before the message goes out,** where the round's row does not switch it
+  off (「The process table」 above). It is one more turn of the same session, the first of the gate, and it audits whether the draft turn did what it was asked: whether each question its
   line named was carried out — what was to be read was read, each fact has its source, the brain was brought up
   to date, what was promised was done or the words changed — and whether the message stands on that work, on
   the room's words and on the rules and knowledge the round carries. What the review is asked, the verdict it
@@ -443,7 +470,8 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 
 ## The checks on the final text
 
-- **Once the review has passed, the text is checked before it is sent,** with no model:
+- **Once the review has passed, or where the row switches the review off, the text is checked before it is
+  sent,** with no model, each check the row does not switch off:
   - `format`: none of the process's own lines stands in the text: no text of a question the round followed, not
     the round's line, and not the head of the block of words that came meanwhile.
   There is no length check, and no check reads the language an answer is written in: that is the agent's own
@@ -553,9 +581,10 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   `agentName` it answers the one row that supervisor reads: its own, or the policy's where it has none.
 - **`PUT /draft-processes/{provider}/{tier}/{agentName}`** sets a supervisor's row and answers it as it now
   stands: the provider and the tier are `*` and the agent a supervisor's name, and any other key is refused
-  `bad-request`. `off` is left out for none. A list naming a question the supervisor's catalogue does not hold,
-  a list that holds questions and does not end in `final` or holds it before the end, or an `off` that names
-  `final` is refused `bad-request`, and nothing is written. A row that still carries `light`, `lightChars`,
+  `bad-request`. `off` and `stagesOff` are left out for none. A list naming a question the supervisor's catalogue
+  does not hold, a list that holds questions and does not end in `final` or holds it before the end, an `off`
+  that names `final`, or a `stagesOff` naming anything but the stages 「The process table」 names is refused
+  `bad-request`, and nothing is written; a stage named twice is kept once, in the order the table names them. A row that still carries `light`, `lightChars`,
   `sendFrom`, `turnSeconds`, `ceilingSeconds` or `pastCeiling` loads with them ignored.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes a supervisor's row away, and the supervisor
   reads the policy's again. A key the console set no row for is `not-found`.

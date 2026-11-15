@@ -436,6 +436,7 @@ async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str]) {
       rounds: named(rounds),
       send_from: String::new(),
       off: named(off),
+      stages_off: vec![],
       ceiling_seconds: 0,
       past_ceiling: PastCeiling::Send,
       set: true,

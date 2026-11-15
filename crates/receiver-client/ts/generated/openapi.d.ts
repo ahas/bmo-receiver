@@ -1780,6 +1780,11 @@ export interface components {
             sendFrom: string;
             /** @description `set` or `default`. */
             source: string;
+            /**
+             * @description The stages after the message that are switched off: `review`, the items and the checks, by name.
+             * @default []
+             */
+            stagesOff: string[];
             /** @description A tier, or `*` for any. */
             tier: string;
         };
@@ -1800,6 +1805,11 @@ export interface components {
              * @default
              */
             sendFrom: string;
+            /**
+             * @description The stages after the message that are switched off; left out for none.
+             * @default []
+             */
+            stagesOff: string[];
         };
         /** @description A question of the draft process's catalogue. */
         DraftQuestion: {

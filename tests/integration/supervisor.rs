@@ -244,6 +244,7 @@ async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may
     rounds: vec![SUPERVISOR.into(), "final".into()],
     send_from: String::new(),
     off: vec![],
+    stages_off: vec![],
     ceiling_seconds: 60,
     past_ceiling: table::PastCeiling::Send,
     set: true,

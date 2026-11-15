@@ -467,12 +467,13 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
 // The draft process's stage instructions, as a supervisor's room block carries them (docs/drafting.md, 「The
 // questions」): the head and one line for each question the supervisor's row may ask, ordinary or light, out of the
 // supervisor's catalogue; then what a waiting line means and the rules of the items and checks that follow the
-// message, which stand here whether the row asks a question or none.
+// message, which stand here whether the row asks a question or none, each but those the row switches off.
 async fn stages(db: &DatabaseConnection, agent: &str) -> Result<String, Fault> {
   let mut parts = vec![];
   let row = super::draft::table::row_of(db, agent).await?;
+  let runs = |stage: &str| !row.as_ref().is_some_and(|row| row.stage_off(stage));
 
-  if let Some(row) = row {
+  if let Some(row) = &row {
     let catalogue = super::draft::table::questions(db, Some(agent)).await?;
     // A question the row has switched off is not asked, so the block carries no line for it.
     let names = row.asked(&row.rounds);
@@ -491,13 +492,20 @@ async fn stages(db: &DatabaseConnection, agent: &str) -> Result<String, Fault> {
   // The lines a turn carries only as data, and the rules the items and checks that follow the message follow.
   parts.push(SECOND_ASKS.later.clone());
   parts.push(SECOND_ASKS.items_head.clone());
-  parts.push(SECOND_ASKS.errands.owed.clone());
-  parts.push(SECOND_ASKS.errands.owner_directive.clone());
-  parts.push(SECOND_ASKS.errands.record.clone());
-  parts.push(SECOND_ASKS.errands.wake.clone());
-  parts.push(SECOND_ASKS.errands.rule.clone());
-  parts.push(fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)]));
-  parts.push(SECOND_ASKS.errands.format.clone());
+
+  for (stage, rule) in [
+    ("owed", SECOND_ASKS.errands.owed.clone()),
+    ("owner_directive", SECOND_ASKS.errands.owner_directive.clone()),
+    ("record", SECOND_ASKS.errands.record.clone()),
+    ("wake", SECOND_ASKS.errands.wake.clone()),
+    ("rule", SECOND_ASKS.errands.rule.clone()),
+    ("arrived", fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
+    ("format", SECOND_ASKS.errands.format.clone()),
+  ] {
+    if runs(stage) {
+      parts.push(rule);
+    }
+  }
 
   Ok(parts.join("\n"))
 }
@@ -524,8 +532,8 @@ fn situation_instruction() -> String {
 /// instructions, in the order the block carries them.
 pub async fn process_part(db: &DatabaseConnection, agent: &str) -> Result<Vec<String>, Fault> {
   let supervisor = super::draft::table::supervisor_text(db, agent).await?;
-
-  Ok(vec![
+  let reviewed = !super::draft::table::row_of(db, agent).await?.is_some_and(|row| row.stage_off("review"));
+  let mut parts = vec![
     CHAT_LINE.room.process.clone(),
     stages(db, agent).await?,
     CHAT_ROUND.supervisor.structure.clone(),
@@ -533,8 +541,14 @@ pub async fn process_part(db: &DatabaseConnection, agent: &str) -> Result<Vec<St
       &CHAT_ROUND.supervisor.rule,
       &[("marker", &CHAT_ROUND.supervisor.marker), ("question", &supervisor)],
     ),
-    review_instruction(),
-  ])
+  ];
+
+  // A review the row switches off is not asked, so the block carries none of its instructions.
+  if reviewed {
+    parts.push(review_instruction());
+  }
+
+  Ok(parts)
 }
 
 /// The fingerprint of the process's part of the block as its parts stand.
@@ -574,11 +588,17 @@ pub async fn room_context(
   ];
 
   parts.extend(process);
+  parts.extend([situation_instruction(), CHAT_ROUND.closing.rule.clone()]);
+
+  // The rules about the brain's index stand only where the supervisor's brain is on, as the index itself does.
+  if super::window::brain_on(receiver, agent).await {
+    parts.extend([
+      CHAT_ROUND.index.rule.clone(),
+      fill_marks(&CHAT_ROUND.index.memories, &[("chat", &chat_id.to_string())]),
+    ]);
+  }
+
   parts.extend([
-    situation_instruction(),
-    CHAT_ROUND.closing.rule.clone(),
-    CHAT_ROUND.index.rule.clone(),
-    fill_marks(&CHAT_ROUND.index.memories, &[("chat", &chat_id.to_string())]),
     CHAT_ROUND.queue_line.rule.clone(),
     fill_marks(&CHAT_ROUND.notice.rule, &[("marker", &CHAT_ROUND.notice.marker)]),
     fill_marks(&CHAT_ROUND.notice.optional_rule, &[("marker", &CHAT_ROUND.notice.optional_marker)]),

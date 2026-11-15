@@ -31,6 +31,7 @@ fn row(provider: &str, tier: &str, agent: &str, rounds: &[&str]) -> Process {
     rounds: rounds.iter().map(|name| (*name).to_owned()).collect(),
     send_from: String::new(),
     off: vec![],
+    stages_off: vec![],
     ceiling_seconds: 150,
     past_ceiling: PastCeiling::Send,
     set: false,
@@ -214,6 +215,7 @@ fn a_question_switched_off_keeps_its_place_and_is_not_asked() {
   let switched = |off: &[&str]| {
     Process {
       off: named(off),
+      stages_off: vec![],
       ..row(ANY, ANY, "agent-a", &["information", "facts", "memory", "final"])
     }
     .settled()

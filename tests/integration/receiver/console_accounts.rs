@@ -1223,8 +1223,9 @@ async fn a_store_from_before_the_private_rooms_were_kept_has_them_filled() {
   let db = stood.scratch.db();
 
   said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
-  Migrator::down(db, Some(1)).await.unwrap();
-  assert_eq!(migrate(db).await.unwrap(), 1, "the private rooms' table is made again, empty");
+  // Down to before the private rooms' table, the one migration after it with it.
+  Migrator::down(db, Some(2)).await.unwrap();
+  assert_eq!(migrate(db).await.unwrap(), 2, "the private rooms' table is made again, empty");
   assert!(kept_private(&stood).await.is_empty());
 
   // Kept again by the first start after the upgrade, Bea's room stays hers once her supervisor is gone.
@@ -1711,7 +1712,7 @@ async fn an_ownerless_persons_bmo_is_adopted_by_the_account_its_name_names() {
   stood.standing.receiver.forget_agents();
 
   // The first start after the record began keeping private rooms.
-  Migrator::down(db, Some(1)).await.unwrap();
+  Migrator::down(db, Some(2)).await.unwrap();
   migrate(db).await.unwrap();
 
   let settled = private_rooms::at_start(&stood.standing.receiver).await.unwrap();

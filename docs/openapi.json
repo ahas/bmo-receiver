@@ -706,6 +706,14 @@
             "description": "`set` or `default`.",
             "type": "string"
           },
+          "stagesOff": {
+            "default": [],
+            "description": "The stages after the message that are switched off: `review`, the items and the checks, by name.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "tier": {
             "description": "A tier, or `*` for any.",
             "type": "string"
@@ -718,6 +726,7 @@
           "rounds",
           "sendFrom",
           "off",
+          "stagesOff",
           "ceilingSeconds",
           "pastCeiling",
           "source"
@@ -754,12 +763,21 @@
             "default": "",
             "description": "Read and ignored: the draft turn's answer is the message.",
             "type": "string"
+          },
+          "stagesOff": {
+            "default": [],
+            "description": "The stages after the message that are switched off; left out for none.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
           "rounds",
           "sendFrom",
           "off",
+          "stagesOff",
           "ceilingSeconds",
           "pastCeiling"
         ],

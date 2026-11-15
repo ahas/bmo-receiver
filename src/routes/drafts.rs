@@ -23,6 +23,9 @@ pub struct ProcessSet {
   /// The questions of the list that are switched off; left out for none.
   #[serde(default)]
   off: Vec<String>,
+  /// The stages after the message that are switched off; left out for none.
+  #[serde(default)]
+  stages_off: Vec<String>,
   /// A light list and bound an older console still sends: read and ignored, since every turn follows the rounds.
   #[serde(default)]
   #[allow(dead_code)]
@@ -96,6 +99,7 @@ pub async fn set_process(
     rounds: asked.rounds,
     send_from: asked.send_from,
     off: asked.off,
+    stages_off: asked.stages_off,
     ceiling_seconds: asked.ceiling_seconds.unwrap_or(0),
     past_ceiling,
     set: true,

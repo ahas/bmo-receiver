@@ -395,6 +395,34 @@ pub async fn drafting(db: &sea_orm::DatabaseConnection, rounds: &[&str], ceiling
   drafting_past(db, rounds, ceiling_seconds, bmo_receiver::chat::draft::table::PastCeiling::Send).await;
 }
 
+/// The draft process every turn reads, with the stages after the message its row switches off.
+pub async fn drafting_with(db: &sea_orm::DatabaseConnection, rounds: &[&str], stages_off: &[&str]) {
+  use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
+
+  let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
+
+  for supervisor in SUPERVISORS {
+    set(
+      db,
+      &Process {
+        provider: ANY.to_owned(),
+        tier: ANY.to_owned(),
+        agent: supervisor.to_owned(),
+        rounds: named(rounds),
+        send_from: String::new(),
+        off: vec![],
+        stages_off: named(stages_off),
+        ceiling_seconds: 0,
+        past_ceiling: PastCeiling::Send,
+        set: true,
+      }
+      .settled(),
+    )
+    .await
+    .unwrap();
+  }
+}
+
 /// The draft process every turn reads, with what is done past its ceiling.
 pub async fn drafting_past(
   db: &sea_orm::DatabaseConnection,
@@ -416,6 +444,7 @@ pub async fn drafting_past(
         rounds: named(rounds),
         send_from: String::new(),
         off: vec![],
+        stages_off: vec![],
         ceiling_seconds,
         past_ceiling,
         set: true,

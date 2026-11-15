@@ -19,6 +19,9 @@ pub struct Process {
   /// The questions of the list that are switched off: each keeps its place and is not asked.
   #[serde(default)]
   pub off: Vec<String>,
+  /// The stages after the message that are switched off, each by its name; none where left out.
+  #[serde(default)]
+  pub stages_off: Vec<String>,
   /// A time ceiling a row set before rounds were left without one: read and ignored.
   #[serde(default)]
   pub ceiling_seconds: Option<u32>,
