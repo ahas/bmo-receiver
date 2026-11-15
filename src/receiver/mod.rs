@@ -116,6 +116,16 @@ pub struct Room {
   pub identity: Option<i64>,
   /// Whose one-to-one with the agent the room is, by the person's sender number, where the road says it is one.
   pub private_to: Option<i64>,
+  /// Whether the room is someone's private room whose person cannot be named now: no group, though no one is read
+  /// as its one-to-one.
+  pub sealed: bool,
+}
+
+impl Room {
+  /// Whether the room is someone's one-to-one with the agent, named or sealed: no group.
+  pub fn one_to_one(self) -> bool {
+    self.private_to.is_some() || self.sealed
+  }
 }
 
 /// Why a message could not be received.

@@ -5,7 +5,6 @@
 //! another account's private room.
 
 use axum::{
-  body::Bytes,
   extract::{Path, RawQuery, State},
   http::StatusCode,
 };
@@ -13,8 +12,8 @@ use sea_orm::DatabaseConnection;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::accounts::{acting, writable};
 use super::message_files::{inside, type_of};
+use super::writable::Writer;
 use super::{Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::data_root::room_path;
 use crate::receiver::listening::Standing;
@@ -94,15 +93,11 @@ pub struct PictureCursor {
 #[serde(rename_all = "camelCase")]
 pub struct Pinning {
   room_ids: Vec<i64>,
-  #[serde(default)]
-  account: Option<i64>,
 }
 
 #[derive(Deserialize)]
 pub struct PinnedRoom {
   room: i64,
-  #[serde(default)]
-  account: Option<i64>,
 }
 
 fn failed(why: NotReceived) -> Refusal {
@@ -242,7 +237,7 @@ pub async fn messages(State(served): State<Served>, Path(room): Path<i64>, raw: 
           });
         }
         _ => {
-          let one_to_one = receiver.roads().room_facts(room).await.private_to.is_some();
+          let one_to_one = receiver.roads().room_facts(room).await.one_to_one();
           kept.retain(|page| spoken_by_person(one_to_one, page));
         }
       }
@@ -303,7 +298,7 @@ pub async fn day_start(State(served): State<Served>, Path(room): Path<i64>, raw:
   let asked = query::<DayStart>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
   let found = reads::from(receiver.db(), room, asked.from, DAY_LOOK).await.map_err(store)?;
-  let one_to_one = receiver.roads().room_facts(room).await.private_to.is_some();
+  let one_to_one = receiver.roads().room_facts(room).await.one_to_one();
   let begins = found
     .iter()
     .filter(|page| spoken_by_person(one_to_one, page))
@@ -348,7 +343,7 @@ pub async fn pictures(State(served): State<Served>, Path(room): Path<i64>, raw: 
     }
   }
 
-  let one_to_one = receiver.roads().room_facts(room).await.private_to.is_some();
+  let one_to_one = receiver.roads().room_facts(room).await.one_to_one();
   let folder = room_path(&receiver.data_root().images(), room);
   let shown: Vec<reads::Page> =
     found.into_iter().filter(|page| spoken_by_person(one_to_one, page)).collect();
@@ -404,9 +399,8 @@ pub async fn room_situation(State(served): State<Served>, Path(room): Path<i64>)
 
 /// The pinned order set whole, answered as it now stands; refused where it pins or unpins another account's private
 /// room.
-pub async fn pin(State(served): State<Served>, raw: RawQuery, body: Bytes) -> Answered {
-  let asked = read::<Pinning>(&body)?;
-  let account = acting(raw, asked.account)?;
+pub async fn pin(State(served): State<Served>, writer: Writer) -> Answered {
+  let asked = read::<Pinning>(writer.body())?;
   let db = served.receiver.db();
 
   for room in &asked.room_ids {
@@ -420,7 +414,7 @@ pub async fn pin(State(served): State<Served>, raw: RawQuery, body: Bytes) -> An
     .chain(asked.room_ids.iter().filter(|room| !standing.contains(room)));
 
   for room in moved {
-    writable(&served.receiver, *room, account).await?;
+    writer.room(&served.receiver, *room).await?;
   }
 
   pinned::pin(db, &asked.room_ids)
@@ -431,12 +425,12 @@ pub async fn pin(State(served): State<Served>, raw: RawQuery, body: Bytes) -> An
 }
 
 /// A room stood last in the pinned order, answered as the order now stands.
-pub async fn pin_one(State(served): State<Served>, raw: RawQuery, body: Bytes) -> Answered {
-  let asked = read::<PinnedRoom>(&body)?;
+pub async fn pin_one(State(served): State<Served>, writer: Writer) -> Answered {
+  let asked = read::<PinnedRoom>(writer.body())?;
   let db = served.receiver.db();
 
   unheld(db, asked.room).await?;
-  writable(&served.receiver, asked.room, acting(raw, asked.account)?).await?;
+  writer.room(&served.receiver, asked.room).await?;
 
   pinned::add(db, asked.room)
     .await
@@ -446,8 +440,8 @@ pub async fn pin_one(State(served): State<Served>, raw: RawQuery, body: Bytes) -
 }
 
 /// A room taken out of the pinned order, answered as the order now stands.
-pub async fn unpin(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
-  writable(&served.receiver, room, acting(raw, None)?).await?;
+pub async fn unpin(State(served): State<Served>, Path(room): Path<i64>, writer: Writer) -> Answered {
+  writer.room(&served.receiver, room).await?;
 
   pinned::remove(served.receiver.db(), room)
     .await

@@ -3067,7 +3067,9 @@ export interface operations {
     };
     setAvatar: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 kind: string;
@@ -3090,7 +3092,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed */
+            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3103,7 +3105,9 @@ export interface operations {
     };
     unsetAvatar: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 kind: string;
@@ -3122,7 +3126,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, failed */
+            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3814,7 +3818,9 @@ export interface operations {
     };
     ownerInstruction: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3832,7 +3838,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, forbidden, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, forbidden, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3845,7 +3851,9 @@ export interface operations {
     };
     ownerMessageFiles: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3865,7 +3873,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, too-large, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, too-large, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3878,7 +3886,9 @@ export interface operations {
     };
     ownerMessage: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3898,7 +3908,7 @@ export interface operations {
                     "application/json": components["schemas"]["Created"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4006,7 +4016,9 @@ export interface operations {
     };
     pinRooms: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4039,7 +4051,9 @@ export interface operations {
     };
     pinRoom: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4416,7 +4430,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, forbidden, not-found, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4592,6 +4606,7 @@ export interface operations {
         parameters: {
             query: {
                 by: string;
+                account?: number;
             };
             header?: never;
             path: {
@@ -4614,7 +4629,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoomArchive"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4724,7 +4739,9 @@ export interface operations {
     };
     fillFiles: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -4746,7 +4763,7 @@ export interface operations {
                     "application/json": components["schemas"]["FileFills"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, room-fetches-no-files, room-files-filling, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, room-fetches-no-files, room-files-filling, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4928,7 +4945,9 @@ export interface operations {
     };
     editAsMe: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5040,7 +5059,9 @@ export interface operations {
     };
     forward: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5140,7 +5161,9 @@ export interface operations {
     };
     pinAsMe: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5176,7 +5199,9 @@ export interface operations {
     };
     reactAsMe: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5350,7 +5375,9 @@ export interface operations {
     };
     notice: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5372,7 +5399,7 @@ export interface operations {
                     "application/json": components["schemas"]["Created"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5584,7 +5611,9 @@ export interface operations {
     };
     chooseProviders: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5606,7 +5635,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoomProviders"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5652,7 +5681,9 @@ export interface operations {
     };
     keepMarks: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5672,7 +5703,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A refusal or failure: unauthorized, bad-request, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5687,6 +5718,7 @@ export interface operations {
         parameters: {
             query: {
                 agentName: string;
+                account?: number;
             };
             header?: never;
             path: {
@@ -5705,7 +5737,7 @@ export interface operations {
                     "application/json": components["schemas"]["Forgotten"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, failed */
+            /** @description A refusal or failure: unauthorized, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5753,6 +5785,7 @@ export interface operations {
         parameters: {
             query: {
                 by: string;
+                account?: number;
             };
             header?: never;
             path: {
@@ -5775,7 +5808,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoomRegistration"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-administrator, not-found, conflict, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-administrator, not-found, conflict, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5918,7 +5951,9 @@ export interface operations {
     };
     stickerAsMe: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5953,7 +5988,9 @@ export interface operations {
     };
     setRoomSupervisors: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5975,7 +6012,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoomSupervisors"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6050,7 +6087,9 @@ export interface operations {
     };
     accountWordFiles: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -6085,7 +6124,9 @@ export interface operations {
     };
     accountWords: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;

@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use axum::extract::{Path as RoutePath, RawQuery, State};
+use axum::extract::{RawQuery, State};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -21,6 +21,7 @@ use crate::room_record::{
   Act, Counted, Facing, Held, count, files, folders, record, refusals, take, warnings,
 };
 use crate::routes::instructions::HOLDER_KEY;
+use crate::routes::writable::WritableRoom;
 use crate::routes::{Answered, Refusal, Served, answered, code, ready, store};
 use crate::store::{Fault, settings};
 
@@ -293,11 +294,8 @@ fn failed(why: sqlx::Error) -> Refusal {
 
 /// A room's registration removed, its whole record with it; with `dryRun`, what the removal would do and nothing
 /// written.
-pub async fn remove(
-  State(served): State<Served>,
-  RoutePath(room): RoutePath<i64>,
-  raw: RawQuery,
-) -> Answered {
+pub async fn remove(State(served): State<Served>, raw: RawQuery, writable: WritableRoom) -> Answered {
+  let room = writable.room;
   let asked = super::query::<RemovalQuery>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
   let by = asked.by.trim();

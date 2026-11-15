@@ -146,15 +146,21 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   own room on the record is its supervisor's owner account's, and the owner's private room the owner's account's,
   the two private rooms `docs/receiver.md`, 「Console rooms and accounts」, states, where it also states who reads
   one. The receiver answers it from those two rules alone, never from a room's members or providers, so a group
-  room every other member has left reads null. A read that cannot ask the agency or the web unit whose private
-  room it is is refused 502 `upstream-failed` rather than answered as no one's.
-- **A write act names the account it acts for** where the console acts for a person: `account`, a number, in the
-  body or the query, either one, the two refused 400 `bad-request` where they name different accounts. The routes
-  that take it are the acts on a message, a sticker, a forward, a line's reading, the pinned order, and an
-  account's words and files (`account` there, required); a room's members by account name it as `by`. In a room
-  whose `privateOf` is set, a write naming any other account, the administrator's among them, is refused 403
-  `private-room` (`room`, `account`) before anything is written; the owner account's go through. The whole pinned
-  order is a write in each room it pins or unpins. A write naming no account is judged as it always was.
+  room every other member has left reads null, and so does a sealed private room, whose account cannot be named. A
+  read that cannot ask the agency or the web unit whose private room it is is refused 502 `upstream-failed` rather
+  than answered as no one's.
+- **Every write in a room names the account it acts for** where the console acts for a person: `account`, a number,
+  in the body or the query; `by` where a route takes one; or the relay's `Owner-Key`. Wherever it is named it is one
+  account, and two that differ are refused 400 `bad-request`. Every route that changes a room, a message in it or
+  what is kept of it is judged so (`docs/receiver.md`, 「Console rooms and accounts」): the acts on a message, a
+  sticker, a forward (its own room and `to` both), a line's reading, the pinned order, a room's picture, its
+  registration, archive, providers, supervisors, notices, read marks and file fills, its removal, its members by
+  account, an account's words and files (`account` there, required), and the owner's routes, which act for the
+  owner's account. In a room whose `privateOf` is set, a write for any other account, the administrator's among
+  them, is refused 403 `private-room` (`room`, `account`) before anything is written; the room's own account's go
+  through. A sealed private room, `privateOf` null though it is one (the owner's private room while no account is linked
+  to his sender), refuses every account's write. The whole pinned order is a write in each room it pins or unpins. A write naming no account is a unit
+  acting as itself and is refused nowhere.
 - **A room's registration is read and its mode changed by the administrator alone,** `by` naming him as the web
   unit knows him. `GET /rooms/{roomId}/registration` answers `room`, `mode`, `providers`, `chosen`,
   `answerers`, `readOnly`, whether every chat service on the list reads the room in the owner's account alone,
@@ -248,7 +254,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   owner's account; the rooms it reaches through a chat service's identities are the console's to compose.
   `PUT /accounts/{account}/identity` answers the same sender every time it is asked for one account.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
-  anyone but the administrator. `dryRun=true` answers the preview and writes nothing; the answer names
+  anyone but the administrator, and a private room to anyone but its own account (`by` names who removes it). `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
   `cleared`, `holders` and `couldNot`.
 
@@ -511,7 +517,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   with the room, the message and who said it, and carried to that room's providers as every kept message is, so
   it goes out on the room's own road. It wakes nobody. A message or a room the receiver does not hold is refused
   404 `not-found`, a forward into the room it stands in 400 `bad-request`, a deleted message 409 `conflict`, and a
-  forward into another account's private room 403 `private-room`.
+  forward out of or into another account's private room 403 `private-room`.
 
 ## Consult lines
 

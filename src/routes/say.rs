@@ -5,8 +5,7 @@
 
 use axum::{
   Json,
-  body::Bytes,
-  extract::{Multipart, Path, RawQuery, State},
+  extract::{Multipart, Path, State},
   http::StatusCode,
 };
 use bmo_chat_client::{ChatFileKind, FileItem, MessageFile};
@@ -14,7 +13,8 @@ use receiver_policy::roads::ROADS;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::accounts::{acting, speaker, writable};
+use super::accounts::speaker;
+use super::writable::{WritableRoom, Writer};
 use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::data_root::room_path;
 use crate::receiver::{Context, Inbound, NotReceived, Receiver, reads, rows};
@@ -130,9 +130,13 @@ impl Speaking {
   }
 }
 
-pub async fn say(State(served): State<Served>, body: Bytes) -> Answered {
-  let asked = read::<SayBody>(&body)?;
+/// `POST /owner/messages`: the owner's words, on his own road, which writes in no other account's private room.
+pub async fn say(State(served): State<Served>, writer: Writer) -> Answered {
+  let asked = read::<SayBody>(writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
+
+  writer.owners().room(&receiver, asked.chat_id).await?;
+
   let text = speakable(&receiver, asked.chat_id, &asked.text).await?;
   let speaking = Speaking::owner(&receiver, asked.chat_id).await;
   let id = said(&receiver, asked.chat_id, &text, asked.reply_to.as_ref(), speaking).await?;
@@ -297,13 +301,15 @@ pub(super) async fn sendable(receiver: &Receiver, chat_id: i64, form: &FilesForm
   locked(receiver, chat_id).await
 }
 
-pub async fn say_file(State(served): State<Served>, form: Multipart) -> Answered {
+pub async fn say_file(State(served): State<Served>, writer: Writer) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let form = files_form(form).await?;
+  let writer = writer.owners();
+  let form = files_form(writer.form().await?).await?;
   let Some(chat_id) = form.chat_id else {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "chatId (number) and file are required"));
   };
 
+  writer.room(&receiver, chat_id).await?;
   sendable(&receiver, chat_id, &form).await?;
 
   let speaking = Speaking::owner(&receiver, chat_id).await;
@@ -515,8 +521,6 @@ async fn say_voice(
 pub struct ForwardBody {
   to: i64,
   #[serde(default)]
-  account: Option<i64>,
-  #[serde(default)]
   name: Option<String>,
 }
 
@@ -552,14 +556,16 @@ async fn forwarder(
 
 /// A message forwarded into another room (docs/api.md, 「Sends」): a copy kept there as the forwarding account's, the
 /// owner's where the call names none, marked with where it came from and who said it, carried out on that room's own
-/// road, waking nobody. Nothing is forwarded into another account's private room.
+/// road, waking nobody. Nothing is forwarded out of or into another account's private room, since a forward shares
+/// what was said in the one and writes in the other.
 pub async fn forward(
   State(served): State<Served>,
-  Path((room, message)): Path<(i64, i64)>,
-  raw: RawQuery,
-  body: Bytes,
+  Path((_, message)): Path<(i64, i64)>,
+  writable: WritableRoom,
 ) -> Result<(StatusCode, Json<Value>), Refusal> {
-  let asked = read::<ForwardBody>(&body)?;
+  let room = writable.room;
+  let writer = writable.writer;
+  let asked = read::<ForwardBody>(writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
 
   if asked.to == room {
@@ -592,9 +598,9 @@ pub async fn forward(
     ));
   }
 
-  let account = acting(raw, asked.account)?;
+  writer.room(&receiver, asked.to).await?;
 
-  writable(&receiver, asked.to, account).await?;
+  let account = writer.account();
 
   let Speaking {
     sender_id,

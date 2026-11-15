@@ -118,6 +118,7 @@ impl Two {
       owner_room: true,
       identity: Some(IDENTITY),
       private_to: None,
+      sealed: false,
     };
 
     self
@@ -135,6 +136,7 @@ impl Two {
       owner_room: false,
       identity: Some(IDENTITY),
       private_to: None,
+      sealed: false,
     };
 
     self.runner.of(AGENT).enqueue(said(ROOM, 31, message_id, text), room, true, false).await;

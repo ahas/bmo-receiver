@@ -35,6 +35,7 @@ fn group() -> Room {
     owner_room: false,
     identity: Some(IDENTITY),
     private_to: None,
+    sealed: false,
   }
 }
 

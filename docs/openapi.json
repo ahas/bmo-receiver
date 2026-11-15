@@ -4076,6 +4076,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -4095,7 +4103,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, private-room, upstream-failed, failed"
           }
         },
         "summary": "A picture set from the console let go, so the one its chat service handed over stands.",
@@ -4107,6 +4115,8 @@
           "picture-forbidden",
           "unknown-kind",
           "no-number",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       },
@@ -4127,6 +4137,14 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -4155,7 +4173,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, private-room, upstream-failed, failed"
           }
         },
         "summary": "A picture set from the console on a room, a person or an agent, as a form with one picture.",
@@ -4170,6 +4188,8 @@
           "not-a-picture",
           "picture-too-large",
           "no-number",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -5185,6 +5205,16 @@
     "/owner/instructions": {
       "post": {
         "operationId": "ownerInstruction",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5207,7 +5237,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, forbidden, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, forbidden, private-room, upstream-failed, failed"
           }
         },
         "summary": "The owner's words queued for a room's session.",
@@ -5219,6 +5249,8 @@
           "bad-request",
           "not-found",
           "forbidden",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -5226,6 +5258,16 @@
     "/owner/message-files": {
       "post": {
         "operationId": "ownerMessageFiles",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5251,7 +5293,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, too-large, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, too-large, private-room, upstream-failed, failed"
           }
         },
         "summary": "The owner's files sent into a room on a screen, as a form.",
@@ -5263,6 +5305,8 @@
           "bad-request",
           "not-found",
           "too-large",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -5270,6 +5314,16 @@
     "/owner/messages": {
       "post": {
         "operationId": "ownerMessage",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5299,7 +5353,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed"
           }
         },
         "summary": "The owner's words typed into a room on a screen.",
@@ -5311,6 +5365,7 @@
           "bad-request",
           "not-found",
           "conflict",
+          "private-room",
           "upstream-failed",
           "failed"
         ]
@@ -5458,6 +5513,16 @@
     "/pinned-rooms": {
       "post": {
         "operationId": "pinRoom",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5505,6 +5570,16 @@
       },
       "put": {
         "operationId": "pinRooms",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6050,7 +6125,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, forbidden, not-found, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, not-found, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room's registration removed, or with dryRun what the removal would do.",
@@ -6061,6 +6136,8 @@
           "unauthorized",
           "forbidden",
           "not-found",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       },
@@ -6397,6 +6474,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -6428,7 +6513,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room archived and locked, or opened again, by the administrator, the room's leader or a head of the leader's unit.",
@@ -6440,6 +6525,7 @@
           "bad-request",
           "not-room-leader",
           "not-found",
+          "private-room",
           "upstream-failed",
           "failed"
         ]
@@ -6611,6 +6697,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -6642,7 +6736,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, room-fetches-no-files, room-files-filling, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, room-fetches-no-files, room-files-filling, private-room, upstream-failed, failed"
           }
         },
         "summary": "A bounded pass over a room's placeholder rows that kept no file, asking its chat service for their files again, each row asked once.",
@@ -6654,6 +6748,8 @@
           "bad-request",
           "room-fetches-no-files",
           "room-files-filling",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -7018,6 +7114,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -7228,6 +7332,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -7407,6 +7519,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -7543,6 +7663,14 @@
             "required": true,
             "schema": {
               "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
               "type": "integer"
             }
           }
@@ -7823,6 +7951,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -7852,7 +7988,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, private-room, upstream-failed, failed"
           }
         },
         "summary": "A notice queued for the room's voice.",
@@ -7862,6 +7998,7 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "private-room",
           "upstream-failed",
           "failed"
         ]
@@ -8228,6 +8365,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -8259,7 +8404,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room's chat providers set whole.",
@@ -8270,6 +8415,8 @@
           "unauthorized",
           "bad-request",
           "not-found",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -8294,6 +8441,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -8315,7 +8470,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, failed"
+            "description": "A refusal or failure: unauthorized, private-room, upstream-failed, failed"
           }
         },
         "summary": "Every mark of an agent's book let go, off one room.",
@@ -8324,6 +8479,8 @@
         ],
         "x-codes": [
           "unauthorized",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       },
@@ -8390,6 +8547,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -8414,7 +8579,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, private-room, upstream-failed, failed"
           }
         },
         "summary": "The room's messages marked as read into an agent's book.",
@@ -8424,6 +8589,8 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -8502,6 +8669,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -8533,7 +8708,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-administrator, not-found, conflict, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-administrator, not-found, conflict, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room's mode changed between record-only and avatar, its record, providers and messages untouched.",
@@ -8546,6 +8721,7 @@
           "not-administrator",
           "not-found",
           "conflict",
+          "private-room",
           "upstream-failed",
           "failed"
         ]
@@ -8780,6 +8956,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -8841,6 +9025,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -8872,7 +9064,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room's whole list of supervisors; an empty list hands the room to the default answerer.",
@@ -8883,6 +9075,7 @@
           "unauthorized",
           "bad-request",
           "not-found",
+          "private-room",
           "upstream-failed",
           "failed"
         ]
@@ -8993,6 +9186,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -9049,6 +9250,14 @@
             "required": true,
             "schema": {
               "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
               "type": "integer"
             }
           }

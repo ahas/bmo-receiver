@@ -47,6 +47,7 @@ fn owners_room() -> Room {
     owner_room: true,
     identity: Some(IDENTITY),
     private_to: None,
+    sealed: false,
   }
 }
 
@@ -2163,6 +2164,7 @@ fn lab_room() -> Room {
     owner_room: false,
     identity: Some(IDENTITY),
     private_to: None,
+    sealed: false,
   }
 }
 

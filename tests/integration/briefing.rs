@@ -317,6 +317,7 @@ fn owners_room() -> Room {
     owner_room: true,
     identity: Some(7),
     private_to: None,
+    sealed: false,
   }
 }
 

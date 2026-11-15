@@ -4,15 +4,15 @@
 
 use axum::{
   body::Bytes,
-  extract::{Path, RawQuery, State},
+  extract::{Path, State},
   http::StatusCode,
 };
 use receiver_codes::VoiceRefusal;
 use serde_json::{Value, json};
 
 use crate::chat::briefing::{self, AUTOPLAY, SWITCH, Unread};
-use crate::routes::accounts::{Acting, acting, writable};
-use crate::routes::{Answered, Refusal, Served, answered, code, read, refused};
+use crate::routes::writable::WritableRoom;
+use crate::routes::{Answered, Refusal, Served, answered, code, refused};
 
 async fn standing(served: &Served) -> Answered {
   let (on, autoplay) = briefing::switches(&served.receiver).await;
@@ -47,13 +47,10 @@ pub async fn switch(State(served): State<Served>, body: Bytes) -> Answered {
 /// the line's agent in the room writing its script, and a briefing the voice engine keeps for the room.
 pub async fn reading(
   State(served): State<Served>,
-  Path((chat_id, message_id)): Path<(i64, i64)>,
-  raw: RawQuery,
-  body: Bytes,
+  Path((_, message_id)): Path<(i64, i64)>,
+  writable: WritableRoom,
 ) -> Answered {
-  let in_body = if body.is_empty() { None } else { read::<Acting>(&body)?.account };
-
-  writable(&served.receiver, chat_id, acting(raw, in_body)?).await?;
+  let chat_id = writable.room;
 
   match briefing::reading(&served.receiver, chat_id, message_id).await {
     Ok(reading) => answered(json!({

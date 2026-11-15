@@ -3,13 +3,14 @@
 //! as his own words in that chat. A chat the receiver does not serve is not woken, whoever asks; the owner's own
 //! chat always is.
 
-use axum::{body::Bytes, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
 use serde::Deserialize;
 use serde_json::json;
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
 
+use super::writable::Writer;
 use super::{Accepted, Served, read, refused, store};
 use crate::chat::instructions::{Queued, queue};
 use crate::receiver::{Receiver, rows, wake};
@@ -36,9 +37,14 @@ struct InstructBody {
   text: String,
 }
 
-pub async fn instruct(State(served): State<Served>, body: Bytes) -> Accepted {
-  let asked = read::<InstructBody>(&body)?;
+/// `POST /owner/instructions`: the owner's instruction into a room, on his own road, which writes in no other
+/// account's private room.
+pub async fn instruct(State(served): State<Served>, writer: Writer) -> Accepted {
+  let asked = read::<InstructBody>(writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
+
+  writer.owners().room(&receiver, asked.chat_id).await?;
+
   let text = secrets::redacted(asked.text.trim());
   let text = text.as_str();
 

@@ -33,6 +33,7 @@ fn owners_room() -> Room {
     owner_room: true,
     identity: Some(7),
     private_to: None,
+    sealed: false,
   }
 }
 
@@ -41,6 +42,7 @@ fn a_group() -> Room {
     owner_room: false,
     identity: None,
     private_to: None,
+    sealed: false,
   }
 }
 

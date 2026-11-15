@@ -54,6 +54,7 @@ fn owners_room() -> Room {
     owner_room: true,
     identity: None,
     private_to: None,
+    sealed: false,
   }
 }
 

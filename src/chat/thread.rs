@@ -322,7 +322,7 @@ pub async fn thread_entry(receiver: &Receiver, chat_id: i64) -> Result<Option<Th
       let other: i64 = row.try_get("", "chat_id")?;
 
       // Every one-to-one apart, since those are no group's.
-      if receiver.roads().room_facts(other).await.private_to.is_some() {
+      if receiver.roads().room_facts(other).await.one_to_one() {
         continue;
       }
 

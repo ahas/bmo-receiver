@@ -414,6 +414,7 @@ async fn a_room_that_speaks_again_afterwards_is_a_new_registration_with_an_empty
         owner_room: false,
         identity: Some(7),
         private_to: None,
+        sealed: false,
       },
     )
     .await

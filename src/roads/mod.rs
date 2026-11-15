@@ -100,9 +100,20 @@ pub trait SendingAccount: Send + Sync {
 /// Whose one-to-one a room the record holds alone is (docs/receiver.md, 「Console rooms and accounts」), read by the
 /// receiver that gives it to the roads.
 pub trait RecordPrivacy: Send + Sync {
-  /// The record identity of the account a room on the record alone is one-to-one with, where it is a BMO's private
-  /// room; none for every other room, and where it cannot be read.
-  fn private_to<'a>(&'a self, chat_id: i64) -> BoxFuture<'a, Option<i64>>;
+  /// Whose one-to-one a room on the record alone is: the record identity of the account whose private room it is,
+  /// sealed where it is a BMO's private room whose person cannot be read, and no one's for every other room.
+  fn private_to<'a>(&'a self, chat_id: i64) -> BoxFuture<'a, RecordPrivate>;
+}
+
+/// Whose one-to-one a room on the record alone is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecordPrivate {
+  /// No one's: a group room.
+  Shared,
+  /// The record identity of the account whose private room it is.
+  To(i64),
+  /// A private room whose person cannot be read now, read as no group all the same.
+  Sealed,
 }
 
 /// The chat services, what each has declared, read once and kept, and what each said of a room, kept for a
@@ -457,7 +468,8 @@ impl Roads {
   /// What the road a room is on says of it: whether it is the owner's private chat, who the agent is there, and
   /// whose one-to-one with the agent it is. Each road's answer is kept for the span, and the road that holds the
   /// room answers all three. A room no road holds is the owner's private chat where it is his private room, and,
-  /// where it stands on the record alone as a BMO's private room, one-to-one with its account's record identity.
+  /// where it stands on the record alone as a BMO's private room, one-to-one with its account's record identity, or
+  /// sealed where that identity cannot be read.
   pub async fn room_facts(&self, chat_id: i64) -> Room {
     for key in self.chats.names() {
       let Some(Some(room)) = self.room_of(key, chat_id).await else { continue };
@@ -466,19 +478,24 @@ impl Roads {
         owner_room: self.owners_room(chat_id, room.kind == RoomKind::Owner),
         identity: room.identity,
         private_to: room.private_to,
+        sealed: false,
       };
     }
 
     let owner_room = self.owners_room(chat_id, false);
     let privacy = self.privacy.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
-    let private_to = match privacy {
+    let private = match privacy {
       Some(privacy) if !owner_room && self.record_alone(chat_id).await => privacy.private_to(chat_id).await,
-      _ => None,
+      _ => RecordPrivate::Shared,
     };
 
     Room {
       owner_room,
-      private_to,
+      private_to: match private {
+        RecordPrivate::To(person) => Some(person),
+        RecordPrivate::Shared | RecordPrivate::Sealed => None,
+      },
+      sealed: private == RecordPrivate::Sealed,
       ..Room::default()
     }
   }

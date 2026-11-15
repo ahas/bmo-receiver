@@ -8,6 +8,7 @@ use receiver_codes::AvatarRefusal;
 use receiver_policy::files::FILES;
 use serde_json::{Value, json};
 
+use super::writable::Writer;
 use super::{Answered, Refusal, Served, answered, code, store};
 use crate::receiver::{Receiver, avatars};
 use crate::store::Fault;
@@ -123,6 +124,24 @@ async fn allowed(
   }
 }
 
+// A room's picture is a write in the room, refused in another account's private room.
+async fn in_rooms(
+  receiver: &Receiver,
+  writer: &Writer,
+  kept_as: &str,
+  numbers: &[i64],
+) -> Result<(), Refusal> {
+  if kept_as != "room" {
+    return Ok(());
+  }
+
+  for room in numbers {
+    writer.room(receiver, *room).await?;
+  }
+
+  Ok(())
+}
+
 // The picture set on one room or person, filed under the data root's avatars/set folder: when it was set.
 async fn keep(receiver: &Receiver, kind: &str, subject: i64, jpeg: &[u8]) -> Result<i64, Fault> {
   let folder = receiver.data_root().avatars().join("set").join(kind);
@@ -147,7 +166,7 @@ pub async fn set(
   State(served): State<Served>,
   Path((kind, subject)): Path<(String, String)>,
   asked: HeaderMap,
-  form: Multipart,
+  writer: Writer,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
 
@@ -159,7 +178,8 @@ pub async fn set(
   let (kept_as, numbers) = subjects(&receiver, &kind, &subject).await?;
 
   allowed(&receiver, &asked, &kind, &numbers).await?;
-  let jpeg = drawn(picture(form).await?).await?;
+  in_rooms(&receiver, &writer, kept_as, &numbers).await?;
+  let jpeg = drawn(picture(writer.form().await?).await?).await?;
   let mut items: Vec<Value> = vec![];
 
   for number in numbers {
@@ -177,6 +197,7 @@ pub async fn unset(
   State(served): State<Served>,
   Path((kind, subject)): Path<(String, String)>,
   asked: HeaderMap,
+  writer: Writer,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
 
@@ -188,6 +209,7 @@ pub async fn unset(
   let (kept_as, numbers) = subjects(&receiver, &kind, &subject).await?;
 
   allowed(&receiver, &asked, &kind, &numbers).await?;
+  in_rooms(&receiver, &writer, kept_as, &numbers).await?;
   let mut items: Vec<Value> = vec![];
 
   for number in numbers {

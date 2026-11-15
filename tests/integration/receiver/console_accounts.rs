@@ -978,3 +978,196 @@ async fn a_forward_stands_under_the_account_that_forwards_it() {
     "a forward naming none is his"
   );
 }
+
+// The routes that change something and act for no account but a unit's own under the receiver's token, each with
+// why no account's private room is judged there; every other write names its room and is judged by the write guard.
+const UNIT_WRITES: [(&str, &str); 26] = [
+  ("POST /rooms", "a room added is no one's yet"),
+  ("POST /sends", "an agent's own act through its tools"),
+  ("POST /instructions", "a unit's instruction"),
+  ("DELETE /instructions/{instructionId}", "a unit's instruction withdrawn"),
+  ("POST /owner/notices", "the receiver's notice to the owner"),
+  ("PUT /room-holders/{holderName}", "a unit declaring what it holds"),
+  ("POST /talks", "a talk with no room"),
+  ("POST /handoffs/{agentName}", "an agent's handoff"),
+  ("POST /handovers/{agentName}", "an agent's handover"),
+  ("PUT /voice-briefing", "the deployment's switches"),
+  ("POST /events", "a unit's event"),
+  ("POST /hooks/{point}", "a unit's hook"),
+  ("POST /promise-readings", "a reading that keeps nothing"),
+  ("POST /read-mark-counts", "a count that keeps nothing"),
+  ("PUT /accounts/{account}/identity", "an account's own identity"),
+  ("PUT /draft-processes/{provider}/{tier}/{agentName}", "an agent's setting"),
+  ("DELETE /draft-processes/{provider}/{tier}/{agentName}", "an agent's setting"),
+  ("PUT /draft-questions/{agentName}/{name}", "an agent's setting"),
+  ("DELETE /draft-questions/{agentName}/{name}", "an agent's setting"),
+  ("POST /supervisors", "a supervisor added, its room made with it"),
+  (
+    "DELETE /supervisors/{supervisorName}",
+    "a supervisor retired, its room left on the record",
+  ),
+  ("POST /supervisors/{supervisorName}/resets", "an agent's reset"),
+  ("PUT /default-answerer", "the deployment's setting"),
+  ("PUT /chat/rooms/{room_id}/messages/{message_id}", "a chat service's hand-over"),
+  ("PATCH /chat/rooms/{room_id}/messages/{message_id}", "a chat service's hand-over"),
+  ("POST /chat/avatar-changes", "a chat service's hand-over"),
+];
+
+// The writes that name their room in the body or under another name than `roomId`, each as it is asked of `room`.
+fn named_elsewhere(route: &str, room: i64) -> Option<Write> {
+  let form = |fields: &str| Some(Value::String(fields.to_owned()));
+
+  Some(match route {
+    "PUT /pinned-rooms" => ("PUT", "/pinned-rooms".to_owned(), Some(json!({ "roomIds": [room] }))),
+    "POST /pinned-rooms" => ("POST", "/pinned-rooms".to_owned(), Some(json!({ "room": room }))),
+    "DELETE /pinned-rooms/{room}" => ("DELETE", format!("/pinned-rooms/{room}"), None),
+    "PUT /avatars/{kind}/{subject}" => ("PUT", format!("/avatars/room/{room}"), form("")),
+    "DELETE /avatars/{kind}/{subject}" => ("DELETE", format!("/avatars/room/{room}"), None),
+    "POST /owner/messages" => {
+      ("POST", "/owner/messages".to_owned(), Some(json!({ "chatId": room, "text": "hi" })))
+    }
+    "POST /owner/instructions" => (
+      "POST",
+      "/owner/instructions".to_owned(),
+      Some(json!({ "chatId": room, "text": "do it" })),
+    ),
+    "POST /owner/message-files" => ("POST", "/owner/message-files".to_owned(), form(&format!("{room}"))),
+    _ => return None,
+  })
+}
+
+// A write asked as the console relay asks it for an account, a multipart form where its body is text: the form
+// names the room as `chatId` and carries one file.
+async fn relayed_any(port: &Router, (method, path, body): Write, account: i64) -> (StatusCode, Value) {
+  let (kind, body) = match body {
+    Some(Value::String(room)) => (
+      "multipart/form-data; boundary=own",
+      Body::from(format!(
+        "--own\r\ncontent-disposition: form-data; name=\"chatId\"\r\n\r\n{room}\r\n\
+         --own\r\ncontent-type: text/plain\r\ncontent-disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\n\r\nwords\r\n\
+         --own--\r\n"
+      )),
+    ),
+    Some(json) => ("application/json", Body::from(json.to_string())),
+    None => ("application/json", Body::empty()),
+  };
+  let request = Request::builder()
+    .method(method)
+    .uri(&path)
+    .header("authorization", format!("Bearer {TOKEN}"))
+    .header("content-type", kind)
+    .header("owner-key", account.to_string())
+    .header("owner-role", "administrator")
+    .body(body)
+    .unwrap();
+  let answer = port.clone().oneshot(request).await.unwrap();
+  let status = answer.status();
+  let written = to_bytes(answer.into_body(), usize::MAX).await.unwrap();
+
+  (status, serde_json::from_slice(&written).unwrap_or(Value::Null))
+}
+
+#[tokio::test]
+async fn every_route_that_changes_a_room_refuses_another_accounts_private_room() {
+  let stood = stood(false).await;
+  let hers = said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
+  let before = lines(&stood, BEAS_ROOM).await;
+  let mut judged = 0;
+
+  for route in bmo_receiver::routes::served() {
+    let (method, path) = route.split_once(' ').unwrap();
+
+    if method == "GET" || route == "POST /warmer/ping" || UNIT_WRITES.iter().any(|(unit, _)| *unit == route)
+    {
+      continue;
+    }
+
+    let write = if path.contains("{roomId}") {
+      let path = path
+        .replace("{roomId}", &BEAS_ROOM.to_string())
+        .replace("{messageId}", &hers.to_string())
+        .replace("{account}", &CAL.to_string());
+
+      (method_of(method), path, Some(json!({})))
+    } else if let Some(write) = named_elsewhere(&route, BEAS_ROOM) {
+      write
+    } else {
+      panic!("{route} changes something and is neither judged by the write guard nor a unit's own write");
+    };
+
+    let (status, refusal) = relayed_any(&stood.port, write, ADMIN).await;
+
+    assert_eq!(
+      (status, refusal["code"].clone()),
+      (StatusCode::FORBIDDEN, json!("private-room")),
+      "{route} for the administrator's account in Bea's private room: {refusal}"
+    );
+    judged += 1;
+  }
+
+  assert!(judged >= 29, "{judged} routes judged");
+  assert_eq!(lines(&stood, BEAS_ROOM).await, before, "nothing refused was kept");
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/rooms/{BEAS_ROOM}"), None).await.0,
+    StatusCode::OK,
+    "nor was the room removed"
+  );
+}
+
+fn method_of(method: &str) -> &'static str {
+  match method {
+    "POST" => "POST",
+    "PUT" => "PUT",
+    "PATCH" => "PATCH",
+    "DELETE" => "DELETE",
+    other => panic!("no write is asked by {other}"),
+  }
+}
+
+#[tokio::test]
+async fn a_forward_out_of_another_accounts_private_room_is_refused() {
+  let stood = stood(false).await;
+  let hers = said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
+  let room = group(&stood.port, CAL).await;
+  let (status, refusal) = asked(
+    &stood.port,
+    "POST",
+    &format!("/rooms/{BEAS_ROOM}/messages/{hers}/forwards"),
+    Some(json!({ "to": room, "account": CAL })),
+  )
+  .await;
+
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::FORBIDDEN, json!("private-room")));
+  assert!(lines(&stood, room).await.is_empty(), "nothing of hers reached his room");
+
+  let (status, answer) = asked(
+    &stood.port,
+    "POST",
+    &format!("/rooms/{BEAS_ROOM}/messages/{hers}/forwards"),
+    Some(json!({ "to": room, "account": BEA })),
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::CREATED, "she forwards her own: {answer}");
+}
+
+#[tokio::test]
+async fn a_private_room_whose_privacy_cannot_be_read_takes_no_account_s_write() {
+  let stood = stood(false).await;
+
+  said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
+  stood.standing.agency.going_down();
+  stood.standing.receiver.forget_agents();
+
+  let (status, refusal) = says(&stood.port, BEAS_ROOM, CAL, "Cal", "let me in").await;
+
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::BAD_GATEWAY, json!("upstream-failed")));
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/rooms/{BEAS_ROOM}"), None).await.0,
+    StatusCode::BAD_GATEWAY
+  );
+  assert!(
+    stood.standing.receiver.roads().room_facts(BEAS_ROOM).await.sealed,
+    "its facts read it as no group"
+  );
+}

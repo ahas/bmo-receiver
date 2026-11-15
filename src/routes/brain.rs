@@ -17,6 +17,7 @@ use crate::chat::instructions::{Queued, queue};
 use crate::receiver::notices::frame;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, reads};
+use crate::routes::writable::WritableRoom;
 
 // What an owner notice's line is for: the brain writes no sentence, its agent says the fact.
 const OWNER_INTENT: &str = "tell the owner what the system recorded.";
@@ -152,12 +153,9 @@ pub async fn read_count(State(served): State<Served>, Path(room): Path<i64>, raw
 }
 
 /// The room's messages marked as read into an agent's book.
-pub async fn keep(
-  State(served): State<Served>,
-  Path(room): Path<i64>,
-  body: axum::body::Bytes,
-) -> Accepted {
-  let asked = read::<KeepAsk>(&body)?;
+pub async fn keep(State(served): State<Served>, writable: WritableRoom) -> Accepted {
+  let room = writable.room;
+  let asked = read::<KeepAsk>(writable.writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
 
   reads::keep_marks(receiver.db(), &asked.agent_name, room, &asked.message_ids)
@@ -167,7 +165,8 @@ pub async fn keep(
 }
 
 /// Every mark of an agent's book let go, off one room; how many were.
-pub async fn forget(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+pub async fn forget(State(served): State<Served>, raw: RawQuery, writable: WritableRoom) -> Answered {
+  let room = writable.room;
   let asked = query::<MarkAsk>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
 
@@ -309,7 +308,7 @@ pub async fn roads(State(served): State<Served>, Path(room): Path<i64>) -> Answe
 
   answered(json!({
     "kind": if owner_room { "owner" } else { "group" },
-    "oneToOne": facts.private_to.is_some(),
+    "oneToOne": facts.one_to_one(),
   }))
 }
 

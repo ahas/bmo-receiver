@@ -27,6 +27,7 @@ use crate::receiver::{NotReceived, Receiver, reads, rows};
 use crate::roads::added::{self, RoomMode};
 use crate::roads::{Road, providers};
 use crate::routes::say::known;
+use crate::routes::writable::WritableRoom;
 
 // A read of the room that could not be made because a unit it reaches did not answer.
 fn reached(why: NotReceived) -> Refusal {
@@ -738,12 +739,12 @@ async fn offer_avatar(receiver: &Receiver, room: i64) -> Result<(), Refusal> {
 /// never answer in, is refused and nothing is written.
 pub async fn change_room_mode(
   State(served): State<Served>,
-  Path(room): Path<i64>,
   raw: RawQuery,
-  body: Bytes,
+  writable: WritableRoom,
 ) -> Answered {
+  let room = writable.room;
   let asked = query::<ByAdministrator>(raw)?;
-  let changing = read::<ChangingMode>(&body)?;
+  let changing = read::<ChangingMode>(writable.writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
 
   administrator(&receiver, &asked).await?;
@@ -835,12 +836,9 @@ pub async fn room_members(State(served): State<Served>, Path(room): Path<i64>) -
 }
 
 /// A room's providers set whole: a list of providers that stand, each once, and at least one.
-pub async fn choose_providers(
-  State(served): State<Served>,
-  Path(room): Path<i64>,
-  body: Bytes,
-) -> Answered {
-  let asked = read::<Choosing>(&body)?;
+pub async fn choose_providers(State(served): State<Served>, writable: WritableRoom) -> Answered {
+  let room = writable.room;
+  let asked = read::<Choosing>(writable.writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
 
   held(&receiver, room).await?;
@@ -906,12 +904,12 @@ pub async fn room_leaders(State(served): State<Served>, Path(room): Path<i64>) -
 /// person whose supervisor the room names (docs/receiver.md, 「An archived room」).
 pub async fn change_room_archive(
   State(served): State<Served>,
-  Path(room): Path<i64>,
   raw: RawQuery,
-  body: Bytes,
+  writable: WritableRoom,
 ) -> Answered {
+  let room = writable.room;
   let asked = query::<ByAdministrator>(raw)?;
-  let changing = read::<Archiving>(&body)?;
+  let changing = read::<Archiving>(writable.writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
   let by = asked.by.trim().to_owned();
 

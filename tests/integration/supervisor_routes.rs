@@ -88,6 +88,7 @@ async fn a_members_supervisor_reads_a_group_rooms_messages_without_answering_it(
       owner_room: false,
       identity: None,
       private_to: None,
+      sealed: false,
     },
   )
   .await

@@ -238,7 +238,11 @@ pub fn openapi() -> Value {
     "changeRoomMode",
     "Rooms",
     "A room's mode changed between record-only and avatar, its record, providers and messages untouched.",
-    vec![path_parameter("roomId"), parameter("by", "string", true)],
+    vec![
+      path_parameter("roomId"),
+      parameter("by", "string", true),
+      parameter("account", "integer", false)
+    ],
     Some(generator.subschema_for::<ChangeRoomMode>()),
     vec![(200, json_answer::<RoomRegistration>(&mut generator))],
     vec![
@@ -247,6 +251,7 @@ pub fn openapi() -> Value {
       "not-administrator",
       "not-found",
       "conflict",
+      "private-room",
       "upstream-failed",
       "failed"
     ]
@@ -279,7 +284,11 @@ pub fn openapi() -> Value {
     "changeRoomArchive",
     "Rooms",
     "A room archived and locked, or opened again, by the administrator, the room's leader or a head of the leader's unit.",
-    vec![path_parameter("roomId"), parameter("by", "string", true)],
+    vec![
+      path_parameter("roomId"),
+      parameter("by", "string", true),
+      parameter("account", "integer", false)
+    ],
     Some(generator.subschema_for::<ChangeRoomArchive>()),
     vec![(200, json_answer::<RoomArchive>(&mut generator))],
     vec![
@@ -287,6 +296,7 @@ pub fn openapi() -> Value {
       "bad-request",
       "not-room-leader",
       "not-found",
+      "private-room",
       "upstream-failed",
       "failed"
     ]
@@ -423,10 +433,18 @@ pub fn openapi() -> Value {
     "fillFiles",
     "Messages",
     "A bounded pass over a room's placeholder rows that kept no file, asking its chat service for their files again, each row asked once.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<FileFill>()),
     vec![(200, json_answer::<FileFills>(&mut generator))],
-    vec!["unauthorized", "bad-request", "room-fetches-no-files", "room-files-filling", "failed"]
+    vec![
+      "unauthorized",
+      "bad-request",
+      "room-fetches-no-files",
+      "room-files-filling",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
   );
   add!(
     "GET",
@@ -478,7 +496,11 @@ pub fn openapi() -> Value {
     "setAvatar",
     "Rooms",
     "A picture set from the console on a room, a person or an agent, as a form with one picture.",
-    vec![name_parameter("kind"), name_parameter("subject")],
+    vec![
+      name_parameter("kind"),
+      name_parameter("subject"),
+      parameter("account", "integer", false)
+    ],
     Some(generator.subschema_for::<Value>()),
     vec![(200, json_answer::<Value>(&mut generator))],
     vec![
@@ -489,6 +511,8 @@ pub fn openapi() -> Value {
       "not-a-picture",
       "picture-too-large",
       "no-number",
+      "private-room",
+      "upstream-failed",
       "failed"
     ]
   );
@@ -498,10 +522,22 @@ pub fn openapi() -> Value {
     "unsetAvatar",
     "Rooms",
     "A picture set from the console let go, so the one its chat service handed over stands.",
-    vec![name_parameter("kind"), name_parameter("subject")],
+    vec![
+      name_parameter("kind"),
+      name_parameter("subject"),
+      parameter("account", "integer", false)
+    ],
     None,
     vec![(200, json_answer::<Value>(&mut generator))],
-    vec!["unauthorized", "picture-forbidden", "unknown-kind", "no-number", "failed"]
+    vec![
+      "unauthorized",
+      "picture-forbidden",
+      "unknown-kind",
+      "no-number",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
   );
   add!(
     "GET",
@@ -631,10 +667,10 @@ pub fn openapi() -> Value {
     "chooseProviders",
     "Rooms",
     "A room's chat providers set whole.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<ChooseProviders>()),
     vec![(200, json_answer::<RoomProviders>(&mut generator))],
-    vec!["unauthorized", "bad-request", "not-found", "failed"]
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
   );
   add!(
     "GET",
@@ -718,10 +754,10 @@ pub fn openapi() -> Value {
     "keepMarks",
     "Read marks",
     "The room's messages marked as read into an agent's book.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<KeepMarks>()),
     vec![(204, empty_answer())],
-    vec!["unauthorized", "bad-request", "failed"]
+    vec!["unauthorized", "bad-request", "private-room", "upstream-failed", "failed"]
   );
   add!(
     "DELETE",
@@ -729,10 +765,14 @@ pub fn openapi() -> Value {
     "forgetMarks",
     "Read marks",
     "Every mark of an agent's book let go, off one room.",
-    vec![path_parameter("roomId"), parameter("agentName", "string", true)],
+    vec![
+      path_parameter("roomId"),
+      parameter("agentName", "string", true),
+      parameter("account", "integer", false)
+    ],
     None,
     vec![(200, json_answer::<Forgotten>(&mut generator))],
-    vec!["unauthorized", "failed"]
+    vec!["unauthorized", "private-room", "upstream-failed", "failed"]
   );
   add!(
     "POST",
@@ -770,10 +810,10 @@ pub fn openapi() -> Value {
     "notice",
     "Notices",
     "A notice queued for the room's voice.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<Value>()),
     vec![(201, json_answer::<Created>(&mut generator))],
-    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
+    vec!["unauthorized", "bad-request", "private-room", "upstream-failed", "failed"]
   );
   add!(
     "GET",
@@ -858,10 +898,18 @@ pub fn openapi() -> Value {
     "ownerInstruction",
     "Instructions",
     "The owner's words queued for a room's session.",
-    vec![],
+    vec![parameter("account", "integer", false)],
     Some(generator.subschema_for::<OwnerInstruction>()),
     vec![(204, empty_answer())],
-    vec!["unauthorized", "bad-request", "not-found", "forbidden", "failed"]
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-found",
+      "forbidden",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
   );
   add!(
     "GET",
@@ -924,7 +972,7 @@ pub fn openapi() -> Value {
     "accountWords",
     "Sends",
     "Words an account said in a room in the console, kept under the owner's sender for the owner's account and under the account's record identity for any other.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<AccountWords>()),
     vec![(201, json_answer::<Created>(&mut generator))],
     vec![
@@ -944,7 +992,7 @@ pub fn openapi() -> Value {
     "accountWordFiles",
     "Sends",
     "Files an account sent into a room in the console, as a form: the owner's files form with account and name in place of chatId.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<Value>()),
     vec![(200, json_answer::<Value>(&mut generator))],
     vec![
@@ -986,10 +1034,18 @@ pub fn openapi() -> Value {
     "ownerMessage",
     "Sends",
     "The owner's words typed into a room on a screen.",
-    vec![],
+    vec![parameter("account", "integer", false)],
     Some(generator.subschema_for::<OwnerMessage>()),
     vec![(200, json_answer::<Created>(&mut generator))],
-    vec!["unauthorized", "bad-request", "not-found", "conflict", "upstream-failed", "failed"]
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-found",
+      "conflict",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
   );
   add!(
     "GET",
@@ -1008,7 +1064,11 @@ pub fn openapi() -> Value {
     "reactAsMe",
     "Messages",
     "The signed-in person's reaction put on a message.",
-    vec![path_parameter("roomId"), path_parameter("messageId")],
+    vec![
+      path_parameter("roomId"),
+      path_parameter("messageId"),
+      parameter("account", "integer", false)
+    ],
     Some(generator.subschema_for::<Reacting>()),
     vec![(200, json_answer::<Message>(&mut generator))],
     vec![
@@ -1052,7 +1112,11 @@ pub fn openapi() -> Value {
     "pinAsMe",
     "Messages",
     "A message pinned or unpinned by the signed-in person.",
-    vec![path_parameter("roomId"), path_parameter("messageId")],
+    vec![
+      path_parameter("roomId"),
+      path_parameter("messageId"),
+      parameter("account", "integer", false)
+    ],
     Some(generator.subschema_for::<Pinning>()),
     vec![(200, json_answer::<Message>(&mut generator))],
     vec![
@@ -1072,7 +1136,11 @@ pub fn openapi() -> Value {
     "editAsMe",
     "Messages",
     "The signed-in person's own message edited.",
-    vec![path_parameter("roomId"), path_parameter("messageId")],
+    vec![
+      path_parameter("roomId"),
+      path_parameter("messageId"),
+      parameter("account", "integer", false)
+    ],
     Some(generator.subschema_for::<Editing>()),
     vec![(200, json_answer::<Message>(&mut generator))],
     vec![
@@ -1129,7 +1197,7 @@ pub fn openapi() -> Value {
     "stickerAsMe",
     "Messages",
     "A sticker of the record's set sent as the signed-in person.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<StickerSend>()),
     vec![(201, json_answer::<Message>(&mut generator))],
     vec![
@@ -1148,7 +1216,11 @@ pub fn openapi() -> Value {
     "forward",
     "Sends",
     "A message forwarded into another room, kept there as the forwarding account's, the owner's where the body names none, and marked as forwarded.",
-    vec![path_parameter("roomId"), path_parameter("messageId")],
+    vec![
+      path_parameter("roomId"),
+      path_parameter("messageId"),
+      parameter("account", "integer", false)
+    ],
     Some(generator.subschema_for::<Forward>()),
     vec![(201, json_answer::<Value>(&mut generator))],
     vec![
@@ -1167,10 +1239,18 @@ pub fn openapi() -> Value {
     "ownerMessageFiles",
     "Sends",
     "The owner's files sent into a room on a screen, as a form.",
-    vec![],
+    vec![parameter("account", "integer", false)],
     Some(generator.subschema_for::<Value>()),
     vec![(200, json_answer::<Value>(&mut generator))],
-    vec!["unauthorized", "bad-request", "not-found", "too-large", "failed"]
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-found",
+      "too-large",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
   );
   add!(
     "POST",
@@ -1335,7 +1415,7 @@ pub fn openapi() -> Value {
     ],
     None,
     vec![(200, json_answer::<Value>(&mut generator))],
-    vec!["unauthorized", "forbidden", "not-found", "failed"]
+    vec!["unauthorized", "forbidden", "not-found", "private-room", "upstream-failed", "failed"]
   );
   add!(
     "GET",
@@ -1514,10 +1594,10 @@ pub fn openapi() -> Value {
     "setRoomSupervisors",
     "Rooms",
     "A room's whole list of supervisors; an empty list hands the room to the default answerer.",
-    vec![path_parameter("roomId")],
+    vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<RoomSupervisors>()),
     vec![(200, json_answer::<RoomSupervisors>(&mut generator))],
-    vec!["unauthorized", "bad-request", "not-found", "upstream-failed", "failed"]
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
   );
   add!(
     "DELETE",
@@ -1550,7 +1630,7 @@ pub fn openapi() -> Value {
     "pinRooms",
     "Rooms",
     "The pinned order set whole.",
-    vec![],
+    vec![parameter("account", "integer", false)],
     Some(generator.subschema_for::<PinRooms>()),
     vec![(200, json_answer::<PinnedRooms>(&mut generator))],
     vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
@@ -1561,7 +1641,7 @@ pub fn openapi() -> Value {
     "pinRoom",
     "Rooms",
     "A room stood last in the pinned order.",
-    vec![],
+    vec![parameter("account", "integer", false)],
     Some(generator.subschema_for::<PinRoom>()),
     vec![(200, json_answer::<PinnedRooms>(&mut generator))],
     vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]

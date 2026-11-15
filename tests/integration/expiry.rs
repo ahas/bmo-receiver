@@ -311,6 +311,7 @@ async fn a_real_message_after_expiry_resumes_the_session_as_it_stands() {
     owner_room: true,
     identity: Some(7),
     private_to: None,
+    sealed: false,
   };
 
   receiver.message(&message, &Context::default(), room).await.unwrap();

@@ -34,6 +34,7 @@ fn room() -> Room {
     owner_room: false,
     identity: Some(AGENT_NUMBER),
     private_to: None,
+    sealed: false,
   }
 }
 
@@ -42,6 +43,7 @@ fn owners_room() -> Room {
     owner_room: true,
     identity: Some(AGENT_NUMBER),
     private_to: None,
+    sealed: false,
   }
 }
 

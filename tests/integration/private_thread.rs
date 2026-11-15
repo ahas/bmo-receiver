@@ -182,6 +182,7 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
         owner_room: false,
         identity: None,
         private_to: Some(OWNER),
+        sealed: false,
       },
       messages: &[],
       instructions: &[],

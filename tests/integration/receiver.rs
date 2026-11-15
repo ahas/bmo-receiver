@@ -55,6 +55,7 @@ fn room() -> Room {
     owner_room: false,
     identity: Some(AGENT_NUMBER),
     private_to: None,
+    sealed: false,
   }
 }
 

@@ -22,6 +22,7 @@ use crate::chat::instructions::{Cause, Queued, queue};
 use crate::receiver::notices::frame;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, rows};
+use crate::routes::writable::WritableRoom;
 use crate::store::settings;
 use crate::{one, run};
 
@@ -285,8 +286,9 @@ pub async fn withdraw(State(served): State<Served>, Path(id): Path<i64>) -> Acce
 }
 
 /// The notice queued for the room's voice, answered with the id of the instruction it was queued as.
-pub async fn notice(State(served): State<Served>, Path(room): Path<i64>, body: Bytes) -> Accepted {
-  let asked = read::<Notice>(&body)?;
+pub async fn notice(State(served): State<Served>, writable: WritableRoom) -> Accepted {
+  let room = writable.room;
+  let asked = read::<Notice>(writable.writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
   let agent = agents::voice_of(&receiver, room).await.map_err(reached)?;
   let text = frame(

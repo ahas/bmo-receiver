@@ -438,6 +438,7 @@ pub async fn hand_owner_words(receiver: &Receiver, message: Inbound) -> Result<b
     owner_room: true,
     identity: None,
     private_to: None,
+    sealed: false,
   };
   let agent = default_designated(receiver).await?;
 

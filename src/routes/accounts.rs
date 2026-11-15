@@ -6,8 +6,7 @@
 
 use axum::{
   Json,
-  body::Bytes,
-  extract::{Multipart, Path, RawQuery, State},
+  extract::{Path, State},
   http::StatusCode,
 };
 use receiver_codes::{FixedLine, RoomAccountRefusal};
@@ -15,19 +14,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::say::{Speaking, files_form, files_said, said, sendable, speakable};
-use super::{Answered, Refusal, Served, answered, code, query, read, refused, store};
-use crate::accounts::{self, Member, Speaker};
+use super::writable::WritableRoom;
+use super::{Answered, Refusal, Served, answered, code, read, refused, store};
+use crate::accounts::{self, Member, Privacy, Speaker};
 use crate::receiver::{NotReceived, Receiver};
 use crate::roads::providers::SaidBy;
 use crate::routes::say::known;
-
-/// Who lets an account in or takes it out.
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct By {
-  #[serde(default)]
-  by: Option<i64>,
-}
 
 /// Words an account said in the console.
 #[derive(Deserialize)]
@@ -78,36 +70,6 @@ async fn private_to(receiver: &Receiver, room: i64) -> Result<Option<i64>, Refus
   accounts::private_account(receiver, room).await.map_err(reached)
 }
 
-/// The account a write acts for, in its query or as its whole body.
-#[derive(Deserialize)]
-pub(super) struct Acting {
-  #[serde(default)]
-  pub(super) account: Option<i64>,
-}
-
-/// The account a write names, in its query or its body; refused where the two name different accounts.
-pub(super) fn acting(raw: RawQuery, in_body: Option<i64>) -> Result<Option<i64>, Refusal> {
-  match (query::<Acting>(raw)?.account, in_body) {
-    (Some(queried), Some(bodied)) if queried != bodied => Err(refused(
-      StatusCode::BAD_REQUEST,
-      "bad-request",
-      "the query and the body name different accounts",
-    )),
-    (queried, bodied) => Ok(queried.or(bodied)),
-  }
-}
-
-/// A write in a room for an account, refused where the room is another account's private room; a write naming no
-/// account is judged as it always was.
-pub(super) async fn writable(receiver: &Receiver, room: i64, account: Option<i64>) -> Result<(), Refusal> {
-  let Some(account) = account else { return Ok(()) };
-
-  match private_to(receiver, room).await? {
-    Some(own) if own != account => Err(code(&RoomAccountRefusal::PrivateRoom { room, account })),
-    _ => Ok(()),
-  }
-}
-
 /// `PUT /accounts/{account}/identity`: the account's record identity, made where it does not stand.
 pub async fn identity(State(served): State<Served>, Path(account): Path<String>) -> Answered {
   let account = account_key(&account)?;
@@ -147,11 +109,12 @@ pub async fn members(State(served): State<Served>, Path(room): Path<i64>) -> Ans
   answered(json!({ "accounts": members.iter().map(member_shape).collect::<Vec<Value>>() }))
 }
 
-// A room whose members can be changed: one the receiver holds that is no one's private room.
+// A room whose members can be changed: one the receiver holds that is no one's private room, sealed ones among
+// them.
 async fn changeable(receiver: &Receiver, room: i64, by: i64) -> Result<(), Refusal> {
   held(receiver, room).await?;
 
-  if private_to(receiver, room).await?.is_some() {
+  if accounts::privacy(receiver, room).await.map_err(reached)? != Privacy::Shared {
     return Err(code(&RoomAccountRefusal::PrivateRoom { room, account: by }));
   }
 
@@ -172,11 +135,12 @@ async fn told(receiver: &Receiver, room: i64, line: FixedLine) {
 /// stands where it already is one.
 pub async fn let_in(
   State(served): State<Served>,
-  Path((room, account)): Path<(i64, String)>,
-  body: Bytes,
+  Path((_, account)): Path<(i64, String)>,
+  writable: WritableRoom,
 ) -> Answered {
+  let room = writable.room;
   let account = account_key(&account)?;
-  let Some(by) = read::<By>(&body)?.by else {
+  let Some(by) = writable.writer.account() else {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "by (an account) is required"));
   };
   let receiver: Receiver = (*served.receiver).clone();
@@ -196,11 +160,12 @@ pub async fn let_in(
 /// line saying so; nothing where it is no member.
 pub async fn take_out(
   State(served): State<Served>,
-  Path((room, account)): Path<(i64, String)>,
-  raw: RawQuery,
+  Path((_, account)): Path<(i64, String)>,
+  writable: WritableRoom,
 ) -> Result<StatusCode, Refusal> {
+  let room = writable.room;
   let account = account_key(&account)?;
-  let Some(by) = query::<By>(raw)?.by else {
+  let Some(by) = writable.writer.account() else {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "by (an account) is required"));
   };
   let receiver: Receiver = (*served.receiver).clone();
@@ -218,12 +183,6 @@ pub async fn take_out(
   }
 
   Ok(StatusCode::NO_CONTENT)
-}
-
-// Who an account speaks as in a room, refused where the room is another account's private room.
-async fn speaking(receiver: &Receiver, room: i64, account: i64, name: &str) -> Result<Speaking, Refusal> {
-  writable(receiver, room, Some(account)).await?;
-  speaker(receiver, room, account, name).await
 }
 
 /// Who an account speaks as in a room: the owner on his own sender for the owner's account, and the account under
@@ -264,14 +223,14 @@ fn named(account: Option<i64>, name: Option<&str>) -> Result<(i64, String), Refu
 /// `POST /rooms/{roomId}/words`: words an account said in the console, kept and carried as any message.
 pub async fn words(
   State(served): State<Served>,
-  Path(room): Path<i64>,
-  body: Bytes,
+  writable: WritableRoom,
 ) -> Result<(StatusCode, Json<Value>), Refusal> {
-  let asked = read::<Words>(&body)?;
+  let room = writable.room;
+  let asked = read::<Words>(writable.writer.body())?;
   let (account, name) = named(asked.account, asked.name.as_deref())?;
   let receiver: Receiver = (*served.receiver).clone();
   let text = speakable(&receiver, room, &asked.text).await?;
-  let speaking = speaking(&receiver, room, account, &name).await?;
+  let speaking = speaker(&receiver, room, account, &name).await?;
   let id = said(&receiver, room, &text, asked.reply_to.as_ref(), speaking).await?;
 
   Ok((StatusCode::CREATED, Json(json!({ "id": id }))))
@@ -279,14 +238,17 @@ pub async fn words(
 
 /// `POST /rooms/{roomId}/word-files`: files an account sent in the console, as `POST /owner/message-files` takes
 /// them, kept and carried as any message.
-pub async fn word_files(State(served): State<Served>, Path(room): Path<i64>, form: Multipart) -> Answered {
+pub async fn word_files(State(served): State<Served>, writable: WritableRoom) -> Answered {
+  let room = writable.room;
   let receiver: Receiver = (*served.receiver).clone();
-  let form = files_form(form).await?;
+  let form = files_form(writable.writer.form().await?).await?;
   let (account, name) = named(form.account, form.name.as_deref())?;
 
+  // The form names the account the request could not read off it, so the room is asked again for that account.
+  writable.writer.for_account(Some(account))?.room(&receiver, room).await?;
   sendable(&receiver, room, &form).await?;
 
-  let speaking = speaking(&receiver, room, account, &name).await?;
+  let speaking = speaker(&receiver, room, account, &name).await?;
 
   files_said(&receiver, room, form, speaking).await
 }

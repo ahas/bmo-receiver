@@ -160,13 +160,9 @@ pub async fn rooms_of(db: &DatabaseConnection, account: i64) -> Result<Vec<i64>,
   .collect()
 }
 
-/// The supervisor whose own room on the record a room is, the one written under its name as it was added: none for
-/// any other room.
-pub async fn supervisor_of_room(
-  db: &DatabaseConnection,
-  chat_id: i64,
-  agents: &[Designated],
-) -> Result<Option<Designated>, Fault> {
+/// The name a room stands under on the record, a supervisor's own room's being the supervisor's name: none for an
+/// agent room, which stands under its own number, and for every room not on the record.
+pub async fn own_room_name(db: &DatabaseConnection, chat_id: i64) -> Result<Option<String>, Fault> {
   let named = one(
     db,
     r#"SELECT "room_id" FROM "provider_rooms" WHERE "provider" = $1 AND "chat_id" = $2"#,
@@ -175,6 +171,18 @@ pub async fn supervisor_of_room(
   .await?
   .map(|row| row.try_get::<String>("", "room_id"))
   .transpose()?;
+
+  Ok(named.filter(|named| *named != chat_id.to_string()))
+}
+
+/// The supervisor whose own room on the record a room is, the one written under its name as it was added: none for
+/// any other room.
+pub async fn supervisor_of_room(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  agents: &[Designated],
+) -> Result<Option<Designated>, Fault> {
+  let named = own_room_name(db, chat_id).await?;
 
   Ok(named.and_then(|named| agents.iter().find(|agent| agent.name == named).cloned()))
 }
@@ -199,11 +207,35 @@ pub async fn owner_account(receiver: &Receiver) -> Result<Option<i64>, NotReceiv
   Ok(user.and_then(|user| user.trim().parse::<i64>().ok()))
 }
 
-/// The account a room is private to: the owner's account for the owner's private room, the owner account of the
-/// supervisor whose own room on the record it is, and none for every other room.
-pub async fn private_account(receiver: &Receiver, chat_id: i64) -> Result<Option<i64>, NotReceived> {
+/// Whose private room a room is (docs/receiver.md, 「Console rooms and accounts」).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Privacy {
+  /// No one's: a group room, whoever is left in it.
+  Shared,
+  /// One account's: the owner's private room to the owner's account, a BMO's own room to its supervisor's owner
+  /// account.
+  Of(i64),
+  /// A private room whose account cannot be named now, so no account writes in it: the owner's private room while
+  /// the web unit links no account to the owner's sender.
+  Sealed,
+}
+
+impl Privacy {
+  /// The account it is private to, where one can be named.
+  pub fn account(self) -> Option<i64> {
+    match self {
+      Self::Of(account) => Some(account),
+      Self::Shared | Self::Sealed => None,
+    }
+  }
+}
+
+/// Whose private room a room is: the owner's private room the owner's account's, sealed while that cannot be named,
+/// a supervisor's own room on the record its owner account's, and no one's for every other room. A unit that does
+/// not answer fails the read rather than reading the room as no one's.
+pub async fn privacy(receiver: &Receiver, chat_id: i64) -> Result<Privacy, NotReceived> {
   if chat_id == receiver.owner_room() {
-    return owner_account(receiver).await;
+    return Ok(owner_account(receiver).await?.map_or(Privacy::Sealed, Privacy::Of));
   }
 
   let agents = listed_designated(receiver).await?;
@@ -211,8 +243,15 @@ pub async fn private_account(receiver: &Receiver, chat_id: i64) -> Result<Option
   Ok(
     supervisor_of_room(receiver.db(), chat_id, &agents)
       .await?
-      .and_then(|agent| agent.owner_account),
+      .and_then(|agent| agent.owner_account)
+      .map_or(Privacy::Shared, Privacy::Of),
   )
+}
+
+/// The account a room is private to, where one can be named: the owner's account for the owner's private room, the
+/// owner account of the supervisor whose own room on the record it is, and none for every other room.
+pub async fn private_account(receiver: &Receiver, chat_id: i64) -> Result<Option<i64>, NotReceived> {
+  Ok(privacy(receiver, chat_id).await?.account())
 }
 
 /// Every private room, each to the account it is private to: the owner's private room to the owner's account, and

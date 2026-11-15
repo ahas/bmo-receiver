@@ -141,6 +141,7 @@ impl Receiver {
       owner_room: self.roads().owners_room(room_id, facts.kind == Some(RoomKind::Owner)),
       identity: facts.identity,
       private_to: facts.private_to,
+      sealed: false,
     }
   }
 }

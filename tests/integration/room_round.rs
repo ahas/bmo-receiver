@@ -46,6 +46,7 @@ fn owners_room() -> Room {
     owner_room: true,
     identity: Some(7),
     private_to: None,
+    sealed: false,
   }
 }
 
@@ -889,6 +890,7 @@ async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet
     owner_room: false,
     identity: Some(7),
     private_to: None,
+    sealed: false,
   };
 
   standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
@@ -956,6 +958,7 @@ async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_hi
     owner_room: false,
     identity: Some(7),
     private_to: None,
+    sealed: false,
   };
 
   standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);

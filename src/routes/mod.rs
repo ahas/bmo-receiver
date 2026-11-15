@@ -26,6 +26,7 @@ mod say;
 mod sends;
 mod supervisors;
 mod talks;
+mod writable;
 
 use std::sync::Arc;
 

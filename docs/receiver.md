@@ -374,15 +374,31 @@ flowchart TD
   it. The administrator's read changes nothing of another's: no read route of the receiver keeps anything of who
   read, so his read leaves no mark, no window opened, no wake and no event; and in a private room that is not his
   own, every write he makes is refused like any other account's.
-- **Nothing in a private room is said or changed by another account.** Every write act the console makes for an
-  account names that account, and in a private room one naming any account but its own, the administrator's among
-  them, is refused 403 `private-room` before anything is kept, carried or launched: words and files, a reaction put
-  on or taken off, a message pinned or unpinned, an edit, a removal, a sticker, a forward into the room, a line's
-  reading aloud (a turn of the line's agent in the room and a briefing the voice engine keeps for it), and the room
-  pinned or unpinned in the console's pinned order. An act on a message names its account in the call, or else by
-  the account the relay's `Owner-Key` names. A member let in or taken out of a private room is refused 403
-  `private-room` for every account, its own among them. A write naming no account, a unit acting as itself, an
-  agent's own words or a line of the receiver's, is judged as it always was.
+- **Nothing in a private room is said or changed by another account.** Every route that changes a room, a message
+  in it or what is kept of it reaches the room through one guard, which reads who the write acts for off the
+  request and refuses another account's private room before the route holds anything; a route has no other way to
+  its room. Who acts is the account the call names, as `account` or `by` in its query or body or as the relay's
+  `Owner-Key`, one account wherever it is named and refused 400 `bad-request` where two differ. In a private room a
+  write for any account but its own, the administrator's among them, is refused 403 `private-room`: words and
+  files, every act on a message, a sticker, a forward out of the room or into it (a forward shares what was said in
+  the one and writes in the other), a line's reading aloud (a turn of the line's agent in the room and a briefing
+  the voice engine keeps for it), the room pinned or unpinned in the console's pinned order, the room's picture,
+  its providers, its mode, its archive, the supervisors it names, a unit's notice into it, an agent's read marks in
+  it, its files filled, and its removal. A member let in or taken out of a private room is refused for every
+  account, its own among them.
+- **A sealed private room is written in by no account:** the owner's private room while the web unit links no
+  account to his sender. A room whose privacy cannot be read, the agency or the web unit not answering, refuses
+  every account's write 502 `upstream-failed`, and a BMO's own room whose person cannot be read has its facts read
+  as sealed, so it is no group: no member's supervisor reads it and nothing of it is carried into another chat.
+  Retiring a BMO leaves its room on the record, and an account that leaves keeps its private rooms as they stand;
+  nothing removes a private room but its removal by its own account.
+- **The owner's own road acts for his account:** `POST /owner/messages`, `POST /owner/message-files` and
+  `POST /owner/instructions` write in his own private room always and in another account's private room never.
+- **A unit acting as itself names no account,** under the receiver's token, and is refused in no room: an agent's
+  own acts through its tools (`POST /sends`, a handoff, a handover, a talk), a unit's instruction or notice into a
+  room (bmo-job and the agency: `POST /instructions`, `POST /rooms/{roomId}/notices`), the brain's read marks of an
+  agent's book, a chat service's hand-over, the receiver's own lines, and the `bmo` command line acting as the
+  deployment. The console never writes for a person without naming the account it acts for.
 - **A forward is the forwarding account's:** the copy stands under the sender that account speaks as, the owner's
   for the owner's account and its record identity for any other, and is carried as that account's words are; a
   forward naming no account is the owner's.

@@ -98,6 +98,7 @@ pub async fn quiet_room(receiver: &Receiver, chat_id: i64) -> Result<Room, Fault
     owner_room: receiver.roads().is_owner_room(chat_id).await,
     identity: None,
     private_to: None,
+    sealed: false,
   })
 }
 

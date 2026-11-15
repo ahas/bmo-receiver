@@ -24,6 +24,7 @@ use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, figures, reads};
 use crate::roads::record::{next_room, next_sender};
 use crate::room_record::{Facing, RoomHolding, Says};
+use crate::routes::writable::WritableRoom;
 use crate::routes::{
   Accepted, Answered, Refusal, Served, answered, code, query, read, refused, store, unit,
 };
@@ -532,7 +533,7 @@ pub async fn member_messages(
 async fn membership(receiver: &Receiver, agent: &str, room: i64) -> Result<(), Refusal> {
   let facts = receiver.roads().room_facts(room).await;
 
-  if facts.owner_room || facts.private_to.is_some() {
+  if facts.owner_room || facts.one_to_one() {
     return Err(code(&RoomReadRefusal::NotAGroup { room }));
   }
 
@@ -589,8 +590,9 @@ pub async fn set_default_answerer(State(served): State<Served>, body: Bytes) -> 
 }
 
 /// `PUT /rooms/{roomId}/supervisors`: a room's whole list of supervisors, each one the agency registers.
-pub async fn name_room(State(served): State<Served>, Path(room): Path<i64>, body: Bytes) -> Answered {
-  let asked = read::<Listed>(&body)?;
+pub async fn name_room(State(served): State<Served>, writable: WritableRoom) -> Answered {
+  let room = writable.room;
+  let asked = read::<Listed>(writable.writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
   let agents = receiver.agents().await.map_err(unit)?;
   let mut names: Vec<String> = asked.supervisors.iter().map(|name| name.trim().to_owned()).collect();

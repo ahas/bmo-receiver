@@ -1326,6 +1326,7 @@ impl Conversations {
       owner_room,
       identity: None,
       private_to: None,
+      sealed: false,
     };
     let held = self.held_session(chat_id).await;
     let window = self.window_ms().await;
@@ -2617,6 +2618,7 @@ impl Conversations {
       owner_room: room.owner_room,
       identity: self.0.receiver.roads().identity_in(chat_id).await.or(room.identity),
       private_to: room.private_to,
+      sealed: room.sealed,
     };
 
     if let Err(why) = self.0.receiver.filed(chat_id, message_id, via, declared).await {
