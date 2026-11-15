@@ -274,6 +274,7 @@ async fn a_supervisor_is_added_removed_and_reset_on_the_routes_the_agency_serves
     effort: Some("high".to_owned()),
     thinking: Some("on".to_owned()),
     answer_tokens: Some(8000),
+    owner_account: None,
   };
   let removal = Removal {
     rooms: vec![-5, 7],

@@ -215,74 +215,170 @@ pub enum Privacy {
   /// One account's: the owner's private room to the owner's account, a BMO's own room to its supervisor's owner
   /// account.
   Of(i64),
-  /// A private room whose account cannot be named now, so no account writes in it: the owner's private room while
-  /// the web unit links no account to the owner's sender.
+  /// A private room whose account is not known yet, so no account writes in it: the owner's private room while the
+  /// web unit links no account to the owner's sender.
   Sealed,
 }
 
 impl Privacy {
-  /// The account it is private to, where one can be named.
+  /// The account it is private to, where one is known.
   pub fn account(self) -> Option<i64> {
     match self {
       Self::Of(account) => Some(account),
       Self::Shared | Self::Sealed => None,
     }
   }
+
+  /// Whether it is a private room whose account is not known yet.
+  pub fn sealed(self) -> bool {
+    self == Self::Sealed
+  }
+
+  // The privacy a kept row states: its account, or sealed where it names none.
+  fn kept(account: Option<i64>) -> Self {
+    account.map_or(Self::Sealed, Self::Of)
+  }
 }
 
-/// Whose private room a room is: the owner's private room the owner's account's, sealed while that cannot be named,
-/// a supervisor's own room on the record its owner account's, and no one's for every other room. A unit that does
-/// not answer fails the read rather than reading the room as no one's.
-pub async fn privacy(receiver: &Receiver, chat_id: i64) -> Result<Privacy, NotReceived> {
+/// What the record keeps of whose private room a room is: none for a room it keeps no row of.
+pub async fn kept_privacy(db: &DatabaseConnection, chat_id: i64) -> Result<Option<Privacy>, Fault> {
+  one(
+    db,
+    r#"SELECT "account" FROM "private_rooms" WHERE "chat_id" = $1"#,
+    vec![chat_id.into()],
+  )
+  .await?
+  .map(|row| row.try_get::<Option<i64>>("", "account").map(Privacy::kept))
+  .transpose()
+  .map_err(Fault::from)
+}
+
+/// Every room the record keeps as private, each with its privacy.
+pub async fn kept_private_rooms(db: &DatabaseConnection) -> Result<BTreeMap<i64, Privacy>, Fault> {
+  all(db, r#"SELECT "chat_id", "account" FROM "private_rooms" ORDER BY "chat_id""#, vec![])
+    .await?
+    .iter()
+    .map(|row| {
+      Ok((
+        row.try_get::<i64>("", "chat_id")?,
+        Privacy::kept(row.try_get::<Option<i64>>("", "account")?),
+      ))
+    })
+    .collect::<Result<BTreeMap<i64, Privacy>, sea_orm::DbErr>>()
+    .map_err(Fault::from)
+}
+
+/// A room kept as a private room: to `account`, or sealed where none is known. A sealed row is filled in once its
+/// account is known, and an account once kept never changes or clears; whether the record changed.
+pub async fn keep_private(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  account: Option<i64>,
+) -> Result<bool, Fault> {
+  let written = run(
+    db,
+    r#"INSERT INTO "private_rooms" ("chat_id", "account", "written_at") VALUES ($1, $2, $3)
+       ON CONFLICT ("chat_id") DO UPDATE SET "account" = excluded."account", "written_at" = excluded."written_at"
+         WHERE "private_rooms"."account" IS NULL AND excluded."account" IS NOT NULL"#,
+    vec![chat_id.into(), account.into(), now_ms().into()],
+  )
+  .await?;
+
+  Ok(written > 0)
+}
+
+// Whose private room a room is as the agency and the web unit say now, kept where they name it: the owner's private
+// room the owner's account's, sealed while the web unit links none, and a supervisor's own room its owner
+// account's.
+async fn learned(receiver: &Receiver, chat_id: i64) -> Result<Privacy, NotReceived> {
   if chat_id == receiver.owner_room() {
-    return Ok(owner_account(receiver).await?.map_or(Privacy::Sealed, Privacy::Of));
+    let account = owner_account(receiver).await?;
+
+    keep_private(receiver.db(), chat_id, account).await?;
+
+    return Ok(Privacy::kept(account));
   }
 
   let agents = listed_designated(receiver).await?;
+  let Some(account) = supervisor_of_room(receiver.db(), chat_id, &agents)
+    .await?
+    .and_then(|agent| agent.owner_account)
+  else {
+    return Ok(Privacy::Shared);
+  };
 
-  Ok(
-    supervisor_of_room(receiver.db(), chat_id, &agents)
-      .await?
-      .and_then(|agent| agent.owner_account)
-      .map_or(Privacy::Shared, Privacy::Of),
-  )
+  keep_private(receiver.db(), chat_id, Some(account)).await?;
+
+  Ok(Privacy::Of(account))
 }
 
-/// The account a room is private to, where one can be named: the owner's account for the owner's private room, the
-/// owner account of the supervisor whose own room on the record it is, and none for every other room.
+/// Whose private room a room is: the record's own row first, and where it keeps none or a sealed one, what the
+/// agency and the web unit say now, kept for every read after. The owner's private room is private whatever they
+/// answer, so it reads as sealed while they cannot say whose it is; any other room the record keeps nothing of
+/// fails the read where they do not answer, rather than reading as no one's.
+pub async fn privacy(receiver: &Receiver, chat_id: i64) -> Result<Privacy, NotReceived> {
+  let kept = kept_privacy(receiver.db(), chat_id).await?;
+
+  if let Some(Privacy::Of(account)) = kept {
+    return Ok(Privacy::Of(account));
+  }
+
+  match learned(receiver, chat_id).await {
+    Ok(privacy) => Ok(privacy),
+    Err(_) if kept == Some(Privacy::Sealed) || chat_id == receiver.owner_room() => Ok(Privacy::Sealed),
+    Err(why) => Err(why),
+  }
+}
+
+/// The account a room is private to, where one is known.
 pub async fn private_account(receiver: &Receiver, chat_id: i64) -> Result<Option<i64>, NotReceived> {
   Ok(privacy(receiver, chat_id).await?.account())
 }
 
-/// Every private room, each to the account it is private to: the owner's private room to the owner's account, and
-/// the own room on the record of each supervisor that names its owner account to that account. A group room stands
-/// among none of them, however many of its members have left it.
-pub async fn private_rooms(receiver: &Receiver) -> Result<BTreeMap<i64, i64>, NotReceived> {
-  let mut rooms = BTreeMap::new();
+/// Every private room the agency and the web unit name now, kept where the record keeps it no account yet: the
+/// owner's private room, sealed while no account is linked to his sender, and the own room of every supervisor that
+/// names its owner account. Running it again changes nothing; what it cannot read stays as kept, and is asked again
+/// by the reads after. How many rows it wrote.
+pub async fn keep_known_private_rooms(receiver: &Receiver) -> Result<usize, NotReceived> {
+  let mut written = 0;
+  // The owner's private room is kept sealed where the web unit cannot say whose it is, and the supervisors are
+  // read all the same; the first unit that did not answer is told once both are done.
+  let owner = owner_account(receiver).await;
 
-  if let Some(account) = owner_account(receiver).await? {
-    rooms.insert(receiver.owner_room(), account);
+  if keep_private(receiver.db(), receiver.owner_room(), owner.as_ref().ok().copied().flatten()).await? {
+    written += 1;
   }
 
-  for agent in listed_designated(receiver).await? {
+  let agents = listed_designated(receiver).await;
+
+  for agent in agents.as_deref().unwrap_or_default() {
     if let Some(account) = agent.owner_account
       && let Some(room) = room_of_supervisor(receiver.db(), &agent.name).await?
+      && keep_private(receiver.db(), room, Some(account)).await?
     {
-      rooms.insert(room, account);
+      written += 1;
     }
   }
 
-  Ok(rooms)
+  owner?;
+  agents?;
+
+  Ok(written)
 }
 
-/// The private rooms of an account: the own rooms of the supervisors it owns, and the owner's private room for the
+/// The private rooms of an account the record keeps, after the private rooms the agency and the web unit name now
+/// are kept where they answer: the own rooms of the supervisors it owns, and the owner's private room for the
 /// owner's account.
 pub async fn private_rooms_of(receiver: &Receiver, account: i64) -> Result<Vec<i64>, NotReceived> {
+  if let Err(why) = keep_known_private_rooms(receiver).await {
+    println!("bmo-receiver: account {account}'s private rooms are read as kept, since {why}");
+  }
+
   Ok(
-    private_rooms(receiver)
+    kept_private_rooms(receiver.db())
       .await?
       .into_iter()
-      .filter_map(|(room, own)| (own == account).then_some(room))
+      .filter_map(|(room, privacy)| (privacy == Privacy::Of(account)).then_some(room))
       .collect(),
   )
 }

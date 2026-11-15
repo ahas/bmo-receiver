@@ -43,6 +43,7 @@ fn room() -> Value {
     "workRoom": ROOM,
     "mode": "record-only",
     "privateOf": null,
+    "sealed": false,
   })
 }
 

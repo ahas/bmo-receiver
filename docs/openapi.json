@@ -2890,6 +2890,10 @@
           "registered": {
             "type": "boolean"
           },
+          "sealed": {
+            "description": "Whether the room is a private room whose account is not known yet, so no account writes in it: the owner's\nprivate room before an account is linked to his sender.",
+            "type": "boolean"
+          },
           "senders": {
             "description": "The people that have stood as a sender in the room.",
             "items": {
@@ -2930,7 +2934,8 @@
           "listened",
           "workRoom",
           "mode",
-          "privateOf"
+          "privateOf",
+          "sealed"
         ],
         "type": "object"
       },
@@ -3637,6 +3642,14 @@
           },
           "name": {
             "type": "string"
+          },
+          "ownerAccount": {
+            "description": "The account the supervisor belongs to, whose private room its own room is kept as.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "provider": {
             "type": [

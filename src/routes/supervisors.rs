@@ -69,6 +69,9 @@ pub struct Added {
   thinking: Option<String>,
   #[serde(default)]
   answer_tokens: Option<i64>,
+  /// The account the supervisor belongs to, whose private room its own room is.
+  #[serde(default)]
+  owner_account: Option<i64>,
 }
 
 #[derive(Deserialize, Default)]
@@ -213,7 +216,18 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
   }
 
   let road = console_road();
+  // A room left by a supervisor of the name before is taken back, but never one the record keeps as another
+  // account's private room, which stays that account's: the name is refused as taken.
   let standing = room_of(receiver.db(), &asked.name).await.ok().flatten();
+
+  if let Some(room) = standing
+    && let Some(crate::accounts::Privacy::Of(own)) =
+      crate::accounts::kept_privacy(receiver.db(), room).await.map_err(store)?
+    && Some(own) != asked.owner_account
+  {
+    return Err(code(&SupervisorRefusal::NameTaken { name: asked.name }));
+  }
+
   let (chat_id, taken_back) = match standing {
     Some(room) => (room, true),
     None => (next_room(receiver.db()).await.map_err(store)?, false),
@@ -227,6 +241,7 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
     effort: asked.effort.clone(),
     thinking: asked.thinking.clone(),
     answer_tokens: asked.answer_tokens,
+    owner_account: asked.owner_account,
   };
 
   // The agency stands the supervisor's row and the gate its options; the receiver writes the room half.
@@ -271,6 +286,13 @@ pub async fn add(State(served): State<Served>, body: Bytes) -> Accepted {
   )
   .await
   .map_err(store)?;
+
+  // Its own room is its owner account's private room, kept on the room's record from now on.
+  if let Some(account) = asked.owner_account {
+    crate::accounts::keep_private(receiver.db(), chat_id, Some(account))
+      .await
+      .map_err(store)?;
+  }
   // A console room is born on the record alone: its one provider is the record, so its answers stand there.
   crate::roads::providers::choose(receiver.db(), chat_id, std::slice::from_ref(&road))
     .await

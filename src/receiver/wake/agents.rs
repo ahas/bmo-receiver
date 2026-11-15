@@ -15,6 +15,7 @@ use sea_orm::DatabaseConnection;
 use tokio::task::JoinHandle;
 
 use super::asked;
+use crate::accounts::Privacy;
 use crate::kept::Kept;
 use crate::receiver::{NotReceived, Receiver, Room};
 use crate::roads::{RecordPrivacy, RecordPrivate, SendingAccount};
@@ -244,47 +245,56 @@ impl Leaders {
 impl RecordPrivacy for Leaders {
   fn private_to<'a>(&'a self, chat_id: i64) -> BoxFuture<'a, RecordPrivate> {
     Box::pin(async move {
-      // A room standing under no name of its own on the record is no supervisor's, whatever else cannot be read; one
-      // that does is sealed while the agents or the store cannot say whose it is.
-      let named = match crate::accounts::own_room_name(&self.db, chat_id).await {
-        Ok(Some(named)) => named,
-        Ok(None) => return RecordPrivate::Shared,
-        Err(why) => {
-          eprintln!(
-            "chat {chat_id}: whose private room it is could not be read, so it is sealed: {}",
-            why.detail
-          );
-          return RecordPrivate::Sealed;
-        }
+      let sealed = |why: String| {
+        eprintln!("chat {chat_id}: whose private room it is could not be read, so it is sealed: {why}");
+        RecordPrivate::Sealed
       };
-      let agents = match self.agents().await {
-        Ok(listed) => listed,
-        Err(why) => {
-          eprintln!(
-            "chat {chat_id}: whose private room it is could not be read, since the agents were not: {why}"
-          );
-          return RecordPrivate::Sealed;
-        }
-      };
-      let Some(agent) = agents.agents.iter().find(|agent| agent.name == named) else {
-        return RecordPrivate::Shared;
-      };
-      let Some(account) = Designated::of(agent, "").owner_account else {
-        return RecordPrivate::Shared;
+      // What the record keeps is read first; a room it keeps nothing of is asked of the agency, and kept where it
+      // names the room's account.
+      let account = match crate::accounts::kept_privacy(&self.db, chat_id).await {
+        Ok(Some(Privacy::Of(account))) => account,
+        Ok(Some(Privacy::Sealed)) => return RecordPrivate::Sealed,
+        Ok(Some(Privacy::Shared) | None) => match self.learned(chat_id).await {
+          Ok(Some(account)) => account,
+          Ok(None) => return RecordPrivate::Shared,
+          Err(why) => return sealed(why),
+        },
+        Err(why) => return sealed(why.detail),
       };
 
       match crate::accounts::identity_of(&self.db, account).await {
         Ok(Some(person)) => RecordPrivate::To(person),
         Ok(None) => RecordPrivate::Sealed,
-        Err(why) => {
-          eprintln!(
-            "chat {chat_id}: whose private room it is could not be read, so it is sealed: {}",
-            why.detail
-          );
-          RecordPrivate::Sealed
-        }
+        Err(why) => sealed(why.detail),
       }
     })
+  }
+}
+
+impl Leaders {
+  // The account the agency names as the owner of the supervisor whose own room a room is, kept on the room's record:
+  // none for a room that stands under no name of its own, or whose supervisor names no owner. A room under a name
+  // of its own is sealed while the agency or the store cannot say whose it is.
+  async fn learned(&self, chat_id: i64) -> Result<Option<i64>, String> {
+    let Some(named) = crate::accounts::own_room_name(&self.db, chat_id).await.map_err(|why| why.detail)?
+    else {
+      return Ok(None);
+    };
+    let agents = self.agents().await.map_err(|why| format!("the agents were not read: {why}"))?;
+    let Some(account) = agents
+      .agents
+      .iter()
+      .find(|agent| agent.name == named)
+      .and_then(|agent| Designated::of(agent, "").owner_account)
+    else {
+      return Ok(None);
+    };
+
+    crate::accounts::keep_private(&self.db, chat_id, Some(account))
+      .await
+      .map_err(|why| why.detail)?;
+
+    Ok(Some(account))
   }
 }
 

@@ -23,13 +23,16 @@ use crate::integration::common::Scratch;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, Woken, registration, standing, woken,
 };
+use bmo_receiver::accounts::keep_known_private_rooms;
 use bmo_receiver::chat::conversation::joins_round;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, How, Inbound, Room};
 use bmo_receiver::routes::routes;
+use bmo_receiver::store::migration::{Migrator, migrate};
 use bmo_receiver::verbs::VerbError;
 use bmo_receiver::verbs::room_rules::{self, Change, Form, Subject};
 use receiver_codes::RoomGrantRefusal;
+use sea_orm_migration::MigratorTrait;
 
 const TOKEN: &str = "the-token";
 // The owner's account, which the web unit links to his sender, and two other accounts.
@@ -56,6 +59,11 @@ struct Stood {
 // default answerer owned by the owner's account and Bea's supervisor with its own room on the record; judging by
 // its own wake where `waking`, and recording what it hands the wake otherwise.
 async fn stood(waking: bool) -> Stood {
+  stood_linked(waking, true).await
+}
+
+// The same receiver, the web unit linking the owner's account to his sender only where `linked`.
+async fn stood_linked(waking: bool, linked_owner: bool) -> Stood {
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
   let linked = StandInChat::new("road-a").holding(&[LINKED]).agent_in(LINKED, 900);
@@ -78,7 +86,9 @@ async fn stood(waking: bool) -> Stood {
   own.row.insert("ownerAccount".to_owned(), json!(OWNERS));
   beas.row.insert("ownerAccount".to_owned(), json!(BEA));
   standing.agency.registering(vec![own, beas]);
-  standing.web.linking(OWNER, OWNERS.to_string());
+  if linked_owner {
+    standing.web.linking(OWNER, OWNERS.to_string());
+  }
 
   for (room, title) in [(LINKED, "Linked"), (SPOKEN, "Spoken")] {
     scratch
@@ -521,6 +531,10 @@ async fn everything(scratch: &Scratch) -> Vec<String> {
 async fn reading_a_private_room_leaves_nothing_behind() {
   let stood = stood(true).await;
   let words = said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
+
+  // Whose private room each room is stands kept on its record from the service's start, as the pass there keeps it.
+  keep_known_private_rooms(&stood.standing.receiver).await.unwrap();
+
   let before = everything(&stood.scratch).await;
   let told = stood.standing.heard.told();
   let handed = stood.standing.taken.handed().len();
@@ -1071,7 +1085,65 @@ async fn relayed_any(port: &Router, (method, path, body): Write, account: i64) -
 async fn every_route_that_changes_a_room_refuses_another_accounts_private_room() {
   let stood = stood(false).await;
   let hers = said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
-  let before = lines(&stood, BEAS_ROOM).await;
+
+  every_write_refused(&stood, hers).await;
+}
+
+#[tokio::test]
+async fn a_retired_bmos_room_stays_its_accounts_and_every_other_write_is_refused() {
+  let stood = stood(false).await;
+  let hers = said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
+
+  retire_beas_bmo(&stood);
+
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/rooms/{BEAS_ROOM}"), None).await.1["privateOf"],
+    json!(BEA),
+    "the record keeps whose it is"
+  );
+
+  every_write_refused(&stood, hers).await;
+
+  // No other account reads it either: the owner's supervisor is no member's of a private room, and it stands among
+  // no other account's rooms.
+  let (status, refusal) =
+    asked(&stood.port, "GET", &format!("/supervisors/{AGENT}/rooms/{BEAS_ROOM}/messages"), None).await;
+
+  assert_eq!(
+    (status, refusal["code"].clone()),
+    (StatusCode::FORBIDDEN, json!("not-a-group")),
+    "{refusal}"
+  );
+
+  for other in [OWNERS, CAL, ADMIN] {
+    let rooms = asked(&stood.port, "GET", &format!("/accounts/{other}/rooms"), None).await.1;
+
+    assert!(
+      !rooms["rooms"].as_array().unwrap().contains(&json!(BEAS_ROOM)),
+      "account {other}: {rooms}"
+    );
+  }
+
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/accounts/{BEA}/rooms"), None).await.1,
+    json!({ "rooms": [BEAS_ROOM] }),
+    "it stays hers"
+  );
+}
+
+// Bea's supervisor retired: the agency lists the owner's own supervisor alone.
+fn retire_beas_bmo(stood: &Stood) {
+  let mut own = registration(AGENT, SENDER, vec![ADDRESS], None);
+
+  own.row.insert("ownerAccount".to_owned(), json!(OWNERS));
+  stood.standing.agency.registering(vec![own]);
+  stood.standing.receiver.forget_agents();
+}
+
+// Every route that changes a room asked for the administrator's account in Bea's private room, each refused, and
+// nothing of them kept.
+async fn every_write_refused(stood: &Stood, hers: i64) {
+  let before = lines(stood, BEAS_ROOM).await;
   let mut judged = 0;
 
   for route in bmo_receiver::routes::served() {
@@ -1106,12 +1178,113 @@ async fn every_route_that_changes_a_room_refuses_another_accounts_private_room()
   }
 
   assert!(judged >= 29, "{judged} routes judged");
-  assert_eq!(lines(&stood, BEAS_ROOM).await, before, "nothing refused was kept");
+  assert_eq!(lines(stood, BEAS_ROOM).await, before, "nothing refused was kept");
   assert_eq!(
     asked(&stood.port, "GET", &format!("/rooms/{BEAS_ROOM}"), None).await.0,
     StatusCode::OK,
     "nor was the room removed"
   );
+}
+
+// Every row the record keeps of whose private room a room is, as it stands.
+async fn kept_private(stood: &Stood) -> Vec<String> {
+  stood
+    .scratch
+    .texts(
+      r#"SELECT "chat_id" || ' ' || coalesce("account"::text, 'sealed') || ' ' || "written_at" FROM "private_rooms"
+         ORDER BY "chat_id""#,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn the_pass_at_start_keeps_every_private_room_once() {
+  let stood = stood(false).await;
+  let receiver = &stood.standing.receiver;
+
+  assert!(kept_private(&stood).await.is_empty());
+  assert_eq!(
+    keep_known_private_rooms(receiver).await.unwrap(),
+    2,
+    "the owner's private room and Bea's"
+  );
+
+  let kept = kept_private(&stood).await;
+
+  assert_eq!(kept.len(), 2);
+  assert_eq!(keep_known_private_rooms(receiver).await.unwrap(), 0);
+  assert_eq!(kept_private(&stood).await, kept, "a second pass changes nothing");
+}
+
+#[tokio::test]
+async fn a_store_from_before_the_private_rooms_were_kept_has_them_filled() {
+  let stood = stood(false).await;
+  let db = stood.scratch.db();
+
+  said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
+  Migrator::down(db, Some(1)).await.unwrap();
+  assert_eq!(migrate(db).await.unwrap(), 1, "the private rooms' table is made again, empty");
+  assert!(kept_private(&stood).await.is_empty());
+
+  // Kept again by the pass at start, Bea's room stays hers once her supervisor is gone.
+  keep_known_private_rooms(&stood.standing.receiver).await.unwrap();
+  retire_beas_bmo(&stood);
+
+  let rooms = kept_private(&stood).await;
+
+  assert!(rooms.iter().any(|row| row.starts_with(&format!("{BEAS_ROOM} {BEA} "))), "{rooms:?}");
+  assert!(rooms.iter().any(|row| row.starts_with(&format!("{OWNER} {OWNERS} "))), "{rooms:?}");
+
+  let (status, refusal) = says(&stood.port, BEAS_ROOM, CAL, "Cal", "let me in").await;
+
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::FORBIDDEN, json!("private-room")));
+}
+
+#[tokio::test]
+async fn the_owners_private_room_is_sealed_until_his_account_is_linked() {
+  let stood = stood_linked(false, false).await;
+  let read = |port: Router| async move {
+    let one = asked(&port, "GET", &format!("/rooms/{OWNER}"), None).await.1;
+    let listed = asked(&port, "GET", "/rooms", None).await.1["items"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .find(|item| item["id"] == json!(OWNER))
+      .cloned();
+
+    (one["privateOf"].clone(), one["sealed"].clone(), listed)
+  };
+
+  stood.scratch.message(OWNER, 1, OWNER).await;
+
+  let (private_of, sealed, listed) = read(stood.port.clone()).await;
+
+  assert_eq!((private_of, sealed), (Value::Null, json!(true)));
+  assert_eq!(
+    listed.map(|item| (item["privateOf"].clone(), item["sealed"].clone())),
+    Some((Value::Null, json!(true)))
+  );
+
+  for account in [OWNERS, BEA] {
+    let (status, refusal) = says(&stood.port, OWNER, account, "Someone", "hello").await;
+
+    assert_eq!(
+      (status, refusal["code"].clone()),
+      (StatusCode::FORBIDDEN, json!("private-room")),
+      "no account writes in it yet: {refusal}"
+    );
+  }
+
+  stood.standing.web.linking(OWNER, OWNERS.to_string());
+
+  let (private_of, sealed, listed) = read(stood.port.clone()).await;
+
+  assert_eq!((private_of, sealed), (json!(OWNERS), json!(false)));
+  assert_eq!(
+    listed.map(|item| (item["privateOf"].clone(), item["sealed"].clone())),
+    Some((json!(OWNERS), json!(false)))
+  );
+  assert_eq!(says(&stood.port, OWNER, OWNERS, "Owner", "hello").await.0, StatusCode::CREATED);
 }
 
 fn method_of(method: &str) -> &'static str {
@@ -1152,7 +1325,7 @@ async fn a_forward_out_of_another_accounts_private_room_is_refused() {
 }
 
 #[tokio::test]
-async fn a_private_room_whose_privacy_cannot_be_read_takes_no_account_s_write() {
+async fn a_private_room_kept_on_its_record_is_judged_without_the_agency() {
   let stood = stood(false).await;
 
   said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
@@ -1161,13 +1334,32 @@ async fn a_private_room_whose_privacy_cannot_be_read_takes_no_account_s_write() 
 
   let (status, refusal) = says(&stood.port, BEAS_ROOM, CAL, "Cal", "let me in").await;
 
-  assert_eq!((status, refusal["code"].clone()), (StatusCode::BAD_GATEWAY, json!("upstream-failed")));
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::FORBIDDEN, json!("private-room")));
   assert_eq!(
-    asked(&stood.port, "GET", &format!("/rooms/{BEAS_ROOM}"), None).await.0,
-    StatusCode::BAD_GATEWAY
+    asked(&stood.port, "GET", &format!("/rooms/{BEAS_ROOM}"), None).await.1["privateOf"],
+    json!(BEA)
   );
+  assert_eq!(
+    asked(&stood.port, "GET", "/rooms", None).await.0,
+    StatusCode::OK,
+    "the list asks no agency"
+  );
+  assert!(stood.standing.receiver.roads().room_facts(BEAS_ROOM).await.one_to_one());
+}
+
+#[tokio::test]
+async fn a_room_the_record_keeps_nothing_of_takes_no_accounts_write_while_the_agency_is_down() {
+  let stood = stood(false).await;
+
+  stood.standing.agency.going_down();
+  stood.standing.receiver.forget_agents();
+
+  let (status, refusal) = says(&stood.port, BEAS_ROOM, CAL, "Cal", "let me in").await;
+
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::BAD_GATEWAY, json!("upstream-failed")));
   assert!(
     stood.standing.receiver.roads().room_facts(BEAS_ROOM).await.sealed,
     "its facts read it as no group"
   );
+  assert!(kept_private(&stood).await.is_empty(), "and nothing is kept of what could not be read");
 }

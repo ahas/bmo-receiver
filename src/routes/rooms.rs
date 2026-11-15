@@ -22,6 +22,7 @@ use serde_json::{Value, json};
 
 use super::{Accepted, Answered, Refusal, Served, answered, code, query, read, refused, store};
 use crate::Fault;
+use crate::accounts::{self, Privacy};
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, reads, rows};
 use crate::roads::added::{self, RoomMode};
@@ -61,7 +62,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let supervisors = crate::receiver::figures::answerers(db, room).await.map_err(store)?;
   let senders = reads::senders(db, room).await.map_err(store)?;
   let mode = added::mode_of(db, room).await.map_err(store)?;
-  let private_of = crate::accounts::private_account(receiver, room).await.map_err(reached)?;
+  let privacy = private(receiver, room).await?;
 
   Ok(json!({
     "id": room,
@@ -76,8 +77,27 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
     "listened": listened,
     "workRoom": work.chat_id,
     "mode": mode.map(RoomMode::as_str),
-    "privateOf": private_of,
+    "privateOf": privacy.account(),
+    "sealed": privacy.sealed(),
   }))
+}
+
+// Whose private room a room is: the record's own row, or what the agency and the web unit say where it keeps none,
+// a room they cannot say of read as the record keeps it.
+async fn private(receiver: &Receiver, room: i64) -> Result<Privacy, Refusal> {
+  match accounts::privacy(receiver, room).await {
+    Ok(privacy) => Ok(privacy),
+    Err(why) => {
+      println!("chat {room}: whose private room it is is read as kept, since {why}");
+
+      Ok(
+        accounts::kept_privacy(receiver.db(), room)
+          .await
+          .map_err(store)?
+          .unwrap_or(Privacy::Shared),
+      )
+    }
+  }
 }
 
 /// The agents answering a room: the default answerer, the voice of the room, and every agent named to answer

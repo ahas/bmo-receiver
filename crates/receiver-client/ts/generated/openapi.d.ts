@@ -2606,6 +2606,11 @@ export interface components {
              */
             privateOf: number | null;
             registered: boolean;
+            /**
+             * @description Whether the room is a private room whose account is not known yet, so no account writes in it: the owner's
+             *     private room before an account is linked to his sender.
+             */
+            sealed: boolean;
             /** @description The people that have stood as a sender in the room. */
             senders: number[];
             /**
@@ -2861,6 +2866,11 @@ export interface components {
             label: string;
             model?: string | null;
             name: string;
+            /**
+             * Format: int64
+             * @description The account the supervisor belongs to, whose private room its own room is kept as.
+             */
+            ownerAccount?: number | null;
             provider?: string | null;
             /** @description The repository its items go to, one the agency holds. */
             repository?: string | null;

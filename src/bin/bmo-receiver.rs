@@ -198,6 +198,19 @@ async fn serve(config: &Config) -> Result<(), String> {
 
   keep(&standing);
 
+  // Every private room the agency and the web unit name now is kept on its record, beside the serve: what they do
+  // not answer now is asked again by the reads that need it (docs/receiver.md, 「Console rooms and accounts」).
+  let _kept_private = {
+    let receiver = standing.receiver.clone();
+
+    tokio::spawn(async move {
+      match bmo_receiver::accounts::keep_known_private_rooms(&receiver).await {
+        Ok(written) => println!("bmo-receiver: {written} private room(s) newly kept on their record"),
+        Err(why) => println!("bmo-receiver: the private rooms were kept as far as could be read: {why}"),
+      }
+    })
+  };
+
   // The tool host's catalogue is heard where a control socket can be named (docs/boundary-api.md, 「The tool
   // host」).
   if let Some((socket, token_file)) = config.tool_host() {

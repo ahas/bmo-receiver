@@ -336,6 +336,32 @@ async fn the_whole_road_goes_to_the_agencys_one_add_and_an_order_is_not_handed_o
 }
 
 #[tokio::test]
+async fn a_supervisor_added_for_an_account_has_its_room_kept_as_that_accounts_private_room() {
+  let scratch = Scratch::new().await;
+  let front = bench(&scratch).await;
+  let (status, answer) = post(
+    &front,
+    "/supervisors",
+    json!({ "name": ADDED, "label": "Agent D", "room": "A room of its own", "ownerAccount": 7 }),
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::CREATED, "{answer}");
+
+  let room = answer["room"]["id"].as_i64().unwrap();
+  let rows = front.standing.agency.added_rows.lock().unwrap().clone();
+
+  assert_eq!(rows[0].owner_account, Some(7), "the agency is told whose it is");
+  assert_eq!(
+    scratch
+      .texts(&format!(r#"SELECT "account"::text FROM "private_rooms" WHERE "chat_id" = {room}"#))
+      .await,
+    ["7"],
+    "its room is kept as the account's private room from the start"
+  );
+}
+
+#[tokio::test]
 async fn a_reset_is_handed_the_rooms_that_name_the_supervisor_alone_and_beside_another() {
   let scratch = Scratch::new().await;
   let front = bench(&scratch).await;

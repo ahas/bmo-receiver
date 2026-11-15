@@ -145,10 +145,14 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **`privateOf`** is the key of the account whose private room the room is, or null for every other room: a BMO's
   own room on the record is its supervisor's owner account's, and the owner's private room the owner's account's,
   the two private rooms `docs/receiver.md`, 「Console rooms and accounts」, states, where it also states who reads
-  one. The receiver answers it from those two rules alone, never from a room's members or providers, so a group
-  room every other member has left reads null, and so does a sealed private room, whose account cannot be named. A
-  read that cannot ask the agency or the web unit whose private room it is is refused 502 `upstream-failed` rather
-  than answered as no one's.
+  one and how the record keeps it. **`sealed`** is true for a private room whose account is not known yet, the
+  owner's private room before the web unit links an account to his sender, and false for every other room; its
+  `privateOf` is null. A room is written in for account A only where it is not `sealed` and its `privateOf` is null
+  or A. The receiver answers both from the room's record, never from a room's members or providers, so a group room
+  every other member has left reads null and not sealed. The room list asks the agency nothing for them, and the
+  web unit only for the owner's private room until its account is kept; a room's own read asks the agency or the
+  web unit only for a room the record keeps no account of, answering it as the record keeps it where they do not
+  answer.
 - **Every write in a room names the account it acts for** where the console acts for a person: `account`, a number,
   in the body or the query; `by` where a route takes one; or the relay's `Owner-Key`. Wherever it is named it is one
   account, and two that differ are refused 400 `bad-request`. Every route that changes a room, a message in it or
@@ -707,7 +711,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /supervisors` | `name`, `label`, `repository` (optional), `room`, and the road: `provider`, `model`, and `effort`, `thinking` and `answerTokens` (each optional) | 201, `supervisor`, the agency's read of it, `brain`, what became of its brain, and `room` (`id`, `takenBack`, `said`) |
+| `POST /supervisors` | `name`, `label`, `repository` (optional), `room`, and the road: `provider`, `model`, and `effort`, `thinking` and `answerTokens` (each optional), and `ownerAccount` (optional), the account it belongs to | 201, `supervisor`, the agency's read of it, `brain`, what became of its brain, and `room` (`id`, `takenBack`, `said`) |
 | `DELETE /supervisors/{supervisorName}` | `by`, `forgetBrain`, `force` | 204; `unknown-supervisor` (404), `seeded` (409), `default-answerer` (409), `running` (409), `action` (400) |
 | `POST /supervisors/{supervisorName}/resets` | `conversation`, `person`, `dryRun`, `by` | the agency's answer to the reset as it came; `unknown-supervisor` (404) |
 | `GET /supervisors/{supervisorName}/rooms` | | a page of `SupervisorRoom` (`id`, `title`, `named`, `alone`): the rooms it answers |
@@ -735,7 +739,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   agency's `POST /supervisors`, and its gate options are copied from the default answerer's as they stand. What a
   name may be is the agency's to say. A field the agency refuses comes back as the refusal of that field (`name`,
   `label`, `provider`, `model`, `repository`; a name the agency holds already as `name-taken`; any other as
-  `upstream-failed`). A name the agency registers already is refused `name-taken` before anything is written.
+  `upstream-failed`). A name the agency registers already is refused `name-taken` before anything is written, and
+  so is a name whose room the record keeps as another account's private room, which stays that account's. With
+  `ownerAccount` the room is kept on its record as that account's private room from the start.
 - **Its road is added with it, in one ask.** A supervisor stands on one road: `provider` and `model`, with
   `effort` (a level of the reasoning policy), `thinking` (`on` or `off`) and `answerTokens` (the answer ceiling,
   on the registry's provider) where the console names them, each left to the provider's own where it does not.

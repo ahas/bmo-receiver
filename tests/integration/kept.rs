@@ -84,7 +84,7 @@ async fn the_agents_are_asked_once_within_the_span_and_again_after_it() {
 }
 
 #[tokio::test]
-async fn the_room_list_reads_the_agents_once_and_a_page_reads_the_rooms_facts_kept() {
+async fn the_room_list_reads_no_agents_and_a_page_reads_the_rooms_facts_kept() {
   let scratch = Scratch::new().await;
   let chat = service();
   let front = stood_on(&scratch, OWNER, vec![chat.clone()]).await;
@@ -100,8 +100,8 @@ async fn the_room_list_reads_the_agents_once_and_a_page_reads_the_rooms_facts_ke
   assert_eq!(listed["items"].as_array().unwrap().len(), 2);
   assert_eq!(
     agency.agents_asked.load(Ordering::SeqCst),
-    1,
-    "the agents are read once for all the rooms, to name whose private room each is"
+    0,
+    "a room's supervisors and whose private room it is are its own rows, so the agents are never read for the list"
   );
   assert_eq!(asked(&chat), 2, "each room's facts asked once");
 

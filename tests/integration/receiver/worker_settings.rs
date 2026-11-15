@@ -41,6 +41,7 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "workRoom": 7,
         "mode": null,
         "privateOf": null,
+        "sealed": false,
       })
     ),
   );
@@ -62,6 +63,7 @@ async fn the_owner_is_read_once_and_a_room_reads_as_the_deployment_sees_it() {
         "workRoom": OWNER,
         "mode": null,
         "privateOf": null,
+        "sealed": false,
       })
     ),
   );

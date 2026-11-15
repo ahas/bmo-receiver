@@ -50,6 +50,9 @@ pub struct Room {
   /// The account whose private room this is: a BMO's own room on the record, or the owner's private room; null for
   /// every other room, a group room every other member has left among them.
   pub private_of: Option<i64>,
+  /// Whether the room is a private room whose account is not known yet, so no account writes in it: the owner's
+  /// private room before an account is linked to his sender.
+  pub sealed: bool,
 }
 
 /// What a room added is to the agents: answered as the user, or the user alone.
@@ -1164,6 +1167,9 @@ pub struct SupervisorRequest {
   /// The answer ceiling, on the registry's provider.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub answer_tokens: Option<i64>,
+  /// The account the supervisor belongs to, whose private room its own room is kept as.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub owner_account: Option<i64>,
 }
 
 /// The console room the receiver stood up for a supervisor it added: whether it took back one already standing

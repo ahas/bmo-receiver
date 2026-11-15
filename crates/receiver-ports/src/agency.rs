@@ -408,6 +408,9 @@ pub struct NewSupervisor {
   /// The answer ceiling, on the registry's provider.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub answer_tokens: Option<i64>,
+  /// The account the supervisor belongs to; none where the caller gives none.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub owner_account: Option<i64>,
 }
 
 /// A supervisor's registration ended: the rooms that name it, read as rooms it shares so each keeps its record,

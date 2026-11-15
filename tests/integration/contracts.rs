@@ -64,6 +64,7 @@ async fn bmo_jobs_calls_answer_as_its_document_states_them() {
       "pinned",
       "privateOf",
       "registered",
+      "sealed",
       "senders",
       "supervisors",
       "title",

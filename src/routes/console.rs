@@ -4,6 +4,8 @@
 //! chat is read as any room is. Every room read says whose private room it is, and no account pins or unpins
 //! another account's private room.
 
+use std::collections::BTreeMap;
+
 use axum::{
   extract::{Path, RawQuery, State},
   http::StatusCode,
@@ -15,6 +17,7 @@ use serde_json::{Value, json};
 use super::message_files::{inside, type_of};
 use super::writable::Writer;
 use super::{Answered, Refusal, Served, answered, query, read, refused, store};
+use crate::accounts::{self, Privacy};
 use crate::data_root::room_path;
 use crate::receiver::listening::Standing;
 use crate::receiver::reads::PictureWalk;
@@ -137,7 +140,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     .collect();
   let modes = crate::roads::added::modes(db).await.map_err(store)?;
   let listen_list = rows::listen_list(db).await.map_err(store)?;
-  let private = crate::accounts::private_rooms(&receiver).await.map_err(failed)?;
+  let private = private_rooms(&receiver).await.map_err(store)?;
   let mut items: Vec<Value> = vec![];
 
   for room in listed {
@@ -169,11 +172,28 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "listened": standing.listened(),
       "workRoom": work.chat_id,
       "mode": modes.get(&room.chat_id).map(|mode| mode.as_str()),
-      "privateOf": private.get(&room.chat_id),
+      "privateOf": private.get(&room.chat_id).and_then(|privacy| privacy.account()),
+      "sealed": private.get(&room.chat_id).is_some_and(|privacy| privacy.sealed()),
     }));
   }
 
   answered(json!({ "items": items, "more": false }))
+}
+
+// Every private room as the record keeps it, asking no other unit, but for the owner's private room where the record
+// keeps no account of it yet: private whatever is kept, it is asked of the web unit, and read as sealed where that
+// cannot say whose it is.
+async fn private_rooms(receiver: &Receiver) -> Result<BTreeMap<i64, Privacy>, Fault> {
+  let mut private = accounts::kept_private_rooms(receiver.db()).await?;
+  let owner_room = receiver.owner_room();
+
+  if !matches!(private.get(&owner_room), Some(Privacy::Of(_))) {
+    let privacy = accounts::privacy(receiver, owner_room).await.unwrap_or(Privacy::Sealed);
+
+    private.insert(owner_room, privacy);
+  }
+
+  Ok(private)
 }
 
 /// A room's name, as the room list gives it.
