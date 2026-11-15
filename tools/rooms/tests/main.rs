@@ -42,6 +42,7 @@ fn room() -> Value {
     "listened": false,
     "workRoom": ROOM,
     "mode": "record-only",
+    "privateOf": null,
   })
 }
 

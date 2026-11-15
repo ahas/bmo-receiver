@@ -118,22 +118,21 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `PUT /accounts/{account}/identity` | | `account` and `sender`, the account's record identity, made where it does not stand |
 | `GET /accounts/{account}/rooms` | | `rooms`, the numbers of the rooms the account is a member of in the console, its private rooms among them |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
-| `PUT /pinned-rooms` | `roomIds`, the whole order | `roomIds`, the order as it now stands |
-| `POST /pinned-rooms` | `room`, one room stood last | `roomIds` |
-| `DELETE /pinned-rooms/{roomId}` | | `roomIds` |
+| `PUT /pinned-rooms` | `roomIds`, the whole order; `account?` | `roomIds`, the order as it now stands |
+| `POST /pinned-rooms` | `room`, one room stood last; `account?` | `roomIds` |
+| `DELETE /pinned-rooms/{roomId}` | `account?` | `roomIds` |
 | `PUT /room-holders/{holderName}` | `address`, `holdings` (each `name` and `effect`: `kept` or `warns`) | 204 |
 | `DELETE /rooms/{roomId}` | `by` (the administrator), `dryRun` | what the removal would do, or what it took |
 
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
   people that have stood as a sender, `supervisors`, the names of the supervisors the room names to answer it, in
-  name order, empty where it names none,
-  `ownerRoom`, `registered`, `listened`, whether the receiver listens to the room: it stands on the console's
-  room list, being the owner's private room, a room added in a mode, a room naming supervisors, a pinned room,
-  or a room on the listen list (`allowed_chats`, `docs/store.md`), one the owner allowed with his allow
-  command and has not denied since. Every room's messages are kept whether it is listened to or not; a room
-  that is not wakes no agent and starts no session (`docs/wake.md`, 「Who reaches the session」), and a chat
-  service asking about it is answered that it is not listened to; `workRoom`, where the news, questions
-  and answers of work filed from it are told, and `mode`, the mode it was added in:
+  name order, empty where it names none, `ownerRoom`, `privateOf`, `registered`, `listened`, whether the receiver
+  listens to the room: it stands on the console's room list, being the owner's private room, a room added in a mode,
+  a room naming supervisors, a pinned room, or a room on the listen list (`allowed_chats`, `docs/store.md`), one the
+  owner allowed with his allow command and has not denied since. Every room's messages are kept whether it is
+  listened to or not; a room that is not wakes no agent and starts no session (`docs/wake.md`, 「Who reaches the
+  session」), and a chat service asking about it is answered that it is not listened to; `workRoom`, where the news,
+  questions and answers of work filed from it are told, and `mode`, the mode it was added in:
   - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
     no agent is woken in it.
   - `avatar`: the room's designated agents answer it as any room's do, and every line the receiver sends there
@@ -143,6 +142,19 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
     receiver sends there that names no voice of its own goes in the provider's `human-avatar` voice where
     that is the one mode the provider declares active, and names none otherwise (`docs/receiver.md`, 「A room's
     chat providers」).
+- **`privateOf`** is the key of the account whose private room the room is, or null for every other room: a BMO's
+  own room on the record is its supervisor's owner account's, and the owner's private room the owner's account's,
+  the two private rooms `docs/receiver.md`, 「Console rooms and accounts」, states, where it also states who reads
+  one. The receiver answers it from those two rules alone, never from a room's members or providers, so a group
+  room every other member has left reads null. A read that cannot ask the agency or the web unit whose private
+  room it is is refused 502 `upstream-failed` rather than answered as no one's.
+- **A write act names the account it acts for** where the console acts for a person: `account`, a number, in the
+  body or the query, either one, the two refused 400 `bad-request` where they name different accounts. The routes
+  that take it are the acts on a message, a sticker, a forward, a line's reading, the pinned order, and an
+  account's words and files (`account` there, required); a room's members by account name it as `by`. In a room
+  whose `privateOf` is set, a write naming any other account, the administrator's among them, is refused 403
+  `private-room` (`room`, `account`) before anything is written; the owner account's go through. The whole pinned
+  order is a write in each room it pins or unpins. A write naming no account is judged as it always was.
 - **A room's registration is read and its mode changed by the administrator alone,** `by` naming him as the web
   unit knows him. `GET /rooms/{roomId}/registration` answers `room`, `mode`, `providers`, `chosen`,
   `answerers`, `readOnly`, whether every chat service on the list reads the room in the owner's account alone,
@@ -248,13 +260,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /supervisors/{supervisorName}/rooms/{roomId}/messages` | `before`, `after`, `limit` | a page of `Message` |
 | `GET /rooms/{roomId}/messages/{messageId}` | | one `Message` |
 | `GET /rooms/{roomId}/pins` | | `items`, the room's pinned messages, newest pin first, each a `Message` |
-| `PUT /rooms/{roomId}/messages/{messageId}/reactions/mine` | `emoji` | the `Message` as it now stands, `notCarried` where a chat service did not take the act (`docs/messages.md`, 「What an agent can send back」) |
-| `DELETE /rooms/{roomId}/messages/{messageId}/reactions/mine` | | the `Message` as it now stands, `notCarried` as above |
-| `PUT /rooms/{roomId}/messages/{messageId}/pin` | `on` | the `Message` as it now stands, `notCarried` as above |
-| `PATCH /rooms/{roomId}/messages/{messageId}` | `text` | the `Message` as it now stands, `notCarried` as above |
-| `DELETE /rooms/{roomId}/messages/{messageId}` | | the `Message` as it now stands, `notCarried` as above |
+| `PUT /rooms/{roomId}/messages/{messageId}/reactions/mine` | `emoji`, `account?` | the `Message` as it now stands, `notCarried` where a chat service did not take the act (`docs/messages.md`, 「What an agent can send back」) |
+| `DELETE /rooms/{roomId}/messages/{messageId}/reactions/mine` | `account?` | the `Message` as it now stands, `notCarried` as above |
+| `PUT /rooms/{roomId}/messages/{messageId}/pin` | `on`, `account?` | the `Message` as it now stands, `notCarried` as above |
+| `PATCH /rooms/{roomId}/messages/{messageId}` | `text`, `account?` | the `Message` as it now stands, `notCarried` as above |
+| `DELETE /rooms/{roomId}/messages/{messageId}` | `account?` | the `Message` as it now stands, `notCarried` as above |
 | `GET /stickers` | | `items`, each `emoji`: the stickers the record keeps |
-| `POST /rooms/{roomId}/stickers` | `emoji` | 201, the `Message` the sticker was kept as |
+| `POST /rooms/{roomId}/stickers` | `emoji`, `account?` | 201, the `Message` the sticker was kept as |
 | `GET /rooms/{roomId}/messages/{messageId}/metadata` | | `metadata`, what the chat service handed over beside it, or null |
 | `GET /rooms/{roomId}/messages/{messageId}/sender-is-owner` | | `owner` |
 | `GET /rooms/{roomId}/messages/{messageId}/files` | | a page of `FileEntry` |
@@ -406,7 +418,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /rooms/{roomId}/words` | `account`, `name` (the account's shown name), `text`, `replyTo?` | 201, `id`, the message kept |
 | `POST /rooms/{roomId}/word-files` | a form as `POST /owner/message-files` takes but for `chatId`, which the path gives, with `account` and `name` | the answer `POST /owner/message-files` gives |
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
-| `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
+| `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into; `account?`, the account forwarding it, and `name?`, its shown name | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
 
 - **`send-verbs`** answers what a send could do in the room, never what one provider declares: the road it reads is
   the one `POST /sends` chooses for the same `via`, the road `via` names where the room answers on it and the
@@ -469,33 +481,37 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `too-large`; a `replyTo` the archive does not hold is refused 409.
 - **The signed-in person's acts on a message** come through the console relay, which names the caller by
   `Owner-Key`, the login's user id, and `Owner-Role`, as a picture's setting does (`docs/pictures.md`, 「Profile
-  pictures」); no body names who acts, so a member acts only as themselves. The caller's senders are those the web
-  unit links to the user, and the caller acts under the one of them the room already holds, else the first. The
-  record keeps each act as the agent-side acts are kept (`docs/messages.md`, 「What an agent can send back」) under
-  that number and tells `message.changed`. Where the caller is the owner, the act goes on in his own voice to the
-  room's other providers wherever the message stands under a number of theirs, and a provider that refuses the
-  act in his own voice is handed it again in the voice it answers the room by, unless it reads the room in the
-  owner's account alone, so a reaction or its removal reaches the room's chat service even where the owner's
-  account sends only words and files; a member's act stands on the record alone, since no road speaks in a
-  member's account. Where the act was carried, every provider that did not take it is named in the answer under
-  `notCarried` and said in the service's log, and the act stands on the record all the same: the answer is still
-  the message as it now stands, and the screen reads that row as it does for any act. A reaction is the caller's
-  own, one to a reactor; a pin anyone
-  signed in sets or takes off; an edit is the caller's on a message one of their senders said, and a delete the
-  same or the administrator's on any; a sticker is a message of the caller's own, its kind `sticker`, carried as
-  the owner's words are where the caller is the owner. A caller the relay names no user for, or whose user holds no
-  sender, is refused 403 `no-caller`; a message the room does not keep 404 `message-unknown`; a deleted one 409
-  `message-deleted`; another person's message to edit or delete 403 `message-forbidden`; an emoji the record's set
-  does not hold 400 `unknown-sticker`; a reaction with no emoji or an edit with no words 400 `bad-request`. The
-  record's set is the policy's (`roads.toml`, `[record]`, `stickers`), and a road the sticker goes on picks its own
-  sticker for the emoji.
+  pictures」), so a member acts only as themselves. The account an act is for is the `account` the call names, else
+  the one `Owner-Key` names, and a call naming an account `Owner-Key` does not is refused 400 `bad-request`; in
+  another account's private room every act is refused 403 `private-room`, the administrator's delete among them. The
+  caller's senders are those the web unit links to the user, and the caller acts under the one of them the room
+  already holds, else the first. The record keeps each act as the agent-side acts are kept (`docs/messages.md`,
+  「What an agent can send back」) under that number and tells `message.changed`. Where the caller is the owner, the
+  act goes on in his own voice to the room's other providers wherever the message stands under a number of theirs,
+  and a provider that refuses the act in his own voice is handed it again in the voice it answers the room by,
+  unless it reads the room in the owner's account alone, so a reaction or its removal reaches the room's chat
+  service even where the owner's account sends only words and files; a member's act stands on the record alone,
+  since no road speaks in a member's account. Where the act was carried, every provider that did not take it is
+  named in the answer under `notCarried` and said in the service's log, and the act stands on the record all the
+  same: the answer is still the message as it now stands, and the screen reads that row as it does for any act. A
+  reaction is the caller's own, one to a reactor; a pin anyone signed in sets or takes off; an edit is the caller's
+  on a message one of their senders said, and a delete the same or the administrator's on any; a sticker is a
+  message of the caller's own, its kind `sticker`, carried as the owner's words are where the caller is the owner. A
+  caller the relay names no user for, or whose user holds no sender, is refused 403 `no-caller`; a message the room
+  does not keep 404 `message-unknown`; a deleted one 409 `message-deleted`; another person's message to edit or
+  delete 403 `message-forbidden`; an emoji the record's set does not hold 400 `unknown-sticker`; a reaction with no
+  emoji or an edit with no words 400 `bad-request`. The record's set is the policy's (`roads.toml`, `[record]`,
+  `stickers`), and a road the sticker goes on picks its own sticker for the emoji.
 - **A room's pinned messages** are the ones whose pin stands on the record, a deleted message none of them, newest
   pin first.
-- **A forward** copies a message the owner picks into another room: kept there under a console number as the
-  owner's, his number and the name that room shows him by, its words the message's own, marked `forwardedFrom`
+- **A forward** copies a message into another room: kept there under a console number as the forwarding
+  account's, under the sender it speaks as (the owner's for the owner's account, its record identity for any other)
+  and the `name` given, else the name that identity last went by, and as the owner's, his number and the name that
+  room shows him by, where the call names no account, its words the message's own, marked `forwardedFrom`
   with the room, the message and who said it, and carried to that room's providers as every kept message is, so
   it goes out on the room's own road. It wakes nobody. A message or a room the receiver does not hold is refused
-  404 `not-found`, a forward into the room it stands in 400 `bad-request`, and a deleted message 409 `conflict`.
+  404 `not-found`, a forward into the room it stands in 400 `bad-request`, a deleted message 409 `conflict`, and a
+  forward into another account's private room 403 `private-room`.
 
 ## Consult lines
 
@@ -568,7 +584,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 |---|---|---|
 | `GET /voice-briefing` | | `on` and `autoplay`, the two switches as they stand |
 | `PUT /voice-briefing` | `on` or `autoplay`, exactly one, a boolean | `on` and `autoplay`, as they now stand |
-| `POST /rooms/{roomId}/messages/{messageId}/reading` | | `state` (`making` or `ready`) and `briefingId`, the engine's briefing of the line's full reading, null while the line's agent is still writing its script |
+| `POST /rooms/{roomId}/messages/{messageId}/reading` | `account?` | `state` (`making` or `ready`) and `briefingId`, the engine's briefing of the line's full reading, null while the line's agent is still writing its script |
 
 - **The switches** are the whole briefing's and whether a summary plays by itself (`docs/voiced-notices.md`, 「The
   voice briefing」); each is on unless it was set off. A body naming neither switch, or both, or a value that is not
@@ -578,7 +594,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   is refused 409 `switched-off` while the whole briefing is off, 409 `voiceless` where the line's agent has no
   voice, 404 `not-found` where the message is no agent's line with words, and 502 `unreachable` where no voice
   engine is configured or the engine did not answer. The sound is the engine's: the console reads it there by the
-  briefing's id.
+  briefing's id. Launching one writes in the line's room, a turn of the line's agent there writing the script and
+  a briefing the engine keeps for the room, so another account's ask in a private room is refused 403
+  `private-room` before either.
 
 ## Handoffs
 

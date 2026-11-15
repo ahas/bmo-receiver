@@ -78,6 +78,36 @@ async fn private_to(receiver: &Receiver, room: i64) -> Result<Option<i64>, Refus
   accounts::private_account(receiver, room).await.map_err(reached)
 }
 
+/// The account a write acts for, in its query or as its whole body.
+#[derive(Deserialize)]
+pub(super) struct Acting {
+  #[serde(default)]
+  pub(super) account: Option<i64>,
+}
+
+/// The account a write names, in its query or its body; refused where the two name different accounts.
+pub(super) fn acting(raw: RawQuery, in_body: Option<i64>) -> Result<Option<i64>, Refusal> {
+  match (query::<Acting>(raw)?.account, in_body) {
+    (Some(queried), Some(bodied)) if queried != bodied => Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      "the query and the body name different accounts",
+    )),
+    (queried, bodied) => Ok(queried.or(bodied)),
+  }
+}
+
+/// A write in a room for an account, refused where the room is another account's private room; a write naming no
+/// account is judged as it always was.
+pub(super) async fn writable(receiver: &Receiver, room: i64, account: Option<i64>) -> Result<(), Refusal> {
+  let Some(account) = account else { return Ok(()) };
+
+  match private_to(receiver, room).await? {
+    Some(own) if own != account => Err(code(&RoomAccountRefusal::PrivateRoom { room, account })),
+    _ => Ok(()),
+  }
+}
+
 /// `PUT /accounts/{account}/identity`: the account's record identity, made where it does not stand.
 pub async fn identity(State(served): State<Served>, Path(account): Path<String>) -> Answered {
   let account = account_key(&account)?;
@@ -190,16 +220,20 @@ pub async fn take_out(
   Ok(StatusCode::NO_CONTENT)
 }
 
-// Who an account speaks as in a room: refused where the room is another account's private room, and otherwise the
-// owner on his own sender for the owner's account, or the account under its record identity and the shown name the
-// console gives.
+// Who an account speaks as in a room, refused where the room is another account's private room.
 async fn speaking(receiver: &Receiver, room: i64, account: i64, name: &str) -> Result<Speaking, Refusal> {
-  if let Some(own) = private_to(receiver, room).await?
-    && own != account
-  {
-    return Err(code(&RoomAccountRefusal::PrivateRoom { room, account }));
-  }
+  writable(receiver, room, Some(account)).await?;
+  speaker(receiver, room, account, name).await
+}
 
+/// Who an account speaks as in a room: the owner on his own sender for the owner's account, and the account under
+/// its record identity and the shown name the console gives for any other.
+pub(super) async fn speaker(
+  receiver: &Receiver,
+  room: i64,
+  account: i64,
+  name: &str,
+) -> Result<Speaking, Refusal> {
   Ok(match accounts::speaker(receiver, account).await.map_err(reached)? {
     Speaker::Owner => Speaking::owner(receiver, room).await,
     Speaker::Account { sender } => Speaking {

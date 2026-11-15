@@ -1,7 +1,8 @@
 //! A room's line, its pictures, its figures' window and the pinned order (`docs/api.md`, 「Rooms」 and
 //! 「Messages」). A room's line is walked by a cursor the reader holds and by when each message was sent, never by
 //! its number; a page holds only what a person said unless an agent's marks are asked for; and the owner's private
-//! chat is read as any room is.
+//! chat is read as any room is. Every room read says whose private room it is, and no account pins or unpins
+//! another account's private room.
 
 use axum::{
   body::Bytes,
@@ -12,6 +13,7 @@ use sea_orm::DatabaseConnection;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use super::accounts::{acting, writable};
 use super::message_files::{inside, type_of};
 use super::{Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::data_root::room_path;
@@ -92,11 +94,15 @@ pub struct PictureCursor {
 #[serde(rename_all = "camelCase")]
 pub struct Pinning {
   room_ids: Vec<i64>,
+  #[serde(default)]
+  account: Option<i64>,
 }
 
 #[derive(Deserialize)]
 pub struct PinnedRoom {
   room: i64,
+  #[serde(default)]
+  account: Option<i64>,
 }
 
 fn failed(why: NotReceived) -> Refusal {
@@ -136,6 +142,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     .collect();
   let modes = crate::roads::added::modes(db).await.map_err(store)?;
   let listen_list = rows::listen_list(db).await.map_err(store)?;
+  let private = crate::accounts::private_rooms(&receiver).await.map_err(failed)?;
   let mut items: Vec<Value> = vec![];
 
   for room in listed {
@@ -167,6 +174,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
       "listened": standing.listened(),
       "workRoom": work.chat_id,
       "mode": modes.get(&room.chat_id).map(|mode| mode.as_str()),
+      "privateOf": private.get(&room.chat_id),
     }));
   }
 
@@ -394,13 +402,25 @@ pub async fn room_situation(State(served): State<Served>, Path(room): Path<i64>)
   }))
 }
 
-/// The pinned order set whole, answered as it now stands.
-pub async fn pin(State(served): State<Served>, body: Bytes) -> Answered {
+/// The pinned order set whole, answered as it now stands; refused where it pins or unpins another account's private
+/// room.
+pub async fn pin(State(served): State<Served>, raw: RawQuery, body: Bytes) -> Answered {
   let asked = read::<Pinning>(&body)?;
+  let account = acting(raw, asked.account)?;
   let db = served.receiver.db();
 
   for room in &asked.room_ids {
     unheld(db, *room).await?;
+  }
+
+  let standing = pinned::pinned(db).await.map_err(store)?;
+  let moved = standing
+    .iter()
+    .filter(|room| !asked.room_ids.contains(room))
+    .chain(asked.room_ids.iter().filter(|room| !standing.contains(room)));
+
+  for room in moved {
+    writable(&served.receiver, *room, account).await?;
   }
 
   pinned::pin(db, &asked.room_ids)
@@ -411,11 +431,12 @@ pub async fn pin(State(served): State<Served>, body: Bytes) -> Answered {
 }
 
 /// A room stood last in the pinned order, answered as the order now stands.
-pub async fn pin_one(State(served): State<Served>, body: Bytes) -> Answered {
+pub async fn pin_one(State(served): State<Served>, raw: RawQuery, body: Bytes) -> Answered {
   let asked = read::<PinnedRoom>(&body)?;
   let db = served.receiver.db();
 
   unheld(db, asked.room).await?;
+  writable(&served.receiver, asked.room, acting(raw, asked.account)?).await?;
 
   pinned::add(db, asked.room)
     .await
@@ -425,7 +446,9 @@ pub async fn pin_one(State(served): State<Served>, body: Bytes) -> Answered {
 }
 
 /// A room taken out of the pinned order, answered as the order now stands.
-pub async fn unpin(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
+pub async fn unpin(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  writable(&served.receiver, room, acting(raw, None)?).await?;
+
   pinned::remove(served.receiver.db(), room)
     .await
     .map(|rooms| json!({ "roomIds": rooms }))

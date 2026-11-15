@@ -466,11 +466,11 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(await client.PUT("/voice-briefing", { body }));
     },
 
-    /** `POST /rooms/{roomId}/messages/{messageId}/reading`. */
-    async readLine(roomId: number, messageId: number): Promise<LineReading> {
+    /** `POST /rooms/{roomId}/messages/{messageId}/reading`, for the account the console reads it for where it names one. */
+    async readLine(roomId: number, messageId: number, account?: number): Promise<LineReading> {
       return answered(
         await client.POST("/rooms/{roomId}/messages/{messageId}/reading", {
-          params: { path: { roomId, messageId } },
+          params: { path: { roomId, messageId }, query: account === undefined ? {} : { account } },
         }),
       );
     },
@@ -618,9 +618,13 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(await client.POST("/pinned-rooms", { body }));
     },
 
-    /** `DELETE /pinned-rooms/{roomId}`. */
-    async unpinRoom(roomId: number): Promise<PinnedRooms> {
-      return answered(await client.DELETE("/pinned-rooms/{roomId}", { params: { path: { roomId } } }));
+    /** `DELETE /pinned-rooms/{roomId}`, for the account that unpins it where the console names one. */
+    async unpinRoom(roomId: number, account?: number): Promise<PinnedRooms> {
+      return answered(
+        await client.DELETE("/pinned-rooms/{roomId}", {
+          params: { path: { roomId }, query: account === undefined ? {} : { account } },
+        }),
+      );
     },
   };
 }

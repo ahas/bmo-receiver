@@ -960,6 +960,14 @@
       "Editing": {
         "description": "The new words of the signed-in person's own message.",
         "properties": {
+          "account": {
+            "description": "The account the act is for where the console acts for one; refused in another account's private room.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "text": {
             "type": "string"
           }
@@ -1242,8 +1250,23 @@
         "type": "object"
       },
       "Forward": {
-        "description": "A message forwarded into another room: the room it goes into.",
+        "description": "A message forwarded into another room: the room it goes into, and the account that forwards it with the name it\nis shown by, where the console forwards for one; the owner's where it names none.",
         "properties": {
+          "account": {
+            "description": "The forwarding account, whose sender the copy stands under; refused into another account's private room.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "The forwarding account's shown name, else the name its identity last went by.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "to": {
             "format": "int64",
             "type": "integer"
@@ -2519,6 +2542,14 @@
       "PinRoom": {
         "description": "One room pinned.",
         "properties": {
+          "account": {
+            "description": "The account the act is for where the console acts for one; refused in another account's private room.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "room": {
             "format": "int64",
             "type": "integer"
@@ -2532,6 +2563,14 @@
       "PinRooms": {
         "description": "The pinned order set whole.",
         "properties": {
+          "account": {
+            "description": "The account pinning; refused where the order pins or unpins another account's private room.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "roomIds": {
             "items": {
               "format": "int64",
@@ -2564,6 +2603,14 @@
       "Pinning": {
         "description": "A pin the signed-in person sets on a message, or takes off.",
         "properties": {
+          "account": {
+            "description": "The account the act is for where the console acts for one; refused in another account's private room.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "on": {
             "type": "boolean"
           }
@@ -2709,6 +2756,14 @@
       "Reacting": {
         "description": "One message, wherever it is answered.\nA reaction the signed-in person puts on a message, by its emoji.",
         "properties": {
+          "account": {
+            "description": "The account the act is for where the console acts for one; refused in another account's private room.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "emoji": {
             "type": "string"
           }
@@ -2824,6 +2879,14 @@
           "pinned": {
             "type": "boolean"
           },
+          "privateOf": {
+            "description": "The account whose private room this is: a BMO's own room on the record, or the owner's private room; null for\nevery other room, a group room every other member has left among them.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "registered": {
             "type": "boolean"
           },
@@ -2866,7 +2929,8 @@
           "registered",
           "listened",
           "workRoom",
-          "mode"
+          "mode",
+          "privateOf"
         ],
         "type": "object"
       },
@@ -3482,8 +3546,28 @@
         "type": "object"
       },
       "Sticker": {
-        "description": "A sticker of the record's set, by its emoji: one the set lists, or one the signed-in person sends.",
+        "description": "A sticker of the record's set, by its emoji, as the set lists it.",
         "properties": {
+          "emoji": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "emoji"
+        ],
+        "type": "object"
+      },
+      "StickerSend": {
+        "description": "A sticker of the record's set the signed-in person sends, by its emoji.",
+        "properties": {
+          "account": {
+            "description": "The account the act is for where the console acts for one; refused in another account's private room.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "emoji": {
             "type": "string"
           }
@@ -5403,7 +5487,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room stood last in the pinned order.",
@@ -5414,6 +5498,8 @@
           "unauthorized",
           "bad-request",
           "not-found",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       },
@@ -5448,7 +5534,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
           }
         },
         "summary": "The pinned order set whole.",
@@ -5459,6 +5545,8 @@
           "unauthorized",
           "bad-request",
           "not-found",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -5473,6 +5561,14 @@
             "required": true,
             "schema": {
               "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
               "type": "integer"
             }
           }
@@ -5496,7 +5592,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room taken out of the pinned order.",
@@ -5505,6 +5601,9 @@
         ],
         "x-codes": [
           "unauthorized",
+          "bad-request",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -6797,6 +6896,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -6818,19 +6925,22 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, no-caller, message-unknown, message-deleted, message-forbidden, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed"
           }
         },
-        "summary": "The signed-in person's own message deleted, or any by the administrator.",
+        "summary": "The signed-in person's own message deleted, or any by the administrator outside another account's private room.",
         "tags": [
           "Messages"
         ],
         "x-codes": [
           "unauthorized",
+          "bad-request",
           "no-caller",
           "message-unknown",
           "message-deleted",
           "message-forbidden",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       },
@@ -6939,7 +7049,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed"
           }
         },
         "summary": "The signed-in person's own message edited.",
@@ -6953,6 +7063,8 @@
           "message-unknown",
           "message-deleted",
           "message-forbidden",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -7145,10 +7257,10 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed"
           }
         },
-        "summary": "A message the owner forwards into another room, kept there as his and marked as forwarded.",
+        "summary": "A message forwarded into another room, kept there as the forwarding account's, the owner's where the body names none, and marked as forwarded.",
         "tags": [
           "Sends"
         ],
@@ -7157,6 +7269,8 @@
           "bad-request",
           "not-found",
           "conflict",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -7324,7 +7438,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, private-room, upstream-failed, failed"
           }
         },
         "summary": "A message pinned or unpinned by the signed-in person.",
@@ -7337,6 +7451,8 @@
           "no-caller",
           "message-unknown",
           "message-deleted",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -7362,6 +7478,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -7383,7 +7507,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, no-caller, message-unknown, message-deleted, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, private-room, upstream-failed, failed"
           }
         },
         "summary": "The signed-in person's reaction taken off a message.",
@@ -7392,9 +7516,12 @@
         ],
         "x-codes": [
           "unauthorized",
+          "bad-request",
           "no-caller",
           "message-unknown",
           "message-deleted",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       },
@@ -7449,7 +7576,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, private-room, upstream-failed, failed"
           }
         },
         "summary": "The signed-in person's reaction put on a message.",
@@ -7462,6 +7589,8 @@
           "no-caller",
           "message-unknown",
           "message-deleted",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -7487,6 +7616,14 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -7508,7 +7645,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, not-found, switched-off, voiceless, unreachable, upstream-failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, switched-off, voiceless, unreachable, private-room, upstream-failed"
           }
         },
         "summary": "A line's full reading, launched in the voice engine where none stands, answered as it stands there otherwise.",
@@ -7517,10 +7654,12 @@
         ],
         "x-codes": [
           "unauthorized",
+          "bad-request",
           "not-found",
           "switched-off",
           "voiceless",
           "unreachable",
+          "private-room",
           "upstream-failed"
         ]
       }
@@ -8647,7 +8786,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Sticker"
+                "$ref": "#/components/schemas/StickerSend"
               }
             }
           },
@@ -8672,7 +8811,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, no-caller, unknown-sticker, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, no-caller, unknown-sticker, private-room, upstream-failed, failed"
           }
         },
         "summary": "A sticker of the record's set sent as the signed-in person.",
@@ -8684,6 +8823,8 @@
           "bad-request",
           "no-caller",
           "unknown-sticker",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }

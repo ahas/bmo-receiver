@@ -134,7 +134,7 @@ family. No code carries a sentence in a room's language.
 
 | Code | Status | Fields | When |
 |---|---|---|---|
-| `private-room` | 403 | `room`, `account` | the room is one account's private room with its BMO, or the owner's private room: words or files from any other account, or a member let in or taken out by any account (`docs/receiver.md`, 「Console rooms and accounts」) |
+| `private-room` | 403 | `room`, `account` | the room is one account's private room with its BMO, or the owner's private room: any write act there naming another account (words, files, a reaction, an edit, a removal, a pin, a sticker, a forward into it, a line read aloud, a room pinned or unpinned), or a member let in or taken out by any account (`docs/receiver.md`, 「Console rooms and accounts」) |
 
 ### RoomMembersRefusal
 

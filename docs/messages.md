@@ -89,8 +89,9 @@ and when a room sees it typing.
 - **A signed-in person acts on a message from the console** as the agents do on the record: reacts, pins, edits
   and deletes their own, and sends a sticker of the record's set (`docs/api.md`, 「Messages」); a room's pinned
   messages are listed newest pin first.
-- **The owner forwards a message from the console** into another room: a copy kept there as his, marked as
-  forwarded with where it came from and who said it, carried out on that room's own road and waking nobody
+- **An account forwards a message from the console** into another room: a copy kept there as the forwarding
+  account's, the owner's where the call names no account, marked as forwarded with where it came from and who said
+  it, carried out on that room's own road and waking nobody
   (`docs/api.md`, 「Sends」). A picture the message stores is kept again under the copy, so the copy shows and
   reads as a picture wherever the original does, and goes to the room's other providers as a picture with the
   message's words as its caption; a picture whose file is no longer there leaves the copy with the words alone.

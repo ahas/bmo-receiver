@@ -6,7 +6,7 @@
 use axum::{
   Json,
   body::Bytes,
-  extract::{Multipart, Path, State},
+  extract::{Multipart, Path, RawQuery, State},
   http::StatusCode,
 };
 use bmo_chat_client::{ChatFileKind, FileItem, MessageFile};
@@ -14,9 +14,10 @@ use receiver_policy::roads::ROADS;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use super::accounts::{acting, speaker, writable};
 use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::data_root::room_path;
-use crate::receiver::{Context, Inbound, NotReceived, Receiver, rows};
+use crate::receiver::{Context, Inbound, NotReceived, Receiver, reads, rows};
 use crate::roads::providers::{self, Carried, Delivery, SaidBy};
 use crate::roads::{Road, record};
 use crate::routes::as_owner::{OwnerFile, refusal};
@@ -513,13 +514,49 @@ async fn say_voice(
 #[derive(Deserialize)]
 pub struct ForwardBody {
   to: i64,
+  #[serde(default)]
+  account: Option<i64>,
+  #[serde(default)]
+  name: Option<String>,
 }
 
-/// A message the owner forwards into another room (docs/api.md, 「Sends」): a copy kept there as his, marked with
-/// where it came from and who said it, carried out on that room's own road, waking nobody.
+// Who a forward is kept as: the owner where it names no account, and otherwise who the account speaks as, under the
+// shown name the call gives, else the name its identity last went by, else its key.
+async fn forwarder(
+  receiver: &Receiver,
+  room: i64,
+  account: Option<i64>,
+  name: Option<&str>,
+) -> Result<Speaking, Refusal> {
+  let Some(account) = account else {
+    return Ok(Speaking::owner(receiver, room).await);
+  };
+  let given = name.map(str::trim).filter(|name| !name.is_empty());
+  let speaking = speaker(receiver, room, account, given.unwrap_or_default()).await?;
+
+  if given.is_some() || speaking.said_by == SaidBy::Owner {
+    return Ok(speaking);
+  }
+
+  let name = reads::display_name(receiver.db(), speaking.sender_id)
+    .await
+    .map_err(store)?
+    .unwrap_or_else(|| account.to_string());
+
+  Ok(Speaking {
+    sender_id: speaking.sender_id,
+    name: name.clone(),
+    said_by: SaidBy::Account { account, name },
+  })
+}
+
+/// A message forwarded into another room (docs/api.md, 「Sends」): a copy kept there as the forwarding account's, the
+/// owner's where the call names none, marked with where it came from and who said it, carried out on that room's own
+/// road, waking nobody. Nothing is forwarded into another account's private room.
 pub async fn forward(
   State(served): State<Served>,
   Path((room, message)): Path<(i64, i64)>,
+  raw: RawQuery,
   body: Bytes,
 ) -> Result<(StatusCode, Json<Value>), Refusal> {
   let asked = read::<ForwardBody>(&body)?;
@@ -555,14 +592,22 @@ pub async fn forward(
     ));
   }
 
-  let name = receiver.owner_name(asked.to).await;
+  let account = acting(raw, asked.account)?;
+
+  writable(&receiver, asked.to, account).await?;
+
+  let Speaking {
+    sender_id,
+    name,
+    said_by,
+  } = forwarder(&receiver, asked.to, account, asked.name.as_deref()).await?;
   let kept = record::Kept {
     chat_id: asked.to,
     number: None,
     text: &source.text,
     reply_to: None,
     via: Road::Record.key(),
-    sender_id: Some(receiver.owner_id()),
+    sender_id: Some(sender_id),
     name: &name,
     agent: None,
     voice: None,
@@ -576,7 +621,7 @@ pub async fn forward(
     let inbound = Inbound {
       chat_id: asked.to,
       message_id: copy,
-      sender_id: Some(receiver.owner_id()),
+      sender_id: Some(sender_id),
       sender_name: name.clone(),
       sent_at: now_ms(),
       text: source.text.clone(),
@@ -622,7 +667,7 @@ pub async fn forward(
     chat_id: asked.to,
     message_id: copy,
     reply_to: None,
-    said_by: SaidBy::Owner,
+    said_by,
     standing: vec![Road::Record.key().to_owned()],
     carried: match picture {
       Some(file) => Carried::Files {

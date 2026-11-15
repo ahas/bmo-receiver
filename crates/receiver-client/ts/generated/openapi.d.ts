@@ -826,7 +826,7 @@ export interface paths {
         get: operations["message"];
         put?: never;
         post?: never;
-        /** The signed-in person's own message deleted, or any by the administrator. */
+        /** The signed-in person's own message deleted, or any by the administrator outside another account's private room. */
         delete: operations["deleteAsMe"];
         options?: never;
         head?: never;
@@ -877,7 +877,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** A message the owner forwards into another room, kept there as his and marked as forwarded. */
+        /** A message forwarded into another room, kept there as the forwarding account's, the owner's where the body names none, and marked as forwarded. */
         post: operations["forward"];
         delete?: never;
         options?: never;
@@ -1896,6 +1896,11 @@ export interface components {
         };
         /** @description The new words of the signed-in person's own message. */
         Editing: {
+            /**
+             * Format: int64
+             * @description The account the act is for where the console acts for one; refused in another account's private room.
+             */
+            account?: number | null;
             text: string;
         };
         /** @description A room's figures. */
@@ -1983,8 +1988,18 @@ export interface components {
             /** Format: int64 */
             forgotten: number;
         };
-        /** @description A message forwarded into another room: the room it goes into. */
+        /**
+         * @description A message forwarded into another room: the room it goes into, and the account that forwards it with the name it
+         *     is shown by, where the console forwards for one; the owner's where it names none.
+         */
         Forward: {
+            /**
+             * Format: int64
+             * @description The forwarding account, whose sender the copy stands under; refused into another account's private room.
+             */
+            account?: number | null;
+            /** @description The forwarding account's shown name, else the name its identity last went by. */
+            name?: string | null;
             /** Format: int64 */
             to: number;
         };
@@ -2442,11 +2457,21 @@ export interface components {
         };
         /** @description One room pinned. */
         PinRoom: {
+            /**
+             * Format: int64
+             * @description The account the act is for where the console acts for one; refused in another account's private room.
+             */
+            account?: number | null;
             /** Format: int64 */
             room: number;
         };
         /** @description The pinned order set whole. */
         PinRooms: {
+            /**
+             * Format: int64
+             * @description The account pinning; refused where the order pins or unpins another account's private room.
+             */
+            account?: number | null;
             roomIds: number[];
         };
         /** @description The pinned order as it now stands. */
@@ -2455,6 +2480,11 @@ export interface components {
         };
         /** @description A pin the signed-in person sets on a message, or takes off. */
         Pinning: {
+            /**
+             * Format: int64
+             * @description The account the act is for where the console acts for one; refused in another account's private room.
+             */
+            account?: number | null;
             on: boolean;
         };
         /** @description A room's pinned messages, newest pin first. */
@@ -2520,6 +2550,11 @@ export interface components {
          *     A reaction the signed-in person puts on a message, by its emoji.
          */
         Reacting: {
+            /**
+             * Format: int64
+             * @description The account the act is for where the console acts for one; refused in another account's private room.
+             */
+            account?: number | null;
             emoji: string;
         };
         /** @description A reaction the record keeps on a message: its emoji and who put it there, an agent's name or a person's number. */
@@ -2564,6 +2599,12 @@ export interface components {
             mode: components["schemas"]["RoomMode"] | null;
             ownerRoom: boolean;
             pinned: boolean;
+            /**
+             * Format: int64
+             * @description The account whose private room this is: a BMO's own room on the record, or the owner's private room; null for
+             *     every other room, a group room every other member has left among them.
+             */
+            privateOf: number | null;
             registered: boolean;
             /** @description The people that have stood as a sender in the room. */
             senders: number[];
@@ -2782,8 +2823,17 @@ export interface components {
             /** @description The room's title; a group's, which a group needs. */
             title?: string | null;
         };
-        /** @description A sticker of the record's set, by its emoji: one the set lists, or one the signed-in person sends. */
+        /** @description A sticker of the record's set, by its emoji, as the set lists it. */
         Sticker: {
+            emoji: string;
+        };
+        /** @description A sticker of the record's set the signed-in person sends, by its emoji. */
+        StickerSend: {
+            /**
+             * Format: int64
+             * @description The account the act is for where the console acts for one; refused in another account's private room.
+             */
+            account?: number | null;
             emoji: string;
         };
         /** @description The stickers the record keeps. */
@@ -3976,7 +4026,7 @@ export interface operations {
                     "application/json": components["schemas"]["PinnedRooms"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4009,7 +4059,7 @@ export interface operations {
                     "application/json": components["schemas"]["PinnedRooms"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4022,7 +4072,9 @@ export interface operations {
     };
     unpinRoom: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -4040,7 +4092,7 @@ export interface operations {
                     "application/json": components["schemas"]["PinnedRooms"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4842,7 +4894,9 @@ export interface operations {
     };
     deleteAsMe: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -4861,7 +4915,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, no-caller, message-unknown, message-deleted, message-forbidden, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4897,7 +4951,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5009,7 +5063,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5109,7 +5163,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5145,7 +5199,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5158,7 +5212,9 @@ export interface operations {
     };
     unreactAsMe: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5177,7 +5233,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, no-caller, message-unknown, message-deleted, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5190,7 +5246,9 @@ export interface operations {
     };
     readLine: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: number;
+            };
             header?: never;
             path: {
                 roomId: number;
@@ -5209,7 +5267,7 @@ export interface operations {
                     "application/json": components["schemas"]["LineReading"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, not-found, switched-off, voiceless, unreachable, upstream-failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, switched-off, voiceless, unreachable, private-room, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5869,7 +5927,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Sticker"];
+                "application/json": components["schemas"]["StickerSend"];
             };
         };
         responses: {
@@ -5882,7 +5940,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, no-caller, unknown-sticker, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, no-caller, unknown-sticker, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -2,6 +2,8 @@
 //! account's record identity, a room's members by account, and the private rooms one account alone speaks in. The
 //! accounts themselves are the web unit's; the receiver keeps only what its rooms need of them.
 
+use std::collections::BTreeMap;
+
 use sea_orm::DatabaseConnection;
 
 use crate::receiver::wake::agents::{Designated, listed_designated};
@@ -213,24 +215,37 @@ pub async fn private_account(receiver: &Receiver, chat_id: i64) -> Result<Option
   )
 }
 
-/// The private rooms of an account: the own rooms of the supervisors it owns, and the owner's private room for the
-/// owner's account.
-pub async fn private_rooms_of(receiver: &Receiver, account: i64) -> Result<Vec<i64>, NotReceived> {
-  let mut rooms = Vec::new();
+/// Every private room, each to the account it is private to: the owner's private room to the owner's account, and
+/// the own room on the record of each supervisor that names its owner account to that account. A group room stands
+/// among none of them, however many of its members have left it.
+pub async fn private_rooms(receiver: &Receiver) -> Result<BTreeMap<i64, i64>, NotReceived> {
+  let mut rooms = BTreeMap::new();
 
-  if owner_account(receiver).await? == Some(account) {
-    rooms.push(receiver.owner_room());
+  if let Some(account) = owner_account(receiver).await? {
+    rooms.insert(receiver.owner_room(), account);
   }
 
   for agent in listed_designated(receiver).await? {
-    if agent.owner_account == Some(account)
+    if let Some(account) = agent.owner_account
       && let Some(room) = room_of_supervisor(receiver.db(), &agent.name).await?
     {
-      rooms.push(room);
+      rooms.insert(room, account);
     }
   }
 
   Ok(rooms)
+}
+
+/// The private rooms of an account: the own rooms of the supervisors it owns, and the owner's private room for the
+/// owner's account.
+pub async fn private_rooms_of(receiver: &Receiver, account: i64) -> Result<Vec<i64>, NotReceived> {
+  Ok(
+    private_rooms(receiver)
+      .await?
+      .into_iter()
+      .filter_map(|(room, own)| (own == account).then_some(room))
+      .collect(),
+  )
 }
 
 /// Who an account's words in the console stand under: the owner's sender where the web unit links the account to

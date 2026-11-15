@@ -2,7 +2,9 @@
 //! says carry nothing granted to the owner, the owner's account keeps all of it as his own road does, a provider
 //! speaks as the account only where it says it can, a room's members by account come and go with a line saying so,
 //! an account's record identity is made once, a BMO's private room wakes on its account's words alone and refuses
-//! every other, a read of it leaves nothing behind, and a messenger's member is answered as before.
+//! every other, a read of it leaves nothing behind, and a messenger's member is answered as before. Every room read
+//! says whose private room it is, every write another account makes in one is refused while its own go through, a
+//! group room every other member has left stays a group room, and a forward stands under the account that forwards.
 
 use std::sync::Arc;
 
@@ -675,4 +677,304 @@ async fn files_another_account_sends_stand_under_its_identity_and_go_out_in_the_
 
   assert!(sent.iter().all(|(_, voice, _)| *voice == Some(ChatVoice::BotAccount)), "{sent:?}");
   assert!(sent.iter().any(|(words, _, _)| words.contains("Bea: look")), "{sent:?}");
+}
+
+// The administrator's account, which the web unit links to no sender of the owner's.
+const ADMIN: i64 = 5;
+
+// A write as the routes take it: its method, its path with its query, and its body where it has one.
+type Write = (&'static str, String, Option<Value>);
+
+// A write the console relay hands over for an account: `Owner-Key` naming it, `Owner-Role` its role.
+async fn relayed(
+  port: &Router,
+  (method, path, body): Write,
+  account: i64,
+  role: &str,
+) -> (StatusCode, Value) {
+  let request = Request::builder()
+    .method(method)
+    .uri(&path)
+    .header("authorization", format!("Bearer {TOKEN}"))
+    .header("content-type", "application/json")
+    .header("owner-key", account.to_string())
+    .header("owner-role", role)
+    .body(body.map_or_else(Body::empty, |body| Body::from(body.to_string())))
+    .unwrap();
+  let answer = port.clone().oneshot(request).await.unwrap();
+  let status = answer.status();
+  let written = to_bytes(answer.into_body(), usize::MAX).await.unwrap();
+
+  (status, serde_json::from_slice(&written).unwrap_or(Value::Null))
+}
+
+// Every write act the console makes in a room for an account, each by its name: on the message `message` of the
+// room, and a forward into the room of the message `from` of the room `source`.
+fn writes(
+  room: i64,
+  message: i64,
+  (source, from): (i64, i64),
+  sticker: &str,
+  account: i64,
+) -> Vec<(&'static str, Write)> {
+  let on = format!("/rooms/{room}/messages/{message}");
+
+  vec![
+    (
+      "reaction",
+      (
+        "PUT",
+        format!("{on}/reactions/mine"),
+        Some(json!({ "emoji": sticker, "account": account })),
+      ),
+    ),
+    ("reaction taken off", ("DELETE", format!("{on}/reactions/mine?account={account}"), None)),
+    (
+      "message pin",
+      ("PUT", format!("{on}/pin"), Some(json!({ "on": true, "account": account }))),
+    ),
+    ("edit", ("PATCH", on.clone(), Some(json!({ "text": "changed", "account": account })))),
+    (
+      "sticker",
+      (
+        "POST",
+        format!("/rooms/{room}/stickers"),
+        Some(json!({ "emoji": sticker, "account": account })),
+      ),
+    ),
+    (
+      "forward",
+      (
+        "POST",
+        format!("/rooms/{source}/messages/{from}/forwards"),
+        Some(json!({ "to": room, "account": account })),
+      ),
+    ),
+    ("reading", ("POST", format!("{on}/reading?account={account}"), None)),
+    (
+      "room pin",
+      ("POST", "/pinned-rooms".to_owned(), Some(json!({ "room": room, "account": account }))),
+    ),
+    ("room unpin", ("DELETE", format!("/pinned-rooms/{room}?account={account}"), None)),
+    (
+      "pinned order",
+      (
+        "PUT",
+        "/pinned-rooms".to_owned(),
+        Some(json!({ "roomIds": [room], "account": account })),
+      ),
+    ),
+    (
+      "words",
+      (
+        "POST",
+        format!("/rooms/{room}/words"),
+        Some(json!({ "account": account, "name": "A", "text": "hi" })),
+      ),
+    ),
+    ("removal", ("DELETE", format!("{on}?account={account}"), None)),
+  ]
+}
+
+async fn a_sticker(port: &Router) -> String {
+  asked(port, "GET", "/stickers", None).await.1["items"][0]["emoji"]
+    .as_str()
+    .unwrap()
+    .to_owned()
+}
+
+#[tokio::test]
+async fn every_write_another_account_makes_in_a_private_room_is_refused_and_its_own_goes_through() {
+  let stood = stood(false).await;
+  let sticker = a_sticker(&stood.port).await;
+  let beas = identity(&stood.port, BEA).await;
+
+  stood.standing.web.linking(beas, BEA.to_string());
+
+  let source = group(&stood.port, BEA).await;
+  let from = said(&stood.port, source, BEA, "Bea", "worth passing on").await;
+  let hers = said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
+  let owners = said(&stood.port, OWNER, OWNERS, "Owner", "only for me").await;
+  let before = lines(&stood, BEAS_ROOM).await;
+
+  for (room, message) in [(BEAS_ROOM, hers), (OWNER, owners)] {
+    for (other, role) in [(ADMIN, "administrator"), (CAL, "member")] {
+      for (act, write) in writes(room, message, (source, from), &sticker, other) {
+        let (status, refusal) = relayed(&stood.port, write, other, role).await;
+
+        assert_eq!(
+          (status, refusal["code"].clone(), refusal["error"].is_string()),
+          (StatusCode::FORBIDDEN, json!("private-room"), true),
+          "{act} by account {other} in room {room}: {refusal}"
+        );
+      }
+    }
+  }
+
+  // An act on a message names its account by the relay's `Owner-Key` where its call names none.
+  let (status, refusal) = relayed(
+    &stood.port,
+    ("PUT", format!("/rooms/{BEAS_ROOM}/messages/{hers}/pin"), Some(json!({ "on": true }))),
+    ADMIN,
+    "administrator",
+  )
+  .await;
+
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::FORBIDDEN, json!("private-room")));
+  assert_eq!(lines(&stood, BEAS_ROOM).await, before, "nothing refused was kept");
+
+  for (act, write) in writes(BEAS_ROOM, hers, (source, from), &sticker, BEA) {
+    let (status, answer) = relayed(&stood.port, write, BEA, "member").await;
+
+    if act == "reading" {
+      // Her own words are no agent's line to read: the ask goes on to the reading's own judgement.
+      assert_eq!(status, StatusCode::NOT_FOUND, "{act}: {answer}");
+    } else {
+      assert!(status.is_success(), "{act} by the room's own account: {status} {answer}");
+    }
+  }
+
+  let (status, answer) = relayed(
+    &stood.port,
+    (
+      "PUT",
+      format!("/rooms/{OWNER}/messages/{owners}/pin"),
+      Some(json!({ "on": true, "account": OWNERS })),
+    ),
+    OWNERS,
+    "administrator",
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "the owner's account acts in his private room: {answer}");
+}
+
+#[tokio::test]
+async fn an_act_naming_an_account_owner_key_does_not_is_refused() {
+  let stood = stood(false).await;
+  let room = group(&stood.port, BEA).await;
+  let words = said(&stood.port, room, BEA, "Bea", "hello").await;
+  let (status, refusal) = relayed(
+    &stood.port,
+    (
+      "PUT",
+      format!("/rooms/{room}/messages/{words}/pin"),
+      Some(json!({ "on": true, "account": BEA })),
+    ),
+    CAL,
+    "member",
+  )
+  .await;
+
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::BAD_REQUEST, json!("bad-request")));
+}
+
+#[tokio::test]
+async fn a_group_room_every_other_member_has_left_is_no_private_room() {
+  let stood = stood(false).await;
+  let sticker = a_sticker(&stood.port).await;
+  let room = group(&stood.port, BEA).await;
+
+  asked(&stood.port, "PUT", &format!("/rooms/{room}/accounts/{CAL}"), Some(json!({ "by": BEA }))).await;
+  asked(&stood.port, "DELETE", &format!("/rooms/{room}/accounts/{BEA}?by={BEA}"), None).await;
+
+  assert_eq!(members(&stood, room).await.as_array().unwrap().len(), 1, "Cal alone stands in it");
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/rooms/{room}"), None).await.1["privateOf"],
+    Value::Null
+  );
+
+  for account in [CAL, ADMIN] {
+    let sender = identity(&stood.port, account).await;
+
+    stood.standing.web.linking(sender, account.to_string());
+  }
+
+  let cals = said(&stood.port, room, CAL, "Cal", "just me now").await;
+  let source = group(&stood.port, BEA).await;
+  let from = said(&stood.port, source, BEA, "Bea", "worth passing on").await;
+
+  // The administrator's writes are judged as in any group room: none refused as a private room's.
+  for (act, write) in writes(room, cals, (source, from), &sticker, ADMIN) {
+    let (status, answer) = relayed(&stood.port, write, ADMIN, "administrator").await;
+
+    assert_ne!(answer["code"], json!("private-room"), "{act}: {status} {answer}");
+  }
+
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/accounts/{CAL}/rooms"), None).await.1,
+    json!({ "rooms": [room] }),
+    "nor is it listed among Cal's private rooms"
+  );
+}
+
+#[tokio::test]
+async fn every_room_read_says_whose_private_room_it_is() {
+  let stood = stood(false).await;
+  let room = group(&stood.port, BEA).await;
+
+  said(&stood.port, BEAS_ROOM, BEA, "Bea", "mine").await;
+  said(&stood.port, OWNER, OWNERS, "Owner", "his").await;
+  said(&stood.port, room, BEA, "Bea", "ours").await;
+
+  let listed = asked(&stood.port, "GET", "/rooms", None).await.1;
+  let private_of = |chat: i64| {
+    listed["items"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .find(|item| item["id"] == json!(chat))
+      .map(|item| item["privateOf"].clone())
+  };
+
+  assert_eq!(private_of(BEAS_ROOM), Some(json!(BEA)));
+  assert_eq!(private_of(OWNER), Some(json!(OWNERS)));
+  assert_eq!(private_of(room), Some(Value::Null));
+
+  for (chat, own) in [(BEAS_ROOM, json!(BEA)), (OWNER, json!(OWNERS)), (room, Value::Null)] {
+    assert_eq!(asked(&stood.port, "GET", &format!("/rooms/{chat}"), None).await.1["privateOf"], own);
+  }
+}
+
+#[tokio::test]
+async fn a_forward_stands_under_the_account_that_forwards_it() {
+  let stood = stood(false).await;
+  let beas = identity(&stood.port, BEA).await;
+  let source = group(&stood.port, BEA).await;
+  let into = group(&stood.port, BEA).await;
+  let from = said(&stood.port, source, BEA, "Bea", "worth passing on").await;
+  let owner_name = stood.standing.receiver.owner_name(into).await;
+  let forwarded = |body: Value| {
+    let port = stood.port.clone();
+
+    async move {
+      let (status, answer) =
+        asked(&port, "POST", &format!("/rooms/{source}/messages/{from}/forwards"), Some(body)).await;
+
+      assert_eq!(status, StatusCode::CREATED, "{answer}");
+      answer["id"].as_i64().unwrap()
+    }
+  };
+
+  let unnamed = forwarded(json!({ "to": into, "account": BEA })).await;
+  let named = forwarded(json!({ "to": into, "account": BEA, "name": "Bea B" })).await;
+  let owners = forwarded(json!({ "to": into, "account": OWNERS })).await;
+  let nobodys = forwarded(json!({ "to": into })).await;
+
+  assert_eq!(kept_as(&stood, into, named).await, (beas, "Bea B".to_owned()));
+  assert_eq!(
+    kept_as(&stood, into, unnamed).await,
+    (beas, "Bea".to_owned()),
+    "the name she last went by"
+  );
+  assert_eq!(
+    kept_as(&stood, into, owners).await,
+    (OWNER, owner_name.clone()),
+    "the owner's account is his"
+  );
+  assert_eq!(
+    kept_as(&stood, into, nobodys).await,
+    (OWNER, owner_name),
+    "a forward naming none is his"
+  );
 }

@@ -365,14 +365,27 @@ flowchart TD
   owner's account alike. That account is its one member and the room's one-to-one person is its record identity
   once that stands, so its words wake the supervisor with no name and no open window, as a user's own private chat's do
   (`docs/wake.md`, 「Who reaches the session」), and the room is no group: no member's supervisor reads it.
+- **Which rooms are private is the receiver's to say,** from these two rules alone: every room read answers
+  `privateOf`, the account whose private room it is, or null (`docs/api.md`, 「Rooms」). A room is never private by
+  how many members it holds or which providers it is on: a group room every other member has left stays a group
+  room, `privateOf` null, and its writes are judged as any group room's.
 - **Who reads a private room:** its account, and the administrator, who reads every room (`STRUCTURE.md`, 「The
   superadmin reaches everything and changes nothing of another's」). This is the one place the receiver states
   it. The administrator's read changes nothing of another's: no read route of the receiver keeps anything of who
   read, so his read leaves no mark, no window opened, no wake and no event; and in a private room that is not his
-  own, his words and files are refused like any other account's.
-- **Nothing in a private room is said or changed by another account:** words or files there from any account but
-  its own are refused 403 `private-room` before anything is kept, and a member let in or taken out of a private
-  room is refused 403 `private-room` for every account, its own among them.
+  own, every write he makes is refused like any other account's.
+- **Nothing in a private room is said or changed by another account.** Every write act the console makes for an
+  account names that account, and in a private room one naming any account but its own, the administrator's among
+  them, is refused 403 `private-room` before anything is kept, carried or launched: words and files, a reaction put
+  on or taken off, a message pinned or unpinned, an edit, a removal, a sticker, a forward into the room, a line's
+  reading aloud (a turn of the line's agent in the room and a briefing the voice engine keeps for it), and the room
+  pinned or unpinned in the console's pinned order. An act on a message names its account in the call, or else by
+  the account the relay's `Owner-Key` names. A member let in or taken out of a private room is refused 403
+  `private-room` for every account, its own among them. A write naming no account, a unit acting as itself, an
+  agent's own words or a line of the receiver's, is judged as it always was.
+- **A forward is the forwarding account's:** the copy stands under the sender that account speaks as, the owner's
+  for the owner's account and its record identity for any other, and is carried as that account's words are; a
+  forward naming no account is the owner's.
 - **An account's words on a messenger.** The room's chat services are handed the words as every kept message is
   (「A room's chat providers」), each provider deciding by what it declares how the speaker reaches its room:
   - the owner's words go in his own voice, `human-reader`, the account his reader on that service is;

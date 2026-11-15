@@ -47,6 +47,9 @@ pub struct Room {
   pub work_room: i64,
   /// The mode the room was added in; null for a room never added.
   pub mode: Option<RoomMode>,
+  /// The account whose private room this is: a BMO's own room on the record, or the owner's private room; null for
+  /// every other room, a group room every other member has left among them.
+  pub private_of: Option<i64>,
 }
 
 /// What a room added is to the agents: answered as the user, or the user alone.
@@ -205,24 +208,42 @@ pub struct KeptFile {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Reacting {
   pub emoji: String,
+  /// The account the act is for where the console acts for one; refused in another account's private room.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account: Option<i64>,
 }
 
 /// A pin the signed-in person sets on a message, or takes off.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Pinning {
   pub on: bool,
+  /// The account the act is for where the console acts for one; refused in another account's private room.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account: Option<i64>,
 }
 
 /// The new words of the signed-in person's own message.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Editing {
   pub text: String,
+  /// The account the act is for where the console acts for one; refused in another account's private room.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account: Option<i64>,
 }
 
-/// A sticker of the record's set, by its emoji: one the set lists, or one the signed-in person sends.
+/// A sticker of the record's set, by its emoji, as the set lists it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Sticker {
   pub emoji: String,
+}
+
+/// A sticker of the record's set the signed-in person sends, by its emoji.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct StickerSend {
+  pub emoji: String,
+  /// The account the act is for where the console acts for one; refused in another account's private room.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account: Option<i64>,
 }
 
 /// The stickers the record keeps.
@@ -337,11 +358,18 @@ pub struct ForwardedFrom {
   pub sender_name: String,
 }
 
-/// A message forwarded into another room: the room it goes into.
+/// A message forwarded into another room: the room it goes into, and the account that forwards it with the name it
+/// is shown by, where the console forwards for one; the owner's where it names none.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Forward {
   pub to: i64,
+  /// The forwarding account, whose sender the copy stands under; refused into another account's private room.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account: Option<i64>,
+  /// The forwarding account's shown name, else the name its identity last went by.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub name: Option<String>,
 }
 
 /// A reaction the record keeps on a message: its emoji and who put it there, an agent's name or a person's number.
@@ -1208,6 +1236,9 @@ pub struct PinnedRooms {
 #[serde(rename_all = "camelCase")]
 pub struct PinRooms {
   pub room_ids: Vec<i64>,
+  /// The account pinning; refused where the order pins or unpins another account's private room.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account: Option<i64>,
 }
 
 /// One room pinned.
@@ -1215,6 +1246,9 @@ pub struct PinRooms {
 #[serde(rename_all = "camelCase")]
 pub struct PinRoom {
   pub room: i64,
+  /// The account the act is for where the console acts for one; refused in another account's private room.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub account: Option<i64>,
 }
 
 /// What a round settled, without the instructions' text.

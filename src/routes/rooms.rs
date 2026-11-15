@@ -60,6 +60,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let supervisors = crate::receiver::figures::answerers(db, room).await.map_err(store)?;
   let senders = reads::senders(db, room).await.map_err(store)?;
   let mode = added::mode_of(db, room).await.map_err(store)?;
+  let private_of = crate::accounts::private_account(receiver, room).await.map_err(reached)?;
 
   Ok(json!({
     "id": room,
@@ -74,6 +75,7 @@ async fn room_read(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
     "listened": listened,
     "workRoom": work.chat_id,
     "mode": mode.map(RoomMode::as_str),
+    "privateOf": private_of,
   }))
 }
 

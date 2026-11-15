@@ -7,10 +7,10 @@ use strum::{IntoStaticStr, VariantNames};
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum RoomAccountRefusal {
-  /// The room is one account's private room with its BMO: no other account speaks in it, and no account is let
-  /// into it or taken out of it.
+  /// The room is one account's private room: no other account says or changes anything in it, and no account is
+  /// let into it or taken out of it.
   #[error(
-    "room {room} is one account's private room, so account {account} cannot speak in it or change its members"
+    "room {room} is one account's private room, so account {account} cannot say or change anything in it"
   )]
   PrivateRoom { room: i64, account: i64 },
 }

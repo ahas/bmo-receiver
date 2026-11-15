@@ -4,12 +4,13 @@
 //! each act and tells `message.changed`; the owner's acts go on in his own voice where the message stands on the
 //! room's other providers, in the room's own where a provider refuses his, and a member's stand on the record
 //! alone. An act a provider did not carry is named under `notCarried` beside the message's own fields, and the
-//! record keeps the act the same.
+//! record keeps the act the same. Every act acts for an account, the one the call names or else the one the relay's
+//! `Owner-Key` names, and none is taken in another account's private room.
 
 use axum::{
   Json,
   body::Bytes,
-  extract::{Path, State},
+  extract::{Path, RawQuery, State},
   http::{HeaderMap, StatusCode},
 };
 use bmo_chat_client::{ChatSend, ChatSticker, ChatVoice};
@@ -18,6 +19,7 @@ use receiver_policy::roads::ROADS;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use super::accounts::{acting, writable};
 use super::rooms::message_shape;
 use super::{Answered, Refusal, Served, answered, code, read, refused, store};
 use crate::all;
@@ -81,6 +83,34 @@ async fn caller(receiver: &Receiver, asked: &HeaderMap, room: i64) -> Result<Cal
     senders,
     administrator: header("owner-role") == "administrator",
   })
+}
+
+// The account an act is for, the one the call names in its query or body or else the one the relay's `Owner-Key`
+// names, refused where the room is another account's private room or the call names an account `Owner-Key` does not.
+async fn acting_in(
+  receiver: &Receiver,
+  asked: &HeaderMap,
+  room: i64,
+  raw: RawQuery,
+  in_body: Option<i64>,
+) -> Result<(), Refusal> {
+  let named = acting(raw, in_body)?;
+  let keyed = asked
+    .get("owner-key")
+    .and_then(|value| value.to_str().ok())
+    .and_then(|key| key.trim().parse::<i64>().ok());
+
+  if let (Some(named), Some(keyed)) = (named, keyed)
+    && named != keyed
+  {
+    return Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      "an act names the account Owner-Key names, or none",
+    ));
+  }
+
+  writable(receiver, room, named.or(keyed)).await
 }
 
 // The message as the record keeps it, refused where the room keeps none or it was deleted.
@@ -149,6 +179,8 @@ async fn acted(
 #[derive(Deserialize)]
 pub struct Emoji {
   emoji: String,
+  #[serde(default)]
+  account: Option<i64>,
 }
 
 /// The caller's reaction put on a message.
@@ -156,6 +188,7 @@ pub async fn react(
   State(served): State<Served>,
   Path((room, message)): Path<(i64, i64)>,
   asked: HeaderMap,
+  raw: RawQuery,
   body: Bytes,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
@@ -164,6 +197,8 @@ pub async fn react(
   if wanted.emoji.trim().is_empty() {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "A reaction names an emoji."));
   }
+
+  acting_in(&receiver, &asked, room, raw, wanted.account).await?;
 
   let by = caller(&receiver, &asked, room).await?;
 
@@ -193,8 +228,12 @@ pub async fn unreact(
   State(served): State<Served>,
   Path((room, message)): Path<(i64, i64)>,
   asked: HeaderMap,
+  raw: RawQuery,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
+
+  acting_in(&receiver, &asked, room, raw, None).await?;
+
   let by = caller(&receiver, &asked, room).await?;
 
   standing(&receiver, room, message).await?;
@@ -221,6 +260,8 @@ pub async fn unreact(
 #[derive(Deserialize)]
 pub struct Pinned {
   on: bool,
+  #[serde(default)]
+  account: Option<i64>,
 }
 
 /// A message pinned, or unpinned, by anyone signed in.
@@ -228,10 +269,13 @@ pub async fn pin(
   State(served): State<Served>,
   Path((room, message)): Path<(i64, i64)>,
   asked: HeaderMap,
+  raw: RawQuery,
   body: Bytes,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
   let wanted = read::<Pinned>(&body)?;
+
+  acting_in(&receiver, &asked, room, raw, wanted.account).await?;
 
   let by = caller(&receiver, &asked, room).await?;
 
@@ -249,6 +293,8 @@ pub async fn pin(
 #[derive(Deserialize)]
 pub struct Edited {
   text: String,
+  #[serde(default)]
+  account: Option<i64>,
 }
 
 /// The caller's own message edited.
@@ -256,6 +302,7 @@ pub async fn edit(
   State(served): State<Served>,
   Path((room, message)): Path<(i64, i64)>,
   asked: HeaderMap,
+  raw: RawQuery,
   body: Bytes,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
@@ -268,6 +315,8 @@ pub async fn edit(
       "An edit names the message's new words.",
     ));
   }
+
+  acting_in(&receiver, &asked, room, raw, wanted.account).await?;
 
   let by = caller(&receiver, &asked, room).await?;
   let kept = standing(&receiver, room, message).await?;
@@ -287,13 +336,17 @@ pub async fn edit(
   acted(&receiver, &by, (room, message), record::Act::Edit { text: &text }, send).await
 }
 
-/// The caller's own message deleted, or any by the administrator.
+/// The caller's own message deleted, or any by the administrator outside another account's private room.
 pub async fn delete(
   State(served): State<Served>,
   Path((room, message)): Path<(i64, i64)>,
   asked: HeaderMap,
+  raw: RawQuery,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
+
+  acting_in(&receiver, &asked, room, raw, None).await?;
+
   let by = caller(&receiver, &asked, room).await?;
   let kept = standing(&receiver, room, message).await?;
 
@@ -326,10 +379,14 @@ pub async fn sticker(
   State(served): State<Served>,
   Path(room): Path<i64>,
   asked: HeaderMap,
+  raw: RawQuery,
   body: Bytes,
 ) -> Result<(StatusCode, Json<Value>), Refusal> {
   let receiver: Receiver = (*served.receiver).clone();
   let wanted = read::<Emoji>(&body)?;
+
+  acting_in(&receiver, &asked, room, raw, wanted.account).await?;
+
   let by = caller(&receiver, &asked, room).await?;
   let emoji = wanted.emoji.trim().to_owned();
 
