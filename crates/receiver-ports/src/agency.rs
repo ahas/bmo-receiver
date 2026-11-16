@@ -670,10 +670,11 @@ pub trait Agency: Send + Sync {
   /// no supervisor has the name.
   fn road_answers<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>>;
 
-  /// Whether a supervisor's brain is on, as its settings say (docs/drafting.md, 「A supervisor whose brain is
-  /// off」): on where they do not say, where no supervisor has the name, and on an agency that keeps no such setting.
-  fn brain_on<'a>(&'a self, _supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
-    Box::pin(async { Ok(true) })
+  /// A supervisor's brain and reference switches, as its settings say (docs/drafting.md, 「A supervisor
+  /// whose brain or reference is off」): each on where they do not say it, where no supervisor has the name,
+  /// and on an agency that keeps no such setting.
+  fn switches<'a>(&'a self, _supervisor: &'a str) -> BoxFuture<'a, Answer<Switches>> {
+    Box::pin(async { Ok(Switches::default()) })
   }
 
   /// The deployment's rest: whether it stands, until when, and why.
@@ -942,19 +943,40 @@ struct SupervisorRoad {
   answers: bool,
 }
 
-/// A supervisor as its settings page answers it, of which the receiver reads whether its brain is on.
+/// A supervisor as its settings page answers it, of which the receiver reads its two switches.
 #[derive(Deserialize)]
 struct SupervisorSettingsPage {
   #[serde(default)]
-  settings: Option<SupervisorSettings>,
+  settings: Option<Switches>,
 }
 
-/// A supervisor's settings, of which the receiver reads whether its brain is on.
-#[derive(Deserialize)]
+/// A supervisor's switches over what of its brain reaches its turns, each on where its settings do not
+/// say it (docs/drafting.md, 「A supervisor whose brain or reference is off」).
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-struct SupervisorSettings {
+pub struct Switches {
+  /// Whether its brain is on.
   #[serde(default = "on")]
-  brain_on: bool,
+  pub brain_on: bool,
+  /// Whether its turns are given their reference.
+  #[serde(default = "on")]
+  pub reference_on: bool,
+}
+
+impl Default for Switches {
+  fn default() -> Self {
+    Switches {
+      brain_on: true,
+      reference_on: true,
+    }
+  }
+}
+
+impl Switches {
+  /// Whether the brain reaches the supervisor's turns: both switches on, since either off closes it.
+  pub fn brain_reaches(self) -> bool {
+    self.brain_on && self.reference_on
+  }
 }
 
 fn on() -> bool {
@@ -998,12 +1020,12 @@ impl Agency for HttpAgency {
     })
   }
 
-  fn brain_on<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
+  fn switches<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<Switches>> {
     Box::pin(async move {
       let page: Option<SupervisorSettingsPage> =
         self.caller.found(&["supervisors", supervisor, "settings"], &[]).await?;
 
-      Ok(page.and_then(|page| page.settings).is_none_or(|settings| settings.brain_on))
+      Ok(page.and_then(|page| page.settings).unwrap_or_default())
     })
   }
 

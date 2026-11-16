@@ -27,7 +27,7 @@ use receiver_ports::agency::{
   Agency, Agent, Agents, Delivery, DoubleEnd, DoubleSeat, DoubleStart, DoubleTurn, Event, Events,
   FieldRefusal, Forgotten, KeptEvents, Load, NewSupervisor, OpenRun, Passed, Removal, Repository,
   ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine, RunningJob, Said, Scope, Session, SessionState,
-  Turn, TurnRead, Written,
+  Switches, Turn, TurnRead, Written,
 };
 use receiver_ports::brain::BrainUnit;
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
@@ -1279,6 +1279,8 @@ pub struct StandInAgency {
   pub carrier: Mutex<Option<Arc<dyn Agency>>>,
   /// The supervisors whose settings switch their brain off, where a test names any.
   pub brain_off: Mutex<BTreeSet<String>>,
+  /// The supervisors whose settings switch their reference off, where a test names any.
+  pub reference_off: Mutex<BTreeSet<String>>,
 }
 
 impl StandInAgency {
@@ -1295,6 +1297,7 @@ impl StandInAgency {
       refusing: Mutex::default(),
       removal_refused: Mutex::default(),
       brain_off: Mutex::default(),
+      reference_off: Mutex::default(),
       resets: Mutex::default(),
       pushes: Mutex::default(),
       saying: Mutex::default(),
@@ -1436,10 +1439,13 @@ fn agency_down<T: Send + 'static>(path: &str) -> BoxFuture<'static, Answer<T>> {
 }
 
 impl Agency for StandInAgency {
-  fn brain_on<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>> {
-    let on = !self.brain_off.lock().unwrap().contains(supervisor);
+  fn switches<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<Switches>> {
+    let switches = Switches {
+      brain_on: !self.brain_off.lock().unwrap().contains(supervisor),
+      reference_on: !self.reference_off.lock().unwrap().contains(supervisor),
+    };
 
-    Box::pin(async move { Ok(on) })
+    Box::pin(async move { Ok(switches) })
   }
 
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {

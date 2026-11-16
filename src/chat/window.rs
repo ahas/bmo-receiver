@@ -332,13 +332,16 @@ async fn answered_line(
   Ok(Some(message_line(&said.sender_name, said.sender_id, &text)))
 }
 
-/// Whether a supervisor's brain is on (docs/drafting.md, 「A supervisor whose brain is off」): what its settings
-/// say, read afresh; on where the agency does not answer, so a round runs as it does with the brain on.
-pub async fn brain_on(receiver: &Receiver, agent: &str) -> bool {
-  match receiver.units().agency.brain_on(agent).await {
-    Ok(on) => on,
+/// Whether the brain reaches a supervisor's turns (docs/drafting.md, 「A supervisor whose brain or
+/// reference is off」): its brain and its reference both on, as its settings say, read afresh; on where the
+/// agency does not answer, so a round runs as it does with both on.
+pub async fn brain_reaches(receiver: &Receiver, agent: &str) -> bool {
+  match receiver.units().agency.switches(agent).await {
+    Ok(switches) => switches.brain_reaches(),
     Err(why) => {
-      eprintln!("bmo-receiver: {agent}'s brain switch could not be read, so it reads as on: {why}");
+      eprintln!(
+        "bmo-receiver: {agent}'s brain and reference switches could not be read, so they read as on: {why}"
+      );
       true
     }
   }
@@ -397,8 +400,8 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
     answered,
     records: true,
   };
-  // A supervisor whose brain is off is handed nothing the gate would attach from it.
-  let asked = if brain_on(receiver, material.agent).await {
+  // A supervisor whose brain or reference is off is handed nothing the gate would attach from it.
+  let asked = if brain_reaches(receiver, material.agent).await {
     receiver.units().gate.reference(&envelope).await
   } else {
     Ok(vec![])
@@ -452,8 +455,8 @@ pub async fn opening_index(
   session: Option<&str>,
   agent: &str,
 ) -> String {
-  // A supervisor whose brain is off carries no index, no hint and no due line.
-  if !brain_on(receiver, agent).await {
+  // A supervisor whose brain or reference is off carries no index, no hint and no due line.
+  if !brain_reaches(receiver, agent).await {
     return String::new();
   }
 

@@ -3004,8 +3004,8 @@ async fn an_explicit_reply_mark_pins_even_the_newest_line() {
   assert_eq!(pinned_rows(&round).await, ["1"], "the record names the pinned message");
 }
 
-// The stages after the message a row switches off, and a supervisor whose brain is off (docs/drafting.md, 「The
-// process table」 and 「A supervisor whose brain is off」).
+// The stages after the message a row switches off, and a supervisor whose brain or reference is off
+// (docs/drafting.md, 「The process table」 and 「A supervisor whose brain or reference is off」).
 
 #[tokio::test]
 async fn a_row_that_switches_no_stage_off_asks_the_items_the_review_and_the_checks_as_before() {
@@ -3101,6 +3101,25 @@ async fn a_supervisor_whose_brain_is_off_is_handed_no_index_and_asks_the_gate_fo
   let round = Drafting::new(session, &["final"], 150).await;
 
   round.standing.agency.brain_off.lock().unwrap().insert(AGENT.to_owned());
+  round.hear(1, ASKED).await;
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert!(!prompts[0].contains(&CHAT_ROUND.index.rule), "no rule about an index: {}", prompts[0]);
+  assert!(!prompts[0].contains(&CHAT_ROUND.index.hint), "no index: {}", prompts[0]);
+  assert_eq!(*round.standing.gate.referred.lock().unwrap(), 0, "the gate is asked for no core");
+  assert!(sent.len() == 1 && sent[0].contains("the message"), "the round still answers: {sent:?}");
+}
+
+// "the reference switch off closes what the receiver carries exactly as the brain switch off does"
+#[tokio::test]
+async fn a_supervisor_whose_reference_is_off_is_handed_no_index_and_asks_the_gate_for_no_core() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message"]);
+  let round = Drafting::new(session, &["final"], 150).await;
+
+  round.standing.agency.reference_off.lock().unwrap().insert(AGENT.to_owned());
   round.hear(1, ASKED).await;
   round.ended(1).await;
 

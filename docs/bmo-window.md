@@ -275,10 +275,11 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
   rules, its other memories and the brain's references are no turn's to be handed; the agent reads them through
   the index. A turn with no line at all still carries what attaches.
 
-**A supervisor whose brain is off asks the gate for no core.** Its turns carry no entry the gate would attach,
-and its room's block no index, hint or due line, nor the block's rules about the index; a person's own thread still
-goes in (`docs/drafting.md`, 「A supervisor whose brain is off」). Everything below holds for a supervisor whose
-brain is on, which every supervisor is unless its settings say otherwise.
+**A supervisor whose brain or reference is off asks the gate for no core.** Its turns carry no entry the gate
+would attach, and its room's block no index, hint or due line, nor the block's rules about the index; a person's own
+thread still goes in (`docs/drafting.md`, 「A supervisor whose brain or reference is off」). Everything below holds
+for a supervisor whose brain and reference are both on, which every supervisor is unless its settings say
+otherwise.
 
 **What the gate answers is the turn's core and goes in whole.** Each entry goes to the session in full once per
 version, then as a mark naming it while the session holds that version, in one reference block with a person's

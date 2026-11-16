@@ -590,8 +590,9 @@ pub async fn room_context(
   parts.extend(process);
   parts.extend([situation_instruction(), CHAT_ROUND.closing.rule.clone()]);
 
-  // The rules about the brain's index stand only where the supervisor's brain is on, as the index itself does.
-  if super::window::brain_on(receiver, agent).await {
+  // The rules about the brain's index stand only where the brain reaches the supervisor's turns, as the
+  // index itself does.
+  if super::window::brain_reaches(receiver, agent).await {
     parts.extend([
       CHAT_ROUND.index.rule.clone(),
       fill_marks(&CHAT_ROUND.index.memories, &[("chat", &chat_id.to_string())]),

@@ -3,7 +3,7 @@
 use futures_util::StreamExt;
 use receiver_ports::agency::{
   Agency, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, NewSupervisor, Removal, RestKind,
-  Resting, Run, Said, Scope, Turn, TurnRead, TurnRoom,
+  Resting, Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
 };
 use serde_json::json;
 
@@ -743,4 +743,56 @@ async fn the_sessions_listed_read_each_scope_the_agency_names() {
     [Scope::Agent, Scope::Room { room: -7 }, Scope::Role, Scope::Conversation].map(|scope| scope.word()),
     ["agent", "room", "role", "conversation"]
   );
+}
+
+// "a switch its settings do not say, a supervisor the agency does not know ... reads as on"
+#[tokio::test]
+async fn a_supervisor_s_switches_are_read_off_its_settings_each_on_where_they_do_not_say_it() {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+  let on = Switches {
+    brain_on: true,
+    reference_on: true,
+  };
+
+  unit.answer(
+    "GET /supervisors/agent-a/settings",
+    200,
+    json!({ "name": "agent-a", "settings": { "brainOn": true, "referenceOn": false } }),
+  );
+  unit.answer(
+    "GET /supervisors/agent-b/settings",
+    200,
+    json!({ "name": "agent-b", "settings": { "brainOn": false } }),
+  );
+  unit.answer("GET /supervisors/agent-c/settings", 200, json!({ "name": "agent-c", "settings": {} }));
+  unit.answer(
+    "GET /supervisors/no-agent/settings",
+    404,
+    json!({ "code": "not-found", "error": "No supervisor is named no-agent." }),
+  );
+
+  let reference_off = agency.switches("agent-a").await.unwrap();
+
+  assert_eq!(
+    reference_off,
+    Switches {
+      brain_on: true,
+      reference_on: false
+    }
+  );
+  assert!(
+    !reference_off.brain_reaches(),
+    "the reference off closes the brain as the brain off does"
+  );
+  assert_eq!(
+    agency.switches("agent-b").await.unwrap(),
+    Switches {
+      brain_on: false,
+      reference_on: true
+    }
+  );
+  assert_eq!(agency.switches("agent-c").await.unwrap(), on, "a field not answered reads as on");
+  assert_eq!(agency.switches("no-agent").await.unwrap(), on, "a supervisor not known reads as on");
+  assert!(on.brain_reaches());
 }

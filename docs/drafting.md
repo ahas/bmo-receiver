@@ -219,12 +219,15 @@ message passes, and the record each turn of it leaves.
   block stand whatever the row switches off. A row that switches off every question and every stage makes the
   draft turn's answer the message as it stands, with no further turn.
 
-## A supervisor whose brain is off
+## A supervisor whose brain or reference is off
 
-- **A supervisor's brain switch is the agency's setting,** `brainOn` among its settings (the agency's
-  `docs/supervisors.md`, 「Its settings」), read by the receiver as a round composes its turn; a supervisor whose
-  settings do not say, or an agency that does not answer, reads as on, so every round runs as it did.
-- **Where it is off, nothing of the brain reaches the supervisor's turns from the receiver:**
+- **A supervisor's brain switch and reference switch are the agency's settings,** `brainOn` and `referenceOn`
+  among its settings (the agency's `docs/supervisors.md`, 「Its settings」), both read by the receiver from the one
+  settings page, asked afresh as a round composes its turn; a switch its settings do not say, a supervisor the
+  agency does not know, or an agency that does not answer reads as on, so every round runs as it did.
+- **Where either is off, nothing of the brain reaches the supervisor's turns from the receiver:** the reference
+  switch off closes what the receiver carries exactly as the brain switch off does, since the index, the core and
+  the rules about them are the turn's reference:
   - the room's block carries no index, no hint and no due line, and none of the block's rules about the index
     (`docs/bmo-window.md`, 「What every turn carries」);
   - the turn's core is not asked of the gate's reference selection, so no sheet, memory, errand or woken row is
@@ -232,8 +235,8 @@ message passes, and the record each turn of it leaves.
   - a round handed to the double carries the room's block as composed above.
 - **The tools that reach the brain are the agency's to leave out** of the supervisor's session record under the
   same switch (the agency's `docs/supervisors.md`). The process asks no question about the brain by itself: a
-  row that keeps `memory` or `information` while the brain is off leaves the agent to answer them with what it
-  holds, so a supervisor run with its brain off switches those questions off on its row.
+  row that keeps `memory` or `information` while the brain or the reference is off leaves the agent to answer
+  them with what it holds, so a supervisor run with either off switches those questions off on its row.
 
 ## The situation note
 
