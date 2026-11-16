@@ -24,6 +24,20 @@ and when a room sees it typing.
 - **An answer of an agent's own is stored with how long the room waited for it**: the whole seconds from the arrival
   of the earliest message that answer answers to the moment the answer went out, both ends on the chat service's
   own clock; an answer that began no wait is stored without one.
+- **A message handed over again under a number the room already keeps is that message, read again,** live or from
+  the room's past alike. The provider's copy of a send the receiver carried to it is taken for the kept send and
+  writes nothing (`docs/receiver.md`, 「A room's chat providers」); any other hand-over of a kept number writes the
+  row again on these terms:
+  - **What the receiver wrote of it stays:** how long the room waited for it and the round that answered it, its
+    kind, its edit, deletion and pin on the record, its reactions, what was heard of it, its stored picture where
+    the hand-over brings none, and its forwarded copy and judged note. A message edited or deleted on the record
+    keeps the record's words.
+  - **Whose words it holds stays where the hand-over names nobody:** a kept agent's line, the receiver's own send
+    or one filed as the agent's, keeps its agent, the name its sends stand under and its voice, whatever the
+    provider calls its sender. A hand-over under the room's own number names the default answerer and files it as
+    the agent's line, as above.
+  - **The rest is the provider's:** who sent it by number, when, its words, what it answers, the road it came by
+    and its album.
 - **An agent can scan the whole archive,** newest to oldest, with its `archive_scan` tool (`bmo archive scan` under
   it), or read one message by its number with its `id`.
 - **A scan answers under the standing ceiling on what a verb returns**: the messages that fit, a long one cut in

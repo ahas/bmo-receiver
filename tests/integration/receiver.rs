@@ -1,7 +1,8 @@
 //! The receiver's judgement of a message (docs/receiver.md, 「Where it stands」): a message kept with its room's
 //! title and handed to the wake, the agent's own words filed as its line and stopped there as a message already
-//! read is, the owner's setting commands acknowledged in the room's own voice, a file kept beside its message, an
-//! edit written in place, and the chat services' hand-overs taken behind the receiver's token.
+//! read is, a kept message handed over again keeping what the receiver wrote of it, the owner's setting commands
+//! acknowledged in the room's own voice, a file kept beside its message, an edit written in place, and the chat
+//! services' hand-overs taken behind the receiver's token.
 
 mod avatar_roads;
 mod avatars;
@@ -189,6 +190,82 @@ async fn the_agents_own_words_filed_as_its_line_and_a_message_already_read_go_no
     Some(format!("{SENDER}|{AGENT}|bot-account").as_str())
   );
   assert_eq!(text(&scratch, &filed(4)).await.as_deref(), Some("tester"));
+}
+
+#[tokio::test]
+async fn a_kept_message_handed_over_again_keeps_what_the_receiver_wrote_of_it() {
+  let (scratch, _data, standing) = stood(&[-103]).await;
+  let receiver = &standing.receiver;
+  let db = scratch.db();
+  let rows = |message: i64, columns: &str| {
+    format!(
+      r#"SELECT concat_ws('|', {columns}) FROM "messages" WHERE "chat_id" = -103 AND "message_id" = {message}"#
+    )
+  };
+
+  // A person's question with a picture kept, edited on the record; the agent's send answering it, archived by the
+  // receiver with its wait, its round and a pin.
+  receiver
+    .history(&inbound(-103, 1, 55, "a question"), &Context::default(), room())
+    .await
+    .unwrap();
+  scratch
+    .run(
+      r#"UPDATE "messages" SET "image_path" = 'pictures/1.jpg', "text" = 'edited', "edited_at" = 1760000050
+         WHERE "chat_id" = -103 AND "message_id" = 1"#,
+      vec![],
+    )
+    .await;
+
+  let send = Inbound {
+    sender_name: SENDER.into(),
+    ..inbound(-103, 2, 99, "the answer")
+  };
+
+  bmo_receiver::receiver::rows::save_message(db, &send, Some(AGENT), Some("bot-account"))
+    .await
+    .unwrap();
+  bmo_receiver::receiver::rows::record_answer_wait(db, -103, 2, 1_760_000_000, 1_760_042_000)
+    .await
+    .unwrap();
+  bmo_receiver::receiver::rows::mark_message_round(db, -103, 2, "round-1").await.unwrap();
+  scratch
+    .run(
+      r#"UPDATE "messages" SET "pinned_at" = 1760000060 WHERE "chat_id" = -103 AND "message_id" = 2"#,
+      vec![],
+    )
+    .await;
+
+  // A read of the room's past hands both over again, the send under a number that is not the room's own, by the
+  // name the platform shows it under.
+  let reread = Inbound {
+    sent_at: 1_760_000_070,
+    mode: None,
+    ..inbound(-103, 2, 99, "the answer")
+  };
+
+  receiver
+    .history(&inbound(-103, 1, 55, "a question"), &Context::default(), room())
+    .await
+    .unwrap();
+  receiver.history(&reread, &Context::default(), room()).await.unwrap();
+
+  assert_eq!(
+    text(&scratch, &rows(1, r#""text", "image_path", "edited_at""#)).await.as_deref(),
+    Some("edited|pictures/1.jpg|1760000050")
+  );
+  assert_eq!(
+    text(
+      &scratch,
+      &rows(
+        2,
+        r#""answer_seconds", "round", "pinned_at", "agent_name", "sender_name", "voice", "sent_at""#
+      )
+    )
+    .await
+    .as_deref(),
+    Some(format!("42|round-1|1760000060|{AGENT}|{SENDER}|bot-account|1760000070").as_str())
+  );
 }
 
 #[tokio::test]

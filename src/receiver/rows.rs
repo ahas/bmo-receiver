@@ -140,11 +140,14 @@ pub async fn retitle<C: ConnectionTrait>(db: &C, chat_id: i64, title: &str) -> R
   Ok(written > 0)
 }
 
-/// A message written down, or written over where the room already holds its number: what was measured of an
-/// earlier answer under that number goes with it. The agent whose words these are and the voice they went out in
-/// are set on a send the receiver archives itself and on a provider's line under the room's own number, and none
-/// on any other message a provider handed over (docs/store.md, 「The tables」). Its words and transcript are
-/// written as the secret shapes leave them (docs/messages.md, 「Secrets taken out」), whichever way they came.
+/// A message written down, or written again where the room already holds its number, as the same message read
+/// again (docs/messages.md, 「The archive」): the sender's number, time, words, reply, road and album are taken from
+/// it, and what the receiver wrote of the row stands — the answer's wait and round, the record's edit, deletion and
+/// pin, the hearing and a stored picture the message brings none of, and, where the message names no agent, the
+/// kept agent's name and voice. The agent whose words these are and the voice they went out in are set on a send
+/// the receiver archives itself and on a provider's line under the room's own number, and none on any other message
+/// a provider handed over (docs/store.md, 「The tables」). Its words and transcript are written as the secret shapes
+/// leave them (docs/messages.md, 「Secrets taken out」), whichever way they came.
 pub async fn save_message(
   db: &DatabaseConnection,
   message: &Inbound,
@@ -155,14 +158,20 @@ pub async fn save_message(
     db,
     r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "image_path", "image_state", "transcript", "voice_seconds", "voice_state", "reply_to_message_id", "via", "album", "agent_name", "voice")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       ON CONFLICT ("chat_id", "message_id") DO UPDATE SET "sender_id" = excluded."sender_id", "sender_name" = excluded."sender_name",
-         "sent_at" = excluded."sent_at", "text" = excluded."text", "image_path" = excluded."image_path",
+       ON CONFLICT ("chat_id", "message_id") DO UPDATE SET "sender_id" = excluded."sender_id",
+         "sender_name" = CASE WHEN excluded."agent_name" IS NULL AND "messages"."agent_name" IS NOT NULL
+           THEN "messages"."sender_name" ELSE excluded."sender_name" END,
+         "sent_at" = excluded."sent_at",
+         "text" = CASE WHEN "messages"."edited_at" IS NULL AND "messages"."deleted_at" IS NULL
+           THEN excluded."text" ELSE "messages"."text" END,
+         "image_path" = COALESCE(excluded."image_path", "messages"."image_path"),
          "image_state" = COALESCE(excluded."image_state", "messages"."image_state"),
          "transcript" = COALESCE(excluded."transcript", "messages"."transcript"),
          "voice_seconds" = COALESCE(excluded."voice_seconds", "messages"."voice_seconds"),
          "voice_state" = COALESCE(excluded."voice_state", "messages"."voice_state"),
-         "reply_to_message_id" = excluded."reply_to_message_id", "via" = excluded."via", "answer_seconds" = NULL, "round" = NULL, "album" = excluded."album",
-         "agent_name" = excluded."agent_name", "voice" = excluded."voice""#,
+         "reply_to_message_id" = excluded."reply_to_message_id", "via" = excluded."via", "album" = excluded."album",
+         "agent_name" = COALESCE(excluded."agent_name", "messages"."agent_name"),
+         "voice" = CASE WHEN excluded."agent_name" IS NULL THEN "messages"."voice" ELSE excluded."voice" END"#,
     vec![
       message.chat_id.into(),
       message.message_id.into(),

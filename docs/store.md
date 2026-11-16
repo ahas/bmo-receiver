@@ -76,6 +76,13 @@ takes it outright: the table holds no default agent.
 | `room_accounts` | an account that is a member of a room in the console: who let it in and when, and, once it went out or was taken out, who and when, both null while it is a member; let in again, the row stands as let in anew (`docs/receiver.md`, 「Console rooms and accounts」) | room and account |
 | `room_situations` | a room's situation note, the receiver's own (`docs/drafting.md`, 「The situation note」): its text, replaced when it changes, when it last did, and the row of the room's record it has read to | room |
 
+A message is one row a room and number, so a message handed over again writes the same row (`docs/messages.md`,
+「The archive」): the hand-over sets its sender's number, time, words, reply, road and album, and every column the
+receiver wrote itself stands. Those are the answer's wait and round, the kind, the edit, deletion and pin times, the
+hearing, the forwarded copy and the judged note; the stored picture where the hand-over names none; the words where
+the row was edited or deleted on the record; and the agent, sender name and voice where the hand-over names no
+agent and the row names one.
+
 A room's situation note is the receiver's own row, one a room: the room's live state, not the agent's memory. The
 brain's `situation` rows stay rules for a situation, and this note is written and read by the receiver alone. Its
 text is the version the round's record names.
