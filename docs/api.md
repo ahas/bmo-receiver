@@ -795,6 +795,8 @@ states it; it is repeated here only so one document holds every route the receiv
 | `POST /chat/avatar-changes` | tells of kept profile pictures that changed; the receiver takes each subject named from the provider's avatar routes before it answers (`docs/pictures.md`, 「Profile pictures」) |
 | `POST /chat/reaction-changes` | tells one message's reactions as the platform shows them now |
 | `POST /chat/deletions` | tells of messages of one room deleted on the platform |
+| `POST /chat/typing-marks` | tells that a person is writing in a room, or has stopped; the receiver passes it over, answering the mark as taken |
+| `POST /chat/presence-changes` | tells whether people are reachable; the receiver passes it over, answering the change as taken |
 
 The receiver serves the protocol's shapes as `bmo-chat-client` defines them: the client is the published one, and
 the receiver holds no hand-written copy of them. What differs between providers is read from what each declares.

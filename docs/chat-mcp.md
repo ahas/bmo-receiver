@@ -61,9 +61,15 @@ needs its road to perform, so the room's block names the sending entries a room'
   sends only where it answers the room and its role gives sending.
 - **Where the receiver cannot be reached,** the call fails saying so; nothing is sent twice, since a call that
   reached a listener is never offered again.
-- **A call waits for the receiver's answer.** Every entry is declared unbounded, so the tool host sets no limit on a
-  call, and the call to the receiver carries no request timeout: it ends with the answer or the connection
-  failing. Every send returns once it is on its way, a draw once it is drawn and its line is out.
+- **A call waits for the receiver's answer within its act's bound.** Every entry is declared unbounded, so the tool
+  host sets no limit on a call; the call to the receiver carries a bound its act gives it, and ends with the
+  answer, the connection failing or the bound passing, never waiting on past it. A connection is given five
+  seconds to open. A line, a spoken talk asked ahead of its synthesis, a consult line and a question of what a
+  road performs are handed on and answered at once, so the receiver is given a minute for them; a reaction, a pin,
+  a sticker, a fair draw and a fixed line go to the road within the call, three minutes; a picture, a file and a
+  voice note carry their bytes there, ten minutes. A call whose bound passed says so, and that what it asked may
+  still be done, so the asker looks before asking it again. Every send returns once it is on its way, a draw once
+  it is drawn and its line is out.
 
 ## Turn context
 

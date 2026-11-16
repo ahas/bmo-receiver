@@ -1,13 +1,18 @@
 //! A send asked of the running receiver: how it is written, who asks it, and what the receiver's answer says
 //! of it (docs/chat-mcp.md, 「How a call runs」).
 
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
 use room_calls::bot::Service;
 use room_calls::sends::{
   Act, Asked, Asker, CONSULT_PATH, ConsultInput, FileInput, FileToSend, FixedLineInput, RandomDrawInput,
-  SENDS_PATH, SpeakInput, StickerInput, Unsent, VoiceInput, answered, ask_consult,
+  SENDS_PATH, SayInput, SpeakInput, StickerInput, Unsent, VoiceInput, answered, ask_consult, ask_within,
 };
 use room_calls::turn::{Room, Turn};
 use serde_json::{Map, Value, json};
+use tokio::io::AsyncReadExt;
+use tokio::net::TcpListener;
 
 const ROOM: i64 = 4_200;
 
@@ -273,4 +278,67 @@ fn a_spoken_talk_is_asked_by_its_words_under_the_speak_act() {
       "input": { "voice": "voice-a", "text": "Written words.", "spoken": "Spoken words." },
     }),
   );
+}
+
+#[tokio::test]
+async fn a_line_of_several_lines_asked_of_a_receiver_that_does_not_answer_ends_within_its_bound() {
+  // A receiver that takes every request whole and never answers it.
+  let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+  let address = format!("http://{}", listener.local_addr().unwrap());
+  let heard = Arc::new(Mutex::new(Vec::<u8>::new()));
+  let held = heard.clone();
+  let silent = tokio::spawn(async move {
+    let (mut connection, _) = listener.accept().await.unwrap();
+    let mut read = vec![0_u8; 4096];
+
+    // Everything the call writes is read, and the connection is held until the call lets it go.
+    while let Ok(count) = connection.read(&mut read).await {
+      if count == 0 {
+        break;
+      }
+
+      held.lock().unwrap().extend_from_slice(&read[..count]);
+    }
+  });
+  let receiver = Service {
+    address,
+    token: Some("the-token".to_owned()),
+    ..Service::default()
+  };
+  let text = (1..=9).map(|line| format!("line {line} of the words")).collect::<Vec<_>>().join("\n");
+  let asked = Asked {
+    asker: Asker {
+      room: Some(ROOM),
+      via: Some("road-a".to_owned()),
+      from: Some("bmo room say".to_owned()),
+      ..Asker::default()
+    },
+    act: Act::Say(SayInput {
+      chat: None,
+      via: None,
+      text,
+      reply: false,
+      reply_to: None,
+    }),
+  };
+
+  let ended = tokio::time::timeout(
+    Duration::from_secs(10),
+    ask_within(&receiver, &asked, Duration::from_millis(200)),
+  )
+  .await
+  .expect("the call ends by its own bound");
+
+  // The call has let its connection go, so the receiver has read the whole of what it wrote.
+  tokio::time::timeout(Duration::from_secs(10), silent)
+    .await
+    .expect("the call let its connection go")
+    .unwrap();
+
+  let Err(Unsent::Unreached(why)) = ended else {
+    panic!("the call is refused as unanswered: {ended:?}")
+  };
+
+  assert!(why.contains("did not answer /sends within 1 seconds"), "{why}");
+  assert!(String::from_utf8_lossy(&heard.lock().unwrap()).contains("line 9 of the words"));
 }

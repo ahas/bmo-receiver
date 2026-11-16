@@ -46,6 +46,12 @@ voice = "[음성]"
 [relay]
 named = "{name}: {text}"
 
+# How long a line asked to be said waits on the road it goes out on before the call answers (docs/messages.md,
+# 「What an agent can send back」): the road is asked whether it holds the room and takes a line, and one that has
+# not answered within these seconds has the call refused, with nothing sent.
+[say]
+road_seconds = 20
+
 # How a picture a message carried is filed under its message: one past this many bytes, or one with transparency,
 # is brought inside this many pixels on its longer side, laid on white and written as JPEG at this quality.
 [pictures]

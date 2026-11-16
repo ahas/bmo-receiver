@@ -110,6 +110,7 @@ family. No code carries a sentence in a room's language.
 | `other-rooms-file` | 403 | `room` | a file of another room's folder |
 | `job-sends-room-file` | 403 | | a job asked to send a room's file |
 | `briefing-turn` | 409 | `agent`, `room` | the agent's session asked a send into the room while the receiver carries its voice briefing turn there, whose answer is the script itself |
+| `road-unanswered` | 504 | `room`, `seconds` | the road a line goes out on did not say within the policy's bound whether it takes the line, so nothing was sent (`docs/messages.md`, 「What an agent can send back」) |
 
 ### RoomGrantRefusal
 

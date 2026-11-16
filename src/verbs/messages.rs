@@ -146,7 +146,9 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
     return Err(VerbError::Refused(format!("say: {refusal}\n{SAY_USAGE}")));
   }
 
-  sends.road(asked.chat_id, "text").await?;
+  // The road is asked first, and a road that does not answer within the bound refuses the line, so the call
+  // answers at once either way.
+  sends.line_road(asked.chat_id).await?;
 
   let unit = say_unit(now_ms());
   let text_path = std::env::temp_dir().join(format!("{unit}.txt"));
@@ -154,8 +156,8 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
   write_private(&text_path, asked.text.trim())
     .map_err(|why| VerbError::Refused(format!("the words could not be put on the disk: {why}")))?;
 
-  // A line that answers a named message is said here, not through a runner, so the reply target the tool carries
-  // reaches the room with it.
+  // A line that answers a named message is said by the receiver itself, not through a runner, so the reply target
+  // the tool carries reaches the room with it.
   if asked.reply_to.is_some() {
     let run = SayRun {
       chat_id: asked.chat_id,
@@ -168,7 +170,9 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
       via: via.map(str::to_owned),
     };
 
-    return say_run(sends, &run).await;
+    said_apart(sends, run);
+
+    return Ok(vec![launched_line(&unit, asked.chat_id)]);
   }
 
   let run_id = sends
@@ -234,19 +238,29 @@ pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<V
       reply_to: asked.reply_to,
       via: via.map(str::to_owned),
     };
-    let sends = sends.clone();
 
-    tokio::spawn(async move {
-      if let Err(why) = say_run(&sends, &run).await {
-        eprintln!("say: chat {}: {why}", run.chat_id);
-      }
-    });
+    said_apart(sends, run);
   }
 
-  Ok(vec![format!(
-    "say launched as {unit}; it puts the words in chat {} by itself and says so when it is done. Do not wait for it and do not send them again.",
-    asked.chat_id
-  )])
+  Ok(vec![launched_line(&unit, asked.chat_id)])
+}
+
+// A line said by the receiver itself, apart from the call that asked it, as a runner would say it.
+fn said_apart(sends: &Sends, run: SayRun) {
+  let sends = sends.clone();
+
+  tokio::spawn(async move {
+    if let Err(why) = say_run(&sends, &run).await {
+      eprintln!("say: chat {}: {why}", run.chat_id);
+    }
+  });
+}
+
+// What the call answers once a line is handed on: the send's id, the unit its run goes by.
+fn launched_line(unit: &str, chat_id: i64) -> String {
+  format!(
+    "say launched as {unit}; it puts the words in chat {chat_id} by itself and says so when it is done. Do not wait for it and do not send them again."
+  )
 }
 
 // Owner-only from the moment the file exists: these are somebody's own words.

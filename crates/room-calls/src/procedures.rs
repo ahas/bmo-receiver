@@ -12,6 +12,7 @@ use regex::Regex;
 use serde_json::{Value, json};
 
 use crate::bot::Service;
+use crate::sends::HANDED_WITHIN;
 
 /// The route the verbs a room's road performs are asked of.
 pub const CAN_PATH: &str = "/sends/can";
@@ -63,7 +64,7 @@ pub fn as_used(text: &str, can: Option<&[String]>) -> Result<String, String> {
 /// The verbs the road a room is answered on performs, `via` naming the road where it is not the room's own,
 /// as the running receiver answers them.
 pub async fn road_can(receiver: &Service, chat: i64, via: Option<&str>) -> Result<Vec<String>, String> {
-  let said = receiver.post(CAN_PATH, &json!({ "chat": chat, "via": via })).await?;
+  let said = receiver.post(CAN_PATH, &json!({ "chat": chat, "via": via }), HANDED_WITHIN).await?;
 
   said
     .get("can")

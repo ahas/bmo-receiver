@@ -7,6 +7,8 @@
 //! round: every other send it hands to the room's supervisor (docs/messages.md, 「Words handed to the room's
 //! supervisor」).
 
+use std::time::Duration;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -19,6 +21,16 @@ pub const SENDS_PATH: &str = "/sends";
 
 /// The route a line in the consult room is asked of.
 pub const CONSULT_PATH: &str = "/consult-lines";
+
+/// How long the receiver is given to answer a call that hands words on and sends nothing in the call itself: a
+/// line, a spoken talk asked ahead of its synthesis, a consult line.
+pub const HANDED_WITHIN: Duration = Duration::from_secs(60);
+
+/// How long the receiver is given to answer an act it carries to the road within the call.
+pub const CARRIED_WITHIN: Duration = Duration::from_secs(180);
+
+/// How long the receiver is given to answer a send of files, whose bytes go to the road within the call.
+pub const FILES_WITHIN: Duration = Duration::from_secs(600);
 
 fn off(flag: &bool) -> bool {
   !*flag
@@ -308,6 +320,18 @@ pub enum Act {
 }
 
 impl Act {
+  /// How long the receiver is given to answer the act before the call stops waiting: a line or a spoken talk is
+  /// handed on and answered at once, the other acts go to the road within the call, and files take the longest.
+  pub fn answered_within(&self) -> Duration {
+    match self {
+      Self::Say(_) | Self::Speak(_) => HANDED_WITHIN,
+      Self::Photo(_) | Self::File(_) | Self::Voice(_) => FILES_WITHIN,
+      Self::React(_) | Self::Pin(_) | Self::Sticker(_) | Self::RandomDraw(_) | Self::FixedLine(_) => {
+        CARRIED_WITHIN
+      }
+    }
+  }
+
   /// The tool's name the act is asked under.
   pub fn tool(&self) -> &'static str {
     match self {
@@ -399,11 +423,23 @@ impl Unsent {
   }
 }
 
-/// One send asked of the running receiver, answering the lines it said of it, or why it did not go.
+/// One send asked of the running receiver, answering the lines it said of it, or why it did not go, within the
+/// bound its act gives the receiver.
 pub async fn ask(receiver: &Service, asked: &Asked) -> Result<Vec<String>, Unsent> {
+  ask_within(receiver, asked, asked.act.answered_within()).await
+}
+
+/// One send asked of the running receiver, answering the lines it said of it, or why it did not go, the
+/// receiver given `within` to answer.
+pub async fn ask_within(
+  receiver: &Service,
+  asked: &Asked,
+  within: Duration,
+) -> Result<Vec<String>, Unsent> {
   let body = serde_json::to_value(asked)
     .map_err(|why| Unsent::Unreached(format!("the send could not be written: {why}")))?;
-  let (status, said) = receiver.post_answered(SENDS_PATH, &body).await.map_err(Unsent::Unreached)?;
+  let (status, said) =
+    receiver.post_answered(SENDS_PATH, &body, within).await.map_err(Unsent::Unreached)?;
 
   answered(SENDS_PATH, status, &said)
 }
@@ -422,7 +458,10 @@ pub async fn ask_speaking(
   };
   let body = serde_json::to_value(&asked)
     .map_err(|why| Unsent::Unreached(format!("the send could not be written: {why}")))?;
-  let (status, said) = receiver.post_answered(SENDS_PATH, &body).await.map_err(Unsent::Unreached)?;
+  let (status, said) = receiver
+    .post_answered(SENDS_PATH, &body, asked.act.answered_within())
+    .await
+    .map_err(Unsent::Unreached)?;
   let own = (200..300).contains(&status) && said.get("own").and_then(Value::as_bool) == Some(true);
 
   if own {
@@ -466,7 +505,10 @@ pub async fn ask_consult(
     body["from"] = json!(from);
   }
 
-  let (status, said) = receiver.post_answered(CONSULT_PATH, &body).await.map_err(Unsent::Unreached)?;
+  let (status, said) = receiver
+    .post_answered(CONSULT_PATH, &body, HANDED_WITHIN)
+    .await
+    .map_err(Unsent::Unreached)?;
 
   answered(CONSULT_PATH, status, &said)
 }

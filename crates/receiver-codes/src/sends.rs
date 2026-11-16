@@ -61,6 +61,11 @@ pub enum SendRefusal {
      sent into the room from it; answer with the script alone, with no talk, send or voice note"
   )]
   BriefingTurn { agent: String, room: i64 },
+  /// The road a line goes out on did not say within the bound whether it takes the line.
+  #[error(
+    "the road of the room {room} did not answer within {seconds} seconds, so nothing was sent; try again later"
+  )]
+  RoadUnanswered { room: i64, seconds: u64 },
 }
 
 impl SendRefusal {
@@ -81,6 +86,7 @@ impl SendRefusal {
       | Self::Unnumbered { .. }
       | Self::ArchivedRoom { .. }
       | Self::BriefingTurn { .. } => StatusCode::CONFLICT,
+      Self::RoadUnanswered { .. } => StatusCode::GATEWAY_TIMEOUT,
     }
   }
 }

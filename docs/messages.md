@@ -147,6 +147,12 @@ and when a room sees it typing.
   the room, the room's own otherwise; the agent whose turn it is, which sends only into a room it answers and only
   where its role gives sending; and whether the road performs the verb at all, as its chat service's capabilities
   declare. A refusal is the road's one sentence, and nothing is sent.
+- **A line asked to be said answers its call at once.** Its road is asked first, and given the policy's bound
+  (`roads.toml`, `[say]`, twenty seconds) to say it holds the room and takes a line; a road that has not answered by
+  then has the call refused `road-unanswered` (`docs/codes.md`), with nothing sent. Otherwise the call answers with
+  the line's id, the unit its run goes by, and the words are said apart from it, a line answering a named message
+  among them, so no call waits on a road taking its time. What became of the line is told afterwards to the chat
+  that set it off, where that is another room.
 - **Every send goes through bmo-chat-client** to the chat service the room's road names (`POST /send`,
   `POST /media`), in the words' form the dialect of that chat service reads (`POST /dialect/read`).
 - **A send that puts a message in the room is kept in the room's record as the words of the agent it went out

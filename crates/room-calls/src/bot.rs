@@ -1,10 +1,12 @@
 //! The running receiver as a placed tool and a shell's command reach it (docs/chat-mcp.md, 「Where each unit is
 //! found」): what the receiver's env file under the data root says of its address, its token and the deployment
 //! it answers for, since a placed tool's process holds none of them, a variable this process does holding its
-//! place. One call to that address for what only the running receiver does.
+//! place. One call to that address for what only the running receiver does, given a bound of its own: a call the
+//! receiver has not answered within it ends with why, never waits on.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde_json::Value;
 
@@ -26,6 +28,10 @@ pub const OWNER_VARIABLE: &str = "BMO_OWNER_ID";
 
 /// The variable naming the tree the receiver's own documents and scripts stand in.
 pub const SOURCE_VARIABLE: &str = "BMO_SOURCE_DIR";
+
+/// How long a connection to the receiver is given to open: it answers on this machine, so one that has not
+/// opened by then is not coming.
+const CONNECT_WITHIN: Duration = Duration::from_secs(5);
 
 /// The receiver a data root belongs to: where it answers and the token it takes, the owner it answers for,
 /// and the tree its documents are read from, where that is named.
@@ -74,10 +80,11 @@ impl Service {
     }
   }
 
-  /// One `POST` to the receiver under its token, answering the JSON the route answered with, or why the
-  /// receiver did not do it: no token, nothing answering, or the route's own refusal.
-  pub async fn post(&self, path: &str, body: &Value) -> Result<Value, String> {
-    let (status, said) = self.post_answered(path, body).await?;
+  /// One `POST` to the receiver under its token, answered within `within`, answering the JSON the route answered
+  /// with, or why the receiver did not do it: no token, nothing answering, no answer in time, or the route's own
+  /// refusal.
+  pub async fn post(&self, path: &str, body: &Value, within: Duration) -> Result<Value, String> {
+    let (status, said) = self.post_answered(path, body, within).await?;
 
     if (200..300).contains(&status) {
       return Ok(said);
@@ -88,25 +95,48 @@ impl Service {
     Err(format!("the receiver refused {path} ({status}): {why}"))
   }
 
-  /// One `POST` to the receiver under its token, waited on until the receiver answers or the connection fails:
-  /// the status and the JSON the route answered with, whatever the status, or why nothing answered.
-  pub async fn post_answered(&self, path: &str, body: &Value) -> Result<(u16, Value), String> {
+  /// One `POST` to the receiver under its token, waited on until the receiver answers, the connection fails or
+  /// `within` has passed: the status and the JSON the route answered with, whatever the status, or why nothing
+  /// answered.
+  pub async fn post_answered(
+    &self,
+    path: &str,
+    body: &Value,
+    within: Duration,
+  ) -> Result<(u16, Value), String> {
     let Some(token) = &self.token else {
       return Err(format!(
         "{TOKEN_VARIABLE} is set nowhere this call reads, so the receiver cannot be asked"
       ));
     };
+    let unanswered = |why: reqwest::Error| {
+      if why.is_timeout() {
+        format!(
+          "the receiver did not answer {path} within {} seconds, so this call stopped waiting; what it asked may \
+           still be done, so look before asking it again",
+          within.as_millis().div_ceil(1000)
+        )
+      } else {
+        format!("the receiver did not answer {path}: {why}")
+      }
+    };
+    let client = Client::builder()
+      .no_proxy()
+      .connect_timeout(CONNECT_WITHIN.min(within))
+      .timeout(within)
+      .build()
+      .map_err(|why| format!("no client for the receiver: {why}"))?;
     let written = serde_json::to_string(body).unwrap_or_default();
-    let answer = Client::new()
+    let answer = client
       .post(format!("{}{}", self.address.trim(), path))
       .bearer_auth(token)
       .header(CONTENT_TYPE, "application/json")
       .body(written)
       .send()
       .await
-      .map_err(|why| format!("the receiver did not answer {path}: {why}"))?;
+      .map_err(unanswered)?;
     let status = answer.status().as_u16();
-    let bytes = answer.bytes().await.unwrap_or_default();
+    let bytes = answer.bytes().await.map_err(unanswered)?;
 
     Ok((status, serde_json::from_slice(&bytes).unwrap_or(Value::Null)))
   }

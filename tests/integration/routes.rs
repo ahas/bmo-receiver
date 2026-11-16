@@ -20,7 +20,7 @@ use crate::integration::common::units::OWNER;
 use bmo_receiver::routes::served;
 
 // The routes the base library's own router serves, mounted under `/chat` beside the receiver's table.
-const HANDOVERS: [&str; 7] = [
+const HANDOVERS: [&str; 9] = [
   "GET /chat/rooms",
   "GET /chat/rooms/{room_id}",
   "PUT /chat/rooms/{room_id}/messages/{message_id}",
@@ -28,6 +28,8 @@ const HANDOVERS: [&str; 7] = [
   "POST /chat/avatar-changes",
   "POST /chat/reaction-changes",
   "POST /chat/deletions",
+  "POST /chat/typing-marks",
+  "POST /chat/presence-changes",
 ];
 
 // The receiving side of the chat protocol as its published contract states it, which the base library's router

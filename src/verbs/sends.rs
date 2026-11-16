@@ -21,6 +21,7 @@ use sea_orm::DatabaseConnection;
 
 use crate::Fault;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::receiver::speech::KeptLine;
 use crate::receiver::{Receiver, files, rows, speech, wake};
@@ -68,6 +69,7 @@ pub struct Sends {
   turn_agent: Option<String>,
   via: Option<String>,
   launch: Arc<dyn Launch>,
+  road_within: Duration,
 }
 
 impl Sends {
@@ -77,6 +79,7 @@ impl Sends {
       turn_agent,
       via,
       launch: Arc::new(NoLaunch),
+      road_within: Duration::from_secs(ROADS.say.road_seconds),
     }
   }
 
@@ -89,6 +92,27 @@ impl Sends {
 
   pub fn launch(&self) -> Arc<dyn Launch> {
     self.launch.clone()
+  }
+
+  /// The sends giving a line's road this long to say it takes the line, in place of the policy's bound.
+  pub fn with_road_within(mut self, within: Duration) -> Self {
+    self.road_within = within;
+    self
+  }
+
+  /// The road a line goes out on, as `road` reads it, refused where the road has not answered within the bound
+  /// (`[say]` of the policy's `roads.toml`), so a call that hands the line on never waits on a road that is silent.
+  pub async fn line_road(&self, chat_id: i64) -> Result<Going, VerbError> {
+    match tokio::time::timeout(self.road_within, self.road(chat_id, "text")).await {
+      Ok(going) => going,
+      Err(_) => Err(VerbError::Refused(
+        SendRefusal::RoadUnanswered {
+          room: chat_id,
+          seconds: u64::try_from(self.road_within.as_millis().div_ceil(1000)).unwrap_or(u64::MAX),
+        }
+        .to_string(),
+      )),
+    }
   }
 
   pub fn db(&self) -> DatabaseConnection {

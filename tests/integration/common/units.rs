@@ -72,6 +72,8 @@ pub struct StandInChat {
   pub rooms_asked: AtomicUsize,
   /// Whether nothing listens at its address, and how often it was offered a request while nothing did.
   pub down: bool,
+  /// Whether it takes a question of a room and never answers it, as a service that hangs does.
+  pub silent: bool,
   pub refused: AtomicUsize,
   pub cans: Mutex<BTreeSet<ChatCapability>>,
   /// The read modes it declares, each by its voice and where it stands.
@@ -152,6 +154,12 @@ impl StandInChat {
 
   pub fn holding(mut self, rooms: &[i64]) -> Self {
     self.owns.extend(rooms);
+    self
+  }
+
+  /// A service that takes every question of a room and answers none of them.
+  pub fn silent(mut self) -> Self {
+    self.silent = true;
     self
   }
 
@@ -536,6 +544,10 @@ impl Chat for StandInChat {
 
   fn room(&self, chat_id: i64) -> BoxFuture<'_, ChatAnswer<ProviderRoom>> {
     self.rooms_asked.fetch_add(1, Ordering::SeqCst);
+
+    if self.silent {
+      return Box::pin(std::future::pending());
+    }
 
     if let Some(refused) = self.refusing(&format!("rooms/{chat_id}")) {
       return refused;

@@ -95,12 +95,22 @@ pub struct Relay {
   pub named: String,
 }
 
+/// How long a line asked to be said waits on its road before the call answers.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Say {
+  /// The most seconds the road a line goes out on is given to say it can take the line; past them the call is
+  /// refused and nothing goes.
+  pub road_seconds: u64,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Roads {
   pub record: Record,
   pub marks: Marks,
   pub relay: Relay,
+  pub say: Say,
   pub pictures: Pictures,
   pub gathering: Gathering,
   pub filling: Filling,

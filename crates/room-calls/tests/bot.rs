@@ -5,7 +5,7 @@
 use room_calls::bot::{
   ADDRESS_VARIABLE, ENV_FILE, OWNER_VARIABLE, SOURCE_VARIABLE, Service, TOKEN_VARIABLE,
 };
-use room_calls::sends::SENDS_PATH;
+use room_calls::sends::{HANDED_WITHIN, SENDS_PATH};
 use serde_json::Value;
 use std::path::Path;
 use tempfile::tempdir;
@@ -57,7 +57,7 @@ async fn a_receiver_with_no_token_is_not_asked() {
     return;
   }
 
-  let asked = Service::default().post(SENDS_PATH, &Value::Null).await;
+  let asked = Service::default().post(SENDS_PATH, &Value::Null, HANDED_WITHIN).await;
 
   assert!(asked.unwrap_err().contains(TOKEN_VARIABLE));
 }

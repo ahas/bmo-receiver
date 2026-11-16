@@ -112,16 +112,31 @@ async fn a_line_asked_to_be_said_is_launched_and_nobody_waits_on_the_gates() {
   assert!(road.sent().is_empty(), "the words are not put in the room by this call");
 }
 
+// What the road was sent once one send has gone, waited on for at most two seconds.
+async fn one_sent(road: &StandInChat) -> Vec<bmo_chat_client::ChatSendRequest> {
+  for _ in 0..200 {
+    if !road.sent().is_empty() {
+      break;
+    }
+
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+  }
+
+  road.sent()
+}
+
 #[tokio::test]
-async fn a_line_with_a_reply_target_is_sent_as_a_reply_to_it() {
+async fn a_line_with_a_reply_target_answers_at_once_and_is_sent_as_a_reply_to_it() {
   let (_scratch, road, launcher, receiver) = stood().await;
   let sends = Sends::new(receiver.clone(), Some(AGENT.to_owned()), None).with_launch(launcher);
+  // The road holds the send until it is let go, as a road slow to take a line does.
+  let release = road.holding_the_next_send();
 
-  say(
+  let lines = say(
     &sends,
     &SayAsked {
       chat_id: ROOM,
-      text: "here it is".to_owned(),
+      text: "here it is,\nin two lines".to_owned(),
       reply: false,
       reply_to: Some(20620),
       started_by: None,
@@ -131,10 +146,47 @@ async fn a_line_with_a_reply_target_is_sent_as_a_reply_to_it() {
   .await
   .unwrap();
 
-  let sent = road.sent();
+  assert!(lines[0].starts_with("say launched as bmo-say-"), "the call answers at once: {lines:?}");
+
+  release.notify_one();
+
+  let sent = one_sent(&road).await;
 
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert_eq!(sent[0].reply_to_message_id, Some(20620));
+}
+
+#[tokio::test]
+async fn a_line_of_several_lines_on_a_road_that_does_not_answer_is_refused_within_the_bound() {
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).silent());
+  let standing = standing(scratch.db(), DataRoot::new(data.path()), [road.clone()].to_vec());
+  let sends = Sends::new(standing.receiver.clone(), None, None)
+    .with_road_within(std::time::Duration::from_millis(100));
+  let asked = SayAsked {
+    chat_id: ROOM,
+    text: (1..=9).map(|line| format!("line {line}")).collect::<Vec<_>>().join("\n"),
+    reply: false,
+    reply_to: None,
+    started_by: None,
+  };
+
+  let said = tokio::time::timeout(std::time::Duration::from_secs(10), say(&sends, &asked, None))
+    .await
+    .expect("the call ends by its own bound");
+
+  let Err(VerbError::Refused(why)) = said else {
+    panic!("the line is refused: {said:?}")
+  };
+
+  assert_eq!(
+    why,
+    format!(
+      "the road of the room {ROOM} did not answer within 1 seconds, so nothing was sent; try again later"
+    )
+  );
+  assert!(road.sent().is_empty());
 }
 
 #[tokio::test]
@@ -181,15 +233,8 @@ async fn a_line_asked_without_a_launcher_standing_is_said_by_the_receiver_itself
   assert!(lines[0].starts_with("say launched as bmo-say-"), "the call answers at once: {lines:?}");
 
   // The receiver puts the words in the room apart from the call.
-  for _ in 0..200 {
-    if !road.sent().is_empty() {
-      break;
-    }
-
-    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-  }
-
-  let sent: Vec<String> = road.sent().iter().map(|send| serde_json::to_string(send).unwrap()).collect();
+  let sent: Vec<String> =
+    one_sent(&road).await.iter().map(|send| serde_json::to_string(send).unwrap()).collect();
 
   assert_eq!(sent.len(), 1, "{sent:?}");
   assert!(sent[0].contains("words"), "{sent:?}");
