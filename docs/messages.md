@@ -195,8 +195,9 @@ and when a room sees it typing.
   supervisor's turn working in the owner's private chat carries the last thinking block its run wrote, as
   `thinking` (`docs/receiver.md`, 「The event stream」): the block as it stands, in its own language and
   untranslated, its secret-shaped runs taken out as any message's are, cut at the policy's ceiling with an
-  ellipsis marking the cut (`chat-round.toml`, `[thinking]`). A newer block takes its place, and it goes with the
-  picture when the turn ends: no room's record keeps it.
+  ellipsis marking the cut (`chat-round.toml`, `[thinking]`). A newer block takes its place, unless it holds one
+  of the draft process's answer marks, which keeps it out of the picture (`docs/receiver.md`, 「The event
+  stream」), and it goes with the picture when the turn ends: no room's record keeps it.
 - **Only a turn in the owner's private chat carries it.** Thinking can quote private or other-room material and a
   group room holds other people, so the picture of a turn in any other room carries none.
 - **A message of kind `thinking` is no part of a room's conversation.** Where a room's record holds one, the room

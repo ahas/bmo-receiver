@@ -549,7 +549,13 @@ flowchart TD
   What the turn writes last, with no call after it, is its answer and never a progress line, and so is what a turn
   of the program wrote before words handed over opened the next — the round's next question, the review, words
   pushed in — since those words close the turn before them: a draft, a rewrite or a skip a later turn replaced is
-  never shown as a line. A failed request's text is none, and thinking never is one; a pane program's record carries no text, so its turns have none. The
+  never shown as a line. A failed request's text is none, and thinking never is one; a pane program's record carries no text, so its turns have none.
+  Nor is a text holding one of the draft process's answer marks (`docs/drafting.md`: `<<SEND>>`, `<<SKIP: …>>`,
+  `<<WAIT>>`, `<<HANDOFF>>`, `<<REPLY #n>>` and the rest), even where a call follows it: it is a draft of the
+  turn's message, and nothing of the answer stands before it is sent, so it is left out whole, never shown with
+  its mark cut off. A mark is known by its opening, two opening angle brackets and a word in capitals followed by
+  the closing brackets, a colon or a `#`, so one whose reason runs on still counts, and a shell here-document's
+  opening (`<<EOF`) is none. The
   picture carries the last three as `said`, oldest first, each `{text, before}`: `text` is the line with its
   secret-shaped runs taken out (`docs/messages.md`, 「Secrets taken out」), its whitespace run together into one
   line and cut at 240 characters with an ellipsis; `before` is how many actions the turn had made when the call
@@ -559,7 +565,8 @@ flowchart TD
 - **The picture of a turn working in the owner's private chat carries the run's last thinking block,** as
   `thinking`: the block as it stands and in its own language with its secret-shaped runs taken out, cut at the
   policy's ceiling with an ellipsis marking the cut (`chat-round.toml`, `[thinking]`). A newer block takes its
-  place, a turn that has written none carries null, and so does a turn in any other room: thinking can quote
+  place, except one holding an answer mark, which is passed over as a progress line holding one is, so the block
+  before it stands; a turn that has written none carries null, and so does a turn in any other room: thinking can quote
   private or other-room material and a group room holds other people. It is never sent as a message and never the
   turn's answer (`docs/messages.md`, 「A working turn's thinking」).
 - **`GET /health` answers for the receiver itself:** `ok`, the owner, `bot` with this process's number and the

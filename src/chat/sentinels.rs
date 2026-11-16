@@ -15,6 +15,17 @@ pub const SEND: &str = "<<SEND>>";
 pub const FOLD: &str = "<<FOLD>>";
 pub const HANDOFF: &str = "<<HANDOFF>>";
 
+// The opening of any of the draft process's answer marks: two opening angle brackets and a word in
+// capitals, then the closing brackets, a colon or a number's `#`. A shell here-document's opening is none.
+static ANSWER_MARK: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r"<<[A-Z][A-Z_]*[ \t]*(?:>>|:|#)").expect("an answer mark"));
+
+/// Whether a text holds one of the draft process's answer marks, and so is a draft of a turn's message
+/// (docs/receiver.md, 「The event stream」).
+pub fn holds_answer_mark(text: &str) -> bool {
+  ANSWER_MARK.is_match(text)
+}
+
 /// Whether an answer is nothing but waits, or nothing at all; a fold asked of no words is nothing.
 pub fn is_wait(text: &str) -> bool {
   trim(&text.replace(FOLD, "").replace(WAIT, "")).is_empty()

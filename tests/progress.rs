@@ -703,3 +703,64 @@ fn a_picture_whose_counts_alone_moved_is_told_at_most_once_a_gap() {
   assert_eq!(told.tell(&counted(30), GAP, GAP), Some(picture_of(&counted(30))));
   assert_eq!(told.tell(&counted(40), GAP + 1, GAP), None, "the gap counts from the last told");
 }
+
+// "a text holding one of the draft process's answer marks is a draft of the turn's message and never a
+// progress line, even where a call follows it; it is left out whole", a reason the line's bound would cut
+// still counting.
+#[test]
+fn a_draft_holding_an_answer_mark_is_no_progress_line_even_where_a_call_follows_it() {
+  let reason = "the room asked nothing new ".repeat(20);
+  let working = read_all(
+    RunProgress::default(),
+    &[
+      assistant(
+        "message-1",
+        json!([
+          { "type": "text", "text": "<<SEND>> draft" },
+          { "type": "tool_use", "id": "call-1", "name": "assign_worker", "input": {} },
+        ]),
+      ),
+      assistant(
+        "message-2",
+        json!([
+          { "type": "text", "text": format!("Holding back: <<SKIP: {reason}>>") },
+          { "type": "tool_use", "id": "call-2", "name": "Read", "input": { "file_path": "plan.md" } },
+          { "type": "text", "text": "Answering it as <<REPLY #4>> asks." },
+          { "type": "tool_use", "id": "call-3", "name": "Read", "input": { "file_path": "plan.md" } },
+        ]),
+      ),
+    ],
+  );
+  let picture = picture_of(&working).to_string();
+
+  assert!(working.said.is_empty(), "{:?}", working.said);
+  assert_eq!(tools(&working).len(), 3, "the calls still stand");
+  assert!(!picture.contains("<<") && !picture.contains("draft"), "{picture}");
+}
+
+// "a shell here-document's opening (`<<EOF`) is none"
+#[test]
+fn a_here_document_s_opening_is_no_answer_mark() {
+  let working = read_all(
+    RunProgress::default(),
+    &[assistant(
+      "message-1",
+      json!([
+        { "type": "text", "text": "Writing the notes with cat <<EOF into a file." },
+        { "type": "tool_use", "id": "call-1", "name": "Bash", "input": { "command": "ls" } },
+      ]),
+    )],
+  );
+
+  assert_eq!(said(&working), vec![("Writing the notes with cat <<EOF into a file.", 0)]);
+}
+
+// "a newer block takes its place, except one holding an answer mark, which is passed over"
+#[test]
+fn a_thinking_block_holding_an_answer_mark_is_passed_over() {
+  let thought = RunProgress::default().thought("weighing what the room asked");
+  let drafted = thought.clone().thought("<<SEND>> the message as it would go out");
+
+  assert_eq!(drafted.thinking.as_deref(), Some("weighing what the room asked"));
+  assert!(!picture_of(&drafted).to_string().contains("<<SEND"), "{}", picture_of(&drafted));
+}

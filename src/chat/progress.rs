@@ -7,6 +7,7 @@
 use receiver_policy::chat_round::CHAT_ROUND;
 use serde::Serialize;
 
+use super::sentinels::holds_answer_mark;
 use super::talk::clip;
 use crate::js::{is_space, trim};
 use crate::json::Json;
@@ -142,10 +143,14 @@ impl RunProgress {
     )
   }
 
-  /// The picture carrying `block` as the run's last thinking block: as it stands with its secret-shaped runs taken
-  /// out, cut at the policy's ceiling with the cut marked (docs/messages.md, 「A working turn's thinking」).
+  /// The picture carrying `block` as the run's last thinking block: as it stands with its secret-shaped
+  /// runs taken out, cut at the policy's ceiling with the cut marked (docs/messages.md, 「A working turn's
+  /// thinking」). A block holding an answer mark is a draft of the turn's message and is passed over, the
+  /// block before it standing.
   pub fn thought(mut self, block: &str) -> Self {
-    self.thinking = Some(clip(&secrets::redacted(block), CHAT_ROUND.thinking.ceiling_chars));
+    if !holds_answer_mark(block) {
+      self.thinking = Some(clip(&secrets::redacted(block), CHAT_ROUND.thinking.ceiling_chars));
+    }
 
     self
   }
@@ -703,9 +708,14 @@ fn action_of(line: &Line) -> TurnAction {
   }
 }
 
-// Text the turn wrote before a call, as the progress line the room is shown: its secret-shaped runs taken out,
-// its whitespace run together into one line and cut at the bound; none where nothing is left.
+// Text the turn wrote before a call, as the progress line the room is shown: its secret-shaped runs taken
+// out, its whitespace run together into one line and cut at the bound; none where nothing is left, and none
+// where it holds an answer mark, since it is then a draft of the turn's message.
 fn said_line(text: &str, before: usize) -> Option<SaidLine> {
+  if holds_answer_mark(text) {
+    return None;
+  }
+
   let redacted = secrets::redacted(text);
   let flat = redacted.split(is_space).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" ");
 
