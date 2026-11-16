@@ -152,7 +152,8 @@ pub(super) async fn speakable(receiver: &Receiver, chat_id: i64, text: &str) -> 
 }
 
 /// Words kept in a room under who speaks them, handed to the room's conversations as any words are and carried to
-/// the room's other providers: the number they are kept under.
+/// the room's other providers: the number they are kept under. Once they stand in the room a wake or a carry that
+/// fails leaves them kept and answered, so the failure is written to the log (docs/api.md, 「Sends」).
 pub(super) async fn said(
   receiver: &Receiver,
   chat_id: i64,
@@ -181,12 +182,25 @@ pub(super) async fn said(
     album: None,
   };
 
-  Receiver::message(receiver, &message, &Context::default(), receiver.roads().room_facts(chat_id).await)
-    .await
-    .map_err(failed)?;
-  carried(receiver, &message, speaking.said_by, Carried::words(text)).await?;
+  let room = receiver.roads().room_facts(chat_id).await;
+
+  if receiver.message_kept(&message, &Context::default(), room).await.map_err(failed)?
+    && let Err(why) = receiver.message_woken(&message, room).await
+  {
+    unwoken(&message, &why);
+  }
+
+  carried_after_keeping(receiver, &message, speaking.said_by, Carried::words(text)).await;
 
   Ok(message_id)
+}
+
+// A kept message whose wake failed: it stands in the room and is answered as kept, so the failure goes to the log.
+fn unwoken(kept: &Inbound, why: &NotReceived) {
+  eprintln!(
+    "bmo-receiver: message {} in room {} is kept, and the agents it calls for were not woken: {why}",
+    kept.message_id, kept.chat_id
+  );
 }
 
 // The words, once the room kept them, carried to the room's other providers as who said them goes (docs/receiver.md,
@@ -434,17 +448,14 @@ async fn kept_and_woken(
   };
 
   if let Err(why) = receiver.attachment_woken(&kept, context, room).await {
-    eprintln!(
-      "bmo-receiver: message {} in room {} is kept, and the agents it calls for were not woken: {why}",
-      message.message_id, message.chat_id
-    );
+    unwoken(&message, &why);
   }
 
   Ok(message)
 }
 
-// Kept files carried to the room's other providers. The files stand in the room whatever the carry does, so a
-// carry that fails is written to the log and never into the answer (docs/api.md, 「Sends」).
+// A kept message carried to the room's other providers. It stands in the room whatever the carry does, so a carry
+// that fails is written to the log and never into the answer (docs/api.md, 「Sends」).
 async fn carried_after_keeping(receiver: &Receiver, kept: &Inbound, said_by: SaidBy, what: Carried) {
   if let Err(why) = carried(receiver, kept, said_by, what).await {
     eprintln!(

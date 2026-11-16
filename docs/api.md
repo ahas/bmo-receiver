@@ -511,6 +511,12 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
   room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413
   `too-large`; a `replyTo` the archive does not hold is refused 409.
+- **Words the room kept are answered with their number.** `POST /owner/messages` and `POST /rooms/{roomId}/words`
+  answer the `id` the words stand under once the room has kept them, whatever follows: a wake of the agents they
+  call for, or their carry to the room's other providers, that then fails is written to the service's log and never
+  into the answer, and is not tried again. So a send the console repeats on a failure never puts the words into the
+  room twice. A setting command among the owner's words is settled with the keep, and a failure in settling it is
+  answered as any failure is.
 - **A file the room kept is answered as sent.** `POST /owner/message-files` and `POST /rooms/{roomId}/word-files`
   keep each file as its own message, and a file that stands in the room is answered under `sent` whatever follows
   it: a wake of the agents it calls for, or its carry to the room's other providers, that then fails is written to

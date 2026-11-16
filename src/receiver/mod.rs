@@ -897,8 +897,24 @@ impl Receiver {
     listening::listens(&self.db, self.owner_room(), chat_id).await
   }
 
-  /// Words that arrived in a room.
+  /// Words that arrived in a room: kept, and the agents they call for woken.
   pub async fn message(&self, inbound: &Inbound, context: &Context, room: Room) -> Result<(), NotReceived> {
+    if self.message_kept(inbound, context, room).await? {
+      return self.message_woken(inbound, room).await;
+    }
+
+    Ok(())
+  }
+
+  /// Words that arrived in a room, kept as `message` keeps them, with the owner's setting command among them
+  /// settled: whether the agents they call for are still to be woken, which is false where the room does not keep
+  /// them, where they are the agent's own or already read, and where they were a setting command.
+  pub async fn message_kept(
+    &self,
+    inbound: &Inbound,
+    context: &Context,
+    room: Room,
+  ) -> Result<bool, NotReceived> {
     let chat_id = inbound.chat_id;
     let said = context.spoken_text.as_deref().unwrap_or(&inbound.text);
     let is_owner = inbound.sender_id == Some(self.owner_id());
@@ -911,8 +927,9 @@ impl Receiver {
 
     if command.is_some_and(|command| command.kind == CommandKind::Allow) {
       rows::allow_chat(&self.db, chat_id).await?;
+      self.acknowledge(chat_id, SettingFact::ChatAllowed).await?;
 
-      return self.acknowledge(chat_id, SettingFact::ChatAllowed).await;
+      return Ok(false);
     }
 
     if !Self::keeps(chat_id, room) {
@@ -920,7 +937,7 @@ impl Receiver {
         "bmo-receiver: a message from the room {chat_id}, whose number the record cannot hold whole, was not kept"
       );
 
-      return Ok(());
+      return Ok(false);
     }
 
     if command.is_some_and(|command| command.kind == CommandKind::Deny) {
@@ -928,24 +945,31 @@ impl Receiver {
       // Said as fixed: the room is being shut, and its session is not woken to say so.
       self.speech.denied(chat_id).await?;
 
-      return Ok(());
+      return Ok(false);
     }
 
     self.keep(inbound, context, room).await?;
     crate::presence::taken::spoke(self, inbound).await;
 
     if Self::is_agents_own(inbound, room) || rows::is_read(&self.db, chat_id, inbound.message_id).await? {
-      return Ok(());
+      return Ok(false);
     }
 
     if is_owner && let Some(command) = command {
       // A setting is acknowledged by the room's own session, which a room not listened to never starts.
-      if !self.listens(chat_id).await? {
-        return Ok(());
+      if self.listens(chat_id).await? {
+        self.command(inbound, context, room, command).await?;
       }
 
-      return self.command(inbound, context, room, command).await;
+      return Ok(false);
     }
+
+    Ok(true)
+  }
+
+  /// The agents words `message_kept` kept call for, woken.
+  pub async fn message_woken(&self, inbound: &Inbound, room: Room) -> Result<(), NotReceived> {
+    let is_owner = inbound.sender_id == Some(self.owner_id());
 
     self.wake.words(self, inbound, room, is_owner, How::Words).await
   }

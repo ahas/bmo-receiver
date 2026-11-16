@@ -1,8 +1,8 @@
 //! What the console sends in the owner's own name (docs/receiver.md, 「The owner's words」): a line typed into any
 //! room kept under a console number and the name the room's own service shows him by, else his registered name,
 //! handed to the room's session and carried to the room's chat service in his own voice, files put in with the
-//! words carried as the albums the road takes with the caption on the first of them, files the room kept answered as
-//! sent and carried though the agency fails after, a form of files read whole under the files policy's ceiling and a
+//! words carried as the albums the road takes with the caption on the first of them, words and files the room kept
+//! answered as kept and carried though the agency fails after, a form of files read whole under the files policy's ceiling and a
 //! file past the largest refused, and a send asked of the receiver carried as its asker.
 
 use std::sync::Arc;
@@ -411,6 +411,40 @@ async fn files_the_room_kept_are_answered_sent_and_carried_though_the_agency_the
   answered.sort();
   assert_eq!(kept, answered, "each file stands in the room once, under the number the answer gives");
   assert_eq!(road.sent().len(), 2, "the kept files still go on to the room's other providers");
+}
+
+#[tokio::test]
+async fn words_the_room_kept_are_answered_with_their_number_and_carried_though_the_agency_then_fails() {
+  let (scratch, standing, road) = standing_over(&[ROOM]).await;
+  // The receiver's own wake, which reads the agency's rest before it wakes anybody.
+  let standing = woken(standing);
+  let port = routes(standing.receiver.clone(), TOKEN);
+
+  scratch
+    .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
+    .await;
+  bmo_receiver::receiver::rows::allow_chat(scratch.db(), ROOM).await.unwrap();
+  standing.agency.rest_unreadable();
+
+  let (status, answer) = asked(
+    &port,
+    "/owner/messages",
+    TOKEN,
+    json_post(json!({ "chatId": ROOM, "text": "The game begins." })),
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(
+    scratch
+      .texts(
+        r#"SELECT CAST("message_id" AS TEXT) FROM "messages" WHERE "chat_id" = -100 AND "via" = 'record'"#,
+      )
+      .await,
+    [answer["id"].to_string()],
+    "the words stand in the room once, under the number the answer gives",
+  );
+  assert_eq!(road.sent().len(), 1, "the kept words still go on to the room's other providers");
 }
 
 #[tokio::test]
