@@ -23,7 +23,10 @@ pub struct Kinds {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Voice {
+  /// The emotions a briefing may be said with.
   pub emotions: Vec<String>,
+  /// The label a summary's or a reading's answer opens its emotion line on.
+  pub emotion_label: String,
   /// The marker a notice turn's summary carries, the line it reads as data, and the rule the marker stands for
   /// in the room's block, `{line}` the line the turn sent.
   pub summary_marker: String,
@@ -34,6 +37,34 @@ pub struct Voice {
   pub reading_marker: String,
   pub reading: String,
   pub reading_rule: String,
+}
+
+impl Voice {
+  /// Whether a word is one of the emotions a briefing may be said with.
+  pub fn knows(&self, emotion: &str) -> bool {
+    self.emotions.iter().any(|one| one == emotion)
+  }
+
+  /// The summary's rule as the room's block states it, its marker, label and emotions filled in.
+  pub fn summary_rule_stated(&self) -> String {
+    self.stated(&self.summary_rule, &self.summary_marker)
+  }
+
+  /// The full reading's rule as the room's block states it, its marker, label and emotions filled in.
+  pub fn reading_rule_stated(&self) -> String {
+    self.stated(&self.reading_rule, &self.reading_marker)
+  }
+
+  fn stated(&self, rule: &str, marker: &str) -> String {
+    crate::fill_marks(
+      rule,
+      &[
+        ("marker", marker),
+        ("label", &self.emotion_label),
+        ("emotions", &self.emotions.join(", ")),
+      ],
+    )
+  }
 }
 
 #[derive(Debug, Deserialize)]

@@ -13,7 +13,7 @@ use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::StatusCode;
 use bmo_receiver::chat::around::Around;
-use bmo_receiver::chat::briefing::{line_opening, summary_of};
+use bmo_receiver::chat::briefing::{Summary, line_opening, reading_of, summary_of};
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
@@ -22,7 +22,6 @@ use bmo_receiver::routes::routes;
 use receiver_codes::SendRefusal;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::fill_marks;
 use room_calls::sends::{Act, Asked, Asker, SayInput, SpeakInput};
 use serde_json::{Value, json};
 use tempfile::tempdir;
@@ -296,15 +295,50 @@ async fn until(what: &str, holds: impl Fn() -> bool) {
   assert!(waited.is_ok(), "{what} never came");
 }
 
+// The emotion line an answer opens on, naming `emotion`.
+fn emotion_line(emotion: &str) -> String {
+  format!("{} {emotion}", CHAT_ROUND.voice.emotion_label)
+}
+
+fn summary(emotion: Option<&str>, title: Option<&str>, text: &str) -> Option<Summary> {
+  Some(Summary {
+    emotion: emotion.map(str::to_owned),
+    title: title.map(str::to_owned),
+    text: text.to_owned(),
+  })
+}
+
 #[test]
-fn a_summary_answer_reads_as_its_title_and_words_and_a_line_opens_on_its_first_sentences() {
+fn a_summary_answer_reads_as_its_emotion_title_and_words_and_a_line_opens_on_its_first_sentences() {
+  let glad = &CHAT_ROUND.voice.emotions[1];
+
+  assert_eq!(
+    summary_of(&format!("{}\nThe backup\nIt finished, and nothing else changed.", emotion_line(glad))),
+    summary(Some(glad), Some("The backup"), "It finished, and nothing else changed.")
+  );
+  assert_eq!(
+    summary_of(&format!("{}\nThe backup\nIt finished.", emotion_line("cheerful"))),
+    summary(None, Some("The backup"), "It finished."),
+    "an emotion outside the set leaves the briefing without one, its line still taken off"
+  );
   assert_eq!(
     summary_of("The backup\nIt finished, and nothing else changed."),
-    Some((Some("The backup".to_owned()), "It finished, and nothing else changed.".to_owned()))
+    summary(None, Some("The backup"), "It finished, and nothing else changed.")
   );
-  assert_eq!(summary_of("Only words."), Some((None, "Only words.".to_owned())));
+  assert_eq!(summary_of("Only words."), summary(None, None, "Only words."));
   assert_eq!(summary_of("<<SKIP>>"), None);
+  assert_eq!(summary_of(&format!("{}\n<<SKIP>>", emotion_line(glad))), None);
   assert_eq!(summary_of("  "), None);
+  assert_eq!(
+    reading_of(Some(&format!("{}\nAll of it, read out.", emotion_line(glad))), "The line.".to_owned()),
+    (Some(glad.clone()), "All of it, read out.".to_owned())
+  );
+  assert_eq!(
+    reading_of(Some(&emotion_line(glad)), "The line.".to_owned()),
+    (None, "The line.".to_owned()),
+    "a script of an emotion line alone has the line spoken as it stands"
+  );
+  assert_eq!(reading_of(None, "The line.".to_owned()), (None, "The line.".to_owned()));
   assert_eq!(line_opening("Done! More below.\nAnd more."), "Done! More below.");
   assert_eq!(
     line_opening("The nightly backup of every disk on the machine finished. Nothing else changed."),
@@ -384,8 +418,13 @@ impl Owner {
 #[tokio::test]
 async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_handed_to_the_voice() {
   let owner = Owner::new(
-    StandInSession::new("agent-a@agent", "unused")
-      .answering(&["The nightly backup finished.", "Backup done\nThe backup finished overnight."]),
+    StandInSession::new("agent-a@agent", "unused").answering(&[
+      "The nightly backup finished.",
+      &format!(
+        "{}\nBackup done\nThe backup finished overnight.",
+        emotion_line(&CHAT_ROUND.voice.emotions[1])
+      ),
+    ]),
     Some(VOICE),
   )
   .await;
@@ -401,11 +440,9 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(
-    prompts[0].contains(&fill_marks(
-      &CHAT_ROUND.voice.summary_rule,
-      &[("marker", &CHAT_ROUND.voice.summary_marker)]
-    )),
-    "the room's block says what the marker asks for: {}",
+    prompts[0].contains(&CHAT_ROUND.voice.summary_rule_stated())
+      && CHAT_ROUND.voice.emotions.iter().all(|emotion| prompts[0].contains(emotion.as_str())),
+    "the room's block says what the marker asks for, every emotion listed: {}",
     prompts[0]
   );
   assert!(
@@ -422,6 +459,7 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
   assert_eq!(briefed[0].kind, "summary");
   assert_eq!(briefed[0].chat_id, OWNER);
   assert_eq!(briefed[0].title.as_deref(), Some("Backup done"));
+  assert_eq!(briefed[0].emotion.as_ref(), Some(&CHAT_ROUND.voice.emotions[1]));
   assert_eq!(briefed[0].text, "The backup finished overnight.");
   assert!(briefed[0].message_id.is_some() && briefed[0].plays);
 
@@ -487,7 +525,9 @@ async fn a_round_the_owner_spoke_in_and_an_agent_with_no_voice_are_never_summari
 async fn a_lines_full_reading_is_the_script_its_agents_session_writes_sent_as_written() {
   const SCRIPT: &str = "The backup finished overnight, and nothing else changed.";
 
-  let owner = Owner::new(StandInSession::new("agent-a@agent", SCRIPT), Some(VOICE)).await;
+  let worried = &CHAT_ROUND.voice.emotions[7];
+  let answer = format!("{}\n{SCRIPT}", emotion_line(worried));
+  let owner = Owner::new(StandInSession::new("agent-a@agent", &answer), Some(VOICE)).await;
 
   owner
     .scratch
@@ -511,11 +551,13 @@ async fn a_lines_full_reading_is_the_script_its_agents_session_writes_sent_as_wr
     "{}",
     prompts[0]
   );
+  let briefed = owner.standing.voice.briefed();
+
   assert_eq!(
-    owner.standing.voice.briefed()[0].text,
-    SCRIPT,
-    "the script goes to the engine exactly as written"
+    briefed[0].text, SCRIPT,
+    "the script goes to the engine exactly as written, past its emotion line"
   );
+  assert_eq!(briefed[0].emotion.as_ref(), Some(worried));
 }
 
 const TOKEN: &str = "the-token";

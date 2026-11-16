@@ -613,8 +613,8 @@ pub async fn room_context(
     fill_marks(&CHAT_ROUND.handed.rule, &[("marker", &CHAT_ROUND.handed.marker)]),
     fill_marks(&CHAT_ROUND.console.rule, &[("marker", &CHAT_ROUND.console.marker)]),
     fill_marks(&CHAT_ROUND.typed.rule, &[("marker", &CHAT_ROUND.typed.marker)]),
-    fill_marks(&CHAT_ROUND.voice.summary_rule, &[("marker", &CHAT_ROUND.voice.summary_marker)]),
-    fill_marks(&CHAT_ROUND.voice.reading_rule, &[("marker", &CHAT_ROUND.voice.reading_marker)]),
+    CHAT_ROUND.voice.summary_rule_stated(),
+    CHAT_ROUND.voice.reading_rule_stated(),
     fill_marks(
       &CHAT_ROUND.instructions.restarted_rule,
       &[("marker", &CHAT_ROUND.instructions.restarted_marker)],

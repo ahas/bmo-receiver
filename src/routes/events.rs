@@ -142,12 +142,9 @@ async fn briefing(receiver: &Receiver, body: &Value, who: &str) -> Result<(), Re
       "a briefing event carries its text, its seconds (a number or null) and when it was sent",
     ));
   };
-  let emotions = &CHAT_ROUND.voice.emotions;
   let emotion = body.get("emotion");
 
-  if emotion
-    .is_some_and(|emotion| !emotion.as_str().is_some_and(|word| emotions.iter().any(|one| one == word)))
-  {
+  if emotion.is_some_and(|emotion| !emotion.as_str().is_some_and(|word| CHAT_ROUND.voice.knows(word))) {
     return Err(bad("a briefing event's emotion is one of the briefing emotions, or left out"));
   }
 

@@ -1,12 +1,13 @@
 //! The voice briefing (docs/voiced-notices.md, 「The voice briefing」): its two switches, the engine's briefings
-//! stopped when the whole one is switched off, the voice an agent speaks in, a notice turn's summary handed to the
-//! voice engine, and a line's full reading launched or answered as it stands there. The engine speaks and keeps
-//! every briefing; this decides when one is spoken.
+//! stopped when the whole one is switched off, the voice an agent speaks in, the emotion a session's answer names,
+//! a notice turn's summary handed to the voice engine, and a line's full reading launched or answered as it stands
+//! there. The engine speaks and keeps every briefing; this decides when one is spoken.
 
 use std::collections::HashSet;
 use std::sync::{LazyLock, Mutex, PoisonError};
 
 use receiver_codes::{VoiceFact, VoiceRefusal};
+use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::http::Answer;
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
 
@@ -190,9 +191,33 @@ pub fn line_opening(text: &str) -> String {
   }
 }
 
-/// A session's answer to the summary's instruction read as a title and the words spoken: the first line the title
-/// and the rest the words, or the whole the words where it is one line; none where it gave no summary.
-pub fn summary_of(answer: &str) -> Option<(Option<String>, String)> {
+/// An answer's emotion line taken off: the emotion it names where that is one of the briefing's emotions, and the
+/// rest of the answer. An answer whose first line does not open on the emotion label is all rest, with no emotion.
+pub fn emotion_of(answer: &str) -> (Option<String>, &str) {
+  let answer = answer.trim_start();
+  let (first, rest) = answer.split_once('\n').unwrap_or((answer, ""));
+  let Some(named) = first.trim().strip_prefix(CHAT_ROUND.voice.emotion_label.as_str()) else {
+    return (None, answer);
+  };
+  let named = named.trim();
+
+  (CHAT_ROUND.voice.knows(named).then(|| named.to_owned()), rest)
+}
+
+/// What a notice turn's summary says: the emotion it is said with where one is known, its title where it has one, and
+/// its words.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Summary {
+  pub emotion: Option<String>,
+  pub title: Option<String>,
+  pub text: String,
+}
+
+/// A session's answer to the summary's instruction read as its emotion, title and words: the emotion line taken
+/// off, then the first line the title and the rest the words, or the whole the words where it is one line; none
+/// where it gave no summary.
+pub fn summary_of(answer: &str) -> Option<Summary> {
+  let (emotion, answer) = emotion_of(answer);
   let answer = answer.trim();
 
   if answer.is_empty() || super::sentinels::is_skip(answer) {
@@ -200,12 +225,27 @@ pub fn summary_of(answer: &str) -> Option<(Option<String>, String)> {
   }
 
   let lines: Vec<&str> = answer.lines().map(str::trim).filter(|line| !line.is_empty()).collect();
+  let (title, text) = match lines.as_slice() {
+    [] => return None,
+    [only] => (None, (*only).to_owned()),
+    [title, rest @ ..] => (Some((*title).to_owned()), rest.join(" ")),
+  };
 
-  match lines.as_slice() {
-    [] => None,
-    [only] => Some((None, (*only).to_owned())),
-    [title, rest @ ..] => Some((Some((*title).to_owned()), rest.join(" "))),
-  }
+  Some(Summary {
+    emotion,
+    title,
+    text,
+  })
+}
+
+/// A line's full reading as it is spoken: the script's emotion and words where the session wrote a script with
+/// words past its emotion line, the line as it stands with no emotion otherwise.
+pub fn reading_of(script: Option<&str>, line: String) -> (Option<String>, String) {
+  script
+    .map(emotion_of)
+    .map(|(emotion, words)| (emotion, words.trim().to_owned()))
+    .filter(|(_, words)| !words.is_empty() && !super::sentinels::is_skip(words))
+    .unwrap_or((None, line))
 }
 
 /// A notice turn's summary handed to the voice engine: the session's words where it gave any, the line's opening
@@ -224,10 +264,15 @@ pub async fn speak_summary(
   let Some(voice) = voice_of(receiver, agent).await else {
     return;
   };
-  let (title, text) = match answer.and_then(summary_of) {
-    Some(summary) => summary,
-    None => (None, line_opening(line)),
-  };
+  let Summary {
+    emotion,
+    title,
+    text,
+  } = answer.and_then(summary_of).unwrap_or_else(|| Summary {
+    emotion: None,
+    title: None,
+    text: line_opening(line),
+  });
 
   if text.trim().is_empty() {
     return;
@@ -240,7 +285,7 @@ pub async fn speak_summary(
     message_id: Some(message_id),
     kind: "summary".to_owned(),
     title,
-    emotion: None,
+    emotion,
     plays: on(receiver, AUTOPLAY).await,
   };
 
@@ -355,14 +400,15 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
       Some(runner) => runner.spoken(&agent, chat_id, &text).await,
       None => None,
     };
+    let (emotion, text) = reading_of(script.as_deref(), text);
     let briefing = NewBriefing {
       voice_name: voice,
-      text: script.unwrap_or(text),
+      text,
       chat_id,
       message_id: Some(message_id),
       kind: "full".to_owned(),
       title: None,
-      emotion: None,
+      emotion,
       plays: false,
     };
 

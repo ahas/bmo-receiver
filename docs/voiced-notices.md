@@ -175,7 +175,17 @@ spoken, and the session writes what is said.
   are asked of the agent's own session as a spoken script: sentences a person would say aloud, with no markup,
   symbol, list or quotation, and names, acronyms, numbers, dates, times and units written as the line writes
   them. No gate stands between the session and the engine: the receiver hands the engine exactly the text the
-  session wrote, as the briefing's `text`, which the engine keeps as its transcript.
+  session wrote, its emotion line taken off, as the briefing's `text`, which the engine keeps as its transcript.
+- **The session names the emotion a briefing is said with.** The answer to a summary or a reading opens on an
+  emotion line: the label `[voice]` `emotion_label` names and one of the briefing emotions, `[voice]`
+  `emotions` (`policy/chat-round.toml`), the set the voice engine speaks with and the face draws a face for.
+  The marker's rule in the room's block lists them and asks for the one that fits what the line tells. The
+  receiver takes that line off the answer and hands its emotion to the engine as the briefing's `emotion`, which
+  the engine keeps on the briefing and its events, so a face listening shows it while the briefing plays.
+- **A briefing whose emotion is unknown goes without one.** An answer with no emotion line is spoken all the
+  same with no `emotion`; so is one whose emotion line names a word outside the set, that line still taken off;
+  and so are a line's opening spoken in place of a summary and a line spoken as it stands. The engine keeps such a briefing with no
+  emotion, and a face shows its default for it.
 - **The engine derives the spoken words.** A briefing carries no spoken words of its own: the engine makes them
   from the text, the same words as a Korean reader says them aloud, and checks them before it speaks. Spoken
   words it cannot clear are a refusal of the briefing (`unconverted-run`), handled as every refusal of it is.
@@ -222,7 +232,7 @@ spoken, and the session writes what is said.
   carried quiet instructions and no message of anyone; it sent a line, so a skip or a wait is not
   spoken; the switch is on; and its agent has a voice.
 - **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one turn once the line has gone out and before the round lets go of the room. The instruction is marked and
-  carries the line as the facts; what the marker asks for — a one-line title saying what the briefing is about,
+  carries the line as the facts; what the marker asks for — the emotion line, then a one-line title saying what the briefing is about,
   in the agent's own words for this briefing, then one or two sentences of the line's gist as a spoken script,
   never the line read out, every notice of the turn covered in its newest state — stands in the room's block
   (`policy/chat-round.toml`, `[voice]`, `summary_marker`, `summary_rule`). Its answer goes to no road and stands
@@ -234,10 +244,10 @@ spoken, and the session writes what is said.
   refused `briefing-turn` (`docs/codes.md`, 「SendRefusal」), whatever its act, and nothing reaches the room. A send
   of the agent's into another room, a job's, and any send once the turn has ended are judged as every send is.
 - **A session that gives no summary has its line's opening spoken:** the first sentence, or the first two where
-  the first is short, with no title. An answer of `<<SKIP>>`, an empty answer and a failed turn are each this case.
+  the first is short, with no title and no emotion. An answer of `<<SKIP>>`, an empty answer and a failed turn are each this case.
 - **The receiver carries the facts to the engine:** `POST /briefings` of kind `summary`, in the agent's voice,
-  naming the room and the message the line went out as, with the title where the session gave one and
-  whether it plays by itself as the second switch stands. The line already stands when the summary is asked for,
+  naming the room and the message the line went out as, with the title where the session gave one, the
+  emotion where it named one of the set, and whether it plays by itself as the second switch stands. The line already stands when the summary is asked for,
   so the summary never awaits it.
 - **A summary that fails tells nobody.** The line stands in the room as text either way, so a turn that could not
   be asked, an engine that refused the briefing or a synthesis that failed is the receiver's journal line or the
@@ -254,8 +264,8 @@ spoken, and the session writes what is said.
   (`GET /briefings` by room, line and kind): one waiting or speaking answers `making`, one done answers `ready`.
   Where there is none, or the last one failed or was stopped, it answers `making` at once and asks the line's agent, in one turn of its session in the line's room, for the whole line as a spoken script: the turn is marked and carries
   the line as data, and what the marker asks for stands in the room's block (`policy/chat-round.toml`, `[voice]`,
-  `reading_marker`, `reading_rule`), every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
-  `full`; a session that gives no script, or one past its cache lifetime, which is never woken for it
+  `reading_marker`, `reading_rule`), the emotion line and then every figure, name and conclusion kept, then launches it with `POST /briefings` of kind
+  `full`, with the emotion the script named; a session that gives no script, or one past its cache lifetime, which is never woken for it
   (`docs/unified-bmo.md`, 「Replacing the session」), has the line spoken as it stands. While the script is being written an
   ask answers `making` with no briefing yet; once launched, the answer names the briefing, whose sound the engine
   serves.
