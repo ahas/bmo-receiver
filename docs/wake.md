@@ -92,8 +92,15 @@ its rounds.
 
 ## The names and the window
 
-- **The names matched** are the agent's registered label and wake words, as the agency's registrations give
-  them, matched without regard to case where they are written in Latin letters.
+- **The names matched** are the agent's registered label and its call names, the `aliases` the agency serves on
+  `GET /supervisors` as one line, the names separated by commas. A changed label or call name is matched once the
+  receiver's kept list of agents is read again, within ten seconds (`docs/receiver.md`, 「What is kept for a
+  moment」).
+- **A name is matched as a word,** without regard to case where it is written in Latin letters: only where no
+  letter stands right before it, and where what follows it is the end of the words, a character that is not a
+  letter, or a Hangul letter. So a Korean particle or a punctuation mark may follow a name and still call the
+  agent, while a name standing inside a longer word calls nobody: a Latin name followed by a Latin letter, and
+  any name with a letter right before it, as a Korean name ending another Korean word.
 - **The secret marker is no word** (`docs/messages.md`, 「Secrets taken out」): no name is matched in it, and
   words that are nothing but markers wake no agent at all, in a user's own private chat too. A file whose caption
   is nothing but markers is judged as a file with no caption.

@@ -22,7 +22,7 @@ use sea_orm::DatabaseConnection;
 
 use crate::accounts::{self, Privacy};
 use crate::receiver::wake::agents;
-use crate::receiver::{NotReceived, Receiver, figures, reads};
+use crate::receiver::{NotReceived, Receiver, agent_pictures, figures, reads};
 use crate::roads::record::{next_room, next_sender};
 use crate::room_record::{Facing, RoomHolding, Says};
 use crate::routes::writable::WritableRoom;
@@ -307,6 +307,16 @@ pub async fn add(State(served): State<Served>, headers: HeaderMap, body: Bytes) 
       "supervisors: {} stands on the gate's own options, since they were not copied: {why}",
       asked.name
     );
+  }
+
+  // The number its room gave it wears the picture set on it before it stood anywhere.
+  match crate::roads::record::agent_number(receiver.db(), &road, &asked.name).await {
+    Ok(number) => {
+      let numbers: Vec<i64> = number.into_iter().collect();
+
+      agent_pictures::worn_by(receiver.db(), receiver.news(), &asked.name, &numbers).await;
+    }
+    Err(why) => eprintln!("supervisors: the number of {} was not read for its picture: {why}", asked.name),
   }
 
   let said = taken_back.then(|| {

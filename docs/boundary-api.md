@@ -26,7 +26,7 @@ the protocol's receiving-side routes stand.
 
 The deployment's names are read from the same file: the owner; `agent`, the registration name of the supervisor
 the default answerer setting is seeded with where the store holds none (`docs/api.md`, 「Supervisors」),
-whose label and wake words (`GET /supervisors`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
+whose label and call names (`aliases` on `GET /supervisors`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where
 one is named in place of the room numbered as the owner's own number, a room `owner-room` below stands up on the
 record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's other notices to the owner go to, never a briefing's, which goes to his private room;
 the owner's private room where none is named; the language the rooms are spoken in, which

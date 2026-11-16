@@ -1,14 +1,15 @@
 //! A profile picture set from the console (docs/pictures.md, 「Profile pictures」): set on a room, a person or an
 //! agent under every number it stands under, kept as a JPEG beside the picture a chat service hands over, the newer
-//! of the two served and listed, let go to the handed-over one, and refused for an unknown kind, no picture or no
-//! agent's number.
+//! of the two served and listed, let go to the handed-over one, and refused for an unknown kind or no picture. An
+//! agent's is kept under its name and worn under each number it takes later.
 
 use axum::{
   body::{Body, to_bytes},
   extract::Request,
   http::StatusCode,
 };
-use serde_json::Value;
+use bmo_receiver::roads::record;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
@@ -168,7 +169,7 @@ async fn a_picture_set_on_a_room_a_person_or_an_agent_stands_beside_the_handed_o
   assert_eq!(ids, vec![-7, 77]);
   assert_eq!(bytes_of(&front, "/people/77/avatar").await.0, StatusCode::OK);
 
-  // Refusals: an unknown kind, no picture, not a picture, an agent under no number.
+  // Refusals: an unknown kind, no picture, not a picture.
   assert_eq!(put(&front, "/avatars/thing/1", form("picture", &png())).await.1["code"], "unknown-kind");
   assert_eq!(
     put(&front, "/avatars/person/55", form("other", &png())).await.1["code"],
@@ -178,10 +179,81 @@ async fn a_picture_set_on_a_room_a_person_or_an_agent_stands_beside_the_handed_o
     put(&front, "/avatars/person/55", form("picture", b"not a picture")).await.1["code"],
     "not-a-picture"
   );
-  assert_eq!(
-    put(&front, "/avatars/agent/agent-none", form("picture", &png())).await.1["code"],
-    "no-number"
+}
+
+// A line the agent says in a room, kept on the record under its number.
+async fn said_by(front: &Front, agent: &str, number: i64) {
+  let receiver = &front.standing.receiver;
+  let line = record::Kept {
+    chat_id: -100,
+    number: None,
+    text: "hello",
+    reply_to: None,
+    via: "record",
+    sender_id: Some(number),
+    name: "Agent",
+    agent: Some(agent),
+    voice: None,
+  };
+
+  record::keep(receiver.db(), receiver.news(), line).await.unwrap();
+}
+
+#[tokio::test]
+async fn an_agents_picture_set_before_it_ever_spoke_is_worn_from_its_first_line_under_each_number_it_takes()
+{
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  // Set while the agent stands under no number: kept under its name, worn nowhere yet.
+  let (status, answer) = put(&front, "/avatars/agent/agent-new", form("picture", &png())).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+  assert_eq!(answer["items"], json!([]));
+  assert_eq!(bytes_of(&front, "/people/88/avatar").await.0, StatusCode::NOT_FOUND);
+
+  // Its first line wears it under the number it was said under, listed for the console.
+  said_by(&front, "agent-new", 88).await;
+
+  let (status, bytes) = bytes_of(&front, "/people/88/avatar").await;
+
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(&bytes[..3], &[0xff, 0xd8, 0xff], "the agent's picture is served");
+
+  let (_, listed) = bytes_of(&front, "/avatars").await;
+  let listed: Value = serde_json::from_slice(&listed).unwrap();
+
+  assert!(
+    listed["items"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .any(|item| item["kind"] == "person" && item["id"] == 88),
+    "{listed}"
   );
+
+  // A number whose own picture was set after the agent's keeps its own once the agent speaks under it.
+  assert_eq!(put(&front, "/avatars/person/89", form("picture", &png())).await.0, StatusCode::OK);
+  said_by(&front, "agent-new", 89).await;
+
+  let own = scratch
+    .texts(r#"SELECT "path" FROM "avatar_sets" WHERE "kind" = 'person' AND "subject_id" = 89"#)
+    .await;
+
+  assert!(own[0].ends_with("89.jpg"), "{own:?}");
+
+  // A number's picture let go leaves the agent's file for the next number the agent takes.
+  assert_eq!(delete(&front, "/avatars/person/88").await.0, StatusCode::OK);
+  said_by(&front, "agent-new", 90).await;
+  assert_eq!(bytes_of(&front, "/people/90/avatar").await.0, StatusCode::OK);
+
+  // The agent's picture let go under every number it was worn under or the agent stands under, and under its name.
+  let (status, gone) = delete(&front, "/avatars/agent/agent-new").await;
+
+  assert_eq!(status, StatusCode::OK, "{gone}");
+  assert_eq!(bytes_of(&front, "/people/90/avatar").await.0, StatusCode::NOT_FOUND);
+  said_by(&front, "agent-new", 91).await;
+  assert_eq!(bytes_of(&front, "/people/91/avatar").await.0, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

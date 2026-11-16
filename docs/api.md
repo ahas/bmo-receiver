@@ -289,8 +289,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /avatars` | `after`, `limit` | a page of `Avatar`: the profile pictures kept, oldest taken first |
 | `GET /rooms/{roomId}/avatar` | | the room's kept profile picture, as its bytes |
 | `GET /people/{personId}/avatar` | | the person's kept profile picture, as its bytes |
-| `PUT /avatars/{kind}/{subject}` | a form with one `picture`; `kind` is `room`, `person` or `agent` | `items`, each `kind`, `id` and `takenAt`: the picture set, under every number the agent stands under for an agent |
-| `DELETE /avatars/{kind}/{subject}` | | `items`, each `kind` and `id` whose console-set picture went |
+| `PUT /avatars/{kind}/{subject}` | a form with one `picture`; `kind` is `room`, `person` or `agent` | `items`, each `kind`, `id` and `takenAt`: the picture set; for an agent, kept under its name and worn under every number it stands under now, none where it stands under no number yet |
+| `DELETE /avatars/{kind}/{subject}` | | `items`, each `kind` and `id` whose console-set picture went; for an agent, every number that wore its picture, its own kept picture going with them |
 
 - **`q` searches the room:** the page holds only the messages whose words carry the text, case set aside and
   read as given (no pattern), newest page first and walked by `before`, each in the one message shape; `by`
@@ -323,7 +323,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   to a caller the relay's `Owner-Key` and `Owner-Role` do not let set it (`docs/pictures.md`), 400 `unknown-kind`
   for a kind other than the three, 400 `no-picture-given`
   where the form holds no `picture`, 400 `not-a-picture` where it cannot be read as one, 413 `picture-too-large`
-  past `files.toml`'s `largest_bytes`, and an agent standing under no number 404 `no-number`.
+  past `files.toml`'s `largest_bytes`. An agent's picture is kept under its name whether or not it stands under any
+  number yet, and every number it takes later wears it (`docs/pictures.md`, 「Profile pictures」).
 - **These picture routes are the console's one source of profile pictures,** every chat service's among them: a
   room's, a person's and the owner's own account's. The receiver takes each chat service's pictures from that
   service's avatar routes and serves them here under the number the service gave the subject, so the console

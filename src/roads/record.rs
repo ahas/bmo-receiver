@@ -7,7 +7,7 @@ use sea_orm::{DatabaseConnection, TransactionTrait};
 
 use receiver_policy::roads::ROADS;
 
-use crate::receiver::{Inbound, News, rows};
+use crate::receiver::{Inbound, News, agent_pictures, rows};
 use crate::secrets;
 use crate::{Fault, now_ms, one, run};
 
@@ -106,6 +106,10 @@ pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> R
 
   rows::save_message(db, &message, kept.agent, kept.voice).await?;
   news.message(message.chat_id, message.message_id);
+
+  if let (Some(agent), Some(number)) = (kept.agent, message.sender_id) {
+    agent_pictures::worn_by(db, news, agent, &[number]).await;
+  }
 
   Ok(message.message_id)
 }

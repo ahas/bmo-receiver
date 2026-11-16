@@ -827,7 +827,9 @@ flowchart TD
   at the receiver's answer.
 - **The agents are kept as the agency's one list,** awake or not, and every reader of an agent's registration reads
   it: the wake, the answerers of a room, the room list, a page asked by an agent, the labels a room is told. The
-  room list reads it once for all its rooms.
+  room list reads it once for all its rooms. The wake reads an agent's label and call names off this list alone,
+  so a label or call names changed at the agency are what the wake matches within ten seconds
+  (`docs/wake.md`, 「The names and the window」).
 - **What the receiver changes itself is let go at once:** an agent it registers or takes out lets the kept list
   go, and a room added or removed lets go what is kept of that room. A change made elsewhere is read once the span
   has passed.

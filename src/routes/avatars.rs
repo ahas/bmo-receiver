@@ -1,6 +1,6 @@
 //! A profile picture set from the console (docs/pictures.md, 「Profile pictures」): put on a room, a person, or an
-//! agent under every number it stands under in the rooms, kept beside the picture a chat service hands over, the
-//! newer of the two standing; let go, the chat service's stands again.
+//! agent, the agent's kept under its name and worn under every number it stands under in the rooms, kept beside the
+//! picture a chat service hands over, the newer of the two standing; let go, the chat service's stands again.
 
 use axum::extract::{Multipart, Path, State};
 use axum::http::HeaderMap;
@@ -10,9 +10,9 @@ use serde_json::{Value, json};
 
 use super::writable::Writer;
 use super::{Answered, Refusal, Served, answered, code, store};
-use crate::receiver::{Receiver, avatars};
+use crate::receiver::{Receiver, agent_pictures, avatars};
 use crate::store::Fault;
-use crate::{all, now_ms, one, run};
+use crate::{now_ms, one, run};
 
 // The one `picture` of the form, as its bytes.
 async fn picture(mut form: Multipart) -> Result<Vec<u8>, Refusal> {
@@ -40,53 +40,33 @@ async fn drawn(bytes: Vec<u8>) -> Result<Vec<u8>, Refusal> {
   avatars::drawn(bytes).await.ok_or_else(|| code(&AvatarRefusal::NotAPicture))
 }
 
-// Every number an agent stands under in the rooms: each a road or the record gave it, and each its own words are
-// archived under.
-async fn numbers_of(receiver: &Receiver, agent: &str) -> Result<Vec<i64>, Fault> {
-  let rows = all(
-    receiver.db(),
-    r#"SELECT "sender_id" FROM "provider_users" WHERE "user_id" = $1
-       UNION SELECT DISTINCT "sender_id" FROM "messages" WHERE "agent_name" = $1 AND "sender_id" IS NOT NULL
-       ORDER BY 1"#,
-    vec![agent.into()],
-  )
-  .await?;
-
-  Ok(rows.iter().filter_map(|row| row.try_get::<i64>("", "sender_id").ok()).collect())
-}
-
-// The rooms or people a subject names: a room's or a person's number, or every number an agent stands under.
-async fn subjects(
-  receiver: &Receiver,
-  kind: &str,
-  subject: &str,
-) -> Result<(&'static str, Vec<i64>), Refusal> {
-  let number = || {
-    subject.trim().parse::<i64>().map_err(|_| {
-      code(&AvatarRefusal::UnknownKind {
-        kind: kind.to_owned(),
-      })
+// The room or person a subject names by its number; an agent is kept under its name instead.
+fn subjects(kind: &str, subject: &str) -> Result<(&'static str, Vec<i64>), Refusal> {
+  let unknown = || {
+    code(&AvatarRefusal::UnknownKind {
+      kind: kind.to_owned(),
     })
   };
+  let number = || subject.trim().parse::<i64>().map_err(|_| unknown());
 
   match kind {
     "room" => Ok(("room", vec![number()?])),
     "person" => Ok(("person", vec![number()?])),
-    "agent" => {
-      let numbers = numbers_of(receiver, subject).await.map_err(store)?;
-
-      if numbers.is_empty() {
-        return Err(code(&AvatarRefusal::NoNumber {
-          agent: subject.to_owned(),
-        }));
-      }
-
-      Ok(("person", numbers))
-    }
-    _ => Err(code(&AvatarRefusal::UnknownKind {
-      kind: kind.to_owned(),
-    })),
+    _ => Err(unknown()),
   }
+}
+
+// The agent a subject names, by its registration name, refused as an unknown kind where it names none.
+fn agent_named(subject: &str) -> Result<&str, Refusal> {
+  let agent = subject.trim();
+
+  if agent.is_empty() {
+    return Err(code(&AvatarRefusal::UnknownKind {
+      kind: "agent".to_owned(),
+    }));
+  }
+
+  Ok(agent)
 }
 
 // Whether the console relay's caller may set the subject's picture: an agent's and a room's the administrator's
@@ -175,7 +155,20 @@ pub async fn set(
     allowed(&receiver, &asked, &kind, &[]).await?;
   }
 
-  let (kept_as, numbers) = subjects(&receiver, &kind, &subject).await?;
+  if kind == "agent" {
+    let agent = agent_named(&subject)?;
+    let jpeg = drawn(picture(writer.form().await?).await?).await?;
+    let (set, numbers) = agent_pictures::set(&receiver, agent, &jpeg).await.map_err(store)?;
+    let items: Vec<Value> = numbers
+      .iter()
+      .map(|number| json!({ "kind": "person", "id": number, "takenAt": set }))
+      .collect();
+
+    receiver.news().publish(&crate::events::avatars());
+    return answered(json!({ "items": items }));
+  }
+
+  let (kept_as, numbers) = subjects(&kind, &subject)?;
 
   allowed(&receiver, &asked, &kind, &numbers).await?;
   in_rooms(&receiver, &writer, kept_as, &numbers).await?;
@@ -206,7 +199,15 @@ pub async fn unset(
     allowed(&receiver, &asked, &kind, &[]).await?;
   }
 
-  let (kept_as, numbers) = subjects(&receiver, &kind, &subject).await?;
+  if kind == "agent" {
+    let gone = agent_pictures::unset(&receiver, agent_named(&subject)?).await.map_err(store)?;
+    let items: Vec<Value> = gone.iter().map(|number| json!({ "kind": "person", "id": number })).collect();
+
+    receiver.news().publish(&crate::events::avatars());
+    return answered(json!({ "items": items }));
+  }
+
+  let (kept_as, numbers) = subjects(&kind, &subject)?;
 
   allowed(&receiver, &asked, &kind, &numbers).await?;
   in_rooms(&receiver, &writer, kept_as, &numbers).await?;
@@ -222,7 +223,10 @@ pub async fn unset(
     .map_err(store)?;
 
     if let Some(path) = gone.and_then(|row| row.try_get::<String>("", "path").ok()) {
-      let _ = tokio::fs::remove_file(&path).await;
+      // A file an agent's picture holds stays for the agent and the other numbers wearing it.
+      if !agent_pictures::held_by_agent(receiver.db(), &path).await.map_err(store)? {
+        let _ = tokio::fs::remove_file(&path).await;
+      }
 
       items.push(json!({ "kind": kept_as, "id": number }));
     }

@@ -3231,7 +3231,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3265,7 +3265,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

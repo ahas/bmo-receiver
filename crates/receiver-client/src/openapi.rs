@@ -528,7 +528,6 @@ pub fn openapi() -> Value {
       "no-picture-given",
       "not-a-picture",
       "picture-too-large",
-      "no-number",
       "private-room",
       "upstream-failed",
       "failed"
@@ -551,7 +550,6 @@ pub fn openapi() -> Value {
       "unauthorized",
       "picture-forbidden",
       "unknown-kind",
-      "no-number",
       "private-room",
       "upstream-failed",
       "failed"

@@ -61,6 +61,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
       "message_file_asks",
       "room_accounts",
       "private_rooms",
+      "agent_avatar_sets",
     ])
     .chain(NEWS_BRIEFS_TABLES)
     .chain(ROOM_PROVIDERS_TABLES)

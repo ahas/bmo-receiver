@@ -3,6 +3,7 @@
 //! owner setting something, is it the agent's own — keeps it, and hands it to the wake, which decides whom it
 //! wakes. Nothing here reads which service a message came from in order to decide anything.
 
+pub mod agent_pictures;
 pub mod avatars;
 pub mod commands;
 pub mod default_answerer;
@@ -853,6 +854,10 @@ impl Receiver {
       };
 
       rows::save_message(&self.db, &line, Some(&agent), inbound.mode.as_deref()).await?;
+
+      if let Some(number) = inbound.sender_id {
+        agent_pictures::worn_by(&self.db, self.news.as_ref(), &agent, &[number]).await;
+      }
     } else {
       rows::save_message(&self.db, inbound, None, None).await?;
     }

@@ -1,0 +1,18 @@
+# A supervisor's call names as the agency serves them, and words a room says to it (docs/wake.md, 「The names and
+# the window」): each of `calls` wakes it, and none of `calls_not` does.
+aliases = "Dear, 디어"
+calls = [
+  "디어 오늘 일정 알려줘",
+  "디어야 뭐해?",
+  "디어, 이거 봐줘",
+  "오늘은 디어한테 물어보자",
+  "Dear! what is on today",
+  "hey DEAR",
+  "(dear) are you there",
+]
+calls_not = [
+  "좋은 아이디어네",
+  "미디어 기사 봤어?",
+  "endear yourself",
+  "dearest friend",
+]

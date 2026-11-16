@@ -4262,7 +4262,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-number, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, private-room, upstream-failed, failed"
           }
         },
         "summary": "A picture set from the console let go, so the one its chat service handed over stands.",
@@ -4273,7 +4273,6 @@
           "unauthorized",
           "picture-forbidden",
           "unknown-kind",
-          "no-number",
           "private-room",
           "upstream-failed",
           "failed"
@@ -4332,7 +4331,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, no-number, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, private-room, upstream-failed, failed"
           }
         },
         "summary": "A picture set from the console on a room, a person or an agent, as a form with one picture.",
@@ -4346,7 +4345,6 @@
           "no-picture-given",
           "not-a-picture",
           "picture-too-large",
-          "no-number",
           "private-room",
           "upstream-failed",
           "failed"

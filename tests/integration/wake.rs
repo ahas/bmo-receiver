@@ -488,6 +488,34 @@ fn a_send_goes_out_in_the_account_of_the_leader_it_speaks_as_or_of_the_one_leade
   assert_eq!(agents::leaders_of(&two), [77, 79]);
 }
 
+#[test]
+fn a_call_name_calls_its_supervisor_only_where_it_stands_as_a_word() {
+  let said: toml::Table = std::fs::read_to_string("tests/fixtures/call-names-korean.toml")
+    .expect("tests/fixtures/call-names-korean.toml is committed")
+    .parse()
+    .unwrap();
+  let words = |key: &str| -> Vec<String> {
+    said[key]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|word| word.as_str().unwrap().to_owned())
+      .collect()
+  };
+  let mut agent = registration("agent-a", "agent-a", vec![], None);
+
+  agent.row.insert("aliases".to_owned(), json!(said["aliases"].as_str().unwrap()));
+
+  let designated = agents::Designated::of(&agent, "");
+
+  for text in words("calls") {
+    assert!(designated.called_by(&text), "{text} calls it");
+  }
+  for text in words("calls_not") {
+    assert!(!designated.called_by(&text), "{text} calls nobody");
+  }
+}
+
 #[tokio::test]
 async fn a_group_room_naming_no_supervisor_stays_with_the_default_answerer() {
   let (_scratch, _data, standing) = stood(&[-152]).await;

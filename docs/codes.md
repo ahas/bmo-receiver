@@ -44,7 +44,6 @@ family. No code carries a sentence in a room's language.
 | `no-picture-given` | 400 | | the form holds no `picture` |
 | `not-a-picture` | 400 | | the picture cannot be read as one |
 | `picture-too-large` | 413 | `size_bytes`, `largest_bytes` | the picture is past the ceiling one file may be |
-| `no-number` | 404 | `agent` | the agent stands under no number in any room |
 
 ### OwnerSendRefusal
 

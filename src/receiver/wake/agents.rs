@@ -9,6 +9,7 @@ use std::time::Duration;
 use futures_util::future::BoxFuture;
 use serde_json::{Map, Value};
 
+use receiver_policy::scripts::{SCRIPTS, holds_any};
 use receiver_ports::agency::{Agency, Agent, Agents};
 use receiver_ports::http::Answer;
 use sea_orm::DatabaseConnection;
@@ -51,18 +52,34 @@ impl Designated {
     }
   }
 
-  /// Whether the words call it: its label or one of its words stands in them, in either case. The secret marker is
-  /// no word, so no name is found in it.
+  /// Whether the words call it: its label or one of its call names stands in them as a word, in either case
+  /// (docs/wake.md, 「The names and the window」). The secret marker is no word, so no name is found in it.
   pub fn called_by(&self, text: &str) -> bool {
     let lowered = secrets::unmarked(text).to_lowercase();
 
-    self.call_names.iter().any(|name| lowered.contains(&name.to_lowercase()))
+    self.call_names.iter().any(|name| names_word(&lowered, &name.to_lowercase()))
   }
 
   /// Whether it answers the rooms that name nobody.
   pub fn answers_unnamed(&self) -> bool {
     self.default_answerer
   }
+}
+
+/// Whether `name` stands in `text` as a word: no letter right before it, and after it the end of the text, a
+/// character that is no letter, or a Hangul letter, so a Korean particle may follow it.
+pub fn names_word(text: &str, name: &str) -> bool {
+  if name.is_empty() {
+    return false;
+  }
+
+  text.match_indices(name).any(|(at, _)| {
+    let before = text[..at].chars().next_back();
+    let after = text[at + name.len()..].chars().next();
+
+    !before.is_some_and(char::is_alphabetic)
+      && !after.is_some_and(|next| next.is_alphabetic() && !holds_any(&SCRIPTS.hangul_letters, next))
+  })
 }
 
 fn trim(word: String) -> String {

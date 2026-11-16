@@ -15,7 +15,7 @@ use super::rooms::message_shape;
 use super::writable::WritableRoom;
 use super::{Answered, Refusal, Served, answered, code, read, refused, store};
 use crate::receiver::wake::agents;
-use crate::receiver::{NotReceived, Receiver, rows};
+use crate::receiver::{NotReceived, Receiver, agent_pictures, rows};
 use crate::roads::added;
 
 // A correction that could not be made because a unit it reaches did not answer.
@@ -88,6 +88,10 @@ pub async fn change_speaker(
   rows::set_speaker(receiver.db(), room, message, &name, agent, voice.as_deref())
     .await
     .map_err(store)?;
+
+  if let Some(number) = kept.sender_id {
+    agent_pictures::worn_by(receiver.db(), receiver.news(), agent, &[number]).await;
+  }
   receiver.news().publish(&crate::events::message_changed(room, message));
 
   answered(

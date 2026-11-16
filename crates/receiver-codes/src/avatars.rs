@@ -16,8 +16,6 @@ pub enum AvatarRefusal {
   NotAPicture,
   #[error("the picture is {size_bytes} bytes; one file may be at most {largest_bytes} bytes")]
   PictureTooLarge { size_bytes: u64, largest_bytes: u64 },
-  #[error("{agent} stands under no number in any room")]
-  NoNumber { agent: String },
 }
 
 impl AvatarRefusal {
@@ -26,7 +24,6 @@ impl AvatarRefusal {
       Self::PictureForbidden { .. } => StatusCode::FORBIDDEN,
       Self::UnknownKind { .. } | Self::NoPictureGiven | Self::NotAPicture => StatusCode::BAD_REQUEST,
       Self::PictureTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
-      Self::NoNumber { .. } => StatusCode::NOT_FOUND,
     }
   }
 }

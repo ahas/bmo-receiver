@@ -54,6 +54,7 @@ takes it outright: the table holds no default agent.
 | `message_file_asks` | a message whose files a pass asked its chat service for again, and what the service answered: the outcome, the service's sentence where it gave one, how many files were kept, their bytes and when it was asked (`docs/room-files.md`, 「Files filled in later」) | room and message |
 | `avatars` | the picture a chat service shows for a room or a person, taken from that service: its stored path and when it was taken (`docs/pictures.md`) | kind and subject |
 | `avatar_sets` | the picture set on a room or a person from the console, its stored path and when it was set (`docs/pictures.md`) | kind and subject |
+| `agent_avatar_sets` | the picture set on an agent from the console, kept under its registration name: its stored path and when it was set; each number the agent stands under wears it as an `avatar_sets` row naming the same path (`docs/pictures.md`, 「Profile pictures」) | agent name |
 | `random_draws` | a fair draw made in a room (`docs/random-draw.md`) | its number |
 | `random_draw_rooms` | the seed a room's next draw will use and its commitment | room |
 | `say_relays` | an answer to relay back to the room that asked another room something | its number |

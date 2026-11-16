@@ -120,10 +120,21 @@ receiver keeps the pictures and decides what a session is shown.
   `avatars.changed`. Wherever there is no picture, a name's first letter stands in for one.
 - **A picture is set from the console too,** on one route shape for three kinds of subject:
   `PUT /avatars/{kind}/{subject}`, the body a form with one `picture`, where `kind` is `room` (a room's number),
-  `person` (a person's number, the owner's own among them) or `agent` (an agent's registration name, the picture
-  then set under every number the agent stands under in the rooms: each a road or the record gave it, and each its
-  own words are archived under). The picture is laid on white, filed as a JPEG under the data root's
-  `avatars/set/` and kept in `avatar_sets`, beside the picture a chat service hands over, never in its place.
+  `person` (a person's number, the owner's own among them) or `agent` (an agent's registration name). The picture
+  is laid on white, filed as a JPEG under the data root's `avatars/set/` and kept in `avatar_sets`, beside the
+  picture a chat service hands over, never in its place.
+- **An agent's picture is kept under its name,** in `agent_avatar_sets`, its file under `avatars/set/agent/`
+  named by the name's bytes in hexadecimal, whether or not the agent stands under any number yet, so a new agent
+  wears its picture from its first line. It is worn at once under every number the agent stands under in the
+  rooms (each a road or the record gave it, and each its own words are archived under), and later under each
+  number the agent takes: the moment the receiver first files the agent's words under a number (a send it
+  archives, a line under the room's own number, a speaker set on a kept message) or gives the agent a number in a
+  room added for it. Each number then holds a `person` row in `avatar_sets` naming the agent's file, set at that
+  moment, so the console is told with `avatars.changed` and the picture stands over one a chat service handed over
+  before. A number whose own picture was set from the console after the agent's keeps its own. Setting the
+  agent's picture sets it anew under every number that wears it or that the agent stands under; letting it go lets
+  the console-set picture go under each of those numbers and drops the agent's row and file. Letting a person's picture go never removes the file an agent's
+  picture holds.
 - **The newer one stands:** a room's and a person's picture is the newer of the one its chat service handed over
   and the one set from the console, on every route that serves one (`GET /rooms/{roomId}/avatar`,
   `GET /people/{personId}/avatar`) and in `GET /avatars`, which lists each subject once, `takenAt` the moment its
