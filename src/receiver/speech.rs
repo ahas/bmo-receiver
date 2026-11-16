@@ -234,11 +234,7 @@ impl Speech {
       None if road_voice => roads.identity_in(chat_id).await,
       None => None,
     };
-    let name = if speaker == self.deployment.agent {
-      self.deployment.sender_name.clone()
-    } else {
-      self.label_of(speaker).await
-    };
+    let name = self.name_of(speaker).await;
     let voice = voice.and_then(added::voice_key);
     // The one number the message stands under: the road's, where the road it went out on gave one.
     let (number, via) = match sent {
@@ -277,6 +273,16 @@ impl Speech {
     providers::deliver(&self.db, roads, &delivery).await;
 
     Ok(message_id)
+  }
+
+  /// The name an agent's words stand under in a room's record, whichever way they came to it: the deployment's
+  /// sender name for the configured agent, every other agent's label.
+  pub async fn name_of(&self, agent: &str) -> String {
+    if agent == self.deployment.agent {
+      return self.deployment.sender_name.clone();
+    }
+
+    self.label_of(agent).await
   }
 
   // An agent's own name: the label its registration carries, its registration name where it carries none.

@@ -24,6 +24,7 @@ mod room_removal;
 mod rooms;
 mod say;
 mod sends;
+mod speakers;
 mod supervisors;
 mod talks;
 mod writable;
@@ -149,6 +150,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ),
     ("PUT", "/rooms/{roomId}/messages/{messageId}/pin", put(message_acts::pin)),
     ("PATCH", "/rooms/{roomId}/messages/{messageId}", patch(message_acts::edit)),
+    ("PUT", "/rooms/{roomId}/messages/{messageId}/speaker", put(speakers::change_speaker)),
     ("DELETE", "/rooms/{roomId}/messages/{messageId}", delete(message_acts::delete)),
     ("GET", "/stickers", get(message_acts::stickers)),
     ("POST", "/rooms/{roomId}/stickers", post(message_acts::sticker)),

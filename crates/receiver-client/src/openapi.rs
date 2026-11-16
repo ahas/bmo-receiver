@@ -1174,6 +1174,25 @@ pub fn openapi() -> Value {
     ]
   );
   add!(
+    "PUT",
+    "/rooms/{roomId}/messages/{messageId}/speaker",
+    "changeSpeaker",
+    "Messages",
+    "A line under an agent's own number in the room filed as that agent's, on the record alone.",
+    vec![path_parameter("roomId"), path_parameter("messageId")],
+    Some(generator.subschema_for::<ChangeSpeaker>()),
+    vec![(200, json_answer::<Message>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "message-unknown",
+      "message-not-agents",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
     "DELETE",
     "/rooms/{roomId}/messages/{messageId}",
     "deleteAsMe",

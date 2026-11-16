@@ -39,6 +39,7 @@ mod session_generation;
 mod session_loads;
 mod session_replacement;
 mod situation;
+mod speakers;
 mod spoken_talk;
 mod stop_notice;
 mod store;

@@ -274,6 +274,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `DELETE /rooms/{roomId}/messages/{messageId}/reactions/mine` | `account?` | the `Message` as it now stands, `notCarried` as above |
 | `PUT /rooms/{roomId}/messages/{messageId}/pin` | `on`, `account?` | the `Message` as it now stands, `notCarried` as above |
 | `PATCH /rooms/{roomId}/messages/{messageId}` | `text`, `account?` | the `Message` as it now stands, `notCarried` as above |
+| `PUT /rooms/{roomId}/messages/{messageId}/speaker` | `agentName` | the `Message` as it now stands, filed as that agent's line on the record alone (`docs/messages.md`, 「The archive」); `message-not-agents` where it stands under another sender than the agent's own number in the room |
 | `DELETE /rooms/{roomId}/messages/{messageId}` | `account?` | the `Message` as it now stands, `notCarried` as above |
 | `GET /stickers` | | `items`, each `emoji`: the stickers the record keeps |
 | `POST /rooms/{roomId}/stickers` | `emoji`, `account?` | 201, the `Message` the sticker was kept as |
@@ -332,9 +333,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   message moves to the number the picture is kept under and the picture stays where it is (`docs/messages.md`,
   「A sender matched to the room's members」).
 - **`agentName` and `voice`** stand on a send the receiver archived itself, naming the agent whose words these are
-  and the voice the send went out in (`bot-account`, `human-avatar`, `human-reader`); both are null on a message
-  that came in from a provider, which the provider's echo of the receiver's own send keeps, since that message is
-  the one already kept with its fields. So an answer sent in the owner's `human-avatar` account is read as the
+  and the voice the send went out in (`bot-account`, `human-avatar`, `human-reader`), and on a line a provider
+  handed over under the room's own number, which is the default answerer's in the voice the provider handed it
+  over in (`docs/messages.md`, 「The archive」). Both are null on any other message that came in from a provider;
+  the provider's echo of the receiver's own send keeps them, since that message is the one already kept with its
+  fields. So an answer sent in the owner's `human-avatar` account is read as the
   agent's with its voice named, not guessed from the number it went out under.
 - **The message page** holds only what a person said unless `by=agent` or `by=any` says otherwise. It is walked by
   `before` or `after`, a message the reader holds, and ends on the side it walked from. With `agentName`,

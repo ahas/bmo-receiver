@@ -234,6 +234,14 @@ pub struct Editing {
   pub account: Option<i64>,
 }
 
+/// `PUT /rooms/{roomId}/messages/{messageId}/speaker`: the agent a kept line standing under its own number in the
+/// room is to be filed as.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeSpeaker {
+  pub agent_name: String,
+}
+
 /// A sticker of the record's set, by its emoji, as the set lists it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Sticker {

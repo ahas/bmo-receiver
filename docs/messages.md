@@ -8,6 +8,19 @@ and when a room sees it typing.
 
 - **Every message a chat service hands in, in every chat, is stored** in the receiver's database together with its
   sender.
+- **A line a provider hands over under the room's own number is the agent's:** the number the room route's
+  `identity` names (`docs/receiver.md`, 「Identity, and reaching the owner」), which the room's own voice speaks
+  under. It is kept as the default answerer's words, under the name the agent's sends stand under (the deployment's
+  sender name for the configured agent, every other agent's label) and in the voice the provider handed it over
+  in, never under the name the platform shows that number by. So a read of the agent's own send that the provider
+  did not take for its echo still stands as the agent's line, and like every word of the agent's own it wakes
+  nobody.
+- **A line kept under the wrong speaker is filed again on the record alone** (`PUT
+  /rooms/{roomId}/messages/{messageId}/speaker`, `docs/api.md`, 「Messages」): where the message stands under the
+  named agent's own number in its room on the road it came by, the number `GET /rooms/{roomId}/own-number` reads
+  off that road, it takes that agent's name, the agent and the voice the road answers the room by. Its sender, words,
+  time and number stay as they are, nothing goes to a chat service, and the room's screens are told with
+  `message.changed`. A message under any other sender is refused, so no person's words are filed as an agent's.
 - **An answer of an agent's own is stored with how long the room waited for it**: the whole seconds from the arrival
   of the earliest message that answer answers to the moment the answer went out, both ends on the chat service's
   own clock; an answer that began no wait is stored without one.

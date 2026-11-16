@@ -988,6 +988,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/messages/{messageId}/speaker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A line under an agent's own number in the room filed as that agent's, on the record alone. */
+        put: operations["changeSpeaker"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/notices": {
         parameters: {
             query?: never;
@@ -1707,6 +1724,13 @@ export interface components {
         /** @description `PUT /rooms/{roomId}/title`: the name a room on the record alone is to stand under. */
         ChangeRoomTitle: {
             title: string;
+        };
+        /**
+         * @description `PUT /rooms/{roomId}/messages/{messageId}/speaker`: the agent a kept line standing under its own number in the
+         *     room is to be filed as.
+         */
+        ChangeSpeaker: {
+            agentName: string;
         };
         /** @description A room's chat providers set whole: at least one, each once. */
         ChooseProviders: {
@@ -5350,6 +5374,42 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    changeSpeaker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                messageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSpeaker"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, message-unknown, message-not-agents, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -142,9 +142,9 @@ pub async fn retitle<C: ConnectionTrait>(db: &C, chat_id: i64, title: &str) -> R
 
 /// A message written down, or written over where the room already holds its number: what was measured of an
 /// earlier answer under that number goes with it. The agent whose words these are and the voice they went out in
-/// are the receiver's own, set on a send the receiver archives itself and none on a message a provider handed
-/// over (docs/store.md, 「The tables」). Its words and transcript are written as the secret shapes leave them
-/// (docs/messages.md, 「Secrets taken out」), whichever way they came.
+/// are set on a send the receiver archives itself and on a provider's line under the room's own number, and none
+/// on any other message a provider handed over (docs/store.md, 「The tables」). Its words and transcript are
+/// written as the secret shapes leave them (docs/messages.md, 「Secrets taken out」), whichever way they came.
 pub async fn save_message(
   db: &DatabaseConnection,
   message: &Inbound,
@@ -576,6 +576,28 @@ pub async fn set_muted(
   };
 
   run(db, sql, vec![chat_id.into(), user_id.into()]).await.map(drop)
+}
+
+/// Who a kept message is said by written over: the name it stands under, the agent whose words it holds and the
+/// voice it went out in, its sender, words and number left as they are; whether the room held the message at all.
+pub async fn set_speaker(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+  name: &str,
+  agent_name: &str,
+  voice: Option<&str>,
+) -> Result<bool, Fault> {
+  Ok(
+    run(
+      db,
+      r#"UPDATE "messages" SET "sender_name" = $1, "agent_name" = $2, "voice" = $3
+         WHERE "chat_id" = $4 AND "message_id" = $5"#,
+      vec![name.into(), agent_name.into(), voice.into(), chat_id.into(), message_id.into()],
+    )
+    .await?
+      > 0,
+  )
 }
 
 /// A kept message's words written over; whether the room held the message at all. What the platform said of the

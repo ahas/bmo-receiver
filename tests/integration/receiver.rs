@@ -1,7 +1,7 @@
 //! The receiver's judgement of a message (docs/receiver.md, 「Where it stands」): a message kept with its room's
-//! title and handed to the wake, the agent's own words and a message already read stopped there, the owner's
-//! setting commands acknowledged in the room's own voice, a file kept beside its message, an edit written in
-//! place, and the chat services' hand-overs taken behind the receiver's token.
+//! title and handed to the wake, the agent's own words filed as its line and stopped there as a message already
+//! read is, the owner's setting commands acknowledged in the room's own voice, a file kept beside its message, an
+//! edit written in place, and the chat services' hand-overs taken behind the receiver's token.
 
 mod avatar_roads;
 mod avatars;
@@ -45,7 +45,9 @@ use bmo_receiver::receiver::{Context, How, Inbound, Room};
 use receiver_policy::commands::COMMANDS;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::units::{ADDRESS, OWNER, StandInChat, Standing, Woken, standing};
+use crate::integration::common::units::{
+  ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, Woken, standing,
+};
 
 /// The agent's number in the rooms of these tests.
 const AGENT_NUMBER: i64 = 7;
@@ -143,7 +145,7 @@ async fn a_message_is_kept_with_its_rooms_title_and_handed_to_the_wake() {
 }
 
 #[tokio::test]
-async fn the_agents_own_words_and_a_message_already_read_are_kept_and_go_no_further() {
+async fn the_agents_own_words_filed_as_its_line_and_a_message_already_read_go_no_further() {
   let (scratch, _data, standing) = stood(&[-102]).await;
   let receiver = &standing.receiver;
 
@@ -172,6 +174,21 @@ async fn the_agents_own_words_and_a_message_already_read_are_kept_and_go_no_furt
 
   assert_eq!(standing.heard.told(), [(-102, 1), (-102, 4)]);
   assert!(standing.waking.woken().is_empty());
+
+  // The line under the room's own number is the default answerer's, under the name its sends stand under and in
+  // the voice it was handed over in, whatever the platform called that number; a person's line names no agent.
+  let filed = |message: i64| {
+    format!(
+      r#"SELECT concat_ws('|', "sender_name", "agent_name", "voice") FROM "messages"
+         WHERE "chat_id" = -102 AND "message_id" = {message}"#
+    )
+  };
+
+  assert_eq!(
+    text(&scratch, &filed(1)).await.as_deref(),
+    Some(format!("{SENDER}|{AGENT}|bot-account").as_str())
+  );
+  assert_eq!(text(&scratch, &filed(4)).await.as_deref(), Some("tester"));
 }
 
 #[tokio::test]

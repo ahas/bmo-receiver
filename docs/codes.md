@@ -32,6 +32,7 @@ family. No code carries a sentence in a room's language.
 | `message-unknown` | 404 | `room`, `message` | the room keeps no such message |
 | `message-deleted` | 409 | `room`, `message` | the message was deleted |
 | `message-forbidden` | 403 | `room`, `message` | another person's message to edit or delete |
+| `message-not-agents` | 409 | `room`, `message`, `agent` | a message to be filed as an agent's line stands under another sender than that agent's own number in the room |
 | `unknown-sticker` | 400 | `emoji` | the record's sticker set holds no such emoji |
 
 ### AvatarRefusal

@@ -17,6 +17,7 @@ export type AddRoom = Schemas["AddRoom"];
 export type AccountRoom = Schemas["AccountRoom"];
 export type Answerers = Schemas["Answerers"];
 export type Message = Schemas["Message"];
+export type ChangeSpeaker = Schemas["ChangeSpeaker"];
 export type Pictures = Schemas["Pictures"];
 export type FileFill = Schemas["FileFill"];
 export type FileFills = Schemas["FileFills"];
@@ -229,6 +230,16 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(
         await client.GET("/rooms/{roomId}/messages/{messageId}", {
           params: { path: { roomId, messageId } },
+        }),
+      );
+    },
+
+    /** `PUT /rooms/{roomId}/messages/{messageId}/speaker`: a line under an agent's own number filed as that agent's. */
+    async changeSpeaker(roomId: number, messageId: number, body: ChangeSpeaker): Promise<Message> {
+      return answered(
+        await client.PUT("/rooms/{roomId}/messages/{messageId}/speaker", {
+          params: { path: { roomId, messageId } },
+          body,
         }),
       );
     },

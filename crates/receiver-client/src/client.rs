@@ -241,6 +241,16 @@ impl ReceiverClient {
     .await
   }
 
+  /// `PUT /rooms/{roomId}/messages/{messageId}/speaker`: a line under an agent's own number filed as that agent's.
+  pub async fn change_speaker(&self, room_id: i64, message_id: i64, agent_name: &str) -> Answer<Message> {
+    let path = ["rooms", &room_id.to_string(), "messages", &message_id.to_string(), "speaker"];
+
+    Self::answered(self.request(Method::PUT, &path).json(&ChangeSpeaker {
+      agent_name: agent_name.to_owned(),
+    }))
+    .await
+  }
+
   /// `GET /rooms/{roomId}/messages/{messageId}/metadata`.
   pub async fn message_metadata(&self, room_id: i64, message_id: i64) -> Answer<MessageMetadata> {
     Self::answered(self.request(

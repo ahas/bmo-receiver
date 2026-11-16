@@ -798,12 +798,24 @@ impl Receiver {
 
   // Where a message is written down and the room's screen told of it, which every road's message passes through
   // alike.
-  async fn keep(&self, inbound: &Inbound, context: &Context) -> Result<(), NotReceived> {
+  async fn keep(&self, inbound: &Inbound, context: &Context, room: Room) -> Result<(), NotReceived> {
     if let Some(title) = &context.room_title {
       rows::retitle(&self.db, inbound.chat_id, title).await?;
     }
 
-    rows::save_message(&self.db, inbound, None, None).await?;
+    if Self::is_agents_own(inbound, room) {
+      // A line under the room's own number is the agent's whose words the road's own voice carries, kept as its
+      // send would be kept, whatever name the platform shows that number by (docs/messages.md, 「The archive」).
+      let agent = self.default_answerer();
+      let line = Inbound {
+        sender_name: self.speech.name_of(&agent).await,
+        ..inbound.clone()
+      };
+
+      rows::save_message(&self.db, &line, Some(&agent), inbound.mode.as_deref()).await?;
+    } else {
+      rows::save_message(&self.db, inbound, None, None).await?;
+    }
     self.told_kept(inbound);
 
     Ok(())
@@ -866,7 +878,7 @@ impl Receiver {
       return Ok(());
     }
 
-    self.keep(inbound, context).await?;
+    self.keep(inbound, context, room).await?;
 
     if Self::is_agents_own(inbound, room) || rows::is_read(&self.db, chat_id, inbound.message_id).await? {
       return Ok(());
@@ -947,7 +959,7 @@ impl Receiver {
       return Ok(());
     }
 
-    self.keep(inbound, context).await
+    self.keep(inbound, context, room).await
   }
 
   /// A message carrying a file, kept: the files it came with kept beside it and woken on, unless it is the
@@ -963,7 +975,7 @@ impl Receiver {
       return Ok(());
     }
 
-    self.keep(inbound, context).await?;
+    self.keep(inbound, context, room).await?;
 
     if Self::is_agents_own(inbound, room) {
       return Ok(());

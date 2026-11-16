@@ -520,6 +520,18 @@
         ],
         "type": "object"
       },
+      "ChangeSpeaker": {
+        "description": "`PUT /rooms/{roomId}/messages/{messageId}/speaker`: the agent a kept line standing under its own number in the\nroom is to be filed as.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agentName"
+        ],
+        "type": "object"
+      },
       "ChooseProviders": {
         "description": "A room's chat providers set whole: at least one, each once.",
         "properties": {
@@ -7886,6 +7898,76 @@
         ],
         "x-codes": [
           "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/messages/{messageId}/speaker": {
+      "put": {
+        "operationId": "changeSpeaker",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeSpeaker"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, message-unknown, message-not-agents, private-room, upstream-failed, failed"
+          }
+        },
+        "summary": "A line under an agent's own number in the room filed as that agent's, on the record alone.",
+        "tags": [
+          "Messages"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "message-unknown",
+          "message-not-agents",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }
