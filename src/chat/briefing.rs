@@ -442,4 +442,9 @@ impl Scripting {
   pub fn ends(&self, chat_id: i64, message_id: i64) {
     self.0.lock().unwrap_or_else(PoisonError::into_inner).remove(&(chat_id, message_id));
   }
+
+  /// Whether the line's script is being written, or its reading still being handed to the engine.
+  pub fn holds(&self, chat_id: i64, message_id: i64) -> bool {
+    self.0.lock().unwrap_or_else(PoisonError::into_inner).contains(&(chat_id, message_id))
+  }
 }

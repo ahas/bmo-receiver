@@ -132,10 +132,14 @@ async fn switching_the_whole_briefing_off_stops_a_waiting_a_speaking_and_a_just_
     line(&scratch, message, Some(AGENT), "Agent A").await;
   }
 
+  // Each reading is waited out until its launch let go of its line, past the switch it reads once the engine took it,
+  // so only the third is taken as the switch moves.
+  let launched = |message: i64| !front.standing.receiver.scripting().holds(ROOM, message);
+
   post(&front, &reading(11), json!({})).await;
-  until("the waiting reading taken", || voice.briefed().len() == 1).await;
+  until("the waiting reading taken", || voice.briefed().len() == 1 && launched(11)).await;
   post(&front, &reading(12), json!({})).await;
-  until("the speaking reading taken", || voice.briefed().len() == 2).await;
+  until("the speaking reading taken", || voice.briefed().len() == 2 && launched(12)).await;
   voice.states.lock().unwrap().insert(2, "speaking".to_owned());
 
   // The third reading is handed over while the switch stands on, and the engine takes it only once it is off.
