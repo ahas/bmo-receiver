@@ -457,6 +457,8 @@ pub struct Receiver {
   // Who is writing in a room now and who is reachable now, held in memory alone (docs/receiver.md, 「Typing and
   // presence」).
   present: crate::presence::Present,
+  // The lines whose full reading's script is being written now (docs/voiced-notices.md, 「The voice briefing」).
+  scripting: crate::chat::briefing::Scripting,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -525,6 +527,7 @@ impl Receiver {
         Duration::from_secs(KEPT.link_seconds),
         Duration::from_secs(receiver_policy::presence::PRESENCE.provider_look_seconds),
       ),
+      scripting: crate::chat::briefing::Scripting::default(),
     }
   }
 
@@ -626,6 +629,11 @@ impl Receiver {
   /// Who is writing in a room now and who is reachable now.
   pub fn present(&self) -> &crate::presence::Present {
     &self.present
+  }
+
+  /// The lines whose full reading's script is being written now.
+  pub fn scripting(&self) -> &crate::chat::briefing::Scripting {
+    &self.scripting
   }
 
   /// The conversations that answer a line typed into the default answerer's program, and that take the warmer's touch

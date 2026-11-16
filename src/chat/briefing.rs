@@ -4,7 +4,7 @@
 //! there. The engine speaks and keeps every briefing; this decides when one is spoken.
 
 use std::collections::HashSet;
-use std::sync::{LazyLock, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use receiver_codes::{VoiceFact, VoiceRefusal};
 use receiver_policy::chat_round::CHAT_ROUND;
@@ -386,7 +386,7 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
 
   // The script is the session's to write, which takes a turn: the reading answers `making` at once, and a second
   // ask while it is written answers the same without asking again.
-  if !WRITING.lock().unwrap_or_else(PoisonError::into_inner).insert((chat_id, message_id)) {
+  if !receiver.scripting().begins(chat_id, message_id) {
     return Ok(Reading {
       ready: false,
       briefing: None,
@@ -418,7 +418,7 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
       None => println!("chat {chat_id}: the voice briefing was switched off, so {message_id} is not read"),
     }
 
-    WRITING.lock().unwrap_or_else(PoisonError::into_inner).remove(&(chat_id, message_id));
+    receiver.scripting().ends(chat_id, message_id);
   });
 
   Ok(Reading {
@@ -427,5 +427,19 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
   })
 }
 
-// The lines whose full reading's script is being written now.
-static WRITING: LazyLock<Mutex<HashSet<(i64, i64)>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
+/// The lines whose full reading's script is being written now, each by its room and message; one set to a receiver
+/// and shared by its clones.
+#[derive(Clone, Default)]
+pub struct Scripting(Arc<Mutex<HashSet<(i64, i64)>>>);
+
+impl Scripting {
+  /// The line marked as having its script written; false where it already was.
+  pub fn begins(&self, chat_id: i64, message_id: i64) -> bool {
+    self.0.lock().unwrap_or_else(PoisonError::into_inner).insert((chat_id, message_id))
+  }
+
+  /// The line's script no longer being written.
+  pub fn ends(&self, chat_id: i64, message_id: i64) {
+    self.0.lock().unwrap_or_else(PoisonError::into_inner).remove(&(chat_id, message_id));
+  }
+}

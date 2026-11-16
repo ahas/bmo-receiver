@@ -81,6 +81,9 @@ fn timings() -> Timings {
   }
 }
 
+// How long the queue of a round gathers where a test says two lines one after the other into the one turn.
+const GATHERING: Duration = Duration::from_millis(500);
+
 fn documents(data: &Path) {
   let chat = data.join("prompts").join("chat");
 
@@ -133,15 +136,26 @@ struct Drafting {
 
 impl Drafting {
   async fn new(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, true, false).await
+    Self::with_hiding(session, rounds, ceiling_seconds, true, false, timings()).await
+  }
+
+  // A round whose queue gathers long enough for the lines a test says one after another to reach the same turn,
+  // however long the store takes to keep each.
+  async fn new_gathering(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
+    let gathering = Timings {
+      queue: GATHERING,
+      ..timings()
+    };
+
+    Self::with_hiding(session, rounds, ceiling_seconds, true, false, gathering).await
   }
 
   async fn new_visible(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, false, false).await
+    Self::with_hiding(session, rounds, ceiling_seconds, false, false, timings()).await
   }
 
   async fn new_reviewing(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, true, true).await
+    Self::with_hiding(session, rounds, ceiling_seconds, true, true, timings()).await
   }
 
   async fn with_hiding(
@@ -150,6 +164,7 @@ impl Drafting {
     ceiling_seconds: u32,
     hide: bool,
     review: bool,
+    timings: Timings,
   ) -> Self {
     let scratch = Scratch::new().await;
     let data = tempfile::tempdir().unwrap();
@@ -168,7 +183,7 @@ impl Drafting {
         .hiding_reviews_or(review),
     );
     let receiver = standing.receiver.clone();
-    let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
+    let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings, AGENT);
 
     standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
     standing.agency.carrying_on(session.clone());
@@ -2939,7 +2954,7 @@ async fn an_answer_to_the_newest_line_goes_unpinned() {
 #[tokio::test]
 async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY:1>> the message itself"]);
-  let round = Drafting::new(session, &["final"], 150).await;
+  let round = Drafting::new_gathering(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.hear(2, "and this?").await;
@@ -2955,7 +2970,7 @@ async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
 #[tokio::test]
 async fn an_unmarked_answer_goes_out_plain_though_an_older_line_asked() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message itself"]);
-  let round = Drafting::new(session, &["final"], 150).await;
+  let round = Drafting::new_gathering(session, &["final"], 150).await;
 
   round.hear(1, "what does the plan for this week hold?").await;
   round.hear(2, "noted").await;
@@ -2971,7 +2986,7 @@ async fn an_unmarked_answer_goes_out_plain_though_an_older_line_asked() {
 #[tokio::test]
 async fn a_bare_reply_mark_pins_the_newest_line_the_round_answers() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY>> the message itself"]);
-  let round = Drafting::new(session, &["final"], 150).await;
+  let round = Drafting::new_gathering(session, &["final"], 150).await;
 
   round.hear(1, ASKED).await;
   round.hear(2, "and this?").await;

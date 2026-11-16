@@ -165,6 +165,24 @@ impl Cut {
     }
   }
 
+  // Waits, bounded, until the receiver heard the agency name turn 1 and wrote it down as carrying the row, so a stop
+  // after it cuts a turn the receiver knows rather than a send whose turn it never heard named.
+  async fn carried(&self, id: i64) {
+    self
+      .row_until(
+        id,
+        &Row {
+          settled: false,
+          session: Some(SESSION.to_owned()),
+          turn: Some(1),
+          restarts: 0,
+          failures: 0,
+          let_go: None,
+        },
+      )
+      .await;
+  }
+
   // Waits, bounded, until the row stands as `row`.
   async fn row_until(&self, id: i64, row: &Row) {
     let waited = tokio::time::timeout(Duration::from_secs(20), async {
@@ -183,7 +201,7 @@ async fn a_turn_the_agency_held_across_its_restart_is_re_attached_to_and_its_row
   let cut = Cut::stood().await;
   let id = cut.instruct().await;
 
-  until("the turn named", || cut.served.turns() == [1]).await;
+  cut.carried(id).await;
 
   // The agency stops mid-turn, the turn it picked up ends while it is down, and it starts again.
   cut.served.stop().await;
@@ -262,7 +280,7 @@ async fn a_turn_the_restarted_agency_lost_fails_the_round_uncounted_and_gives_it
   let cut = Cut::stood().await;
   let id = cut.instruct().await;
 
-  until("the turn named", || cut.served.turns() == [1]).await;
+  cut.carried(id).await;
 
   // The agency stops mid-turn and comes back holding no record of it.
   cut.served.stop().await;
