@@ -224,6 +224,8 @@ its rounds.
   message into an empty queue starts that room's five-second timer (the round policy's `queue_ms`), and when it
   fires everything gathered meanwhile is handed over at once: woken as one batch, or forwarded to the
   conversation already talking.
+- **The queues can be held.** Whoever holds an agent's conversations may hold every room's queue: a timer that
+  fires while the hold stands waits until it is let go, and everything gathered by then is handed over as one.
 - **An empty queue has no timer,** so a quiet room costs nothing and a busy one costs one run per five seconds
   instead of one per message.
 - **Quiet instructions, touches and the start-up backlog do not queue.** The start-up backlog is one turn per room

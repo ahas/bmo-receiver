@@ -697,6 +697,11 @@ impl Drop for Going {
   }
 }
 
+/// Every room's queue of an agent's conversations kept gathering until this is dropped.
+pub struct QueueHold {
+  _held: tokio::sync::OwnedRwLockWriteGuard<()>,
+}
+
 /// What a reset cut off of an agent's conversations: the rows of the quiet instructions let go unread, and the
 /// runs of its own going then.
 #[derive(Debug, Default)]
@@ -724,6 +729,9 @@ struct Inner {
   timings: Timings,
   state: Mutex<State>,
   turn: tokio::sync::Mutex<()>,
+  // Read by every room's queue as its delay is up, before it hands over what it gathered: whoever holds it
+  // written keeps every queue gathering until it lets go.
+  queue_hold: Arc<tokio::sync::RwLock<()>>,
   // The rooms a voice briefing turn of the agent's is being carried in.
   briefings: Arc<super::briefing_turn::BriefingTurns>,
   carrying: Arc<dyn Carrying>,
@@ -758,8 +766,17 @@ impl Conversations {
       timings,
       state: Mutex::new(State::default()),
       turn: tokio::sync::Mutex::new(()),
+      queue_hold: Arc::default(),
       briefings: Arc::default(),
     }))
+  }
+
+  /// Holds every room's queue gathering past its delay until the hold is dropped, so what is said meanwhile joins
+  /// the one batch the queue hands over once it is let go (docs/wake.md, 「The room's queue and the round」).
+  pub async fn hold_queues(&self) -> QueueHold {
+    QueueHold {
+      _held: self.0.queue_hold.clone().write_owned().await,
+    }
   }
 
   /// The agent whose conversations these are.
@@ -1182,6 +1199,7 @@ impl Conversations {
         state.queue.insert(chat_id, vec![message]);
         tokio::spawn(async move {
           tokio::time::sleep(delay).await;
+          drop(this.0.queue_hold.read().await);
 
           // The batch counts as delivering from the moment it leaves the queue, under the same lock, so no moment
           // finds it in neither while its conversation is still being woken.

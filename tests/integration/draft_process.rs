@@ -81,9 +81,6 @@ fn timings() -> Timings {
   }
 }
 
-// How long the queue of a round gathers where a test says two lines one after the other into the one turn.
-const GATHERING: Duration = Duration::from_millis(500);
-
 fn documents(data: &Path) {
   let chat = data.join("prompts").join("chat");
 
@@ -137,17 +134,6 @@ struct Drafting {
 impl Drafting {
   async fn new(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
     Self::with_hiding(session, rounds, ceiling_seconds, true, false, timings()).await
-  }
-
-  // A round whose queue gathers long enough for the lines a test says one after another to reach the same turn,
-  // however long the store takes to keep each.
-  async fn new_gathering(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    let gathering = Timings {
-      queue: GATHERING,
-      ..timings()
-    };
-
-    Self::with_hiding(session, rounds, ceiling_seconds, true, false, gathering).await
   }
 
   async fn new_visible(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
@@ -215,6 +201,18 @@ impl Drafting {
     .await;
     // The round's last writes land after its turn ends.
     tokio::time::sleep(Duration::from_millis(100)).await;
+  }
+
+  // The lines heard one after the other, the room's queue held until the last is in so they reach the one turn
+  // however long the store takes to keep each.
+  async fn hear_together(&self, lines: &[(i64, &str)]) {
+    let hold = self.runner.default_answerer().hold_queues().await;
+
+    for (message_id, text) in lines {
+      self.hear(*message_id, text).await;
+    }
+
+    drop(hold);
   }
 
   fn sent(&self) -> Vec<String> {
@@ -2954,10 +2952,9 @@ async fn an_answer_to_the_newest_line_goes_unpinned() {
 #[tokio::test]
 async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY:1>> the message itself"]);
-  let round = Drafting::new_gathering(session, &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
-  round.hear(1, ASKED).await;
-  round.hear(2, "and this?").await;
+  round.hear_together(&[(1, ASKED), (2, "and this?")]).await;
   round.ended(1).await;
 
   let sent = round.sent();
@@ -2970,10 +2967,11 @@ async fn an_answer_marked_to_an_older_line_is_stored_and_sent_as_its_reply() {
 #[tokio::test]
 async fn an_unmarked_answer_goes_out_plain_though_an_older_line_asked() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message itself"]);
-  let round = Drafting::new_gathering(session, &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
-  round.hear(1, "what does the plan for this week hold?").await;
-  round.hear(2, "noted").await;
+  round
+    .hear_together(&[(1, "what does the plan for this week hold?"), (2, "noted")])
+    .await;
   round.ended(1).await;
 
   let sent = round.sent();
@@ -2986,10 +2984,9 @@ async fn an_unmarked_answer_goes_out_plain_though_an_older_line_asked() {
 #[tokio::test]
 async fn a_bare_reply_mark_pins_the_newest_line_the_round_answers() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["<<REPLY>> the message itself"]);
-  let round = Drafting::new_gathering(session, &["final"], 150).await;
+  let round = Drafting::new(session, &["final"], 150).await;
 
-  round.hear(1, ASKED).await;
-  round.hear(2, "and this?").await;
+  round.hear_together(&[(1, ASKED), (2, "and this?")]).await;
   round.ended(1).await;
 
   let sent = round.sent();
