@@ -1245,6 +1245,24 @@
         ],
         "type": "object"
       },
+      "FileLimit": {
+        "description": "The largest file a room takes, and the chat service that declares it.",
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "bytes"
+        ],
+        "type": "object"
+      },
       "FillOutcome": {
         "description": "What the chat service answered for one row a pass asked for.",
         "oneOf": [
@@ -2778,6 +2796,16 @@
             },
             "type": "array"
           },
+          "fileBytes": {
+            "default": null,
+            "description": "The largest file it takes, in bytes, as it declares; null where it declares none.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "key": {
             "type": "string"
           },
@@ -2816,7 +2844,8 @@
           "listsContacts",
           "startsChats",
           "startsGroups",
-          "roomModes"
+          "roomModes",
+          "fileBytes"
         ],
         "type": "object"
       },
@@ -3257,10 +3286,22 @@
         ]
       },
       "RoomProviders": {
-        "description": "The chat providers a room is on, by key in order, and whether its list was set rather than read off what the\nroom holds.",
+        "description": "The chat providers a room is on, by key in order, whether its list was set rather than read off what the room\nholds, and the largest file the room takes.",
         "properties": {
           "chosen": {
             "type": "boolean"
+          },
+          "fileLimit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileLimit"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The smallest limit any chat service on the list declares; null where none declares one and the room takes a\nfile of any size."
           },
           "providers": {
             "items": {
@@ -3271,7 +3312,8 @@
         },
         "required": [
           "providers",
-          "chosen"
+          "chosen",
+          "fileLimit"
         ],
         "type": "object"
       },
@@ -4353,7 +4395,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, too-large, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, private-room, upstream-failed, failed"
           }
         },
         "summary": "A picture set from the console on a room, a person or an agent, as a form with one picture.",
@@ -4366,8 +4408,6 @@
           "unknown-kind",
           "no-picture-given",
           "not-a-picture",
-          "picture-too-large",
-          "too-large",
           "private-room",
           "upstream-failed",
           "failed"

@@ -9,19 +9,21 @@ use axum::{
   http::StatusCode,
 };
 use bmo_chat_client::{ChatFileKind, FileItem, MessageFile};
+use receiver_codes::OwnerSendRefusal;
 use receiver_policy::roads::ROADS;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::accounts::speaker;
 use super::writable::{WritableRoom, Writer};
-use super::{Answered, Refusal, Served, answered, read, refused, store};
-use crate::data_root::room_path;
+use super::{Answered, Refusal, Served, answered, code, read, refused, store};
+use crate::data_root::{DataRoot, room_path};
 use crate::now_ms;
+use crate::receiver::files::Handed;
+use crate::receiver::incoming::{Arriving, Incoming};
 use crate::receiver::{Context, Inbound, NotReceived, Receiver, reads, rows};
-use crate::roads::providers::{self, Carried, Delivery, SaidBy};
+use crate::roads::providers::{self, Carried, Delivery, FileLimit, SaidBy};
 use crate::roads::{Road, record};
-use crate::routes::as_owner::{OwnerFile, refusal};
 use crate::routes::message_files::inside;
 use crate::secrets;
 
@@ -234,7 +236,8 @@ async fn carried(
 }
 
 /// A form of files put into a room on the screen, as it was read: its room and the account speaking where the form
-/// names them, the caption, the message it answers, whether it is a voice note, and the files.
+/// names them, the caption, the message it answers, whether it is a voice note, and the files, each written to the
+/// disk as it arrived.
 #[derive(Default)]
 pub(super) struct FilesForm {
   pub chat_id: Option<i64>,
@@ -243,15 +246,24 @@ pub(super) struct FilesForm {
   caption: String,
   reply: Option<String>,
   voice: bool,
-  given: Vec<OwnerFile>,
+  given: Vec<Incoming>,
 }
 
 fn unreadable(why: axum::extract::multipart::MultipartError) -> Refusal {
   refused(StatusCode::BAD_REQUEST, "bad-request", &why.body_text())
 }
 
-/// The form read whole.
-pub(super) async fn files_form(mut form: Multipart) -> Result<FilesForm, Refusal> {
+fn unwritten(why: std::io::Error) -> Refusal {
+  refused(
+    StatusCode::INTERNAL_SERVER_ERROR,
+    "failed",
+    &format!("a file of the form could not be written as it arrived: {why}"),
+  )
+}
+
+/// The form read as it arrives, under no ceiling of the receiver's own: each file written under the data root's
+/// `incoming/` chunk by chunk, so none is held whole in memory (docs/api.md, 「Sends」).
+pub(super) async fn files_form(mut form: Multipart, data_root: &DataRoot) -> Result<FilesForm, Refusal> {
   let mut read = FilesForm::default();
 
   while let Some(field) = form.next_field().await.map_err(unreadable)? {
@@ -271,13 +283,14 @@ pub(super) async fn files_form(mut form: Multipart) -> Result<FilesForm, Refusal
       "file" => {
         let name = field.file_name().unwrap_or_default().to_owned();
         let mime = field.content_type().unwrap_or_default().to_owned();
-        let bytes = field.bytes().await.map_err(unreadable)?;
+        let mut field = field;
+        let mut arriving = Arriving::begun(data_root).await.map_err(unwritten)?;
 
-        read.given.push(OwnerFile {
-          name,
-          mime,
-          bytes: bytes.to_vec(),
-        });
+        while let Some(chunk) = field.chunk().await.map_err(unreadable)? {
+          arriving.taken(&chunk).await.map_err(unwritten)?;
+        }
+
+        read.given.push(arriving.done(name, mime).await.map_err(unwritten)?);
       }
       _ => {}
     }
@@ -302,8 +315,8 @@ pub(super) async fn sendable(receiver: &Receiver, chat_id: i64, form: &FilesForm
 
 pub async fn say_file(State(served): State<Served>, writer: Writer) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
-  let writer = writer.owners();
-  let form = files_form(writer.form().await?).await?;
+  let mut writer = writer.owners();
+  let form = files_form(writer.form().await?, receiver.data_root()).await?;
   let Some(chat_id) = form.chat_id else {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "chatId (number) and file are required"));
   };
@@ -318,6 +331,8 @@ pub async fn say_file(State(served): State<Served>, writer: Writer) -> Answered 
 
 /// The files of a form kept in a room under who speaks them, each as its own message with the caption beside it,
 /// and carried to the room's other providers as one send of files; or one recording, where the form is a voice note.
+/// A file past the largest the room takes is turned away by its name, and a form none of whose files stood is
+/// refused as the first of them was (docs/api.md, 「Sends」).
 pub(super) async fn files_said(
   receiver: &Receiver,
   chat_id: i64,
@@ -336,36 +351,41 @@ pub(super) async fn files_said(
   let caption = secrets::redacted(&caption);
   let reply_value = reply.map(Value::String);
   let reply = reply_target(receiver, chat_id, reply_value.as_ref()).await?;
+  let limit = providers::file_limit(receiver.db(), receiver.roads(), chat_id).await.map_err(store)?;
 
   if voice {
     if given.len() != 1 {
       return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "a voice note carries one sound file"));
     }
 
-    return say_voice(receiver, chat_id, reply, caption, given.remove(0), speaking).await;
+    let file = given.remove(0);
+
+    return say_voice(receiver, chat_id, reply, caption, file, speaking, limit.as_ref()).await;
   }
 
   let mut turned_away: Vec<Value> = vec![];
-  let mut standing: Vec<OwnerFile> = vec![];
+  let mut first_refusal: Option<OwnerSendRefusal> = None;
+  let mut standing: Vec<Incoming> = vec![];
 
   for file in given {
-    match refusal(&file.name, u64::try_from(file.bytes.len()).unwrap_or(0)) {
-      Some(reason) => turned_away.push(json!({ "name": file.name, "reason": reason })),
+    match limit.as_ref().and_then(|limit| limit.turns_away(file.name(), file.size())) {
+      Some(refusal) => {
+        turned_away.push(json!({ "name": file.name(), "reason": refusal.to_string() }));
+        first_refusal.get_or_insert(refusal);
+      }
       None => standing.push(file),
     }
   }
 
   if standing.is_empty() {
-    let why = turned_away
-      .first()
-      .map(|held| held.get("reason").and_then(Value::as_str).unwrap_or_default().to_owned())
-      .unwrap_or("no file stood".to_owned());
-
-    return Err(refused(StatusCode::PAYLOAD_TOO_LARGE, "too-large", &why));
+    return Err(match first_refusal {
+      Some(refusal) => code(&refusal),
+      None => refused(StatusCode::BAD_REQUEST, "bad-request", "no file stood"),
+    });
   }
 
   let mut sent: Vec<Value> = vec![];
-  let mut files: Vec<FileItem> = vec![];
+  let mut kept: Vec<Incoming> = vec![];
   let mut first: Option<Inbound> = None;
   let mut unkept: Option<Refusal> = None;
 
@@ -388,33 +408,21 @@ pub(super) async fn files_said(
       via_reader: None,
       album: None,
     };
-    // The record hands the file over as its own message's one file, identified by that place.
-    let item = MessageFile {
-      id: "1".to_owned(),
-      name: file.name.clone(),
-      mime: file.mime.clone(),
-      bytes: file.bytes.clone(),
-      kind: None,
-    };
     let context = Context {
       carries_file: true,
       ..Context::default()
     };
 
-    match kept_and_woken(receiver, message, &context, item).await {
+    match kept_and_woken(receiver, message, &context, &file).await {
       Ok(message) => {
-        sent.push(json!({ "name": file.name, "id": message.message_id }));
-        files.push(FileItem {
-          name: file.name,
-          mime: file.mime,
-          bytes: file.bytes,
-        });
+        sent.push(json!({ "name": file.name(), "id": message.message_id }));
+        kept.push(file);
         first.get_or_insert(message);
       }
       Err(why) => {
         let why = failed(why);
 
-        turned_away.push(json!({ "name": file.name, "reason": why.error }));
+        turned_away.push(json!({ "name": file.name(), "reason": why.error }));
         unkept.get_or_insert(why);
       }
     }
@@ -426,9 +434,47 @@ pub(super) async fn files_said(
   };
 
   // The files go on to the room's other providers as one send of files, the way they were put in together.
-  carried_after_keeping(receiver, &first, speaking.said_by, Carried::Files { files, caption }).await;
+  if let Some(files) = carried_files(receiver, chat_id, &kept).await {
+    carried_after_keeping(receiver, &first, speaking.said_by, Carried::Files { files, caption }).await;
+  }
 
   answered(json!({ "id": first.message_id, "sent": sent, "checking": [], "failed": turned_away }))
+}
+
+// The files a form carried, read back off the disk for the room's chat services, which the base library hands
+// whole bytes: none where the room goes on to no chat service, so a room on the record alone never holds them in
+// memory. A file that cannot be read back is left out and said in the log; the room has kept it all the same.
+async fn carried_files(receiver: &Receiver, chat_id: i64, kept: &[Incoming]) -> Option<Vec<FileItem>> {
+  match providers::carries(receiver.db(), receiver.roads(), chat_id).await {
+    Ok(true) => {}
+    Ok(false) => return None,
+    Err(why) => {
+      eprintln!(
+        "bmo-receiver: room {chat_id}'s providers could not be read to carry its files: {}",
+        why.detail
+      );
+
+      return None;
+    }
+  }
+
+  let mut files: Vec<FileItem> = vec![];
+
+  for file in kept {
+    match file.bytes().await {
+      Ok(bytes) => files.push(FileItem {
+        name: file.name().to_owned(),
+        mime: file.mime().to_owned(),
+        bytes,
+      }),
+      Err(why) => eprintln!(
+        "bmo-receiver: the file {} kept in room {chat_id} was not read back to carry: {why}",
+        file.name()
+      ),
+    }
+  }
+
+  Some(files)
 }
 
 // One message carrying a file kept in the room under the next console number, and the agents it calls for woken:
@@ -438,12 +484,13 @@ async fn kept_and_woken(
   receiver: &Receiver,
   mut message: Inbound,
   context: &Context,
-  item: MessageFile,
+  item: &Incoming,
 ) -> Result<Inbound, NotReceived> {
   message.message_id = record::next_number(receiver.db(), message.chat_id).await?;
 
   let room = receiver.roads().room_facts(message.chat_id).await;
-  let Some(kept) = receiver.attachment_kept(&message, context, room, &[item]).await? else {
+  let Some(kept) = receiver.attachment_kept(&message, context, room, std::slice::from_ref(item)).await?
+  else {
     return Ok(message);
   };
 
@@ -472,14 +519,15 @@ async fn say_voice(
   chat_id: i64,
   reply: Option<i64>,
   caption: String,
-  file: OwnerFile,
+  file: Incoming,
   speaking: Speaking,
+  limit: Option<&FileLimit>,
 ) -> Answered {
-  if let Some(reason) = refusal(&file.name, u64::try_from(file.bytes.len()).unwrap_or(0)) {
-    return Err(refused(StatusCode::PAYLOAD_TOO_LARGE, "too-large", &reason));
+  if let Some(refusal) = limit.and_then(|limit| limit.turns_away(file.name(), file.size())) {
+    return Err(code(&refusal));
   }
 
-  let mime = file.mime.trim().to_ascii_lowercase();
+  let mime = file.mime().trim().to_ascii_lowercase();
 
   if !mime.starts_with("audio/") {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "a voice note carries one sound file"));
@@ -507,35 +555,34 @@ async fn say_voice(
     via_reader: None,
     album: None,
   };
-  let item = MessageFile {
-    id: "1".to_owned(),
-    name: file.name.clone(),
-    mime: file.mime.clone(),
-    bytes: file.bytes.clone(),
-    kind: Some(ChatFileKind::VoiceNote),
-  };
+  let file = file.as_kind(ChatFileKind::VoiceNote);
   let context = Context {
     carries_file: true,
     spoken_text: (!caption.trim().is_empty()).then(|| caption.clone()),
     ..Context::default()
   };
-  let message = kept_and_woken(receiver, message, &context, item).await.map_err(failed)?;
+  let message = kept_and_woken(receiver, message, &context, &file).await.map_err(failed)?;
   let message_id = message.message_id;
 
-  carried_after_keeping(
-    receiver,
-    &message,
-    speaking.said_by,
-    Carried::Voice {
-      audio: file.bytes,
-      caption,
-    },
-  )
-  .await;
+  if let Some(audio) = carried_files(receiver, chat_id, std::slice::from_ref(&file))
+    .await
+    .and_then(|mut read| read.pop())
+  {
+    carried_after_keeping(
+      receiver,
+      &message,
+      speaking.said_by,
+      Carried::Voice {
+        audio: audio.bytes,
+        caption,
+      },
+    )
+    .await;
+  }
 
   answered(json!({
     "id": message_id,
-    "sent": [{ "name": file.name, "id": message_id }],
+    "sent": [{ "name": file.name(), "id": message_id }],
     "checking": [],
     "failed": [],
   }))
@@ -667,15 +714,9 @@ pub async fn forward(
       album: None,
     };
 
-    crate::receiver::files::keep(
-      receiver.db(),
-      receiver.data_root(),
-      receiver.deployment().attachment_bytes,
-      &inbound,
-      std::slice::from_ref(file),
-    )
-    .await
-    .map_err(store)?;
+    crate::receiver::files::keep(receiver.db(), receiver.data_root(), &inbound, std::slice::from_ref(file))
+      .await
+      .map_err(store)?;
   }
 
   crate::run(

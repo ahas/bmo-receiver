@@ -69,13 +69,13 @@ async fn each_provider_offers_what_it_declares_and_the_record_offers_nothing() {
     json!([
       { "key": "record", "label": every["items"][0]["label"], "can": every["items"][0]["can"],
         "listsRooms": false, "listsContacts": false,
-        "startsChats": false, "startsGroups": false, "roomModes": [] },
+        "startsChats": false, "startsGroups": false, "roomModes": [], "fileBytes": null },
       { "key": "road-a", "label": "the road-a road", "can": every["items"][1]["can"],
         "listsRooms": true, "listsContacts": true,
-        "startsChats": true, "startsGroups": true, "roomModes": ["avatar", "record-only"] },
+        "startsChats": true, "startsGroups": true, "roomModes": ["avatar", "record-only"], "fileBytes": null },
       { "key": "road-b", "label": "the road-b road", "can": every["items"][2]["can"],
         "listsRooms": false, "listsContacts": false,
-        "startsChats": false, "startsGroups": false, "roomModes": ["record-only"] },
+        "startsChats": false, "startsGroups": false, "roomModes": ["record-only"], "fileBytes": null },
     ])
   );
 
@@ -144,7 +144,7 @@ async fn a_room_added_is_kept_with_its_mode_its_title_and_its_service_beside_the
   assert_eq!(room["registered"], true);
   assert_eq!(
     get(&front, "/rooms/-200/providers").await.1,
-    json!({ "providers": ["road-a", "record"], "chosen": true })
+    json!({ "providers": ["road-a", "record"], "chosen": true, "fileLimit": null })
   );
 
   // The room stands in the room list before anything is said there, and the account's list shows its mode.
@@ -360,7 +360,7 @@ async fn a_conversation_started_on_the_service_is_added_as_the_room_it_comes_to(
   );
   assert_eq!(
     get(&front, "/rooms/52/providers").await.1,
-    json!({ "providers": ["road-a", "record"], "chosen": true })
+    json!({ "providers": ["road-a", "record"], "chosen": true, "fileLimit": null })
   );
 
   let group = json!({

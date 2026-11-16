@@ -22,6 +22,7 @@ use receiver_policy::files::FILES;
 use crate::chat::instructions::{Queued, queue};
 use crate::data_root::DataRoot;
 use crate::receiver::{NotReceived, Receiver, labels, rows, wake};
+use crate::roads::providers::FileLimit;
 use crate::verbs::photo_repair::fetched;
 use crate::verbs::room_files::{room_file_refusal, room_stores};
 use crate::verbs::sends::{Going, NotSent, Sends};
@@ -767,14 +768,15 @@ struct ReadFile {
   bytes: Vec<u8>,
 }
 
-// A file read for a send, held to the ceiling one file may be, refused where it is past it or is no file; a
-// file a room's folder holds goes only into that room and out of no job.
+// A file read for a send, refused where it is past the largest the room takes (docs/api.md, 「Sends」) or is no
+// file; a file a room's folder holds goes only into that room and out of no job.
 async fn read_file(
   data_root: &DataRoot,
   chat_id: i64,
   path: &str,
   name: Option<&str>,
   job: bool,
+  limit: Option<&FileLimit>,
 ) -> Result<ReadFile, VerbError> {
   if let Some(refusal) = room_file_refusal(path, chat_id, &room_stores(data_root), job) {
     return Err(VerbError::Refused(refusal));
@@ -785,11 +787,8 @@ async fn read_file(
     .map_err(|why| VerbError::Refused(format!("{path} is no file on this machine: {why}")))?
     .len();
 
-  if length > FILES.largest_bytes {
-    return Err(VerbError::Refused(format!(
-      "{path} is {length} bytes, past the {} a send takes a file at",
-      FILES.largest_bytes
-    )));
+  if let Some(refusal) = limit.and_then(|limit| limit.turns_away(path, length)) {
+    return Err(VerbError::Refused(refusal.to_string()));
   }
 
   let bytes = tokio::fs::read(path)
@@ -826,12 +825,13 @@ pub async fn file(
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
   let mut held: Vec<ReadFile> = vec![];
+  let limit = sends.file_limit(chat_id).await?;
 
   for file in files {
     let path = file.path.trim();
 
     if !path.is_empty() {
-      held.push(read_file(data_root, chat_id, path, file.name.as_deref(), job).await?);
+      held.push(read_file(data_root, chat_id, path, file.name.as_deref(), job, limit.as_ref()).await?);
     }
   }
 
@@ -959,7 +959,8 @@ pub async fn voice(
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
   let path = note.path.trim();
-  let file = read_file(data_root, chat_id, path, None, job).await?;
+  let limit = sends.file_limit(chat_id).await?;
+  let file = read_file(data_root, chat_id, path, None, job, limit.as_ref()).await?;
 
   if !file.bytes.starts_with(b"OggS") {
     return Err(VerbError::Refused(format!(

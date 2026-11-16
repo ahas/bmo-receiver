@@ -10,6 +10,7 @@ use bmo_chat_client::{
   AlbumItem, ChatCapability, ChatDeclaration, ChatModeStanding, ChatSend, ChatSendRequest, ChatVoice,
   ClientFailure, ErrorCode, FileItem,
 };
+use receiver_codes::OwnerSendRefusal;
 use receiver_policy::fill_marks;
 use receiver_policy::roads::ROADS;
 use receiver_ports::chat::Chat;
@@ -20,7 +21,8 @@ use super::{Facts, Road, Roads};
 use crate::{Fault, all, now_ms, one, run};
 
 /// A provider a room may be on: its key, what it is called, the verbs it performs, whether it lists the rooms and the
-/// contacts of its account and starts a one-to-one or a group, and the modes a room added on it may take (docs/receiver.md, 「Adding a room」).
+/// contacts of its account and starts a one-to-one or a group, the modes a room added on it may take (docs/receiver.md,
+/// 「Adding a room」), and the largest file it takes, where it declares one (docs/api.md, 「Sends」).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Provider {
   pub key: String,
@@ -31,6 +33,7 @@ pub struct Provider {
   pub starts_chats: bool,
   pub starts_groups: bool,
   pub room_modes: Vec<RoomMode>,
+  pub file_bytes: Option<u64>,
 }
 
 /// Every provider a room may be on: the room's record, which lists no rooms and takes no mode, then each chat
@@ -46,6 +49,7 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
     starts_chats: false,
     starts_groups: false,
     room_modes: vec![],
+    file_bytes: record.file_bytes,
   }];
 
   for key in roads.chats().names() {
@@ -66,6 +70,7 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
         .as_ref()
         .is_some_and(|declared| added::can(declared, ChatCapability::StartGroup)),
       room_modes: declared.as_ref().map(added::offered).unwrap_or_default(),
+      file_bytes: declared.as_ref().and_then(|declared| declared.dialect.limits.file_bytes),
     });
   }
 
@@ -127,6 +132,62 @@ pub async fn listed(db: &DatabaseConnection, roads: &Roads, chat_id: i64) -> Res
     providers,
     chosen: false,
   })
+}
+
+/// The largest file a room takes: the chat service on its list declaring the smallest limit, and that limit.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FileLimit {
+  pub provider: String,
+  pub bytes: u64,
+}
+
+impl FileLimit {
+  /// Why a file of `size` bytes is turned away before anything is kept or goes: past the limit.
+  pub fn turns_away(&self, name: &str, size: u64) -> Option<OwnerSendRefusal> {
+    (size > self.bytes).then(|| OwnerSendRefusal::TooLarge {
+      name: name.to_owned(),
+      size_bytes: size,
+      largest_bytes: self.bytes,
+      provider: self.provider.clone(),
+    })
+  }
+}
+
+/// The largest file a room takes (docs/api.md, 「Sends」): the smallest any chat service on its list of providers
+/// declares, as its kept declaration says; none where none of them declares one, so the room takes any size.
+pub async fn file_limit(
+  db: &DatabaseConnection,
+  roads: &Roads,
+  chat_id: i64,
+) -> Result<Option<FileLimit>, Fault> {
+  let listed = listed(db, roads, chat_id).await?;
+  let mut limit: Option<FileLimit> = None;
+
+  for key in listed.providers {
+    let Some(bytes) = roads.facts(&Road::of(&key)).await.file_bytes else { continue };
+
+    if limit.as_ref().is_none_or(|smallest| bytes < smallest.bytes) {
+      limit = Some(FileLimit {
+        provider: key,
+        bytes,
+      });
+    }
+  }
+
+  Ok(limit)
+}
+
+/// Whether a kept message in a room goes on to any chat service: its list of providers names one the
+/// configuration lists.
+pub async fn carries(db: &DatabaseConnection, roads: &Roads, chat_id: i64) -> Result<bool, Fault> {
+  let listed = listed(db, roads, chat_id).await?;
+
+  Ok(
+    listed
+      .providers
+      .iter()
+      .any(|key| key != Road::Record.key() && roads.chats().road(key).is_some()),
+  )
 }
 
 /// Whether a room is read-only (docs/receiver.md, 「A read-only room」): its list of providers names at least one

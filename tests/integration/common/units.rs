@@ -114,6 +114,8 @@ pub struct StandInChat {
   /// `speaker-unnumbered`.
   pub speakers: bool,
   pub speaks_for: BTreeSet<String>,
+  /// The largest file it declares it takes, where it declares one.
+  pub file_bytes: Option<u64>,
   numbered: AtomicI64,
   // The next send, held until the test lets it go, and whether one stands held now.
   held_send: Mutex<Option<Arc<tokio::sync::Notify>>>,
@@ -144,6 +146,12 @@ impl StandInChat {
   pub fn speaking_for(mut self, speakers: &[&str]) -> Self {
     self.speakers = true;
     self.speaks_for = speakers.iter().map(|speaker| (*speaker).to_owned()).collect();
+    self
+  }
+
+  /// A service that declares it takes no file past `bytes`.
+  pub fn taking_files_up_to(mut self, bytes: u64) -> Self {
+    self.file_bytes = Some(bytes);
     self
   }
 
@@ -409,7 +417,7 @@ impl Chat for StandInChat {
           text: None,
           caption: None,
           album_photos: None,
-          file_bytes: None,
+          file_bytes: self.file_bytes,
         },
         writing: "plain text".to_owned(),
         foldable: false,
@@ -1188,15 +1196,11 @@ pub fn deployment() -> Deployment {
     owner_room: None,
     notices_room: None,
     language: "en".to_owned(),
-    attachment_bytes: Some(CAP),
   }
 }
 
 /// The newest run the stand-in agency answers every round's turns opened, the one before it beside it.
 pub const ROUND_RUN: i64 = 77;
-
-/// The attachment size cap of the tests' deployment, in bytes.
-pub const CAP: u64 = 1024;
 
 /// The length of window the stand-in conversations open when a turn's ground does, in seconds.
 pub const WINDOW: i64 = 60;

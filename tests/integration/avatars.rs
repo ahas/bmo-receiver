@@ -2,7 +2,7 @@
 //! agent under every number it stands under, kept as a JPEG beside the picture a chat service hands over, the newer
 //! of the two served and listed, let go to the handed-over one, and refused for an unknown kind or no picture. An
 //! agent's is kept under its name and worn under each number it takes later. A picture is read whole past the
-//! framework's two mebibytes, and a form past the ceiling of one file is refused as too large.
+//! framework's two mebibytes.
 
 use axum::{
   body::{Body, to_bytes},
@@ -10,7 +10,6 @@ use axum::{
   http::StatusCode,
 };
 use bmo_receiver::roads::record;
-use receiver_policy::files::FILES;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -295,8 +294,7 @@ async fn a_member_sets_his_own_picture_alone_and_the_administrator_every_one() {
 }
 
 #[tokio::test]
-async fn a_picture_past_the_frameworks_two_mebibytes_is_set_and_a_form_past_one_files_ceiling_is_too_large()
-{
+async fn a_picture_past_the_frameworks_two_mebibytes_is_set() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
   // A picture of three mebibytes: the small PNG with bytes past its end, which a reader of it leaves alone.
@@ -307,9 +305,4 @@ async fn a_picture_past_the_frameworks_two_mebibytes_is_set_and_a_form_past_one_
   let (status, answer) = put(&front, "/avatars/person/55", form("picture", &large)).await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
-
-  let past = FILES.request_bytes(1) + 1;
-  let (status, answer) = put(&front, "/avatars/person/55", form("picture", &vec![0; past])).await;
-
-  assert_eq!((status, answer["code"].as_str()), (StatusCode::PAYLOAD_TOO_LARGE, Some("too-large")));
 }

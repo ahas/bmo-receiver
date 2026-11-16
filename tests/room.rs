@@ -33,6 +33,7 @@ fn road(can: &[&str], foldable: bool) -> Facts {
     foldable,
     shows: None,
     speakers: false,
+    file_bytes: None,
   }
 }
 

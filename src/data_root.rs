@@ -70,6 +70,12 @@ impl DataRoot {
     self.root.join("avatars")
   }
 
+  /// The files the console's forms carry, each written as it arrives and removed with its request
+  /// (`docs/store.md`, 「The data root's folders」).
+  pub fn incoming(&self) -> PathBuf {
+    self.root.join("incoming")
+  }
+
   /// The outboxes, one folder a room.
   pub fn outboxes(&self) -> PathBuf {
     self.root.join("outbox")

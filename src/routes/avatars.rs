@@ -5,7 +5,6 @@
 use axum::extract::{Multipart, Path, State};
 use axum::http::HeaderMap;
 use receiver_codes::AvatarRefusal;
-use receiver_policy::files::FILES;
 use serde_json::{Value, json};
 
 use super::writable::Writer;
@@ -14,21 +13,11 @@ use crate::receiver::{Receiver, agent_pictures, avatars};
 use crate::store::Fault;
 use crate::{now_ms, one, run};
 
-// The one `picture` of the form, as its bytes.
+// The one `picture` of the form, as its bytes, read whole since it is drawn anew; a picture of any size is taken.
 async fn picture(mut form: Multipart) -> Result<Vec<u8>, Refusal> {
   while let Ok(Some(field)) = form.next_field().await {
     if field.name() == Some("picture") {
-      let bytes = field.bytes().await.map_err(|_| code(&AvatarRefusal::NotAPicture))?.to_vec();
-      let size = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
-
-      if size > FILES.largest_bytes {
-        return Err(code(&AvatarRefusal::PictureTooLarge {
-          size_bytes: size,
-          largest_bytes: FILES.largest_bytes,
-        }));
-      }
-
-      return Ok(bytes);
+      return Ok(field.bytes().await.map_err(|_| code(&AvatarRefusal::NotAPicture))?.to_vec());
     }
   }
 
@@ -146,7 +135,7 @@ pub async fn set(
   State(served): State<Served>,
   Path((kind, subject)): Path<(String, String)>,
   asked: HeaderMap,
-  writer: Writer,
+  mut writer: Writer,
 ) -> Answered {
   let receiver: Receiver = (*served.receiver).clone();
 

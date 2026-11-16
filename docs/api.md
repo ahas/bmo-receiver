@@ -44,7 +44,7 @@ of its own.
 | 404 | `no-route` | no route answers this method and path |
 | 404 | `not-found` | the room, message, instruction, run or agent named does not exist |
 | 409 | `conflict` | the request contradicts what stands; the answer carries the refusal's own code |
-| 413 | `too-large` | a file is past the ceiling a road takes |
+| 413 | `too-large` | a file is past the largest file a chat provider of the room declares it takes |
 | 429 | `limit` | a talk's provider limit is reached |
 | 502 | `upstream-failed` | a call the route needed on another unit failed; the sentence names it |
 | 503 | `not-ready` | the service is up but a part it needs does not stand yet |
@@ -107,11 +107,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/owner-spoke` | `person`, `before`, `windowMs` | `owner` and `spoke`: whether the person is the owner, and whether the owner spoke in the span |
 | `GET /rooms/{roomId}/situation` | | `text`, the room's situation note as it stands, and `updatedAt`, when it last changed in epoch milliseconds, both null where the room has none |
 | `GET /rooms/{roomId}/window` | | `openForMs`, the default answerer's window left, and `closesAt` in epoch milliseconds, or null |
-| `GET /providers` | | a page of `Provider` (`key`, `label`, `can`, `listsRooms`, `listsContacts`, `startsChats`, `startsGroups`, `roomModes`): every chat provider a room may be on |
+| `GET /providers` | | a page of `Provider` (`key`, `label`, `can`, `listsRooms`, `listsContacts`, `startsChats`, `startsGroups`, `roomModes`, `fileBytes`): every chat provider a room may be on |
 | `GET /providers/{key}/rooms` | `after` (a room number), `limit` | a page of `AccountRoom` (`id`, `title`, `kind`, `privateTo`, `held`, `mode`): the rooms the provider's account is in |
 | `GET /providers/{key}/contacts` | `after` (a contact number), `limit`, `accountId` (the account whose contacts are listed) | a page of `AccountContact` (`id`, `name`, `kind`, `roomId`, `held`, `mode`): the contacts of the provider's account, or of the account `accountId` names |
-| `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, and `chosen`, whether the list was set |
-| `PUT /rooms/{roomId}/providers` | `providers`, the whole list | `providers` and `chosen`, as the list now stands |
+| `GET /rooms/{roomId}/providers` | | `providers`, the keys of the room's chat providers in order, `chosen`, whether the list was set, and `fileLimit`, the largest file the room takes |
+| `PUT /rooms/{roomId}/providers` | `providers`, the whole list | `providers`, `chosen` and `fileLimit`, as the list now stands |
 | `GET /rooms/{roomId}/members` | | `members`, the people in the room as its own chat service lists them, each `person` (the sender number the room's messages carry, or null where the service gave the person none), `name` and `statusMessage` (or null) |
 | `GET /rooms/{roomId}/accounts` | | `accounts`, the room's members by account, each `account`, `addedBy` and `addedAt` (both null for a private room's own account, which nobody let in) |
 | `PUT /rooms/{roomId}/accounts/{account}` | `by`, the account letting it in | the member, `account`, `addedBy` and `addedAt`; the same member where it already is one |
@@ -327,9 +327,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   or its file is gone (`docs/pictures.md`, 「Profile pictures」). A picture set or let go is refused 403 `picture-forbidden`
   to a caller the relay's `Owner-Key` and `Owner-Role` do not let set it (`docs/pictures.md`), 400 `unknown-kind`
   for a kind other than the three, 400 `no-picture-given`
-  where the form holds no `picture`, 400 `not-a-picture` where it cannot be read as one, 413 `picture-too-large`
-  past `files.toml`'s `largest_bytes`, and 413 `too-large` where the whole form is past the ceiling the route reads
-  a body under (「Sends」). An agent's picture is kept under its name whether or not it stands under any
+  where the form holds no `picture`, and 400 `not-a-picture` where it cannot be read as one. A picture of any size
+  is taken: it is kept by the receiver alone and handed to no chat service, so no provider's limit bears on it. An agent's picture is kept under its name whether or not it stands under any
   number yet, and every number it takes later wears it (`docs/pictures.md`, 「Profile pictures」).
 - **These picture routes are the console's one source of profile pictures,** every chat service's among them: a
   room's, a person's and the owner's own account's. The receiver takes each chat service's pictures from that
@@ -443,15 +442,21 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` (each `name`, `reason`) |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into; `account?`, the account forwarding it, and `name?`, its shown name | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
 
-- **A route that takes files reads its whole body under a ceiling `files.toml` sets,** never under the
-  framework's default of two mebibytes. `POST /owner/message-files` and `POST /rooms/{roomId}/word-files` take
-  `most_files` files at `largest_bytes` each, with `form_bytes` beside them for the form's fields and its framing:
-  ten files of 50 MiB and 1 MiB beside them, as the policy stands. `PUT /avatars/{kind}/{subject}` takes one file
-  at `largest_bytes` with `form_bytes` beside it. A body past its route's ceiling is refused 413 `too-large` before
-  anything is kept; within it, a file past `largest_bytes` is turned away by its name and refused 413 `too-large`
-  where no file of the form stood, as the owner's words below say, and a picture is refused 413
-  `picture-too-large`. Every other route takes a body of words and reads at most two mebibytes of it; the chat
-  services' hand-overs the base library serves are bound by no ceiling of the receiver's.
+- **A route that takes files sets no ceiling of its own** on a file's size, on how many files a form carries or
+  on the body. `POST /owner/message-files` and `POST /rooms/{roomId}/word-files` read their form as it arrives,
+  each file written to the disk as its bytes come rather than held whole in memory (`docs/store.md`, 「The data
+  root's folders」); `PUT /avatars/{kind}/{subject}` reads its one picture whole, since the picture is drawn anew.
+  The one limit is the room's: **the largest file a room takes is the smallest `fileBytes` any chat service on its
+  list of providers declares** (bmo-chat's `docs/contract.md`, the dialect's `limits`), and a room none of whose
+  chat services declares one, a room on the record alone among them, takes a file of any size. A file past the
+  room's limit is turned away by its name, and refused 413 `too-large` where no file of the form stood, its
+  sentence naming the file, its size, the largest the room takes and the provider that declares it
+  (`docs/codes.md`, `OwnerSendRefusal`). Every other route takes a body of words and reads at most two mebibytes of it; the chat services'
+  hand-overs the base library serves are bound by no ceiling of the receiver's.
+- **The console reads the limit before it sends:** each `Provider` on `GET /providers` carries the `fileBytes` its
+  declaration gives, null where it declares none, and `GET /rooms/{roomId}/providers` answers the room's
+  `fileLimit`, `{provider, bytes}`, the chat service whose limit is the smallest and that limit, or null where the
+  room takes a file of any size.
 - **`send-verbs`** answers what a send could do in the room, never what one provider declares: the road it reads is
   the one `POST /sends` chooses for the same `via`, the road `via` names where the room answers on it and the
   room's own road otherwise, and the road a send naming none goes out on where `via` is absent
@@ -485,7 +490,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A file send** is one document, or several files as one album: each file a `path` on this machine and an
   optional `name`, with an optional `caption`. The bytes go to the verb the room's road declares, `document` for
   one file and `album` for several; a file a room's folder holds goes only into that room, and a job sends none.
-  Each file that went is filed under its message (`docs/room-files.md`, 「Message files」).
+  A file past the largest the room takes (「A route that takes files」 above) is refused before anything goes, as
+  is a voice note's. Each file that went is filed under its message (`docs/room-files.md`, 「Message files」).
 - **A voice note** is an OGG/Opus file at `path`, with its `caption`, what it `said` and the `transcript` read out,
   sent as the chat protocol's `voice` kind.
 - **A fixed line** is a `code` and its `fields`, rendered by the web unit's `POST /words/render` in the
@@ -497,7 +503,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **An owner's voice note** is the same form with `voice` true: one `file` that is a sound. The room keeps it
   as one message under the policy's voice word and the caption beside it, its file the recording, and hands it to
   the room's other providers as the chat protocol's `voice` kind with the caption. A call with no file, more than
-  one, or one that is no sound is refused 400 `bad-request`; a file past the ceiling a road takes is refused 413
+  one, or one that is no sound is refused 400 `bad-request`; a file past the largest the room takes is refused 413
   `too-large`.
 - **An account's words** (`POST /rooms/{roomId}/words`, `POST /rooms/{roomId}/word-files`) are filed under the
   owner's sender for the owner's account and under the account's record identity for any other, and from there are
@@ -509,7 +515,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   owner's road, which the console takes for the owner's account alone.
 - **The owner's words** from the console are archived in the room under a console number, the owner's number and
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
-  room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413
+  room's other chat providers as every kept message is. A file past the largest the room takes is refused 413
   `too-large`; a `replyTo` the archive does not hold is refused 409.
 - **Words the room kept are answered with their number.** `POST /owner/messages` and `POST /rooms/{roomId}/words`
   answer the `id` the words stand under once the room has kept them, whatever follows: a wake of the agents they

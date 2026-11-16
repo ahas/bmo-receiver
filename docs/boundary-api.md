@@ -30,7 +30,7 @@ whose label and call names (`aliases` on `GET /supervisors`) are the words a roo
 one is named in place of the room numbered as the owner's own number, a room `owner-room` below stands up on the
 record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's other notices to the owner go to, never a briefing's, which goes to his private room;
 the owner's private room where none is named; the language the rooms are spoken in, which
-a fixed line is rendered in; the attachment size cap, the largest file a message may carry to be kept; the brain
+a fixed line is rendered in; the brain
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code
 stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's
 `.local/share` where it names none; the tool host's control socket, `tool_host_socket`, where it stands apart
@@ -39,7 +39,8 @@ deployment speaks briefings, a configuration without it speaking none; the brain
 `brain`, where the deployment names it apart from the brain's own `env/brain.env` under the data root
 (`BRAIN_ADDRESS` and `BRAIN_TOKEN`), which stands in where the configuration names none, a deployment with
 neither telling no turn of a due consolidation and reporting no fold (「The brain」 below); and each chat service's
-road name with its base address and token.
+road name with its base address and token. The configuration sets no limit on a file's size: an
+`attachment_bytes` it names is read and ignored, so a file that still names one loads.
 
 ### The service and its commands
 
@@ -438,7 +439,9 @@ members」). Each service is reached through
 one `ChatProviderClient` built as the receiver starts and held for its whole life, so every call on that service,
 the room list's walk over every room among them, shares that client's connections, each handed back as its call
 ends. The
-receiver holds no per-provider code: what differs between providers is read from what each declares. The
+receiver holds no per-provider code: what differs between providers is read from what each declares, the largest
+file it takes among it (its dialect's `limits.fileBytes`, which sets the largest file a room takes, `docs/api.md`,
+「Sends」). The
 declaration is asked once and kept, except where a room is added: there it is asked afresh, since a mode's
 standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road
 and room for a short span (`docs/receiver.md`, 「What is kept for a moment」), except a room the record holds

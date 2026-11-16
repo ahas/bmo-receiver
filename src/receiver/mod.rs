@@ -12,6 +12,7 @@ pub mod file_fills;
 pub mod files;
 pub mod handover;
 pub mod hearing;
+pub mod incoming;
 pub mod labels;
 pub mod left_board;
 pub mod listening;
@@ -389,8 +390,6 @@ pub struct Deployment {
   pub notices_room: Option<i64>,
   /// The language the rooms are spoken in, which a fixed line is rendered in.
   pub language: String,
-  /// The largest file a message may carry to be kept, in bytes; none where no cap is set.
-  pub attachment_bytes: Option<u64>,
 }
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose
@@ -1047,7 +1046,7 @@ impl Receiver {
     inbound: &Inbound,
     context: &Context,
     room: Room,
-    handed: &[bmo_chat_client::MessageFile],
+    handed: &[impl files::Handed],
   ) -> Result<(), NotReceived> {
     match self.attachment_kept(inbound, context, room, handed).await? {
       Some(kept) => self.attachment_woken(&kept, context, room).await,
@@ -1063,7 +1062,7 @@ impl Receiver {
     inbound: &Inbound,
     context: &Context,
     room: Room,
-    handed: &[bmo_chat_client::MessageFile],
+    handed: &[impl files::Handed],
   ) -> Result<Option<Inbound>, NotReceived> {
     if !Self::keeps(inbound.chat_id, room) {
       return Ok(None);
@@ -1076,7 +1075,7 @@ impl Receiver {
       return Ok(None);
     }
 
-    files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, inbound, handed).await?;
+    files::keep(&self.db, &self.data_root, inbound, handed).await?;
     hearing::hear(self, inbound, handed).await?;
 
     // The files and the hearing have written their paths and their transcript onto the row: the turn reads that
@@ -1120,8 +1119,7 @@ impl Receiver {
     if let Some(reason) = &patch.gather_failure {
       eprintln!("bmo-receiver: the file of message {message_id} in room {chat_id} was not kept: {reason}");
     } else {
-      files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, &inbound, &patch.files)
-        .await?;
+      files::keep(&self.db, &self.data_root, &inbound, &patch.files).await?;
     }
 
     let room = self.roads().room_facts(chat_id).await;

@@ -432,7 +432,7 @@ async fn an_attachment_keeps_its_files_beside_its_message_and_wakes_by_whose_fil
     .unwrap();
   // The agent's own file is kept and goes no further.
   receiver
-    .attachment(&inbound(-106, 2, AGENT_NUMBER, "[file b.txt]"), &context, room(), &[])
+    .attachment(&inbound(-106, 2, AGENT_NUMBER, "[file b.txt]"), &context, room(), &[] as &[MessageFile])
     .await
     .unwrap();
 
@@ -475,7 +475,7 @@ async fn a_file_still_being_gathered_wakes_once_it_is_handed_over() {
   };
 
   receiver
-    .attachment(&inbound(-109, 1, 55, "[voice]"), &gathering, room(), &[])
+    .attachment(&inbound(-109, 1, 55, "[voice]"), &gathering, room(), &[] as &[MessageFile])
     .await
     .unwrap();
   assert!(standing.waking.woken().is_empty(), "nothing is woken ahead of the bytes");

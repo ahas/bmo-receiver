@@ -2,9 +2,11 @@
 //! room kept under a console number and the name the room's own service shows him by, else his registered name,
 //! handed to the room's session and carried to the room's chat service in his own voice, files put in with the
 //! words carried as the albums the road takes with the caption on the first of them, words and files the room kept
-//! answered as kept and carried though the agency fails after, a form of files read whole under the files policy's ceiling and a
-//! file past the largest refused, and a send asked of the receiver carried as its asker.
+//! answered as kept and carried though the agency fails after, a file of any size kept and carried whole where no
+//! provider of the room declares a limit and one past a declared limit refused with it, and a send asked of the
+//! receiver carried as its asker.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use axum::{
@@ -24,7 +26,6 @@ use crate::integration::common::units::{
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
-use receiver_policy::files::FILES;
 use receiver_policy::roads::ROADS;
 
 const TOKEN: &str = "the-token";
@@ -39,10 +40,16 @@ async fn stood(rooms: &[i64]) -> (Scratch, Router, Arc<StandInChat>) {
 
 // What such a receiver stands on, for a test that sets more of it before the routes are made.
 async fn standing_over(rooms: &[i64]) -> (Scratch, Standing, Arc<StandInChat>) {
-  let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
-  let road = Arc::new(StandInChat::new("road-a").holding(rooms).owners(OWNER));
-  let standing = standing(scratch.db(), DataRoot::new(data.path()), [road.clone()].to_vec());
+
+  standing_on(StandInChat::new("road-a").holding(rooms).owners(OWNER), data.path()).await
+}
+
+// A receiver over a scratch database and the data root `data`, reaching `road`.
+async fn standing_on(road: StandInChat, data: &Path) -> (Scratch, Standing, Arc<StandInChat>) {
+  let scratch = Scratch::new().await;
+  let road = Arc::new(road);
+  let standing = standing(scratch.db(), DataRoot::new(data), [road.clone()].to_vec());
 
   let mut agent = registration(AGENT, SENDER, [ADDRESS].to_vec(), None);
 
@@ -70,6 +77,18 @@ fn posted(path: &str, token: &str, body: String) -> Request {
 
 async fn form_asked(port: &Router, path: &str, body: String) -> (StatusCode, Value) {
   let answer = port.clone().oneshot(posted(path, TOKEN, body)).await.unwrap();
+  let status = answer.status();
+  let written = to_bytes(answer.into_body(), usize::MAX).await.unwrap();
+
+  (status, serde_json::from_slice(&written).unwrap_or(Value::Null))
+}
+
+async fn read(port: &Router, path: &str) -> (StatusCode, Value) {
+  let request = Request::get(path)
+    .header("authorization", format!("Bearer {TOKEN}"))
+    .body(Body::empty())
+    .unwrap();
+  let answer = port.clone().oneshot(request).await.unwrap();
   let status = answer.status();
   let written = to_bytes(answer.into_body(), usize::MAX).await.unwrap();
 
@@ -564,19 +583,22 @@ async fn papers_sent(port: &Router, sizes: &[usize]) -> (StatusCode, Value) {
 }
 
 #[tokio::test]
-async fn files_past_the_frameworks_two_mebibytes_are_read_whole_under_the_files_policy() {
-  let (scratch, port, road) = stood(&[ROOM]).await;
+async fn a_file_past_fifty_mebibytes_is_kept_and_carried_whole_where_no_provider_of_the_room_declares_a_limit()
+ {
+  let data = tempdir().unwrap();
+  let (scratch, standing, road) =
+    standing_on(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER), data.path()).await;
+  let port = routes(standing.receiver.clone(), TOKEN);
 
   scratch
     .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
     .await;
 
-  for sizes in [[3 * MEBIBYTE].to_vec(), [3 * MEBIBYTE / 2, 3 * MEBIBYTE / 2].to_vec()] {
-    let (status, answer) = papers_sent(&port, &sizes).await;
+  let sizes = [50 * MEBIBYTE + 1, MEBIBYTE / 2];
+  let (status, answer) = papers_sent(&port, &sizes).await;
 
-    assert_eq!(status, StatusCode::OK, "{sizes:?}: {answer:?}");
-    assert_eq!(answer["sent"].as_array().map(Vec::len), Some(sizes.len()), "{answer:?}");
-  }
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(answer["sent"].as_array().map(Vec::len), Some(sizes.len()), "{answer:?}");
 
   let carried = road
     .sent()
@@ -587,25 +609,68 @@ async fn files_past_the_frameworks_two_mebibytes_are_read_whole_under_the_files_
     })
     .collect::<Vec<usize>>();
 
+  assert_eq!(carried, sizes, "each file reaches the road whole");
+
+  let kept = scratch
+    .texts(r#"SELECT "stored_path" FROM "collected_items" WHERE "chat_id" = -100 ORDER BY "id""#)
+    .await
+    .iter()
+    .map(|path| usize::try_from(std::fs::metadata(path).unwrap().len()).unwrap())
+    .collect::<Vec<usize>>();
+
+  assert_eq!(kept, sizes, "each file is kept whole");
   assert_eq!(
-    carried,
-    [3 * MEBIBYTE, 3 * MEBIBYTE / 2, 3 * MEBIBYTE / 2],
-    "each file reaches the road whole"
+    std::fs::read_dir(data.path().join("incoming")).unwrap().count(),
+    0,
+    "the files the form carried are gone with its request"
   );
 }
 
 #[tokio::test]
-async fn a_file_past_the_largest_one_file_may_be_is_refused_as_too_large_and_nothing_goes() {
-  let (scratch, port, road) = stood(&[ROOM]).await;
+async fn a_file_past_the_limit_a_provider_of_the_room_declares_is_refused_with_that_limit_which_the_console_reads()
+ {
+  let data = tempdir().unwrap();
+  let limited = StandInChat::new("road-a")
+    .holding(&[ROOM])
+    .owners(OWNER)
+    .taking_files_up_to(MEBIBYTE as u64);
+  let (scratch, standing, road) = standing_on(limited, data.path()).await;
+  let port = routes(standing.receiver.clone(), TOKEN);
 
   scratch
     .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
     .await;
 
-  let past = usize::try_from(FILES.largest_bytes).unwrap() + 1;
-  let (status, answer) = papers_sent(&port, &[past]).await;
+  let (status, answer) = papers_sent(&port, &[MEBIBYTE + 1]).await;
 
   assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE, "{answer:?}");
   assert_eq!(answer["code"], "too-large", "{answer:?}");
+
+  let why = answer["error"].as_str().unwrap_or_default();
+
+  assert!(why.contains(&MEBIBYTE.to_string()) && why.contains("road-a"), "{why}");
   assert!(road.sent().is_empty(), "nothing is carried");
+  assert!(
+    scratch.texts(r#"SELECT "source" FROM "collected_items""#).await.is_empty(),
+    "nothing is kept"
+  );
+
+  // Within one form, the file past the limit is turned away by its name and the other goes.
+  let (status, answer) = papers_sent(&port, &[MEBIBYTE + 1, 10]).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(answer["sent"][0]["name"], "paper-1.txt", "{answer:?}");
+  assert_eq!(answer["failed"][0]["name"], "paper-0.txt", "{answer:?}");
+
+  let (_, room) = read(&port, "/rooms/-100/providers").await;
+  let (_, providers) = read(&port, "/providers").await;
+  let declared = providers["items"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .find(|item| item["key"] == "road-a")
+    .cloned();
+
+  assert_eq!(room["fileLimit"], json!({ "provider": "road-a", "bytes": MEBIBYTE }), "{room}");
+  assert_eq!(declared.map(|item| item["fileBytes"].clone()), Some(json!(MEBIBYTE)), "{providers}");
 }

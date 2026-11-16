@@ -275,11 +275,12 @@ pub async fn words(
 pub async fn word_files(State(served): State<Served>, writable: WritableRoom) -> Answered {
   let room = writable.room;
   let receiver: Receiver = (*served.receiver).clone();
-  let form = files_form(writable.writer.form().await?).await?;
+  let mut writer = writable.writer;
+  let form = files_form(writer.form().await?, receiver.data_root()).await?;
   let (account, name) = named(form.account, form.name.as_deref())?;
 
   // The form names the account the request could not read off it, so the room is asked again for that account.
-  writable.writer.for_account(Some(account))?.room(&receiver, room).await?;
+  writer.for_account(Some(account))?.room(&receiver, room).await?;
   sendable(&receiver, room, &form).await?;
 
   let speaking = speaker(&receiver, room, account, &name).await?;

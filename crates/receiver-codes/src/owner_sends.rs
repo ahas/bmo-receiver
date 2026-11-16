@@ -11,11 +11,12 @@ pub enum OwnerSendRefusal {
   ReplyMissing,
   #[error("this room takes words only, so no file can be sent")]
   WordsOnly,
-  #[error("{name} is {size_bytes} bytes; one file may be at most {largest_bytes} bytes")]
+  #[error("{name} is {size_bytes} bytes, past the {largest_bytes} bytes {provider} takes a file at")]
   TooLarge {
     name: String,
     size_bytes: u64,
     largest_bytes: u64,
+    provider: String,
   },
   #[error("no file went: {}", crate::listed(.unsent))]
   NoneSent { unsent: Vec<FileUnsent> },
@@ -44,11 +45,12 @@ refused!(OwnerSendRefusal);
 pub enum FileUnsent {
   /// The file holds no bytes.
   Empty { name: String },
-  /// The file is past the ceiling one file may be.
+  /// The file is past the largest the room takes, which `provider` declares.
   TooLarge {
     name: String,
     size_bytes: u64,
     largest_bytes: u64,
+    provider: String,
   },
   /// The road refused it, in its own words.
   Refused { name: String, reason: String },
@@ -62,8 +64,12 @@ impl std::fmt::Display for FileUnsent {
         name,
         size_bytes,
         largest_bytes,
+        provider,
       } => {
-        write!(f, "{name}: {size_bytes} bytes is past the {largest_bytes} bytes one file may be")
+        write!(
+          f,
+          "{name}: {size_bytes} bytes is past the {largest_bytes} bytes {provider} takes a file at"
+        )
       }
       Self::Refused { name, reason } => write!(f, "{name}: {reason}"),
     }

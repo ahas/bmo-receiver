@@ -14,8 +14,6 @@ pub enum AvatarRefusal {
   NoPictureGiven,
   #[error("the picture cannot be read as one")]
   NotAPicture,
-  #[error("the picture is {size_bytes} bytes; one file may be at most {largest_bytes} bytes")]
-  PictureTooLarge { size_bytes: u64, largest_bytes: u64 },
 }
 
 impl AvatarRefusal {
@@ -23,7 +21,6 @@ impl AvatarRefusal {
     match self {
       Self::PictureForbidden { .. } => StatusCode::FORBIDDEN,
       Self::UnknownKind { .. } | Self::NoPictureGiven | Self::NotAPicture => StatusCode::BAD_REQUEST,
-      Self::PictureTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
     }
   }
 }

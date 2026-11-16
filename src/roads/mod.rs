@@ -80,6 +80,11 @@ pub enum Road {
 }
 
 impl Road {
+  /// A provider's key as the road it is.
+  pub fn of(key: &str) -> Self {
+    if key == ROADS.record.key { Self::Record } else { Self::Service(key.to_owned()) }
+  }
+
   /// The road's key, as a message and a turn name it.
   pub fn key(&self) -> &str {
     match self {
@@ -310,16 +315,11 @@ impl Roads {
     self.chosen(chat_id).await.is_none_or(|chosen| chosen.iter().any(|named| named == key))
   }
 
-  // A provider's key as the road it is.
-  fn road_of(key: &str) -> Road {
-    if key == ROADS.record.key { Road::Record } else { Road::Service(key.to_owned()) }
-  }
-
   /// The room's own road: the first provider its chosen list names; where none was chosen, the chat service that
   /// holds it, else the record where the room stands on it alone.
   pub async fn own(&self, chat_id: i64) -> Option<Road> {
     if let Some(chosen) = self.chosen(chat_id).await {
-      return chosen.first().map(|key| Self::road_of(key));
+      return chosen.first().map(|key| Road::of(key));
     }
 
     if let Some(key) = self.room_road(chat_id).await {
@@ -393,6 +393,7 @@ impl Roads {
           foldable: false,
           shows: None,
           speakers: false,
+          file_bytes: None,
         },
       },
     }
@@ -632,7 +633,7 @@ impl Roads {
 
     // A chosen list alone decides: the road asked on where the list names it, the room's own road otherwise.
     if let Some(chosen) = self.chosen(chat_id).await {
-      return if chosen.iter().any(|named| named == via) { Some(Self::road_of(via)) } else { own };
+      return if chosen.iter().any(|named| named == via) { Some(Road::of(via)) } else { own };
     }
 
     if via == ROADS.record.key {

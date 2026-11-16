@@ -2057,6 +2057,12 @@ export interface components {
             /** @description Why the room's road could not be reached, where that ended the pass; null otherwise. */
             unreached: string | null;
         };
+        /** @description The largest file a room takes, and the chat service that declares it. */
+        FileLimit: {
+            /** Format: uint64 */
+            bytes: number;
+            provider: string;
+        };
         /** @description What the chat service answered for one row a pass asked for. */
         FillOutcome: "filled" | "none" | "unavailable" | "refused";
         /** @description One file a filled row kept: its kind and the bytes the store holds of it. */
@@ -2612,6 +2618,12 @@ export interface components {
              * @default []
              */
             can: string[];
+            /**
+             * Format: uint64
+             * @description The largest file it takes, in bytes, as it declares; null where it declares none.
+             * @default null
+             */
+            fileBytes: number | null;
             key: string;
             label: string;
             /** @default false */
@@ -2795,11 +2807,17 @@ export interface components {
         /** @description What a room added is to the agents: answered as the user, or the user alone. */
         RoomMode: "avatar" | "record-only";
         /**
-         * @description The chat providers a room is on, by key in order, and whether its list was set rather than read off what the
-         *     room holds.
+         * @description The chat providers a room is on, by key in order, whether its list was set rather than read off what the room
+         *     holds, and the largest file the room takes.
          */
         RoomProviders: {
             chosen: boolean;
+            /**
+             * @description The smallest limit any chat service on the list declares; null where none declares one and the room takes a
+             *     file of any size.
+             * @default null
+             */
+            fileLimit: components["schemas"]["FileLimit"] | null;
             providers: string[];
         };
         /** @description A room and how many of its messages an agent has not marked. */
@@ -3242,7 +3260,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, too-large, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

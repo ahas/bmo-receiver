@@ -187,6 +187,7 @@ pub async fn providers(State(served): State<Served>) -> Answered {
         "startsChats": provider.starts_chats,
         "startsGroups": provider.starts_groups,
         "roomModes": modes,
+        "fileBytes": provider.file_bytes,
       })
     })
     .collect();
@@ -787,11 +788,13 @@ async fn held(receiver: &Receiver, room: i64) -> Result<(), Refusal> {
   ))
 }
 
-// The room's providers as they stand.
+// The room's providers as they stand, and the largest file the room takes.
 async fn standing(receiver: &Receiver, room: i64) -> Answered {
   let listed = providers::listed(receiver.db(), receiver.roads(), room).await.map_err(store)?;
+  let limit = providers::file_limit(receiver.db(), receiver.roads(), room).await.map_err(store)?;
+  let file_limit = limit.map(|limit| json!({ "provider": limit.provider, "bytes": limit.bytes }));
 
-  answered(json!({ "providers": listed.providers, "chosen": listed.chosen }))
+  answered(json!({ "providers": listed.providers, "chosen": listed.chosen, "fileLimit": file_limit }))
 }
 
 /// The providers a room is on, and whether its list was set.

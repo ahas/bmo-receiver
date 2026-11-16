@@ -20,7 +20,7 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 ## Message files
 
 - **Voice notes, ordinary audio, videos, animations, stickers and documents are kept from every sender** in allowed rooms, silently and
-  within the configured attachment size cap, in the message-file store: the `collected_items` table and the files
+  whatever their size, in the message-file store: the `collected_items` table and the files
   under `collected/<chatId>/` of the data root. Keeping a file launches nothing and notifies nobody.
 - **The bytes come from the chat service:** with the hand-over, or later as the message's `gathering` promised,
   or asked of the service again on its route of a message's files (bmo-chat's `docs/protocol.md`): for a
@@ -28,7 +28,7 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   in later」).
 - **A file an agent sent is kept from the send itself.** The bytes a send hands over — a file send's document
   or album, a sound, a voice note — are filed under the message the send is kept as, the way a received file
-  is and within the same cap: a picture in the picture store (`docs/pictures.md`, 「A picture an agent sent」),
+  is: a picture in the picture store (`docs/pictures.md`, 「A picture an agent sent」),
   anything else here, by its own name, a voice note under the name a sound with none takes. A file the road
   said did not go is left out, and keeping never fails a send: the file is already in the room by the time it
   runs, so a file that could not be kept is said in the journal.
@@ -42,7 +42,11 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   first file of that name handed over takes the row and records its id on it.
 - **Where a file is filed:** under `collected/<chatId>/` as `<messageId>-<name>`, by its own name's last part, or
   as `<messageId>-<n>-<name>`, from 2 up, where another file of the message already stands under that name.
-- **Failures:** a file past the cap, or one that could not be written, keeps its row with no stored path and why,
+- **A file the console uploads is filed from the disk,** not from memory: the form's file was written under
+  `incoming/` as it arrived (`docs/store.md`, 「The data root's folders」), and is filed by a link to those bytes,
+  or a copy where the message-file store stands on another disk. A picture among them is read to be drawn as any
+  picture is.
+- **Failures:** a file that could not be written keeps its row with no stored path and why,
   and a later hand-over of the same file keeps it; a failure is logged but never takes the receiver down.
 - **A row's kind is what the file is:** `sticker` for a file the chat service hands over as a sticker and
   `animation` for one it hands over as an animation (bmo-chat's `docs/contract.md`, 「Files」), where the file is no

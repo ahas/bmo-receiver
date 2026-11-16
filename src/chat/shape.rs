@@ -225,15 +225,7 @@ async fn fetch_picture(receiver: &Receiver, target: &Inbound) -> ReaderPicture {
 
   match service.message_files(&request).await {
     Ok(page) if !page.items.is_empty() => {
-      if let Err(why) = files::keep(
-        receiver.db(),
-        receiver.data_root(),
-        receiver.deployment().attachment_bytes,
-        target,
-        &page.items,
-      )
-      .await
-      {
+      if let Err(why) = files::keep(receiver.db(), receiver.data_root(), target, &page.items).await {
         eprintln!("chat {room}: a reply's picture was not kept: {why}");
 
         return ReaderPicture::Failed;

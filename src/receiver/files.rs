@@ -1,11 +1,13 @@
 //! The files a message carried, kept as the chat service hands them over (docs/room-files.md, 「Message files」;
 //! docs/pictures.md, 「Pictures received」). A picture is filed under its message in the picture store, brought down
 //! and laid on white where it must be, its path on the message's row. Any other file is kept in the message-file
-//! store with its row in `collected_items`, within the deployment's attachment size cap: a video kept as a video
-//! whatever the service called it, a sound or a video with no name of its own named for what it is. Keeping a file
-//! launches nothing and notifies nobody; a file that could not be kept leaves its row, which a later hand-over of the
-//! same file fills, and the message stands.
+//! store with its row in `collected_items`, whatever its size: a video kept as a video whatever the service called
+//! it, a sound or a video with no name of its own named for what it is. Keeping a file launches nothing and notifies
+//! nobody; a file that could not be kept leaves its row, which a later hand-over of the same file fills, and the
+//! message stands.
 
+use std::future::Future;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use bmo_chat_client::{ChatFileKind, MessageFile};
@@ -16,6 +18,49 @@ use super::Inbound;
 use super::pictures::{self, Keeping};
 use crate::data_root::{DataRoot, room_path};
 use crate::{Fault, all, now_ms, one, run};
+
+/// A file a message carried, as the receiver holds it until it is filed: whole in memory, as a chat service hands
+/// it over, or on the disk, as a form of the console was written while it arrived (docs/room-files.md, 「Message
+/// files」).
+pub trait Handed: Sync {
+  /// Its id among its message's files.
+  fn id(&self) -> &str;
+  /// Its own name, empty where it came with none.
+  fn name(&self) -> &str;
+  fn mime(&self) -> &str;
+  /// What the chat service handed it over as, where it said.
+  fn kind(&self) -> Option<ChatFileKind>;
+  /// Its bytes read whole, as a picture is drawn from them.
+  fn bytes(&self) -> impl Future<Output = io::Result<Vec<u8>>> + Send;
+  /// Its bytes filed at `path`, in a folder that already stands.
+  fn filed_at(&self, path: &Path) -> impl Future<Output = io::Result<()>> + Send;
+}
+
+impl Handed for MessageFile {
+  fn id(&self) -> &str {
+    &self.id
+  }
+
+  fn name(&self) -> &str {
+    &self.name
+  }
+
+  fn mime(&self) -> &str {
+    &self.mime
+  }
+
+  fn kind(&self) -> Option<ChatFileKind> {
+    self.kind
+  }
+
+  async fn bytes(&self) -> io::Result<Vec<u8>> {
+    Ok(self.bytes.clone())
+  }
+
+  async fn filed_at(&self, path: &Path) -> io::Result<()> {
+    tokio::fs::write(path, &self.bytes).await
+  }
+}
 
 /// What a kept file is, as its row names it, by the type it came under: a picture, a sound, a video, or any other
 /// file.
@@ -30,10 +75,10 @@ pub fn kind_of(mime: &str) -> &'static str {
 
 /// What a kept file's row names it: a sticker or an animation as the chat service handed it over, where it is no
 /// picture; otherwise by its type (docs/room-files.md, 「Message files」).
-pub fn kept_kind(file: &MessageFile) -> &'static str {
-  let by_type = kind_of(&file.mime);
+pub fn kept_kind(file: &impl Handed) -> &'static str {
+  let by_type = kind_of(file.mime());
 
-  match file.kind {
+  match file.kind() {
     Some(ChatFileKind::Sticker) if by_type != "image" => "sticker",
     Some(ChatFileKind::Animation) if by_type != "image" => "animation",
     _ => by_type,
@@ -47,13 +92,13 @@ fn bare_type(mime: &str) -> String {
 
 /// The name a file goes by: its own, or for a sound or a video handed over with none, what it is with the extension
 /// its type implies.
-pub fn named(file: &MessageFile) -> String {
-  if !file.name.trim().is_empty() {
-    return file.name.clone();
+pub fn named(file: &impl Handed) -> String {
+  if !file.name().trim().is_empty() {
+    return file.name().to_owned();
   }
 
   let gathering = &ROADS.gathering;
-  let mime = bare_type(&file.mime);
+  let mime = bare_type(file.mime());
 
   match kept_kind(file) {
     "video" | "animation" => format!(
@@ -86,7 +131,7 @@ fn filed_name(message_id: i64, place: u32, name: &str) -> String {
   }
 }
 
-async fn written(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+async fn written(path: &Path, bytes: &[u8]) -> io::Result<()> {
   if let Some(folder) = path.parent() {
     tokio::fs::create_dir_all(folder).await?;
   }
@@ -94,19 +139,27 @@ async fn written(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
   tokio::fs::write(path, bytes).await
 }
 
+// A file filed at `path`, its folder made where it is missing.
+async fn filed(path: &Path, file: &impl Handed) -> io::Result<()> {
+  if let Some(folder) = path.parent() {
+    tokio::fs::create_dir_all(folder).await?;
+  }
+
+  file.filed_at(path).await
+}
+
 /// Every file a message carried kept: its pictures in the picture store, the first of them named on the message's
-/// row, and its other files in the message-file store, each with its row, none past `cap` bytes where a cap is set.
+/// row, and its other files in the message-file store, each with its row.
 pub async fn keep(
   db: &DatabaseConnection,
   data_root: &DataRoot,
-  cap: Option<u64>,
   inbound: &Inbound,
-  files: &[MessageFile],
+  files: &[impl Handed],
 ) -> Result<(), Fault> {
   let mut pictures = 0;
 
   for file in files {
-    if kind_of(&file.mime) == "image" {
+    if kind_of(file.mime()) == "image" {
       if picture(db, data_root, inbound.chat_id, inbound.message_id, file, pictures).await? {
         pictures += 1;
       }
@@ -114,7 +167,7 @@ pub async fn keep(
       continue;
     }
 
-    collected(db, data_root, cap, inbound, file).await?;
+    collected(db, data_root, inbound, file).await?;
   }
 
   Ok(())
@@ -126,7 +179,7 @@ async fn picture(
   data_root: &DataRoot,
   chat_id: i64,
   message_id: i64,
-  file: &MessageFile,
+  file: &impl Handed,
   before: usize,
 ) -> Result<bool, Fault> {
   let name = match before {
@@ -140,7 +193,15 @@ async fn picture(
     max_dimension: filed.kept_max_dimension,
     quality: filed.kept_quality,
   };
-  let bytes = file.bytes.clone();
+  let bytes = match file.bytes().await {
+    Ok(bytes) => bytes,
+    Err(why) => {
+      eprintln!("bmo-receiver: the picture of message {message_id} was not read: {why}");
+      image_state(db, chat_id, message_id, "failed").await?;
+
+      return Ok(false);
+    }
+  };
   let kept = match tokio::task::spawn_blocking(move || pictures::kept(bytes, keeping)).await {
     Ok(kept) => kept,
     Err(why) => {
@@ -191,46 +252,35 @@ async fn image_state(
 }
 
 // One file kept with its row: none where the same file already stands kept, and its row alone, without the file,
-// where it is past the cap or could not be written.
+// where it could not be written.
 async fn collected(
   db: &DatabaseConnection,
   data_root: &DataRoot,
-  cap: Option<u64>,
   inbound: &Inbound,
-  file: &MessageFile,
+  file: &impl Handed,
 ) -> Result<(), Fault> {
   let source = named(file);
-  let standing = standing(db, inbound, &file.id, &source).await?;
+  let standing = standing(db, inbound, file.id(), &source).await?;
 
   if standing.as_ref().is_some_and(Standing::kept) {
     return Ok(());
   }
 
-  let size = u64::try_from(file.bytes.len()).unwrap_or(u64::MAX);
-  let (stored, summary) = match cap.filter(|cap| size > *cap) {
-    Some(cap) => (None, Some(format!("past the attachment size cap of {cap} bytes"))),
-    None => {
-      let taken = taken_paths(db, inbound, standing.as_ref().map(|row| row.id)).await?;
-      let path =
-        free_path(&room_path(&data_root.collected(), inbound.chat_id), inbound.message_id, &source, &taken);
-
-      match written(&path, &file.bytes).await {
-        Ok(()) => (Some(path), None),
-        Err(why) => {
-          eprintln!(
-            "bmo-receiver: the file {source} of message {} was not kept: {why}",
-            inbound.message_id
-          );
-          (None, Some(format!("not written: {why}")))
-        }
-      }
+  let taken = taken_paths(db, inbound, standing.as_ref().map(|row| row.id)).await?;
+  let path =
+    free_path(&room_path(&data_root.collected(), inbound.chat_id), inbound.message_id, &source, &taken);
+  let (stored, summary) = match filed(&path, file).await {
+    Ok(()) => (Some(path), None),
+    Err(why) => {
+      eprintln!("bmo-receiver: the file {source} of message {} was not kept: {why}", inbound.message_id);
+      (None, Some(format!("not written: {why}")))
     }
   };
 
   let kept = Kept {
     kind: kept_kind(file),
     source: &source,
-    id: &file.id,
+    id: file.id(),
     stored,
     summary,
   };

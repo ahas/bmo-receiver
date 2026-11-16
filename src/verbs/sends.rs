@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use crate::receiver::speech::KeptLine;
 use crate::receiver::{Receiver, files, rows, speech, wake};
-use crate::roads::providers::{self, Carried, Delivery, SaidBy};
+use crate::roads::providers::{self, Carried, Delivery, FileLimit, SaidBy};
 use crate::roads::{Road, added, record};
 use crate::verbs::{Launch, NoLaunch, VerbError};
 
@@ -117,6 +117,11 @@ impl Sends {
 
   pub fn db(&self) -> DatabaseConnection {
     self.receiver.db().clone()
+  }
+
+  /// The largest file a room takes, where a chat service on its list declares one (docs/api.md, 「Sends」).
+  pub async fn file_limit(&self, chat_id: i64) -> Result<Option<FileLimit>, VerbError> {
+    Ok(providers::file_limit(self.receiver.db(), self.receiver.roads(), chat_id).await?)
   }
 
   /// The receiver these sends stand on.
@@ -280,14 +285,7 @@ impl Sends {
       return Ok(());
     };
 
-    files::keep(
-      db,
-      self.receiver.data_root(),
-      self.receiver.deployment().attachment_bytes,
-      &kept,
-      &files,
-    )
-    .await
+    files::keep(db, self.receiver.data_root(), &kept, &files).await
   }
 
   // A read-only or archived room refused before any road is chosen, so nothing is sent or kept there.

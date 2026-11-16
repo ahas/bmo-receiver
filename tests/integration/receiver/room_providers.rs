@@ -95,7 +95,7 @@ async fn the_providers_are_the_record_and_each_chat_service_and_a_rooms_list_is_
 
   assert_eq!(
     get(&front, "/rooms/-100/providers").await.1,
-    json!({ "providers": ["road-a"], "chosen": false }),
+    json!({ "providers": ["road-a"], "chosen": false, "fileLimit": null }),
     "a room never set is on the chat service that holds it",
   );
 
@@ -112,11 +112,11 @@ async fn the_providers_are_the_record_and_each_chat_service_and_a_rooms_list_is_
   assert_eq!(get(&front, "/rooms/-7/providers").await.1["code"], "not-found");
   assert_eq!(
     put(&front, "/rooms/-100/providers", json!({ "providers": ["record"] })).await.1,
-    json!({ "providers": ["record"], "chosen": true }),
+    json!({ "providers": ["record"], "chosen": true, "fileLimit": null }),
   );
   assert_eq!(
     get(&front, "/rooms/-100/providers").await.1,
-    json!({ "providers": ["record"], "chosen": true })
+    json!({ "providers": ["record"], "chosen": true, "fileLimit": null })
   );
 }
 

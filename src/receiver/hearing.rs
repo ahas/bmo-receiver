@@ -5,18 +5,19 @@
 
 use std::path::Path;
 
-use bmo_chat_client::{ChatFileKind, MessageFile};
+use bmo_chat_client::ChatFileKind;
 use receiver_policy::roads::ROADS;
 
-use super::{Receiver, files, rows};
+use super::files::{self, Handed};
+use super::{Receiver, rows};
 use crate::Fault;
 
 /// Whether a message's files are a voice note: the service says a recording made to be heard as speech, or the
 /// message is the voice mark the receiver itself writes.
-fn voice(inbound: &super::Inbound, files: &[MessageFile]) -> bool {
-  files.iter().any(|file| file.kind == Some(ChatFileKind::VoiceNote))
+fn voice(inbound: &super::Inbound, files: &[impl Handed]) -> bool {
+  files.iter().any(|file| file.kind() == Some(ChatFileKind::VoiceNote))
     || (inbound.text.trim_start().starts_with(&ROADS.marks.voice)
-      && files.iter().any(|file| file.mime.to_ascii_lowercase().starts_with("audio/")))
+      && files.iter().any(|file| file.mime().to_ascii_lowercase().starts_with("audio/")))
 }
 
 /// The transcript, length and hearing state of a voice note's message, once its recording stands. A recording
@@ -24,7 +25,7 @@ fn voice(inbound: &super::Inbound, files: &[MessageFile]) -> bool {
 pub async fn hear(
   receiver: &Receiver,
   inbound: &super::Inbound,
-  files: &[MessageFile],
+  files: &[impl Handed],
 ) -> Result<(), Fault> {
   if !voice(inbound, files) {
     return Ok(());

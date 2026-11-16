@@ -1,6 +1,6 @@
 //! What a road declares of itself, as a turn is told of it and an answer goes out on it (docs/receiver.md, 「The one
 //! hard rule」): a chat service's own declaration (`GET /declaration`), read alike for every service, and the room's
-//! record, declared by the receiver's own policy.
+//! record, declared by the receiver's own policy, which takes a file of any size.
 
 use bmo_chat_client::{ChatCapability, ChatDeclaration};
 use receiver_policy::roads::ROADS;
@@ -24,6 +24,8 @@ pub struct Facts {
   pub shows: Option<String>,
   /// Whether a send in an agent's own name goes out under that agent.
   pub speakers: bool,
+  /// The largest file it takes, in bytes, where it declares one.
+  pub file_bytes: Option<u64>,
 }
 
 impl Facts {
@@ -46,6 +48,7 @@ impl Facts {
       foldable: false,
       shows: Some(record.shows.clone()),
       speakers: true,
+      file_bytes: None,
     }
   }
 
@@ -71,6 +74,7 @@ impl Facts {
       foldable: declaration.dialect.foldable,
       shows: declaration.shows.clone(),
       speakers: declaration.speakers,
+      file_bytes: declaration.dialect.limits.file_bytes,
     }
   }
 }

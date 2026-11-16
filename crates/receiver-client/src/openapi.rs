@@ -553,8 +553,6 @@ pub fn openapi() -> Value {
       "unknown-kind",
       "no-picture-given",
       "not-a-picture",
-      "picture-too-large",
-      "too-large",
       "private-room",
       "upstream-failed",
       "failed"

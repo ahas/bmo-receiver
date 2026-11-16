@@ -128,6 +128,8 @@ tower.workspace = true
 tower-http.workspace = true
 mime_guess.workspace = true
 percent-encoding.workspace = true
+# A file a form of the console carries, written to the disk as it arrives and removed with its request.
+tempfile.workspace = true
 # The picture behind an address, fetched where the address is a web address.
 reqwest.workspace = true
 # The seed a fair draw starts from.

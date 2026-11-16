@@ -6,6 +6,7 @@
 //! as itself under the receiver's token.
 
 use std::collections::HashMap;
+use std::sync::{Mutex, PoisonError};
 
 use axum::{
   body::{Body, Bytes},
@@ -30,11 +31,15 @@ enum Actor {
 
 /// Who a write acts for and what it carries: the one way a write route reads its body, so no route that changes a
 /// room reads one without the guard. A write on the owner's own road, `POST /owner/messages` and its kin, writes in
-/// his private room always, and elsewhere for the account it names, or for his account where it names none.
+/// his private room always, and elsewhere for the account it names, or for his account where it names none. A body
+/// of words is read whole; a multipart form is left unread, for its route to read as it arrives (docs/api.md,
+/// 「Sends」).
 pub(super) struct Writer {
   actor: Actor,
   owners_road: bool,
   body: Bytes,
+  /// The form left unread, held so the writer is shared across the handler's waits.
+  form: Mutex<Option<Body>>,
   kind: Option<HeaderValue>,
   /// The request's extensions, the ceiling the route reads its body under among them.
   extensions: Extensions,
@@ -74,6 +79,14 @@ fn account_of(named: Option<&Value>) -> Option<i64> {
     Value::String(text) => text.trim().parse::<i64>().ok(),
     _ => None,
   }
+}
+
+// Whether a request carries a multipart form, which its route reads as it arrives.
+fn is_form(headers: &HeaderMap) -> bool {
+  headers
+    .get(CONTENT_TYPE)
+    .and_then(|kind| kind.to_str().ok())
+    .is_some_and(|kind| kind.trim_start().to_ascii_lowercase().starts_with("multipart/form-data"))
 }
 
 // The account the request names in its query, its body and the relay's `Owner-Key`: refused where they name
@@ -118,7 +131,7 @@ impl Writer {
     }
   }
 
-  /// The body the write carries.
+  /// The body of words the write carries; empty for a form.
   pub fn body(&self) -> &Bytes {
     &self.body
   }
@@ -175,9 +188,16 @@ impl Writer {
     }))
   }
 
-  /// The body read again as the multipart form it carries, under the ceiling the route read it under.
-  pub async fn form(&self) -> Result<Multipart, Refusal> {
-    let mut request = Request::new(Body::from(self.body.clone()));
+  /// The multipart form the write carries, to be read as it arrives under the ceiling its route sets; a body of
+  /// words is no form, and a form is read once.
+  pub async fn form(&mut self) -> Result<Multipart, Refusal> {
+    let body = self
+      .form
+      .get_mut()
+      .unwrap_or_else(PoisonError::into_inner)
+      .take()
+      .ok_or_else(|| bad("the request carries no multipart form"))?;
+    let mut request = Request::new(body);
 
     *request.extensions_mut() = self.extensions.clone();
 
@@ -196,7 +216,11 @@ impl FromRequest<Served> for Writer {
     let headers = request.headers().clone();
     let query = request.uri().query().map(str::to_owned);
     let extensions = request.extensions().clone();
-    let body = Bytes::from_request(request, served).await.map_err(|why| unread(&why))?;
+    let (body, form) = if is_form(&headers) {
+      (Bytes::new(), Some(request.into_body()))
+    } else {
+      (Bytes::from_request(request, served).await.map_err(|why| unread(&why))?, None)
+    };
     let actor = match named_in(&headers, query.as_deref(), &body)? {
       Some(account) => Actor::Account(account),
       None => Actor::Unnamed,
@@ -206,6 +230,7 @@ impl FromRequest<Served> for Writer {
       actor,
       owners_road: false,
       body,
+      form: Mutex::new(form),
       kind: headers.get(CONTENT_TYPE).cloned(),
       extensions,
     })

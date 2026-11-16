@@ -620,15 +620,30 @@ pub struct Provider {
   #[serde(default)]
   pub starts_groups: bool,
   pub room_modes: Vec<RoomMode>,
+  /// The largest file it takes, in bytes, as it declares; null where it declares none.
+  #[serde(default)]
+  pub file_bytes: Option<u64>,
 }
 
-/// The chat providers a room is on, by key in order, and whether its list was set rather than read off what the
-/// room holds.
+/// The chat providers a room is on, by key in order, whether its list was set rather than read off what the room
+/// holds, and the largest file the room takes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct RoomProviders {
   pub providers: Vec<String>,
   pub chosen: bool,
+  /// The smallest limit any chat service on the list declares; null where none declares one and the room takes a
+  /// file of any size.
+  #[serde(default)]
+  pub file_limit: Option<FileLimit>,
+}
+
+/// The largest file a room takes, and the chat service that declares it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FileLimit {
+  pub provider: String,
+  pub bytes: u64,
 }
 
 /// One person in a room, as the room's own chat service lists them.

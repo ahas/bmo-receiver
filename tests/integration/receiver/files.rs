@@ -1,7 +1,7 @@
 //! The files a message carried, kept as they are handed over (docs/room-files.md, 「Message files」; docs/pictures.md,
 //! 「Pictures received」): a picture filed under its message, brought down and laid on white where it must be; a sound
 //! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
-//! name kept apart; and a file past the cap or one that failed leaving its row for a later hand-over.
+//! name kept apart; and a file that could not be written leaving its row for a later hand-over.
 
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -17,7 +17,7 @@ use receiver_policy::roads::ROADS;
 
 use super::inbound;
 use crate::integration::common::Scratch;
-use crate::integration::common::units::{CAP, StandInChat, Standing, standing};
+use crate::integration::common::units::{StandInChat, Standing, standing};
 
 const ROOM: i64 = -120;
 
@@ -28,6 +28,17 @@ async fn stood() -> (Scratch, tempfile::TempDir, Standing) {
   let standing = standing(scratch.db(), DataRoot::new(data.path()), vec![chat]);
 
   (scratch, data, standing)
+}
+
+// The room's folder in the message-file store stood in for by a plain file, so no file of the room can be written
+// there until it is taken away.
+fn unwritable(data: &tempfile::TempDir) -> std::path::PathBuf {
+  let blocker = data.path().join(format!("collected/{ROOM}"));
+
+  std::fs::create_dir_all(blocker.parent().unwrap()).unwrap();
+  std::fs::write(&blocker, b"").unwrap();
+
+  blocker
 }
 
 fn file(id: &str, name: &str, mime: &str, bytes: Vec<u8>) -> MessageFile {
@@ -339,21 +350,22 @@ async fn a_row_that_names_no_id_is_taken_by_the_first_file_of_its_name() {
 }
 
 #[tokio::test]
-async fn a_file_past_the_cap_keeps_its_row_without_the_file_until_a_later_hand_over_keeps_it() {
+async fn a_file_that_could_not_be_written_keeps_its_row_without_the_file_until_a_later_hand_over_keeps_it()
+{
   let (scratch, data, standing) = stood().await;
-  let past = vec![b'x'; usize::try_from(CAP).unwrap() + 1];
+  let blocker = unwritable(&data);
 
-  handed(&standing, 6, &[file("1", "big.bin", "application/octet-stream", past)]).await;
+  handed(&standing, 6, &[file("1", "big.bin", "application/octet-stream", b"held".to_vec())]).await;
 
   let sql = format!(
     r#"SELECT COALESCE("stored_path", 'none') || ' | ' || COALESCE("summary", 'none') FROM "collected_items" WHERE "chat_id" = {ROOM} AND "message_id" = 6"#
   );
   let row = async || scratch.texts(&sql).await.remove(0);
 
-  assert_eq!(row().await, format!("none | past the attachment size cap of {CAP} bytes"));
-  assert!(!data.path().join(format!("collected/{ROOM}/6-big.bin")).exists());
+  assert!(row().await.starts_with("none | not written: "), "{}", row().await);
 
-  // The same file handed over again within the cap fills the row that was left.
+  // The same file handed over again once it can be written fills the row that was left.
+  std::fs::remove_file(&blocker).unwrap();
   let smaller =
     GatheredPatch::kept(vec![file("1", "big.bin", "application/octet-stream", b"fits".to_vec())]);
 
@@ -502,11 +514,12 @@ async fn a_message_that_carried_nothing_stays_empty() {
 }
 
 #[tokio::test]
-async fn a_file_past_the_cap_says_it_was_not_stored() {
-  let (_scratch, _data, standing) = stood().await;
-  let large = vec![b'x'; (CAP + 1) as usize];
+async fn a_file_that_could_not_be_written_says_it_was_not_stored() {
+  let (_scratch, data, standing) = stood().await;
 
-  handed_text(&standing, 7, "", &[file("1", "big.bin", "application/octet-stream", large)]).await;
+  unwritable(&data);
+  handed_text(&standing, 7, "", &[file("1", "big.bin", "application/octet-stream", b"held".to_vec())])
+    .await;
 
   let line = line(&standing, 7).await;
 

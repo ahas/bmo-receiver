@@ -43,7 +43,6 @@ family. No code carries a sentence in a room's language.
 | `unknown-kind` | 400 | `kind` | the subject's kind is none of `room`, `person` and `agent` |
 | `no-picture-given` | 400 | | the form holds no `picture` |
 | `not-a-picture` | 400 | | the picture cannot be read as one |
-| `picture-too-large` | 413 | `size_bytes`, `largest_bytes` | the picture is past the ceiling one file may be |
 
 ### OwnerSendRefusal
 
@@ -51,7 +50,7 @@ family. No code carries a sentence in a room's language.
 |---|---|---|---|
 | `reply-missing` | 409 | | the message to reply to is not in the record |
 | `words-only` | 409 | | the room takes words only |
-| `too-large` | 413 | `name`, `size_bytes`, `largest_bytes` | a file past the ceiling one file may be |
+| `too-large` | 413 | `name`, `size_bytes`, `largest_bytes`, `provider` | a file past the largest the room takes, which `provider` declares (`docs/api.md`, 「Sends」) |
 | `none-sent` | 409 | `unsent` (each a `FileUnsent`) | no file of a send went |
 | `room-archived` | 409 | `room` | the room is archived and locked (`docs/receiver.md`, 「An archived room」) |
 
@@ -255,7 +254,7 @@ session once the setting has changed, one waiting per setting.
 | Kind | Fields | Meaning |
 |---|---|---|
 | `empty` | `name` | the file holds no bytes |
-| `too-large` | `name`, `size_bytes`, `largest_bytes` | the file is past the ceiling |
+| `too-large` | `name`, `size_bytes`, `largest_bytes`, `provider` | the file is past the largest the room takes, which `provider` declares |
 | `refused` | `name`, `reason` | the road refused it |
 
 ### RunTitle

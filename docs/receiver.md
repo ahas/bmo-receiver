@@ -305,14 +305,15 @@ flowchart TD
     nothing is kept.
   - Files are archived each as its own message with the words typed beside them; they go to each provider as
     one album of the pictures and videos, one of the sounds and each document on its own, the words on the first
-    send that takes a caption that long and ahead of the files as words otherwise. The form is read whole under
-    the ceiling `files.toml` sets, ten files at their largest with the fields beside them, and a form past it is
-    refused 413 before anything is kept (`docs/api.md`, 「Sends」). A file past the ceiling a road takes is
-    turned away with its name, and a call none of whose files stood answers as one refusal, 413.
+    send that takes a caption that long and ahead of the files as words otherwise. The form is read as it
+    arrives, each file written to the disk as its bytes come, under no ceiling of the receiver's own: the largest
+    file a room takes is the smallest any chat service on its list declares, and a room none of whose services
+    declares one takes any size (`docs/api.md`, 「Sends」). A file past it is turned away with its name and the
+    limit, and a call none of whose files stood answers as one refusal, 413.
   - A voice note is the same form with `voice`: one sound file, kept as a message under the voice word and the
     caption beside it, and handed to the room's other providers as a voice message with that caption. The
     console records it; no reading of it is made, so what it says stands only in the recording. A call with
-    no file, more than one, or one that is no sound is refused 400, and a file past the ceiling 413.
+    no file, more than one, or one that is no sound is refused 400, and a file past the room's limit 413.
 - **`POST /owner/instructions` says the owner's words to a room's session**, marked as the owner speaking from the
   console and carrying his text as data, read for secret-shaped runs first (`docs/messages.md`, 「Secrets taken
   out」) and delivered as a quiet instruction, with the rule the marker stands for in the room's block, so the

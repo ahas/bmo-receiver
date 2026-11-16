@@ -271,14 +271,7 @@ pub async fn fill(receiver: &Receiver, room: i64, asked: &FileFill) -> Result<Fi
           continue;
         };
 
-        files::keep(
-          db,
-          receiver.data_root(),
-          receiver.deployment().attachment_bytes,
-          &message,
-          &page.items,
-        )
-        .await?;
+        files::keep(db, receiver.data_root(), &message, &page.items).await?;
         reached.files = held_files(db, room, row.message_id).await?;
 
         Answer::of(FillOutcome::Filled, None)

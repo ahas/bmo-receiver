@@ -150,6 +150,11 @@ The data root is the configuration's. Three stores under it keep a folder per ro
 A room's folder in a store is found only where it stands; finding it makes nothing. The folders go only with
 the removal of the room's registration.
 
+One folder under the data root holds no room's files for long: `incoming/`, where each file a form of the console
+carries is written as its bytes arrive (`docs/api.md`, 「Sends」). Each file there is the request's own and is
+removed once the request is answered, its bytes filed under the message by then (`docs/room-files.md`,
+「Message files」).
+
 One folder under the data root is kept per agent rather than per room:
 
 | Store | Folder | Holds |
