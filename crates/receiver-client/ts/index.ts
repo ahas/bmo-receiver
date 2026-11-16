@@ -34,6 +34,7 @@ export type RoomAccount = Schemas["RoomAccount"];
 export type RoomAccounts = Schemas["RoomAccounts"];
 export type LetIn = Schemas["LetIn"];
 export type AccountIdentity = Schemas["AccountIdentity"];
+export type AccountNaming = Schemas["AccountNaming"];
 export type AccountMemberships = Schemas["AccountMemberships"];
 export type AccountWords = Schemas["AccountWords"];
 export type AccountPresence = Schemas["AccountPresence"];
@@ -400,9 +401,9 @@ export function receiverClient(options: ReceiverOptions) {
       );
     },
 
-    /** `PUT /accounts/{account}/identity`. */
-    async accountIdentity(account: number): Promise<AccountIdentity> {
-      return answered(await client.PUT("/accounts/{account}/identity", { params: { path: { account } } }));
+    /** `PUT /accounts/{account}/identity`, naming the identity where `body` gives a name. */
+    async accountIdentity(account: number, body?: AccountNaming): Promise<AccountIdentity> {
+      return answered(await client.PUT("/accounts/{account}/identity", { params: { path: { account } }, body }));
     },
 
     /** `GET /accounts/{account}/rooms`. */

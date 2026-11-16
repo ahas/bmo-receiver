@@ -29,6 +29,8 @@ struct Route {
   summary: &'static str,
   parameters: Vec<Value>,
   body: Option<Schema>,
+  /// Whether a call must carry the body; a route that reads a missing body as an empty one says it may not.
+  body_required: bool,
   answers: Vec<(u16, Option<Value>)>,
   codes: Vec<&'static str>,
 }
@@ -112,7 +114,7 @@ impl Route {
     }
     if let Some(body) = self.body {
       operation["requestBody"] = json!({
-        "required": true,
+        "required": self.body_required,
         "content": { "application/json": { "schema": body } },
       });
     }
@@ -135,13 +137,23 @@ pub fn openapi() -> Value {
   let mut paths: BTreeMap<String, Value> = BTreeMap::new();
 
   macro_rules! on {
-    ($method:literal, $path:literal, $id:literal, $tag:literal, $summary:literal, { params: $params:expr, body: $body:expr, answers: $answers:expr, codes: $codes:expr }) => {{
+    ($method:literal, $path:literal, $id:literal, $tag:literal, $summary:literal, { params: $params:expr, body: $body:expr, answers: $answers:expr, codes: $codes:expr }) => {
+      on!($method, $path, $id, $tag, $summary, {
+        params: $params,
+        body: $body,
+        body_required: true,
+        answers: $answers,
+        codes: $codes
+      })
+    };
+    ($method:literal, $path:literal, $id:literal, $tag:literal, $summary:literal, { params: $params:expr, body: $body:expr, body_required: $required:expr, answers: $answers:expr, codes: $codes:expr }) => {{
       let item = Route {
         id: $id,
         tag: $tag,
         summary: $summary,
         parameters: $params,
         body: $body,
+        body_required: $required,
         answers: $answers,
         codes: $codes,
       };
@@ -159,6 +171,20 @@ pub fn openapi() -> Value {
       let operation = on!($method, $path, $id, $tag, $summary, {
         params: $params,
         body: $body,
+        answers: $answers,
+        codes: $codes
+      });
+      put(&mut paths, $path, $method, operation);
+    }};
+  }
+
+  // A route whose body may be left out, read then as an empty one.
+  macro_rules! add_optional_body {
+    ($method:literal, $path:literal, $id:literal, $tag:literal, $summary:literal, $params:expr, $body:expr, $answers:expr, $codes:expr) => {{
+      let operation = on!($method, $path, $id, $tag, $summary, {
+        params: $params,
+        body: Some($body),
+        body_required: false,
         answers: $answers,
         codes: $codes
       });
@@ -961,14 +987,14 @@ pub fn openapi() -> Value {
     vec![(204, empty_answer())],
     vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
   );
-  add!(
+  add_optional_body!(
     "PUT",
     "/accounts/{account}/identity",
     "accountIdentity",
     "Rooms",
-    "An account's record identity, made where it does not stand and the same one ever after.",
+    "An account's record identity, made where it does not stand and the same one ever after; a name given is the one it goes by from then, as a name its words carry is.",
     vec![path_parameter("account")],
-    None,
+    generator.subschema_for::<AccountNaming>(),
     vec![(200, json_answer::<AccountIdentity>(&mut generator))],
     vec!["unauthorized", "bad-request", "failed"]
   );

@@ -342,7 +342,10 @@ flowchart TD
   `POST /owner/instructions` are the owner's road; the console uses them for the owner's account alone.
 - **An account's record identity** is the number its words stand under on the record, the console's road: a row
   of the record's numbered people keyed by the account, made the first time it is asked for
-  (`PUT /accounts/{account}/identity`) and the same one ever after. The web unit links it to the account's user
+  (`PUT /accounts/{account}/identity`) and the same one ever after. The same call may name it, and so does each of
+  the account's words, files or forwards that carries a name: the latest is kept in `people_names`, and every
+  reading of the person's name answers it, so the console tells the record a changed name without any words. The
+  web unit links it to the account's user
   as it links any chat service's identity, so every reading that asks whose user a sender is reads it as that
   account's: a member's own supervisor reading the room, and the call of one's own supervisor where the room grants
   `ask` (`docs/wake.md`, 「Who reaches the session」).

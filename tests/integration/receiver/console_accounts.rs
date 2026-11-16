@@ -1,8 +1,9 @@
 //! The console's accounts in its rooms (docs/receiver.md, 「Console rooms and accounts」): words another account
 //! says carry nothing granted to the owner, the owner's account keeps all of it as his own road does, a provider
 //! speaks as the account only where it says it can, a room's members by account come and go with a line saying so,
-//! an account's record identity is made once, a BMO's private room wakes on its account's words alone and refuses
-//! every other, a read of it leaves nothing behind, and a messenger's member is answered as before. Every room read
+//! an account's record identity is made once and goes by the name last given with no words needed, a BMO's private
+//! room wakes on its account's words alone and refuses every other, a read of it leaves nothing behind, and a
+//! messenger's member is answered as before. Every room read
 //! says whose private room it is, every write another account makes in one is refused while its own go through, a
 //! group room every other member has left stays a group room, a forward stands under the account that forwards, and
 //! the files an account sends are read whole past the framework's two mebibytes.
@@ -467,6 +468,41 @@ async fn an_accounts_record_identity_is_made_once_and_kept() {
   let words = said(&stood.port, LINKED, BEA, "Bea", "the same one").await;
 
   assert_eq!(kept_as(&stood, LINKED, words).await.0, beas, "her words stand under it");
+}
+
+async fn person_named(stood: &Stood, sender: i64) -> Value {
+  let (status, people) = asked(&stood.port, "GET", &format!("/people?ids={sender}"), None).await;
+
+  assert_eq!(status, StatusCode::OK, "{people}");
+  people["items"][0]["name"].clone()
+}
+
+#[tokio::test]
+async fn an_accounts_record_identity_goes_by_the_name_last_given_with_no_words_needed() {
+  let stood = stood(false).await;
+  let path = format!("/accounts/{BEA}/identity");
+  let (status, named) = asked(&stood.port, "PUT", &path, Some(json!({ "name": "Bea" }))).await;
+
+  assert_eq!(status, StatusCode::OK, "{named}");
+  let beas = named["sender"].as_i64().unwrap();
+  assert_eq!(identity(&stood.port, BEA).await, beas, "naming it makes and keeps the same identity");
+  assert_eq!(person_named(&stood, beas).await, json!("Bea"), "named before any words");
+
+  said(&stood.port, LINKED, BEA, "Bea Old", "hello").await;
+  assert_eq!(person_named(&stood, beas).await, json!("Bea Old"), "her words name her");
+
+  asked(&stood.port, "PUT", &path, Some(json!({ "name": "Bea New" }))).await;
+  assert_eq!(person_named(&stood, beas).await, json!("Bea New"), "a rename reaches her with no words");
+
+  identity(&stood.port, BEA).await;
+  assert_eq!(
+    person_named(&stood, beas).await,
+    json!("Bea New"),
+    "a call naming nothing keeps her name"
+  );
+
+  let (status, _) = asked(&stood.port, "PUT", &path, Some(json!({ "name": "  " }))).await;
+  assert_eq!(status, StatusCode::BAD_REQUEST, "a blank name is refused");
 }
 
 #[tokio::test]

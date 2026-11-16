@@ -816,21 +816,28 @@ pub async fn spoke_between(
   )
 }
 
-/// The name a person last went by, a room where the owner goes by a name of that room alone read last; none
-/// where they never spoke or spoke under no name.
+/// The name a person last went by: the name they were given to go by (`people_names`) where one stands, kept current
+/// by every call that names them, else the name their words last carried, a room where the owner goes by a name of
+/// that room alone read last; none where they were given none and never spoke or spoke under no name.
 pub async fn display_name(db: &DatabaseConnection, person: i64) -> Result<Option<String>, Fault> {
-  let name =
-    one(
-      db,
-      r#"SELECT "sender_name" FROM "messages" "m" WHERE "m"."sender_id" = $1
-         ORDER BY "m"."chat_id" IN (SELECT "chat_id" FROM "provider_owner_users"), "m"."sent_at" DESC LIMIT 1"#,
-      vec![person.into()],
-    )
-  .await?;
+  let given =
+    one(db, r#"SELECT "name" FROM "people_names" WHERE "sender_id" = $1"#, vec![person.into()]).await?;
+  let name = match given {
+    Some(row) => Some(row),
+    None => {
+      one(
+        db,
+        r#"SELECT "sender_name" AS "name" FROM "messages" "m" WHERE "m"."sender_id" = $1
+           ORDER BY "m"."chat_id" IN (SELECT "chat_id" FROM "provider_owner_users"), "m"."sent_at" DESC LIMIT 1"#,
+        vec![person.into()],
+      )
+      .await?
+    }
+  };
 
   Ok(
     name
-      .map(|row| row.try_get::<String>("", "sender_name"))
+      .map(|row| row.try_get::<String>("", "name"))
       .transpose()?
       .filter(|name| !name.trim().is_empty()),
   )

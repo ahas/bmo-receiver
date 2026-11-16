@@ -12,7 +12,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** An account's record identity, made where it does not stand and the same one ever after. */
+        /** An account's record identity, made where it does not stand and the same one ever after; a name given is the one it goes by from then, as a name its words carry is. */
         put: operations["accountIdentity"];
         post?: never;
         delete?: never;
@@ -1607,6 +1607,13 @@ export interface components {
             rooms: number[];
         };
         /**
+         * @description `PUT /accounts/{account}/identity`'s body: the name the account's record identity goes by from then, the same
+         *     field an account's words carry; none names nothing.
+         */
+        AccountNaming: {
+            name?: string | null;
+        };
+        /**
          * @description `PUT /accounts/{account}/presence`: an account's presence as the console draws it from its tabs; a null state
          *     takes the console's word back.
          */
@@ -3055,7 +3062,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AccountNaming"];
+            };
+        };
         responses: {
             /** @description Answered. */
             200: {

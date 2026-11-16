@@ -500,7 +500,8 @@ Statements the receiver makes that a sibling's document does not yet match, each
   voice, under no name of its own, until the protocol states one.
 - **The web unit** is to link each account's record identity (`PUT /accounts/{account}/identity`) to that
   account's user as it links any chat service's identity, and to ask it for every account that stands already,
-  and its language packs to render `account-let-in`, `account-left` and `account-taken-out` with the accounts'
+  naming it with the account's shown name there and whenever a profile's full name changes, so the record reads the
+  name with no words sent, and its language packs to render `account-let-in`, `account-left` and `account-taken-out` with the accounts'
   names and word `private-room` (`docs/codes.md`). Until then an account's words stand under its record identity
   all the same, its own supervisor reads a room by its membership alone, and the lines fall back to the policy's
   plain sentences, which name the accounts by their keys.

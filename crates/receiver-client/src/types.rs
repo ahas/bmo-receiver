@@ -671,6 +671,14 @@ pub struct LetIn {
   pub by: i64,
 }
 
+/// `PUT /accounts/{account}/identity`'s body: the name the account's record identity goes by from then, the same
+/// field an account's words carry; none names nothing.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AccountNaming {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub name: Option<String>,
+}
+
 /// `PUT /accounts/{account}/identity`: an account's record identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

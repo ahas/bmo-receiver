@@ -116,7 +116,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/accounts` | | `accounts`, the room's members by account, each `account`, `addedBy` and `addedAt` (both null for a private room's own account, which nobody let in) |
 | `PUT /rooms/{roomId}/accounts/{account}` | `by`, the account letting it in | the member, `account`, `addedBy` and `addedAt`; the same member where it already is one |
 | `DELETE /rooms/{roomId}/accounts/{account}` | `by`, the account taking it out, the member itself where it leaves | 204 |
-| `PUT /accounts/{account}/identity` | | `account` and `sender`, the account's record identity, made where it does not stand |
+| `PUT /accounts/{account}/identity` | `name?`, the name the identity goes by from then | `account` and `sender`, the account's record identity, made where it does not stand |
 | `GET /accounts/{account}/rooms` | | `rooms`, the numbers of the rooms the account is a member of in the console, its private rooms among them |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
 | `PUT /pinned-rooms` | `roomIds`, the whole order; `account?` | `roomIds`, the order as it now stands |
@@ -256,7 +256,12 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   private room answers its own account alone. `GET /accounts/{account}/rooms` answers the rooms the account is a
   member of now with its private rooms: those of the supervisors it owns, and the owner's private room for the
   owner's account; the rooms it reaches through a chat service's identities are the console's to compose.
-  `PUT /accounts/{account}/identity` answers the same sender every time it is asked for one account.
+  `PUT /accounts/{account}/identity` answers the same sender every time it is asked for one account. A `name` in
+  its body is the name the identity goes by from then, the same field an account's words carry, and each of the
+  account's words, files or forwards that carries a `name` names it again: every reading of the person's name
+  (`GET /people`, `GET /rooms/{roomId}/people`, a forward that names none) answers the latest, so a name the console
+  changes reaches the record with no words sent. A missing body, or one with no `name`, names nothing; a `name`
+  that is blank is refused 400 `bad-request`.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator, and a private room to anyone but its own account (`by` names who removes it). `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
@@ -381,7 +386,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `GET /people` | `ids`, comma-separated | a page of `Person` (`id`, `name` or null) |
+| `GET /people` | `ids`, comma-separated | a page of `Person` (`id`, `name` or null): each with the name they last went by: an account's record identity by the name it was last given (`PUT /accounts/{account}/identity`, or its words, files or forwards), anyone else by the name their latest words carried |
 
 ## Notices
 

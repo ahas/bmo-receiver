@@ -65,6 +65,20 @@ pub async fn identity(db: &DatabaseConnection, account: i64) -> Result<i64, Faul
   }
 }
 
+/// The name a record identity goes by from now: given by `PUT /accounts/{account}/identity` and by every word, file
+/// or forward of the account that carries one, so every reading of the person's name answers the latest of them.
+pub async fn name_identity(db: &DatabaseConnection, sender: i64, name: &str) -> Result<(), Fault> {
+  run(
+    db,
+    r#"INSERT INTO "people_names" ("sender_id", "name", "named_at") VALUES ($1, $2, $3)
+       ON CONFLICT ("sender_id") DO UPDATE SET "name" = EXCLUDED."name", "named_at" = EXCLUDED."named_at""#,
+    vec![sender.into(), name.into(), now_ms().into()],
+  )
+  .await?;
+
+  Ok(())
+}
+
 /// A member of a room by account: who let it in and when, both none for a private room's own account, which
 /// nobody let in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

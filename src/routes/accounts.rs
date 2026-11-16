@@ -6,6 +6,7 @@
 
 use axum::{
   Json,
+  body::Bytes,
   extract::{Path, State},
   http::StatusCode,
 };
@@ -70,10 +71,37 @@ async fn private_to(receiver: &Receiver, room: i64) -> Result<Option<i64>, Refus
   accounts::private_account(receiver, room).await.map_err(reached)
 }
 
-/// `PUT /accounts/{account}/identity`: the account's record identity, made where it does not stand.
-pub async fn identity(State(served): State<Served>, Path(account): Path<String>) -> Answered {
+/// What `PUT /accounts/{account}/identity` may carry: the name the identity goes by from then.
+#[derive(Default, Deserialize)]
+pub struct Naming {
+  #[serde(default)]
+  name: Option<String>,
+}
+
+/// `PUT /accounts/{account}/identity`: the account's record identity, made where it does not stand, and named where
+/// the body gives a name; a missing body is an empty one.
+pub async fn identity(State(served): State<Served>, Path(account): Path<String>, body: Bytes) -> Answered {
   let account = account_key(&account)?;
+  let asked = if body.iter().all(u8::is_ascii_whitespace) {
+    Naming::default()
+  } else {
+    read::<Naming>(&body)?
+  };
+  let name = match asked.name.as_deref().map(str::trim) {
+    Some("") => {
+      return Err(refused(
+        StatusCode::BAD_REQUEST,
+        "bad-request",
+        "name, where given, is a non-empty string",
+      ));
+    }
+    given => given,
+  };
   let sender = accounts::identity(served.receiver.db(), account).await.map_err(store)?;
+
+  if let Some(name) = name {
+    accounts::name_identity(served.receiver.db(), sender, name).await.map_err(store)?;
+  }
 
   answered(json!({ "account": account, "sender": sender }))
 }
@@ -186,7 +214,7 @@ pub async fn take_out(
 }
 
 /// Who an account speaks as in a room: the owner on his own sender for the owner's account, and the account under
-/// its record identity and the shown name the console gives for any other.
+/// its record identity and the shown name the console gives for any other, which the identity goes by from then.
 pub(super) async fn speaker(
   receiver: &Receiver,
   room: i64,
@@ -195,14 +223,20 @@ pub(super) async fn speaker(
 ) -> Result<Speaking, Refusal> {
   Ok(match accounts::speaker(receiver, account).await.map_err(reached)? {
     Speaker::Owner => Speaking::owner(receiver, room).await,
-    Speaker::Account { sender } => Speaking {
-      sender_id: sender,
-      name: name.to_owned(),
-      said_by: SaidBy::Account {
-        account,
+    Speaker::Account { sender } => {
+      if !name.is_empty() {
+        accounts::name_identity(receiver.db(), sender, name).await.map_err(store)?;
+      }
+
+      Speaking {
+        sender_id: sender,
         name: name.to_owned(),
-      },
-    },
+        said_by: SaidBy::Account {
+          account,
+          name: name.to_owned(),
+        },
+      }
+    }
   })
 }
 

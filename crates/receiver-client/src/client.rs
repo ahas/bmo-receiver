@@ -428,9 +428,18 @@ impl ReceiverClient {
     Self::nothing(self.request(Method::DELETE, &path).query(&[("by", by.to_string())])).await
   }
 
-  /// `PUT /accounts/{account}/identity`.
-  pub async fn account_identity(&self, account: i64) -> Answer<AccountIdentity> {
-    Self::answered(self.request(Method::PUT, &["accounts", &account.to_string(), "identity"])).await
+  /// `PUT /accounts/{account}/identity`, naming the identity where `naming` is given.
+  pub async fn account_identity(
+    &self,
+    account: i64,
+    naming: Option<&AccountNaming>,
+  ) -> Answer<AccountIdentity> {
+    let path = ["accounts", &account.to_string(), "identity"];
+
+    match naming {
+      Some(naming) => Self::answered(self.send(Method::PUT, &path, naming)).await,
+      None => Self::answered(self.request(Method::PUT, &path)).await,
+    }
   }
 
   /// `GET /accounts/{account}/rooms`.

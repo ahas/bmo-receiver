@@ -81,6 +81,18 @@
         ],
         "type": "object"
       },
+      "AccountNaming": {
+        "description": "`PUT /accounts/{account}/identity`'s body: the name the account's record identity goes by from then, the same\nfield an account's words carry; none names nothing.",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "AccountPresence": {
         "description": "`PUT /accounts/{account}/presence`: an account's presence as the console draws it from its tabs; a null state\ntakes the console's word back.",
         "properties": {
@@ -3986,6 +3998,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountNaming"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "200": {
             "content": {
@@ -4008,7 +4030,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, failed"
           }
         },
-        "summary": "An account's record identity, made where it does not stand and the same one ever after.",
+        "summary": "An account's record identity, made where it does not stand and the same one ever after; a name given is the one it goes by from then, as a name its words carry is.",
         "tags": [
           "Rooms"
         ],

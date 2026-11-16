@@ -43,6 +43,7 @@ takes it outright: the table holds no default agent.
 | `chat_reads` | the last message of a room the receiver has read | room |
 | `chat_titles` | a room's title | room |
 | `room_supervisors` | a supervisor a room names to answer it; a room naming none is answered by the supervisor its own private person owns, where one stands, and otherwise by the default answerer (`docs/api.md`, 「Supervisors」) | room and supervisor |
+| `people_names` | the name a person goes by and when it was last given: an account's record identity, named by `PUT /accounts/{account}/identity` and by each of its words, files or forwards that carries a name; every reading of the person's name answers it before the name their messages carry (`docs/receiver.md`, 「Console rooms and accounts」) | person's number |
 | `people_reads` | a message an agent's book of a room has read, and when the mark was made | agent, room and message |
 | `room_windows` | when a room's window for an agent closes, in epoch milliseconds (`docs/wake.md`, 「The names and the window」) | room and agent |
 | `run_records` | what one of a room's runs wrote down beside it: the run it was written under, the kind of record, its words, the number of the row it wrote, whether it woke the agent and when (`docs/answer-checks.md`) | its number |
