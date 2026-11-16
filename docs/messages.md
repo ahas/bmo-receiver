@@ -84,6 +84,14 @@ and when a room sees it typing.
   none; and a name ending in `key`, `token`, `secret`, `password` or `passwd`, in any case, set with `=` or `:` to
   a value of twelve or more characters. Each is narrow enough that an ordinary sentence in any script, and a
   commit's forty-character hash, stand as they were written.
+- **A shape may name the runs it spares,** each a regular expression of its own: a run of the shape that lies
+  wholly inside a run of one it spares stands, and every other shape still reads it. The named value spares a
+  console secret-request link, which carries no secret but names one: a link to the console's page of a room,
+  `…/rooms/<room>?…`, whose `secret` query parameter is a secret's file name (letters, digits, dots, dashes,
+  underscores and percent-encoded characters), with nothing beside it but the `kind`, `fields`, `for` and `user` parameters. The console reads
+  the file name and the fields off the link, so the link stands whole. A link carrying any other parameter is no
+  such link, and a key, token or password value written in a link's query or as `KEY=VALUE` anywhere else is taken
+  out as before.
 - **The value is kept nowhere and handed to no one:** no row, no copy carried to a provider, no turn and no log
   line carries it. Every row the record writes holds its words and its transcript as the shapes leave them, an
   agent's own answer among them, though what an agent sends is its own words and goes out as it wrote them. For a

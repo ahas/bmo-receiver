@@ -10,6 +10,9 @@ pub struct SecretShape {
   pub name: String,
   /// Where it names a part `secret`, that part alone is the run replaced.
   pub pattern: String,
+  /// The runs it leaves alone: a run of the shape lying wholly inside a run of one of these stands.
+  #[serde(default)]
+  pub spared: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

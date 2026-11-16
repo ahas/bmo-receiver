@@ -14,16 +14,40 @@ use serde_json::Value;
 /// The part of a shape's run that alone is replaced, where the shape names one.
 const SECRET_PART: &str = "secret";
 
-// The shapes compiled, in the policy's order, each under its name.
-static SHAPES: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
+// One shape compiled: its name, its pattern and the runs it spares.
+struct Shape {
+  name: &'static str,
+  pattern: Regex,
+  spared: Vec<Regex>,
+}
+
+impl Shape {
+  // Whether a run of the shape lies wholly inside a run of one it spares, in the words it was found in.
+  fn spares(&self, text: &str, run: &regex::Match) -> bool {
+    self.spared.iter().any(|spared| {
+      spared
+        .find_iter(text)
+        .any(|kept| kept.start() <= run.start() && run.end() <= kept.end())
+    })
+  }
+}
+
+// The shapes compiled, in the policy's order.
+static SHAPES: LazyLock<Vec<Shape>> = LazyLock::new(|| {
   SECRET_SHAPES
     .shapes
     .iter()
     .map(|shape| {
-      let pattern = Regex::new(&shape.pattern)
-        .unwrap_or_else(|why| panic!("the secret shape {} does not compile: {why}", shape.name));
+      let compiled = |pattern: &str| {
+        Regex::new(pattern)
+          .unwrap_or_else(|why| panic!("the secret shape {} does not compile: {why}", shape.name))
+      };
 
-      (shape.name.as_str(), pattern)
+      Shape {
+        name: shape.name.as_str(),
+        pattern: compiled(&shape.pattern),
+        spared: shape.spared.iter().map(|pattern| compiled(pattern)).collect(),
+      }
     })
     .collect()
 });
@@ -40,7 +64,7 @@ pub fn marker() -> &'static str {
 
 /// The shapes' names, in the order they are read.
 pub fn names() -> Vec<&'static str> {
-  SHAPES.iter().map(|(name, _)| *name).collect()
+  SHAPES.iter().map(|shape| shape.name).collect()
 }
 
 /// Words read for secret-shaped runs: the words with each run replaced, and how many runs there were.
@@ -56,20 +80,20 @@ pub fn redact(text: &str) -> Redacted {
   let mut text = text.to_owned();
   let mut runs = 0;
 
-  for (_, shape) in SHAPES.iter() {
-    if !shape.is_match(&text) {
+  for shape in SHAPES.iter() {
+    if !shape.pattern.is_match(&text) {
       continue;
     }
 
     let mut out = String::with_capacity(text.len());
     let mut last = 0;
 
-    for found in shape.captures_iter(&text) {
+    for found in shape.pattern.captures_iter(&text) {
       let Some(run) = found.name(SECRET_PART).or_else(|| found.get(0)) else {
         continue;
       };
 
-      if run.is_empty() || run.as_str() == marker {
+      if run.is_empty() || run.as_str() == marker || shape.spares(&text, &run) {
         continue;
       }
 

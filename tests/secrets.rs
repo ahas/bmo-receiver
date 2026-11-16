@@ -183,3 +183,46 @@ fn every_string_of_a_payload_is_read_and_its_keys_and_numbers_stand() {
     })
   );
 }
+
+// A console secret-request link as the supervisor's procedure writes it: the console's page of a room, then the
+// file's name, its fields or kind, what it is for and whose space it goes into, each value percent-encoded.
+fn request_link(query: &str) -> String {
+  format!("https://console.example.com/bmo/rooms/4200?{query}")
+}
+
+// "a console secret-request link, which carries no secret but names one, stands whole"
+#[test]
+fn a_console_secret_request_link_stands_whole() {
+  for link in [
+    request_link("secret=app-prod-user.secret&fields=username&for=the%20app%20database&user=7"),
+    request_link("secret=app-prod.pass&fields=password%2A&for=the%20app%20database"),
+    request_link("secret=mail-relay&kind=smtp&for=mail"),
+  ] {
+    let words = format!("Save it here: {link} and tell me once it is saved.");
+
+    assert_eq!(redact(&words).runs, 0, "{link}");
+    assert_eq!(redacted(&words), words);
+  }
+}
+
+// "a key, token or password value written in a link's query or as `KEY=VALUE` anywhere else is taken out as
+// before", a request link carrying another parameter among them.
+#[test]
+fn a_secret_in_a_link_s_query_or_set_as_a_value_is_still_taken_out() {
+  let password = format!("{}={}", "password", "hunter2hunter2");
+  let token = format!("https://console.example.com/bmo/rooms/4200?{}={}", "token", "abcdef123456789");
+  let smuggled = request_link(&format!("secret=app.pass&{}={}", "token", "abcdef123456789"));
+  let elsewhere =
+    format!("https://console.example.com/bmo/settings?{}={}", "secret", "app-prod-user.secret");
+
+  assert_eq!(redacted(&password), format!("password={}", marker()));
+  assert_eq!(
+    redacted(&token),
+    format!("https://console.example.com/bmo/rooms/4200?token={}", marker())
+  );
+  assert!(!redacted(&smuggled).contains("abcdef123456789"), "{}", redacted(&smuggled));
+  assert!(
+    !redacted(&elsewhere).contains("app-prod-user.secret"),
+    "only a room's page is a request link"
+  );
+}
