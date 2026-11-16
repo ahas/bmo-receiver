@@ -369,3 +369,54 @@ async fn a_text_query_finds_the_rooms_messages_that_carry_it_newest_page_first()
 fn urlencode(text: &str) -> String {
   text.bytes().map(|byte| format!("%{byte:02X}")).collect()
 }
+
+// The ids of a page's messages, in its order.
+fn ids(page: &Value) -> Vec<i64> {
+  page["items"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .map(|message| message["id"].as_i64().unwrap())
+    .collect()
+}
+
+// "`by=agent` holds the messages whose `agentName` names an agent, whatever name they stand under, and `by=person`
+// those whose `agentName` is null", in a console record room whose messages are numbered below zero.
+#[tokio::test]
+async fn a_page_tells_an_agents_messages_from_a_persons_by_the_record_not_the_name_they_stand_under() {
+  const ROOM: i64 = -900;
+  const SUPERVISOR: &str = "bench-subject-a";
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  // The supervisor's label is not its name, and its words stand under the label.
+  front
+    .standing
+    .agency
+    .registering(vec![registration(SUPERVISOR, "Bench subject", vec![], None)]);
+
+  for (message, sender, name, agent, sent) in [
+    (-1_i64, Some(OWNER), "someone", None, 1_000_i64),
+    (-2, None, "Bench subject", Some(SUPERVISOR), 2_000),
+    (-3, Some(OWNER), "someone", None, 3_000),
+  ] {
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "agent_name")
+           VALUES ($1, $2, $3, $4, $5, 'words', $6)"#,
+        vec![ROOM.into(), message.into(), sender.into(), name.into(), sent.into(), agent.into()],
+      )
+      .await;
+  }
+
+  for (by, expected) in [("agent", vec![-2]), ("person", vec![-1, -3]), ("any", vec![-1, -2, -3])] {
+    let (status, page) = get(&front, &format!("/rooms/{ROOM}/messages?by={by}&limit=10")).await;
+
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert_eq!(ids(&page), expected, "by={by}: {page}");
+  }
+
+  let (_, both) = get(&front, &format!("/rooms/{ROOM}/messages?limit=10")).await;
+
+  assert_eq!(ids(&both), [-1, -2, -3], "with no `by` the page holds both");
+}

@@ -565,7 +565,9 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   reason the round skipped for where it skipped (`; skipped: ` then the reason, or `none given`), and the checks
   that withheld it.
 - **Each row is told on the event stream as it is written,** a `draft` event (`docs/receiver.md`, 「The event
-  stream」), and the log is read by round (`GET /rounds/drafts`).
+  stream」), and the log is read by round (`GET /rounds/drafts`): the rounds a reader names, as a screen names
+  those its messages stand under, in the order of their names; or, where it names none, the room's newest rounds, at most
+  `limit` of them (20 by default, 200 at most), oldest first, the page's `more` saying older rounds stand.
 - **The draft turn is told as it starts, too,** before its answer: a `draft` event of kind `start` with the
   `round`, the `agentName`, `number` and `count`, both 1, `question`, the name its row goes by, and `at`. It is
   no row of the log, and the turn's own row follows it once the answer is in. A screen tells the message being

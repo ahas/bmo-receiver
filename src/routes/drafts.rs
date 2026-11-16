@@ -65,7 +65,16 @@ pub struct Asked {
 
   #[serde(default)]
   rounds: String,
+
+  /// How many of the room's newest rounds a read naming none answers.
+  #[serde(default)]
+  limit: Option<u64>,
 }
+
+// How many of a room's newest rounds a read naming none answers, unless it asks for another count, and the most
+// it may ask for.
+const NEWEST_ROUNDS: u64 = 20;
+const NEWEST_ROUNDS_MOST: u64 = 200;
 
 fn bad(why: &str) -> Refusal {
   refused(StatusCode::BAD_REQUEST, "bad-request", why)
@@ -212,11 +221,19 @@ pub async fn remove_question(
   Ok((StatusCode::NO_CONTENT, axum::Json(json!({}))))
 }
 
-/// For a room and the rounds named, every row each round's draft process wrote.
+/// For a room and the rounds named, or its newest rounds where a read names none, every row each round's draft
+/// process wrote (docs/drafting.md, 「The round log」).
 pub async fn drafts(State(served): State<Served>, raw: RawQuery) -> Answered {
   let asked = query::<Asked>(raw)?;
-  let rounds = rounds_of(asked.room, &asked.rounds);
-  let items = log::read(served.receiver.db(), asked.room, &rounds).await.map_err(store)?;
+  let db = served.receiver.db();
+  let (rounds, more) = if asked.rounds.trim().is_empty() {
+    let limit = asked.limit.unwrap_or(NEWEST_ROUNDS).clamp(1, NEWEST_ROUNDS_MOST);
 
-  answered(json!({ "items": items, "more": false }))
+    log::newest_rounds(db, asked.room, limit).await.map_err(store)?
+  } else {
+    (rounds_of(asked.room, &asked.rounds), false)
+  };
+  let items = log::read(db, asked.room, &rounds).await.map_err(store)?;
+
+  answered(json!({ "items": items, "more": more }))
 }

@@ -92,7 +92,8 @@ its row, so `messages` is indexed by room, time and row, and a page reads only t
 room's messages came in on are read off an index of the messages that name one, by room and road.
 The rooms an account is a member of are read off an index of `room_accounts` by account.
 A round's end reads the end of its room and session written last before it, so the round log's end rows are indexed
-by room and session in the order they were written.
+by room and session in the order they were written, and a room's rounds are listed off an index of the round log
+by room and row.
 
 The morning news briefing's schedule and the holiday calendar its days skip are this store's. The page goes to
 its room through the receiver's own sends.

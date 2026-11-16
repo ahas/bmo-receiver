@@ -228,6 +228,22 @@ impl Scratch {
   }
 }
 
+/// The store stepped back through the migration named `first`, it and every one after it undone: the number of
+/// steps, which a migration run afterwards takes again.
+pub async fn undone_from(db: &DatabaseConnection, first: &str) -> usize {
+  let names: Vec<String> =
+    Migrator::migrations().iter().map(|migration| migration.name().to_owned()).collect();
+  let at = names
+    .iter()
+    .position(|name| name == first)
+    .unwrap_or_else(|| panic!("no migration is named {first}"));
+  let steps = names.len() - at;
+
+  Migrator::down(db, Some(u32::try_from(steps).unwrap())).await.unwrap();
+
+  steps
+}
+
 impl Drop for Scratch {
   fn drop(&mut self) {
     if self.kept {

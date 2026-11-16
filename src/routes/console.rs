@@ -256,18 +256,20 @@ pub async fn messages(State(served): State<Served>, Path(room): Path<i64>, raw: 
         } else {
           found
         };
-      match asked.by.as_deref() {
-        Some("any") => {}
-        Some("agent") => {
-          let names = agent_names(&receiver).await;
-          kept.retain(|page| {
-            page.sender_name == receiver.deployment().sender_name || names.contains(&page.sender_name)
-          });
-        }
-        _ => {
-          let one_to_one = receiver.roads().room_facts(room).await.one_to_one();
-          kept.retain(|page| spoken_by_person(one_to_one, page));
-        }
+      // Whose a message is, the record says: an agent's names it, a person's does not (docs/api.md, 「Messages」).
+      let whose: Option<fn(&reads::Page) -> bool> = match asked.by.as_deref() {
+        Some("agent") => Some(|page| page.agent_name.is_some()),
+        Some("person") => Some(|page| page.agent_name.is_none()),
+        _ => None,
+      };
+
+      if let Some(whose) = whose {
+        kept.retain(whose);
+      }
+
+      if asked.by.as_deref() != Some("any") {
+        let one_to_one = receiver.roads().room_facts(room).await.one_to_one();
+        kept.retain(|page| not_an_opening(one_to_one, page));
       }
 
       pages(&receiver, room, kept)
@@ -312,15 +314,6 @@ fn listed(messages: Vec<reads::Message>) -> Vec<Value> {
     .collect()
 }
 
-// Every agent the agency registers, by name, for a page asked by an agent.
-async fn agent_names(receiver: &Receiver) -> Vec<String> {
-  receiver
-    .agents()
-    .await
-    .map(|agents| agents.agents.iter().map(|agent| agent.name.clone()).collect())
-    .unwrap_or_default()
-}
-
 /// Where a day begins in a room: the first message a person said at or after a moment.
 pub async fn day_start(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
   let asked = query::<DayStart>(raw)?;
@@ -329,7 +322,7 @@ pub async fn day_start(State(served): State<Served>, Path(room): Path<i64>, raw:
   let one_to_one = receiver.roads().room_facts(room).await.one_to_one();
   let begins = found
     .iter()
-    .filter(|page| spoken_by_person(one_to_one, page))
+    .filter(|page| not_an_opening(one_to_one, page))
     .map(|page| page.message_id)
     .collect::<Vec<i64>>();
   let start = begins.first();
@@ -373,8 +366,7 @@ pub async fn pictures(State(served): State<Served>, Path(room): Path<i64>, raw: 
 
   let one_to_one = receiver.roads().room_facts(room).await.one_to_one();
   let folder = room_path(&receiver.data_root().images(), room);
-  let shown: Vec<reads::Page> =
-    found.into_iter().filter(|page| spoken_by_person(one_to_one, page)).collect();
+  let shown: Vec<reads::Page> = found.into_iter().filter(|page| not_an_opening(one_to_one, page)).collect();
   let (before, total) = reads::pictures_counted(db, room, shown.first().map(|page| page.message_id))
     .await
     .map_err(store)?;
@@ -563,7 +555,7 @@ pub fn situation_json(situation: Option<&reads::Situation>) -> Value {
 }
 
 /// Whether a screen stands this line: the protocol's opening a client sent for a person is left out.
-fn spoken_by_person(one_to_one: bool, page: &reads::Page) -> bool {
+fn not_an_opening(one_to_one: bool, page: &reads::Page) -> bool {
   let said = page.text.trim();
 
   !(one_to_one && (said == OPENING || said.starts_with(&format!("{OPENING} "))))

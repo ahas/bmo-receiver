@@ -33,6 +33,7 @@ mod reset_point;
 mod room_record;
 mod room_removal;
 mod room_round;
+mod round_log;
 mod routes;
 mod scratch_runs;
 mod session_generation;

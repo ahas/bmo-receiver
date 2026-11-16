@@ -9512,6 +9512,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -9536,7 +9544,7 @@
             "description": "A refusal or failure: unauthorized, bad-request, failed"
           }
         },
-        "summary": "For a room and the rounds named, every row each round's draft process wrote.",
+        "summary": "For a room and the rounds named, or its newest rounds where none is named, every row each round's draft process wrote.",
         "tags": [
           "Rounds"
         ],

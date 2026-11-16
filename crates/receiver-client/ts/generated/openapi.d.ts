@@ -1341,7 +1341,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** For a room and the rounds named, every row each round's draft process wrote. */
+        /** For a room and the rounds named, or its newest rounds where none is named, every row each round's draft process wrote. */
         get: operations["roundDrafts"];
         put?: never;
         post?: never;
@@ -6284,6 +6284,7 @@ export interface operations {
             query: {
                 room: number;
                 rounds?: string;
+                limit?: number;
             };
             header?: never;
             path?: never;

@@ -339,7 +339,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the provider's echo of the receiver's own send keeps them, since that message is the one already kept with its
   fields. So an answer sent in the owner's `human-avatar` account is read as the
   agent's with its voice named, not guessed from the number it went out under.
-- **The message page** holds only what a person said unless `by=agent` or `by=any` says otherwise. It is walked by
+- **The message page** holds whose messages `by` names, told apart by the record alone: `by=agent` holds the
+  messages whose `agentName` names an agent, whatever name they stand under, and `by=person` those whose
+  `agentName` is null. With no `by`, it holds both. The opening a client sends for a person (`/start` in a
+  one-to-one room) stands on no page but the one `by=any` asks, which holds every message. It is walked by
   `before` or `after`, a message the reader holds, and ends on the side it walked from. With `agentName`,
   `unread=true` answers the messages past that agent's read marks, oldest first, from `since` where given; with
   `marked=true` it answers the messages the agent has marked, after `after`. This is the one message read: there is
@@ -662,7 +665,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 |---|---|---|
 | `GET /rounds/openings` | `room`, `rounds` (comma-separated) | a page of `{round, instructions}`, each instruction `id`, `sort`, `summary`, `createdAt` |
 | `GET /rounds/openings/{instructionId}` | `room` | `id`, `text`: one quiet instruction whole |
-| `GET /rounds/drafts` | `room`, `rounds` (comma-separated) | a page of `{round, rows}`, each row a `DraftRound` |
+| `GET /rounds/drafts` | `room`, `rounds` (comma-separated), `limit` | a page of `{round, rows}`, each row a `DraftRound` |
 
 - **A `DraftRound`** is one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」):
   `id`, `agentName`, `number` (from 1, the round's own turn being the first question's row; 0 for the agent's own

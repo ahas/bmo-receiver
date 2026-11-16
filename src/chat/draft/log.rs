@@ -433,6 +433,31 @@ pub fn member(row: &QueryResult) -> Result<Value, Fault> {
   }))
 }
 
+/// A room's newest rounds, at most `limit` of them, oldest first, and whether older rounds stand.
+pub async fn newest_rounds<C: ConnectionTrait>(
+  db: &C,
+  chat_id: i64,
+  limit: u64,
+) -> Result<(Vec<String>, bool), Fault> {
+  let rows = all(
+    db,
+    r#"SELECT "round" FROM "draft_rounds" WHERE "chat_id" = $1
+         GROUP BY "round" ORDER BY max("id") DESC LIMIT $2"#,
+    vec![chat_id.into(), (limit + 1).into()],
+  )
+  .await?;
+  let mut rounds = rows
+    .iter()
+    .map(|row| row.try_get::<String>("", "round"))
+    .collect::<Result<Vec<String>, _>>()?;
+  let more = rounds.len() as u64 > limit;
+
+  rounds.truncate(limit as usize);
+  rounds.reverse();
+
+  Ok((rounds, more))
+}
+
 /// The rows of the rounds named, each round's in the order they were written, a round with none not in it.
 pub async fn read<C: ConnectionTrait>(
   db: &C,

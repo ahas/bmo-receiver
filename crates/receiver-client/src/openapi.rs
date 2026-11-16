@@ -1481,8 +1481,12 @@ pub fn openapi() -> Value {
     "/rounds/drafts",
     "roundDrafts",
     "Rounds",
-    "For a room and the rounds named, every row each round's draft process wrote.",
-    vec![parameter("room", "integer", true), parameter("rounds", "string", false)],
+    "For a room and the rounds named, or its newest rounds where none is named, every row each round's draft process wrote.",
+    vec![
+      parameter("room", "integer", true),
+      parameter("rounds", "string", false),
+      parameter("limit", "integer", false),
+    ],
     None,
     vec![(200, json_answer::<Page<RoundDrafts>>(&mut generator))],
     vec!["unauthorized", "bad-request", "failed"]
