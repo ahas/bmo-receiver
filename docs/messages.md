@@ -232,8 +232,9 @@ that wants something said there hands the words to that supervisor, and the supe
 
 - **The receiver records, per chat, the id of the last message an agent has finished answering.**
 - **The marker advances only when a conversation ends,** so a run killed mid-answer leaves its messages unread.
-- **A round that failed leaves its words unread.** A round that failed for anything but a stop asked of it puts
-  the marker back where it stood before the round, and the words it took, with those that came in while it
+- **A round that failed leaves its words unread.** A round whose message no send put into the room is such a
+  round (`docs/wake.md`, 「The room's queue and the round」). A round that failed for anything but a stop asked
+  of it puts the marker back where it stood before the round, and the words it took, with those that came in while it
   worked, wait for the room's next round, whatever opens it — the failure order among them. They are that
   round's new messages, so its turn stands under them as the failed one did: its speakers, its reference, its
   reply and what the owner is owed. Words given back the instruction policy's `restart_limit` times are left

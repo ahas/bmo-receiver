@@ -528,7 +528,7 @@ async fn a_new_supervisors_console_room_is_born_on_the_record_and_its_first_answ
   )
   .await;
 
-  assert!(sent.is_some(), "the answer has a road");
+  assert!(sent.is_ok(), "the answer has a road");
   assert_eq!(
     scratch
       .count(r#"SELECT COUNT(*) FROM "messages" WHERE "chat_id" = $1"#, vec![room.into()])

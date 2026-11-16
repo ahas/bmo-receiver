@@ -46,6 +46,7 @@ pub struct Blocks {
   pub waited_end: String,
   pub fresh: String,
   pub fresh_end: String,
+  pub people: String,
   pub nothing: String,
   pub quiet: String,
   pub quiet_end: String,
@@ -231,6 +232,15 @@ pub struct Attach {
   pub reattach_ms: u64,
 }
 
+/// How a round's message is put into its room: how many times its send is tried before the round fails, and the
+/// wait between two tries.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Send {
+  pub tries: u64,
+  pub gap_ms: u64,
+}
+
 /// How often a working turn's picture is published where only its counts changed.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -338,6 +348,7 @@ pub struct ChatRound {
   pub notice: Notice,
   pub pushing: Pushing,
   pub attach: Attach,
+  pub send: Send,
   pub progress: Progress,
   pub thinking: Thinking,
   pub typing: Typing,

@@ -82,6 +82,12 @@ pub struct StandInChat {
   pub voice_refusals: Vec<(ChatVoice, ChatVerb)>,
   /// How often a send was turned down for the voice it was asked in.
   pub turn_downs: AtomicUsize,
+  /// How many of the sends to come fail as a connection that drops does, before one goes through.
+  pub failing_sends: AtomicUsize,
+  /// How many of the sends to come break after they may have been read, before one goes through.
+  pub cutting_sends: AtomicUsize,
+  /// How many sends it was offered, carried or not.
+  pub sends_offered: AtomicUsize,
   /// The contacts of its account, every listing of them it was asked for, and every conversation it was asked
   /// to start.
   pub contacts: Vec<ChatContact>,
@@ -185,6 +191,16 @@ impl StandInChat {
   pub fn refusing_in(mut self, voice: ChatVoice, verbs: &[ChatVerb]) -> Self {
     self.voice_refusals.extend(verbs.iter().map(|verb| (voice, *verb)));
     self
+  }
+
+  /// The next `count` sends fail as a connection that drops does, and carry nothing.
+  pub fn failing_sends(&self, count: usize) {
+    self.failing_sends.store(count, Ordering::SeqCst);
+  }
+
+  /// The next `count` sends break after the service may have read them.
+  pub fn cutting_sends(&self, count: usize) {
+    self.cutting_sends.store(count, Ordering::SeqCst);
   }
 
   /// A service built before the protocol carried the members route: asking it answers that no route stands there.
@@ -432,6 +448,39 @@ impl Chat for StandInChat {
           bmo_chat_client::ErrorCode::SpeakerUnnumbered,
           "The stand-in has no number for that speaker.",
         ))
+      });
+    }
+
+    self.sends_offered.fetch_add(1, Ordering::SeqCst);
+
+    if self
+      .cutting_sends
+      .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |left| left.checked_sub(1))
+      .is_ok()
+    {
+      let url = format!("http://{}.invalid/send", self.key);
+
+      return Box::pin(async move {
+        Err(ClientFailure::Transport {
+          url,
+          why: "connection closed before message completed".to_owned(),
+        })
+      });
+    }
+
+    if self
+      .failing_sends
+      .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |left| left.checked_sub(1))
+      .is_ok()
+    {
+      let url = format!("http://{}.invalid/send", self.key);
+
+      return Box::pin(async move {
+        Err(ClientFailure::Unreachable {
+          url,
+          waited: Duration::ZERO,
+          why: "connection closed before message completed".to_owned(),
+        })
       });
     }
 

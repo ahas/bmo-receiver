@@ -55,6 +55,8 @@ waited = "Messages you waited on with <<WAIT>>, still unanswered ({count}):"
 waited_end = "END OF WAITED MESSAGES"
 fresh = "New messages ({count}):"
 fresh_end = "END OF NEW MESSAGES"
+# The line under the round's words where several people said them: {count} the number of people.
+people = "These messages come from {count} people. Your message answers each of them; mark a message that needs no answer <<DONE #<number>>> and one to be answered in a round of its own <<SEPARATE #<number>>>, so no one's words are passed over in silence."
 nothing = "No further messages arrived."
 quiet = "Quiet instruction from the system ({count}):"
 quiet_end = "END OF QUIET INSTRUCTION"
@@ -221,6 +223,13 @@ refused_gap_ms = 10000
 [attach]
 pace_ms = 2000
 reattach_ms = 600000
+
+# How a round's message is put into its room (docs/wake.md, 「The room's queue and the round」): how many times the
+# send is tried on the road the turn answers on before the round fails, and how long it waits between two tries,
+# in milliseconds.
+[send]
+tries = 3
+gap_ms = 5000
 
 # How often a working turn's picture is published where only its counts changed, in milliseconds; a change in
 # what the room's block draws goes out at once.

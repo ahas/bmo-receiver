@@ -801,8 +801,25 @@ impl Run<'_> {
       took,
       done,
       separate,
+      own_done: self.own_marked(Mark::Done),
+      own_separate: self.own_marked(Mark::Separate),
       reply_to: self.marks.iter().rev().find(|(mark, _)| *mark == Mark::Reply).map(|(_, id)| *id),
     }
+  }
+
+  // The round's own messages an answer marked `mark`, a message marked both done and separate standing as
+  // separate alone.
+  fn own_marked(&self, mark: Mark) -> Vec<Inbound> {
+    let marked = |mark: Mark, id: i64| self.marks.contains(&(mark, id));
+
+    self
+      .drafted
+      .batch
+      .iter()
+      .filter(|message| marked(mark, message.message_id))
+      .filter(|message| mark == Mark::Separate || !marked(Mark::Separate, message.message_id))
+      .cloned()
+      .collect()
   }
 }
 

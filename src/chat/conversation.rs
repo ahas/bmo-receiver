@@ -256,6 +256,10 @@ pub struct Made {
   pub done: Vec<Inbound>,
   /// The messages shown to the round that the agent marked to be answered in a round of their own.
   pub separate: Vec<Inbound>,
+  /// The round's own messages the agent marked as needing no answer.
+  pub own_done: Vec<Inbound>,
+  /// The round's own messages the agent marked to be answered in a round of their own.
+  pub own_separate: Vec<Inbound>,
   /// The message the agent marked as the one its answer answers, by its number, where it marked one: zero for a
   /// mark naming none, which is the newest message the round answers.
   pub reply_to: Option<i64>,
@@ -289,7 +293,7 @@ pub struct ReplyRoad {
 }
 
 /// What sends a round's answer into its room, on the road the turn answers on: the number of the message it went
-/// out as and its words, where anything went out. Filled by the module that owns the send.
+/// out as and its words, or why nothing went out. Filled by the module that owns the send.
 pub trait Sending: Send + Sync {
   fn send<'a>(
     &'a self,
@@ -297,7 +301,7 @@ pub trait Sending: Send + Sync {
     agent: &'a str,
     road: &'a ReplyRoad,
     reply: &'a Reply,
-  ) -> BoxFuture<'a, Option<Sent>>;
+  ) -> BoxFuture<'a, Result<Sent, Unsent>>;
 }
 
 /// What writes a session's and its road's records as a turn went out, and what folds a session past its window.
@@ -334,6 +338,24 @@ pub trait Health: Send + Sync {
 pub struct Sent {
   pub message_id: i64,
   pub text: String,
+}
+
+/// Why an answer did not reach its room: the reason, and whether the send failed after it may have reached the
+/// chat service, so the room may hold it though no number came back.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Unsent {
+  pub reason: String,
+  pub may_have_gone: bool,
+}
+
+impl Unsent {
+  /// A send that proved nothing reached the room.
+  pub fn nothing_went(reason: impl Into<String>) -> Self {
+    Unsent {
+      reason: reason.into(),
+      may_have_gone: false,
+    }
+  }
 }
 
 /// What a turn of a console talk is asked with, and what it answers with (docs/unified-bmo.md, 「Console
@@ -2153,6 +2175,29 @@ impl Conversations {
     // A message marked to be answered on its own goes back to wait, and opens the round after this one.
     self.give_back_words(chat_id, made.separate);
 
+    // The round's own words, where several people said them, each carry what the round made of them
+    // (docs/drafting.md, 「Words of several people」): answered by its message, or marked as needing no answer. One
+    // marked to be answered on its own leaves the round and goes back to wait, as a message shown to it does,
+    // unless every one of them was: a round sets none of its words apart from itself.
+    if prompt::speakers(&batch) > 1 {
+      let separate = if made.own_separate.len() < batch.len() { made.own_separate } else { vec![] };
+      let set_apart = |message: &Inbound| {
+        made
+          .own_done
+          .iter()
+          .chain(separate.iter())
+          .any(|marked| marked.message_id == message.message_id)
+      };
+      let answered: Vec<Inbound> = batch.iter().filter(|message| !set_apart(message)).cloned().collect();
+
+      self.judge_shown(chat_id, held.last_consumed_id, &answered, &made.own_done).await;
+
+      if !separate.is_empty() {
+        batch.retain(|message| !separate.iter().any(|marked| marked.message_id == message.message_id));
+        self.give_back_words(chat_id, separate);
+      }
+    }
+
     // The words shown to the process are the round's own: the read mark moves past those marked done and to those
     // the message answers, and they join the messages a bare reply mark names the newest of.
     if !made.took.is_empty() || !made.done.is_empty() {
@@ -2191,6 +2236,37 @@ impl Conversations {
     // The room is about to be answered, so a replacement is behind it.
     self.state().woken.remove(&chat_id);
 
+    let waiting = {
+      let state = self.state();
+
+      state.active.get(&chat_id).map(|conv| (conv.reply_target, conv.asked_at))
+    };
+    let (reply_to, asked_at) = waiting.unwrap_or((None, None));
+    // The round is answered only once its message went out (docs/wake.md, 「The room's queue and the round」): a
+    // message no try put into the room fails the round before its read mark is written, and every word it read
+    // waits for the next.
+    let sent = if self.silenced(chat_id).await {
+      None
+    } else {
+      let road = ReplyRoad {
+        chat_id,
+        reply_to,
+        via: via.to_owned(),
+        round: round.to_owned(),
+        asked_at,
+        began,
+      };
+
+      match self.send_tried(&receiver, &road, &reply).await {
+        Ok(sent) => Some(sent),
+        Err(failure) => {
+          self.give_back_words(chat_id, batch);
+
+          return Err(failure);
+        }
+      }
+    };
+
     self.persist(&held).await;
 
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
@@ -2198,34 +2274,6 @@ impl Conversations {
     }
 
     self.restart_window(chat_id).await;
-
-    let waiting = {
-      let state = self.state();
-
-      state.active.get(&chat_id).map(|conv| (conv.reply_target, conv.asked_at))
-    };
-    let (reply_to, asked_at) = waiting.unwrap_or((None, None));
-    let sent = if self.silenced(chat_id).await {
-      None
-    } else {
-      self
-        .0
-        .sending
-        .send(
-          &receiver,
-          self.agent(),
-          &ReplyRoad {
-            chat_id,
-            reply_to,
-            via: via.to_owned(),
-            round: round.to_owned(),
-            asked_at,
-            began,
-          },
-          &reply,
-        )
-        .await
-    };
 
     if let Some(sent) = &sent {
       if let Some(conv) = self.state().active.get_mut(&chat_id) {
@@ -2268,6 +2316,38 @@ impl Conversations {
     self.pump_pending(chat_id);
 
     Ok(())
+  }
+
+  // The round's message put into its room, tried the round policy's number of times, its gap apart: the message
+  // as it went out, or the round's failure, naming the last try's reason, where no try put it in. A send that
+  // failed after it may have reached the chat service is not tried again, so the room never reads it twice.
+  async fn send_tried(
+    &self,
+    receiver: &Receiver,
+    road: &ReplyRoad,
+    reply: &Reply,
+  ) -> Result<Sent, Failure> {
+    let tries = CHAT_ROUND.send.tries.max(1);
+    let mut why = String::new();
+
+    for tried in 1..=tries {
+      match self.0.sending.send(receiver, self.agent(), road, reply).await {
+        Ok(sent) => return Ok(sent),
+        Err(unsent) if unsent.may_have_gone => {
+          return Err(Failure::Failed(format!(
+            "the round's message may have reached the room though its send failed, so it was not sent again: {}",
+            unsent.reason
+          )));
+        }
+        Err(unsent) => why = unsent.reason,
+      }
+
+      if tried < tries {
+        tokio::time::sleep(receiver.send_again_pace()).await;
+      }
+    }
+
+    Err(Failure::Failed(format!("the round's message was not sent after {tries} tries: {why}")))
   }
 
   // A round that ends in silence: its session kept, its skip written down and the round over, as an answered round

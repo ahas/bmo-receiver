@@ -351,7 +351,8 @@ message passes, and the record each turn of it leaves.
   The number is the message's own as the round showed it, its minus sign kept where it is negative. A mark counts
   in any answer of the process, outside a code span or fence, and only for a message of the round, its own or one
   shown to it; a message marked both done and separate is separate, and of several `REPLY` marks
-  the last stands. Marks are taken out of an answer before anything else reads it, and never reach the room.
+  the last stands. On the round's own messages a done or separate mark counts only where several people said
+  them (「Words of several people」). Marks are taken out of an answer before anything else reads it, and never reach the room.
 - **Each message shown to the round carries a verdict of what its mark made of it.** Once the round's message is
   made, every message pushed into the draft turn or shown in the closing check is written down under itself as
   a verdict of the stage `read-with`, naming the message the round's own verdict stands under: `READ: #<number>`
@@ -372,6 +373,15 @@ message passes, and the record each turn of it leaves.
 - **The record keeps the round; the pin is the visible reply.** The answer's row names the message as its
   `replyToMessageId` only where the pin stands; the round stands as it was, and a turn with no pin shows no reply
   in the console or on the chat service. The answer is still the round's answer, whatever the visible pin.
+- **Words of several people are each answered or set apart.** Where the round's own messages come from more
+  than one person, the turn says so under them (`chat-round.toml`, `[blocks]`, `people`, with the count of
+  people): the message answers each of them, and one that needs no answer or an answer of its own is marked
+  done or separate. Once the message is made, each of the round's own messages is written down under itself as
+  a `read-with` verdict as a message shown to the round is: `READ` where the message answers it, `SKIP` where
+  it was marked done. One marked separate leaves the round and goes back to the front of what waits, opening the
+  round after, which writes it down as its own words; where every one of them was marked separate, none is set
+  apart, since a round sets none of its words apart from itself. So no person's words in such a round end with
+  no answer and no record of why. A round of one person's words reads no done or separate mark on them.
 - **Nothing else opens a round for a message shown inside a round.** Words that come after the closing check, or
   while the closing check, an item, the review or a check works, are pushed into no turn, were shown to nobody and
   open the next round.
@@ -490,8 +500,9 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 ## After the process
 
 - **The message goes to the round's send** (`docs/wake.md`, 「The room's queue and the round」): the words'
-  form reads it there, once. The window restarts, the read mark is written and the fold
-  reads the context the last turn of the process left.
+  form reads it there, once. Once it went out, the window restarts, the read mark is written and the fold
+  reads the context the last turn of the process left; a message no try of the send put in fails the round, its
+  words left unread for the next.
 - **Nothing the process asked goes to the room** and none of it is archived: the questions and their answers are
   the session's own and the round log's.
 

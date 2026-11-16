@@ -227,6 +227,17 @@ its rounds.
   not instant (the road's send may have to be waited out) so a round that counted
   itself finished before it had sent would let the next message start a second run of the same session, and the
   room would read two answers to one thing, the older one arriving last.
+- **A message that did not go out is sent again, and a round none of whose sends put it in fails.** The send
+  is tried on the road the turn answers on up to the round policy's `[send]` `tries`, `gap_ms` apart; each send
+  that put nothing in the room says why in the journal and in the send's `FAILED` verdict. A send that failed
+  after it may have reached the chat service, its request broken once it could have been read or its success
+  answered in a shape the route does not have, is not tried again and fails the round at once, so the room
+  never reads the message twice; a road that carried the message and gave it no number has sent it, and the
+  record keeps it under its own number (`docs/unified-bmo.md`, 「The cases」). The round counts as
+  answered, its read mark written and its window restarted, only once its message went out. A message no try
+  put in fails the round as a failure of the receiver's own, counted: its words, and every word it read
+  meanwhile, are left unread and open the next round (`docs/messages.md`, 「Read marker」), and the round's
+  failure order is raised.
 - **What arrives while a round is running waits in the buffer** and is read when that round hands over.
 - **Words the agent was not named in are judged first, by the agent itself.** In
   a room that is not the owner's private chat, a round whose every message reached the session on its open window

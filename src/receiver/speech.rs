@@ -37,6 +37,20 @@ pub enum NotSaid {
   Store(#[from] Fault),
 }
 
+impl NotSaid {
+  /// Whether the line may have reached the chat service though the send failed: the request broke after it may
+  /// have been read, or the service answered success in a shape the route does not have.
+  pub fn may_have_reached(&self) -> bool {
+    matches!(
+      self,
+      NotSaid::Chat {
+        why: ClientFailure::Transport { .. } | ClientFailure::Undecodable { .. },
+        ..
+      }
+    )
+  }
+}
+
 /// A line the room's record keeps as an agent's: its room and words, the message it answers, the road it was
 /// already sent on with the number that road gave it, the agent whose words it holds, and the voice it went out in.
 #[derive(Clone, Copy)]

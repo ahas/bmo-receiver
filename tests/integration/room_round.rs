@@ -7,10 +7,12 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
+use bmo_receiver::chat::instructions::{Pass, Rooms};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::events::Events;
@@ -147,6 +149,8 @@ impl Round {
 
     let mut standing =
       woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+
+    standing.receiver = standing.receiver.clone().sending_again_every(Duration::from_millis(1));
 
     if let Some(news) = news {
       standing.receiver = standing.receiver.with_news(news);
@@ -387,6 +391,151 @@ async fn the_words_of_a_round_that_failed_wait_unread_and_are_the_next_rounds_ne
   assert!(next.contains(r#""messageIds":[1]"#), "the turn stands under the message: {next}");
   assert!(next.contains(FIRST), "{next}");
   assert_eq!(read_mark(&round).await, ["1".to_owned()], "the round that answered them read them");
+}
+
+#[tokio::test]
+async fn a_message_whose_send_was_cut_goes_out_on_a_later_try() {
+  let round = Round::stood(timings(), StandInSession::new(SESSION, ANSWER), None).await;
+
+  round.chat.failing_sends(usize::try_from(CHAT_ROUND.send.tries - 1).unwrap());
+  round.hear(1, FIRST).await;
+  until("the round's turn", || round.session.working()).await;
+  round.session.let_go();
+  until("the round's end", || round.runner.idle() && !round.session.working()).await;
+
+  assert_eq!(round.sent().len(), 1, "the last try put the message in, once");
+  assert_eq!(read_mark(&round).await, ["1".to_owned()], "the round that answered read its words");
+}
+
+#[tokio::test]
+async fn a_round_whose_message_no_send_put_in_fails_and_its_words_are_the_next_rounds() {
+  let round = Round::stood(timings(), StandInSession::new(SESSION, ANSWER), None).await;
+
+  round.chat.failing_sends(usize::try_from(CHAT_ROUND.send.tries).unwrap());
+  round.hear(1, FIRST).await;
+  until("the round's turn", || round.session.working()).await;
+  round.session.let_go();
+  until("the failed round's end", || {
+    !round.runner.of(AGENT).is_active(OWNER) && round.runner.idle()
+  })
+  .await;
+
+  assert!(round.sent().is_empty(), "no try put the message in");
+  assert_ne!(read_mark(&round).await, ["1".to_owned()], "the words stay unread");
+  assert_eq!(
+    round
+      ._scratch
+      .texts(&format!(
+        r#"SELECT "summary" FROM "instructions" WHERE "chat_id" = {OWNER} AND "kind" = 'failure-order'"#
+      ))
+      .await
+      .iter()
+      .filter(|summary| summary.contains("not sent"))
+      .count(),
+    1,
+    "the round raised its failure order, naming why"
+  );
+
+  // The instruction pass hands the failure order to the room's next round, whose new messages are the words,
+  // answered this time.
+  let rooms: Arc<dyn Rooms> = Arc::new(round.runner.clone());
+  let pass = Pass::new(round.standing.receiver.clone(), rooms);
+
+  pass.clone().keep();
+  until("the next round's answer", || {
+    round.runner.idle() && !round.session.working() && !round.sent().is_empty()
+  })
+  .await;
+
+  let turns = round.session.turns.lock().unwrap().clone();
+  let next = &turns.last().unwrap().prompt;
+
+  assert!(next.contains(r#""messageIds":[1]"#), "the turn stands under the message: {next}");
+  assert_eq!(read_mark(&round).await, ["1".to_owned()], "the round that answered them read them");
+}
+
+#[tokio::test]
+async fn a_send_that_may_have_reached_the_room_is_not_sent_again_and_fails_the_round() {
+  let round = Round::stood(timings(), StandInSession::new(SESSION, ANSWER), None).await;
+
+  round.chat.cutting_sends(1);
+  round.hear(1, FIRST).await;
+  until("the round's turn", || round.session.working()).await;
+  round.session.let_go();
+  until("the failed round's end", || {
+    !round.runner.of(AGENT).is_active(OWNER) && round.runner.idle()
+  })
+  .await;
+
+  assert_eq!(
+    round.chat.sends_offered.load(Ordering::SeqCst),
+    1,
+    "the send is offered once, never again"
+  );
+  assert_ne!(read_mark(&round).await, ["1".to_owned()], "the words stay unread for the next round");
+}
+
+#[tokio::test]
+async fn an_answer_its_road_carried_with_no_number_counts_as_sent_and_is_kept() {
+  let round = Round::stood(timings(), StandInSession::new(SESSION, ANSWER), None).await;
+
+  *round.chat.answer.lock().unwrap() = Some(bmo_chat_client::ChatSent {
+    message_id: None,
+    missed: vec![],
+  });
+  round.hear(1, FIRST).await;
+  until("the round's turn", || round.session.working()).await;
+  round.session.let_go();
+  until("the round's end", || round.runner.idle() && !round.session.working()).await;
+
+  assert_eq!(round.sent().len(), 1, "the message went out once");
+  assert_eq!(read_mark(&round).await, ["1".to_owned()], "the round that answered read its words");
+  assert_eq!(
+    round
+      ._scratch
+      .texts(&format!(
+        r#"SELECT "text" FROM "messages" WHERE "chat_id" = {OWNER} AND "message_id" < 0 AND "agent_name" IS NOT NULL"#
+      ))
+      .await,
+    [ANSWER.to_owned()],
+    "the room keeps the answer under its own number"
+  );
+}
+
+#[tokio::test]
+async fn words_of_several_people_are_each_answered_or_marked_and_carry_their_verdict() {
+  let events = Arc::new(Events::new());
+  let answer = format!("<<DONE #2>> {ANSWER}");
+  let round = Round::stood(timings(), StandInSession::new(SESSION, &answer), Some(events.clone())).await;
+  let first = said(1, FIRST);
+  let other = Inbound {
+    sender_id: Some(OWNER + 1),
+    sender_name: "member".into(),
+    ..said(2, LATER)
+  };
+
+  for message in [&first, &other] {
+    round
+      .standing
+      .receiver
+      .history(message, &Context::default(), owners_room())
+      .await
+      .unwrap();
+  }
+
+  round.runner.of(AGENT).wake(vec![first, other], owners_room()).await;
+  until("the round's turn", || round.session.working()).await;
+  round.session.let_go();
+  until("the round's end", || round.runner.idle() && !round.session.working()).await;
+
+  let prompts = round.session.prompts();
+  let people = fill_marks(&CHAT_ROUND.blocks.people, &[("count", "2")]);
+
+  assert!(prompts[0].contains(&people), "the turn says two people spoke: {}", prompts[0]);
+  assert_eq!(verdicts(&events, 1, "read-with"), [json!("READ: #2")], "the message answers the first");
+  assert_eq!(verdicts(&events, 2, "read-with"), [json!("SKIP: #2")], "the second needs no answer");
+  assert_eq!(round.sent().len(), 1, "one message answers the round");
+  assert!(!round.sent()[0].contains("DONE"), "the mark never reaches the room: {:?}", round.sent());
 }
 
 #[tokio::test]

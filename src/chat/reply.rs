@@ -7,7 +7,7 @@
 
 use bmo_chat_client::{ChatSend, ChatSendRequest};
 
-use super::conversation::{BoxFuture, Reply, ReplyRoad, Sent};
+use super::conversation::{BoxFuture, Reply, ReplyRoad, Sent, Unsent};
 use super::sentinels::asks_fold;
 use super::turnover::judge;
 use crate::form::{outgoing, strip_prompt_scaffolding, without_control_markers};
@@ -102,9 +102,9 @@ pub async fn speaker_label(receiver: &Receiver, agent: &str) -> String {
     .unwrap_or_else(|| agent.to_owned())
 }
 
-/// The answer sent: the message it went out as and its words as the room received them, or none where nothing
-/// reached the room.
-pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Sent> {
+/// The answer sent: the message it went out as and its words as the room received them, or why it did not reach
+/// the room, which the journal is told too.
+pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Result<Sent, Unsent> {
   let chat_id = reply.chat_id;
   let written = strip_prompt_scaffolding(&reply.text);
   let fold = asks_fold(&written);
@@ -113,7 +113,7 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
   if stripped.is_empty() {
     eprintln!("refused to send prompt scaffolding to chat {chat_id}");
 
-    return None;
+    return Err(Unsent::nothing_went("the answer held nothing but prompt scaffolding"));
   }
 
   let started = now_ms();
@@ -124,7 +124,7 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Option<Se
     None => {
       eprintln!("chat {chat_id}: no road to answer on");
 
-      None
+      Err(Unsent::nothing_went("no road answers the room"))
     }
     Some(road) => carry(receiver, road, reply, &text, fold, started).await,
   }
@@ -139,7 +139,7 @@ async fn carry(
   text: &str,
   fold: bool,
   started: i64,
-) -> Option<Sent> {
+) -> Result<Sent, Unsent> {
   let chat_id = reply.chat_id;
   let send = ChatSend::Text {
     text: text.to_owned(),
@@ -165,34 +165,61 @@ async fn carry(
       .speech()
       .kept_carrying(&line, Carried::Send(send.clone()))
       .await
-      .ok()
-      .map(|kept| (kept, kept)),
-    Road::Service(key) => match receiver.speech().act(&key, &request).await.ok().flatten() {
+      .map(|kept| (kept, kept))
+      .map_err(|why| Unsent::nothing_went(why.to_string())),
+    Road::Service(key) => match receiver.speech().act(&key, &request).await {
       // A service's road sends through that service; the room's own store keeps a copy beside it, which
       // the console and every other reader of the room's conversation read, and which goes on to the room's
       // providers but that road. The copy is the answer as the room holds it: the round's judgements, its
       // mark and its wait are filed under it, where it was kept. The copy names the agent that answered and
-      // the voice the send went out in, the one the road answers the room by where it names one.
-      Some(id) => {
+      // the voice the send went out in, the one the road answers the room by where it names one. A road that
+      // carried the line and gave it no number leaves it in the room all the same, kept under the number the
+      // record gives it.
+      Ok(id) => {
         let voice = added::voice_in(receiver.db(), receiver.roads(), &key, chat_id).await;
         let line = KeptLine {
-          sent: Some((&key, Some(id))),
+          sent: Some((&key, id)),
           voice,
           ..line
         };
-        Some((
-          id,
-          receiver.speech().kept_carrying(&line, Carried::Send(send.clone())).await.unwrap_or(id),
-        ))
+        let kept = receiver.speech().kept_carrying(&line, Carried::Send(send.clone())).await;
+
+        match (id, kept) {
+          (_, Ok(kept)) => Ok((id.unwrap_or(kept), kept)),
+          (Some(id), Err(_)) => Ok((id, id)),
+          (None, Err(why)) => Err(Unsent {
+            reason: format!(
+              "the {key} road carried the line with no number, and the room did not keep it: {why}"
+            ),
+            may_have_gone: true,
+          }),
+        }
       }
-      None => None,
+      Err(why) => Err(Unsent {
+        reason: why.to_string(),
+        may_have_gone: why.may_have_reached(),
+      }),
     },
   };
 
-  let Some((message_id, kept)) = numbers else {
-    judge(receiver, chat_id, None, "send", "FAILED", None, Some(now_ms() - started)).await;
+  // A send that put nothing into the room says why, in the journal and in the send's verdict.
+  let (message_id, kept) = match numbers {
+    Ok(numbers) => numbers,
+    Err(unsent) => {
+      eprintln!("chat {chat_id}: the answer was not sent: {}", unsent.reason);
+      judge(
+        receiver,
+        chat_id,
+        None,
+        "send",
+        "FAILED",
+        Some(&unsent.reason),
+        Some(now_ms() - started),
+      )
+      .await;
 
-    return None;
+      return Err(unsent);
+    }
   };
 
   mark_round(receiver, chat_id, kept, reply.round.as_deref()).await;
@@ -202,7 +229,7 @@ async fn carry(
   judge(receiver, chat_id, Some(kept), "send", "SENT", None, Some(now_ms() - started)).await;
   attach_judgements(receiver, chat_id, kept, reply.round_started_at.unwrap_or(started)).await;
 
-  Some(Sent {
+  Ok(Sent {
     message_id,
     text: text.to_owned(),
   })
@@ -225,7 +252,7 @@ impl crate::chat::conversation::Sending for Sender {
     agent: &'a str,
     road: &'a ReplyRoad,
     reply: &'a Reply,
-  ) -> BoxFuture<'a, Option<Sent>> {
+  ) -> BoxFuture<'a, Result<Sent, Unsent>> {
     Box::pin(async move {
       send_reply(
         &self.0,

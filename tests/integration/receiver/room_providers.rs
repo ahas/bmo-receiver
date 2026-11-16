@@ -505,9 +505,9 @@ async fn an_answer_folds_only_where_its_own_mark_asks_it() {
   let long =
     "A short lead.\n\n- the first long point of the body\n- the second long point of the body\n- the third";
 
-  assert!(send_reply(&receiver, &answer(long)).await.is_some());
-  assert!(send_reply(&receiver, &answer(&format!("{long}\n\n<<FOLD>>"))).await.is_some());
-  assert!(send_reply(&receiver, &answer("Quoted: `<<FOLD>>`")).await.is_some());
+  assert!(send_reply(&receiver, &answer(long)).await.is_ok());
+  assert!(send_reply(&receiver, &answer(&format!("{long}\n\n<<FOLD>>"))).await.is_ok());
+  assert!(send_reply(&receiver, &answer("Quoted: `<<FOLD>>`")).await.is_ok());
 
   let sent: Vec<ChatSend> = road.sent().iter().map(|held| held.send.clone()).collect();
 

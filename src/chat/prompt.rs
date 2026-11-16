@@ -452,6 +452,14 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     parts.push(blocks.nothing.clone());
   }
 
+  // Words of several people are each answered or set apart by mark, so no one's words pass unanswered in
+  // silence (docs/drafting.md, 「Words of several people」).
+  let people = speakers(round.batch);
+
+  if people > 1 {
+    parts.push(fill_marks(&blocks.people, &[("count", &people.to_string())]));
+  }
+
   if !round.instructions.is_empty() {
     let notices = super::instructions::notices(db, round.instruction_ids, round.instructions).await;
 
@@ -498,4 +506,17 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     context,
     selection,
   })
+}
+
+/// How many people said the words given: each sender once, a message naming no sender counted by the name it
+/// came under.
+pub fn speakers(words: &[Inbound]) -> usize {
+  words
+    .iter()
+    .map(|message| match message.sender_id {
+      Some(sender) => sender.to_string(),
+      None => format!("name:{}", message.sender_name),
+    })
+    .collect::<HashSet<String>>()
+    .len()
 }
