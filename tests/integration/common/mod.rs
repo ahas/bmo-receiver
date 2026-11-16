@@ -235,7 +235,11 @@ impl Drop for Scratch {
     }
 
     if let Some(copy) = self.copy.take() {
-      scratch::drop_copy(copy);
+      if let Err(error) = scratch::drop_copy(copy)
+        && !std::thread::panicking()
+      {
+        panic!("the test's database is dropped: {error}");
+      }
 
       return;
     }

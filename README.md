@@ -87,4 +87,9 @@ checkout. The `personal_data` check reads every tracked file for a mail address,
 number, a token and a private network address (`docs/PERSONAL-DATA.md`).
 
 The tests that use a database make their own on the PostgreSQL server `BMO_TEST_POSTGRES` names, which the
-testbed's suite sets; with nothing named, the machine's own socket.
+testbed's suite sets; with nothing named, the machine's own socket. Each test process migrates one template,
+`receiver_rs_tmpl_<process>`, and hands each test a copy of it, `receiver_rs_copy_<process>_<count>`, dropped
+when the test ends: the role's own sessions on it are ended and the database dropped without forcing, so the
+suite's role needs no right to end another role's process, and a test whose copy is not dropped fails. Before
+a process makes its first database it drops the templates and copies its role owns whose process no longer
+runs on the machine and that no client's session is on; no other name is touched.
