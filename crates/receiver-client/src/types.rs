@@ -696,6 +696,33 @@ pub struct AccountWords {
   pub reply_to: Option<i64>,
 }
 
+/// Whether a person is reachable now: online, busy or not; away, signed in but idle; offline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum PresenceState {
+  Online,
+  Away,
+  Offline,
+}
+
+/// `PUT /accounts/{account}/presence`: an account's presence as the console draws it from its tabs; a null state
+/// takes the console's word back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountPresence {
+  pub state: Option<PresenceState>,
+  /// Epoch milliseconds: the last moment a visible tab of the account reported.
+  pub last_seen_at: Option<i64>,
+}
+
+/// `POST /rooms/{roomId}/typing`: an account writing in a room's box in the console, or no longer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountTyping {
+  pub account: i64,
+  pub on: bool,
+}
+
 /// A room's chat providers set whole: at least one, each once.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

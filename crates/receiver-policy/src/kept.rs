@@ -10,6 +10,8 @@ pub struct Kept {
   pub room_seconds: u64,
   /// How long the agency's list of agents is kept, in seconds.
   pub agents_seconds: u64,
+  /// How long the account a chat service's person is linked to is kept, in seconds.
+  pub link_seconds: u64,
 }
 
 crate::part!(pub KEPT: Kept = "kept.toml");

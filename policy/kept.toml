@@ -9,3 +9,8 @@ room_seconds = 60
 # The agency's list of agents, awake or not, in seconds. A wake turns on whether an agent is awake, so a change
 # made at the agency is read within this span.
 agents_seconds = 10
+
+# The account the web unit links a chat service's person to, in seconds. Every typing mark and presence a service
+# tells reads it, a mark renewed every few seconds among them, so it is asked once a span; a link made or taken
+# back at the web unit is read within this span.
+link_seconds = 60

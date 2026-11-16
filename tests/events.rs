@@ -252,3 +252,30 @@ async fn tells_every_listener_as_it_comes_and_ends_each_stream_after_saying_it_i
 
   assert!(!opening.contains("stopping"));
 }
+
+#[test]
+fn tells_the_present_with_no_id_outside_the_ring_and_hands_what_stands_after_the_replay() {
+  let events = Events::new();
+  let (_, mut listening) = frames_of(&events, 0, None);
+  let typing = |on: bool| json!({ "type": "typing", "chatId": -101, "messageId": null, "on": on });
+
+  events.publish(json!({ "type": "sent", "chatId": -101, "messageId": 1 }));
+  events.tell_present("typing:-101:a", typing(true));
+  events.tell_present("typing:-101:b", typing(true));
+  events.end_present("typing:-101:b", typing(false));
+
+  assert!(listening.try_recv().unwrap().starts_with("id: 1\n"));
+
+  let told = listening.try_recv().unwrap();
+
+  assert!(told.starts_with("event: bot\ndata: ") && told.contains("\"id\":null"), "{told}");
+  assert_eq!(events.held().len(), 1, "nothing of the present enters the ring");
+  assert_eq!(events.present().len(), 1, "the mark told off no longer stands");
+
+  let (opening, _) = frames_of(&events, 0, Some(&events.run()));
+  let live = opening.find("event: live").unwrap();
+  let standing = opening.find("\"type\":\"typing\"").unwrap();
+
+  assert!(standing > live, "what stands comes after the replay and the picture: {opening}");
+  assert_eq!(opening.matches("\"type\":\"typing\"").count(), 1);
+}

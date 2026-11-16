@@ -805,6 +805,15 @@ impl Conversations {
     told_as(event, speaker)
   }
 
+  // The room shown typing on its own road, or no longer, and the stream told the answerer's mark at the same moments
+  // (docs/receiver.md, 「Typing and presence」).
+  async fn shown_typing(&self, chat_id: i64, on: bool) {
+    let speaker = self.state().speakers.get(&chat_id).cloned();
+
+    crate::presence::taken::answerer(&self.0.receiver, chat_id, self.agent(), speaker, on);
+    self.0.hooks.typing(chat_id, on).await;
+  }
+
   // The speaker the agent's turns in a room are shown as, read again as each turn begins.
   async fn speaker_in(&self, chat_id: i64) {
     let speaker = speaker(&self.0.receiver, self.agent(), chat_id).await;
@@ -895,7 +904,7 @@ impl Conversations {
       timer.abort();
     }
 
-    self.0.hooks.typing(chat_id, false).await;
+    self.shown_typing(chat_id, false).await;
   }
 
   /// The runs of the agent's own going now in a room, which its removal stands its cancellation over
@@ -1665,7 +1674,7 @@ impl Conversations {
 
     self.state().pictured.remove(&chat_id);
     self.0.receiver.news().end_turn(turn);
-    self.0.hooks.typing(chat_id, false).await;
+    self.shown_typing(chat_id, false).await;
 
     // A replacement the round found owed is made now that it has ended, where no words wait (docs/unified-bmo.md,
     // 「Replacing the session」).
@@ -1714,7 +1723,7 @@ impl Conversations {
   // A round that failed, wherever in it the failure came from: it ends the conversation the way a failed run
   // does, a stop with nothing of the failure road, a limit or an outage with its rest, any other with its order.
   async fn fail_round(&self, chat_id: i64, failure: Failure) {
-    self.0.hooks.typing(chat_id, false).await;
+    self.shown_typing(chat_id, false).await;
 
     let message = {
       let mut state = self.state();
@@ -2268,6 +2277,9 @@ impl Conversations {
         asked_at,
         began,
       };
+
+      // The answer is let through: the room is shown typing until the round ends (docs/messages.md, 「Typing」).
+      self.shown_typing(chat_id, true).await;
 
       match self.send_tried(&receiver, &road, &reply).await {
         Ok(sent) => Some(sent),

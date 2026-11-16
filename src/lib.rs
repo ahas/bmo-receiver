@@ -17,6 +17,7 @@ pub mod json;
 pub mod kept;
 pub mod open_files;
 pub mod owner_room;
+pub mod presence;
 pub mod private_rooms;
 pub mod quiet;
 pub mod receiver;

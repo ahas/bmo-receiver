@@ -167,6 +167,13 @@ pub trait News: Send + Sync {
 
   fn clear_standing(&self, _slot: u64) {}
 
+  /// An event of the present, a typing mark or a presence, told as it comes with no id and outside the ring, and
+  /// standing under `key` for a screen that opens later (docs/receiver.md, 「Typing and presence」).
+  fn tell_present(&self, _key: &str, _event: &Value) {}
+
+  /// An event of the present told as it comes, and whatever stood under `key` let go.
+  fn end_present(&self, _key: &str, _event: &Value) {}
+
   fn queue_message(&self, _chat_id: i64, _message_id: i64) {}
 
   fn drop_queued(&self, _chat_id: i64) {}
@@ -446,6 +453,9 @@ pub struct Receiver {
   send_again_pace: Duration,
   // How long the receiver waits before asking the voice engine again to stop its briefings, once a stop failed.
   voice_stop_pace: Duration,
+  // Who is writing in a room now and who is reachable now, held in memory alone (docs/receiver.md, 「Typing and
+  // presence」).
+  present: crate::presence::Present,
 }
 
 // The infrastructure room the configuration names: the board for the machines, which hears none of the agent's own
@@ -509,6 +519,10 @@ impl Receiver {
       send_again_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.send.gap_ms.max(1)),
       voice_stop_pace: Duration::from_millis(
         receiver_policy::voice_briefing::VOICE_BRIEFING.stop_again_ms.max(1),
+      ),
+      present: crate::presence::Present::new(
+        Duration::from_secs(KEPT.link_seconds),
+        Duration::from_secs(receiver_policy::presence::PRESENCE.provider_look_seconds),
       ),
     }
   }
@@ -598,6 +612,19 @@ impl Receiver {
   /// How long the receiver waits before asking the voice engine again to stop its briefings, once a stop failed.
   pub fn voice_stop_pace(&self) -> Duration {
     self.voice_stop_pace
+  }
+
+  /// The same receiver, asking a chat service whose typing marks or presence stand whether it is ready every
+  /// `look` rather than on the policy's, and keeping a person's link to an account for `link_span`; what stands of
+  /// the present is let go.
+  pub fn looking_at_providers_every(mut self, look: Duration, link_span: Duration) -> Self {
+    self.present = crate::presence::Present::new(link_span, look);
+    self
+  }
+
+  /// Who is writing in a room now and who is reachable now.
+  pub fn present(&self) -> &crate::presence::Present {
+    &self.present
   }
 
   /// The conversations that answer a line typed into the default answerer's program, and that take the warmer's touch
@@ -804,6 +831,11 @@ impl Receiver {
     self.news.as_ref()
   }
 
+  /// Where the receiver's news is heard, for what tells it later.
+  pub fn news_shared(&self) -> Arc<dyn News> {
+    self.news.clone()
+  }
+
   // Where a message is written down and the room's screen told of it, which every road's message passes through
   // alike.
   async fn keep(&self, inbound: &Inbound, context: &Context, room: Room) -> Result<(), NotReceived> {
@@ -887,6 +919,7 @@ impl Receiver {
     }
 
     self.keep(inbound, context, room).await?;
+    crate::presence::taken::spoke(self, inbound).await;
 
     if Self::is_agents_own(inbound, room) || rows::is_read(&self.db, chat_id, inbound.message_id).await? {
       return Ok(());
@@ -984,6 +1017,7 @@ impl Receiver {
     }
 
     self.keep(inbound, context, room).await?;
+    crate::presence::taken::spoke(self, inbound).await;
 
     if Self::is_agents_own(inbound, room) {
       return Ok(());

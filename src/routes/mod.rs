@@ -20,6 +20,7 @@ mod message_acts;
 mod message_files;
 mod openings;
 mod owner_words;
+mod presence;
 mod room_removal;
 mod rooms;
 mod say;
@@ -169,6 +170,8 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("DELETE", "/rooms/{roomId}/accounts/{account}", delete(accounts::take_out)),
     ("PUT", "/accounts/{account}/identity", put(accounts::identity)),
     ("GET", "/accounts/{account}/rooms", get(accounts::rooms)),
+    ("PUT", "/accounts/{account}/presence", put(presence::account_presence)),
+    ("POST", "/rooms/{roomId}/typing", post(presence::account_typing)),
     ("GET", "/rooms/{roomId}/roads", get(brain::roads)),
     ("GET", "/rooms/{roomId}/own-number", get(brain::own_number)),
     ("GET", "/rooms/{roomId}/spoke-between", get(brain::spoke_between)),

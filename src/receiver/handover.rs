@@ -4,15 +4,16 @@
 //! says nothing of the room is read off the room's road. What the platform handed over beside a message as its
 //! `metadata` is kept as it arrived once the message is judged. A message said live and kept goes on to the room's
 //! other providers, and a provider's copy of a message carried to it from the room is that message, held already
-//! (docs/receiver.md, 「A room's chat providers」).
+//! (docs/receiver.md, 「A room's chat providers」). A typing mark and a presence change are held and told as the present,
+//! never kept (docs/receiver.md, 「Typing and presence」).
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use bmo_chat_client::{
   AvatarChange, ChatReceiver, Deletion, ErrorCode, FileItem, GatheredPatch, HandedMessage, HeldMessage,
-  InboundChatContext, MessageOrigin, ReactionChange, ReceiverRoom, RoomFacts, RoomKind, RoomQuery,
-  RoomsQuery, WireError, receiver_router,
+  InboundChatContext, MessageOrigin, PresenceChange, ReactionChange, ReceiverRoom, RoomFacts, RoomKind,
+  RoomQuery, RoomsQuery, TypingMark, WireError, receiver_router,
 };
 
 use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
@@ -309,6 +310,18 @@ impl ChatReceiver for Receiver {
 
   async fn avatars_changed(&self, change: AvatarChange) -> Result<(), WireError> {
     super::avatars::changed(self, &change.via, &change.room_ids, &change.person_ids).await;
+
+    Ok(())
+  }
+
+  async fn typing_marked(&self, mark: TypingMark) -> Result<(), WireError> {
+    crate::presence::taken::typing_marked(self, mark).await;
+
+    Ok(())
+  }
+
+  async fn presence_changed(&self, change: PresenceChange) -> Result<(), WireError> {
+    crate::presence::taken::presence_changed(self, change).await;
 
     Ok(())
   }

@@ -644,6 +644,25 @@ async fn a_rounds_judgements_are_attached_from_its_start_under_the_answer_as_the
 }
 
 #[tokio::test]
+async fn the_answerer_is_told_writing_from_its_answer_let_through_to_the_rounds_end() {
+  let round = Round::said_meanwhile().await;
+  let typing = round.standing.heard.events("typing");
+  let ons: Vec<bool> = typing.iter().map(|event| event["on"] == true).collect();
+
+  assert!(!ons.is_empty() && ons.len().is_multiple_of(2), "{typing:?}");
+  assert!(
+    ons.chunks(2).all(|pair| pair == [true, false]),
+    "each answer on, then off at its round's end: {ons:?}"
+  );
+  assert!(
+    typing.iter().all(|event| event["who"] == json!({ "kind": "answerer" })
+      && event["speaker"]["name"] == AGENT
+      && event["lastsMs"].is_null()),
+    "the answerer's mark, under the speaker its turns are told under, standing until told off: {typing:?}"
+  );
+}
+
+#[tokio::test]
 async fn an_answer_opens_the_window_for_the_policy_span_where_the_agents_row_names_none() {
   // No window is cut for the test: the span is the one the agent's row, which names none, leaves to the policy.
   let round = Round::timed(Timings {

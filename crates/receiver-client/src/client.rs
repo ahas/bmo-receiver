@@ -438,6 +438,16 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["accounts", &account.to_string(), "rooms"])).await
   }
 
+  /// `PUT /accounts/{account}/presence`.
+  pub async fn account_presence(&self, account: i64, presence: &AccountPresence) -> Answer<()> {
+    Self::nothing(self.send(Method::PUT, &["accounts", &account.to_string(), "presence"], presence)).await
+  }
+
+  /// `POST /rooms/{roomId}/typing`.
+  pub async fn account_typing(&self, room_id: i64, typing: &AccountTyping) -> Answer<()> {
+    Self::nothing(self.send(Method::POST, &["rooms", &room_id.to_string(), "typing"], typing)).await
+  }
+
   /// `POST /rooms/{roomId}/words`.
   pub async fn account_words(&self, room_id: i64, words: &AccountWords) -> Answer<Created> {
     Self::answered(self.send(Method::POST, &["rooms", &room_id.to_string(), "words"], words)).await

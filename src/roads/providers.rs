@@ -683,44 +683,98 @@ pub async fn deliver(db: &DatabaseConnection, roads: &Roads, delivery: &Delivery
   }
 }
 
-// How a kept message goes to one chat service: in the owner's own voice for the owner's words; for another
-// account's, in the provider's own voice and in that account, never the room's leader's, naming the account as the
-// speaker where the provider takes speakers and with the account's name before the words where it does not, and
-// not at all where it has no voice of its own; and in the voice the service answers the room by for everything
-// else, in the account the room's leaders give.
-async fn going(db: &DatabaseConnection, roads: &Roads, key: &str, delivery: &Delivery) -> Option<Going> {
-  match &delivery.said_by {
-    SaidBy::Owner => Some(Going {
+// The voice, the speaker and the account one chat service is handed what someone said in: the owner's own voice
+// for the owner; for another account, the provider's own voice and that account, never the room's leader's, naming
+// the account as the speaker where the provider takes speakers, and nothing where it has no voice of its own; and
+// the voice the service answers the room by for everyone else.
+struct Voiced {
+  voice: Option<ChatVoice>,
+  speaker: Option<String>,
+  account: Option<i64>,
+}
+
+async fn voiced(
+  db: &DatabaseConnection,
+  roads: &Roads,
+  key: &str,
+  chat_id: i64,
+  said_by: &SaidBy,
+) -> Option<Voiced> {
+  match said_by {
+    SaidBy::Owner => Some(Voiced {
       voice: Some(ChatVoice::HumanReader),
       speaker: None,
       account: None,
-      carried: delivery.carried.clone(),
     }),
-    SaidBy::Room => Some(Going {
-      voice: added::voice_in(db, roads, key, delivery.chat_id).await,
+    SaidBy::Room => Some(Voiced {
+      voice: added::voice_in(db, roads, key, chat_id).await,
       speaker: None,
       account: None,
-      carried: delivery.carried.clone(),
     }),
-    SaidBy::Account { account, name } => {
-      let declared = roads.declaration(key).await;
-      let Some(voice) = declared.as_ref().and_then(own_voice) else {
-        println!(
-          "chat {}: message {} is not carried to {key}, which has no voice of its own to say another account's words in",
-          delivery.chat_id, delivery.message_id
-        );
+    SaidBy::Account { account, .. } => {
+      let declared = roads.declaration(key).await?;
+      let voice = own_voice(&declared)?;
 
-        return None;
-      };
-      let speakers = declared.as_ref().is_some_and(|declared| declared.speakers);
-
-      Some(Going {
+      Some(Voiced {
         voice: Some(voice),
-        speaker: speakers.then(|| crate::accounts::identity_key(*account)),
+        speaker: declared.speakers.then(|| crate::accounts::identity_key(*account)),
         account: Some(*account),
-        carried: if speakers { delivery.carried.clone() } else { delivery.carried.named(name) },
       })
     }
+  }
+}
+
+// How a kept message goes to one chat service: in the voice `voiced` gives, another account's words with the
+// account's name before them where the provider takes no speaker, and not at all where it has no voice of its own.
+async fn going(db: &DatabaseConnection, roads: &Roads, key: &str, delivery: &Delivery) -> Option<Going> {
+  let Some(voiced) = voiced(db, roads, key, delivery.chat_id, &delivery.said_by).await else {
+    println!(
+      "chat {}: message {} is not carried to {key}, which has no voice of its own to say another account's words in",
+      delivery.chat_id, delivery.message_id
+    );
+
+    return None;
+  };
+  let carried = match &delivery.said_by {
+    SaidBy::Account { name, .. } if voiced.speaker.is_none() => delivery.carried.named(name),
+    _ => delivery.carried.clone(),
+  };
+
+  Some(Going {
+    voice: voiced.voice,
+    speaker: voiced.speaker,
+    account: voiced.account,
+    carried,
+  })
+}
+
+/// A typing mark of someone writing in the console handed to each chat service of the room that shows typing, in
+/// the voice their words would go in (docs/receiver.md, 「Typing and presence」): the owner's own, or another
+/// account's in the service's own voice naming that account; a service with no voice of its own, or one reading the
+/// room in the owner's account alone, is handed no other account's mark. A refusal is let go.
+pub async fn typing(db: &DatabaseConnection, roads: &Roads, chat_id: i64, said_by: &SaidBy, on: bool) {
+  let Ok(listed) = listed(db, roads, chat_id).await else { return };
+
+  for key in listed.providers {
+    if key == Road::Record.key() {
+      continue;
+    }
+
+    let Some(service) = roads.chats().road(&key) else { continue };
+    let shows = roads.facts(&Road::Service(key.clone())).await.can.iter().any(|verb| verb == "typing");
+
+    if !shows || (*said_by != SaidBy::Owner && roads.reads_only(&key, chat_id).await) {
+      continue;
+    }
+
+    let Some(voiced) = voiced(db, roads, &key, chat_id, said_by).await else { continue };
+    let mut request = ChatSendRequest::new(chat_id, ChatSend::Typing { on });
+
+    request.mode = voiced.voice;
+    request.speaker = voiced.speaker;
+    request.account_id = voiced.account;
+
+    let _ = roads.send(service.as_ref(), &request).await;
   }
 }
 

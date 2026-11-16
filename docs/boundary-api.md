@@ -458,6 +458,13 @@ where that names none; each with a `tag` naming the delivery, and `replyToMessag
 message it answers stands on that service under the service's own number. A hand-over whose `context.tag` names a delivery to that service,
 or whose number is the one that service gave a delivery, is answered as held and kept no second time.
 
+An account's typing in the console goes to each chat service on the room's list that declares the `typing` verb
+as a `POST /sends` of kind `typing` with `on`, in the voice its words would go in: `human-reader` for the owner's
+account, and for another account the service's own `bot-account` or `own-account` mode with `accountId` naming it
+and `speaker` `account:<account>` where the service declares `speakers`; a refusal is let go (`docs/receiver.md`,
+「Typing and presence」). While a typing mark or a presence a service told stands, the service's `GET /health` is
+asked once every look of `presence.toml`, and an answer that is not ready, or none, ends what it told.
+
 ## Contract gaps
 
 Statements the receiver makes that a sibling's document does not yet match, each for that sibling to take up:

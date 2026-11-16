@@ -17,13 +17,13 @@ use super::accounts::speaker;
 use super::writable::{WritableRoom, Writer};
 use super::{Answered, Refusal, Served, answered, read, refused, store};
 use crate::data_root::room_path;
+use crate::now_ms;
 use crate::receiver::{Context, Inbound, NotReceived, Receiver, reads, rows};
 use crate::roads::providers::{self, Carried, Delivery, SaidBy};
 use crate::roads::{Road, record};
 use crate::routes::as_owner::{OwnerFile, refusal};
 use crate::routes::message_files::inside;
 use crate::secrets;
-use crate::{now_ms, one};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,22 +53,7 @@ pub(crate) async fn known(receiver: &Receiver, chat_id: i64) -> Result<bool, Ref
     return Ok(true);
   }
 
-  let titled = one(
-    receiver.db(),
-    r#"SELECT 1 AS "one" FROM "chat_titles" WHERE "chat_id" = $1"#,
-    vec![chat_id.into()],
-  )
-  .await
-  .map_err(store)?;
-  let spoken = one(
-    receiver.db(),
-    r#"SELECT 1 AS "one" FROM "messages" WHERE "chat_id" = $1 LIMIT 1"#,
-    vec![chat_id.into()],
-  )
-  .await
-  .map_err(store)?;
-
-  Ok(titled.is_some() || spoken.is_some())
+  reads::recorded(receiver.db(), chat_id).await.map_err(store)
 }
 
 // The message the words answer, where they name one: refused where they name one the room does not hold.

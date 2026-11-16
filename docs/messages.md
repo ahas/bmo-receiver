@@ -269,6 +269,8 @@ that wants something said there hands the words to that supervisor, and the supe
 - **A chat service's typing state fades after a few seconds,** so it is renewed every four while on, one renewal
   per room however often it is asked for, and it is off whenever a round has ended, answered or failed; a failure
   to send the state never touches the turn.
+- **The console's stream tells the same moments** as the answerer's `typing` mark in the room, on when the room is
+  first shown typing and off when it stops (`docs/receiver.md`, 「Typing and presence」).
 
 ## Read marker
 

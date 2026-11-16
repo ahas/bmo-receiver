@@ -985,6 +985,28 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
   );
   add!(
+    "PUT",
+    "/accounts/{account}/presence",
+    "accountPresence",
+    "Rooms",
+    "An account's presence as the console tells it, one source among the account's; told on the event stream in each room the account stands in, and never kept.",
+    vec![path_parameter("account")],
+    Some(generator.subschema_for::<AccountPresence>()),
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "bad-request", "failed"]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/typing",
+    "accountTyping",
+    "Rooms",
+    "An account writing in a room in the console, or no longer: told on the event stream and handed to the room's chat services as a typing send in the writer's own voice, never kept.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<AccountTyping>()),
+    vec![(204, empty_answer())],
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
+  );
+  add!(
     "POST",
     "/rooms/{roomId}/words",
     "accountWords",

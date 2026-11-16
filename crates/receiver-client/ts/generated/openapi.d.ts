@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts/{account}/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** An account's presence as the console tells it, one source among the account's; told on the event stream in each room the account stands in, and never kept. */
+        put: operations["accountPresence"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/accounts/{account}/rooms": {
         parameters: {
             query?: never;
@@ -1283,6 +1300,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/typing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An account writing in a room in the console, or no longer: told on the event stream and handed to the room's chat services as a typing send in the writer's own voice, never kept. */
+        post: operations["accountTyping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/window": {
         parameters: {
             query?: never;
@@ -1573,6 +1607,18 @@ export interface components {
             rooms: number[];
         };
         /**
+         * @description `PUT /accounts/{account}/presence`: an account's presence as the console draws it from its tabs; a null state
+         *     takes the console's word back.
+         */
+        AccountPresence: {
+            /**
+             * Format: int64
+             * @description Epoch milliseconds: the last moment a visible tab of the account reported.
+             */
+            lastSeenAt: number | null;
+            state: components["schemas"]["PresenceState"] | null;
+        };
+        /**
          * @description A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode
          *     the receiver added it in.
          */
@@ -1594,6 +1640,12 @@ export interface components {
              */
             privateTo: number | null;
             title: string | null;
+        };
+        /** @description `POST /rooms/{roomId}/typing`: an account writing in a room's box in the console, or no longer. */
+        AccountTyping: {
+            /** Format: int64 */
+            account: number;
+            on: boolean;
         };
         /** @description `POST /rooms/{roomId}/words`: words an account said in the console, with the name it is shown by. */
         AccountWords: {
@@ -2530,6 +2582,11 @@ export interface components {
         Pins: {
             items: components["schemas"]["Message"][];
         };
+        /**
+         * @description Whether a person is reachable now: online, busy or not; away, signed in but idle; offline.
+         * @enum {string}
+         */
+        PresenceState: "online" | "away" | "offline";
         /** @description The body `POST /promise-readings` takes. */
         PromiseAsk: {
             text: string;
@@ -3008,6 +3065,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AccountIdentity"];
                 };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    accountPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountPresence"];
+            };
+        };
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
             default: {
@@ -6164,6 +6254,39 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, titled-by-service, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    accountTyping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountTyping"];
+            };
+        };
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

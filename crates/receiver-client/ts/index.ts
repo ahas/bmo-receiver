@@ -36,6 +36,8 @@ export type LetIn = Schemas["LetIn"];
 export type AccountIdentity = Schemas["AccountIdentity"];
 export type AccountMemberships = Schemas["AccountMemberships"];
 export type AccountWords = Schemas["AccountWords"];
+export type AccountPresence = Schemas["AccountPresence"];
+export type AccountTyping = Schemas["AccountTyping"];
 export type ChooseProviders = Schemas["ChooseProviders"];
 export type RoomRegistration = Schemas["RoomRegistration"];
 export type ChangeRoomMode = Schemas["ChangeRoomMode"];
@@ -406,6 +408,16 @@ export function receiverClient(options: ReceiverOptions) {
     /** `GET /accounts/{account}/rooms`. */
     async accountMemberships(account: number): Promise<AccountMemberships> {
       return answered(await client.GET("/accounts/{account}/rooms", { params: { path: { account } } }));
+    },
+
+    /** `PUT /accounts/{account}/presence`. */
+    async accountPresence(account: number, body: AccountPresence): Promise<void> {
+      answered(await client.PUT("/accounts/{account}/presence", { params: { path: { account } }, body }));
+    },
+
+    /** `POST /rooms/{roomId}/typing`. */
+    async accountTyping(roomId: number, body: AccountTyping): Promise<void> {
+      answered(await client.POST("/rooms/{roomId}/typing", { params: { path: { roomId } }, body }));
     },
 
     /** `POST /rooms/{roomId}/words`. */

@@ -49,6 +49,9 @@ struct Hub {
   queued: std::collections::BTreeMap<i64, Value>,
   // The events that stand for a screen connecting later, by the slot their publisher names.
   standing: std::collections::BTreeMap<u64, Value>,
+  // What stands of the present, a typing mark or a presence, by the key its teller names: told with no id and
+  // outside the ring, and handed to a screen as it opens.
+  present: std::collections::BTreeMap<String, Value>,
   listeners: Vec<UnboundedSender<String>>,
 }
 
@@ -74,6 +77,7 @@ impl Events {
         compacting: std::collections::BTreeMap::new(),
         queued: std::collections::BTreeMap::new(),
         standing: std::collections::BTreeMap::new(),
+        present: std::collections::BTreeMap::new(),
         listeners: Vec::new(),
       })),
       relays: Arc::new(relay::RelayBurst::default()),
@@ -115,6 +119,34 @@ impl Events {
   /// The event standing in the slot `slot` names let go of.
   pub fn clear_standing(&self, slot: u64) {
     self.hub().standing.remove(&slot);
+  }
+
+  /// One event of the present told to every listener as it comes, with no id and outside the ring, and standing
+  /// under `key` for every screen that opens later, in place of what stood there (docs/receiver.md, 「The event
+  /// stream」).
+  pub fn tell_present(&self, key: &str, event: Value) -> Value {
+    let mut hub = self.hub();
+    let event = hub.tell(event);
+
+    hub.present.insert(key.to_owned(), event.clone());
+
+    event
+  }
+
+  /// One event of the present told to every listener as it comes, with no id and outside the ring, and whatever
+  /// stood under `key` let go.
+  pub fn end_present(&self, key: &str, event: Value) -> Value {
+    let mut hub = self.hub();
+    let event = hub.tell(event);
+
+    hub.present.remove(key);
+
+    event
+  }
+
+  /// What stands of the present, in key order.
+  pub fn present(&self) -> Vec<Value> {
+    self.hub().present.values().cloned().collect()
   }
 
   /// A screen's stream: the run, what the ring holds after its cursor, the picture as it stands and the events
@@ -284,6 +316,18 @@ impl Events {
 }
 
 impl Hub {
+  // An event of the present: stamped with its moment and no id, told to every listener and kept in no ring.
+  fn tell(&mut self, mut event: Value) -> Value {
+    event["id"] = Value::Null;
+    event["at"] = json!(now_ms() / 1000);
+
+    let frame = present_frame(&event);
+
+    self.listeners.retain(|listener| listener.send(frame.clone()).is_ok());
+
+    event
+  }
+
   fn publish(&mut self, mut event: Value) -> Value {
     let id = self.next_id;
 
@@ -338,6 +382,11 @@ impl Hub {
 
         opening.push_str(&live);
       }
+    }
+
+    // What stands of the present goes last, after the replay and the picture, as the present itself.
+    for event in self.present.values() {
+      opening.push_str(&present_frame(event));
     }
 
     let (listener, frames) = unbounded_channel();
@@ -398,6 +447,11 @@ impl Hub {
 
 fn event_frame(event: &Value) -> String {
   format!("id: {}\nevent: bot\ndata: {event}\n\n", event["id"])
+}
+
+// An event of the present carries no id line, so a screen's cursor never moves on it.
+fn present_frame(event: &Value) -> String {
+  format!("event: bot\ndata: {event}\n\n")
 }
 
 fn live_event(picture: Value) -> Value {
@@ -510,6 +564,14 @@ impl News for Events {
 
   fn clear_standing(&self, slot: u64) {
     self.clear_standing(slot)
+  }
+
+  fn tell_present(&self, key: &str, event: &Value) {
+    let _ = self.tell_present(key, event.clone());
+  }
+
+  fn end_present(&self, key: &str, event: &Value) {
+    let _ = self.end_present(key, event.clone());
   }
 
   fn queue_message(&self, chat_id: i64, message_id: i64) {

@@ -20,6 +20,7 @@ mod owner_road;
 mod owner_sends;
 mod owner_words;
 mod platform;
+mod presence;
 mod provider_questions;
 mod read_only_rooms;
 mod read_requests;

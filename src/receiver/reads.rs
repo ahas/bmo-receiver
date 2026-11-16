@@ -386,6 +386,25 @@ pub struct RoomLine {
   pub last_message_at: Option<i64>,
 }
 
+/// Whether the record holds a title or a message for the room.
+pub async fn recorded(db: &DatabaseConnection, chat_id: i64) -> Result<bool, Fault> {
+  let titled =
+    one(db, r#"SELECT 1 AS "one" FROM "chat_titles" WHERE "chat_id" = $1"#, vec![chat_id.into()]).await?;
+
+  if titled.is_some() {
+    return Ok(true);
+  }
+
+  let spoken = one(
+    db,
+    r#"SELECT 1 AS "one" FROM "messages" WHERE "chat_id" = $1 LIMIT 1"#,
+    vec![chat_id.into()],
+  )
+  .await?;
+
+  Ok(spoken.is_some())
+}
+
 /// A room's title, where it has one.
 pub async fn title(db: &DatabaseConnection, chat_id: i64) -> Result<Option<String>, Fault> {
   Ok(

@@ -75,6 +75,8 @@ pub struct StandInChat {
   /// Whether it takes a question of a room and never answers it, as a service that hangs does.
   pub silent: bool,
   pub refused: AtomicUsize,
+  /// Whether it answers its health as not ready, as a service whose road stopped does.
+  pub unready: std::sync::atomic::AtomicBool,
   pub cans: Mutex<BTreeSet<ChatCapability>>,
   /// The read modes it declares, each by its voice and where it stands.
   pub modes: Mutex<Vec<(ChatVoice, ChatModeStanding)>>,
@@ -426,7 +428,15 @@ impl Chat for StandInChat {
   }
 
   fn health(&self) -> BoxFuture<'_, ChatAnswer<ChatHealth>> {
-    Box::pin(async { Ok(ChatHealth::ready("0.1.0")) })
+    let unready = self.unready.load(Ordering::SeqCst);
+
+    Box::pin(async move {
+      Ok(if unready {
+        ChatHealth::not_ready("0.1.0", "its road stopped")
+      } else {
+        ChatHealth::ready("0.1.0")
+      })
+    })
   }
 
   fn send<'a>(&'a self, request: &'a ChatSendRequest) -> BoxFuture<'a, ChatAnswer<ChatSent>> {
@@ -1090,6 +1100,14 @@ impl News for Heard {
   }
 
   fn publish(&self, event: &Value) {
+    self.1.lock().unwrap().push(event.clone());
+  }
+
+  fn tell_present(&self, _key: &str, event: &Value) {
+    self.1.lock().unwrap().push(event.clone());
+  }
+
+  fn end_present(&self, _key: &str, event: &Value) {
     self.1.lock().unwrap().push(event.clone());
   }
 }

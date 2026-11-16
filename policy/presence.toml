@@ -1,0 +1,5 @@
+# Typing marks and presence held from the chat services (docs/receiver.md, 「Typing and presence」).
+
+# How often a chat service whose typing marks or presence stand is asked whether it is ready, in seconds. A look
+# that finds it not ready, or not answering, ends every mark it told and leaves every presence it told unknown.
+provider_look_seconds = 15

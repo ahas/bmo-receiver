@@ -15,6 +15,7 @@ pub mod keepalive;
 pub mod kept;
 pub mod open_files;
 pub mod owner_facts;
+pub mod presence;
 pub mod providers;
 pub mod resident_turn;
 pub mod rest;

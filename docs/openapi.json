@@ -81,6 +81,34 @@
         ],
         "type": "object"
       },
+      "AccountPresence": {
+        "description": "`PUT /accounts/{account}/presence`: an account's presence as the console draws it from its tabs; a null state\ntakes the console's word back.",
+        "properties": {
+          "lastSeenAt": {
+            "description": "Epoch milliseconds: the last moment a visible tab of the account reported.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresenceState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "lastSeenAt"
+        ],
+        "type": "object"
+      },
       "AccountRoom": {
         "description": "A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode\nthe receiver added it in.",
         "properties": {
@@ -130,6 +158,23 @@
           "privateTo",
           "held",
           "mode"
+        ],
+        "type": "object"
+      },
+      "AccountTyping": {
+        "description": "`POST /rooms/{roomId}/typing`: an account writing in a room's box in the console, or no longer.",
+        "properties": {
+          "account": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "account",
+          "on"
         ],
         "type": "object"
       },
@@ -2677,6 +2722,15 @@
         ],
         "type": "object"
       },
+      "PresenceState": {
+        "description": "Whether a person is reachable now: online, busy or not; away, signed in but idle; offline.",
+        "enum": [
+          "online",
+          "away",
+          "offline"
+        ],
+        "type": "string"
+      },
       "PromiseAsk": {
         "description": "The body `POST /promise-readings` takes.",
         "properties": {
@@ -3955,6 +4009,56 @@
           }
         },
         "summary": "An account's record identity, made where it does not stand and the same one ever after.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/accounts/{account}/presence": {
+      "put": {
+        "operationId": "accountPresence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountPresence"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "An account's presence as the console tells it, one source among the account's; told on the event stream in each room the account stands in, and never kept.",
         "tags": [
           "Rooms"
         ],
@@ -9306,6 +9410,59 @@
           "not-found",
           "private-room",
           "titled-by-service",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/typing": {
+      "post": {
+        "operationId": "accountTyping",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountTyping"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
+          }
+        },
+        "summary": "An account writing in a room in the console, or no longer: told on the event stream and handed to the room's chat services as a typing send in the writer's own voice, never kept.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "private-room",
+          "upstream-failed",
           "failed"
         ]
       }

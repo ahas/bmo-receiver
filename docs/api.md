@@ -557,16 +557,17 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 - **The stream** opens with `event: run`, replays the ring of the last 500 events after the cursor, a reader
   naming no run being handed none and starting at the present, then the picture and each working turn's present
-  `run-progress`, then sends each as an event named for its kind, a `: ping` comment every fifteen seconds, and `event: stopping` when the
-  service stops on purpose.
+  `run-progress`, then the typing marks that stand and the presence known in the rooms, then sends each as an event
+  named for its kind, a `: ping` comment every fifteen seconds, and `event: stopping` when the service stops on
+  purpose.
 - **What goes into the stream:** a message the receiver kept or wrote again as `message.created`, a room's window
   opened or restarted as `window.opened`, a room's window for an agent closed as `window.closed`, carrying the room,
   the agent and the moment it closed, a verdict the receiver wrote of a round as `judgement.created`, carrying the
   room, the message it stands under or null, the stage, the verdict and its detail, a room whose registration was
   removed as `room.deleted`, an act the record kept on a message, a reaction, a pin, an edit or a delete, as
   `message.changed`, carrying the room and the message, the picture
-  whenever it changes as `live.changed`, and what `POST /events` says: `message.created`, `briefing.created` or
-  `avatars.changed`.
+  whenever it changes as `live.changed`, a typing mark as `typing` and a presence as `presence` (「Typing and
+  presence」 below), and what `POST /events` says: `message.created`, `briefing.created` or `avatars.changed`.
 - **A turn's events name whose turn it is.** Every event a conversation tells of its room's turn — `run-started`,
   `run-progress`, `sent`, `draft`, `run-failed` and `waited` among them — and the turn as the picture holds it
   carry `speaker`, `{id, name}`: `name` is the registration name of the agent whose turn it is, the default
@@ -582,6 +583,27 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   (`docs/receiver.md`, 「The event stream」) — and `thinking`, the last thinking block the run wrote, redacted and
   cut at the policy's ceiling, on a turn working in the owner's private chat and null on every other
   (`docs/messages.md`, 「A working turn's thinking」).
+
+## Typing and presence
+
+| Route | Body | Answers |
+|---|---|---|
+| `PUT /accounts/{account}/presence` | `state` (`online`, `away`, `offline`, or null), `lastSeenAt` (epoch milliseconds, or null) | 204 |
+| `POST /rooms/{roomId}/typing` | `account`, `on` | 204; `private-room` (403) in another account's private room, `not-found` (404) for a room the receiver does not hold |
+
+- **Nothing of either is filed,** wakes anybody, raises an unread count, moves a read mark or stands in a turn
+  (`docs/receiver.md`, 「Typing and presence」).
+- **`PUT /accounts/{account}/presence`** holds the account's presence as the console tells it, one source among the
+  account's; a `state` of null takes the console's word back.
+- **`POST /rooms/{roomId}/typing`** holds the account's mark in the room for the base's six seconds unless told
+  again, tells it on the stream, and hands it to the room's chat services as a `typing` send in the writer's own
+  voice; a service that refuses is let go.
+- **`typing` on the stream** carries `chatId`, `who`, `on` and `lastsMs` (the mark's life in milliseconds, null for
+  the answerer's mark, which stands until told off); **`presence`** carries `chatId`, `who`, `state` (null where
+  unknown) and `lastSeenAt`. Both carry `id` null: neither enters the ring nor is replayed, and what stands is
+  handed after the replay as the stream opens.
+- **`who`** is `{kind: "account", account}`, `{kind: "person", via, personId}` for a chat service's person linked to
+  no account, or `{kind: "answerer"}` for the room's answerer, whose event carries the turn's `speaker`.
 
 ## Hooks
 
@@ -795,8 +817,8 @@ states it; it is repeated here only so one document holds every route the receiv
 | `POST /chat/avatar-changes` | tells of kept profile pictures that changed; the receiver takes each subject named from the provider's avatar routes before it answers (`docs/pictures.md`, 「Profile pictures」) |
 | `POST /chat/reaction-changes` | tells one message's reactions as the platform shows them now |
 | `POST /chat/deletions` | tells of messages of one room deleted on the platform |
-| `POST /chat/typing-marks` | tells that a person is writing in a room, or has stopped; the receiver passes it over, answering the mark as taken |
-| `POST /chat/presence-changes` | tells whether people are reachable; the receiver passes it over, answering the change as taken |
+| `POST /chat/typing-marks` | tells that a person is writing in a room, or has stopped; the receiver holds the mark and tells it on the stream, and passes over one about a room it holds nothing of or whose chosen list does not name the service, answering each as taken (「Typing and presence」) |
+| `POST /chat/presence-changes` | tells whether people are reachable; the receiver holds each person's presence and tells it on the stream in the rooms the person stands in, and passes over a person it holds in no room, answering the change as taken (「Typing and presence」) |
 
 The receiver serves the protocol's shapes as `bmo-chat-client` defines them: the client is the published one, and
 the receiver holds no hand-written copy of them. What differs between providers is read from what each declares.

@@ -464,6 +464,9 @@ flowchart TD
     one takes its place: a reader starting at the present is handed every one after the picture, which names
     their turns; a reader with a cursor is handed, ahead of the replay, those after its cursor that the ring no
     longer holds, so the ids it is handed still rise;
+  - the typing marks that stand and the presence known in the rooms (「Typing and presence」 below), after the
+    replay, the picture and the turns that work, each as `event: bot` with no id, so a screen opened late shows
+    who is writing now and who is reachable;
   - `: ping` every fifteen seconds;
   - `event: stopping` with no id when the receiver stops on purpose, after which the stream ends. The signal
     tells every stream at once and the serve lets go only after them, so a stop never waits out a stream that
@@ -483,8 +486,12 @@ flowchart TD
   board」), a room whose
   registration was removed as `room-removed` with its
   number, the picture whenever it
-  changes, and what `POST /events` says (a message or a briefing checked against the archive first, the profile
-  pictures a chat service took).
+  changes, a typing mark and a presence as `typing` and `presence` (「Typing and presence」 below), and what
+  `POST /events` says (a message or a briefing checked against the archive first, the profile pictures a chat
+  service took).
+- **A typing mark and a presence are told and never replayed.** They go to every listener as they come, with no
+  id and outside the ring, so a burst of them never pushes a room's messages out of what a screen picks up again,
+  and a mark that ended is never handed again as news; what stands of them is handed on opening instead.
 - **The picture (`GET /live`) is drawn of what the receiver runs itself:** the chat turns of every agent's conversations,
   the rooms whose session it is folding and the message each room queued for a turn, the picture going
   out again as each of them begins, moves or ends. A turn names the messages it read and, as `messageId`, the one it
@@ -571,6 +578,120 @@ flowchart TD
   turn's answer (`docs/messages.md`, 「A working turn's thinking」).
 - **`GET /health` answers for the receiver itself:** `ok`, the owner, `bot` with this process's number and the
   moment it started, and its version. A deployment's wait matches `bot`'s number against the unit's main process.
+
+## Typing and presence
+
+Who is writing in a room now, and who is reachable now, as bmo-chat's `docs/presence.md` designs them across every
+side. Neither is a message: nothing of either is filed, raises an unread count, moves a read mark, wakes anybody or
+stands in a turn, and whatever composes an answer reads neither.
+
+```mermaid
+flowchart TD
+  P["A chat service"] -->|POST /chat/typing-marks, /chat/presence-changes| H["Held in memory"]
+  C["The console"] -->|its account's typing and presence| H
+  A["The room's answerer"] -->|while its answer is on its way| H
+  H -->|typing and presence, per room| S["GET /events"]
+  C -.->|a typing send in the writer's own voice| R["The room's chat services"]
+```
+
+### What is held
+
+- **What stands is held in memory alone:** a typing mark by room and by who writes, a presence by its source. A
+  restart loses it, and the whole lists chat services tell on becoming ready restore it.
+- **Who is one of three:**
+  - an account, `{kind: "account", account}`: a console account, and a chat service's person the web unit links to
+    an account (a sender's user), since a person linked to an account is that account;
+  - a chat service's person linked to no account, `{kind: "person", via, personId}`;
+  - the room's answerer, `{kind: "answerer"}`, under the speaker the stream names the room's turns under.
+- **The link is asked of the web unit** and kept for the span `kept.toml` gives it (`link_seconds`), so a mark
+  renewed every few seconds asks once a span; a link that cannot be read leaves the person as the provider's own.
+
+### A typing mark
+
+- **`POST /chat/typing-marks` takes a mark of a chat service's person** (bmo-chat's `docs/protocol.md`): passed over,
+  and still answered 201, where the receiver holds nothing of the room or the room's chosen list of providers does
+  not name the service (「A room's chat providers」).
+- **A mark told `on` stands for its life,** the `lastsMs` its provider named or the base's six seconds where it
+  named none, and told `on` again it stands for a new life from then.
+- **A mark ends at once:**
+  - when it is told off;
+  - when its life runs out without its being told again;
+  - when a message of the same person is kept live in the same room: a chat service's hand-over, the owner's words
+    and an account's words in the console, read by the sender the message is kept under, linked to its account
+    where the web unit links one;
+  - when the chat service that told it stops being ready (「A chat service that stops being ready」 below).
+- **A mark that ends is told off once;** a mark told off that was not standing tells nothing.
+
+### Presence
+
+- **`POST /chat/presence-changes` takes a chat service's people's presence:** each person's state and last moment
+  seen held as that service's word about that person, until it tells another. A change with `whole` true makes every
+  person of that service it does not list unknown. A person the receiver holds in no room is passed over.
+- **The console is one more source:** `PUT /accounts/{account}/presence` holds the account's presence as the console
+  draws it from its tabs (「The console as a source」 below).
+- **An account's presence is gathered from every source that tells of it,** the console and each person linked to
+  it on each chat service: `online` where any source says so, else `away` where any does, else `offline` where any
+  does, else unknown; its `lastSeenAt` is the latest any source gives.
+- **Presence is never worn out by time.** It stands until it is told again, and a source that stops being ready
+  leaves what it told unknown, never `offline`.
+
+### Told per room
+
+- **Every event names one room,** so the console holds it to that room's readers by the same scoping that holds the
+  room's messages to them:
+  - `typing`: `chatId`, `who`, `on` and `lastsMs`, the mark's life in milliseconds, or null for the answerer's mark,
+    which stands until it is told off;
+  - `presence`: `chatId`, `who`, `state` (`online`, `away`, `offline`, or null where unknown) and `lastSeenAt`.
+- **A mark is told in the room it is typed in alone.**
+- **A presence is told once for each room the receiver holds that its person stands in:** for a person, each room
+  holding a message of theirs; for an account, each room it is a member of and each room holding a message of a
+  sender linked to it. It is told when the gathered presence changes, in each such room; one that becomes unknown
+  is told as null in the rooms it was told in.
+- **What stands is handed to a stream as it opens,** after the replay and the picture (「The event stream」): every
+  mark that stands, and every presence known, in its room.
+
+### The answerer writing
+
+- **The room's answerer is shown writing when the chat services are.** Its `typing` event goes on when the
+  receiver starts showing the answerer typing on the room's own road, the moment a round's answer is let through
+  (`docs/messages.md`, 「Typing」), and off when the round ends, answered or failed, or the room is forgotten, so
+  every surface agrees. It carries the turn's `speaker` as the round's other events do (`docs/api.md`, 「Events and
+  the live board」).
+- **A turn that works before its answer is let through** is on the stream as a turn at work already, and shows no
+  mark.
+
+### A chat service that stops being ready
+
+- **While anything a chat service told stands,** a mark or a presence, the service is asked `GET /health` once
+  every look `presence.toml` gives (`provider_look_seconds`).
+- **A look that finds it not ready, or not answering,** ends every mark it told and leaves every presence it told
+  unknown, each told in its rooms; the look stops then, and starts again with the next thing the service tells.
+
+### The console as a source
+
+- **`PUT /accounts/{account}/presence`** holds the account's presence as the console tells it as it changes, one
+  source among the account's: `state` and `lastSeenAt`, a `state` of null taking the console's word back. The
+  console draws it from its tabs' reports (bmo-chat's `docs/presence.md`, 「The console as a messenger of its
+  own」).
+- **`POST /rooms/{roomId}/typing`** takes an account's typing in a room, `account` and `on`, through the guard every
+  write to a room passes (「Console rooms and accounts」), so another account's private room refuses it 403
+  `private-room`. The mark stands for the base's six seconds unless the console tells it again, and is told on the
+  stream as any mark.
+- **The mark goes to the room's chat services as a `typing` send in the writer's own voice,** as an account's words
+  would (「Console rooms and accounts」), to each provider on the room's list that declares the `typing` verb: the
+  owner's in his own voice, `human-reader`; another account's in the service's own voice naming that account as
+  `accountId`, and as `speaker` `account:<account>` where the service declares `speakers`, never in another
+  person's account. A service with no voice of its own, or one that reads the room in the owner's account alone, is
+  handed no other account's mark. A service that refuses lets it go: the receiver says nothing of it and the mark
+  goes nowhere else. Off is handed once, as the console tells it.
+
+### A read made unseen
+
+- **A read made unseen tells nothing of its reader.** An account reading a room it is no member of, as the
+  administrator reads every room, is told the room's marks and presence through the console as its readers are,
+  and nothing of its own reaches the room: its presence is told only in the rooms it stands in, never in one it
+  reads, and its typing there is refused as any write to another account's private room is, while the console
+  stands no box for it to type into.
 
 ## Removing a room's registration
 
@@ -689,7 +810,9 @@ flowchart TD
 
 - **A room's facts and the agency's list of agents are read once and kept for a short span,** rather than asked
   again for every room a request walks, every page of a room's line and every step of a round. The spans are the
-  policy's (`kept.toml`): a minute for a room's facts, ten seconds for the agents, whose standing a wake turns on.
+  policy's (`kept.toml`): a minute for a room's facts, ten seconds for the agents, whose standing a wake turns on,
+  and a minute for the account a chat service's person is linked to, which every typing mark and presence reads
+  (「Typing and presence」).
 - **A room's facts are kept by road and room:** the answer of each chat service asked, a room the service does not
   hold kept as not held, a room the record holds alone read off the record each time and never asked of a service
   (「A room's chat providers」), and an answer that did not come kept not at all, so the next read asks again.
