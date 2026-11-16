@@ -1,9 +1,9 @@
 //! What the console sends in the owner's own name (docs/receiver.md, 「The owner's words」): a line typed into any
 //! room kept under a console number and the name the room's own service shows him by, else his registered name,
 //! handed to the room's session and carried to the room's chat service in his own voice, files put in with the
-//! words carried as the albums the road takes with the caption on the first of them, a form of files read whole
-//! under the files policy's ceiling and a file past the largest refused, and a send asked of the receiver carried as
-//! its asker.
+//! words carried as the albums the road takes with the caption on the first of them, files the room kept answered as
+//! sent and carried though the agency fails after, a form of files read whole under the files policy's ceiling and a
+//! file past the largest refused, and a send asked of the receiver carried as its asker.
 
 use std::sync::Arc;
 
@@ -20,7 +20,7 @@ use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::units::{
-  ADDRESS, AGENT, OWNER, SENDER, StandInChat, registration, standing,
+  ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing, woken,
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
@@ -32,6 +32,13 @@ const ROOM: i64 = -100;
 
 // A receiver over a scratch database, reaching one road that holds the room and the owner's chat.
 async fn stood(rooms: &[i64]) -> (Scratch, Router, Arc<StandInChat>) {
+  let (scratch, standing, road) = standing_over(rooms).await;
+
+  (scratch, routes(standing.receiver.clone(), TOKEN), road)
+}
+
+// What such a receiver stands on, for a test that sets more of it before the routes are made.
+async fn standing_over(rooms: &[i64]) -> (Scratch, Standing, Arc<StandInChat>) {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let road = Arc::new(StandInChat::new("road-a").holding(rooms).owners(OWNER));
@@ -42,7 +49,7 @@ async fn stood(rooms: &[i64]) -> (Scratch, Router, Arc<StandInChat>) {
   agent.row.insert("role".to_owned(), serde_json::json!("chat"));
   standing.agency.registering([agent].to_vec());
 
-  (scratch, routes(standing.receiver.clone(), TOKEN), road)
+  (scratch, standing, road)
 }
 
 fn post(path: &str, token: &str, body: String) -> Request {
@@ -356,6 +363,54 @@ async fn files_the_owner_put_in_a_room_go_as_the_albums_the_road_takes_with_the_
     ]
     .to_vec(),
   );
+}
+
+#[tokio::test]
+async fn files_the_room_kept_are_answered_sent_and_carried_though_the_agency_then_fails() {
+  let (scratch, standing, road) = standing_over(&[ROOM]).await;
+  // The receiver's own wake, which reads the agency's rest before it wakes anybody.
+  let standing = woken(standing);
+  let port = routes(standing.receiver.clone(), TOKEN);
+
+  scratch
+    .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
+    .await;
+  bmo_receiver::receiver::rows::allow_chat(scratch.db(), ROOM).await.unwrap();
+  standing.agency.rest_unreadable();
+
+  let body = form(
+    &[("chatId".to_owned(), "-100".to_owned())],
+    &[
+      ("image/jpeg".to_owned(), "one.jpg".to_owned(), "jpeg".to_owned()),
+      ("application/pdf".to_owned(), "paper.pdf".to_owned(), "pdf".to_owned()),
+    ],
+  );
+  let (status, answer) = form_asked(&port, "/owner/message-files", body).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(
+    answer["sent"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|held| held["name"].clone())
+      .collect::<Vec<Value>>(),
+    [json!("one.jpg"), json!("paper.pdf")],
+    "{answer:?}",
+  );
+  assert!(answer["failed"].as_array().unwrap().is_empty(), "{answer:?}");
+
+  let mut kept = scratch
+    .texts(
+      r#"SELECT CAST("message_id" AS TEXT) FROM "messages" WHERE "chat_id" = -100 AND "via" = 'record'"#,
+    )
+    .await;
+  let mut answered = [answer["sent"][0]["id"].to_string(), answer["sent"][1]["id"].to_string()];
+
+  kept.sort();
+  answered.sort();
+  assert_eq!(kept, answered, "each file stands in the room once, under the number the answer gives");
+  assert_eq!(road.sent().len(), 2, "the kept files still go on to the room's other providers");
 }
 
 #[tokio::test]

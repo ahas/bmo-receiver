@@ -1025,15 +1025,31 @@ impl Receiver {
     room: Room,
     handed: &[bmo_chat_client::MessageFile],
   ) -> Result<(), NotReceived> {
+    match self.attachment_kept(inbound, context, room, handed).await? {
+      Some(kept) => self.attachment_woken(&kept, context, room).await,
+      None => Ok(()),
+    }
+  }
+
+  /// A message carrying a file, kept with the files it came with and their hearing, as `attachment` keeps it:
+  /// the row to wake on, or none where nobody is to be woken, the message being the agent's own, one the room
+  /// does not keep, or one whose file the chat service is still gathering.
+  pub async fn attachment_kept(
+    &self,
+    inbound: &Inbound,
+    context: &Context,
+    room: Room,
+    handed: &[bmo_chat_client::MessageFile],
+  ) -> Result<Option<Inbound>, NotReceived> {
     if !Self::keeps(inbound.chat_id, room) {
-      return Ok(());
+      return Ok(None);
     }
 
     self.keep(inbound, context, room).await?;
     crate::presence::taken::spoke(self, inbound).await;
 
     if Self::is_agents_own(inbound, room) {
-      return Ok(());
+      return Ok(None);
     }
 
     files::keep(&self.db, &self.data_root, self.deployment.attachment_bytes, inbound, handed).await?;
@@ -1046,15 +1062,22 @@ impl Receiver {
       .unwrap_or_else(|| inbound.clone());
 
     if context.gathering && handed.is_empty() {
-      return Ok(());
+      return Ok(None);
     }
 
+    Ok(Some(kept))
+  }
+
+  /// The agents a kept message carrying a file calls for, woken on the row `attachment_kept` answered.
+  pub async fn attachment_woken(
+    &self,
+    kept: &Inbound,
+    context: &Context,
+    room: Room,
+  ) -> Result<(), NotReceived> {
     let caption = context.spoken_text.as_deref().unwrap_or_default();
 
-    self
-      .wake
-      .file(self, &kept, room, kept.sender_id == Some(self.owner_id()), caption)
-      .await
+    self.wake.file(self, kept, room, kept.sender_id == Some(self.owner_id()), caption).await
   }
 
   /// A kept message's file gathered: whose file it is decides whether anybody is woken. A message the room does

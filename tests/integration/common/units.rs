@@ -1257,6 +1257,8 @@ pub struct StandInAgency {
   pub added_rows: Mutex<Vec<NewSupervisor>>,
   pub roads_answering: Mutex<BTreeSet<String>>,
   pub rest: Mutex<Rest>,
+  // Whether its rest is answered in a shape the call does not read, as an agency of another version answers.
+  pub rest_unreadable: Mutex<bool>,
   pub written: Mutex<Vec<Resting>>,
   pub passed: Mutex<Option<RestKind>>,
   // The rooms it was asked to forget, each with whether the asking was a preview.
@@ -1331,6 +1333,7 @@ impl StandInAgency {
         until: None,
         kind: None,
       }),
+      rest_unreadable: Mutex::default(),
       written: Mutex::default(),
       passed: Mutex::default(),
       forgotten: Mutex::default(),
@@ -1423,6 +1426,11 @@ impl StandInAgency {
 
   pub fn at_rest(&self, rest: Rest) {
     *self.rest.lock().unwrap() = rest.clone();
+  }
+
+  /// Its rest answered from now on in a shape the call does not read.
+  pub fn rest_unreadable(&self) {
+    *self.rest_unreadable.lock().unwrap() = true;
   }
 
   pub fn asked(&self) -> Vec<Resting> {
@@ -1534,6 +1542,15 @@ impl Agency for StandInAgency {
   }
 
   fn rest(&self) -> BoxFuture<'_, Answer<Rest>> {
+    if *self.rest_unreadable.lock().unwrap() {
+      return Box::pin(async move {
+        Err(PortFailure::Undecodable {
+          url: "http://agency.invalid/rest".to_owned(),
+          why: "missing field `resting`".to_owned(),
+        })
+      });
+    }
+
     let rest = self.rest.lock().unwrap().clone();
 
     Box::pin(async move { Ok(rest) })

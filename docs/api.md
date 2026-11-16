@@ -440,7 +440,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /rooms/{roomId}/words` | `account`, `name` (the account's shown name), `text`, `replyTo?` | 201, `id`, the message kept |
 | `POST /rooms/{roomId}/word-files` | a form as `POST /owner/message-files` takes but for `chatId`, which the path gives, with `account` and `name` | the answer `POST /owner/message-files` gives |
-| `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
+| `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` (each `name`, `reason`) |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into; `account?`, the account forwarding it, and `name?`, its shown name | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
 
 - **A route that takes files reads its whole body under a ceiling `files.toml` sets,** never under the
@@ -511,6 +511,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
   room's other chat providers as every kept message is. A file past the ceiling a road takes is refused 413
   `too-large`; a `replyTo` the archive does not hold is refused 409.
+- **A file the room kept is answered as sent.** `POST /owner/message-files` and `POST /rooms/{roomId}/word-files`
+  keep each file as its own message, and a file that stands in the room is answered under `sent` whatever follows
+  it: a wake of the agents it calls for, or its carry to the room's other providers, that then fails is written to
+  the service's log and never into the answer, and is not tried again. So a send the console repeats on a failure
+  never puts a second copy of a file into the room. A file the room could not keep is answered under `failed`, its
+  `name` and the `reason`, beside the files it did keep; a form of which the room kept none is refused as the first
+  of them failed, and carries nothing.
 - **The signed-in person's acts on a message** come through the console relay, which names the caller by
   `Owner-Key`, the login's user id, and `Owner-Role`, as a picture's setting does (`docs/pictures.md`, 「Profile
   pictures」), so a member acts only as themselves. The account an act is for is the `account` the call names, else

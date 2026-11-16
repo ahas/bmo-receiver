@@ -332,16 +332,16 @@ pub(super) async fn files_said(
   }
 
   let mut turned_away: Vec<Value> = vec![];
-  let mut kept: Vec<OwnerFile> = vec![];
+  let mut standing: Vec<OwnerFile> = vec![];
 
   for file in given {
     match refusal(&file.name, u64::try_from(file.bytes.len()).unwrap_or(0)) {
       Some(reason) => turned_away.push(json!({ "name": file.name, "reason": reason })),
-      None => kept.push(file.clone()),
+      None => standing.push(file),
     }
   }
 
-  if kept.is_empty() {
+  if standing.is_empty() {
     let why = turned_away
       .first()
       .map(|held| held.get("reason").and_then(Value::as_str).unwrap_or_default().to_owned())
@@ -351,13 +351,14 @@ pub(super) async fn files_said(
   }
 
   let mut sent: Vec<Value> = vec![];
+  let mut files: Vec<FileItem> = vec![];
   let mut first: Option<Inbound> = None;
+  let mut unkept: Option<Refusal> = None;
 
-  for (at, file) in kept.iter().enumerate() {
-    let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
+  for file in standing {
     let message = Inbound {
       chat_id,
-      message_id,
+      message_id: 0,
       sender_id: Some(speaking.sender_id),
       sender_name: speaking.name.clone(),
       sent_at: now_ms(),
@@ -367,7 +368,7 @@ pub(super) async fn files_said(
       transcript: None,
       voice_seconds: None,
       voice_state: None,
-      reply_to_message_id: if at == 0 { reply } else { None },
+      reply_to_message_id: if first.is_none() { reply } else { None },
       via: Road::Record.key().to_owned(),
       mode: None,
       via_reader: None,
@@ -381,41 +382,76 @@ pub(super) async fn files_said(
       bytes: file.bytes.clone(),
       kind: None,
     };
-    let room = receiver.roads().room_facts(chat_id).await;
+    let context = Context {
+      carries_file: true,
+      ..Context::default()
+    };
 
-    Receiver::attachment(
-      receiver,
-      &message,
-      &Context {
-        carries_file: true,
-        ..Context::default()
-      },
-      room,
-      &[item],
-    )
-    .await
-    .map_err(failed)?;
-    sent.push(json!({ "name": file.name, "id": message_id }));
-    first.get_or_insert(message);
+    match kept_and_woken(receiver, message, &context, item).await {
+      Ok(message) => {
+        sent.push(json!({ "name": file.name, "id": message.message_id }));
+        files.push(FileItem {
+          name: file.name,
+          mime: file.mime,
+          bytes: file.bytes,
+        });
+        first.get_or_insert(message);
+      }
+      Err(why) => {
+        let why = failed(why);
+
+        turned_away.push(json!({ "name": file.name, "reason": why.error }));
+        unkept.get_or_insert(why);
+      }
+    }
   }
+
+  // A form none of whose files the room could keep left nothing in it, and is refused as the first of them was.
+  let Some(first) = first else {
+    return Err(unkept.unwrap_or_else(|| refused(StatusCode::BAD_REQUEST, "bad-request", "no file stood")));
+  };
 
   // The files go on to the room's other providers as one send of files, the way they were put in together.
-  if let Some(first) = first {
-    let files = kept
-      .iter()
-      .map(|file| FileItem {
-        name: file.name.clone(),
-        mime: file.mime.clone(),
-        bytes: file.bytes.clone(),
-      })
-      .collect();
+  carried_after_keeping(receiver, &first, speaking.said_by, Carried::Files { files, caption }).await;
 
-    carried(receiver, &first, speaking.said_by, Carried::Files { files, caption }).await?;
+  answered(json!({ "id": first.message_id, "sent": sent, "checking": [], "failed": turned_away }))
+}
+
+// One message carrying a file kept in the room under the next console number, and the agents it calls for woken:
+// the message as it was kept. Once it stands in the room a wake that fails leaves it kept and answered as sent, so
+// the failure is written to the log (docs/api.md, 「Sends」).
+async fn kept_and_woken(
+  receiver: &Receiver,
+  mut message: Inbound,
+  context: &Context,
+  item: MessageFile,
+) -> Result<Inbound, NotReceived> {
+  message.message_id = record::next_number(receiver.db(), message.chat_id).await?;
+
+  let room = receiver.roads().room_facts(message.chat_id).await;
+  let Some(kept) = receiver.attachment_kept(&message, context, room, &[item]).await? else {
+    return Ok(message);
+  };
+
+  if let Err(why) = receiver.attachment_woken(&kept, context, room).await {
+    eprintln!(
+      "bmo-receiver: message {} in room {} is kept, and the agents it calls for were not woken: {why}",
+      message.message_id, message.chat_id
+    );
   }
 
-  answered(
-    json!({ "id": sent.first().and_then(|held| held.get("id")), "sent": sent, "checking": [], "failed": turned_away }),
-  )
+  Ok(message)
+}
+
+// Kept files carried to the room's other providers. The files stand in the room whatever the carry does, so a
+// carry that fails is written to the log and never into the answer (docs/api.md, 「Sends」).
+async fn carried_after_keeping(receiver: &Receiver, kept: &Inbound, said_by: SaidBy, what: Carried) {
+  if let Err(why) = carried(receiver, kept, said_by, what).await {
+    eprintln!(
+      "bmo-receiver: message {} in room {} is kept, and was not carried to the room's other providers: {}",
+      kept.message_id, kept.chat_id, why.error
+    );
+  }
 }
 
 // One recording the console made, kept in the room's record under the policy's voice word and the caption beside it,
@@ -438,14 +474,13 @@ async fn say_voice(
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "a voice note carries one sound file"));
   }
 
-  let message_id = record::next_number(receiver.db(), chat_id).await.map_err(store)?;
   let text = match caption.trim() {
     "" => ROADS.marks.voice.clone(),
     said => format!("{} {said}", ROADS.marks.voice),
   };
   let message = Inbound {
     chat_id,
-    message_id,
+    message_id: 0,
     sender_id: Some(speaking.sender_id),
     sender_name: speaking.name,
     sent_at: now_ms(),
@@ -468,22 +503,15 @@ async fn say_voice(
     bytes: file.bytes.clone(),
     kind: Some(ChatFileKind::VoiceNote),
   };
-  let room = receiver.roads().room_facts(chat_id).await;
+  let context = Context {
+    carries_file: true,
+    spoken_text: (!caption.trim().is_empty()).then(|| caption.clone()),
+    ..Context::default()
+  };
+  let message = kept_and_woken(receiver, message, &context, item).await.map_err(failed)?;
+  let message_id = message.message_id;
 
-  Receiver::attachment(
-    receiver,
-    &message,
-    &Context {
-      carries_file: true,
-      spoken_text: (!caption.trim().is_empty()).then(|| caption.clone()),
-      ..Context::default()
-    },
-    room,
-    &[item],
-  )
-  .await
-  .map_err(failed)?;
-  carried(
+  carried_after_keeping(
     receiver,
     &message,
     speaking.said_by,
@@ -492,7 +520,7 @@ async fn say_voice(
       caption,
     },
   )
-  .await?;
+  .await;
 
   answered(json!({
     "id": message_id,
