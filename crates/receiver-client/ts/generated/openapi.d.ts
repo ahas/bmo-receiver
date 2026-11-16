@@ -1257,7 +1257,8 @@ export interface paths {
         };
         /** A room's name. */
         get: operations["roomTitle"];
-        put?: never;
+        /** A room on the record alone retitled; a room a chat service carries keeps its service's title. */
+        put: operations["changeRoomTitle"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1702,6 +1703,10 @@ export interface components {
         /** @description `PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in. */
         ChangeRoomMode: {
             mode: components["schemas"]["RoomMode"];
+        };
+        /** @description `PUT /rooms/{roomId}/title`: the name a room on the record alone is to stand under. */
+        ChangeRoomTitle: {
+            title: string;
         };
         /** @description A room's chat providers set whole: at least one, each once. */
         ChooseProviders: {
@@ -6064,6 +6069,41 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    changeRoomTitle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeRoomTitle"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomTitle"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, titled-by-service, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

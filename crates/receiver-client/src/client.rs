@@ -192,6 +192,16 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "title"])).await
   }
 
+  /// `PUT /rooms/{roomId}/title`, for a room on the record alone.
+  pub async fn change_room_title(&self, room_id: i64, title: &str) -> Answer<RoomTitle> {
+    let room = room_id.to_string();
+
+    Self::answered(self.request(Method::PUT, &["rooms", &room, "title"]).json(&ChangeRoomTitle {
+      title: title.to_owned(),
+    }))
+    .await
+  }
+
   /// `GET /rooms/{roomId}/answerers`.
   pub async fn answerers(&self, room_id: i64) -> Answer<Answerers> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "answerers"])).await

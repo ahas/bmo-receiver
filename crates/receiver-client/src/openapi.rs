@@ -313,6 +313,24 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "failed"]
   );
   add!(
+    "PUT",
+    "/rooms/{roomId}/title",
+    "changeRoomTitle",
+    "Rooms",
+    "A room on the record alone retitled; a room a chat service carries keeps its service's title.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<ChangeRoomTitle>()),
+    vec![(200, json_answer::<RoomTitle>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-found",
+      "private-room",
+      "titled-by-service",
+      "failed"
+    ]
+  );
+  add!(
     "GET",
     "/rooms/{roomId}/answerers",
     "roomAnswerers",

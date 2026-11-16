@@ -96,6 +96,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/archive` | | `room`, `archivedAt` and `archivedBy`, both null for a room that is not archived |
 | `PUT /rooms/{roomId}/archive` | `by` (the administrator, the room's leader or a head of the leader's unit); `archived` | the archive as it now stands; `not-room-leader` (403) for anyone else, `not-found` (404) for a room the receiver does not hold |
 | `GET /rooms/{roomId}/title` | | `title`, or null |
+| `PUT /rooms/{roomId}/title` | `title`, the name the room is to stand under | the `title` it now stands under; `bad-request` (400) for an empty one, `not-found` (404) for a room the receiver does not hold, `titled-by-service` (409) for a room a chat service carries, whose title is its service's |
 | `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `defaultAnswerer`, whether it is the supervisor the receiver's default answerer setting names) |
 | `PUT /rooms/{roomId}/supervisors` | `supervisors`, the whole list, each a supervisor's name | `supervisors`, the list as it now stands; `unknown-supervisor` (404) for a name the agency does not register |
 | `GET /answerers` | `room` (optional) | a page of `{room, agents}`: every room's agents answering it, or one room's |

@@ -740,6 +740,13 @@ pub struct ChangeRoomArchive {
   pub archived: bool,
 }
 
+/// `PUT /rooms/{roomId}/title`: the name a room on the record alone is to stand under.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeRoomTitle {
+  pub title: String,
+}
+
 /// `PUT /rooms/{roomId}/registration`: the mode a room's registration is to stand in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

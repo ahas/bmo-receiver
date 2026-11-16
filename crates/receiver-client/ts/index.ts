@@ -41,6 +41,8 @@ export type ChangeRoomMode = Schemas["ChangeRoomMode"];
 export type RoomArchive = Schemas["RoomArchive"];
 export type RoomLeaders = Schemas["RoomLeaders"];
 export type ChangeRoomArchive = Schemas["ChangeRoomArchive"];
+export type ChangeRoomTitle = Schemas["ChangeRoomTitle"];
+export type RoomTitle = Schemas["RoomTitle"];
 export type Notice = Schemas["Notice"];
 export type Instruction = Schemas["Instruction"];
 export type InstructionRequest = Schemas["InstructionRequest"];
@@ -205,6 +207,11 @@ export function receiverClient(options: ReceiverOptions) {
           body,
         }),
       );
+    },
+
+    /** `PUT /rooms/{roomId}/title`, for a room on the record alone. */
+    async changeRoomTitle(roomId: number, body: ChangeRoomTitle): Promise<RoomTitle> {
+      return answered(await client.PUT("/rooms/{roomId}/title", { params: { path: { roomId } }, body }));
     },
 
     /** `GET /rooms/{roomId}/messages`. */

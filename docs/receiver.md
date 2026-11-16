@@ -655,7 +655,9 @@ flowchart TD
   leaves the kept title as it stands, and a title equal to the kept one writes nothing.
 - **A room added** takes the title the addition names, else the one its service answers then (「Adding a room」),
   and follows its service from then on as any room does. A room on the record alone keeps the title it was made
-  under, since no service is asked of it.
+  under, since no service is asked of it, until a caller names another with `PUT /rooms/{roomId}/title`: the
+  console retitles a person's own supervisor's private room as the person's name changes. A room a chat service
+  carries is refused that write, its title standing as its service gives it.
 
 ## The room's situation
 

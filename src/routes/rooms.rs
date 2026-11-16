@@ -947,3 +947,38 @@ pub async fn change_room_archive(
 
   answered(archive_view(&receiver, room).await?)
 }
+
+/// The name a room on the record alone is to stand under.
+#[derive(Deserialize)]
+struct Retitling {
+  title: String,
+}
+
+/// `PUT /rooms/{roomId}/title`: a room on the record alone retitled (docs/receiver.md, 「A room's title」). A room a
+/// chat service carries is refused, since its service's title would replace any other the next time it is read.
+pub async fn change_room_title(State(served): State<Served>, writable: WritableRoom) -> Answered {
+  let room = writable.room;
+  let asked = read::<Retitling>(writable.writer.body())?;
+  let receiver: Receiver = (*served.receiver).clone();
+  let title = asked.title.trim();
+
+  if title.is_empty() {
+    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "a room's title is not empty"));
+  }
+
+  if !known(&receiver, room).await? && added::mode_of(receiver.db(), room).await.map_err(store)?.is_none() {
+    return Err(refused(StatusCode::NOT_FOUND, "not-found", &format!("no chat {room} is held")));
+  }
+
+  if !receiver.roads().record_alone(room).await {
+    return Err(refused(
+      StatusCode::CONFLICT,
+      "titled-by-service",
+      &format!("chat {room} is carried by a chat service, whose title it stands under"),
+    ));
+  }
+
+  rows::set_chat_title(receiver.db(), room, title).await.map_err(store)?;
+
+  answered(json!({ "title": title }))
+}
