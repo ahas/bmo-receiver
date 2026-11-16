@@ -323,7 +323,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   to a caller the relay's `Owner-Key` and `Owner-Role` do not let set it (`docs/pictures.md`), 400 `unknown-kind`
   for a kind other than the three, 400 `no-picture-given`
   where the form holds no `picture`, 400 `not-a-picture` where it cannot be read as one, 413 `picture-too-large`
-  past `files.toml`'s `largest_bytes`. An agent's picture is kept under its name whether or not it stands under any
+  past `files.toml`'s `largest_bytes`, and 413 `too-large` where the whole form is past the ceiling the route reads
+  a body under (「Sends」). An agent's picture is kept under its name whether or not it stands under any
   number yet, and every number it takes later wears it (`docs/pictures.md`, 「Profile pictures」).
 - **These picture routes are the console's one source of profile pictures,** every chat service's among them: a
   room's, a person's and the owner's own account's. The receiver takes each chat service's pictures from that
@@ -437,6 +438,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into; `account?`, the account forwarding it, and `name?`, its shown name | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
 
+- **A route that takes files reads its whole body under a ceiling `files.toml` sets,** never under the
+  framework's default of two mebibytes. `POST /owner/message-files` and `POST /rooms/{roomId}/word-files` take
+  `most_files` files at `largest_bytes` each, with `form_bytes` beside them for the form's fields and its framing:
+  ten files of 50 MiB and 1 MiB beside them, as the policy stands. `PUT /avatars/{kind}/{subject}` takes one file
+  at `largest_bytes` with `form_bytes` beside it. A body past its route's ceiling is refused 413 `too-large` before
+  anything is kept; within it, a file past `largest_bytes` is turned away by its name and refused 413 `too-large`
+  where no file of the form stood, as the owner's words below say, and a picture is refused 413
+  `picture-too-large`. Every other route takes a body of words and reads at most two mebibytes of it; the chat
+  services' hand-overs the base library serves are bound by no ceiling of the receiver's.
 - **`send-verbs`** answers what a send could do in the room, never what one provider declares: the road it reads is
   the one `POST /sends` chooses for the same `via`, the road `via` names where the room answers on it and the
   room's own road otherwise, and the road a send naming none goes out on where `via` is absent

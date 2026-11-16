@@ -9,8 +9,8 @@ use std::collections::HashMap;
 
 use axum::{
   body::{Body, Bytes},
-  extract::{FromRequest, FromRequestParts, Multipart, Path, Request},
-  http::{HeaderMap, HeaderValue, StatusCode, header::CONTENT_TYPE},
+  extract::{FromRequest, FromRequestParts, Multipart, Path, Request, rejection::BytesRejection},
+  http::{Extensions, HeaderMap, HeaderValue, StatusCode, header::CONTENT_TYPE},
 };
 use receiver_codes::RoomAccountRefusal;
 use serde_json::Value;
@@ -36,6 +36,8 @@ pub(super) struct Writer {
   owners_road: bool,
   body: Bytes,
   kind: Option<HeaderValue>,
+  /// The request's extensions, the ceiling the route reads its body under among them.
+  extensions: Extensions,
 }
 
 /// A room a write may change, refused before the handler holds it where it is another account's private room: the
@@ -47,6 +49,15 @@ pub(super) struct WritableRoom {
 
 fn bad(why: &str) -> Refusal {
   refused(StatusCode::BAD_REQUEST, "bad-request", why)
+}
+
+// A body the framework could not read: past the ceiling the route reads its body under is 413 `too-large`
+// (docs/api.md, 「Sends」), anything else not the shape the route takes.
+fn unread(why: &BytesRejection) -> Refusal {
+  match why.status() {
+    StatusCode::PAYLOAD_TOO_LARGE => refused(StatusCode::PAYLOAD_TOO_LARGE, "too-large", &why.body_text()),
+    _ => bad(&why.body_text()),
+  }
 }
 
 fn reached(why: NotReceived) -> Refusal {
@@ -164,9 +175,11 @@ impl Writer {
     }))
   }
 
-  /// The body read again as the multipart form it carries.
+  /// The body read again as the multipart form it carries, under the ceiling the route read it under.
   pub async fn form(&self) -> Result<Multipart, Refusal> {
     let mut request = Request::new(Body::from(self.body.clone()));
+
+    *request.extensions_mut() = self.extensions.clone();
 
     if let Some(kind) = self.kind.clone() {
       request.headers_mut().insert(CONTENT_TYPE, kind);
@@ -182,7 +195,8 @@ impl FromRequest<Served> for Writer {
   async fn from_request(request: Request, served: &Served) -> Result<Self, Refusal> {
     let headers = request.headers().clone();
     let query = request.uri().query().map(str::to_owned);
-    let body = Bytes::from_request(request, served).await.map_err(|why| bad(&why.body_text()))?;
+    let extensions = request.extensions().clone();
+    let body = Bytes::from_request(request, served).await.map_err(|why| unread(&why))?;
     let actor = match named_in(&headers, query.as_deref(), &body)? {
       Some(account) => Actor::Account(account),
       None => Actor::Unnamed,
@@ -193,6 +207,7 @@ impl FromRequest<Served> for Writer {
       owners_road: false,
       body,
       kind: headers.get(CONTENT_TYPE).cloned(),
+      extensions,
     })
   }
 }

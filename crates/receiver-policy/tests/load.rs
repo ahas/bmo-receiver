@@ -162,6 +162,7 @@ fn the_talks_name_the_owner_and_the_agent_by_their_marks() {
 #[test]
 fn the_other_lines_carry_their_marks_and_numbers() {
   assert_eq!(FILES.largest_bytes, 50 * 1024 * 1024);
+  assert_eq!(FILES.request_bytes(FILES.most_files), (10 * 50 + 1) * 1024 * 1024);
   assert!(RESTART.deployed.purpose.contains("{purpose}"));
   assert_eq!(RESTART.ride_minutes, 3);
   assert_eq!(WAKE.file_lead_seconds, 120);

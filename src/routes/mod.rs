@@ -35,7 +35,7 @@ use std::sync::Arc;
 use axum::{
   Router,
   body::Bytes,
-  extract::{RawQuery, Request, State},
+  extract::{DefaultBodyLimit, RawQuery, Request, State},
   http::StatusCode,
   middleware::{Next, from_fn_with_state},
   response::{IntoResponse, Json, Response},
@@ -47,6 +47,7 @@ use headers::{Authorization, HeaderMapExt};
 use serde_json::json;
 
 use receiver_codes::Refused;
+use receiver_policy::files::FILES;
 use receiver_ports::http::PortFailure;
 
 use crate::Fault;
@@ -105,6 +106,12 @@ fn answered(body: serde_json::Value) -> Answered {
   Ok(Json(body))
 }
 
+/// A route that takes files, reading its whole body under the ceiling `files.toml` sets for `files` files at their
+/// largest, rather than the framework's default (docs/api.md, 「Sends」).
+fn taking_files(router: MethodRouter<Served>, files: u64) -> MethodRouter<Served> {
+  router.layer(DefaultBodyLimit::max(FILES.request_bytes(files)))
+}
+
 /// Every route the receiver answers behind its token: its method, its path and the handler standing at it.
 /// The table is what the `routes` command prints, so the router is built from it rather than beside it.
 fn table() -> Vec<(String, String, MethodRouter<Served>)> {
@@ -140,7 +147,7 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/avatars", get(message_files::avatars)),
     ("GET", "/rooms/{roomId}/avatar", get(message_files::room_avatar)),
     ("GET", "/people/{personId}/avatar", get(message_files::person_avatar)),
-    ("PUT", "/avatars/{kind}/{subject}", put(avatars::set)),
+    ("PUT", "/avatars/{kind}/{subject}", taking_files(put(avatars::set), 1)),
     ("POST", "/rooms/{roomId}/messages/{messageId}/forwards", post(say::forward)),
     ("GET", "/rooms/{roomId}/pins", get(message_acts::pins)),
     ("PUT", "/rooms/{roomId}/messages/{messageId}/reactions/mine", put(message_acts::react)),
@@ -194,9 +201,13 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("PUT", "/room-holders/{holderName}", put(instructions::declare)),
     ("POST", "/sends", post(sends)),
     ("POST", "/owner/messages", post(say)),
-    ("POST", "/owner/message-files", post(say_file)),
+    ("POST", "/owner/message-files", taking_files(post(say_file), FILES.most_files)),
     ("POST", "/rooms/{roomId}/words", post(accounts::words)),
-    ("POST", "/rooms/{roomId}/word-files", post(accounts::word_files)),
+    (
+      "POST",
+      "/rooms/{roomId}/word-files",
+      taking_files(post(accounts::word_files), FILES.most_files),
+    ),
     ("POST", "/talks", post(talk)),
     ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
     ("POST", "/handovers/{agentName}", post(handovers::hand_over)),

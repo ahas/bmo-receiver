@@ -4331,7 +4331,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, picture-forbidden, unknown-kind, no-picture-given, not-a-picture, picture-too-large, too-large, private-room, upstream-failed, failed"
           }
         },
         "summary": "A picture set from the console on a room, a person or an agent, as a form with one picture.",
@@ -4345,6 +4345,7 @@
           "no-picture-given",
           "not-a-picture",
           "picture-too-large",
+          "too-large",
           "private-room",
           "upstream-failed",
           "failed"

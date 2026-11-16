@@ -305,9 +305,10 @@ flowchart TD
     nothing is kept.
   - Files are archived each as its own message with the words typed beside them; they go to each provider as
     one album of the pictures and videos, one of the sounds and each document on its own, the words on the first
-    send that takes a caption that long and ahead of the files as words otherwise. A file
-    past the ceiling a road takes is refused 413 and turned away with its name, and a call none of whose files
-    stood answers as one refusal.
+    send that takes a caption that long and ahead of the files as words otherwise. The form is read whole under
+    the ceiling `files.toml` sets, ten files at their largest with the fields beside them, and a form past it is
+    refused 413 before anything is kept (`docs/api.md`, 「Sends」). A file past the ceiling a road takes is
+    turned away with its name, and a call none of whose files stood answers as one refusal, 413.
   - A voice note is the same form with `voice`: one sound file, kept as a message under the voice word and the
     caption beside it, and handed to the room's other providers as a voice message with that caption. The
     console records it; no reading of it is made, so what it says stands only in the recording. A call with

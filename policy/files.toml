@@ -6,5 +6,13 @@
 # than what a platform would take.
 largest_bytes = 52428800
 
+# The most files one send may carry. A route that takes files reads its whole body under a ceiling of
+# this many files at largest_bytes, with form_bytes beside them; a picture is one file.
+most_files = 10
+
+# The bytes a form's fields and its framing may take beside its files: the caption and the other
+# fields, and the boundary and headers around each part.
+form_bytes = 1048576
+
 # The name a file goes by where the browser sent it with none.
 unnamed = "attachment"

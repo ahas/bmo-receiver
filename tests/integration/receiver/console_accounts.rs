@@ -4,7 +4,8 @@
 //! an account's record identity is made once, a BMO's private room wakes on its account's words alone and refuses
 //! every other, a read of it leaves nothing behind, and a messenger's member is answered as before. Every room read
 //! says whose private room it is, every write another account makes in one is refused while its own go through, a
-//! group room every other member has left stays a group room, and a forward stands under the account that forwards.
+//! group room every other member has left stays a group room, a forward stands under the account that forwards, and
+//! the files an account sends are read whole past the framework's two mebibytes.
 
 use std::sync::Arc;
 
@@ -698,6 +699,41 @@ async fn files_another_account_sends_stand_under_its_identity_and_go_out_in_the_
 
   assert!(sent.iter().all(|(_, voice, _)| *voice == Some(ChatVoice::BotAccount)), "{sent:?}");
   assert!(sent.iter().any(|(words, _, _)| words.contains("Bea: look")), "{sent:?}");
+}
+
+const MEBIBYTE: usize = 1024 * 1024;
+
+#[tokio::test]
+async fn files_another_account_sends_past_the_frameworks_two_mebibytes_are_read_whole() {
+  let stood = stood(false).await;
+
+  identity(&stood.port, BEA).await;
+
+  for sizes in [[3 * MEBIBYTE].to_vec(), [3 * MEBIBYTE / 2, 3 * MEBIBYTE / 2].to_vec()] {
+    let papers = sizes.iter().enumerate().map(|(at, bytes)| {
+      format!(
+        "--own\r\ncontent-type: text/plain\r\ncontent-disposition: form-data; name=\"file\"; filename=\"paper-{at}.txt\"\r\n\r\n{}\r\n",
+        "a".repeat(*bytes)
+      )
+    });
+    let body = format!(
+      "--own\r\ncontent-disposition: form-data; name=\"account\"\r\n\r\n{BEA}\r\n\
+       --own\r\ncontent-disposition: form-data; name=\"name\"\r\n\r\nBea\r\n{}--own--\r\n",
+      papers.collect::<String>()
+    );
+    let request = Request::post(format!("/rooms/{LINKED}/word-files"))
+      .header("authorization", format!("Bearer {TOKEN}"))
+      .header("content-type", "multipart/form-data; boundary=own")
+      .body(Body::from(body))
+      .unwrap();
+    let answer = stood.port.clone().oneshot(request).await.unwrap();
+    let status = answer.status();
+    let answer: Value =
+      serde_json::from_slice(&to_bytes(answer.into_body(), usize::MAX).await.unwrap()).unwrap();
+
+    assert_eq!(status, StatusCode::OK, "{sizes:?}: {answer}");
+    assert_eq!(answer["sent"].as_array().map(Vec::len), Some(sizes.len()), "{answer}");
+  }
 }
 
 // The administrator's account, which the web unit links to no sender of the owner's.

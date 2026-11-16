@@ -1,8 +1,9 @@
 //! What the console sends in the owner's own name (docs/receiver.md, 「The owner's words」): a line typed into any
 //! room kept under a console number and the name the room's own service shows him by, else his registered name,
 //! handed to the room's session and carried to the room's chat service in his own voice, files put in with the
-//! words carried as the albums the road takes with the caption on the first of them, and a send asked of the
-//! receiver carried as its asker.
+//! words carried as the albums the road takes with the caption on the first of them, a form of files read whole
+//! under the files policy's ceiling and a file past the largest refused, and a send asked of the receiver carried as
+//! its asker.
 
 use std::sync::Arc;
 
@@ -23,6 +24,7 @@ use crate::integration::common::units::{
 };
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
+use receiver_policy::files::FILES;
 use receiver_policy::roads::ROADS;
 
 const TOKEN: &str = "the-token";
@@ -456,4 +458,65 @@ async fn a_send_asked_of_the_receiver_is_carried_as_its_asker() {
   assert_eq!(status, StatusCode::OK);
   assert_eq!(answer["lines"].as_array().unwrap().len(), 1, "{answer:?}");
   assert_eq!(answer["refusal"], Value::Null, "{answer:?}");
+}
+
+const MEBIBYTE: usize = 1024 * 1024;
+
+// The owner's files posted into the titled room, each a paper of `bytes` bytes.
+async fn papers_sent(port: &Router, sizes: &[usize]) -> (StatusCode, Value) {
+  let papers = sizes
+    .iter()
+    .enumerate()
+    .map(|(at, bytes)| ("text/plain".to_owned(), format!("paper-{at}.txt"), "a".repeat(*bytes)))
+    .collect::<Vec<(String, String, String)>>();
+  let body = form(&[("chatId".to_owned(), ROOM.to_string())], &papers);
+
+  form_asked(port, "/owner/message-files", body).await
+}
+
+#[tokio::test]
+async fn files_past_the_frameworks_two_mebibytes_are_read_whole_under_the_files_policy() {
+  let (scratch, port, road) = stood(&[ROOM]).await;
+
+  scratch
+    .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
+    .await;
+
+  for sizes in [[3 * MEBIBYTE].to_vec(), [3 * MEBIBYTE / 2, 3 * MEBIBYTE / 2].to_vec()] {
+    let (status, answer) = papers_sent(&port, &sizes).await;
+
+    assert_eq!(status, StatusCode::OK, "{sizes:?}: {answer:?}");
+    assert_eq!(answer["sent"].as_array().map(Vec::len), Some(sizes.len()), "{answer:?}");
+  }
+
+  let carried = road
+    .sent()
+    .iter()
+    .map(|held| match &held.send {
+      ChatSend::Document { bytes, .. } => bytes.len(),
+      other => panic!("a paper goes as a document, not {other:?}"),
+    })
+    .collect::<Vec<usize>>();
+
+  assert_eq!(
+    carried,
+    [3 * MEBIBYTE, 3 * MEBIBYTE / 2, 3 * MEBIBYTE / 2],
+    "each file reaches the road whole"
+  );
+}
+
+#[tokio::test]
+async fn a_file_past_the_largest_one_file_may_be_is_refused_as_too_large_and_nothing_goes() {
+  let (scratch, port, road) = stood(&[ROOM]).await;
+
+  scratch
+    .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
+    .await;
+
+  let past = usize::try_from(FILES.largest_bytes).unwrap() + 1;
+  let (status, answer) = papers_sent(&port, &[past]).await;
+
+  assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE, "{answer:?}");
+  assert_eq!(answer["code"], "too-large", "{answer:?}");
+  assert!(road.sent().is_empty(), "nothing is carried");
 }
