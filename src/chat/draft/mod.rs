@@ -516,9 +516,16 @@ impl Run<'_> {
       .names()
       .map(|names| format!("{}\n", fill_marks(&said.followed, &[("names", &names)])))
       .unwrap_or_default();
+    // The people the message answers, whose address terms the review holds it to; none shows no head.
+    let people = self.answered_people();
+    let answers = if people.is_empty() {
+      String::new()
+    } else {
+      format!("{}\n{}\n\n", said.answers, people.join("\n"))
+    };
 
     format!(
-      "{}\n{followed}\n{}\n{}\n\n{}\n{}\n\n{}\n{}",
+      "{}\n{followed}\n{}\n{}\n\n{}\n{}\n\n{answers}{}\n{}",
       said.marker,
       said.draft,
       message,
@@ -527,6 +534,34 @@ impl Run<'_> {
       said.rules,
       rules.join("\n\n"),
     )
+  }
+
+  // The people the message answers, one line each in the order they first spoke (docs/drafting.md, 「The review」):
+  // every sender of the round's words and of those shown to it, but the agent itself and the senders of words its
+  // answer marked as needing no answer or as answered in a round of their own.
+  fn answered_people(&self) -> Vec<String> {
+    let said = &DRAFTING.review;
+    let set_aside =
+      |id: i64| self.marks.contains(&(Mark::Done, id)) || self.marks.contains(&(Mark::Separate, id));
+    let mut seen: Vec<Option<i64>> = vec![];
+    let mut people = vec![];
+
+    for message in self.drafted.batch.iter().chain(self.shown.iter()) {
+      if message.sender_id == self.drafted.room.identity
+        || set_aside(message.message_id)
+        || seen.contains(&message.sender_id)
+      {
+        continue;
+      }
+
+      seen.push(message.sender_id);
+
+      let id = message.sender_id.map_or_else(|| "unknown".to_owned(), |id| id.to_string());
+
+      people.push(fill_marks(&said.person, &[("name", &message.sender_name), ("id", &id)]));
+    }
+
+    people
   }
 
   // One more turn of the same session: its answer where it gave one, none where its run failed, the stop raised.

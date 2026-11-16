@@ -46,6 +46,10 @@ pub struct Review {
   pub draft: String,
   pub words: String,
   pub rules: String,
+  /// The head the review turn shows the people the message answers under: data, with no instruction.
+  pub answers: String,
+  /// One person the message answers, `{name}` as they go by in the room's words and `{id}` their sender number.
+  pub person: String,
   /// The label the review turn shows the questions the draft turn followed under, `{names}` as its line carried
   /// them: data, with no instruction.
   pub followed: String,

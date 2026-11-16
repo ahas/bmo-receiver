@@ -1251,6 +1251,55 @@ async fn the_review_passes_the_message_after_reading_the_room_and_the_round() {
   assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
 }
 
+// "Each person is addressed as the brain holds": the review turn names the people the message answers, each once,
+// for the review to hold the draft to the address term the brain keeps for them.
+#[tokio::test]
+async fn the_review_is_shown_each_person_the_message_answers_once() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);
+  let round = Drafting::new_reviewing(session, &["final"], 150).await;
+  let other = Inbound {
+    sender_id: Some(OWNER + 1),
+    sender_name: "qa-friend".into(),
+    ..said(3, "and the week after")
+  };
+
+  let hold = round.runner.default_answerer().hold_queues().await;
+
+  round.hear(1, ASKED).await;
+  round.hear(2, SHORT).await;
+  round
+    .standing
+    .receiver
+    .message(&other, &Context::default(), owners_room())
+    .await
+    .unwrap();
+  drop(hold);
+  round.ended(2).await;
+
+  let prompts = round.session.prompts();
+  let review = turn_of(&prompts[1]);
+  let person =
+    |name: &str, id: i64| fill_marks(&DRAFTING.review.person, &[("name", name), ("id", &id.to_string())]);
+  let people = format!(
+    "{}\n{}\n{}",
+    DRAFTING.review.answers,
+    person("tester", OWNER),
+    person("qa-friend", OWNER + 1)
+  );
+
+  assert_eq!(prompts.len(), 2, "{prompts:#?}");
+  assert!(review.contains(&people), "each person once, in the order they spoke: {review}");
+  assert!(
+    !review.contains(&format!("(id {IDENTITY})")),
+    "the agent answers no one as itself: {review}"
+  );
+  assert!(
+    !turn_of(&prompts[0]).contains(&DRAFTING.review.answers),
+    "the draft turn carries no review data: {}",
+    prompts[0]
+  );
+}
+
 #[tokio::test]
 async fn the_review_audits_the_one_draft_turn_and_is_shown_the_questions_it_followed() {
   let session = StandInSession::new(SESSION, "unscripted").answering(&["the message", "PASS"]);

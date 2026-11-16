@@ -452,8 +452,20 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   (`drafting.toml`, `[review]`, `instruction` and `revise`): it answers `PASS` alone, or
   `REJECT: <one short reason>` naming the one question not carried out or the one thing that must change, and
   nothing else. The review turn itself carries only the marker that names the round, the questions the draft
-  turn followed, the draft, the room's words and the rules it carries (`marker`, `followed`, `draft`, `words`,
-  `rules`); it is handed no instruction sentence and no verdict wording.
+  turn followed, the draft, the room's words, the people the message answers and the rules it carries
+  (`marker`, `followed`, `draft`, `words`, `answers` with a `person` line each, `rules`); it is handed no
+  instruction sentence and no verdict wording.
+- **Each person is addressed as the brain holds.** The people the message answers are every sender of the
+  round's words and of the words shown to it, each once by the name they go by and their sender number: never
+  the agent itself, and never the sender of words the answer marked `<<DONE>>` or `<<SEPARATE>>`; a round whose
+  words are a quiet instruction alone answers no one and shows no such head. The review holds the draft to the
+  address term the brain keeps for each of them, their `name` memories and any rule or knowledge on how they are
+  called, and to the register the persona sets toward them; where the reference the round carries shows none of
+  a person's names, the review reads their name memories with its brain tool, the one reading it does, and where
+  the brain holds none the name they go by in the room's words stands. A draft that calls a person by another
+  name or title, by one their names say not to use, or in another register is a reason to reject, the reason
+  saying the term or register the brain holds. The receiver reads no name of the brain itself: what the review
+  is shown of a person's names is the reference the gate attached and what its own tool reads.
 - **A thing said not to be possible, and a step put on the owner, stand on an attempt.** Where the message
   claims a road, a tool, a permission, a file or a capability is missing or cannot work, or asks the owner to
   do a step, the review checks that the draft turn actually tried it with its tools and that the message says

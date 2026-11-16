@@ -135,6 +135,9 @@ fn the_draft_process_ends_every_list_on_its_last_question() {
   assert!(!DRAFTING.round.contains("{voice}") && !DRAFTING.voice.is_empty());
   // The review is shown the questions the draft round followed, as data.
   assert!(DRAFTING.review.followed.contains("{names}"));
+  // It is shown each person the message answers by name and sender number, as data.
+  assert!(DRAFTING.review.person.contains("{name}") && DRAFTING.review.person.contains("{id}"));
+  assert!(!DRAFTING.review.answers.contains('{'));
 
   // The room's block names the marks a message that arrived meanwhile takes, once, and so does the closing check;
   // the round's line names only its questions.

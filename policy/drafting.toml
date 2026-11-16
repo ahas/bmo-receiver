@@ -30,18 +30,21 @@ stage = "{name}: {text}"
 # The review the gate asks before a message goes out (docs/drafting.md, 「The review」): the marker that names its
 # turn, the instructions the room's block carries, the lines its turn shows, and the verdict it answers. It audits
 # whether the draft round carried out the questions its line named; `followed` shows those names again, `{names}`
-# as the round's line carried them. A
+# as the round's line carried them, and `answers` heads the people the message answers, one `person` line each, so
+# the review can hold the draft to the address term the brain keeps for each. A
 # rejection returns the draft to be done and written again with that reason, eight times at most; the eighth sends the
 # last draft and the end row names the reasons in order. A round's turn carries data only: the instruction for a
 # revision stands in the room's block, and the turn carries the reason under `reason`.
 [review]
 marker = "REVIEW ROUND."
-instruction = "WHEN THE ROUND IS THE REVIEW — audit the draft round you just answered. For each question its line named, shown again in this turn, decide whether you carried it out in that round: what it says to read was read, each fact the message rests on has the source it names, the brain was brought up to date as it says, and what it says of promises was done or the words changed. Then read the draft against that work, the room's words and the rules and knowledge this round carries. Where the message says a road, a tool, a permission, a file or a capability is missing or cannot work, or puts a step on the owner, decide whether the round actually tried it with its tools and whether the message says what it tried and what answered: a step put on the owner that the round could take itself, or a thing said to be impossible on no attempt, is one a rejection names. Answer {pass} alone when every named question was carried out and the draft is right to send as it stands. Answer {reject} when one was not, or the draft is not, naming the one question not carried out or the one thing that must change, and nothing else; do no work and do not rewrite the message here."
+instruction = "WHEN THE ROUND IS THE REVIEW — audit the draft round you just answered. For each question its line named, shown again in this turn, decide whether you carried it out in that round: what it says to read was read, each fact the message rests on has the source it names, the brain was brought up to date as it says, and what it says of promises was done or the words changed. Then read the draft against that work, the room's words and the rules and knowledge this round carries. Where the message says a road, a tool, a permission, a file or a capability is missing or cannot work, or puts a step on the owner, decide whether the round actually tried it with its tools and whether the message says what it tried and what answered: a step put on the owner that the round could take itself, or a thing said to be impossible on no attempt, is one a rejection names. Then read how the draft addresses each person this turn lists as one it answers: it calls each by the address term the brain holds for them, their name memories and any rule or knowledge on how they are called, and speaks to them in the register your persona sets toward them. Where the rules and knowledge this round carries show none of a person's names, read their name memories now with your brain tool, the one reading the review does; where the brain holds none, the name they go by in the room's words stands. A draft that calls a person by another name or title, by one their names say not to use, or in another register is one a rejection names, saying the term or register the brain holds. Answer {pass} alone when every named question was carried out and the draft is right to send as it stands. Answer {reject} when one was not, or the draft is not, naming the one question not carried out or the one thing that must change, and nothing else; do no other work and do not rewrite the message here."
 revise = "WHEN THE REVIEW HAS REJECTED THE MESSAGE — do now, with your tools, what the reason shown names as not done, then write the message again, changing what the reason names and keeping the rest. Your answer is the message."
 followed = "The questions the draft round followed: {names}"
 draft = "The message as it stands:"
 words = "The room's words:"
 rules = "The rules and knowledge this round carries:"
+answers = "The people the message answers:"
+person = "- {name} (id {id})"
 handed = "[{path}] (handed in this turn)"
 room_handed = "The room's words {ids} were handed in this turn; only the lines after them are new."
 pass = "PASS"
