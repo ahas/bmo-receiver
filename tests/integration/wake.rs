@@ -125,7 +125,7 @@ fn picture() -> MessageFile {
     id: "1".into(),
     name: "screen.jpg".into(),
     mime: "image/jpeg".into(),
-    bytes: vec![0xff, 0xd8],
+    bytes: vec![0xff, 0xd8].into(),
     kind: None,
   }
 }
@@ -135,7 +135,7 @@ fn document() -> MessageFile {
     id: "1".into(),
     name: "a.pdf".into(),
     mime: "application/pdf".into(),
-    bytes: b"pdf".to_vec(),
+    bytes: b"pdf".to_vec().into(),
     kind: None,
   }
 }

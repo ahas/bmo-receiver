@@ -35,7 +35,7 @@ fn file(id: &str, name: &str, mime: &str, bytes: Vec<u8>) -> MessageFile {
     id: id.into(),
     name: name.into(),
     mime: mime.into(),
-    bytes,
+    bytes: bytes.into(),
     kind: None,
   }
 }

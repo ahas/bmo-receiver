@@ -48,7 +48,7 @@ fn file(id: &str, name: &str, mime: &str, bytes: Vec<u8>) -> MessageFile {
     id: id.into(),
     name: name.into(),
     mime: mime.into(),
-    bytes,
+    bytes: bytes.into(),
     kind: None,
   }
 }
@@ -77,7 +77,7 @@ fn voice() -> MessageFile {
     id: "1".into(),
     name: "voice.oga".into(),
     mime: "audio/ogg".into(),
-    bytes: vec![0x4f, 0x67, 0x67, 0x53, 0x00],
+    bytes: vec![0x4f, 0x67, 0x67, 0x53, 0x00].into(),
     kind: Some(ChatFileKind::VoiceNote),
   }
 }

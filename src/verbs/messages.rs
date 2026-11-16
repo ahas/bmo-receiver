@@ -698,7 +698,11 @@ pub async fn photo(
 
     items.push(match source {
       PictureSource::Web(address) => AlbumItem::Address { address },
-      PictureSource::Kept { name, mime, bytes } => AlbumItem::File(FileItem { name, mime, bytes }),
+      PictureSource::Kept { name, mime, bytes } => AlbumItem::File(FileItem {
+        name,
+        mime,
+        bytes: bytes.into(),
+      }),
     });
   }
 
@@ -874,7 +878,7 @@ pub async fn file(
           ChatSendRequest::new(
             chat_id,
             ChatSend::Document {
-              bytes: file.bytes,
+              bytes: file.bytes.into(),
               file_name: file.name.clone(),
             },
           ),
@@ -902,7 +906,7 @@ pub async fn file(
         AlbumItem::File(FileItem {
           name: file.name,
           mime: file.mime,
-          bytes: file.bytes,
+          bytes: file.bytes.into(),
         })
       })
       .collect();
@@ -992,7 +996,7 @@ pub async fn voice(
         ChatSendRequest::new(
           chat_id,
           ChatSend::Voice {
-            audio: file.bytes,
+            audio: file.bytes.into(),
             said,
             caption,
             transcript,
@@ -1155,7 +1159,7 @@ async fn labelled_item(source: &PictureSource, label: &str) -> Option<FileItem> 
   Some(FileItem {
     name: labelled_name(source),
     mime: "image/jpeg".to_owned(),
-    bytes: jpeg,
+    bytes: jpeg.into(),
   })
 }
 

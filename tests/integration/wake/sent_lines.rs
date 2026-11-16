@@ -55,7 +55,7 @@ async fn voiced(standing: &Standing, agent: &str) {
   let sends = Sends::new(standing.receiver.clone(), Some(agent.to_owned()), None);
   let going = sends.road(ROOM, "voice").await.unwrap();
   let note = ChatSend::Voice {
-    audio: OGG.to_vec(),
+    audio: OGG.to_vec().into(),
     said: "the campsite at dusk".to_owned(),
     caption: None,
     transcript: None,

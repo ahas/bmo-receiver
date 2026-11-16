@@ -9,7 +9,7 @@
 
 use bmo_chat_client::{
   AlbumItem, ChatCapability, ChatSend, ChatSendRequest, ChatSent, ChatSticker, ChatVoice, ClientFailure,
-  MessageFile, MissedPicture,
+  FileBody, MessageFile, MissedPicture,
 };
 
 use receiver_codes::SendRefusal;
@@ -614,11 +614,11 @@ const VOICE_ID: &str = "voice";
 /// document, a sound and a voice note. A web address is the road's to fetch, so it is no file here.
 pub fn sent_files(send: &ChatSend, missed: &[MissedPicture]) -> Vec<MessageFile> {
   // A file of a send is told from the message's others by its name; a voice note, which has none, by what it is.
-  let file = |name: &str, mime: String, bytes: &[u8]| MessageFile {
+  let file = |name: &str, mime: String, bytes: &FileBody| MessageFile {
     id: if name.is_empty() { VOICE_ID.to_owned() } else { name.to_owned() },
     name: name.to_owned(),
     mime,
-    bytes: bytes.to_vec(),
+    bytes: bytes.clone(),
     kind: None,
   };
 

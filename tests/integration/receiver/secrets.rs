@@ -284,7 +284,7 @@ async fn an_owners_message_a_secret_was_taken_from_reaches_the_turn_with_its_not
         id: "1".into(),
         name: "voice.oga".into(),
         mime: "audio/ogg".into(),
-        bytes: vec![0x4f, 0x67, 0x67, 0x53, 0x00],
+        bytes: vec![0x4f, 0x67, 0x67, 0x53, 0x00].into(),
         kind: Some(ChatFileKind::VoiceNote),
       }],
     )

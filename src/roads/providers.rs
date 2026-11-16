@@ -8,7 +8,7 @@ use std::path::Path;
 
 use bmo_chat_client::{
   AlbumItem, ChatCapability, ChatDeclaration, ChatModeStanding, ChatSend, ChatSendRequest, ChatVoice,
-  ClientFailure, ErrorCode, FileItem,
+  ClientFailure, ErrorCode, FileBody, FileItem,
 };
 use receiver_codes::OwnerSendRefusal;
 use receiver_policy::fill_marks;
@@ -267,7 +267,7 @@ pub enum Carried {
   },
   /// One recording, kept in the room's record, that the room's other providers are handed as a voice message.
   Voice {
-    audio: Vec<u8>,
+    audio: FileBody,
     caption: String,
   },
 }

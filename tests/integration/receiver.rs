@@ -407,7 +407,7 @@ fn file(id: &str, name: &str, mime: &str, bytes: &[u8]) -> MessageFile {
     id: id.into(),
     name: name.into(),
     mime: mime.into(),
-    bytes: bytes.to_vec(),
+    bytes: bytes.to_vec().into(),
     kind: None,
   }
 }

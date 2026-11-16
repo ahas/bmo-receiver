@@ -2955,7 +2955,7 @@ async fn a_picture_with_no_caption_reaches_the_turn_as_its_saved_path() {
     id: "1".into(),
     name: "photo.jpg".into(),
     mime: "image/jpeg".into(),
-    bytes: picture.into_inner(),
+    bytes: picture.into_inner().into(),
     kind: None,
   };
   let context = Context {

@@ -364,19 +364,19 @@ async fn files_the_owner_put_in_a_room_go_as_the_albums_the_road_takes_with_the_
           AlbumItem::File(FileItem {
             name: "one.jpg".to_owned(),
             mime: "image/jpeg".to_owned(),
-            bytes: b"jpeg".to_vec()
+            bytes: b"jpeg".to_vec().into()
           }),
           AlbumItem::File(FileItem {
             name: "two.png".to_owned(),
             mime: "image/png".to_owned(),
-            bytes: b"png".to_vec()
+            bytes: b"png".to_vec().into()
           })
         ]
         .to_vec(),
         caption: Some("Two pictures\nand a paper".to_owned()),
       },
       ChatSend::Document {
-        bytes: b"pdf".to_vec(),
+        bytes: b"pdf".to_vec().into(),
         file_name: "paper.pdf".to_owned(),
       },
     ]
@@ -490,7 +490,7 @@ async fn a_voice_note_the_owner_recorded_is_kept_as_a_sound_and_carried_as_a_voi
   assert_eq!(
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
     [ChatSend::Voice {
-      audio: b"OggSvoice".to_vec(),
+      audio: b"OggSvoice".to_vec().into(),
       said: "The news".to_owned(),
       caption: Some("The news".to_owned()),
       transcript: None,
@@ -604,7 +604,10 @@ async fn a_file_past_fifty_mebibytes_is_kept_and_carried_whole_where_no_provider
     .sent()
     .iter()
     .map(|held| match &held.send {
-      ChatSend::Document { bytes, .. } => bytes.len(),
+      ChatSend::Document {
+        bytes: bmo_chat_client::FileBody::Inline(bytes),
+        ..
+      } => bytes.len(),
       other => panic!("a paper goes as a document, not {other:?}"),
     })
     .collect::<Vec<usize>>();

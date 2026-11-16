@@ -92,7 +92,7 @@ async fn a_file_goes_as_a_document_and_several_go_as_one_album() {
   assert_eq!(
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
     [ChatSend::Document {
-      bytes: b"#1337 inspection notes\n".to_vec(),
+      bytes: b"#1337 inspection notes\n".to_vec().into(),
       file_name: "report.txt".to_owned(),
     }]
     .to_vec(),
@@ -119,7 +119,7 @@ async fn a_file_goes_as_a_document_and_several_go_as_one_album() {
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
     [
       ChatSend::Document {
-        bytes: b"#1337 inspection notes\n".to_vec(),
+        bytes: b"#1337 inspection notes\n".to_vec().into(),
         file_name: "report.txt".to_owned(),
       },
       ChatSend::Album {
@@ -127,12 +127,12 @@ async fn a_file_goes_as_a_document_and_several_go_as_one_album() {
           AlbumItem::File(FileItem {
             name: "report.txt".to_owned(),
             mime: "text/plain".to_owned(),
-            bytes: b"#1337 inspection notes\n".to_vec(),
+            bytes: b"#1337 inspection notes\n".to_vec().into(),
           }),
           AlbumItem::File(FileItem {
             name: "notes.txt".to_owned(),
             mime: "text/plain".to_owned(),
-            bytes: b"the notes\n".to_vec(),
+            bytes: b"the notes\n".to_vec().into(),
           }),
         ]
         .to_vec(),
@@ -167,7 +167,7 @@ async fn a_voice_note_goes_as_a_voice_message_with_its_caption_and_its_reading()
   assert_eq!(
     road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
     [ChatSend::Voice {
-      audio: OGG.to_vec(),
+      audio: OGG.to_vec().into(),
       said: "the whole of the news".to_owned(),
       caption: Some("the news".to_owned()),
       transcript: Some("the whole of the news".to_owned()),

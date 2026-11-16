@@ -10,7 +10,7 @@ use std::future::Future;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use bmo_chat_client::{ChatFileKind, MessageFile};
+use bmo_chat_client::{ChatFileKind, FileBody, MessageFile};
 use receiver_policy::roads::ROADS;
 use sea_orm::DatabaseConnection;
 
@@ -55,11 +55,22 @@ impl Handed for MessageFile {
   }
 
   async fn bytes(&self) -> io::Result<Vec<u8>> {
-    Ok(self.bytes.clone())
+    self.bytes.read().await
   }
 
+  // A file that arrived as a part stands in the chat client's spool, which removes it once the last holder lets
+  // go: it is linked where it is filed, else copied, and never read whole into memory.
   async fn filed_at(&self, path: &Path) -> io::Result<()> {
-    tokio::fs::write(path, &self.bytes).await
+    match &self.bytes {
+      FileBody::Stored(stored) => {
+        if tokio::fs::hard_link(stored.path(), path).await.is_ok() {
+          return Ok(());
+        }
+
+        tokio::fs::copy(stored.path(), path).await.map(drop)
+      }
+      held => tokio::fs::write(path, held.read().await?).await,
+    }
   }
 }
 

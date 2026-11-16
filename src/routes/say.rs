@@ -441,9 +441,8 @@ pub(super) async fn files_said(
   answered(json!({ "id": first.message_id, "sent": sent, "checking": [], "failed": turned_away }))
 }
 
-// The files a form carried, read back off the disk for the room's chat services, which the base library hands
-// whole bytes: none where the room goes on to no chat service, so a room on the record alone never holds them in
-// memory. A file that cannot be read back is left out and said in the log; the room has kept it all the same.
+// The files a form carried, read back off the disk whole and handed to the room's chat services inline: none
+// where the room goes on to no chat service, so a room on the record alone never holds them in memory. A file that cannot be read back is left out and said in the log; the room has kept it all the same.
 async fn carried_files(receiver: &Receiver, chat_id: i64, kept: &[Incoming]) -> Option<Vec<FileItem>> {
   match providers::carries(receiver.db(), receiver.roads(), chat_id).await {
     Ok(true) => {}
@@ -465,7 +464,7 @@ async fn carried_files(receiver: &Receiver, chat_id: i64, kept: &[Incoming]) -> 
       Ok(bytes) => files.push(FileItem {
         name: file.name().to_owned(),
         mime: file.mime().to_owned(),
-        bytes,
+        bytes: bytes.into(),
       }),
       Err(why) => eprintln!(
         "bmo-receiver: the file {} kept in room {chat_id} was not read back to carry: {why}",
@@ -771,7 +770,7 @@ fn stored_picture(receiver: &Receiver, room: i64, stored: &str) -> Option<Messag
     id: "1".to_owned(),
     name,
     mime,
-    bytes,
+    bytes: bytes.into(),
     kind: None,
   })
 }

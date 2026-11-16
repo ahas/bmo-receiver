@@ -396,7 +396,7 @@ async fn a_picture_under_the_data_root_goes_as_its_bytes_and_is_kept_under_its_m
       items: [AlbumItem::File(FileItem {
         name: "drawing.png".to_owned(),
         mime: "image/png".to_owned(),
-        bytes: picture.clone(),
+        bytes: picture.clone().into(),
       })]
       .to_vec(),
       caption: Some("the drawing".to_owned()),
