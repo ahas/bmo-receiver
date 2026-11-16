@@ -552,8 +552,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /events` | `kind`, `data` | 204, the event published |
 | `GET /live` | | the live board: `at`, `turns`, `compacting`, `queued` |
 
-- **The stream** opens with `event: run`, replays the ring of the last 500 events after the cursor, then sends
-  each as an event named for its kind, a `: ping` comment every fifteen seconds, and `event: stopping` when the
+- **The stream** opens with `event: run`, replays the ring of the last 500 events after the cursor, a reader
+  naming no run being handed none and starting at the present, then the picture and each working turn's present
+  `run-progress`, then sends each as an event named for its kind, a `: ping` comment every fifteen seconds, and `event: stopping` when the
   service stops on purpose.
 - **What goes into the stream:** a message the receiver kept or wrote again as `message.created`, a room's window
   opened or restarted as `window.opened`, a room's window for an agent closed as `window.closed`, carrying the room,
@@ -570,7 +571,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the room's own identity for the default answerer, the number the room's road or the record gave any other
   agent — or null where the room gives it none. The speaker is read as each turn begins, so an event told of a
   room no turn has begun in yet carries none.
-- **`run-progress` carries the working turn's picture** as `progress`, with `chatId` and `messageId`: its
+- **`run-progress` carries the working turn's picture** as `progress`, with `chatId` and `messageId`, sent only
+  where the picture changed (`docs/receiver.md`, 「The event stream」): its
   `phase`, `tool`, token counts and `spent`, its last `actions` with `droppedActions` and `droppedContext`, and
   `said`, the turn's last three progress lines, oldest first, each `{text, before}` — the words it wrote and then
   went on working, redacted, run into one line and cut at 240 characters, never its answer

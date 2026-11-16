@@ -1160,3 +1160,28 @@ async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_hi
     "an agent's line neither grants nor takes the owner's privilege"
   );
 }
+
+// "a screen that connects later is handed the turn's present picture on connect" while the turn works, and none
+// once it ended.
+#[tokio::test]
+async fn a_screen_connecting_while_a_turn_works_is_handed_its_picture_and_none_once_it_ended() {
+  let events = Arc::new(Events::new());
+  let round = Round::stood(timings(), StandInSession::new(SESSION, ANSWER), Some(events.clone())).await;
+  let fresh = || events.frames(0, None).0;
+
+  round.hear(1, FIRST).await;
+  until("the working turn's picture", || {
+    events.held().iter().any(|event| event["type"] == "run-progress")
+  })
+  .await;
+
+  let working = fresh();
+  let live = working.find("event: live").unwrap();
+
+  assert!(working[live..].contains("\"type\":\"run-progress\""), "{working}");
+
+  round.session.let_go();
+  until("the round's end", || round.runner.idle() && !round.session.working()).await;
+
+  assert!(!fresh().contains("run-progress"), "a turn that ended leaves no picture standing");
+}

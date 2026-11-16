@@ -4,7 +4,9 @@
 
 use serde_json::{Value, json};
 
-use bmo_receiver::chat::progress::{MAX_SAID_LINES, RequestSpend, RunProgress, SAID_CHARS, picture_of};
+use bmo_receiver::chat::progress::{
+  MAX_SAID_LINES, RequestSpend, RunProgress, SAID_CHARS, Told, picture_of,
+};
 use bmo_receiver::secrets::marker;
 
 fn read_all(mut progress: RunProgress, lines: &[Value]) -> RunProgress {
@@ -653,4 +655,51 @@ fn what_a_turn_wrote_before_words_handed_over_opened_the_next_is_its_answer_and_
 
   assert_eq!(said(&read), vec![("Looking at the job.", 0)]);
   assert!(!serde_json::to_string(&read).unwrap().contains("<<"), "{:?}", read.said);
+}
+
+// The progress gap the three cases below are told against, and a moment inside and past it.
+const GAP: i64 = 1_000;
+
+// "one the screens were told already is never told again, however long the turn works or waits"
+#[test]
+fn a_picture_the_screens_were_told_is_never_told_again() {
+  let mut told = Told::default();
+  let waiting = RunProgress::default();
+
+  assert_eq!(told.tell(&waiting, 0, GAP), Some(picture_of(&waiting)));
+  assert_eq!(told.tell(&waiting, GAP / 2, GAP), None);
+  assert_eq!(told.tell(&waiting, GAP * 3_600, GAP), None, "an hour's wait tells nothing again");
+}
+
+// "one whose drawn part changed goes out at once"
+#[test]
+fn a_picture_whose_drawn_part_changed_is_told_at_once() {
+  let mut told = Told::default();
+  let thinking = RunProgress::default();
+  let mut calling = thinking.clone();
+
+  calling.phase = "tool";
+  calling.tool = Some("Read".into());
+
+  told.tell(&thinking, 0, GAP);
+
+  assert_eq!(told.tell(&calling, 1, GAP), Some(picture_of(&calling)));
+}
+
+// "one whose counts alone moved goes out at most once the progress gap after the last that went out"
+#[test]
+fn a_picture_whose_counts_alone_moved_is_told_at_most_once_a_gap() {
+  let mut told = Told::default();
+  let counted = |tokens: i64| {
+    let mut progress = RunProgress::default();
+
+    progress.thinking_tokens = Some(tokens);
+    progress
+  };
+
+  told.tell(&counted(10), 0, GAP);
+
+  assert_eq!(told.tell(&counted(20), GAP - 1, GAP), None);
+  assert_eq!(told.tell(&counted(30), GAP, GAP), Some(picture_of(&counted(30))));
+  assert_eq!(told.tell(&counted(40), GAP + 1, GAP), None, "the gap counts from the last told");
 }

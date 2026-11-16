@@ -454,10 +454,16 @@ flowchart TD
 ## The event stream
 
 - **The frames of `GET /events`:**
-  - `event: run` first, naming the stream's run, the moment the receiver's process started. A cursor is read only
-    against the run it was taken in; one from another run, or one naming no run, is handed the whole ring;
-  - each event as `id: <n>`, `event: bot` and its JSON, out of a ring of the last 500, replayed after the cursor;
+  - `event: run` first, naming the stream's run, the moment the receiver's process started;
+  - each event as `id: <n>`, `event: bot` and its JSON, out of a ring of the last 500, replayed after the cursor.
+    The ring is there so a screen whose stream dropped picks up where it was, so a cursor is read only against
+    the run it was taken in: one from another run is handed the whole ring, and a reader naming no run has
+    nothing to pick up and starts at the present, with no replay;
   - `event: live` with the picture as it stands, after the replay and with no id;
+  - the present picture of each turn that works (`run-progress`), which stands until the turn ends or a newer
+    one takes its place: a reader starting at the present is handed every one after the picture, which names
+    their turns; a reader with a cursor is handed, ahead of the replay, those after its cursor that the ring no
+    longer holds, so the ids it is handed still rise;
   - `: ping` every fifteen seconds;
   - `event: stopping` with no id when the receiver stops on purpose, after which the stream ends. The signal
     tells every stream at once and the serve lets go only after them, so a stop never waits out a stream that
@@ -528,8 +534,13 @@ flowchart TD
     until the lines pass them. The `answer` line of a pane program's turn lets go of them with the rest.
 
   The log is read as each of the turn's events comes and once every look the pushing policy sets
-  (`chat-round.toml`, `[pushing]`), so what the run writes reaches the picture within that look, and a picture that
-  changed goes out at once. A look whose read fails leaves the picture as it stands until the next; a read an
+  (`chat-round.toml`, `[pushing]`), so what the run writes reaches the picture within that look.
+- **A turn's picture goes out only where it changed.** One whose drawn part changed (its phase, its tool, its
+  actions and how many were dropped, its progress lines and its thinking) goes out at once; one whose counts
+  alone moved (the tokens, the request and its spend) goes out at most once the progress gap
+  (`chat-round.toml`, `[progress]`) after the last that went out; one the screens were told already is never told
+  again, however long the turn works or waits. A screen that connects later is handed the turn's present picture
+  on connect, as the stream's frames above say. A look whose read fails leaves the picture as it stands until the next; a read an
   event called for that fails ends the turn as a fault.
 - **A turn's progress lines are the words it writes and then goes on working,** shown in the room while the turn
   works and no part of its message. A text block the turn writes is held until a call of the same turn follows it,

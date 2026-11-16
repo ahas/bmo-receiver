@@ -1,6 +1,7 @@
 //! The stream's own ring, run and picture: the ids it numbers in its run, the cursor replayed only against the
-//! run it was taken in, the last stretch kept, the folds and queued messages drawn of what this process runs,
-//! and every listener told as it comes.
+//! run it was taken in and a reader naming no run started at the present, the last stretch kept, the events that
+//! stand for a screen connecting later, the folds and queued messages drawn of what this process runs, and every
+//! listener told as it comes.
 
 use serde_json::json;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -26,12 +27,12 @@ fn numbers_each_event_in_its_run_and_replays_only_after_a_cursor_of_that_run() {
   assert!(same_run.starts_with(&format!("event: run\ndata: {}\n\n", json!({ "run": run }))));
   assert!(same_run.contains("id: 2\nevent: bot\n") && !same_run.contains("id: 1\n"));
 
-  // A cursor of another run, or of none, counts events that are not these.
-  for run in [Some("an-earlier-run"), None] {
-    let (whole, _) = frames_of(&events, 1, run);
+  // A cursor of another run counts events that are not these; a reader naming no run has nothing to pick up.
+  let (whole, _) = frames_of(&events, 1, Some("an-earlier-run"));
+  let (fresh, _) = frames_of(&events, 0, None);
 
-    assert!(whole.contains("id: 1\nevent: bot\n") && whole.contains("id: 2\nevent: bot\n"));
-  }
+  assert!(whole.contains("id: 1\nevent: bot\n") && whole.contains("id: 2\nevent: bot\n"));
+  assert!(!fresh.contains("id: "), "a reader naming no run starts at the present: {fresh}");
 }
 
 #[test]
@@ -47,7 +48,7 @@ fn hands_the_picture_after_the_replay_with_nothing_of_this_process_running_yet()
 
   events.begin_turn(json!({ "chatId": -104 }));
 
-  let (opening, _) = frames_of(&events, 0, None);
+  let (opening, _) = frames_of(&events, 0, Some(&events.run()));
   let live = opening.rfind("event: live").unwrap();
 
   assert!(live > opening.find("id: 1\nevent: bot").unwrap());
@@ -63,9 +64,61 @@ fn keeps_the_last_five_hundred() {
     events.publish(json!({ "type": "sent", "chatId": 1, "messageId": message }));
   }
 
-  let (opening, _) = frames_of(&events, 0, None);
+  let (opening, _) = frames_of(&events, 0, Some(&events.run()));
 
   assert!(!opening.contains("id: 3\n") && opening.contains("id: 4\n") && opening.contains("id: 503\n"));
+}
+
+#[test]
+fn a_reader_starting_at_the_present_is_handed_each_working_turn_s_standing_picture_after_the_picture() {
+  let events = Events::new();
+
+  events.publish(json!({ "type": "sent", "chatId": -105, "messageId": 1 }));
+  events.publish_standing(
+    1,
+    json!({ "type": "run-progress", "chatId": -105, "progress": { "phase": "tool" } }),
+  );
+  events.publish_standing(
+    2,
+    json!({ "type": "run-progress", "chatId": -106, "progress": { "phase": "tool" } }),
+  );
+  events.publish_standing(
+    1,
+    json!({ "type": "run-progress", "chatId": -105, "progress": { "phase": "writing" } }),
+  );
+  events.clear_standing(2);
+
+  let (opening, _) = frames_of(&events, 0, None);
+  let live = opening.find("event: live").unwrap();
+  let standing = opening.find("id: 4\nevent: bot\n").unwrap();
+
+  assert!(live < standing, "the picture names the turn first: {opening}");
+  assert!(opening[standing..].contains("\"writing\""));
+  for gone in ["id: 1\n", "id: 2\n", "id: 3\n"] {
+    assert!(!opening.contains(gone), "{gone} is neither replayed nor standing: {opening}");
+  }
+}
+
+#[test]
+fn a_cursor_is_handed_a_standing_picture_the_ring_let_go_of_ahead_of_the_replay() {
+  let events = Events::new();
+  let run = events.run();
+
+  events.publish_standing(
+    1,
+    json!({ "type": "run-progress", "chatId": -107, "progress": { "phase": "tool" } }),
+  );
+
+  for message in 0..RING {
+    events.publish(json!({ "type": "sent", "chatId": 1, "messageId": message }));
+  }
+
+  let (behind, _) = frames_of(&events, 0, Some(&run));
+  let (past_it, _) = frames_of(&events, 1, Some(&run));
+  let standing = behind.find("id: 1\nevent: bot\n").unwrap();
+
+  assert!(standing < behind.find("id: 2\nevent: bot\n").unwrap(), "the ids still rise: {behind}");
+  assert!(!past_it.contains("id: 1\n"), "a reader past it saw it already");
 }
 
 #[test]

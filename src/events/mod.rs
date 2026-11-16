@@ -47,6 +47,8 @@ struct Hub {
   compacting: std::collections::BTreeMap<i64, i64>,
   // The last message each room queued for a turn of this process's that no turn has taken yet.
   queued: std::collections::BTreeMap<i64, Value>,
+  // The events that stand for a screen connecting later, by the slot their publisher names.
+  standing: std::collections::BTreeMap<u64, Value>,
   listeners: Vec<UnboundedSender<String>>,
 }
 
@@ -71,6 +73,7 @@ impl Events {
         next_turn: 1,
         compacting: std::collections::BTreeMap::new(),
         queued: std::collections::BTreeMap::new(),
+        standing: std::collections::BTreeMap::new(),
         listeners: Vec::new(),
       })),
       relays: Arc::new(relay::RelayBurst::default()),
@@ -98,8 +101,24 @@ impl Events {
     self.hub().publish(event)
   }
 
-  /// A screen's stream: the run, what the ring holds after its cursor where the cursor is this run's,
-  /// the picture as it stands, then everything as it comes, with a ping between.
+  /// One event put into the stream that also stands, in the slot `slot` names, for every screen that connects
+  /// later, until another event takes the slot or it is cleared (docs/receiver.md, 「The event stream」).
+  pub fn publish_standing(&self, slot: u64, event: Value) -> Value {
+    let mut hub = self.hub();
+    let event = hub.publish(event);
+
+    hub.standing.insert(slot, event.clone());
+
+    event
+  }
+
+  /// The event standing in the slot `slot` names let go of.
+  pub fn clear_standing(&self, slot: u64) {
+    self.hub().standing.remove(&slot);
+  }
+
+  /// A screen's stream: the run, what the ring holds after its cursor, the picture as it stands and the events
+  /// that stand, then everything as it comes, with a ping between.
   pub fn listen(&self, after: i64, run: Option<&str>) -> Response {
     let (opening, frames) = self.frames(after, run);
 
@@ -285,17 +304,41 @@ impl Hub {
     event
   }
 
-  // The picture goes after the replay: the ring may hold an earlier picture of the same run, and a
-  // screen keeps whichever arrives last.
+  // A reader naming no run starts at the present: the picture, then every standing event, which the picture
+  // names the turns of. A reader with a cursor is handed what the ring holds after it, a cursor of another run
+  // counting from the ring's start, and ahead of that the standing events after it that the ring no longer
+  // holds, so the ids it is handed still rise. The picture goes after the replay: the ring may hold an earlier
+  // picture of the same run, and a screen keeps whichever arrives last.
   fn listen(&mut self, after: i64, run: Option<&str>) -> (String, UnboundedReceiver<String>) {
-    let after = if run == Some(self.run.as_str()) { after } else { 0 };
     let mut opening = format!("event: run\ndata: {}\n\n", json!({ "run": self.run }));
+    let mut standing: Vec<&Value> = self.standing.values().collect();
+    let live = format!("event: live\ndata: {}\n\n", self.picture_now());
 
-    for event in self.ring.iter().filter(|event| event["id"].as_i64().is_some_and(|id| id > after)) {
-      opening.push_str(&event_frame(event));
+    standing.sort_by_key(|event| event["id"].as_i64());
+
+    match run {
+      None => {
+        opening.push_str(&live);
+
+        for event in standing {
+          opening.push_str(&event_frame(event));
+        }
+      }
+      Some(named) => {
+        let after = if named == self.run { after } else { 0 };
+        let held_from = self.ring.front().and_then(|event| event["id"].as_i64()).unwrap_or(self.next_id);
+        let fell_off = standing
+          .into_iter()
+          .filter(|event| event["id"].as_i64().is_some_and(|id| id > after && id < held_from));
+        let replayed = self.ring.iter().filter(|event| event["id"].as_i64().is_some_and(|id| id > after));
+
+        for event in fell_off.chain(replayed) {
+          opening.push_str(&event_frame(event));
+        }
+
+        opening.push_str(&live);
+      }
     }
-
-    opening.push_str(&format!("event: live\ndata: {}\n\n", self.picture_now()));
 
     let (listener, frames) = unbounded_channel();
 
@@ -459,6 +502,14 @@ impl News for Events {
 
   fn publish(&self, event: &Value) {
     let _ = self.publish(event.clone());
+  }
+
+  fn publish_standing(&self, slot: u64, event: &Value) {
+    let _ = self.publish_standing(slot, event.clone());
+  }
+
+  fn clear_standing(&self, slot: u64) {
+    self.clear_standing(slot)
   }
 
   fn queue_message(&self, chat_id: i64, message_id: i64) {

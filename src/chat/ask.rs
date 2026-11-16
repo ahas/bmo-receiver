@@ -35,7 +35,7 @@ use super::conversation::{
 use super::double_slots;
 use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
-use super::progress::{RunProgress, picture_of};
+use super::progress::RunProgress;
 use super::room::{RoomContext, room_context};
 use super::sentinels::is_handoff;
 use crate::now_ms;
@@ -617,7 +617,7 @@ impl Carry {
               after = id.unwrap_or(after);
             }
 
-            follower.progressed(picture_of(&picture));
+            follower.progressed(&picture);
           }
         }
       }
@@ -1003,7 +1003,7 @@ impl Carry {
         let open = agency.open_block(&session.id).await.ok().flatten();
 
         picture = picture.with_open(open.as_ref().map(|block| (block.kind.as_str(), block.bytes)));
-        follower.progressed(picture_of(&picture));
+        follower.progressed(&picture);
       }
     }
 

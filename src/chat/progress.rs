@@ -729,6 +729,59 @@ pub fn picture_of(progress: &RunProgress) -> Value {
   serde_json::to_value(progress.counted_open()).unwrap_or(json!({}))
 }
 
+// The part of a turn's picture a screen draws: all of it but the counts, the tokens, the request and its spend,
+// which move on nearly every look.
+#[derive(Debug, PartialEq)]
+struct Drawn {
+  phase: &'static str,
+  tool: Option<String>,
+  actions: Vec<TurnAction>,
+  dropped_actions: usize,
+  dropped_context: usize,
+  said: Vec<SaidLine>,
+  thinking: Option<String>,
+}
+
+impl Drawn {
+  fn of(progress: &RunProgress) -> Drawn {
+    Drawn {
+      phase: progress.phase,
+      tool: progress.tool.clone(),
+      actions: progress.actions.clone(),
+      dropped_actions: progress.dropped_actions,
+      dropped_context: progress.dropped_context,
+      said: progress.said.clone(),
+      thinking: progress.thinking.clone(),
+    }
+  }
+}
+
+/// What a turn's screens were last told of its picture, and when (docs/receiver.md, 「The event stream」): a
+/// picture they were told already is never told again, one whose drawn part changed is told at once, and one whose
+/// counts alone moved at most once a gap.
+#[derive(Debug, Default)]
+pub struct Told(Option<(Value, Drawn, i64)>);
+
+impl Told {
+  /// The picture of `progress` where the screens are to be told it at `now`, `gap_ms` being the least while
+  /// between two pictures whose drawn part is the same; none where they are not. A picture handed back is the one
+  /// they were told from then.
+  pub fn tell(&mut self, progress: &RunProgress, now: i64, gap_ms: i64) -> Option<Value> {
+    let picture = picture_of(progress);
+    let drawn = Drawn::of(progress);
+
+    if let Some((last, last_drawn, at)) = &self.0
+      && (*last == picture || (*last_drawn == drawn && now - at < gap_ms))
+    {
+      return None;
+    }
+
+    self.0 = Some((picture.clone(), drawn, now));
+
+    Some(picture)
+  }
+}
+
 /// Whether a record's user event hands words over — a prompt, or words pushed into the turn — rather than carrying a
 /// tool's result or the program's own bookkeeping: such words open the program's next turn.
 pub fn handed_words(event: &Json) -> bool {

@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
@@ -23,6 +24,7 @@ use super::context::{remember_held, sent_prompt};
 use super::draft::{Drafter, Plan};
 use super::health::{FailureOrders, RoomHealth};
 use super::mid_turn::{Paragraph, Push};
+use super::progress::{RunProgress, Told};
 use super::prompt::{self, Round, Scope as RoundScope};
 use super::reply::Sender;
 use super::room::room_context;
@@ -785,12 +787,22 @@ impl Conversations {
 
   /// Every event of a room goes out as the agent's own: under the speaker its turns there are shown as.
   pub(crate) fn publish(&self, event: Value) {
+    self.0.receiver.news().publish(&self.under_speaker(event));
+  }
+
+  // An event of a room's working turn that also stands, in `slot`, for a screen that connects later.
+  fn publish_standing(&self, slot: u64, event: Value) {
+    self.0.receiver.news().publish_standing(slot, &self.under_speaker(event));
+  }
+
+  // An event as the room's speaker tells it.
+  fn under_speaker(&self, event: Value) -> Value {
     let speaker = event
       .get("chatId")
       .and_then(Value::as_i64)
       .and_then(|chat_id| self.state().speakers.get(&chat_id).cloned());
 
-    self.0.receiver.news().publish(&told_as(event, speaker));
+    told_as(event, speaker)
   }
 
   // The speaker the agent's turns in a room are shown as, read again as each turn begins.
@@ -3278,13 +3290,18 @@ impl Conversations {
   }
 }
 
-// What follows a round's turn on its conversation's behalf: the turn's picture published to the room's screens,
-// at once where what the block draws changed and at most once a gap where only the counts did, and what the room
-// says meanwhile put into the turn at its next look.
+// The slots followers' pictures stand in, one a follower.
+static FOLLOWERS: AtomicU64 = AtomicU64::new(1);
+
+// What follows a round's turn on its conversation's behalf: the turn's picture published to the room's screens
+// only where it changed, standing for a screen that connects later until the turn ends, and what the room says
+// meanwhile put into the turn at its next look.
 pub struct Follower {
   conversations: Conversations,
   chat_id: i64,
-  drawn: Mutex<Option<(Value, i64)>>,
+  // The slot the turn's picture stands in.
+  slot: u64,
+  told: Mutex<Told>,
   offered: Mutex<Option<Paragraph>>,
 }
 
@@ -3293,7 +3310,8 @@ impl Follower {
     Self {
       conversations: conversations.clone(),
       chat_id,
-      drawn: Mutex::new(None),
+      slot: FOLLOWERS.fetch_add(1, Ordering::Relaxed),
+      told: Mutex::new(Told::default()),
       offered: Mutex::new(None),
     }
   }
@@ -3589,6 +3607,7 @@ impl Follower {
   // pushes grew the round by is the round's to decide on.
   pub fn finish(&self) -> Option<Carried> {
     self.offered().take();
+    self.conversations.0.receiver.news().clear_standing(self.slot);
 
     let mut state = self.conversations.state();
     let conv = state.active.get_mut(&self.chat_id)?;
@@ -3597,23 +3616,14 @@ impl Follower {
     conv.carried.take()
   }
 
-  // The turn's picture, published to the room's screens: at once where what the block draws changed, and at
-  // most once a gap where only the counts did.
-  pub fn progressed(&self, picture: Value) {
-    let now = now_ms();
-
-    {
-      let mut drawn = self.drawn.lock().unwrap_or_else(PoisonError::into_inner);
-
-      if let Some((last, at)) = drawn.as_ref()
-        && *last == picture
-        && now - at < CHAT_ROUND.progress.gap_ms as i64
-      {
-        return;
-      }
-
-      *drawn = Some((picture.clone(), now));
-    }
+  // The turn's picture, published to the room's screens where it changed (docs/receiver.md, 「The event stream」).
+  pub fn progressed(&self, progress: &RunProgress) {
+    let told = self.told.lock().unwrap_or_else(PoisonError::into_inner).tell(
+      progress,
+      now_ms(),
+      CHAT_ROUND.progress.gap_ms as i64,
+    );
+    let Some(picture) = told else { return };
 
     let message = self
       .conversations
@@ -3622,7 +3632,8 @@ impl Follower {
       .get(&self.chat_id)
       .and_then(|conv| conv.held.last_consumed_id);
 
-    self.conversations.publish(
+    self.conversations.publish_standing(
+      self.slot,
       json!({ "type": "run-progress", "chatId": self.chat_id, "messageId": message, "progress": picture }),
     );
   }
@@ -3637,6 +3648,13 @@ impl Follower {
       .and_then(|conv| conv.carried.as_ref())
       .map(|carried| carried.pushed.clone())
       .unwrap_or_default()
+  }
+}
+
+// A turn left on a way that never finished it lets its picture go all the same.
+impl Drop for Follower {
+  fn drop(&mut self) {
+    self.conversations.0.receiver.news().clear_standing(self.slot);
   }
 }
 

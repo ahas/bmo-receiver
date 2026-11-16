@@ -159,6 +159,14 @@ pub trait News: Send + Sync {
 
   fn publish(&self, _event: &Value) {}
 
+  /// An event published that also stands, in the slot `slot` names, for a screen that connects later, until another
+  /// takes the slot or it is cleared.
+  fn publish_standing(&self, _slot: u64, event: &Value) {
+    self.publish(event)
+  }
+
+  fn clear_standing(&self, _slot: u64) {}
+
   fn queue_message(&self, _chat_id: i64, _message_id: i64) {}
 
   fn drop_queued(&self, _chat_id: i64) {}
