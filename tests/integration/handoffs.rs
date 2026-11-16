@@ -2,7 +2,9 @@
 //! session」): the route has the agent's standing session write its handoff file and keeps it, a second asking while
 //! one runs waits in line for it, an agent with no opened session writes nothing, and the next fresh session's first turn
 //! opens on the file, then the room's words, then the brain, and a supervisor no handoff was asked for keeps its
-//! session.
+//! session. The asking waits for a round between two turns to end, words said meanwhile and words a failed round
+//! gave back are the fresh session's first turn's new messages, and a round refused because the session is in
+//! another turn waits for it and fails nothing.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,15 +16,19 @@ use bmo_receiver::chat::handoff::{Asking, pending_key};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Inbound, Room};
+use bmo_receiver::routes::routes;
 use bmo_receiver::store::settings;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_policy::drafting::DRAFTING;
 use receiver_ports::agency::Turn;
 use serde_json::json;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{post, stood};
-use crate::integration::common::session::{StandInSession, prompt_documents, writing_handoff};
+use crate::integration::common::queue::{TOKEN, post, posted_to, stood};
+use crate::integration::common::session::{
+  StandInSession, handoff_path, prompt_documents, writing_handoff,
+};
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, deployment, registration, unrun, woken,
 };
@@ -382,20 +388,31 @@ fn worded(message_id: i64, text: &str) -> Inbound {
 }
 
 // A receiver whose default answerer keeps one session across its rooms, stood with documents, a chat service
-// holding the owner's chat, the agent registered, the session given, and a runner ready for its rounds.
+// holding the owner's chat, the agent registered, the session given, and a runner ready for its rounds and
+// taking the handoffs asked of it, as the service holds it. No round updates the room's situation note first, so
+// a round's own turn is the first it sends. `reviewing` has each round's message go through the review gate's
+// turn after the draft's, so a round spans two turns.
 async fn stood_handing(
   session: Arc<StandInSession>,
+  reviewing: bool,
 ) -> (Scratch, tempfile::TempDir, crate::integration::common::units::Standing, Runner) {
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  if reviewing {
+    crate::integration::common::session::drafting(scratch.db(), &["final"], 150).await;
+  } else {
+    crate::integration::common::session::no_drafting(scratch.db()).await;
+  }
 
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
   prompt_documents(data.path());
 
-  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+  let mut standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+
+  standing.receiver = standing.receiver.with_situation_updates(false).with_review_gate(reviewing);
+
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
   let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
@@ -404,14 +421,222 @@ async fn stood_handing(
   standing.agency.registering(vec![agent]);
   standing.agency.carrying_on(session.clone());
   receiver.hold_runner(Arc::new(runner.clone()));
+  receiver.clone().hold_touching(Arc::new(runner.clone()));
 
   (scratch, data, standing, runner)
+}
+
+// Waits, bounded, until `holds` says so.
+async fn until_that(what: &str, holds: impl Fn() -> bool) {
+  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+    while !holds() {
+      tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+  })
+  .await;
+
+  assert!(waited.is_ok(), "{what} never came");
+}
+
+// Waits, bounded, until a handoff of the agent is being asked, holding the agent's line.
+async fn until_asking() {
+  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+    while tokio::time::timeout(Duration::ZERO, Asking::begin(AGENT)).await.is_ok() {
+      tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+  })
+  .await;
+
+  assert!(waited.is_ok(), "the handoff was never asked");
+}
+
+// The agency's asking for the agent's handoff, sent to the receiver's routes apart from the test.
+fn asked_handoff(
+  standing: &crate::integration::common::units::Standing,
+) -> tokio::task::JoinHandle<(StatusCode, serde_json::Value)> {
+  let routes = routes(standing.receiver.clone(), TOKEN);
+
+  tokio::spawn(async move {
+    posted_to(
+      routes,
+      "/handoffs/agent-a",
+      json!({ "reason": "a fresh session replaces the one the agent had" }),
+    )
+    .await
+  })
+}
+
+#[tokio::test]
+async fn a_handoff_asked_while_a_round_is_between_two_turns_waits_for_the_round_to_end() {
+  let session = Arc::new(
+    StandInSession::new("agent-a@agent", "unscripted")
+      .answering(&["the message", "PASS"])
+      .showing_reviews()
+      .holding_the_first()
+      .holding_turn(2)
+      .busy()
+      .acting(writing_handoff(NOTE)),
+  );
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), true).await;
+
+  standing
+    .receiver
+    .message(&worded(1, "what is new"), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until_that("the draft's turn", || session.working()).await;
+
+  // The agency asks while the draft's turn works; the review's turn is still to come.
+  let asked = asked_handoff(&standing);
+
+  until_asking().await;
+  session.let_go();
+  until_that("the second turn", || session.prompts().len() == 2 && session.working()).await;
+
+  // The handoff has asked no turn of the session while the round went on.
+  assert_eq!(session.refused(), 0, "the handoff was refused by a turn of the round");
+  assert!(
+    session.prompts()[1].contains(&DRAFTING.review.marker),
+    "the round's review went second: {:#?}",
+    session.prompts()
+  );
+  session.let_go();
+
+  let (status, body) = asked.await.unwrap();
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  until_turns(&runner, &session, 3).await;
+
+  let prompts = session.prompts();
+
+  assert!(
+    handoff_path(&prompts[2]).is_some(),
+    "the handoff was asked once the round ended: {prompts:#?}"
+  );
+  assert_eq!(session.refused(), 0, "no turn of the round was refused");
+}
+
+#[tokio::test]
+async fn words_said_while_a_session_is_handed_off_are_the_fresh_sessions_first_turns_new_messages() {
+  const MEANWHILE: &str = "words said while the handoff was asked";
+
+  let session = Arc::new(
+    StandInSession::new("agent-a@agent", "Here.")
+      .holding_the_first()
+      .busy()
+      .acting(writing_handoff(NOTE)),
+  );
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+  let asked = asked_handoff(&standing);
+
+  until_that("the handoff's turn", || session.working()).await;
+  standing
+    .receiver
+    .message(&worded(1, MEANWHILE), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until_that("the words waiting for the agent's turn", || {
+    runner.of(AGENT).is_active(OWNER) && !runner.idle()
+  })
+  .await;
+  session.let_go();
+
+  let (status, body) = asked.await.unwrap();
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  until_turns(&runner, &session, 2).await;
+
+  let first = &session.prompts()[1];
+  let note = first.find(NOTE).unwrap_or_else(|| panic!("the handoff is not carried: {first}"));
+  let words = first.find(MEANWHILE).unwrap_or_else(|| panic!("the words are not carried: {first}"));
+
+  assert!(note < words, "the handoff, then the words: {first}");
+  assert!(first.contains(r#""messageIds":[1]"#), "the turn stands under the words: {first}");
+  assert_eq!(session.refused(), 0, "the round waited behind the handoff");
+}
+
+#[tokio::test]
+async fn words_a_failed_round_gave_back_go_to_the_fresh_sessions_first_turn_once_the_handoff_ends() {
+  const WAITING: &str = "words the old session never answered";
+
+  let session = Arc::new(StandInSession::new("agent-a@agent", "Here.").acting(writing_handoff(NOTE)));
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+
+  // The program dies under the round the words open, so the round fails and gives them back.
+  session.end_as(Some(json!({ "outcome": "failed", "reason": "the program died" })));
+  standing
+    .receiver
+    .message(&worded(1, WAITING), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until_that("the failed round's end", || {
+    session.prompts().len() == 1 && !runner.of(AGENT).is_active(OWNER) && runner.idle()
+  })
+  .await;
+  session.end_as(None);
+
+  let (status, body) = asked_handoff(&standing).await.unwrap();
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  until_turns(&runner, &session, 3).await;
+
+  let first = &session.prompts()[2];
+  let note = first.find(NOTE).unwrap_or_else(|| panic!("the handoff is not carried: {first}"));
+  let words = first.find(WAITING).unwrap_or_else(|| panic!("the words are not carried: {first}"));
+
+  assert!(note < words, "the handoff, then the words: {first}");
+  assert!(first.contains(r#""messageIds":[1]"#), "the turn stands under the words: {first}");
+}
+
+#[tokio::test]
+async fn a_round_refused_because_the_session_is_in_another_turn_waits_for_it_and_counts_no_failure() {
+  const WORDS: &str = "words that meet the session working";
+
+  let session = Arc::new(StandInSession::new("agent-a@agent", "Here.").holding_the_first().busy());
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+
+  // A turn the receiver did not send holds the session, as the agency's own does.
+  let working = {
+    let session = session.clone();
+
+    tokio::spawn(async move {
+      session
+        .turn(&Turn {
+          session: "agent-a@agent".to_owned(),
+          prompt: "a turn of the agency's own".to_owned(),
+          room: None,
+          via: None,
+          privileged: None,
+          answers: vec![],
+          began: None,
+          round: None,
+          key: None,
+        })
+        .await
+    })
+  };
+
+  until_that("the other turn", || session.working()).await;
+  standing
+    .receiver
+    .message(&worded(1, WORDS), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until_that("the round's turn refused", || session.refused() > 0).await;
+  session.let_go();
+  working.await.unwrap().unwrap();
+  until_turns(&runner, &session, 2).await;
+
+  let sent = &session.prompts()[1];
+
+  assert!(sent.contains(WORDS), "the round sent its turn again once the other ended: {sent}");
+  assert!(sent.contains(r#""messageIds":[1]"#), "{sent}");
 }
 
 #[tokio::test]
 async fn a_supervisor_no_handoff_was_asked_for_keeps_the_session_its_next_turn_resumes() {
   let session = Arc::new(StandInSession::new("agent-a@standing", "Here."));
-  let (scratch, _data, standing, runner) = stood_handing(session.clone()).await;
+  let (scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
   let receiver = standing.receiver.clone();
 
   receiver

@@ -248,6 +248,18 @@ pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
   true
 }
 
+/// The end of the turn holding the session, heard on the round's stream while its own turn was refused; a
+/// re-attachment that finds no turn named ends the wait as well, and the send made again tells whether the session
+/// is free.
+async fn other_turn_ended(followed: &mut Followed) -> Result<(), Failure> {
+  loop {
+    match followed.next().await? {
+      Step::Ended(_) | Step::Unnamed => return Ok(()),
+      Step::Event(_) => {}
+    }
+  }
+}
+
 /// Why the agency's answer to a session operation ended the turn: uncounted where the agency did not answer.
 fn fault_of(why: PortFailure) -> Failure {
   super::attach::failure_of(why)
@@ -872,6 +884,9 @@ impl Carry {
     let mut picture = RunProgress::starting(&handed);
     let mut after: i64 = 0;
     let mut ended: Option<Value> = None;
+    // An end heard while the send is unanswered and the round's turn unnamed, kept aside until the send says
+    // whose it was: the round's own where the send went in, the turn holding the session where it was refused.
+    let mut early: Option<Value> = None;
     let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
     let mut quiet_until: Option<tokio::time::Instant> = None;
 
@@ -881,8 +896,9 @@ impl Carry {
       // A look offers the working turn the words that came for its room and reads its run's log as an event
       // does, so the picture moves while the turn works between its events.
       let looked = tokio::select! {
-        step = followed.next() => {
+        step = followed.next(), if early.is_none() => {
           match step? {
+            Step::Ended(end) if !sent_done && followed.turn().is_none() => early = Some(end),
             Step::Ended(end) => ended = Some(end),
             Step::Event(Event { kind, .. }) => {
               if kind == "system-prompt-changed"
@@ -922,13 +938,45 @@ impl Carry {
           sent_done = true;
 
           match done {
-            Ok(Ok(delivery)) => delivered = Some(delivery),
+            Ok(Ok(delivery)) => {
+              delivered = Some(delivery);
+              ended = early.take();
+            }
+            // The session is in another turn, a handoff's, a replacement's or one the agency runs of its own: the
+            // round waits for that turn's end and sends its own again, counting nothing (docs/bmo-window.md,
+            // 「Rounds」). The stream is opened anew past that end, so it is never read as the round's own.
+            Ok(Err(why)) if handoff::busy(&why) => {
+              eprintln!(
+                "session {}: its turn was refused, the session being in another turn; the round waits for that \
+                 turn to end and sends its own again: {why}",
+                session.id
+              );
+
+              if early.take().is_none() {
+                other_turn_ended(&mut followed).await?;
+              }
+
+              let past = followed.mark().or(mark);
+
+              followed =
+                Followed::open(agency.clone(), &session.id, TURN_KINDS, past, receiver.re_attach_pace()).await;
+
+              let sent = turn.clone();
+              let port = agency.clone();
+
+              sending = tokio::spawn(async move { port.turn(&sent).await });
+              sent_done = false;
+            }
             Ok(Err(why)) if super::attach::unreachable(&why) => {
               eprintln!("session {}: the turn's send was cut: {why}", session.id);
+              ended = early.take();
               followed.cut();
             }
             Ok(Err(why)) => return Err(fault_of(why)),
-            Err(_) => followed.cut(),
+            Err(_) => {
+              ended = early.take();
+              followed.cut();
+            }
           }
 
           false

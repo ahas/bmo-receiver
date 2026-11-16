@@ -441,6 +441,9 @@ pub struct Receiver {
   // The agents whose one session is being replaced now, each with the rooms told so during this replacement
   // (docs/unified-bmo.md, 「Replacing the session」).
   replacing: Arc<std::sync::Mutex<std::collections::HashMap<String, std::collections::HashSet<i64>>>>,
+  // How many replacements and handoffs of each agent's session have ended since the service stood, by which a
+  // round tells that its session was replaced while it went.
+  handovers: Arc<std::sync::Mutex<std::collections::HashMap<String, u64>>>,
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
   // stands the receiver without that turn.
   situation_updates: bool,
@@ -515,6 +518,7 @@ impl Receiver {
       place: Arc::default(),
       launches: Arc::default(),
       replacing: Arc::default(),
+      handovers: Arc::default(),
       situation_updates: true,
       review_gate: true,
       re_attach_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.attach.pace_ms.max(1)),
@@ -544,9 +548,26 @@ impl Receiver {
       .insert(agent.to_owned(), Default::default());
   }
 
-  /// The replacement over: the mark and the rooms told go.
+  /// The replacement over: the mark and the rooms told go, and the agent's count of handovers moves.
   pub fn replacing_ends(&self, agent: &str) {
     self.replacing.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(agent);
+    *self
+      .handovers
+      .lock()
+      .unwrap_or_else(std::sync::PoisonError::into_inner)
+      .entry(agent.to_owned())
+      .or_default() += 1;
+  }
+
+  /// How many replacements and handoffs of the agent's session have ended since the service stood.
+  pub fn handovers(&self, agent: &str) -> u64 {
+    self
+      .handovers
+      .lock()
+      .unwrap_or_else(std::sync::PoisonError::into_inner)
+      .get(agent)
+      .copied()
+      .unwrap_or(0)
   }
 
   /// Whether the agent's session is being replaced now and this room has not yet been told; telling it is the

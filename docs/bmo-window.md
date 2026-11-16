@@ -171,7 +171,13 @@ that session without the room hearing it.
   counted on each row the round took (`failures`), and a row counted the policy's `failure_limit` times is let go
   as `failed` with the round that failed last, whose failure order still stands. A failure where the agency was
   unreachable, cut the turn's connection or holds no record of the turn counts nothing: no row and no word is
-  ever let go for it, and the instruction pass holds the agent's rows until the agency answers again. A stop
+  ever let go for it, and the instruction pass holds the agent's rows until the agency answers again.
+- **A turn refused because its session is in another turn is no failure.** The agency refuses a turn sent to a
+  session already working (409); whatever holds the session — a handoff, a replacement, a turn the agency runs of
+  its own — the round waits for that turn's end on the agency's event stream, however long it takes, and sends its
+  own turn again, counting nothing on its rows or its words. The end of the other turn is never read as the
+  round's own: an end heard before the refusal was answered, while the round's turn is still unnamed, is kept
+  aside until the send says whose it was. A stop
   asked of a round raises no order at all and lets its rows go as `stopped`. The words a failed round took go
   back to wait the same way and are counted the same way (`docs/messages.md`, 「Read marker」).
 - **A turn is a resource the round re-attaches to, never one held call.** The round sends its turn under a key of

@@ -281,9 +281,16 @@ that wants something said there hands the words to that supervisor, and the supe
   of it puts the marker back where it stood before the round, and the words it took, with those that came in while it
   worked, wait for the room's next round, whatever opens it — the failure order among them. They are that
   round's new messages, so its turn stands under them as the failed one did: its speakers, its reference, its
-  reply and what the owner is owed. Words given back the instruction policy's `restart_limit` times are left
-  read with the round that failed last, whose failure order still stands. They are kept by the running service
-  alone: after a restart the backlog finds them unread.
+  reply and what the owner is owed. Only a failure the agency answered is counted on them, and words counted the
+  round policy's `failure_limit` times are left read with the round that failed last, whose failure order still
+  stands; a turn refused because the session is in another turn is no failure, since the round waits for that
+  turn and sends its own again (`docs/bmo-window.md`, 「Rounds」). They are kept by the running service alone:
+  after a restart the backlog finds them unread.
+- **Words a replaced session left unanswered are the fresh session's.** Where the agent's one session is replaced
+  or handed off, the words it never answered — given back by a failed round, buffered for a round still to come,
+  or arrived while the handover held the agent's turn — go to the fresh session's first turn in their room as
+  its new messages, right behind the handoff note, and the failures the old session counted on them are cleared
+  (`docs/unified-bmo.md`, 「Replacing the session」).
 - **It only ever moves forward in the room's line:** a conversation handed older words after newer ones still marks
   the newest it read.
 - **The brain's read marks are another record:** one per agent and message, kept for its recollectors

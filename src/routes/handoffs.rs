@@ -26,7 +26,8 @@ pub struct Asked {
 }
 
 /// 200 with the file's path and size where the standing session wrote it, 204 where the agent has no session to
-/// ask or it wrote nothing. A session already in a turn is waited for until that turn ends. An asking while a
+/// ask or it wrote nothing. A round of the agent's under way is waited for to its end, and a session already in a
+/// turn until that turn ends. An asking while a
 /// handoff of the same agent is under way waits for it in line, and is then answered by the handoff kept, as an
 /// asking again within the policy's span is.
 pub async fn hand_off(
@@ -59,10 +60,14 @@ pub async fn hand_off(
     None => {
       println!("{agent}: a handoff asked ahead of a fresh session ({reason})");
 
-      Carry::new(receiver.clone())
-        .hand_off(&agent, asked.room)
-        .await
-        .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.reason()))?
+      // The asking stands behind the agent's round, as an owed replacement does, wherever its conversations
+      // stand.
+      let handed = match receiver.touching() {
+        Some(touching) => touching.hand_off(receiver, &agent, asked.room).await,
+        None => Carry::new(receiver.clone()).hand_off(&agent, asked.room).await,
+      };
+
+      handed.map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.reason()))?
     }
   };
 

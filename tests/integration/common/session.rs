@@ -61,8 +61,10 @@ pub struct StandInSession {
   hide_review: Mutex<bool>,
   // The words a turn's prompt holds for the session to refuse it, as an agency that cannot carry it answers.
   refusing: Mutex<Option<String>>,
-  // Whether a turn asked while another works is refused as the agency refuses a session in a turn.
+  // Whether a turn asked while another works is refused as the agency refuses a session in a turn, and how many
+  // were refused so.
   busy: Mutex<bool>,
+  refused: Mutex<usize>,
 }
 
 impl StandInSession {
@@ -91,6 +93,7 @@ impl StandInSession {
       hide_review: Mutex::new(true),
       refusing: Mutex::default(),
       busy: Mutex::default(),
+      refused: Mutex::default(),
     }
   }
 
@@ -98,6 +101,11 @@ impl StandInSession {
   pub fn busy(self) -> Self {
     *self.busy.lock().unwrap() = true;
     self
+  }
+
+  /// How many turns were refused because another worked.
+  pub fn refused(&self) -> usize {
+    *self.refused.lock().unwrap()
   }
 
   /// A turn whose prompt holds `words` is refused, kept out of `prompts`.
@@ -289,6 +297,8 @@ impl StandInSession {
   pub fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>> {
     Box::pin(async move {
       if *self.busy.lock().unwrap() && *self.working.lock().unwrap() {
+        *self.refused.lock().unwrap() += 1;
+
         return Err(receiver_ports::PortFailure::Answered {
           url: format!("http://agency.invalid/sessions/{}/turns", self.id),
           status: 409,

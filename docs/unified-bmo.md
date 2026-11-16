@@ -289,8 +289,12 @@
   session for an agent that had one — the kept session gone, a program stood anew that cannot resume it, its own
   restart — it asks the receiver first (`POST /handoffs/{agentName}`, `docs/api.md`, 「Handoffs」), and the receiver
   asks the agent's standing session, usually still alive in its pane, for its handoff file exactly as a
-  replacement does, waited on until its turn ends. A session already in a turn is waited for: the asking waits
-  for that turn's end on the agency's event stream and asks again, however long it takes. The agency lets its
+  replacement does, waited on until its turn ends. The asking stands behind the agent's turn as an owed
+  replacement does: a round under way is waited for to its end, not only the turn it is in, so no round is cut
+  between two of its turns; and while the handoff is asked the agent's turn is held, so words that arrive wait
+  for the fresh session and the room hears the `memory-tidying` line as above. A session already in a turn the
+  receiver did not send is waited for: the asking waits for that turn's end on the agency's event stream and asks
+  again, however long it takes. The agency lets its
   record of the session go before it asks, so the state it answers names no generation while the program still
   stands; the receiver reads no generation to decide whether to ask, and the asking itself tells whether there
   was a session to ask. A second asking for the same agent while one is under way waits in line behind it. The
@@ -312,6 +316,15 @@
   while the handover was under way and the old session never read stands right behind the handoff, up to the
   archived block's cap: the newest of them, with a line counting the older ones left in the room's archive
   (`docs/bmo-window.md`, 「What every turn carries」); the room's block carries the brain's index at that opening.
+- **Every word the old session left unanswered is the fresh session's to answer.** Words a failed round gave back,
+  words buffered for a round still to come and words that arrived while the handover held the agent's turn go to
+  the fresh session's first turn in their room as its new messages, right behind the handoff note, never only as
+  the archive's: once a handoff or a replacement made while the agent was quiet ends, each room holding words a
+  failed round gave back opens its round on them, and the failures the old session counted on them are cleared,
+  so none is let go as read for what the old session could not do (`docs/messages.md`, 「Read marker」). A round
+  refused because the session is held by the handoff never fails for it: the handoff holds the agent's turn, so
+  the round waits behind it, and a refusal of any other turn in the session is waited out as
+  `docs/bmo-window.md`, 「Rounds」 states.
 - **The brain's index rides the room's block, not the turn.** The block goes in full when the session opens on
   a room, and that opening block carries the room's groups with their unread counts and hints as the gate's
   index gives them for the new session (`GET /reference/index`), and the index's one hint; where the brain says

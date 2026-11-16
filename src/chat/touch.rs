@@ -323,4 +323,13 @@ impl crate::chat::conversation::Touching for Conversations {
   fn settle_owed<'a>(&'a self, _receiver: &'a Receiver, _agent: &'a str) -> BoxFuture<'a, bool> {
     Box::pin(async move { Conversations::settle_owed(self).await })
   }
+
+  fn hand_off<'a>(
+    &'a self,
+    _receiver: &'a Receiver,
+    _agent: &'a str,
+    room: Option<i64>,
+  ) -> BoxFuture<'a, Result<Option<super::handoff::Handoff>, super::conversation::Failure>> {
+    Box::pin(async move { Conversations::hand_off(self, room).await })
+  }
 }

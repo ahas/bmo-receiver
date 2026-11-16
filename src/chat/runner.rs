@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use super::conversation::{BoxFuture, Conversations, Hooks, Talking, Timings, Touching, Typing};
+use super::conversation::{BoxFuture, Conversations, Failure, Hooks, Talking, Timings, Touching, Typing};
 use super::talk::{TalkFailure, TalkRequest};
 use super::touch::TouchAnswer;
 use crate::Fault;
@@ -163,6 +163,15 @@ impl Touching for Runner {
 
   fn settle_owed<'a>(&'a self, _receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool> {
     Box::pin(async move { self.of(agent).settle_owed().await })
+  }
+
+  fn hand_off<'a>(
+    &'a self,
+    _receiver: &'a Receiver,
+    agent: &'a str,
+    room: Option<i64>,
+  ) -> BoxFuture<'a, Result<Option<super::handoff::Handoff>, Failure>> {
+    Box::pin(async move { self.of(agent).hand_off(room).await })
   }
 }
 

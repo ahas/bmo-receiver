@@ -67,7 +67,7 @@ pub fn read(path: &Path) -> Option<Handoff> {
 }
 
 /// Whether the agency answered that the session is in a turn and takes no other until it ends.
-fn busy(why: &PortFailure) -> bool {
+pub fn busy(why: &PortFailure) -> bool {
   why.status() == Some(409)
 }
 

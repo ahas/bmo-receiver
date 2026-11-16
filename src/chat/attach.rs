@@ -49,11 +49,12 @@ pub enum Step {
   Unnamed,
 }
 
-/// The turn's id and run, once the agency named them.
+/// The turn's id and run, once the agency named them, and the number of the last event heard.
 #[derive(Clone, Debug, Default)]
 struct Named {
   turn: Option<i64>,
   run: Option<String>,
+  mark: Option<i64>,
 }
 
 /// The turn a round follows on one session, followed on a task of its own so that no step of a re-attachment is
@@ -134,6 +135,11 @@ impl Followed {
   pub fn run(&self) -> Option<String> {
     self.named.lock().unwrap_or_else(PoisonError::into_inner).run.clone()
   }
+
+  /// The number of the last of the agency's events the following heard, where one carried a number.
+  pub fn mark(&self) -> Option<i64> {
+    self.named.lock().unwrap_or_else(PoisonError::into_inner).mark
+  }
 }
 
 impl Drop for Followed {
@@ -189,6 +195,7 @@ impl Attached {
   // turn followed, or of the only turn the session carried since the turn went out.
   fn heard(&mut self, event: &Event) -> Option<Step> {
     self.mark = event.id.or(self.mark);
+    self.named.lock().unwrap_or_else(PoisonError::into_inner).mark = self.mark;
 
     if !self.mine(event) {
       return None;

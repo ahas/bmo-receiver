@@ -381,6 +381,15 @@ pub trait Touching: Send + Sync {
   /// The replacement the agent's one session owes made now where the agent is quiet: true where one was made,
   /// false where none was owed or a round holds the agent's turn, which makes it once it ends.
   fn settle_owed<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
+
+  /// The agent's standing session asked for its handoff ahead of a fresh session the agency opens, behind any
+  /// round of the agent's: the file it wrote, none where it had no session to ask or wrote nothing.
+  fn hand_off<'a>(
+    &'a self,
+    receiver: &'a Receiver,
+    agent: &'a str,
+    room: Option<i64>,
+  ) -> BoxFuture<'a, Result<Option<super::handoff::Handoff>, Failure>>;
 }
 
 /// What the window hands a line a person typed into the agent's program (docs/bmo-window.md, 「A line typed into
@@ -980,13 +989,97 @@ impl Conversations {
   }
 
   // The owed replacement made by whoever holds the agent's turn, where no words wait; words that arrive while
-  // it is made wait for the fresh session.
+  // it is made wait for the fresh session, and words failed rounds gave back go to it.
   async fn settle_owed_behind_turn(&self) -> bool {
     if !self.quiet() {
       return false;
     }
 
-    super::ask::replace_owed(&self.0.receiver, self.agent()).await
+    let replaced = super::ask::replace_owed(&self.0.receiver, self.agent()).await;
+
+    if replaced {
+      self.hand_given_back(None).await;
+    }
+
+    replaced
+  }
+
+  /// The agent's standing session asked for its handoff ahead of a fresh session the agency opens
+  /// (docs/unified-bmo.md, 「Replacing the session」), behind the agent's turn as an owed replacement is: a round
+  /// under way is waited for to its end, not only the turn it is in, and words that arrive meanwhile wait for the
+  /// fresh session. Once it is asked, the words failed rounds gave back go to the fresh session's first turn in
+  /// their rooms.
+  pub async fn hand_off(&self, room: Option<i64>) -> Result<Option<super::handoff::Handoff>, Failure> {
+    let turn = self.0.turn.lock().await;
+    let handed = Carry::new(self.0.receiver.clone()).hand_off(self.agent(), room).await;
+
+    if handed.is_ok() {
+      self.hand_given_back(None).await;
+    }
+
+    drop(turn);
+    handed
+  }
+
+  // The words failed rounds gave back while the agent's old session stood, each room's put at the front of what
+  // waits for its next round and that round opened on them, so the fresh session's first turn in the room holds
+  // them as its new messages (docs/messages.md, 「Read marker」). The failures the old session counted on them are
+  // cleared. `except` is a room whose words a round failed on the fresh session gave back, left as they stand.
+  // Called by whoever holds the agent's turn: the rounds it opens wait for it.
+  async fn hand_given_back(&self, except: Option<i64>) {
+    let backs: Vec<(i64, GivenBack)> = {
+      let mut state = self.state();
+      let rooms: Vec<i64> =
+        state.given_back.keys().copied().filter(|chat_id| Some(*chat_id) != except).collect();
+
+      rooms
+        .into_iter()
+        .filter_map(|chat_id| state.given_back.remove(&chat_id).map(|back| (chat_id, back)))
+        .collect()
+    };
+
+    for (chat_id, back) in backs {
+      let back = GivenBack { times: 0, ..back };
+      let held = self.held_session(chat_id).await;
+      let window = self.window_ms().await;
+      let owner = self.owner();
+      let pumps = {
+        let mut state = self.state();
+
+        match state.active.entry(chat_id) {
+          std::collections::hash_map::Entry::Occupied(mut standing) => {
+            let conv = standing.get_mut();
+
+            conv.take_back(back);
+            !conv.in_flight
+          }
+          std::collections::hash_map::Entry::Vacant(vacant) => {
+            let mut conv = Conv::new(chat_id, back.room, held);
+
+            conv.take_back(back);
+            conv.reply_target = conv
+              .buffer
+              .iter()
+              .rev()
+              .find(|message| !message.via_reader.unwrap_or(false))
+              .map(|message| message.message_id);
+            conv.held.all_from_owner = conv.buffer.iter().all(|message| message.sender_id == Some(owner));
+            self.set_deadline(&mut conv, chat_id, window, false);
+            vacant.insert(conv);
+            true
+          }
+        }
+      };
+
+      println!(
+        "chat {chat_id}: the words a failed round gave back go to {}'s fresh session",
+        self.agent()
+      );
+
+      if pumps {
+        self.spawn_pump(chat_id, false);
+      }
+    }
   }
 
   // The fixed line telling a room its words wait for the fresh session, said as the agent.
@@ -1569,6 +1662,7 @@ impl Conversations {
     }
 
     let turn_lock = self.0.turn.lock().await;
+    let handovers = self.0.receiver.handovers(self.agent());
     let under_way = self.round_under_way();
     let (messages, instructions, read) = {
       let state = self.state();
@@ -1693,6 +1787,12 @@ impl Conversations {
     self.state().pictured.remove(&chat_id);
     self.0.receiver.news().end_turn(turn);
     self.shown_typing(chat_id, false).await;
+
+    // A session the round replaced ahead of its turn leaves the words failed rounds gave back in other rooms to
+    // the fresh session.
+    if self.0.receiver.handovers(self.agent()) != handovers {
+      self.hand_given_back(Some(chat_id)).await;
+    }
 
     // A replacement the round found owed is made now that it has ended, where no words wait (docs/unified-bmo.md,
     // 「Replacing the session」).

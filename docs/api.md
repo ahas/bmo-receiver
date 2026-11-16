@@ -682,9 +682,12 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **The agency asks this before it opens a fresh session for an agent that had one** (`docs/unified-bmo.md`,
   「Replacing the session」). The receiver asks the agent's standing session — its one session, or the session of
   `room` where it keeps one in each room — for its handoff file as a replacement does, waited on until its turn
-  ends however long it takes, and keeps the file for the next fresh session's first turn, which opens on it. A
-  session already in a turn is waited for: the receiver waits for that turn's end on the agency's event stream and
-  asks again, however long it takes. The handoff turn answers `room`, carrying its block, and the owner's private
+  ends however long it takes, and keeps the file for the next fresh session's first turn, which opens on it. The
+  asking stands behind the agent's round: a round under way is waited for to its end, not only the turn it is in,
+  and the agent's turn is held while the handoff is asked, so words that arrive meanwhile, and words a failed
+  round gave back, go to the fresh session's first turn in their room. A session already in a turn the receiver
+  did not send is waited for: the receiver waits for that turn's end on the agency's event stream and asks again,
+  however long it takes. The handoff turn answers `room`, carrying its block, and the owner's private
   chat where none is named. `reason` names why a fresh session is coming, for the receiver's journal.
 - **The agency lets its record of the session go before it asks,** so the session's state names no generation
   while its program still stands. The receiver reads no generation to decide whether to ask: it asks the standing
