@@ -567,6 +567,25 @@ pub async fn holds_own(
   Ok(row.is_some())
 }
 
+/// Whether a message of a room's record holds any agent's words: one kept as an agent's send, or one filed under
+/// `identity`, the number the room's agents speak under there.
+pub async fn holds_agents(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+  identity: Option<i64>,
+) -> Result<bool, NotReceived> {
+  let row = one(
+    db,
+    r#"SELECT 1 AS "one" FROM "messages" WHERE "chat_id" = $1 AND "message_id" = $2
+       AND ("agent_name" IS NOT NULL OR "sender_id" = $3)"#,
+    vec![chat_id.into(), message_id.into(), identity.into()],
+  )
+  .await?;
+
+  Ok(row.is_some())
+}
+
 /// When an agent's window in a room closes, in epoch milliseconds; zero where none was opened.
 pub async fn window_until(db: &DatabaseConnection, chat_id: i64, agent: &str) -> Result<i64, NotReceived> {
   let row = one(

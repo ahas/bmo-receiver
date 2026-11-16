@@ -153,10 +153,33 @@ fn choosing() -> String {
   format!("2{}", COMMANDS.option_suffixes[0])
 }
 
+// The number of the agent's message in the owner's chat that a talk replies to.
+const AGENTS_WORDS: i64 = 100;
+
+// A message the agent wrote in a room, kept as its send.
+async fn agent_wrote(scratch: &Scratch, chat_id: i64, message_id: i64) {
+  scratch
+    .run(
+      r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via", "agent_name")
+         VALUES ($1, $2, $3, 'Agent A', 1, 'which one should it be?', 'road-a', $4)"#,
+      vec![chat_id.into(), message_id.into(), AGENT_NUMBER.into(), AGENT.into()],
+    )
+    .await;
+}
+
+// The owner's words sent as a reply to the message the number names.
+fn replying(message_id: i64, to: i64, text: &str) -> Inbound {
+  Inbound {
+    reply_to_message_id: Some(to),
+    ..inbound(OWNER, message_id, OWNER, text)
+  }
+}
+
 #[tokio::test]
 async fn the_owner_answering_a_jobs_question_in_his_chat_settles_it_or_talks_over_it_and_wakes_nobody() {
-  let (_scratch, _data, standing) = stood(&[OWNER]).await;
+  let (scratch, _data, standing) = stood(&[OWNER]).await;
 
+  agent_wrote(&scratch, OWNER, AGENTS_WORDS).await;
   standing.job.asking(OWNER, asked(1, false));
   standing
     .receiver
@@ -172,7 +195,7 @@ async fn the_owner_answering_a_jobs_question_in_his_chat_settles_it_or_talks_ove
   standing.job.asking(OWNER, asked(2, true));
   standing
     .receiver
-    .message(&inbound(OWNER, 2, OWNER, "wait, why that one?"), &Context::default(), owners_room())
+    .message(&replying(2, AGENTS_WORDS, "wait, why that one?"), &Context::default(), owners_room())
     .await
     .unwrap();
 
@@ -195,9 +218,10 @@ async fn talk_the_question_itself_refuses_is_taken_as_an_ordinary_message() {
     .into_iter()
     .enumerate()
   {
-    let (_scratch, _data, standing) = stood(&[OWNER]).await;
+    let (scratch, _data, standing) = stood(&[OWNER]).await;
     let id = i64::try_from(id).unwrap() + 1;
 
+    agent_wrote(&scratch, OWNER, AGENTS_WORDS).await;
     standing
       .agency
       .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
@@ -205,7 +229,7 @@ async fn talk_the_question_itself_refuses_is_taken_as_an_ordinary_message() {
     standing.job.refusing_talk(code);
     standing
       .receiver
-      .message(&inbound(OWNER, id, OWNER, "wait, why that one?"), &Context::default(), owners_room())
+      .message(&replying(id, AGENTS_WORDS, "wait, why that one?"), &Context::default(), owners_room())
       .await
       .unwrap_or_else(|why| panic!("a talk refused {code} failed the message: {why}"));
 
@@ -217,6 +241,32 @@ async fn talk_the_question_itself_refuses_is_taken_as_an_ordinary_message() {
     assert_eq!(woken.len(), 1, "a talk refused {code} was not handed on");
     assert_eq!(woken[0].message_id, id);
   }
+}
+
+#[tokio::test]
+async fn the_owners_words_replying_to_no_agents_words_are_no_talk_and_are_answered_as_any_words() {
+  let (scratch, _data, standing) = stood(&[OWNER]).await;
+
+  standing
+    .agency
+    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
+  agent_wrote(&scratch, OWNER, AGENTS_WORDS).await;
+  standing.job.asking(OWNER, asked(1, true));
+
+  // A line about something else, and a reply to his own earlier line, while the question waits.
+  for owners in [
+    inbound(OWNER, 1, OWNER, "the deploy command is typed"),
+    replying(2, 1, "and it went live"),
+  ] {
+    standing.receiver.message(&owners, &Context::default(), owners_room()).await.unwrap();
+  }
+
+  // Neither was written onto the question, so its clock runs on, and both went on to be answered.
+  assert!(standing.job.talked().is_empty());
+  assert!(standing.job.moved().is_empty());
+  let handed: Vec<i64> = standing.taken.handed().iter().map(|turn| turn.message_id).collect();
+
+  assert_eq!(handed, [1, 2]);
 }
 
 #[tokio::test]

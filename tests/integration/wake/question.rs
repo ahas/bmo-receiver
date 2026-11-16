@@ -19,7 +19,7 @@ fn a_number_or_a_piece_of_one_option_chooses_it() {
 }
 
 #[test]
-fn anything_else_is_talk() {
+fn anything_else_chooses_nothing() {
   assert_eq!(chosen_option("4", &options()), None);
   assert_eq!(chosen_option("02", &options()), None);
   assert_eq!(chosen_option("o", &options()), None);

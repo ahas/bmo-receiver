@@ -112,7 +112,7 @@ pub async fn woken_on(
 
   // The console reads a job's questions beside the queue, so a question settled here is news of the same kind
   // as a moved row, and so is one whose clock a talk has stopped.
-  if owner && room.owner_room && question::answered(receiver, chat_id, &inbound.text, basis.text).await? {
+  if owner && room.owner_room && question::answered(receiver, inbound, room, basis.text).await? {
     asked("the queue's standing moved", receiver.units.job.queue_moved(None).await);
 
     return Ok(());

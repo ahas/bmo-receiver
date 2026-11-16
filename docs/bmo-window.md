@@ -106,6 +106,27 @@ is written.
     turn, and goes whether or not that turn could be carried.
   - A line a person types into the agent's program is that person's turn, which the receiver does not ask for;
     the window only composes what goes with it (「A line typed into the program」 below).
+  - The owner's answer to a job's question, taken in his private chat before anybody is woken (「The owner's
+    answer to a job's question」 below).
+
+## The owner's answer to a job's question
+
+- **A question a job put to the owner is answered in his private chat before anybody is woken.** While bmo-job
+  holds a question of that chat waiting for him, his words there are read against it first, against the one
+  asked last where several wait. What is taken there is no turn: it costs no run, wakes nobody, is taken during a
+  rest too, and tells the queue's standing as moved, since the console reads the questions beside the queue.
+- **A choice settles it:** a line of one line naming exactly one of its options, by the option's number as it
+  stands or with the suffix the policy allows after it, or by a piece of text standing in that option alone.
+- **Talk over it is a reply to an agent's words, and nothing else.** A line that chooses nothing is written onto
+  the question as talk only where the owner sent it as a reply to a message an agent wrote in that chat, the
+  message that put the question to him among them, and only where it carries words; bmo-job stops the question's
+  clock on a talk, as its port states. Every other line is an ordinary message, woken on as any words are, so
+  words written about something else while a question waits leave its clock running.
+- **The port names no message for a question,** so the receiver cannot tell the agent's message that put the
+  question apart from the agent's other messages in the chat: a reply to any of them while a question waits is
+  talk over the one asked last. A chat service that cannot point a message at another carries no talk at all.
+- **A talk the question refuses,** because it is gone, takes no talk or is settled already, leaves the line an
+  ordinary message.
 
 ## Quiet instruction
 
