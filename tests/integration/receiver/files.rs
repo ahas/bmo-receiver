@@ -1,7 +1,8 @@
 //! The files a message carried, kept as they are handed over (docs/room-files.md, 「Message files」; docs/pictures.md,
 //! 「Pictures received」): a picture filed under its message, brought down and laid on white where it must be; a sound
 //! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
-//! name kept apart; and a file that could not be written leaving its row for a later hand-over.
+//! name kept apart; a sticker or an animation that moves kept as it came and a sticker's message marked; and a file
+//! that could not be written leaving its row for a later hand-over.
 
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -11,7 +12,8 @@ use bmo_chat_client::{ChatFileKind, GatheredPatch, MessageFile};
 use bmo_receiver::chat::shape::Reading;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Room, rows};
-use image::{ImageFormat, Rgb, RgbImage, Rgba, RgbaImage};
+use image::codecs::gif::GifEncoder;
+use image::{Frame, ImageFormat, Rgb, RgbImage, Rgba, RgbaImage};
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::roads::ROADS;
 
@@ -195,6 +197,90 @@ async fn a_transparent_picture_is_laid_on_white_and_filed_as_a_jpeg() {
 
   assert_eq!(image::guess_format(&kept).unwrap(), ImageFormat::Jpeg);
   assert!(read.pixels().all(|pixel| pixel.0.iter().all(|channel| *channel > 245)), "laid on white");
+}
+
+// A file handed over as what `kind` names.
+fn handed_as(kind: ChatFileKind, file: MessageFile) -> MessageFile {
+  MessageFile {
+    kind: Some(kind),
+    ..file
+  }
+}
+
+// A GIF of two frames of different colours.
+fn moving_gif() -> Vec<u8> {
+  let mut out = vec![];
+  let frames = [Rgba([200, 30, 30, 255]), Rgba([30, 30, 200, 255])]
+    .map(|colour| Frame::new(RgbaImage::from_pixel(8, 8, colour)));
+
+  GifEncoder::new(&mut out).encode_frames(frames).unwrap();
+  out
+}
+
+async fn message_kind(scratch: &Scratch, message_id: i64) -> String {
+  scratch
+    .texts(&format!(
+      r#"SELECT COALESCE("kind", '') FROM "messages" WHERE "chat_id" = {ROOM} AND "message_id" = {message_id}"#
+    ))
+    .await
+    .remove(0)
+}
+
+#[tokio::test]
+async fn a_sticker_that_moves_is_kept_as_it_came_under_its_own_type_and_marks_its_message_a_sticker() {
+  let (scratch, data, standing) = stood().await;
+  let moving = include_bytes!("../../fixtures/sticker-moving.webp").to_vec();
+  let folder = data.path().join(format!("images/{ROOM}"));
+
+  handed(
+    &standing,
+    4,
+    &[handed_as(
+      ChatFileKind::Sticker,
+      file("1", "4412207.emot_001.webp", "image/webp", moving.clone()),
+    )],
+  )
+  .await;
+
+  assert_eq!(image_path(&scratch, 4).await, folder.join("4.webp").to_string_lossy());
+  assert_eq!(std::fs::read(folder.join("4.webp")).unwrap(), moving, "kept byte for byte");
+  assert_eq!(message_kind(&scratch, 4).await, "sticker");
+
+  // The same picture handed over as a photo is drawn as any picture is.
+  handed(&standing, 5, &[file("1", "photo.webp", "image/webp", moving)]).await;
+
+  assert_eq!(image_path(&scratch, 5).await, folder.join("5.jpg").to_string_lossy());
+  assert_eq!(message_kind(&scratch, 5).await, "");
+}
+
+#[tokio::test]
+async fn an_animation_of_frames_is_kept_as_a_gif_and_a_still_sticker_is_drawn_as_any_picture_and_marked() {
+  let (scratch, data, standing) = stood().await;
+  let folder = data.path().join(format!("images/{ROOM}"));
+  let gif = moving_gif();
+  let still = encoded(RgbaImage::from_pixel(8, 8, Rgba([0, 0, 0, 0])).into(), ImageFormat::Png);
+
+  handed(
+    &standing,
+    6,
+    &[handed_as(ChatFileKind::Animation, file("1", "loop.gif", "image/gif", gif.clone()))],
+  )
+  .await;
+  handed(
+    &standing,
+    7,
+    &[handed_as(ChatFileKind::Sticker, file("1", "still.png", "image/png", still))],
+  )
+  .await;
+
+  assert_eq!(std::fs::read(folder.join("6.gif")).unwrap(), gif, "kept byte for byte");
+  assert_eq!(message_kind(&scratch, 6).await, "", "an animation is no sticker");
+  assert_eq!(image_path(&scratch, 7).await, folder.join("7.jpg").to_string_lossy());
+  assert_eq!(
+    image::guess_format(&std::fs::read(folder.join("7.jpg")).unwrap()).unwrap(),
+    ImageFormat::Jpeg
+  );
+  assert_eq!(message_kind(&scratch, 7).await, "sticker");
 }
 
 #[tokio::test]

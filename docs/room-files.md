@@ -51,7 +51,8 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 - **A row's kind is what the file is:** `sticker` for a file the chat service hands over as a sticker and
   `animation` for one it hands over as an animation (bmo-chat's `docs/contract.md`, 「Files」), where the file is no
   picture; otherwise its type's, `audio`, `video` or `document`. A picture a sticker or an animation came as is
-  filed in the picture store as any picture is. A row kept before the chat service's kind was read takes `sticker`
+  filed in the picture store, as it came where it moves, and a sticker's message is marked a sticker
+  (`docs/pictures.md`, 「Pictures received」). A row kept before the chat service's kind was read takes `sticker`
   where its file is named as a sticker, `sticker-` at the head of its name.
 - **A video or an animation with no file name of its own** is filed as `video` with the extension its type
   implies, and a sound with none as `voice` with its own (`policy/roads.toml`, `gathering`).

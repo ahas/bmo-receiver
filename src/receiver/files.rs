@@ -17,6 +17,7 @@ use sea_orm::DatabaseConnection;
 use super::Inbound;
 use super::pictures::{self, Keeping};
 use crate::data_root::{DataRoot, room_path};
+use crate::roads::record::mark_sticker;
 use crate::{Fault, all, now_ms, one, run};
 
 /// A file a message carried, as the receiver holds it until it is filed: whole in memory, as a chat service hands
@@ -173,7 +174,29 @@ pub async fn keep(
   Ok(())
 }
 
-// One picture filed under its message, the first as `<message>.jpg` and its path on the row: whether it was kept.
+/// The extensions a message's picture is filed under: `jpg` as the store draws a picture, or the moving one's own
+/// that a sticker or an animation is kept as (`pictures::moving`).
+const FILED_AS: [&str; 3] = ["jpg", "webp", "gif"];
+
+// The name a message's picture is filed under: the first as `<message>.<extension>`, a later one with its place.
+fn picture_name(message_id: i64, before: usize, extension: &str) -> String {
+  match before {
+    0 => format!("{message_id}.{extension}"),
+    n => format!("{message_id}-{n}.{extension}"),
+  }
+}
+
+/// The later picture of a message at `place`, from 1, where one stands in its room's folder of the picture store.
+pub fn later_picture(folder: &Path, message_id: i64, place: usize) -> Option<PathBuf> {
+  FILED_AS
+    .iter()
+    .map(|extension| folder.join(picture_name(message_id, place, extension)))
+    .find(|path| path.is_file())
+}
+
+// One picture filed under its message, the first's path on the row: whether it was kept. A sticker or an animation
+// that moves is filed as it came under its own extension, any other picture as the store draws it; a sticker marks
+// its message a sticker (docs/pictures.md, 「Pictures received」).
 async fn picture(
   db: &DatabaseConnection,
   data_root: &DataRoot,
@@ -182,11 +205,6 @@ async fn picture(
   file: &impl Handed,
   before: usize,
 ) -> Result<bool, Fault> {
-  let name = match before {
-    0 => format!("{message_id}.jpg"),
-    n => format!("{message_id}-{n}.jpg"),
-  };
-  let path = room_path(&data_root.images(), chat_id).join(name);
   let filed = &ROADS.pictures;
   let keeping = Keeping {
     threshold_bytes: filed.kept_threshold_bytes,
@@ -202,7 +220,12 @@ async fn picture(
       return Ok(false);
     }
   };
-  let kept = match tokio::task::spawn_blocking(move || pictures::kept(bytes, keeping)).await {
+  let may_move = matches!(file.kind(), Some(ChatFileKind::Sticker | ChatFileKind::Animation));
+  let filing = move || match pictures::moving(&bytes).filter(|_| may_move) {
+    Some(extension) => (bytes, extension),
+    None => (pictures::kept(bytes, keeping), "jpg"),
+  };
+  let (kept, extension) = match tokio::task::spawn_blocking(filing).await {
     Ok(kept) => kept,
     Err(why) => {
       eprintln!("bmo-receiver: the picture of message {message_id} was not kept: {why}");
@@ -211,6 +234,8 @@ async fn picture(
       return Ok(false);
     }
   };
+
+  let path = room_path(&data_root.images(), chat_id).join(picture_name(message_id, before, extension));
 
   if let Err(why) = written(&path, &kept).await {
     eprintln!("bmo-receiver: the picture of message {message_id} was not kept: {why}");
@@ -230,6 +255,10 @@ async fn picture(
       ],
     )
     .await?;
+  }
+
+  if file.kind() == Some(ChatFileKind::Sticker) {
+    mark_sticker(db, chat_id, message_id).await?;
   }
 
   Ok(true)

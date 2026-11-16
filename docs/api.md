@@ -311,7 +311,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
   `transcript` (the words heard in a voice note, or null), `voiceSeconds` (how long the recording ran, or null),
-  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker`, `thinking` for a thinking block a record holds as a message, or null for any other), `editedAt`, `deletedAt` and
+  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker` for a sticker the record sent and for a message whose picture a chat service handed over as a sticker, `thinking` for a thinking block a record holds as a message, or null for any other), `editedAt`, `deletedAt` and
   `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
   `situation` (the room's situation note as it stood when the round that judged this message opened — its `text`,

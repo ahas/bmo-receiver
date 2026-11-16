@@ -1,11 +1,15 @@
 //! A picture a message carried, as it is filed under its message (docs/pictures.md, 「Pictures received」): a JPEG
 //! under the threshold as it came, any other picture under it with no transparency as it came, and every other one
 //! laid on white, brought inside the largest side and written as JPEG. A picture that cannot be redrawn is kept as
-//! it came. The pictures read are JPEG, PNG, GIF, WebP and TIFF.
+//! it came. A picture that moves, an animated WebP or a GIF of more than one frame, is told apart so a sticker or an
+//! animation is kept as it came. The pictures read are JPEG, PNG, GIF, WebP and TIFF.
 
 use std::io::Cursor;
 
+use image::AnimationDecoder;
+use image::codecs::gif::GifDecoder;
 use image::codecs::jpeg::JpegEncoder;
+use image::codecs::webp::WebPDecoder;
 use image::imageops::FilterType;
 use image::{DynamicImage, ImageFormat, ImageReader, RgbImage};
 
@@ -45,6 +49,25 @@ pub fn decode(bytes: &[u8]) -> Result<DynamicImage, NotAPicture> {
       | ImageFormat::Tiff),
     ) => ImageReader::with_format(Cursor::new(bytes), format).decode().map_err(failed),
     _ => Err(failed("unsupported image format")),
+  }
+}
+
+/// The extension a picture that moves is filed under, `webp` for an animated WebP and `gif` for a GIF of more than
+/// one frame; none for a still picture or bytes no reader here takes.
+pub fn moving(bytes: &[u8]) -> Option<&'static str> {
+  match image::guess_format(bytes).ok()? {
+    ImageFormat::WebP => WebPDecoder::new(Cursor::new(bytes)).ok()?.has_animation().then_some("webp"),
+    ImageFormat::Gif => {
+      let frames = GifDecoder::new(Cursor::new(bytes))
+        .ok()?
+        .into_frames()
+        .take(2)
+        .filter(Result::is_ok)
+        .count();
+
+      (frames > 1).then_some("gif")
+    }
+    _ => None,
   }
 }
 

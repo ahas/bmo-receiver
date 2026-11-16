@@ -45,13 +45,21 @@ receiver keeps the pictures and decides what a session is shown.
 ## Pictures received
 
 - **Photos posted in an allowed room are kept**, as the chat service hands them over or fetches them, as
-  `images/<chatId>/<messageId>.jpg` under the data root. An image the chat service hands over as a document of an
-  image type goes down the same path.
+  `images/<chatId>/<messageId>.jpg` under the data root, a later picture of the same message as
+  `<messageId>-1.jpg` and on. An image the chat service hands over as a document of an image type goes down the
+  same path.
 - **A picture the chat service did not carry with its message** is filed the same way when a pass fills the row
   later (`docs/room-files.md`, 「Files filled in later」).
 - **A picture larger than the resize threshold** is downscaled to the maximum dimension and re-encoded as JPEG
   before it is stored, so a session always reads a file it can afford to open; a picture that is not a JPEG and has
   transparency is laid on white and stored as JPEG whatever its size.
+- **A sticker or an animation that moves is kept as it came.** A picture the chat service hands over as a sticker
+  or an animation (bmo-chat's `docs/contract.md`, 「Files」) whose bytes are an animated WebP or a GIF of more than
+  one frame is filed byte for byte under the extension of its own type, `<messageId>.webp` or `<messageId>.gif`,
+  and served with that type: a redraw keeps the first frame alone, so neither the threshold nor its transparency
+  redraws it. A still one is kept as any picture is.
+- **A message whose picture came as a sticker is marked a sticker:** its `kind` is `sticker` (`docs/api.md`,
+  「Messages」), as a sticker the record sends is, so the console draws it as a sticker rather than a photo.
 - **The message is archived like any other,** with the caption as its text or the picture placeholder when there
   is none, and the archive row keeps the stored path plus the id of the message it replies to.
 - **A picture with no caption still reaches the session with its note.** The line stands its sender's words, empty

@@ -167,7 +167,7 @@ async fn held_files(db: &DatabaseConnection, room: i64, message: i64) -> Result<
 
   if let Some(first) = row.and_then(|row| row.image_path).map(std::path::PathBuf::from) {
     let folder = first.parent().map(Path::to_path_buf).unwrap_or_default();
-    let later = (1..).map(|place| folder.join(format!("{message}-{place}.jpg")));
+    let later = (1..).map_while(|place| files::later_picture(&folder, message, place));
 
     for picture in std::iter::once(first).chain(later) {
       let Some(bytes) = size_of(&picture) else { break };
