@@ -346,10 +346,17 @@ async fn picturing_road() -> (Scratch, Arc<StandInChat>, DataRoot, tempfile::Tem
 async fn road_canning(
   verbs: &[ChatCapability],
 ) -> (Scratch, Arc<StandInChat>, DataRoot, tempfile::TempDir, Sends) {
+  road_standing(StandInChat::new("road-a").holding(&[ROOM]).canning(verbs)).await
+}
+
+// The same, on the road given, which holds the room.
+async fn road_standing(
+  road: StandInChat,
+) -> (Scratch, Arc<StandInChat>, DataRoot, tempfile::TempDir, Sends) {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
   let root = DataRoot::new(data.path());
-  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).canning(verbs));
+  let road = Arc::new(road);
   let standing = standing(scratch.db(), root.clone(), [road.clone()].to_vec());
   let sends = Sends::new(standing.receiver.clone(), None, None);
 
@@ -489,6 +496,56 @@ async fn a_voice_note_sent_is_kept_as_the_sound_of_its_message() {
   assert_eq!(kept.len(), 1, "{kept:?}");
   assert!(kept[0].starts_with("900 audio voice.ogg "), "{kept:?}");
   assert_eq!(std::fs::read(kept[0].rsplit(' ').next().unwrap()).unwrap(), b"OggS and what follows");
+}
+
+#[tokio::test]
+async fn a_file_or_voice_note_past_the_limit_the_rooms_road_declares_is_refused_naming_it_and_goes_where_none_is_declared()
+ {
+  let verbs = [ChatCapability::Document, ChatCapability::Voice];
+  let made = tempdir().unwrap();
+  let paper = made.path().join("notes.txt");
+  let note = made.path().join("briefing.ogg");
+
+  std::fs::write(&paper, b"what was measured").unwrap();
+  std::fs::write(&note, b"OggS and what follows").unwrap();
+
+  let files = [SendFile {
+    path: paper.to_string_lossy().into_owned(),
+    name: None,
+  }]
+  .to_vec();
+  let spoken = note.to_string_lossy().into_owned();
+  let asked = VoiceNote {
+    path: &spoken,
+    caption: None,
+    said: Some("the briefing"),
+    transcript: None,
+  };
+  let limited = StandInChat::new("road-a").holding(&[ROOM]).canning(&verbs).taking_files_up_to(8);
+  let (scratch, road, root, _data, sends) = road_standing(limited).await;
+  let refusals = [
+    file(&sends, &root, ROOM, &files, None, None, false).await,
+    voice(&sends, &root, ROOM, asked, None, false).await,
+  ];
+
+  for refused in refusals {
+    let Err(VerbError::Refused(why)) = &refused else { panic!("refused, not {refused:?}") };
+
+    assert!(why.contains("past the 8 bytes road-a takes a file at"), "{why}");
+  }
+
+  assert!(road.sent().is_empty(), "nothing went");
+  assert!(
+    scratch.texts(r#"SELECT "source" FROM "collected_items""#).await.is_empty(),
+    "nothing is kept"
+  );
+
+  // The same files go on a road that declares no limit.
+  let (_scratch, road, root, _data, sends) = road_canning(&verbs).await;
+
+  file(&sends, &root, ROOM, &files, None, None, false).await.unwrap();
+  voice(&sends, &root, ROOM, asked, None, false).await.unwrap();
+  assert_eq!(road.sent().len(), 2, "the file and the voice note went");
 }
 
 #[tokio::test]
