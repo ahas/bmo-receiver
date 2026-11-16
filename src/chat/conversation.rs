@@ -330,7 +330,7 @@ pub trait Noting: Send + Sync {
 /// broken run raises, and the minute the failure orders are looked over on. Filled by the module that owns the
 /// health.
 pub trait Health: Send + Sync {
-  fn silenced<'a>(&'a self, receiver: &'a Receiver, chat_id: i64) -> BoxFuture<'a, bool>;
+  fn silenced<'a>(&'a self, receiver: &'a Receiver, agent: &'a str, chat_id: i64) -> BoxFuture<'a, bool>;
   fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()>;
   fn orders(&self, receiver: &Receiver);
 }
@@ -1576,9 +1576,9 @@ impl Conversations {
     self.0.briefings.in_flight(chat_id)
   }
 
-  /// Whether a room has fallen silent: the rest closes it and nothing else would answer it.
+  /// Whether a room has fallen silent for this agent: the rest closes its road and nothing else would answer it.
   pub async fn silenced(&self, chat_id: i64) -> bool {
-    self.0.health.silenced(&self.0.receiver, chat_id).await
+    self.0.health.silenced(&self.0.receiver, self.agent(), chat_id).await
   }
 
   pub async fn close(&self, chat_id: i64) {

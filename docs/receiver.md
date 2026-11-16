@@ -75,7 +75,9 @@ flowchart TD
 - **A woken agent's turn is its conversations' own:** the message goes into its room's queue with the files
   leading up to it ahead of it, opening the window where its ground does. A turn the rest's gate closed is taken
   only where the agent is pinned to a provider the rest does not close, or the agency answers that the
-  supervisor's one road takes a turn now. A
+  supervisor's one road takes a turn now. A room's silence under the rest is judged by that same road, the
+  answering agent's own: a room a supervisor on an open road answers stays open while the default answerer's
+  road rests. A
   message read through somebody else's account, or by a read mode its chat service declares answers cannot be
   pinned to, goes in as read through a reader, so no answer is aimed at it. The owner's words from the screen go
   into the owner's conversation the same way, opening nothing.

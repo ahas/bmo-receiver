@@ -10,6 +10,7 @@ mod sent_lines;
 use std::sync::Arc;
 
 use bmo_chat_client::MessageFile;
+use bmo_receiver::chat::health;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::rows;
 use bmo_receiver::receiver::wake::agents;
@@ -813,6 +814,24 @@ async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_cha
     .unwrap();
 
   assert_eq!(standing.taken.handed().len(), 2);
+}
+
+#[tokio::test]
+async fn the_rest_silences_a_room_only_for_an_agent_whose_own_road_it_closes() {
+  let (_scratch, _data, standing) = stood(&[-126, OWNER]).await;
+
+  standing.agency.at_rest(Rest {
+    resting: true,
+    until: Some(4_102_444_800),
+    kind: Some(RestKind::Outage),
+  });
+  standing.agency.answering_on_their_roads(vec!["agent-b".to_owned()]);
+
+  // The default answerer's road is closed and another supervisor's answers through the rest: the room is silent
+  // for the first and open for the second, and the owner's chat is silent for nobody.
+  assert!(health::silenced(&standing.receiver, AGENT, -126).await);
+  assert!(!health::silenced(&standing.receiver, "agent-b", -126).await);
+  assert!(!health::silenced(&standing.receiver, AGENT, OWNER).await);
 }
 
 #[tokio::test]

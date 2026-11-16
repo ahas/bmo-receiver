@@ -18,15 +18,15 @@ use crate::{all, now_ms, run};
 // The kind a failure order of the agent's own is kept under, which the orders' clock reads back.
 const ORDER_KIND: &str = "failure-order";
 
-/// Whether a room has fallen silent: the rest closes it and nothing else would answer it.
-pub async fn silenced(receiver: &Receiver, chat_id: i64) -> bool {
+/// Whether a room has fallen silent for the agent answering it: the rest closes that agent's road and nothing
+/// else would answer it. The road asked of is the answering agent's own, so a room a supervisor on another road
+/// answers is not closed by the rest of the default answerer's.
+pub async fn silenced(receiver: &Receiver, agent: &str, chat_id: i64) -> bool {
   if receiver.roads().is_owner_room(chat_id).await {
     return false;
   }
 
-  let agent = receiver.default_answerer();
-
-  resting(receiver).await.unwrap_or(false) && !road_answers(receiver, &agent).await.unwrap_or(false)
+  resting(receiver).await.unwrap_or(false) && !road_answers(receiver, agent).await.unwrap_or(false)
 }
 
 /// The order a broken run raises in its room, as a quiet instruction row the round opens on.
@@ -70,8 +70,8 @@ impl RoomHealth {
 }
 
 impl crate::chat::conversation::Health for RoomHealth {
-  fn silenced<'a>(&'a self, receiver: &'a Receiver, chat_id: i64) -> BoxFuture<'a, bool> {
-    Box::pin(async move { silenced(receiver, chat_id).await })
+  fn silenced<'a>(&'a self, receiver: &'a Receiver, agent: &'a str, chat_id: i64) -> BoxFuture<'a, bool> {
+    Box::pin(async move { silenced(receiver, agent, chat_id).await })
   }
 
   /// A stop is not a failure and says nothing; a broken run raises the order the agent investigates, and the
