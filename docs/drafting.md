@@ -74,66 +74,19 @@ message passes, and the record each turn of it leaves.
   off runs the whole process. A console talk, a typed line, the touch and the line before a fold are no rounds of
   a room and run none.
 
-## A round handed to the double
+## Long work in a round
 
-- **The draft turn may hand its round over.** Where the round calls for work longer than moments, the agent
-  answers `<<HANDOFF>>` and nothing else, at once and before doing any of that work; the process's fixed rules
-  say so. An answer that is nothing but the sentinel is the hand-over, and only of the round's own draft
-  turn; the sentinel standing among other words is words.
-- **The same turn then goes to the agent's double.** The receiver carries the round's turn again, unchanged, as
-  a run of the role the agency names for a supervisor's delegated work, started as that agent's double at the
-  agent's scratch workspace (the agency's `docs/tools.md`, 「The delegate」): the room's block whole with the
-  brain's index, every document of the turn opened in full, and the turn, under one line saying that the round
-  was handed over and that the double answers it as the agent itself, followed by every paragraph pushed into
-  the agent's own turn before it answered the sentinel. It is no instruction the agent writes: the double reads
-  what the agent read and follows the same process. Its turn names the round, so its run is the round's, and
-  it is followed as the agent's own turn is, re-attached across a cut (`docs/bmo-window.md`, 「Quiet
-  instruction」).
-- **The double's answer is the round's draft,** and everything after it is the same process: the closing
-  check, the items, the review, a revision and the checks are turns of the double's run, each sent as its own
-  words alone, since the double's kept session holds the round. The message goes out as the agent's, by the
-  round's own send.
-- **The double's session is the one its last run left.** Each turn takes a slot of the role and resumes the
-  session the role keeps at that folder on that road, so a round handed over after another goes on in the same
-  session, as a delegated task does, until the agency lets that session go. The agent's own session is free
-  from the moment it answered the sentinel: it takes its other rooms' rounds while the double works.
-- **The round's own turn asks its slot as a short ask.** Its slot request carries `short`, the mark that vouches
-  for one short turn someone is waiting on now, so where the role's delegated tasks hold every slot the agency
-  lets it in on the one seat beyond the role's cap (the agency's `docs/role-slots.md`, 「A short ask」). No other
-  ask of the receiver's carries the mark: a later turn of the process asks as a delegated task does.
-- **The round's own turn waits only a short while for its slot.** A room's round is live conversation and never
-  waits behind the role's delegated work, so where the slot its own turn asks for is not let in within the
-  policy's limit (`chat-round.toml`, `[double]`, `admit_ms`), as where another short run or a run that is no
-  delegated task holds the seat, the asking stops there: the slot's request is
-  cancelled by its key and the double has not taken the round, whose reason says the double's role had no free
-  slot within that limit. A slot let in within the limit goes on to start the double's session however long the
-  start takes, so no session is ever cut half started. The receiver logs the wait as it begins and
-  the hand-back once the limit passes. A later turn of the process waits for its slot however long the role's
-  line takes, as a delegated task does.
-- **Every slot the double holds is the receiver's own record until it is given back.** The slot's key is kept
-  in the store before the slot is asked for and dropped once the agency took it back (`docs/store.md`,
-  `double_slots`), so `quiet` counts a double's round as under way, and the receiver's start gives back every
-  slot a stopped process left, with the role session bound to it, by the key it kept: no double's run outlives
-  the receiver that followed it, and the rows its turn carried wait again as a restart leaves them.
-- **Words that come meanwhile go to the double's turn,** pushed as they are pushed into the agent's own once
-  that turn runs, and the turn's picture is drawn from the double's run. While the round's own turn still waits
-  for its slot there is no turn to push into, so the room's words and the quiet instructions wait in the room's
-  queue and reach whichever session takes the round: the double's turn once it runs, or the agent's own once
-  the round is handed back.
-- **A double that does not take the round hands it back.** Where its slot or its run is refused, its slot is
-  not let in within the limit above, its turn fails, or it answers the sentinel itself, the agent's own session
-  is asked once more, under one line saying the double did not take the round and why, to answer the round
-  itself; that session holds the round already, so the line is the whole of the turn. The process then goes on
-  in the agent's own session.
-- **A hand-back stops the double and returns its pushes.** The double's turn, where it may still run, is
-  interrupted and its slot given back as cancelled, so no run of the double goes on beside the agent. What was
-  pushed into the double's turn — the room's words and the quiet instructions — was never received by the
-  session that goes on, so it is not the round's: the words go back to wait at the front of the room's queue
-  and the rows back to the conversation with their carrying cleared, to be pushed into the agent's own turn or
-  shown at its next question boundary.
-- **The sentinel is never a message.** An answer of nothing but the sentinel from that second asking fails the
-  round as a failed draft turn does, and one from any later turn of the process is read as a skip whose reason is
-  that the answer carried the hand-off sentinel.
+- **The agent answers every round in its own session.** The round's draft turn and every later turn of its
+  process go to the session that holds the agent's rooms (`docs/bmo-window.md`), and the message goes out by
+  the round's own send. No round is handed to another session or run, so a reply to a person never waits on a
+  slot, a role's line or another session's work.
+- **Work longer than moments goes behind the round, after the person is answered.** Where a round calls for
+  work longer than moments — an investigation across files or machines, a change made and checked, something to
+  wait on, more than a handful of tool calls — the round's message tells the person, in a few words, what the
+  agent will do, and the work goes behind the round as the agency's rule for a supervisor's long work says: a
+  background run or a subagent of the agent's own program for work it reports itself, a job item for work whose
+  result is code or a document. The agent comes back to the room with the result. The process's fixed rules say
+  so (`chat-line.toml`, `process`).
 
 ## A voice note
 
@@ -247,8 +200,7 @@ message passes, and the record each turn of it leaves.
   - the room's block carries no index, no hint and no due line, and none of the block's rules about the index
     (`docs/bmo-window.md`, 「What every turn carries」);
   - the turn's core is not asked of the gate's reference selection, so no sheet, memory, errand or woken row is
-    attached; a person's own thread, which is the room's record, still goes in;
-  - a round handed to the double carries the room's block as composed above.
+    attached; a person's own thread, which is the room's record, still goes in.
 - **The tools that reach the brain are the agency's to leave out** of the supervisor's session record under the
   same switch (the agency's `docs/supervisors.md`). The process asks no question about the brain by itself: a
   row that keeps `memory` or `information` while the brain or the reference is off leaves the agent to answer

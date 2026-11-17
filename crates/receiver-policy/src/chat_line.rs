@@ -27,10 +27,6 @@ pub struct Room {
   pub replaces: String,
   /// The draft process's fixed rules.
   pub process: String,
-  /// The line a round handed to the double opens on.
-  pub handed: String,
-  /// The line the agent's own session is asked under where its double did not take the round.
-  pub handed_back: String,
   /// That a voice message arrives as text.
   pub voice: String,
   pub group_document: String,

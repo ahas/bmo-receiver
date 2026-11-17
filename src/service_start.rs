@@ -223,17 +223,14 @@ pub fn hearing(standing: &Standing) -> Hearing {
 
 /// The clocks of a running service: the window ends still to come, the open-file watch, the instruction pass over
 /// every agent's rows, the conversations' own clock and the restart; the chat services' profile pictures taken once;
-/// and the agency's events, heard for as long as the service runs.
-pub fn keep(standing: &Standing) {
+/// the agency's events, heard for as long as the service runs; and the double's slots the store kept before its
+/// migration, `left`, given back once.
+pub fn keep(standing: &Standing, left: Vec<crate::chat::double_slots::Held>) {
   let watching = standing.receiver.clone();
   let releasing = standing.receiver.clone();
-  let started = crate::now_ms();
 
-  // The double's slots a stopped process left are given back, with the role sessions bound to them, so no double's
-  // run goes on that no round of this process follows (docs/drafting.md, 「A round handed to the double」).
   tokio::spawn(async move {
-    crate::chat::double_slots::release_left(releasing.db(), releasing.units().agency.as_ref(), started)
-      .await;
+    crate::chat::double_slots::give_back(releasing.units().agency.as_ref(), &left).await;
   });
 
   tokio::spawn(async move {

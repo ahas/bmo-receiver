@@ -62,10 +62,10 @@ road name with its base address and token. The configuration sets no limit on a 
   round's, or one of its own for a turn outside any round (a console talk, the warmer's touch), and a restart cuts
   the following of each. A run naming no round is no turn of the receiver's: a job's run names its room and no
   round, and the agency answers `jobId` on no run, so a room is no sign of a chat turn. The agency
-  opens no run for a double's turn, so the double's rounds are counted off the receiver's own store: every slot
-  of the double's role the receiver asked for and has not yet given back (`docs/store.md`, `double_slots`); a
-  store the running release has not migrated that far yet holds none, since `quiet` runs from the release about
-  to go live against the store the running one keeps. Any
+  opens no run for a round a supervisor handed to a double of the agency's double role, so where the store
+  `quiet` reads still keeps the table of such slots (`double_slots`), each slot in it counts as a round under
+  way: `quiet` runs from the release about to go live against the store the running one keeps, which may still
+  carry such rounds; a store without that table holds none. Any
   other run counts not: a job's turn, a research run and every run of another unit go on through the receiver's
   restart, and what they send it waits for it as rows of its own. A job counts
   only with `--with-jobs`, for a unit whose restart can cut a worker's tool calls mid-turn: then every job the
@@ -217,14 +217,7 @@ room's matter.
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
 | fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
 | end a session | `DELETE /sessions/{sessionId}` | | nothing |
-| ask a slot of the double's role | `POST /slot-requests` | `requestKey`, `owner`, `source`, `title`, `askedBy`, the supervisor whose round it is, `path`, that supervisor's scratch workspace, and `short`, true for a round's own turn alone (`docs/drafting.md`, 「A round handed to the double」) | the request: its `token`, `state` and `role` |
-| a slot's admission | `PATCH /slot-requests/{token}` | nothing, asked again at a steady pace until the request is `active`; a round's own turn stops asking once the policy's limit passes and gives the request back by its key | `request`, the request as it stands |
-| start the double's run | `POST /sessions` | `scope` `role`, `agentName`, the slot's role, `slot`, `cwd` and `supervisor` | the session's `id` |
-| bind a slot to its run | `PATCH /slot-requests/{token}` | `state` `bound`, `childId` | the request |
-| a turn of the double | `POST /sessions/{sessionId}/turns` | `prompt`, `resume` `auto`, `name`, `title`, `chat`, `round`, `key`, `hearsWords` and the turn's `variables` | answered once the run ends: `answer`, `outcome`, `reason`; a cut connection is followed as the agent's own turn's is |
-| stop the double's turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn; asked as a double hands its round back |
-| give a slot back | `PATCH /slot-requests/{token}` | `state` `finished`, `outcome`, `cancel` | the request |
-| give back what a stopped receiver held | `DELETE /slot-requests?owner=` | `owner`, the slot's own key as the receiver kept it | what was given back: the request, its reservation and the role session bound to it, whose running turn the agency cuts; asked at the start for each slot the store still holds, for a slot whose admission failed, and for a round's slot not let in within the policy's limit, which cancels the request still waiting |
+| give back what a stopped receiver held | `DELETE /slot-requests?owner=` | `owner`, a slot's own key as the store's `double_slots` kept it | what was given back: the request, its reservation and the role session bound to it, whose running turn the agency cuts; asked once, as the receiver starts, for each key that table held before the migration that drops it (`docs/receiver.md`) |
 | list sessions | `GET /sessions` | | `items`, each a session's `id`, `agentName`, `scope` — `agent`, `room`, `role` or `conversation` — and `roomId` |
 | forget a room | `DELETE /room-holdings/{roomId}?dryRun=` | | `gone`, `stayed` for a dry run, nothing otherwise |
 | register a hook | `PUT /hooks/{point}` | `url`, the receiver's own `POST /hooks/{point}` at the address it listens on; `token`, the receiver's | the registration |

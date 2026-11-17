@@ -154,9 +154,8 @@ that session without the room hearing it.
   stands in its prompt, or the working turn a push put it into, the turn's session and id written on the row as
   the agency names the turn. It is settled (`delivered_at`, and the round that settled it) only once its round
   ended with its message or its skip, after the turn that carried it ended answered in the session that received
-  its text. Every other end returns the row to pending with its carrying cleared: a round that failed, a turn of
-  a double that handed the round back (`docs/drafting.md`, 「A round handed to the double」), a restart of the
-  receiver, a round that ended before any turn carried the row. A row that is not to be carried is let go: kept
+  its text. Every other end returns the row to pending with its carrying cleared: a round that failed, a restart
+  of the receiver, a round that ended before any turn carried the row. A row that is not to be carried is let go: kept
   on the table, settled with the reason it went (`let_go`) and no round — a newer row of its kind replaced it,
   its producer withdrew it, no turn could ever take it, a stop asked of its round ended it, a reset cut its agent
   off, or its failures reached the limit.

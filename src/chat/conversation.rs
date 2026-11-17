@@ -12,7 +12,6 @@ use std::time::Duration;
 
 use tokio::task::JoinHandle;
 
-use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
@@ -28,7 +27,7 @@ use super::progress::{RunProgress, Told};
 use super::prompt::{self, Round, Scope as RoundScope};
 use super::reply::Sender;
 use super::room::room_context;
-use super::sentinels::{is_handoff, is_skip, is_wait};
+use super::sentinels::{is_skip, is_wait};
 use super::shape::Reading;
 use super::talk::{TalkFailure, TalkRequest};
 use super::thread::ThreadMark;
@@ -192,17 +191,6 @@ pub struct Asking {
   /// The turn goes on the session as it stands, and no replacement is judged for it: a situation note is written
   /// by the session that answered in the room, whatever is about to become of that session.
   pub standing: bool,
-  /// The turn is carried by a run of the agent's double, where its round was handed over (docs/drafting.md,
-  /// 「A round handed to the double」).
-  pub double: Option<Doubled>,
-}
-
-/// A turn of a round handed to the double: the round's own turn, which carries the room's block and every
-/// document in full, or a later turn of the process, which carries its words alone.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Doubled {
-  Round,
-  Later,
 }
 
 /// What carries a composed turn into the agent's session and answers with what the session said. The agency
@@ -243,8 +231,6 @@ pub struct Drafted<'a> {
   pub began: i64,
   pub opened: i64,
   pub round: &'a str,
-  /// Whether the round was handed to the agent's double, whose run every later turn of the process goes to.
-  pub double: bool,
 }
 
 /// What the draft process made: the message, a skip where nothing goes out, with what the last turn carried of
@@ -472,15 +458,6 @@ pub struct Carried {
   // agency named the turn.
   own: Vec<i64>,
   turn: Option<(String, i64)>,
-}
-
-/// How far the pushes into a round's turn had come at a moment: what a turn begun then took is everything after.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct PushMark {
-  shown: usize,
-  settling: usize,
-  pushed: usize,
-  pushed_instructions: usize,
 }
 
 impl Carried {
@@ -2173,7 +2150,6 @@ impl Conversations {
       context: composed.context.clone(),
       thread_mark: composed.selection.thread_mark.clone(),
       standing: false,
-      double: None,
     };
 
     // The draft turn is told as it starts, under the name its row of the round log goes by.
@@ -2182,55 +2158,6 @@ impl Conversations {
     }
 
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
-    // A draft turn that answers the hand-off sentinel hands its round over: the same turn is carried again, whole,
-    // by a run of the agent's double, and every later turn of the process goes to that run (docs/drafting.md,
-    // 「A round handed to the double」). The agent's own session keeps what its turn left it.
-    let mut doubled = false;
-    let asked = match asked {
-      Ok(reply) if is_handoff(&crate::form::strip_prompt_scaffolding(&reply.text)) => {
-        doubled = true;
-        held.context_tokens = reply.context_tokens.or(held.context_tokens);
-        held.session = reply.session.clone().or(held.session.clone());
-        self.keep_session(chat_id, &held);
-        println!("chat {chat_id}: {} handed the round to its double", self.agent());
-
-        let handed = Asking {
-          double: Some(Doubled::Round),
-          began: now_ms(),
-          ..asking.clone()
-        };
-        let mark = follower.mark();
-        let own_turn = follower.carrier();
-
-        match self.0.carrying.carry(&handed, &held, &follower).await {
-          // A double that did not take the round hands it back: what was pushed into its turn goes back to wait,
-          // and the agent's own session, which holds the round already, is asked once more to answer it itself, and
-          // the process goes on there.
-          Err(Failure::Failed(why)) | Err(Failure::Transport(why)) => {
-            doubled = false;
-            eprintln!("chat {chat_id}: the double did not take the round: {why}");
-            follower.hand_back(mark, own_turn).await;
-
-            let own = Asking {
-              prompt: fill_marks(&CHAT_LINE.room.handed_back, &[("why", why.as_str())]),
-              began: now_ms(),
-              ..asking.clone()
-            };
-
-            match self.0.carrying.carry(&own, &held, &follower).await {
-              Ok(reply) if is_handoff(&crate::form::strip_prompt_scaffolding(&reply.text)) => {
-                Err(Failure::Failed(
-                  "the agent handed the round over again after its double gave it back".to_owned(),
-                ))
-              }
-              other => other,
-            }
-          }
-          other => other,
-        }
-      }
-      other => other,
-    };
     let carried = follower.finish();
     let mut scope = composed.scope.clone();
     let recent = composed.recent.clone();
@@ -2330,7 +2257,6 @@ impl Conversations {
           began,
           opened: started,
           round,
-          double: doubled,
         },
       )
       .await?;
@@ -2688,7 +2614,6 @@ impl Conversations {
       context: vec![],
       thread_mark: None,
       standing: false,
-      double: None,
     };
     let mut log = super::draft::log::Log::new(self, round, chat_id, self.agent()).numbered_from(0);
     // A judgement that skipped with no reason is no verdict: the marker and the line naming the form are the whole
@@ -2771,7 +2696,6 @@ impl Conversations {
       context: vec![],
       thread_mark: None,
       standing: false,
-      double: None,
     };
     let follower = Follower::new(self, chat_id);
     let briefing = self.0.briefings.carrying(chat_id);
@@ -2833,7 +2757,6 @@ impl Conversations {
       context: vec![],
       thread_mark: None,
       standing: false,
-      double: None,
     };
     let follower = Follower::new(self, chat_id);
     let briefing = self.0.briefings.carrying(chat_id);
@@ -3618,87 +3541,6 @@ impl Follower {
     }
   }
 
-  /// How far the pushes into the round's turn have come now.
-  pub fn mark(&self) -> PushMark {
-    self
-      .conversations
-      .state()
-      .active
-      .get(&self.chat_id)
-      .and_then(|conv| conv.carried.as_ref())
-      .map(|carried| PushMark {
-        shown: carried.shown.len(),
-        settling: carried.settling.len(),
-        pushed: carried.pushed.len(),
-        pushed_instructions: carried.pushed_instructions.len(),
-      })
-      .unwrap_or_default()
-  }
-
-  /// What was pushed into a turn begun at the mark, given back as that turn is handed back: the session that goes
-  /// on never received it (docs/drafting.md, 「A round handed to the double」). Its words go back to wait at the
-  /// front of the room's queue, its rows back to pending with their carrying cleared, and the turn the round
-  /// carried before stands as the round's carrier again.
-  pub async fn hand_back(&self, mark: PushMark, before: Option<(String, i64)>) {
-    let chat_id = self.chat_id;
-    let (words, rows) = {
-      let mut state = self.conversations.state();
-      let Some(carried) = state.active.get_mut(&chat_id).and_then(|conv| conv.carried.as_mut()) else {
-        return;
-      };
-      let words: Vec<Inbound> = carried.shown.drain(mark.shown.min(carried.shown.len())..).collect();
-      let rows: Vec<i64> = carried.settling.drain(mark.settling.min(carried.settling.len())..).collect();
-
-      carried.pushed.truncate(mark.pushed);
-      carried.pushed_instructions.truncate(mark.pushed_instructions);
-      carried.turn = before;
-
-      (words, rows)
-    };
-
-    if !words.is_empty() {
-      println!(
-        "chat {chat_id}: {} message(s) pushed into the double's turn go back to wait",
-        words.len()
-      );
-    }
-
-    self.conversations.give_back_words(chat_id, words);
-
-    let receiver = &self.conversations.0.receiver;
-
-    match super::instructions::returned(receiver.db(), &rows).await {
-      Ok(given) if !given.is_empty() => {
-        let named: Vec<String> = given.iter().map(i64::to_string).collect();
-
-        println!(
-          "chat {chat_id}: instructions {} pushed into the double's turn are pending again",
-          named.join(", ")
-        );
-
-        if let Some(pass) = receiver.pass() {
-          pass.kick();
-        }
-      }
-      Ok(_) => {}
-      Err(why) => eprintln!(
-        "chat {chat_id}: the rows pushed into the double's turn were not given back: {}",
-        why.detail
-      ),
-    }
-  }
-
-  /// The session and turn carrying the round now, where the agency named one.
-  pub fn carrier(&self) -> Option<(String, i64)> {
-    self
-      .conversations
-      .state()
-      .active
-      .get(&self.chat_id)
-      .and_then(|conv| conv.carried.as_ref())
-      .and_then(|carried| carried.turn.clone())
-  }
-
   // What the turn took joins the round: its messages shown to the round, waiting for the marks that settle them,
   // its instructions among the rows the round settles, carried by the turn that took them. What it refused goes
   // back to the front of what waits, and a turn that says it is waiting takes no more. What a cut-off let go while
@@ -3971,7 +3813,6 @@ async fn update_note(
     context: vec![],
     thread_mark: None,
     standing: true,
-    double: None,
   };
   let held = Held {
     agent: agent.to_owned(),

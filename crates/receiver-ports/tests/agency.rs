@@ -1,13 +1,12 @@
 //! The agency port against a stand-in of the agency's routes (the agency's `docs/api.md`).
 
 use futures_util::StreamExt;
-use std::time::Duration;
 
 use receiver_ports::agency::{
-  Agency, Delivery, DoubleSeat, DoubleStart, Event, FieldRefusal, Forgotten, HttpAgency, Load,
-  NewSupervisor, Removal, RestKind, Resting, Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
+  Agency, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, NewSupervisor, Removal, RestKind,
+  Resting, Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
 };
-use serde_json::{Value, json};
+use serde_json::json;
 
 use crate::stand_in::{StandIn, call};
 
@@ -800,64 +799,17 @@ async fn a_supervisor_s_switches_are_read_off_its_settings_each_on_where_they_do
 }
 
 #[tokio::test]
-async fn a_double_s_slot_not_let_in_within_its_limit_is_left_unstarted_and_one_let_in_starts_whatever_the_limit()
- {
+async fn a_double_s_slot_a_store_left_is_given_back_by_the_owner_release_under_its_key() {
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
-  let start = |key: &str| DoubleStart {
-    supervisor: "agent-a".to_owned(),
-    path: "/scratch".to_owned(),
-    key: key.to_owned(),
-    run: format!("round-{key}"),
-    title: "a round of chat 42".to_owned(),
-    admit_within: Some(Duration::ZERO),
-    short: key == "k1",
-  };
 
-  // A slot the line lets in at once goes on to its session, the limit already spent.
-  unit.answer(
-    "POST /slot-requests",
-    201,
-    json!({ "token": "s1", "state": "active", "role": "doppelganger" }),
-  );
-  unit.answer("POST /sessions", 201, json!({ "id": "doppelganger@run:1" }));
-  unit.answer(
-    "PATCH /slot-requests/s1",
-    200,
-    json!({ "request": { "token": "s1", "state": "bound" } }),
-  );
+  unit.answer("DELETE /slot-requests", 200, json!({ "released": 1 }));
 
-  assert_eq!(
-    agency.double_start(&start("k1")).await.unwrap(),
-    Some(DoubleSeat {
-      token: "s1".to_owned(),
-      session: "doppelganger@run:1".to_owned(),
-      run: "round-k1".to_owned(),
-    })
-  );
+  agency.double_release("delegate:agent-a:42:7").await.unwrap();
 
-  // A slot still waiting once the limit passed is not asked for again and starts nothing.
-  unit.answer(
-    "POST /slot-requests",
-    201,
-    json!({ "token": "s2", "state": "waiting", "role": "doppelganger" }),
-  );
+  let took = unit.took();
 
-  let before = unit.took().len();
-
-  assert_eq!(agency.double_start(&start("k2")).await.unwrap(), None);
-
-  let after: Vec<String> = unit.took()[before..].iter().map(|(route, _, _)| route.clone()).collect();
-
-  assert_eq!(after, ["POST /slot-requests"]);
-
-  // The slot is asked with the short mark exactly as its start names it.
-  let marks: Vec<Value> = unit
-    .took()
-    .iter()
-    .filter(|(route, _, _)| route == "POST /slot-requests")
-    .map(|(_, _, body)| body.as_ref().unwrap()["short"].clone())
-    .collect();
-
-  assert_eq!(marks, [json!(true), json!(false)]);
+  assert_eq!(took.len(), 1, "{took:?}");
+  assert_eq!(took[0].0, "DELETE /slot-requests");
+  assert!(took[0].1.contains("owner=delegate%3Aagent-a%3A42%3A7"), "{took:?}");
 }

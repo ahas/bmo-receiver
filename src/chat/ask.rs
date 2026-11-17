@@ -14,13 +14,9 @@ use serde_json::Value;
 use tokio::time::MissedTickBehavior;
 
 use receiver_codes::SessionReason;
-use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::handover::HANDOVER;
-use receiver_ports::agency::{
-  Agency, DOUBLE_SOURCE, Delivery, DoubleEnd, DoubleStart, DoubleTurn, Event, Said, Scope, Session, Turn,
-  TurnRoom,
-};
+use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
 use receiver_ports::http::PortFailure;
 
 use super::attach::{Followed, Step};
@@ -30,14 +26,12 @@ use super::cache::{
 };
 use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
-  Aside, Asking, BoxFuture, Carrying, Doubled, Failure, Follower, Held, Reply, unified_session,
+  Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
 };
-use super::double_slots;
 use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
 use super::progress::RunProgress;
 use super::room::{RoomContext, room_context};
-use super::sentinels::is_handoff;
 use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::room_record::RoomForget;
@@ -50,9 +44,8 @@ const LAUNCH_GAP: Duration = Duration::from_secs(10);
 
 static OPENED: Mutex<u64> = Mutex::new(0);
 
-// The events a round's turn is followed by, and a double's.
+// The events a round's turn is followed by.
 const TURN_KINDS: &[&str] = &["turn.created", "turn.ended", "system-prompt-changed"];
-const DOUBLE_KINDS: &[&str] = &["turn.created", "turn.ended"];
 
 /// A fresh name for one run of a room's conversation, since two runs of a room can open in the same moment.
 pub fn chat_run_name(chat_id: i64) -> String {
@@ -448,316 +441,7 @@ impl Carry {
     Ok(Some(handed))
   }
 
-  /// A turn of a round handed to the agent's double (docs/drafting.md, 「A round handed to the double」), carried
-  /// by a run of the double's role at the agent's scratch workspace: a slot of the role taken, the round's own turn
-  /// waiting only the policy's limit for it, the run's session started on it, the turn sent and waited to its end,
-  /// and the slot given back. The round's own turn goes whole, the room's block and every document in full under
-  /// the line that says the round was handed over; a later turn of the process goes as its words alone, since the
-  /// session the role keeps holds the round. Words that come for the room meanwhile are pushed into the turn, and
-  /// the turn's picture is drawn from its run. Nothing of the answer is the agent's own session's: it names no
-  /// session, no context and no replacement.
-  async fn doubled(
-    &self,
-    asking: &Asking,
-    held: &Held,
-    follower: &Follower,
-    doubled: Doubled,
-  ) -> Result<Reply, Failure> {
-    let receiver = &self.receiver;
-    let agency = receiver.units().agency.clone();
-    let agent = held.agent.as_str();
-    let chat_id = asking.chat_id;
-    let thinking_shown = chat_id == receiver.owner_room();
-    let failed = |why: crate::Fault| Failure::Failed(why.detail);
-    let room = room_context(receiver, agent, chat_id, asking.via.as_deref()).await.map_err(failed)?;
-    let loaded = loaded_in(receiver, None).await.map_err(failed)?;
-    let marked = states(&asking.prompt, &loaded);
-    let (prompt, send) = match doubled {
-      // The round's own turn goes whole, with every paragraph pushed into the agent's own turn before it answered
-      // the sentinel, which the double reads as the agent did.
-      Doubled::Round => {
-        let (sent, send, _) = sent_prompt(receiver, None, Some(&room), true, agent, &asking.prompt)
-          .await
-          .map_err(failed)?;
-        let pushed = follower.pushed();
-        let sent = std::iter::once(sent).chain(pushed).collect::<Vec<_>>().join("\n\n");
-
-        (format!("{}\n\n{sent}", CHAT_LINE.room.handed), send)
-      }
-      Doubled::Later => (asking.prompt.clone(), None),
-    };
-    let folder = receiver.data_root().path().join("agent-workspaces").join(agent).join("scratch");
-
-    std::fs::create_dir_all(&folder)
-      .map_err(|why| Failure::Failed(format!("{} could not be made: {why}", folder.display())))?;
-
-    let at = now_ms();
-    // The round's own turn asks as a short ask and waits only the policy's limit for its slot, since the room's
-    // round is live conversation; a later turn asks and waits as a delegated task does (docs/drafting.md, 「A round
-    // handed to the double」).
-    let (admit_within, short) = match doubled {
-      Doubled::Round => (Some(receiver.double_admit()), true),
-      Doubled::Later => (None, false),
-    };
-    let start = DoubleStart {
-      supervisor: agent.to_owned(),
-      path: folder.to_string_lossy().into_owned(),
-      key: format!("{DOUBLE_SOURCE}:{agent}:{chat_id}:{at}"),
-      run: format!("round-{agent}-{chat_id}-{at}"),
-      title: format!("a round of chat {chat_id}"),
-      admit_within,
-      short,
-    };
-    let slot = double_slots::Held {
-      key: start.key.clone(),
-      agent: agent.to_owned(),
-      chat_id,
-      asked_at: at,
-    };
-
-    double_slots::keep(receiver.db(), &slot).await.map_err(failed)?;
-
-    if let Some(limit) = admit_within {
-      println!(
-        "chat {chat_id}: {agent}'s round waits at most {} ms for a slot of its double, asked as {}",
-        limit.as_millis(),
-        start.key
-      );
-    }
-
-    // A slot whose asking failed at any step, or that was not let in within the limit, is given back whole by its
-    // key, so nothing it was let in on waits on and a request still waiting is cancelled.
-    let seat = match agency.double_start(&start).await {
-      Ok(Some(seat)) => seat,
-      Err(why) => {
-        double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
-
-        return Err(fault_of(why));
-      }
-      Ok(None) => {
-        let waited = admit_within.unwrap_or_default().as_millis();
-
-        eprintln!(
-          "chat {chat_id}: no slot of {agent}'s double was free within {waited} ms; its request {} is cancelled and \
-           the round handed back",
-          start.key
-        );
-        double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
-
-        return Err(Failure::Failed(format!(
-          "the double's role had no free slot within {waited} ms, so its request was cancelled"
-        )));
-      }
-    };
-    let mut variables = serde_json::Map::new();
-
-    variables.insert("BMO_TURN_CHAT".to_owned(), chat_id.to_string().into());
-    variables.insert("BMO_TURN_PRIVILEGED".to_owned(), if asking.privileged { "1" } else { "0" }.into());
-    variables.insert(
-      "BMO_TURN_MESSAGES".to_owned(),
-      asking.answers.iter().map(i64::to_string).collect::<Vec<_>>().join(",").into(),
-    );
-
-    if let Some(via) = &asking.via {
-      variables.insert("BMO_TURN_VIA".to_owned(), via.clone().into());
-    }
-
-    let turn = DoubleTurn {
-      prompt,
-      title: format!("{agent}: a round of chat {chat_id}, handed over"),
-      chat_id,
-      round: rounds::current(),
-      key: key_of(asking),
-      variables,
-    };
-    let mark = heard_mark(receiver).await;
-    let mut followed =
-      Followed::open(agency.clone(), &seat.session, DOUBLE_KINDS, mark, receiver.re_attach_pace()).await;
-    let sent = turn.clone();
-    let port = agency.clone();
-    let sent_on = seat.clone();
-    let mut sending = tokio::spawn(async move { port.double_turn(&sent_on, &sent).await });
-    let mut sent_done = false;
-    let mut carrying: Option<i64> = None;
-    let handed = handed_of(chat_id, send, &asking.context, &marked);
-    let mut picture = RunProgress::starting(&handed);
-    let mut after: i64 = 0;
-    let mut look = tokio::time::interval(self.look.max(Duration::from_millis(1)));
-    let mut quiet_until: Option<tokio::time::Instant> = None;
-
-    look.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
-    // The turn is followed to its end, however long it takes, re-attached to across every cut: a look offers it
-    // the words that came for its room and reads its run's log for the picture, as a look at the agent's own turn
-    // does.
-    let ended: Result<DoubleEnd, Failure> = loop {
-      tokio::select! {
-        done = &mut sending, if !sent_done => {
-          sent_done = true;
-
-          match done {
-            Ok(Ok(end)) => break Ok(end),
-            Ok(Err(why)) if super::attach::unreachable(&why) => {
-              eprintln!("chat {chat_id}: the double's turn's send was cut: {why}");
-              followed.cut();
-            }
-            Ok(Err(why)) => break Err(fault_of(why)),
-            Err(_) => followed.cut(),
-          }
-        }
-        step = followed.next() => {
-          match step {
-            Ok(Step::Ended(end)) => {
-              let text = |field: &str| end.get(field).and_then(Value::as_str).unwrap_or_default().to_owned();
-
-              break Ok(DoubleEnd { answer: text("answer"), outcome: text("outcome"), reason: text("reason") });
-            }
-            Ok(Step::Event(_)) => {}
-            Ok(Step::Unnamed) => {
-              if sent_done {
-                println!("chat {chat_id}: the double's turn was never named, so it is sent again under its key");
-
-                let sent = turn.clone();
-                let port = agency.clone();
-                let sent_on = seat.clone();
-
-                sending = tokio::spawn(async move { port.double_turn(&sent_on, &sent).await });
-                sent_done = false;
-              }
-            }
-            Err(failure) => break Err(failure),
-          }
-        }
-        _ = look.tick() => {
-          if let Some(turning) = followed.turn()
-            && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
-          {
-            quiet_until = pushed(agency.as_ref(), &seat.session, turning, follower).await;
-          }
-
-          let since = if after == 0 { None } else { Some(after) };
-
-          if let Ok(lines) = agency.run_log(&seat.run, since).await {
-            for line in lines {
-              let id = line.get("id").and_then(Value::as_i64);
-
-              if after != 0 && id.is_some_and(|id| id <= after) {
-                continue;
-              }
-
-              let text = line
-                .get("text")
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-                .unwrap_or_else(|| serde_json::to_string(&line).unwrap_or_default());
-
-              if let Some(read) = picture.read(&text).or_else(|| picture.filed(&line)) {
-                picture = read;
-              }
-
-              if thinking_shown && let Some(thought) = thinking_of(&line).last() {
-                picture = picture.thought(thought);
-              }
-
-              after = id.unwrap_or(after);
-            }
-
-            follower.progressed(&picture);
-          }
-        }
-      }
-
-      // The double's turn, once the agency names it, carries what is pushed into it from then on.
-      if followed.turn().is_some() && followed.turn() != carrying {
-        carrying = followed.turn();
-
-        if let Some(turning) = carrying {
-          follower.carried_by(&seat.session, turning).await;
-        }
-      }
-    };
-    let turning = followed.turn();
-
-    drop(followed);
-
-    if !sent_done {
-      sending.abort();
-    }
-
-    // A double that does not take the round is stopped before it is handed back: its turn interrupted where it
-    // may still run, and its slot given back as cancelled, so no run of it goes on beside the agent
-    // (docs/drafting.md, 「A round handed to the double」).
-    let taken = match &ended {
-      Ok(end) => !matches!(end.outcome.as_str(), "stopped" | "failed") && !is_handoff(&end.answer),
-      Err(_) => false,
-    };
-
-    if !taken
-      && ended.is_err()
-      && let Some(turning) = turning
-      && let Err(why) = agency.interrupt(&seat.session, turning).await
-    {
-      eprintln!("chat {chat_id}: the double's turn was not interrupted: {why}");
-    }
-
-    let outcome = match &ended {
-      Ok(end) if !end.outcome.is_empty() => end.outcome.clone(),
-      Ok(_) => "answered".to_owned(),
-      Err(_) => "failed".to_owned(),
-    };
-
-    // A slot the agency did not take back is given back by its key, and kept as held until it is.
-    match agency.double_finish(&seat, &outcome, !taken).await {
-      Ok(()) => {
-        if let Err(why) = double_slots::given_back(receiver.db(), &start.key).await {
-          eprintln!(
-            "chat {chat_id}: the double's slot is given back but still kept as held: {}",
-            why.detail
-          );
-        }
-      }
-      Err(why) => {
-        eprintln!("chat {chat_id}: the double's slot was not given back: {why}");
-        double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
-      }
-    }
-
-    let ended = ended?;
-
-    match ended.outcome.as_str() {
-      "stopped" => Err(Failure::Stopped),
-      "failed" => Err(Failure::Failed(ended.reason)),
-      // A double hands nothing on: the round was its to finish.
-      _ if is_handoff(&ended.answer) => Err(Failure::Failed(
-        "the double answered the hand-off sentinel instead of the round".to_owned(),
-      )),
-      _ => Ok(Reply {
-        text: ended.answer,
-        mode: None,
-        account: None,
-        session: None,
-        context_tokens: None,
-        context_window: None,
-        fold_ratio: None,
-        folds_itself: true,
-        replaced: vec![],
-        run: Some(seat.run.clone()),
-        before: super::draft::Before {
-          session: None,
-          core: marked,
-          names: super::context::core_names(&asking.prompt),
-          loads: loaded,
-        },
-        spanned: vec![],
-      }),
-    }
-  }
-
   pub async fn carries(&self, asking: &Asking, held: &Held, follower: &Follower) -> Result<Reply, Failure> {
-    if let Some(doubled) = asking.double {
-      return self.doubled(asking, held, follower, doubled).await;
-    }
-
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let db = receiver.db();

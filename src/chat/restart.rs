@@ -24,7 +24,7 @@ use super::notices::Voiced;
 use super::relaunch::{Deployed, deployment};
 use super::runner::Runner;
 use crate::receiver::wake::{self, rest, standing};
-use crate::receiver::{Inbound, Receiver, rows};
+use crate::receiver::{Inbound, Receiver, Room, rows};
 use crate::store::{Fault, settings};
 use crate::{all, now_ms, one, run};
 
@@ -307,11 +307,6 @@ pub async fn queue_back_notice(receiver: &Receiver) {
   kick(receiver);
 }
 
-/// Whether the room's own road answers the agent: the room names nobody awake, or the agent among its answerers.
-async fn answers(receiver: &Receiver, chat_id: i64) -> bool {
-  receiver.roads().shown(chat_id).await
-}
-
 /// The numbers the room's other answerers speak under there, as the room's own road gave them.
 async fn answerer_numbers(receiver: &Receiver, chat_id: i64, road: &str) -> HashSet<i64> {
   let rows = all(
@@ -325,15 +320,34 @@ async fn answerer_numbers(receiver: &Receiver, chat_id: i64, road: &str) -> Hash
   HashSet::from_iter(rows.iter().filter_map(|row| row.try_get::<i64>("", "sender_id").ok()))
 }
 
-/// The words a restart left unread, handed to every room that answers, one room at a time in room order, to every
-/// agent that answers the room, whichever it is (docs/wake.md, 「The room's queue and the round」): a room one agent
-/// answers hands it every line after its read mark as one turn, and a room several answer hands each the lines that
-/// wake it by the one rule. The read mark the conversation writes after the turn keeps a line from being served
-/// twice; a room with nothing waiting is not served and says nothing.
+/// The lines an agent's backlog turn takes (docs/messages.md, 「Backlog」): from the first unread line sent since
+/// `since` that wakes it by the one rule, that line and every unread line after it, as a live round takes the words
+/// that came after the call that woke it; none where no such line wakes it.
+async fn from_first_waking(
+  receiver: &Receiver,
+  agent: &str,
+  unread: &[Inbound],
+  room: Room,
+  since: i64,
+) -> Vec<Inbound> {
+  for (at, message) in unread.iter().enumerate() {
+    if message.sent_at >= since && wake::wakes(receiver, agent, message, room).await.unwrap_or(false) {
+      return unread[at..].to_vec();
+    }
+  }
+
+  vec![]
+}
+
+/// The words a restart left unread in every room the receiver listens to, one room at a time in room order, each
+/// agent of the room handed the lines from the first that wakes it (docs/messages.md, 「Backlog」). The read mark
+/// the conversation writes after the turn keeps a line from being served twice; a room with nothing waiting is not
+/// served and says nothing.
 pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), Fault> {
   let db = receiver.db();
   let owner = receiver.deployment().owner_id;
   let rooms = receiver.roads();
+  let since = now_ms() - CHAT_ROUND.backlog.within_minutes * 60_000;
   let mut open: Vec<i64> = all(db, r#"SELECT DISTINCT "chat_id" FROM "messages""#, vec![])
     .await?
     .iter()
@@ -346,7 +360,7 @@ pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), 
   for chat_id in open {
     // A room the receiver does not listen to starts no session, however much it holds unread (docs/wake.md,
     // 「The room's queue and the round」).
-    if !receiver.listens(chat_id).await.unwrap_or(false) || !answers(receiver, chat_id).await {
+    if !receiver.listens(chat_id).await.unwrap_or(false) {
       continue;
     }
 
@@ -398,28 +412,16 @@ pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), 
     let mut resting: Vec<&str> = vec![];
 
     for agent in &agents {
+      let words = from_first_waking(receiver, agent, &unread, room, since).await;
+
+      if words.is_empty() {
+        continue;
+      }
+
       let conversations = runner.of(agent);
 
       if conversations.silenced(chat_id).await {
         resting.push(agent);
-        continue;
-      }
-
-      let words: Vec<Inbound> = if agents.len() == 1 {
-        unread.clone()
-      } else {
-        let mut words = vec![];
-
-        for message in &unread {
-          if wake::wakes(receiver, agent, message, room).await.unwrap_or(false) {
-            words.push(message.clone());
-          }
-        }
-
-        words
-      };
-
-      if words.is_empty() {
         continue;
       }
 

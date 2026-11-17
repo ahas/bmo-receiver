@@ -228,12 +228,6 @@ refused_gap_ms = 10000
 pace_ms = 2000
 reattach_ms = 600000
 
-# How long a round handed to the double waits for its slot to be let in, in milliseconds, before the round is
-# handed back to the agent's own session (docs/drafting.md, 「A round handed to
-# the double」): a room's round is live conversation and never waits behind the role's delegated work.
-[double]
-admit_ms = 20000
-
 # How a round's message is put into its room (docs/wake.md, 「The room's queue and the round」): how many times the
 # send is tried on the road the turn answers on before the round fails, and how long it waits between two tries,
 # in milliseconds.
@@ -285,10 +279,12 @@ repeat = "the same notice arrived {count} times"
 # The publisher a row is shown as where it carries none and its kind names none.
 unknown_publisher = "the system"
 
-# The words a restart left unread, read back as the process that holds the conversations starts: how long the
-# start settles before they are read, in milliseconds.
+# The words a restart left unread, read back as the process that holds the conversations starts
+# (docs/messages.md, 「Backlog」): how long the start settles before they are read, in milliseconds, and the while,
+# in minutes, within which an unread line still wakes an agent, so a restart never answers a call gone cold.
 [backlog]
 settle_ms = 1500
+within_minutes = 360
 
 # The owner's words from the console to a room's session (docs/receiver.md, 「The owner's words」): the marker
 # that names them, the owner's {text} as data, the rule the marker stands for in the room's block, and the kind

@@ -189,6 +189,17 @@ async fn serve(config: &Config) -> Result<(), String> {
 
   let db = config.connect().await?;
 
+  // The double's slots the store still keeps are read before the migration that drops their table, to be given
+  // back once the service stands (docs/receiver.md, 「Where it stands」).
+  let left = match bmo_receiver::chat::double_slots::held(&db).await {
+    Ok(left) => left,
+    Err(why) => {
+      eprintln!("double's slots: the slots the store keeps were not read: {}", why.detail);
+
+      vec![]
+    }
+  };
+
   let migrated = migrate(&db).await;
   migrated.map_err(|why| format!("the migrations: {why}"))?;
 
@@ -206,7 +217,7 @@ async fn serve(config: &Config) -> Result<(), String> {
     tokio::spawn(async move { settle(&receiver, &consumer, &listen, &token).await })
   };
 
-  keep(&standing);
+  keep(&standing, left);
 
   // Every private room the agency and the web unit name now is kept on its record, beside the serve: what they do
   // not answer now is asked again by the reads that need it (docs/receiver.md, 「Console rooms and accounts」).
@@ -286,7 +297,7 @@ async fn quiet(config: &Config, jobs: bool) -> u8 {
   let db = match config.connect().await {
     Ok(db) => db,
     Err(why) => {
-      println!("the store did not answer which double's slots are held: {why}");
+      println!("the store did not answer what stands under way: {why}");
 
       return 2;
     }

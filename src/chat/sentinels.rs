@@ -13,7 +13,6 @@ pub const WAIT: &str = "<<WAIT>>";
 pub const SKIP: &str = "<<SKIP>>";
 pub const SEND: &str = "<<SEND>>";
 pub const FOLD: &str = "<<FOLD>>";
-pub const HANDOFF: &str = "<<HANDOFF>>";
 
 // The opening of any of the draft process's answer marks: two opening angle brackets and a word in
 // capitals, then the closing brackets, a colon or a number's `#`. A shell here-document's opening is none.
@@ -106,12 +105,6 @@ pub fn skip_alone(text: &str) -> Option<Skip> {
       .find(|said| matches!(said, Skip::Reasoned(_)))
       .unwrap_or(Skip::Bare)
   })
-}
-
-/// Whether an answer hands its round to the agent's double (docs/drafting.md, 「A round handed to the double」):
-/// the hand-off sentinel and nothing else.
-pub fn is_handoff(text: &str) -> bool {
-  text.contains(HANDOFF) && trim(&text.replace(FOLD, "").replace(HANDOFF, "")).is_empty()
 }
 
 /// Whether a message asks to be folded (docs/wake.md, 「Folds」): the fold mark stands in it outside a code span

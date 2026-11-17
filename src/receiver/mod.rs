@@ -458,8 +458,6 @@ pub struct Receiver {
   review_gate: bool,
   // How long a round waits between two tries to re-attach to a cut turn while the agency answers nothing.
   re_attach_pace: Duration,
-  // How long a round handed to the double waits for its slot before it is handed back.
-  double_admit: Duration,
   // How long a round waits between two tries to put its message into its room.
   send_again_pace: Duration,
   // How long the receiver waits before asking the voice engine again to stop its briefings, once a stop failed.
@@ -548,7 +546,6 @@ impl Receiver {
       situation_updates: true,
       review_gate: true,
       re_attach_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.attach.pace_ms.max(1)),
-      double_admit: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.double.admit_ms.max(1)),
       send_again_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.send.gap_ms.max(1)),
       voice_stop_pace: Duration::from_millis(
         receiver_policy::voice_briefing::VOICE_BRIEFING.stop_again_ms.max(1),
@@ -676,18 +673,6 @@ impl Receiver {
   /// How long a round waits between two tries to re-attach to a cut turn while the agency answers nothing.
   pub fn re_attach_pace(&self) -> Duration {
     self.re_attach_pace
-  }
-
-  /// The same receiver, waiting `limit` for a handed round's double slot rather than the policy's.
-  pub fn admitting_double_within(mut self, limit: Duration) -> Self {
-    self.double_admit = limit.max(Duration::from_millis(1));
-    self
-  }
-
-  /// How long a round handed to the double waits for its slot to be let in before the round is handed back to the
-  /// agent's own session.
-  pub fn double_admit(&self) -> Duration {
-    self.double_admit
   }
 
   /// The same receiver, waiting `pace` between two tries to put a round's message into its room rather than the

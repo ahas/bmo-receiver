@@ -298,9 +298,19 @@ that wants something said there hands the words to that supervisor, and the supe
 
 ## Backlog
 
-- **On start-up the receiver re-reads the unread messages of every chat** and answers them if one of them is recent
-  enough (six hours) and either calls the agent by name or sits in the owner's private chat, where no name is
-  needed.
+- **On start-up the receiver reads the unread lines of every room it listens to:** the lines after the room's
+  read mark, leaving out those of the room's own answerers and of a muted sender. Which road reaches the room, and
+  what that road's screen shows, is no part of it.
+- **An agent is served from the first unread line that wakes it.** For each agent the room designates, the first
+  of those lines that wakes it by the one rule a message is judged by (`docs/wake.md`), judged as the scan runs,
+  and sent within the policy's while (`chat-round.toml`, `[backlog]`, `within_minutes`, six hours), opens its
+  turn. The turn takes that line and every unread line after it, as a live round takes the words that came after
+  the call that woke it, so the words a round cut by the restart held are handed again whole. A line older than
+  the while wakes nothing, so a restart never answers a call gone cold, and the lines before the first waking one
+  open no turn: they are read once a turn's read mark passes them.
+- **Rooms are served one at a time, in room order:** the next room waits until this room's turns have gone out
+  and its read mark stands at the last line handed, or until the room holds nothing more to answer for any agent
+  served.
 - **The scan runs a few seconds after the chat services report ready,** so the messages a chat service held while
   the receiver was down are archived first and answered in the same pass. A message still waiting in its room's
   queue when the receiver stopped is one of them, since it was archived before it queued.

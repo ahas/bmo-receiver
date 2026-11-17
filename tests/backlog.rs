@@ -1,8 +1,8 @@
-//! The restart's backlog (docs/receiver.md, 「Where it stands」; docs/wake.md, 「The room's queue and the
-//! round」): every room with unread lines is served one at a time, each room's unread lines as one turn, marked
-//! read so a line is never served twice, and a room with nothing waiting gets no turn. It runs alone in a process of
-//! its own (`integration::common::alone`): a room's first launch in a process is spaced from every other room's, so
-//! the two fresh rooms it opens would hold back the rounds the other tests of the process wait on.
+//! The restart's backlog (docs/messages.md, 「Backlog」): every room the receiver listens to is served one at a
+//! time, whatever its road's screen shows, each agent handed the unread lines from the first that wakes it, a line
+//! older than the policy's while waking nothing, marked read so a line is never served twice. It runs alone in a
+//! process of its own (`integration::common::alone`): a room's first launch in a process is spaced from every other
+//! room's, so the two fresh rooms it opens would hold back the rounds the other tests of the process wait on.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -15,6 +15,7 @@ use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::rows;
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::chat_round::CHAT_ROUND;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::alone::alone;
@@ -55,7 +56,6 @@ impl Group {
     let chat = Arc::new(
       StandInChat::new("road-a")
         .holding(&[ROOM, ROOM_B])
-        .showing(ROOM)
         .agent_in(ROOM, IDENTITY)
         .agent_in(ROOM_B, IDENTITY),
     );
@@ -91,8 +91,11 @@ impl Group {
 }
 
 #[tokio::test]
-async fn a_restart_serves_each_room_once_and_in_order() {
-  let Some(_run) = alone(module_path!(), "a_restart_serves_each_room_once_and_in_order") else {
+async fn a_restart_serves_each_room_from_the_line_that_wakes_its_agent_once_and_in_order() {
+  let Some(_run) = alone(
+    module_path!(),
+    "a_restart_serves_each_room_from_the_line_that_wakes_its_agent_once_and_in_order",
+  ) else {
     return;
   };
 
@@ -102,16 +105,28 @@ async fn a_restart_serves_each_room_once_and_in_order() {
       .hiding_situations(),
   )
   .await;
+  let now = bmo_receiver::now_ms();
+  let cold = now - (CHAT_ROUND.backlog.within_minutes + 1) * 60_000;
 
   round.standing.web.watching(&[ROOM_B, ROOM]);
   round
     .scratch
     .run(
       r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
-         VALUES ($1, 2, $3, 'owner', 1760000002, 'in the first room', 'road-a'),
-                ($2, 2, $3, 'owner', 1760000002, 'in the second room', 'road-a'),
-                ($2, 3, $3, 'owner', 1760000003, 'and its second line', 'road-a')"#,
-      vec![ROOM.into(), ROOM_B.into(), OWNER.into()],
+         VALUES ($1, 2, $3, 'owner', $4, 'agent-a, a call gone cold', 'road-a'),
+                ($1, 3, $3, 'owner', $5, 'agent-a, in the first room', 'road-a'),
+                ($2, 2, $3, 'owner', $6, 'chatter before the call', 'road-a'),
+                ($2, 3, $3, 'owner', $7, 'agent-a, in the second room', 'road-a'),
+                ($2, 4, $3, 'owner', $5, 'and its second line', 'road-a')"#,
+      vec![
+        ROOM.into(),
+        ROOM_B.into(),
+        OWNER.into(),
+        cold.into(),
+        (now - 3_000).into(),
+        (now - 5_000).into(),
+        (now - 4_000).into(),
+      ],
     )
     .await;
   rows::set_last_read(round.scratch.db(), ROOM, 1).await.unwrap();
@@ -123,11 +138,13 @@ async fn a_restart_serves_each_room_once_and_in_order() {
 
   assert_eq!(prompts.len(), 2, "{prompts:#?}");
   assert!(prompts[0].contains("in the second room"), "the lower room id is served first");
-  assert!(prompts[0].contains("and its second line"));
   assert!(prompts[1].contains("in the first room"));
+  // The second room's turn answers the waking line and the one after it, never the chatter before it; the first
+  // room's answers its waking line alone, never the call gone cold before the while.
+  assert_eq!(round.session.answered(), [vec![3, 4], vec![3]]);
 
-  assert_eq!(rows::last_read(round.scratch.db(), ROOM).await.unwrap(), Some(2));
-  assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(3));
+  assert_eq!(rows::last_read(round.scratch.db(), ROOM).await.unwrap(), Some(3));
+  assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(4));
 
   // A line already served is not served again.
   resume_backlog(&round.standing.receiver, &round.runner).await.unwrap();
@@ -139,8 +156,8 @@ async fn a_restart_serves_each_room_once_and_in_order() {
     .scratch
     .run(
       r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via")
-         VALUES ($1, 4, $2, 'owner', 1760000004, 'said with its window closed', 'road-a')"#,
-      vec![ROOM_B.into(), OWNER.into()],
+         VALUES ($1, 5, $2, 'owner', $3, 'agent-a, said while the console looked elsewhere', 'road-a')"#,
+      vec![ROOM_B.into(), OWNER.into(), now.into()],
     )
     .await;
   round.standing.web.watching(&[ROOM]);
@@ -148,8 +165,8 @@ async fn a_restart_serves_each_room_once_and_in_order() {
   resume_backlog(&round.standing.receiver, &round.runner).await.unwrap();
 
   assert_eq!(round.session.prompts().len(), 3, "the unread room is served");
-  assert!(round.session.prompts()[2].contains("said with its window closed"));
-  assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(4));
+  assert!(round.session.prompts()[2].contains("said while the console looked elsewhere"));
+  assert_eq!(rows::last_read(round.scratch.db(), ROOM_B).await.unwrap(), Some(5));
 
   round.runner.default_answerer().close(ROOM).await;
   round.runner.default_answerer().close(ROOM_B).await;

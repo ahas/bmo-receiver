@@ -133,8 +133,7 @@ async fn quiet_ends_two_where_the_store_or_the_agency_was_not_read() {
 
   assert_eq!(output.status.code(), Some(2), "{}", said(&output));
   assert!(
-    String::from_utf8_lossy(&output.stdout)
-      .contains("the store did not answer which double's slots are held"),
+    String::from_utf8_lossy(&output.stdout).contains("the store did not answer what stands under way"),
     "{}",
     said(&output)
   );

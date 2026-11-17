@@ -50,9 +50,13 @@ flowchart TD
   - the restart (`docs/voiced-notices.md`, 「Deploy and restart」): a rest lifted past its end, every room but the
     owner's read up to its latest message and the owner told where it was a limit's rest; and, as the receiver
     starts, the owner's back notice with the deployment's unit, commit, subject, item and what it cut, then the
-    words a restart left unread handed to every room that answers, one room at a time and in room order, the
-    room's read mark advancing as its turn goes out; a room with nothing waiting is not served, and a line already served
-    is not served again;
+    words a restart left unread handed, by the backlog's rule (`docs/messages.md`, 「Backlog」), to the agents
+    they wake, one room at a time and in room order, the room's read mark advancing as its turn goes out; a room
+    with nothing waiting is not served, and a line already served is not served again;
+  - the slots of the agency's double role a store still keeps (`double_slots`), read as the receiver starts,
+    before the migration that drops their table, and each given back once by its key with the agency's owner
+    release (`docs/boundary-api.md`), so nothing stays held at the agency for a round no process follows; a key
+    the agency does not take is named in the log and not kept;
   - the console's talks about an item and a document (`POST /talks`), each turn a round of the owner's chat on the default
     answerer's session;
   - the one runner: each woken agent's turns in its conversations, every supervisor's alike,
@@ -565,7 +569,7 @@ flowchart TD
   pushed in — since those words close the turn before them: a draft, a rewrite or a skip a later turn replaced is
   never shown as a line. A failed request's text is none, and thinking never is one; a pane program's record carries no text, so its turns have none.
   Nor is a text holding one of the draft process's answer marks (`docs/drafting.md`: `<<SEND>>`, `<<SKIP: …>>`,
-  `<<WAIT>>`, `<<HANDOFF>>`, `<<REPLY #n>>` and the rest), even where a call follows it: it is a draft of the
+  `<<WAIT>>`, `<<REPLY #n>>` and the rest), even where a call follows it: it is a draft of the
   turn's message, and nothing of the answer stands before it is sent, so it is left out whole, never shown with
   its mark cut off. A mark is known by its opening, two opening angle brackets and a word in capitals followed by
   the closing brackets, a colon or a `#`, so one whose reason runs on still counts, and a shell here-document's

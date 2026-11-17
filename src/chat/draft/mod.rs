@@ -19,16 +19,15 @@ use serde_json::to_string as stringify;
 
 use super::ask::Carry;
 use super::conversation::{
-  Asking, BoxFuture, Carried, Carrying, Conversations, Doubled, Drafted, Drafting, Failure, Follower, Held,
-  Made, Reply,
+  Asking, BoxFuture, Carried, Carrying, Conversations, Drafted, Drafting, Failure, Follower, Held, Made,
+  Reply,
 };
 use super::mid_turn::{Push, paragraph};
 use super::promises::{promises_after, promises_later, sets_rule_later};
 use super::prompt::{Scope, scope_line};
 use super::records::run_records;
 use super::sentinels::{
-  FOLD, Mark, SKIP, Skip, asks_fold, is_handoff, is_skip, is_wait, round_marks, sent_now, skip,
-  without_round_marks,
+  FOLD, Mark, SKIP, Skip, asks_fold, is_skip, is_wait, round_marks, sent_now, skip, without_round_marks,
 };
 use super::turn_mark::{self, TurnMark};
 use super::turnover::note_session;
@@ -39,10 +38,6 @@ use crate::receiver::{Inbound, Receiver};
 
 use checks::{Check, Reading, failing, own_lines};
 use log::{Answered, Ended, Kind, Log, NO_REASON};
-
-// What the round log records for a skip the code itself reads out of an answer: the hand-off sentinel standing in
-// a turn of the process after the draft turn (docs/drafting.md, 「A round handed to the double」).
-const SKIPPED_BY_HANDOFF: &str = "the answer carried the hand-off sentinel";
 
 /// What an item or a check goes out with beside its marker and data: the turn's scope and the ids of the
 /// messages waiting for the next turn. What is done with them stands in the room's block.
@@ -618,7 +613,6 @@ impl Run<'_> {
       context: drafted.selection.context.clone(),
       thread_mark: None,
       standing: false,
-      double: drafted.double.then_some(Doubled::Later),
     };
     let held = Held {
       agent: self.agent.to_owned(),
@@ -657,21 +651,13 @@ impl Run<'_> {
       Ok(answered) => {
         self.shown.extend(pushed);
 
-        // The hand-off sentinel is the round's own draft turn's alone: from a later turn it is a skip whose reason
-        // is that sentinel, never words and never a turn asked over its skip.
         let said = strip_prompt_scaffolding(&answered.text);
-        let handing = is_handoff(&said);
-        let text = self.marked(if handing { SKIP } else { &said });
+        let text = self.marked(&said);
         // An answer of nothing but marks says nothing more: no skip, and no words.
         let (text, ending, reason) = match (self.only_marks, text.is_empty()) {
           (true, _) => (text, Answered::Answered, None),
           (false, true) => read_answer(SKIP),
           (false, false) => read_answer(&text),
-        };
-        let (ending, reason) = if handing {
-          (Answered::Skip, Some(SKIPPED_BY_HANDOFF.to_owned()))
-        } else {
-          (ending, reason)
         };
         // At the asking that settles the round, a skip naming no reason is its skip after all, none given.
         let (ending, reason) = match (ending, settling) {

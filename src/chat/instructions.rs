@@ -550,7 +550,7 @@ pub async fn settle(db: &DatabaseConnection, round: &str, ids: &[i64]) -> Result
 }
 
 /// Rows back to pending with their carrying cleared, each whose text a session received marked as handed before;
-/// the rows given back. A round that failed and a double that handed its round back both give back this way.
+/// the rows given back. A round that failed and a restart both give back this way.
 pub async fn returned(db: &DatabaseConnection, ids: &[i64]) -> Result<Vec<i64>, Fault> {
   if ids.is_empty() {
     return Ok(vec![]);

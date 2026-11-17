@@ -1,6 +1,5 @@
-//! The double's slots the receiver holds (`docs/drafting.md`, 「A round handed to the double」): each slot it asked
-//! for and has not seen given back, so `quiet` counts the double's rounds and the start gives back what a stopped
-//! process left.
+//! The table of the agency's double slots the receiver once asked for, kept until the migration that drops it
+//! (`docs/receiver.md`, 「Where it stands」).
 
 use sea_orm_migration::prelude::*;
 

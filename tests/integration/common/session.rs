@@ -246,6 +246,11 @@ impl StandInSession {
     self.turns.lock().unwrap().iter().map(|turn| turn.prompt.clone()).collect()
   }
 
+  /// The messages each turn it was sent answers, in order.
+  pub fn answered(&self) -> Vec<Vec<i64>> {
+    self.turns.lock().unwrap().iter().map(|turn| turn.answers.clone()).collect()
+  }
+
   /// The room each turn it was sent answers, in order; None for a turn naming no room.
   pub fn rooms(&self) -> Vec<Option<i64>> {
     self

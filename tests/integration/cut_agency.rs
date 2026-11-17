@@ -2,9 +2,7 @@
 //! instruction」): the turn goes to an agency served on a real port, which the test stops, cutting the send and the
 //! event stream, and starts again. A turn the agency still holds is re-attached to and its end read off the events
 //! it kept, never sent twice; a send cut before its turn was named goes again under its key and attaches to one
-//! turn; a turn the agency lost fails the round uncounted and gives its row back, never settled. A round handed to
-//! the double and handed back returns what was pushed into the double's turn (docs/drafting.md, 「A round handed to
-//! the double」).
+//! turn; a turn the agency lost fails the round uncounted and gives its row back, never settled.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -12,12 +10,10 @@ use std::time::Duration;
 
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
-use bmo_receiver::chat::double_slots;
 use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use receiver_policy::chat_line::CHAT_LINE;
-use receiver_ports::agency::Said;
 
 use crate::integration::common::Scratch;
 use crate::integration::common::served_agency::ServedAgency;
@@ -307,76 +303,5 @@ async fn a_turn_the_restarted_agency_lost_fails_the_round_uncounted_and_gives_it
     cut.sent().iter().all(|sent| !sent.contains(ANSWER)),
     "no answer went out for a turn whose end was never read: {:?}",
     cut.sent()
-  );
-}
-
-#[tokio::test]
-async fn a_round_the_double_hands_back_returns_what_was_pushed_into_its_turn() {
-  const NOTICE: &str = "a queue notice";
-  const HANDOFF: &str = "<<HANDOFF>>";
-
-  let cut = Cut::stood().await;
-
-  *cut.standing.agency.saying.lock().unwrap() = Some(Said::Delivered);
-
-  let check = cut.instruct().await;
-
-  // The agent's own turn hands the round to its double.
-  until("the agent's turn", || cut.served.turns() == [1]).await;
-  cut.served.end(1, HANDOFF);
-  until("the double's turn", || cut.served.turns() == [1, 2]).await;
-
-  // An instruction that comes while the double works is pushed into the double's turn.
-  let notice = cut.instructing(NOTICE).await;
-
-  until("the notice pushed into the double's turn", || {
-    cut
-      .standing
-      .agency
-      .pushes
-      .lock()
-      .unwrap()
-      .iter()
-      .any(|(session, turn, words)| session.starts_with("double@") && *turn == 2 && words.contains(NOTICE))
-  })
-  .await;
-
-  // The double answers the sentinel itself, so it hands the round back.
-  cut.served.end(2, HANDOFF);
-  until("the agent's own session asked again", || cut.served.turns() == [1, 2, 3]).await;
-  // Pending again with its carrying cleared, marked as received before by the double's session.
-  cut
-    .row_until(
-      notice,
-      &Row {
-        settled: false,
-        session: None,
-        turn: None,
-        restarts: 1,
-        failures: 0,
-        let_go: None,
-      },
-    )
-    .await;
-  cut.served.end(3, ANSWER);
-  until("the answer in the room", || !cut.sent().is_empty()).await;
-  until("the round's end", || cut.runner.idle()).await;
-
-  let sends = cut.served.sends();
-  let back = CHAT_LINE.room.handed_back.split("{why}").next().unwrap_or_default();
-  let finishes = cut.standing.agency.double_finishes.lock().unwrap().clone();
-
-  assert!(sends[2]["prompt"].as_str().unwrap().contains(back), "{:#?}", sends[2]);
-  assert_eq!(finishes.len(), 1, "the double's slot is given back: {finishes:?}");
-  assert!(finishes[0].1, "as cancelled, so its run does not go on: {finishes:?}");
-  assert!(
-    double_slots::held(cut.scratch.db()).await.unwrap().is_empty(),
-    "the receiver holds no slot of the double once it was given back"
-  );
-  assert!(cut.row(check).await.settled, "the instruction the agent's own turn carried is settled");
-  assert!(
-    !cut.row(notice).await.settled,
-    "the instruction only the double's turn received waits again: {:?}",
-    cut.row(notice).await
   );
 }

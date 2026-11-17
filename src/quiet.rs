@@ -1,5 +1,5 @@
 //! Whether work stands under way that a restart of the receiver would cut (docs/boundary-api.md, 「The service and
-//! its commands」, `quiet`): the agency's runs still open and the double's slots the receiver holds, each that
+//! its commands」, `quiet`): the agency's runs still open and the double's slots the store still keeps, each that
 //! counts named.
 
 use receiver_ports::agency::{Agency, OpenRun, RunningJob};
@@ -46,8 +46,8 @@ pub fn jobs_under_way(jobs: &[RunningJob]) -> Vec<String> {
     .collect()
 }
 
-/// What stands under way now: the runs that count as the agency answers them, every double's slot the store
-/// holds, since the agency opens no run for a double's turn, and with `jobs` every job starting or running; the
+/// What stands under way now: the runs that count as the agency answers them, every double's slot the store still
+/// keeps, since the agency opens no run for a double's turn, and with `jobs` every job starting or running; the
 /// failure of whichever did not answer.
 pub async fn asked(
   agency: &dyn Agency,

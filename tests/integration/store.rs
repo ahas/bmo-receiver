@@ -57,7 +57,6 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
       SESSION_NOTES,
       RECORD_TABLE,
       "room_archives",
-      "double_slots",
       "message_file_asks",
       "room_accounts",
       "private_rooms",

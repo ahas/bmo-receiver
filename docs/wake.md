@@ -241,9 +241,9 @@ its rounds.
 - **An empty queue has no timer,** so a quiet room costs nothing and a busy one costs one run per five seconds
   instead of one per message.
 - **Quiet instructions, touches and the start-up backlog do not queue.** The start-up backlog is one turn per room
-  with unread lines, in a room the receiver listens to, handed in room order to every agent the room's words
-  wake by the one rule a message is judged by, whichever agent answers the room; its lines are read as the turn goes out, a room with nothing
-  waiting is not served, and a line served is not served again.
+  and agent its unread lines wake, in a room the receiver listens to, handed in room order by the backlog's rule
+  (`docs/messages.md`, 「Backlog」); its lines are read as the turn goes out, a room with nothing waiting is not
+  served, and a line served is not served again.
 - **A session answers one round at a time, and a round is over only once its answer has gone out.** Sending is
   not instant (the road's send may have to be waited out) so a round that counted
   itself finished before it had sent would let the next message start a second run of the same session, and the

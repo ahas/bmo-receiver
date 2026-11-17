@@ -133,15 +133,15 @@ struct Drafting {
 
 impl Drafting {
   async fn new(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, true, false, timings(), None).await
+    Self::with_hiding(session, rounds, ceiling_seconds, true, false, timings()).await
   }
 
   async fn new_visible(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, false, false, timings(), None).await
+    Self::with_hiding(session, rounds, ceiling_seconds, false, false, timings()).await
   }
 
   async fn new_reviewing(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, true, true, timings(), None).await
+    Self::with_hiding(session, rounds, ceiling_seconds, true, true, timings()).await
   }
 
   async fn with_hiding(
@@ -151,7 +151,6 @@ impl Drafting {
     hide: bool,
     review: bool,
     timings: Timings,
-    double_admit: Option<Duration>,
   ) -> Self {
     let scratch = Scratch::new().await;
     let data = tempfile::tempdir().unwrap();
@@ -164,10 +163,6 @@ impl Drafting {
       woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
 
     standing.receiver = standing.receiver.with_situation_updates(!hide).with_review_gate(review);
-
-    if let Some(limit) = double_admit {
-      standing.receiver = standing.receiver.clone().admitting_double_within(limit);
-    }
 
     let session = Arc::new(
       if hide { session.hiding_situations() } else { session.showing_situations() }
@@ -367,183 +362,6 @@ async fn the_draft_is_one_turn_naming_its_questions_and_its_answer_goes_out() {
 }
 
 const FIVE: &[&str] = &["information", "facts", "memory", "promises", "final"];
-
-#[tokio::test]
-async fn a_draft_turn_that_hands_its_round_over_is_carried_again_by_the_double_whose_answer_goes_out() {
-  let session = StandInSession::new(SESSION, "unscripted").answering(&["<<HANDOFF>>"]);
-  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
-
-  round.standing.agency.doubling(&["the double's message"]);
-  round.hear(1, ASKED).await;
-  round.ended(1).await;
-  until("the double's slot given back", || {
-    !round.standing.agency.double_finishes.lock().unwrap().is_empty()
-  })
-  .await;
-  round.ended(1).await;
-
-  let own = round.session.prompts();
-  let starts = round.standing.agency.double_starts.lock().unwrap().clone();
-  let turns = round.standing.agency.double_turns.lock().unwrap().clone();
-  let sent = round.sent();
-
-  assert_eq!(own.len(), 1, "the agent's own session took the round's turn and no other: {own:#?}");
-  assert!(!starts.is_empty(), "a run of the double was started");
-  assert!(starts[0].short, "the round's own turn asks its slot as a short ask");
-  assert!(
-    starts[1..].iter().all(|start| !start.short),
-    "a later turn of the process asks as a delegated task does: {starts:#?}"
-  );
-
-  for start in &starts {
-    assert_eq!(start.supervisor, AGENT);
-    assert!(
-      start.path.ends_with(&format!("agent-workspaces/{AGENT}/scratch")),
-      "the double works at the agent's scratch workspace: {}",
-      start.path
-    );
-  }
-
-  // The round's own turn goes whole under the line that says it was handed over: the room's block, with each
-  // question's text, and the turn the agent itself was sent.
-  let handed = &turns[0];
-
-  assert!(handed.prompt.starts_with(&CHAT_LINE.room.handed), "{}", handed.prompt);
-  assert!(
-    handed.prompt.contains(ASKED) && handed.prompt.contains(turn_of(&own[0])),
-    "{}",
-    handed.prompt
-  );
-
-  for name in ["intent", "information", "final"] {
-    assert!(
-      handed.prompt.contains(&format!("{name}: {}", question(name))),
-      "the handed turn carries the room's block: {}",
-      handed.prompt
-    );
-  }
-
-  assert_eq!(handed.chat_id, OWNER);
-  assert_eq!(handed.variables.get("BMO_TURN_CHAT"), Some(&serde_json::json!(OWNER.to_string())));
-  assert_eq!(handed.variables.get("BMO_TURN_MESSAGES"), Some(&serde_json::json!("1")));
-
-  // Every later turn of the process is the double's too, its words alone.
-  for later in &turns[1..] {
-    assert!(!later.prompt.starts_with(&CHAT_LINE.room.handed), "{}", later.prompt);
-  }
-
-  assert_eq!(sent.len(), 1, "the double's answer is the message that goes out: {sent:?}");
-  assert!(sent[0].contains("the double's message"), "{sent:?}");
-  assert!(!sent[0].contains("HANDOFF"), "{sent:?}");
-
-  let finishes = round.standing.agency.double_finishes.lock().unwrap().clone();
-
-  assert_eq!(finishes.len(), starts.len(), "each run's slot is given back: {finishes:?}");
-  assert!(
-    finishes.iter().all(|(outcome, cancel)| outcome == "answered" && !cancel),
-    "{finishes:?}"
-  );
-}
-
-#[tokio::test]
-async fn a_double_that_does_not_take_the_round_hands_it_back_to_the_agent_s_own_session() {
-  let session =
-    StandInSession::new(SESSION, "unscripted").answering(&["<<HANDOFF>>", "the agent's own message"]);
-  let round = Drafting::new(session, &["intent", "information", "final"], 150).await;
-
-  *round.standing.agency.double_refused.lock().unwrap() = true;
-  round.hear(1, ASKED).await;
-  round.ended(2).await;
-
-  let own = round.session.prompts();
-  let sent = round.sent();
-  let back = CHAT_LINE.room.handed_back.split("{why}").next().unwrap_or_default();
-
-  assert_eq!(own.len(), 2, "the round's turn, and the asking once the double gave it back: {own:#?}");
-  assert!(
-    own[1].contains(back),
-    "the second asking says the double did not take the round: {}",
-    own[1]
-  );
-  assert!(
-    round.standing.agency.double_turns.lock().unwrap().is_empty(),
-    "no turn of the double ran"
-  );
-  assert_eq!(sent.len(), 1, "the agent's own answer goes out: {sent:?}");
-  assert!(sent[0].contains("the agent's own message") && !sent[0].contains("HANDOFF"), "{sent:?}");
-}
-
-#[tokio::test]
-async fn a_round_waiting_past_the_limit_for_its_double_s_slot_goes_back_with_the_owner_s_words() {
-  const MEANWHILE: &str = "are you getting my messages?";
-
-  // Every turn after the hand-over is the agent's own session's, whose answers all read alike.
-  let session = StandInSession::new(SESSION, "the agent's own message").answering(&["<<HANDOFF>>"]);
-  let round = Drafting::with_hiding(
-    session,
-    &["intent", "information", "final"],
-    150,
-    true,
-    false,
-    timings(),
-    Some(Duration::from_millis(250)),
-  )
-  .await;
-
-  round.standing.agency.doubling(&["the double's message"]);
-  *round.standing.agency.double_waiting.lock().unwrap() = true;
-  round.hear(1, ASKED).await;
-  until("the double's slot asked for", || {
-    !round.standing.agency.double_starts.lock().unwrap().is_empty()
-  })
-  .await;
-  // The owner speaks while the round still waits for the double's slot.
-  round.hear(2, MEANWHILE).await;
-  until("the owner's words taken by the agent's own session", || {
-    round.session.prompts().iter().skip(1).any(|prompt| prompt.contains(MEANWHILE))
-      || round
-        .standing
-        .agency
-        .pushes
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|(_, _, words)| words.contains(MEANWHILE))
-  })
-  .await;
-  round.ended(2).await;
-
-  let own = round.session.prompts();
-  let key = round.standing.agency.double_starts.lock().unwrap()[0].key.clone();
-  let back = CHAT_LINE.room.handed_back.split("{why}").next().unwrap_or_default();
-  let sent = round.sent();
-
-  assert!(own[1].contains(back) && own[1].contains("no free slot"), "{}", own[1]);
-  assert!(
-    round.standing.agency.double_releases.lock().unwrap().contains(&key),
-    "the waiting request is given back by its key"
-  );
-  assert!(
-    round.standing.agency.double_turns.lock().unwrap().is_empty(),
-    "no turn of the double ran"
-  );
-  assert!(!sent.is_empty(), "the round is answered");
-  assert!(
-    sent
-      .iter()
-      .all(|sent| sent.contains("the agent's own message") && !sent.contains("HANDOFF")),
-    "every message that went out is the agent's own session's: {sent:?}"
-  );
-}
-
-#[test]
-fn only_an_answer_of_nothing_but_the_sentinel_hands_a_round_over() {
-  use bmo_receiver::chat::sentinels::is_handoff;
-
-  assert!(is_handoff("<<HANDOFF>>") && is_handoff("  <<HANDOFF>>\n"));
-  assert!(!is_handoff("I will hand this over: <<HANDOFF>>"));
-  assert!(!is_handoff("") && !is_handoff("<<SKIP>>"));
-}
 
 #[tokio::test]
 async fn an_ordinary_round_carries_its_round_line_no_stage_text_and_only_the_words_never_handed_it() {
