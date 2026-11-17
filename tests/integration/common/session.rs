@@ -1,8 +1,8 @@
 //! A stand-in for the agency's sessions (docs/boundary-api.md, 「The agency」): a session started for every asking,
 //! its state, the turn.created and turn.ended events of every turn it carries on its event stream, with whatever
 //! else a test publishes there, and an empty run log. A turn it is told to hold stands working after it started
-//! until the test lets it go, so words can come into the room while it works; a turn ends answered, or as the
-//! test set it to end.
+//! until the test lets it go, so words can come into the room while it works, and one it is told to name late
+//! stands unnamed until the test names it; a turn ends answered, or as the test set it to end.
 
 use std::collections::VecDeque;
 use std::path::Path;
@@ -33,6 +33,9 @@ pub struct StandInSession {
   holding: Mutex<usize>,
   let_go: Notify,
   working: Mutex<bool>,
+  // Whether the next turn it carries is named, its turn.created told, only once the test names it; and the naming.
+  naming_late: Mutex<bool>,
+  name: Notify,
   // What every turn's turn-ended says beside its session, where a test sets it: its answer otherwise.
   ending: Mutex<Option<serde_json::Value>>,
   // The answers the turns give in their order, ahead of `answer`, where a test scripts them.
@@ -78,6 +81,8 @@ impl StandInSession {
       holding: Mutex::new(0),
       let_go: Notify::new(),
       working: Mutex::new(false),
+      naming_late: Mutex::new(false),
+      name: Notify::new(),
       ending: Mutex::default(),
       script: Mutex::default(),
       holding_turn: Mutex::default(),
@@ -189,6 +194,18 @@ impl StandInSession {
   pub fn holding_turn(self, turn: usize) -> Self {
     *self.holding_turn.lock().unwrap() = Some(turn);
     self
+  }
+
+  /// The next turn it carries stands working unnamed, no turn.created told of it, until `name_it`, so whatever
+  /// comes for its room meanwhile is waiting at once when the turn is first named.
+  pub fn naming_late(self) -> Self {
+    *self.naming_late.lock().unwrap() = true;
+    self
+  }
+
+  /// The turn standing unnamed is named.
+  pub fn name_it(&self) {
+    self.name.notify_one();
   }
 
   /// Every turn works this long before it ends.
@@ -356,7 +373,14 @@ impl StandInSession {
         self.script.lock().unwrap().pop_front().unwrap_or_else(|| self.answer.clone())
       };
 
+      let names_late = !hidden && std::mem::take(&mut *self.naming_late.lock().unwrap());
+
       *self.working.lock().unwrap() = true;
+
+      if names_late {
+        self.name.notified().await;
+      }
+
       self.told(
         "turn.created",
         json!({ "session": self.id, "run": format!("run-{number}"), "turnId": number, "at": 0 }),

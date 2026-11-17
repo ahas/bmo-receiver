@@ -2333,14 +2333,10 @@ async fn a_push_carries_only_its_own_rooms_words_and_instructions() {
   documents(data.path());
 
   let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
-  let session = Arc::new(StandInSession::new(SESSION, "the answer").holding_turn(1));
+  // The owner's turn is named only once both rooms' words and instructions wait, so its first look offers them all.
+  let session = Arc::new(StandInSession::new(SESSION, "the answer").holding_turn(1).naming_late());
   let receiver = standing.receiver.clone();
-  // The first look comes late enough that both rooms' words and instructions are already waiting.
-  let looking = Timings {
-    look: Duration::from_millis(150),
-    ..timings()
-  };
-  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), looking, AGENT);
+  let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
 
   standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
   standing.agency.carrying_on(session.clone());
@@ -2368,6 +2364,7 @@ async fn a_push_carries_only_its_own_rooms_words_and_instructions() {
 
   conversations.instruct(LAB, LAB_INSTRUCTION.to_owned(), None, None, vec![]).await;
   conversations.instruct(OWNER, OWNER_INSTRUCTION.to_owned(), None, None, vec![]).await;
+  session.name_it();
 
   until("the push", || !standing.agency.pushes.lock().unwrap().is_empty()).await;
 
