@@ -3921,7 +3921,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, too-large, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, not-found, too-large, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3956,7 +3956,7 @@ export interface operations {
                     "application/json": components["schemas"]["Created"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5018,7 +5018,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5132,7 +5132,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6263,7 +6263,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, no-route, room-archived, private-room, too-large, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, no-route, room-archived, private-room, too-large, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6300,7 +6300,7 @@ export interface operations {
                     "application/json": components["schemas"]["Created"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, no-route, conflict, room-archived, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, no-route, conflict, room-archived, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

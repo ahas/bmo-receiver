@@ -17,6 +17,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
+use crate::integration::common::queue::as_console;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing, woken,
 };
@@ -170,7 +171,7 @@ async fn a_call_by_name_in_a_read_only_room_starts_no_turn_and_is_kept_while_the
 async fn the_owners_console_words_go_out_in_his_own_voice_in_a_read_only_room_and_an_agents_send_is_refused()
  {
   let (scratch, _data, standing, road) = stood().await;
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
   let (status, answer) =
     asked(&port, "/owner/messages", json!({ "chatId": READER_ROOM, "text": "The game begins." })).await;
 

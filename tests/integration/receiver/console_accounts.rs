@@ -21,6 +21,7 @@ use serde_json::{Value, json};
 use tempfile::TempDir;
 use tower::ServiceExt;
 
+use crate::integration::common::queue::as_console;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, Woken, registration, standing, woken,
 };
@@ -138,7 +139,7 @@ async fn stood_linked(waking: bool, linked_owner: bool) -> Stood {
     .await;
   private_rooms::at_start(&standing.receiver).await.unwrap();
 
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
 
   Stood {
     scratch,
@@ -1697,7 +1698,7 @@ async fn the_owners_private_chat_on_a_chat_service_is_his_private_room() {
   standing.web.linking(OWNER, OWNERS.to_string());
   scratch.message(DM, 1, OWNER).await;
 
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
 
   assert_ne!(DM, standing.receiver.owner_room(), "the configured owner's room is another");
   assert_eq!(asked(&port, "GET", &format!("/rooms/{DM}"), None).await.1["privateOf"], json!(OWNERS));

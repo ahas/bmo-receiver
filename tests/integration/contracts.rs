@@ -10,7 +10,9 @@ use serde_json::json;
 use std::sync::Arc;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{TOKEN, get, patch, pinged, post, put, remove, stood, stood_on};
+use crate::integration::common::queue::{
+  RECEIVER_TOKEN, get, patch, pinged, post, put, remove, stood, stood_on,
+};
 use crate::integration::common::units::{AGENT, OWNER, StandInChat};
 
 #[tokio::test]
@@ -243,7 +245,7 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
   let front = stood(&scratch, OWNER).await;
   let (status, answer) = pinged(
     &front,
-    &format!("/warmer/ping?token={TOKEN}"),
+    &format!("/warmer/ping?token={RECEIVER_TOKEN}"),
     json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "kind": "chat-touch", "dueAt": 1_800_000, "boundMs": 1_800_000 }),
   )
     .await;
@@ -256,7 +258,7 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
   // A skipped answer carries the code the warmer reads it under (its `docs/api.md`, 「The target-ping hook」).
   let (_, answered) = pinged(
     &front,
-    &format!("/warmer/ping?token={TOKEN}"),
+    &format!("/warmer/ping?token={RECEIVER_TOKEN}"),
     json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "dueAt": 0, "boundMs": 1 }),
   )
   .await;
@@ -266,7 +268,7 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
   // A ping of another target or another kind is passed over, and one behind a wrong token is refused.
   let (_, other_target) = pinged(
     &front,
-    &format!("/warmer/ping?token={TOKEN}"),
+    &format!("/warmer/ping?token={RECEIVER_TOKEN}"),
     json!({ "consumerName": "receiver", "targetName": "other", "subjectName": AGENT, "kind": "chat-touch", "dueAt": 0, "boundMs": 1 }),
   )
   .await;
@@ -276,7 +278,7 @@ async fn the_warmer_ping_is_answered_with_an_outcome_and_no_header_is_taken() {
 
   let (_, other_kind) = pinged(
     &front,
-    &format!("/warmer/ping?token={TOKEN}"),
+    &format!("/warmer/ping?token={RECEIVER_TOKEN}"),
     json!({ "consumerName": "receiver", "targetName": "chat-touch", "subjectName": AGENT, "kind": "other", "dueAt": 0, "boundMs": 1 }),
   )
   .await;

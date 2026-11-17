@@ -1,10 +1,12 @@
 //! The receiver's routes standing as one service (docs/boundary-api.md, 「Routes served」 and 「The receiver's
 //! own error shape」): every route of the table answers something of its own rather than the no-route refusal,
 //! a request that carries no token is turned away before any route reads it, a path no route answers is refused
-//! `no-route` naming the method and the path, and a route whose needs are not met is refused naming what is
-//! missing.
+//! `no-route` naming the method and the path, a route whose needs are not met is refused naming what is
+//! missing, and the routes that file a person's words are taken under the console relay's credential alone
+//! (docs/api.md, 「Auth」).
 
 use axum::{
+  Router,
   body::{Body, to_bytes},
   extract::Request,
   http::StatusCode,
@@ -14,10 +16,12 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{Front, get, patch, post, put, remove, stood};
+use crate::integration::common::queue::{
+  Front, RECEIVER_TOKEN, TOKEN, get, patch, post, put, remove, stood,
+};
 use crate::integration::common::units::OWNER;
 
-use bmo_receiver::routes::served;
+use bmo_receiver::routes::{Bearers, routes, served};
 
 // The routes the base library's own router serves, mounted under `/chat` beside the receiver's table.
 const HANDOVERS: [&str; 9] = [
@@ -105,6 +109,31 @@ async fn bare(front: &Front, path: &str) -> (StatusCode, Value) {
   read(answer).await
 }
 
+// The routes that file a person's words, each its method and a path naming a room and a message.
+const PERSONS_WORDS: [(&str, &str); 7] = [
+  ("POST", "/owner/messages"),
+  ("POST", "/owner/message-files"),
+  ("POST", "/owner/instructions"),
+  ("POST", "/rooms/42/words"),
+  ("POST", "/rooms/42/word-files"),
+  ("PATCH", "/rooms/42/messages/21"),
+  ("POST", "/rooms/42/messages/21/forwards"),
+];
+
+/// A request asked of routes under a bearer, with an empty JSON body where the method carries one.
+async fn under(routes: &Router, token: &str, method: &str, path: &str) -> (StatusCode, Value) {
+  let body = if method == "GET" { Body::empty() } else { Body::from("{}") };
+  let request = Request::builder()
+    .method(method)
+    .uri(path)
+    .header("authorization", format!("Bearer {token}"))
+    .header("content-type", "application/json")
+    .body(body)
+    .unwrap();
+
+  read(routes.clone().oneshot(request).await.unwrap()).await
+}
+
 /// The answer a route gave, as its code where it refused one.
 fn refused(body: &Value) -> String {
   body.get("code").and_then(Value::as_str).unwrap_or_default().to_owned()
@@ -169,6 +198,55 @@ async fn a_request_without_the_token_is_turned_away_before_any_route_reads_it() 
       ),
       "{path}",
     );
+  }
+}
+
+#[tokio::test]
+async fn a_route_that_files_a_persons_words_refuses_the_receivers_own_token_before_reading_anything() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  for (method, path) in PERSONS_WORDS {
+    let (status, body) = under(&front.routes, RECEIVER_TOKEN, method, path).await;
+
+    assert_eq!(
+      (status, refused(&body)),
+      (StatusCode::FORBIDDEN, "forbidden".to_owned()),
+      "{method} {path}"
+    );
+
+    let (status, body) = under(&front.routes, TOKEN, method, path).await;
+
+    assert_ne!(
+      refused(&body),
+      "forbidden",
+      "{method} {path} under the console's token: {status} {body}"
+    );
+  }
+
+  let (status, _) = under(&front.routes, RECEIVER_TOKEN, "GET", "/health").await;
+
+  assert_eq!(status, StatusCode::OK, "every other route still takes the receiver's own token");
+}
+
+#[tokio::test]
+async fn without_a_console_credential_of_its_own_no_token_files_a_persons_words() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let unnamed = routes(front.receiver(), RECEIVER_TOKEN);
+  let named_as_the_receivers =
+    routes(front.receiver(), Bearers::new(RECEIVER_TOKEN).console(Some(RECEIVER_TOKEN)));
+
+  for routes in [unnamed, named_as_the_receivers] {
+    for (method, path) in PERSONS_WORDS {
+      let (status, body) = under(&routes, RECEIVER_TOKEN, method, path).await;
+
+      assert_eq!(
+        (status, refused(&body)),
+        (StatusCode::FORBIDDEN, "forbidden".to_owned()),
+        "{method} {path}"
+      );
+    }
   }
 }
 

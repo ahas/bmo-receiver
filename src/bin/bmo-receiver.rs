@@ -20,7 +20,7 @@ use bmo_receiver::command::{
 };
 use bmo_receiver::config::{self, Config};
 use bmo_receiver::receiver::handover::routes as handover_routes;
-use bmo_receiver::routes::{routes, served};
+use bmo_receiver::routes::{Bearers, routes, served};
 use bmo_receiver::service_start::{Standing, keep, settle};
 use bmo_receiver::store::migration::migrate;
 use bmo_receiver::tool_env::{Written, base_address, write_env};
@@ -247,7 +247,8 @@ async fn serve(config: &Config) -> Result<(), String> {
   println!("bmo-receiver: answering on {bound}");
   let _ = io::stdout().flush();
 
-  let app = routes(standing.receiver.clone(), config.token.as_str())
+  let console = config.console.as_ref().map(|console| console.token.as_str());
+  let app = routes(standing.receiver.clone(), Bearers::new(config.token.as_str()).console(console))
     .merge(handover_routes(standing.receiver.clone(), config.token.as_str()).reset_fallback());
 
   // The streams are told as the signal comes, not after the serve lets go: a stream stands open until it is

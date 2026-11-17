@@ -16,6 +16,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
+use crate::integration::common::queue::as_console;
 use crate::integration::common::units::{
   ADDRESS, AGENT, SENDER, StandInChat, Standing, registration, standing, woken,
 };
@@ -63,7 +64,7 @@ async fn stood() -> (Scratch, TempDir, Standing, Arc<StandInChat>, Router) {
     )
     .await;
 
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
 
   (scratch, data, standing, road, port)
 }

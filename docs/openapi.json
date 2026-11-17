@@ -5319,7 +5319,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, too-large, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, not-found, too-large, private-room, upstream-failed, failed"
           }
         },
         "summary": "The owner's files sent into a room on a screen, as a form.",
@@ -5328,6 +5328,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "forbidden",
           "bad-request",
           "not-found",
           "too-large",
@@ -5379,7 +5380,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, private-room, upstream-failed, failed"
           }
         },
         "summary": "The owner's words typed into a room on a screen.",
@@ -5388,6 +5389,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "forbidden",
           "bad-request",
           "not-found",
           "conflict",
@@ -7179,7 +7181,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, no-caller, message-unknown, message-deleted, message-forbidden, private-room, upstream-failed, failed"
           }
         },
         "summary": "The signed-in person's own message edited.",
@@ -7188,6 +7190,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "forbidden",
           "bad-request",
           "no-caller",
           "message-unknown",
@@ -7395,7 +7398,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, conflict, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, private-room, upstream-failed, failed"
           }
         },
         "summary": "A message forwarded into another room, kept there as the forwarding account's, the owner's where the body names none, and marked as forwarded.",
@@ -7404,6 +7407,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "forbidden",
           "bad-request",
           "not-found",
           "conflict",
@@ -9428,7 +9432,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, no-route, room-archived, private-room, too-large, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, no-route, room-archived, private-room, too-large, upstream-failed, failed"
           }
         },
         "summary": "Files an account sent into a room in the console, as a form: the owner's files form with account and name in place of chatId.",
@@ -9437,6 +9441,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "forbidden",
           "bad-request",
           "no-route",
           "room-archived",
@@ -9498,7 +9503,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, no-route, conflict, room-archived, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, no-route, conflict, room-archived, private-room, upstream-failed, failed"
           }
         },
         "summary": "Words an account said in a room in the console, kept under the owner's sender for the owner's account and under the account's record identity for any other.",
@@ -9507,6 +9512,7 @@
         ],
         "x-codes": [
           "unauthorized",
+          "forbidden",
           "bad-request",
           "no-route",
           "conflict",

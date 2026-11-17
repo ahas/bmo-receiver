@@ -3,8 +3,9 @@
 //! handed to the room's session and carried to the room's chat service in his own voice, files put in with the
 //! words carried as the albums the road takes with the caption on the first of them, words and files the room kept
 //! answered as kept and carried though the agency fails after, a file of any size kept and carried whole where no
-//! provider of the room declares a limit and one past a declared limit refused with it, and a send asked of the
-//! receiver carried as its asker.
+//! provider of the room declares a limit and one past a declared limit refused with it, a send asked of the
+//! receiver carried as its asker, and the owner's words taken under the console relay's credential alone, never
+//! under the receiver's own token (docs/api.md, 「Auth」).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -21,6 +22,7 @@ use tempfile::tempdir;
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
+use crate::integration::common::queue::{RECEIVER_TOKEN, as_console};
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing, woken,
 };
@@ -35,7 +37,7 @@ const ROOM: i64 = -100;
 async fn stood(rooms: &[i64]) -> (Scratch, Router, Arc<StandInChat>) {
   let (scratch, standing, road) = standing_over(rooms).await;
 
-  (scratch, routes(standing.receiver.clone(), TOKEN), road)
+  (scratch, routes(standing.receiver.clone(), as_console(TOKEN)), road)
 }
 
 // What such a receiver stands on, for a test that sets more of it before the routes are made.
@@ -161,6 +163,28 @@ async fn a_line_the_owner_typed_in_his_own_chat_is_kept_under_a_console_number_a
 }
 
 #[tokio::test]
+async fn the_owners_words_under_the_receivers_own_token_are_refused_and_the_console_relays_are_filed() {
+  let (scratch, port, road) = stood(&[ROOM]).await;
+  let words = json_post(json!({ "chatId": OWNER, "text": "Spoken as the owner." }));
+  let kept = r#"SELECT "text" FROM "messages" WHERE "chat_id" = 42 AND "via" = 'record'"#;
+
+  let (status, answer) = asked(&port, "/owner/messages", RECEIVER_TOKEN, words.clone()).await;
+
+  assert_eq!(
+    (status, answer["code"].clone()),
+    (StatusCode::FORBIDDEN, json!("forbidden")),
+    "{answer:?}"
+  );
+  assert!(scratch.texts(kept).await.is_empty(), "nothing is filed under the receiver's own token");
+  assert!(road.sent().is_empty(), "nothing is carried under the receiver's own token");
+
+  let (status, answer) = asked(&port, "/owner/messages", TOKEN, words).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(scratch.texts(kept).await, ["Spoken as the owner.".to_owned()]);
+}
+
+#[tokio::test]
 async fn the_owners_console_line_stands_under_his_registered_name_where_no_service_showed_him() {
   let scratch = Scratch::new().await;
   let data = tempdir().unwrap();
@@ -169,7 +193,7 @@ async fn the_owners_console_line_stands_under_his_registered_name_where_no_servi
 
   standing.web.users.lock().unwrap().insert(OWNER, "owner-user".to_owned());
 
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
   let (status, answer) =
     asked(&port, "/owner/messages", TOKEN, json_post(json!({ "chatId": OWNER, "text": "Hello." }))).await;
 
@@ -389,7 +413,7 @@ async fn files_the_room_kept_are_answered_sent_and_carried_though_the_agency_the
   let (scratch, standing, road) = standing_over(&[ROOM]).await;
   // The receiver's own wake, which reads the agency's rest before it wakes anybody.
   let standing = woken(standing);
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
 
   scratch
     .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
@@ -437,7 +461,7 @@ async fn words_the_room_kept_are_answered_with_their_number_and_carried_though_t
   let (scratch, standing, road) = standing_over(&[ROOM]).await;
   // The receiver's own wake, which reads the agency's rest before it wakes anybody.
   let standing = woken(standing);
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
 
   scratch
     .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
@@ -588,7 +612,7 @@ async fn a_file_past_fifty_mebibytes_is_kept_and_carried_whole_where_no_provider
   let data = tempdir().unwrap();
   let (scratch, standing, road) =
     standing_on(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER), data.path()).await;
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
 
   scratch
     .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])
@@ -638,7 +662,7 @@ async fn a_file_past_the_limit_a_provider_of_the_room_declares_is_refused_with_t
     .owners(OWNER)
     .taking_files_up_to(MEBIBYTE as u64);
   let (scratch, standing, road) = standing_on(limited, data.path()).await;
-  let port = routes(standing.receiver.clone(), TOKEN);
+  let port = routes(standing.receiver.clone(), as_console(TOKEN));
 
   scratch
     .run(r#"INSERT INTO "chat_titles" ("chat_id", "title") VALUES (-100, 'Alpha Room')"#, vec![])

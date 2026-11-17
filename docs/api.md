@@ -28,9 +28,17 @@ of its own.
   member has one shape wherever it is answered.
 - **A failure is a non-2xx status** whose body is `{"code": ..., "error": ...}`. A refusal is answered by status
   too; no success carries a refusal flag.
-- **Auth.** Every route needs `Authorization: Bearer <token>` with the receiver's token and answers 401 without it.
-  The cache warmer's ping is the one route outside that check: its URL carries the token as `token`, since the
-  warmer sends no header.
+- **Auth.** Every route needs `Authorization: Bearer <token>` and answers 401 without it. Two tokens are taken:
+  the receiver's own, which every unit calling it and every shell of the machine holds, and the console's, the
+  credential the configuration names under `[console]` for the console relay alone (`docs/boundary-api.md`,
+  「Configuration」). Either reaches every route but the routes that file a person's words: `POST /owner/messages`,
+  `POST /owner/message-files`, `POST /owner/instructions`, `POST /rooms/{roomId}/words`,
+  `POST /rooms/{roomId}/word-files`, an edit (`PATCH /rooms/{roomId}/messages/{messageId}`) and a forward
+  (`POST /rooms/{roomId}/messages/{messageId}/forwards`). Those take the console's token alone, and a call under the
+  receiver's own is refused 403 `forbidden` before anything is read or written, so no shell holding the receiver's
+  token speaks in a room as a person; a deployment naming no console token refuses them to every caller. The cache
+  warmer's ping is the one route outside the bearer check: its URL carries the receiver's token as `token`, since
+  the warmer sends no header.
 - **No sentence a person reads goes out of the receiver.** What a room is told is a code and its fields, which the
   agent speaking for the room puts in its own words. Error sentences are English and are for a machine's reader.
 
@@ -517,7 +525,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   routes, and beside them: words from any account but its own in a private room 403 `private-room`, an `account`
   or `name` missing 400 `bad-request`, and a web unit that cannot say which account is the owner's 502
   `upstream-failed`. `POST /owner/messages`, `POST /owner/message-files` and `POST /owner/instructions` are the
-  owner's road, which the console takes for the owner's account alone.
+  owner's road, which the console takes for the owner's account alone. Every one of these routes is the console
+  relay's alone, under the console's token (「Auth」 above), and refused 403 `forbidden` under the receiver's own.
 - **The owner's words** from the console are archived in the room under a console number, the owner's number and
   the owner's own name, handed to the room's conversations as any of the owner's words are, and carried to the
   room's other chat providers as every kept message is. A file past the largest the room takes is refused 413

@@ -1040,6 +1040,7 @@ pub fn openapi() -> Value {
     vec![(201, json_answer::<Created>(&mut generator))],
     vec![
       "unauthorized",
+      "forbidden",
       "bad-request",
       "no-route",
       "conflict",
@@ -1060,6 +1061,7 @@ pub fn openapi() -> Value {
     vec![(200, json_answer::<Value>(&mut generator))],
     vec![
       "unauthorized",
+      "forbidden",
       "bad-request",
       "no-route",
       "room-archived",
@@ -1102,6 +1104,7 @@ pub fn openapi() -> Value {
     vec![(200, json_answer::<Created>(&mut generator))],
     vec![
       "unauthorized",
+      "forbidden",
       "bad-request",
       "not-found",
       "conflict",
@@ -1208,6 +1211,7 @@ pub fn openapi() -> Value {
     vec![(200, json_answer::<Message>(&mut generator))],
     vec![
       "unauthorized",
+      "forbidden",
       "bad-request",
       "no-caller",
       "message-unknown",
@@ -1307,6 +1311,7 @@ pub fn openapi() -> Value {
     vec![(201, json_answer::<Value>(&mut generator))],
     vec![
       "unauthorized",
+      "forbidden",
       "bad-request",
       "not-found",
       "conflict",
@@ -1326,6 +1331,7 @@ pub fn openapi() -> Value {
     vec![(200, json_answer::<Value>(&mut generator))],
     vec![
       "unauthorized",
+      "forbidden",
       "bad-request",
       "not-found",
       "too-large",

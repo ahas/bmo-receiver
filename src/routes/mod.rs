@@ -1,6 +1,7 @@
 //! The receiver's own routes (docs/boundary-api.md, 「The receiver's own routes」): what the console, the send
 //! tool and the `bmo` command line reach the receiver on. Every one answers only a request carrying the
-//! receiver's token, and a refusal with its code and the English sentence naming it.
+//! receiver's token or the console relay's, the routes that file a person's words the console relay's alone
+//! (docs/api.md, 「Auth」), and a refusal with its code and the English sentence naming it.
 
 mod accounts;
 mod avatars;
@@ -36,7 +37,7 @@ use axum::{
   body::Bytes,
   extract::{DefaultBodyLimit, RawQuery, Request, State},
   http::StatusCode,
-  middleware::{Next, from_fn_with_state},
+  middleware::{Next, from_fn, from_fn_with_state},
   response::{IntoResponse, Json, Response},
   routing::MethodRouter,
   routing::{delete, get, patch, post, put},
@@ -59,11 +60,53 @@ use crate::routes::talks::talk;
 pub use crate::routes::events::{TYPES, leading_whole};
 pub use crate::routes::openings::{SUMMARY_CHARS, rounds_of, summary_of};
 
-/// What every route stands on: the receiver and the token it answers behind.
+/// What every route stands on: the receiver and the bearers it answers behind.
 #[derive(Clone)]
 struct Served {
   receiver: Arc<Receiver>,
   token: Arc<str>,
+  console: Option<Arc<str>>,
+}
+
+/// The bearers the receiver answers behind: its own token, and the console relay's own credential where the
+/// configuration names one (docs/boundary-api.md, 「Configuration」).
+#[derive(Clone, Debug)]
+pub struct Bearers {
+  token: String,
+  console: Option<String>,
+}
+
+impl Bearers {
+  /// The receiver's own token alone, under which no route that files a person's words is answered.
+  pub fn new(token: impl Into<String>) -> Self {
+    Self {
+      token: token.into(),
+      console: None,
+    }
+  }
+
+  /// The bearers with the console relay's credential beside the receiver's token; an empty one, or one that is the
+  /// receiver's own token, names none.
+  pub fn console(mut self, console: Option<impl Into<String>>) -> Self {
+    self.console = console.map(Into::into).filter(|token| !token.is_empty() && *token != self.token);
+
+    self
+  }
+}
+
+impl From<&str> for Bearers {
+  fn from(token: &str) -> Self {
+    Self::new(token)
+  }
+}
+
+/// Which credential a request was let in under, which the bearer check leaves on the request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Credential {
+  /// The receiver's own token, which every unit and every shell of the machine holds.
+  Receiver,
+  /// The console relay's own credential.
+  Console,
 }
 
 /// A refusal: its status beside its code and the sentence naming it.
@@ -110,6 +153,24 @@ fn taking_files(router: MethodRouter<Served>) -> MethodRouter<Served> {
   router.layer(DefaultBodyLimit::disable())
 }
 
+/// A route that files a person's words in a room or to a room's session: answered under the console relay's
+/// credential alone, and refused under the receiver's own token before anything is read (docs/api.md, 「Auth」).
+fn persons_words(router: MethodRouter<Served>) -> MethodRouter<Served> {
+  router.layer(from_fn(console_only))
+}
+
+async fn console_only(request: Request, next: Next) -> Response {
+  match request.extensions().get::<Credential>() {
+    Some(Credential::Console) => next.run(request).await,
+    _ => refused(
+      StatusCode::FORBIDDEN,
+      "forbidden",
+      "A person's words are taken under the console relay's credential alone, never under the receiver's token.",
+    )
+    .into_response(),
+  }
+}
+
 /// Every route the receiver answers behind its token: its method, its path and the handler standing at it.
 /// The table is what the `routes` command prints, so the router is built from it rather than beside it.
 fn table() -> Vec<(String, String, MethodRouter<Served>)> {
@@ -146,7 +207,11 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/rooms/{roomId}/avatar", get(message_files::room_avatar)),
     ("GET", "/people/{personId}/avatar", get(message_files::person_avatar)),
     ("PUT", "/avatars/{kind}/{subject}", taking_files(put(avatars::set))),
-    ("POST", "/rooms/{roomId}/messages/{messageId}/forwards", post(say::forward)),
+    (
+      "POST",
+      "/rooms/{roomId}/messages/{messageId}/forwards",
+      persons_words(post(say::forward)),
+    ),
     ("GET", "/rooms/{roomId}/pins", get(message_acts::pins)),
     ("PUT", "/rooms/{roomId}/messages/{messageId}/reactions/mine", put(message_acts::react)),
     (
@@ -155,7 +220,11 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
       delete(message_acts::unreact),
     ),
     ("PUT", "/rooms/{roomId}/messages/{messageId}/pin", put(message_acts::pin)),
-    ("PATCH", "/rooms/{roomId}/messages/{messageId}", patch(message_acts::edit)),
+    (
+      "PATCH",
+      "/rooms/{roomId}/messages/{messageId}",
+      persons_words(patch(message_acts::edit)),
+    ),
     ("PUT", "/rooms/{roomId}/messages/{messageId}/speaker", put(speakers::change_speaker)),
     ("DELETE", "/rooms/{roomId}/messages/{messageId}", delete(message_acts::delete)),
     ("GET", "/stickers", get(message_acts::stickers)),
@@ -195,13 +264,17 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/instructions/{instructionId}", get(instructions::instruction_state)),
     ("DELETE", "/instructions/{instructionId}", delete(instructions::withdraw)),
     ("POST", "/owner/notices", post(brain::notice)),
-    ("POST", "/owner/instructions", post(instruct)),
+    ("POST", "/owner/instructions", persons_words(post(instruct))),
     ("PUT", "/room-holders/{holderName}", put(instructions::declare)),
     ("POST", "/sends", post(sends)),
-    ("POST", "/owner/messages", post(say)),
-    ("POST", "/owner/message-files", taking_files(post(say_file))),
-    ("POST", "/rooms/{roomId}/words", post(accounts::words)),
-    ("POST", "/rooms/{roomId}/word-files", taking_files(post(accounts::word_files))),
+    ("POST", "/owner/messages", persons_words(post(say))),
+    ("POST", "/owner/message-files", persons_words(taking_files(post(say_file)))),
+    ("POST", "/rooms/{roomId}/words", persons_words(post(accounts::words))),
+    (
+      "POST",
+      "/rooms/{roomId}/word-files",
+      persons_words(taking_files(post(accounts::word_files))),
+    ),
     ("POST", "/talks", post(talk)),
     ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
     ("POST", "/handovers/{agentName}", post(handovers::hand_over)),
@@ -281,11 +354,12 @@ pub fn served() -> Vec<String> {
 }
 
 /// The receiver's routes, merged.
-pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
-  let bearer: String = token.into();
+pub fn routes(receiver: Receiver, bearers: impl Into<Bearers>) -> Router {
+  let bearers: Bearers = bearers.into();
   let served = Served {
     receiver: Arc::new(receiver.clone()),
-    token: bearer.clone().into(),
+    token: bearers.token.into(),
+    console: bearers.console.map(Into::into),
   };
 
   let served_routes = table()
@@ -303,13 +377,23 @@ pub fn routes(receiver: Receiver, token: impl Into<String>) -> Router {
   served_routes.merge(hook)
 }
 
-/// A request that does not carry the receiver's token is answered with `unauthorized`.
-async fn authorized(State(served): State<Served>, request: Request, next: Next) -> Response {
+/// A request that carries neither the receiver's token nor the console relay's is answered with `unauthorized`;
+/// one that does is let in with the credential it carried left on it.
+async fn authorized(State(served): State<Served>, mut request: Request, next: Next) -> Response {
   let bearer = request.headers().typed_get::<Authorization<Bearer>>();
+  let carried = bearer.as_ref().map(|Authorization(bearer)| bearer.token());
+  let credential = match carried {
+    Some(token) if served.console.as_deref() == Some(token) => Some(Credential::Console),
+    Some(token) if token == &*served.token => Some(Credential::Receiver),
+    _ => None,
+  };
 
-  match bearer {
-    Some(Authorization(bearer)) if bearer.token() == &*served.token => next.run(request).await,
-    _ => refused(StatusCode::UNAUTHORIZED, "unauthorized", "The bearer token is missing or wrong.")
+  match credential {
+    Some(credential) => {
+      request.extensions_mut().insert(credential);
+      next.run(request).await
+    }
+    None => refused(StatusCode::UNAUTHORIZED, "unauthorized", "The bearer token is missing or wrong.")
       .into_response(),
   }
 }

@@ -24,6 +24,13 @@ Beside its own listen address, its token and its database it names, for each uni
 address and the token that unit takes. A chat service's base address names the receiver's `/chat` prefix, where
 the protocol's receiving-side routes stand.
 
+The console relay's own credential stands under `[console]` as `token`: a token apart from the receiver's own,
+which the web unit's console holds as the receiver's token in its own settings and no other unit or shell is
+given. It reaches every route, and it alone reaches the routes that file a person's words (`docs/api.md`,
+「Auth」); a configuration without it, or naming the receiver's own token there, refuses those routes to every
+caller. It stands in the configuration file and never in `env/receiver.env`, the file the send tool and every
+shell read the receiver's own token from.
+
 The deployment's names are read from the same file: the owner; `agent`, the registration name of the supervisor
 the default answerer setting is seeded with where the store holds none (`docs/api.md`, 「Supervisors」),
 whose label and call names (`aliases` on `GET /supervisors`) are the words a room calls it by; the infrastructure room, where one is named; the owner's private room, `owner_room`, where

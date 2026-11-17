@@ -15,6 +15,7 @@ use tempfile::tempdir;
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
+use crate::integration::common::queue::as_console;
 use crate::integration::common::units::{OWNER, StandInChat, standing};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
@@ -29,7 +30,7 @@ async fn port() -> (Scratch, Router) {
   let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER));
   let standing = standing(scratch.db(), DataRoot::new(data.path()), [road.clone()].to_vec());
 
-  (scratch, routes(standing.receiver.clone(), TOKEN))
+  (scratch, routes(standing.receiver.clone(), as_console(TOKEN)))
 }
 
 fn post(path: &str, body: Value) -> Request {

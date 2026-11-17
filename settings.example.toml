@@ -24,6 +24,11 @@ document_tree = ".local/share/bmo-agency/deploy"
 deploy_roots = ".local/share"
 consumer = "receiver"
 
+# The console relay's own credential, apart from the receiver's token: the one bearer the routes that file a
+# person's words take. Only the web unit's console holds it; without it those routes are refused to every caller.
+[console]
+token = "console-token"
+
 # Each unit the receiver calls, with its base address and the token it takes. Every unit takes one, the cache
 # warmer included: its token stands in its data root's `token` file.
 [agency]

@@ -20,9 +20,19 @@ use crate::integration::common::Scratch;
 use crate::integration::common::units::{StandInChat, Standing, standing};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Pass, Receiver};
-use bmo_receiver::routes::routes;
+use bmo_receiver::routes::{Bearers, routes};
 
+/// The token a test asks with: the console relay's own credential, which every route takes.
 pub const TOKEN: &str = "fixture";
+
+/// The receiver's own token, which every shell of the machine holds and the routes that file a person's words
+/// refuse.
+pub const RECEIVER_TOKEN: &str = "receiver-fixture";
+
+/// The bearers a test's routes answer behind: the receiver's own token, and the one named as the console relay's.
+pub fn as_console(console: &str) -> Bearers {
+  Bearers::new(RECEIVER_TOKEN).console(Some(console))
+}
 
 /// The instruction pass, keeping how many times it was asked to hand the rows over at once.
 pub struct Kicked(pub Mutex<usize>);
@@ -69,7 +79,7 @@ pub async fn stood_on(scratch: &Scratch, _owner: i64, chats: Vec<Arc<StandInChat
   receiver.hold_pass(kicked.clone());
 
   Front {
-    routes: routes(receiver.clone(), TOKEN),
+    routes: routes(receiver.clone(), as_console(TOKEN)),
     data,
     standing,
     kicked,

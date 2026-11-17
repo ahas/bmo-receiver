@@ -329,8 +329,9 @@ flowchart TD
 
 The console comes first and a provider only supplies chat and connects it; in the console a person is their
 account (`STRUCTURE.md`, 「Accounts, companies and units」). The console server acts for the accounts and calls the
-receiver under its token; the receiver judges no right of an account, which the console asks the web unit before
-it calls, but it holds the rules below whoever calls.
+receiver under the console's own token, the one that alone files a person's words (`docs/api.md`, 「Auth」); the
+receiver judges no right of an account, which the console asks the web unit before it calls, but it holds the rules
+below whoever calls.
 
 ```mermaid
 flowchart TD

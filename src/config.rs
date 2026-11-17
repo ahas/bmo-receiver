@@ -91,6 +91,18 @@ pub struct Config {
   pub brain: Option<Peer>,
   #[serde(default)]
   pub roads: BTreeMap<String, Peer>,
+  /// The console relay's own credential, apart from the receiver's token: the one bearer the routes that file a
+  /// person's words take (docs/api.md, 「Auth」). Without it those routes are refused to every caller.
+  #[serde(default)]
+  pub console: Option<Console>,
+}
+
+/// The console relay's section of the configuration.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Console {
+  /// The bearer the console relay sends.
+  pub token: String,
 }
 
 /// The consumer's name where the configuration leaves it out.

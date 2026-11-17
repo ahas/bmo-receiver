@@ -34,7 +34,7 @@ flowchart TB
   `POST /owner/notices` for the job queue: a job's end, and each change of an item or a job told to the
   supervisor that ordered the work or to the owner (the agency's `docs/agent-control.md`, 「An item's change is
   told to its orderer」); bmo-job's service calls no unit, and its `bmo job ask` queues a job's question for the
-  supervisor from the job's own process, and reads the row back while the job waits. bmo-artifact `POST /owner/instructionsions` for a run's ending, and the receiver's own
+  supervisor from the job's own process, and reads the row back while the job waits. The receiver's own
   producers (its rest and fallback notices, its failure orders, the agency's events) write the row themselves.
   The instruction store is the one writer of the table.
 - **One pass delivers the table.** The instruction pass reads the pending rows and hands each to its room's
