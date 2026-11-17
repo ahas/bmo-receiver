@@ -131,6 +131,11 @@ its rounds.
 - **A round that ends in silence leaves the time it already had to run out** (a skip) because passing over
   what a room said is not answering it, and a window that grew every time the agent stayed quiet would hold a
   session open through a conversation it is not in.
+- **A round that ends in silence is written down with why.** Its ending is a judgement of the stage `skipped`
+  with the verdict `SKIP`, under the last message the round read, or under none where it read nothing of the
+  room, and its `detail` is the reason the skip named, on the one line it is; a skip that named none, and a
+  quiet turn that only read an instruction, carry none. The stream is told the same as `skipped`, with the room,
+  that message, the verdict and that `detail`, so a screen says why the agent held its peace.
 - **A line the agent's own send puts in the room** (a `say` through `POST /sends` in its round, or the line it
   says for words handed to it, `docs/messages.md`, 「Words handed to the room's supervisor」) opens one as an answer
   does: the room has been spoken to, so what anyone there says back needs no name to reach the session. Words

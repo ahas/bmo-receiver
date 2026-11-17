@@ -638,6 +638,24 @@ async fn a_line_between_two_people_is_left_alone_though_the_note_names_them() {
 }
 
 #[tokio::test]
+async fn a_line_passed_over_is_told_as_skipped_with_the_reason_the_skip_named() {
+  let round = Group::new(
+    StandInSession::new(SESSION, "unused").answering(&["<<SKIP: the two of them are talking>>"]),
+  )
+  .await;
+
+  round.noted("Mina and Joon are talking about the match; nobody waits on you.").await;
+  round.hand(1, "Mina, did Joon see the match?", false).await;
+  round.rounds_over(1).await;
+
+  let skipped = round.standing.heard.events("skipped");
+
+  assert_eq!(skipped.len(), 1, "{skipped:#?}");
+  assert_eq!(skipped[0]["verdict"], "SKIP");
+  assert_eq!(skipped[0]["detail"], "the two of them are talking");
+}
+
+#[tokio::test]
 async fn the_note_stays_under_its_ceiling_which_the_rooms_block_names() {
   let ceiling = CHAT_ROUND.situation.ceiling_chars;
   let long = "x".repeat(ceiling + 100);

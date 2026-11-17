@@ -425,6 +425,11 @@ struct Conv {
   given_back: i64,
 }
 
+// Words of a room the agent passed over, by its own judgement: the reason its skip named, where it named one.
+struct Passed {
+  reason: Option<String>,
+}
+
 // The words a round that failed left unread, waiting for the room's next round (docs/messages.md, 「Read
 // marker」): the words, what their road said of the room, and how often they were given back.
 struct GivenBack {
@@ -2060,12 +2065,12 @@ impl Conversations {
     // A round the open window alone let in is the agent's to judge first, before any reference or gate;
     // a skip ends it there with nothing sent.
     if self.judged_first(chat_id, room, &batch, instructions.len())
-      && self.supervise(chat_id, round, &batch, &mut held, &via).await?
+      && let Some(passed) = self.supervise(chat_id, round, &batch, &mut held, &via).await?
     {
       self.consume(chat_id, &batch).await;
       held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
 
-      return self.silent_end(chat_id, &batch, &held).await;
+      return self.silent_end(chat_id, &batch, &held, passed.reason.as_deref()).await;
     }
 
     let owed = if chat_id == self.owner_room() {
@@ -2219,7 +2224,7 @@ impl Conversations {
       && !instructions.is_empty()
       && Self::agent_only_round(&receiver, &record.settling).await
     {
-      return self.silent_end(chat_id, &batch, &held).await;
+      return self.silent_end(chat_id, &batch, &held, None).await;
     }
 
     // A wait holds what was pushed with the rest of the round's words.
@@ -2321,8 +2326,8 @@ impl Conversations {
 
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
 
-    if is_skip(&reply.text) {
-      return self.silent_end(chat_id, &batch, &held).await;
+    if let Some(skip) = super::sentinels::skip_alone(&reply.text) {
+      return self.silent_end(chat_id, &batch, &held, skip.reason()).await;
     }
 
     self.keep_session(chat_id, &held);
@@ -2447,9 +2452,16 @@ impl Conversations {
     Err(Failure::Failed(format!("the round's message was not sent after {tries} tries: {why}")))
   }
 
-  // A round that ends in silence: its session kept, its skip written down and the round over, as an answered round
-  // is once its answer has gone out; a round of the system's lines alone closes a conversation nothing keeps open.
-  async fn silent_end(&self, chat_id: i64, batch: &[Inbound], held: &Held) -> Result<(), Failure> {
+  // A round that ends in silence: its session kept, its skip written down with the reason it named and the round
+  // over, as an answered round is once its answer has gone out; a round of the system's lines alone closes a
+  // conversation nothing keeps open.
+  async fn silent_end(
+    &self,
+    chat_id: i64,
+    batch: &[Inbound],
+    held: &Held,
+    reason: Option<&str>,
+  ) -> Result<(), Failure> {
     self.keep_session(chat_id, held);
 
     let consumed = {
@@ -2463,7 +2475,9 @@ impl Conversations {
     };
 
     self.persist(held).await;
-    self.record_skip(chat_id, (!batch.is_empty()).then_some(consumed).flatten()).await;
+    self
+      .record_skip(chat_id, (!batch.is_empty()).then_some(consumed).flatten(), reason)
+      .await;
 
     let close = {
       let mut state = self.state();
@@ -2559,7 +2573,7 @@ impl Conversations {
   // The agent's own judgement of whether to answer words that did not name it (docs/wake.md, 「The room's queue and
   // the round」): one turn of the same session carrying the room's situation note where the session has not
   // read it, the room's recent words and the words judged, in the room shape; no reference and no gate. Its row stands in the
-  // round log of its own kind. Answers whether the agent passed the words over.
+  // round log of its own kind. Answers the passing over where the agent passed the words over.
   async fn supervise(
     &self,
     chat_id: i64,
@@ -2567,7 +2581,7 @@ impl Conversations {
     batch: &[Inbound],
     held: &mut Held,
     via: &str,
-  ) -> Result<bool, Failure> {
+  ) -> Result<Option<Passed>, Failure> {
     let receiver = self.receiver();
     let said = &CHAT_ROUND.supervisor;
     let judged: HashSet<i64> = batch.iter().map(|message| message.message_id).collect();
@@ -2631,16 +2645,23 @@ impl Conversations {
       held.replaced.extend(reply.replaced.clone());
       self.keep_session(chat_id, held);
 
-      let (ended, passed, reason) =
+      // What the round log's row says of the reason, and the passing over itself where the turn ended in one.
+      let (ended, reason, passed) =
         match super::sentinels::skip_alone(&crate::form::strip_prompt_scaffolding(&reply.text)) {
-          Some(super::sentinels::Skip::Reasoned(reason)) => {
-            (super::draft::log::Answered::Skip, true, Some(reason))
-          }
-          Some(super::sentinels::Skip::Bare) if over_skip => {
-            (super::draft::log::Answered::Skip, true, Some(super::draft::log::NO_REASON.to_owned()))
-          }
-          Some(super::sentinels::Skip::Bare) => (super::draft::log::Answered::NoVerdict, false, None),
-          None => (super::draft::log::Answered::Answered, false, None),
+          Some(super::sentinels::Skip::Reasoned(reason)) => (
+            super::draft::log::Answered::Skip,
+            Some(reason.clone()),
+            Some(Passed {
+              reason: Some(reason),
+            }),
+          ),
+          Some(super::sentinels::Skip::Bare) if over_skip => (
+            super::draft::log::Answered::Skip,
+            Some(super::draft::log::NO_REASON.to_owned()),
+            Some(Passed { reason: None }),
+          ),
+          Some(super::sentinels::Skip::Bare) => (super::draft::log::Answered::NoVerdict, None, None),
+          None => (super::draft::log::Answered::Answered, None, None),
         };
 
       log
@@ -2662,7 +2683,7 @@ impl Conversations {
       asking.prompt = format!("{}\n{}", said.marker, DRAFTING.skip_again);
     };
 
-    if !passed
+    if passed.is_none()
       && let Some(id) = super::sentinels::round_marks(&reply.text)
         .into_iter()
         .rev()
@@ -3011,14 +3032,15 @@ impl Conversations {
     }
   }
 
-  // A round that ended in silence is written down as the ending it was, on the message it read.
-  async fn record_skip(&self, chat_id: i64, message_id: Option<i64>) {
+  // A round that ended in silence is written down as the ending it was, on the message it read, with the reason
+  // its skip named where it named one (docs/wake.md, 「The names and the window」).
+  async fn record_skip(&self, chat_id: i64, message_id: Option<i64>, reason: Option<&str>) {
     let judgement = Judgement {
       room_id: chat_id,
       message_id,
       gate_name: "skipped".to_owned(),
       verdict: "SKIP".to_owned(),
-      detail: None,
+      detail: reason.map(str::to_owned),
       ms: None,
       round: rounds::current(),
     };
@@ -3027,8 +3049,13 @@ impl Conversations {
       eprintln!("chat {chat_id}: the skip could not be written down: {why}");
     }
 
-    self
-      .publish(json!({ "type": "skipped", "chatId": chat_id, "messageId": message_id, "verdict": "SKIP" }));
+    self.publish(json!({
+      "type": "skipped",
+      "chatId": chat_id,
+      "messageId": message_id,
+      "verdict": "SKIP",
+      "detail": reason,
+    }));
   }
 
   // The answer a room asked for of this one, as a quiet instruction to the room that asked.
