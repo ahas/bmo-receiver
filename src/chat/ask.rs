@@ -875,6 +875,9 @@ impl Carry {
     // whose connection is cut is no end of the turn, which the round follows on and re-attaches to.
     let sent = turn.clone();
     let port = agency.clone();
+    // From its send to its end the round waits on the agency: a handoff the agency asks meanwhile, ahead of the
+    // fresh session this turn goes on, is not held behind the round (docs/unified-bmo.md, 「Replacing the session」).
+    let at_agency = receiver.waits_on_agency(agent);
     let mut sending = tokio::spawn(async move { port.turn(&sent).await });
     let mut sent_done = false;
     let mut delivered: Option<Delivery> = None;
@@ -1058,6 +1061,7 @@ impl Carry {
     let run = followed.run();
 
     drop(followed);
+    drop(at_agency);
 
     // The send answers once the turn has ended; one whose connection was cut leaves the turn's delivery to what
     // its end says, the words taken where it names nothing else.

@@ -444,6 +444,10 @@ pub struct Receiver {
   // How many replacements and handoffs of each agent's session have ended since the service stood, by which a
   // round tells that its session was replaced while it went.
   handovers: Arc<std::sync::Mutex<std::collections::HashMap<String, u64>>>,
+  // How many rounds of each agent wait on the agency now, their turn sent and not ended or refused and waited
+  // out: a handoff the agency asks from such a turn never waits for that round (docs/unified-bmo.md,
+  // 「Replacing the session」).
+  at_agency: Arc<tokio::sync::watch::Sender<std::collections::HashMap<String, usize>>>,
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
   // stands the receiver without that turn.
   situation_updates: bool,
@@ -478,6 +482,22 @@ crate::room_holding!(RoomHolding::Refuses {
   what: "the board for the machines",
   refuses: infra_refusal,
 });
+
+/// The mark of a round waiting on the agency, taken away as it is dropped.
+pub struct AtAgency {
+  waiting: Arc<tokio::sync::watch::Sender<std::collections::HashMap<String, usize>>>,
+  agent: String,
+}
+
+impl Drop for AtAgency {
+  fn drop(&mut self) {
+    self.waiting.send_modify(|waiting| {
+      if let Some(rounds) = waiting.get_mut(&self.agent) {
+        *rounds = rounds.saturating_sub(1);
+      }
+    });
+  }
+}
 
 impl Receiver {
   /// A receiver on its database and data root, for its deployment, reaching its units; its news heard nowhere,
@@ -519,6 +539,7 @@ impl Receiver {
       launches: Arc::default(),
       replacing: Arc::default(),
       handovers: Arc::default(),
+      at_agency: Arc::new(tokio::sync::watch::channel(Default::default()).0),
       situation_updates: true,
       review_gate: true,
       re_attach_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.attach.pace_ms.max(1)),
@@ -557,6 +578,29 @@ impl Receiver {
       .unwrap_or_else(std::sync::PoisonError::into_inner)
       .entry(agent.to_owned())
       .or_default() += 1;
+  }
+
+  /// A round of the agent's marked as waiting on the agency, until the mark is dropped.
+  pub fn waits_on_agency(&self, agent: &str) -> AtAgency {
+    self.at_agency.send_modify(|waiting| *waiting.entry(agent.to_owned()).or_default() += 1);
+
+    AtAgency {
+      waiting: self.at_agency.clone(),
+      agent: agent.to_owned(),
+    }
+  }
+
+  /// Ends once a round of the agent's waits on the agency; never where none comes to.
+  pub async fn round_at_agency(&self, agent: &str) {
+    let mut waiting = self.at_agency.subscribe();
+
+    if waiting
+      .wait_for(|waiting| waiting.get(agent).is_some_and(|rounds| *rounds > 0))
+      .await
+      .is_err()
+    {
+      std::future::pending::<()>().await;
+    }
   }
 
   /// How many replacements and handoffs of the agent's session have ended since the service stood.

@@ -1006,11 +1006,16 @@ impl Conversations {
 
   /// The agent's standing session asked for its handoff ahead of a fresh session the agency opens
   /// (docs/unified-bmo.md, 「Replacing the session」), behind the agent's turn as an owed replacement is: a round
-  /// under way is waited for to its end, not only the turn it is in, and words that arrive meanwhile wait for the
-  /// fresh session. Once it is asked, the words failed rounds gave back go to the fresh session's first turn in
-  /// their rooms.
+  /// doing its own work between two of its turns is waited for, and words that arrive meanwhile wait for the
+  /// fresh session. A round that itself waits on the agency is not waited for, since the turn it waits on cannot
+  /// end before the handoff is answered; it keeps the agent's turn while the asking goes. Once it is asked, the
+  /// words failed rounds gave back go to the fresh session's first turn in their rooms.
   pub async fn hand_off(&self, room: Option<i64>) -> Result<Option<super::handoff::Handoff>, Failure> {
-    let turn = self.0.turn.lock().await;
+    let turn = tokio::select! {
+      biased;
+      held = self.0.turn.lock() => Some(held),
+      () = self.0.receiver.round_at_agency(self.agent()) => None,
+    };
     let handed = Carry::new(self.0.receiver.clone()).hand_off(self.agent(), room).await;
 
     if handed.is_ok() {

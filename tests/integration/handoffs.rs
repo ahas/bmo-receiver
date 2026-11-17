@@ -2,8 +2,8 @@
 //! session」): the route has the agent's standing session write its handoff file and keeps it, a second asking while
 //! one runs waits in line for it, an agent with no opened session writes nothing, and the next fresh session's first turn
 //! opens on the file, then the room's words, then the brain, and a supervisor no handoff was asked for keeps its
-//! session. The asking waits for a round between two turns to end, words said meanwhile and words a failed round
-//! gave back are the fresh session's first turn's new messages, and a round refused because the session is in
+//! session. The asking never waits for a round that itself waits on the agency, words said meanwhile and words a
+//! failed round gave back are the fresh session's first turn's new messages, and a round refused because the session is in
 //! another turn waits for it and fails nothing.
 
 use std::sync::Arc;
@@ -20,7 +20,6 @@ use bmo_receiver::routes::routes;
 use bmo_receiver::store::settings;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::drafting::DRAFTING;
 use receiver_ports::agency::Turn;
 use serde_json::json;
 
@@ -438,18 +437,6 @@ async fn until_that(what: &str, holds: impl Fn() -> bool) {
   assert!(waited.is_ok(), "{what} never came");
 }
 
-// Waits, bounded, until a handoff of the agent is being asked, holding the agent's line.
-async fn until_asking() {
-  let waited = tokio::time::timeout(Duration::from_secs(20), async {
-    while tokio::time::timeout(Duration::ZERO, Asking::begin(AGENT)).await.is_ok() {
-      tokio::time::sleep(Duration::from_millis(5)).await;
-    }
-  })
-  .await;
-
-  assert!(waited.is_ok(), "the handoff was never asked");
-}
-
 // The agency's asking for the agent's handoff, sent to the receiver's routes apart from the test.
 fn asked_handoff(
   standing: &crate::integration::common::units::Standing,
@@ -467,53 +454,39 @@ fn asked_handoff(
 }
 
 #[tokio::test]
-async fn a_handoff_asked_while_a_round_is_between_two_turns_waits_for_the_round_to_end() {
+async fn a_handoff_asked_while_the_round_waits_on_the_agency_is_asked_without_waiting_for_the_round() {
   let session = Arc::new(
-    StandInSession::new("agent-a@agent", "unscripted")
-      .answering(&["the message", "PASS"])
-      .showing_reviews()
+    StandInSession::new("agent-a@agent", "the answer")
       .holding_the_first()
-      .holding_turn(2)
-      .busy()
       .acting(writing_handoff(NOTE)),
   );
-  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), true).await;
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
 
   standing
     .receiver
     .message(&worded(1, "what is new"), &Context::default(), owners_room())
     .await
     .unwrap();
-  until_that("the draft's turn", || session.working()).await;
+  until_that("the round's turn", || session.prompts().len() == 1 && session.working()).await;
 
-  // The agency asks while the draft's turn works; the review's turn is still to come.
-  let asked = asked_handoff(&standing);
-
-  until_asking().await;
-  session.let_go();
-  until_that("the second turn", || session.prompts().len() == 2 && session.working()).await;
-
-  // The handoff has asked no turn of the session while the round went on.
-  assert_eq!(session.refused(), 0, "the handoff was refused by a turn of the round");
-  assert!(
-    session.prompts()[1].contains(&DRAFTING.review.marker),
-    "the round's review went second: {:#?}",
-    session.prompts()
-  );
-  session.let_go();
-
-  let (status, body) = asked.await.unwrap();
+  // The agency asks from the round's own turn, which it holds until the asking is answered: the turn stands
+  // working for as long as the test holds it, so an asking that waited for the round would never be answered.
+  let asked = tokio::time::timeout(Duration::from_secs(20), asked_handoff(&standing)).await;
+  let (status, body) = asked.expect("the handoff waited for the round whose turn waits on it").unwrap();
 
   assert_eq!(status, StatusCode::OK, "{body}");
-  until_turns(&runner, &session, 3).await;
 
   let prompts = session.prompts();
 
+  assert_eq!(prompts.len(), 2, "the handoff was asked while the round's turn stood: {prompts:#?}");
   assert!(
-    handoff_path(&prompts[2]).is_some(),
-    "the handoff was asked once the round ended: {prompts:#?}"
+    handoff_path(&prompts[1]).is_some(),
+    "the second turn asked for the handoff: {prompts:#?}"
   );
-  assert_eq!(session.refused(), 0, "no turn of the round was refused");
+  assert_eq!(body["bytes"], json!(NOTE.len()), "{body}");
+
+  session.let_go();
+  until_turns(&runner, &session, 2).await;
 }
 
 #[tokio::test]

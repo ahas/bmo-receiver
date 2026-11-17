@@ -683,8 +683,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   「Replacing the session」). The receiver asks the agent's standing session — its one session, or the session of
   `room` where it keeps one in each room — for its handoff file as a replacement does, waited on until its turn
   ends however long it takes, and keeps the file for the next fresh session's first turn, which opens on it. The
-  asking stands behind the agent's round: a round under way is waited for to its end, not only the turn it is in,
-  and the agent's turn is held while the handoff is asked, so words that arrive meanwhile, and words a failed
+  asking stands behind the agent's round: a round doing its own work between two of its turns is waited for,
+  while one that itself waits on the agency for a turn is not, since that turn cannot end before the handoff is
+  answered; and the agent's turn is held while the handoff is asked, so words that arrive meanwhile, and words a failed
   round gave back, go to the fresh session's first turn in their room. A session already in a turn the receiver
   did not send is waited for: the receiver waits for that turn's end on the agency's event stream and asks again,
   however long it takes. The handoff turn answers `room`, carrying its block, and the owner's private

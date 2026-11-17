@@ -290,8 +290,11 @@
   restart — it asks the receiver first (`POST /handoffs/{agentName}`, `docs/api.md`, 「Handoffs」), and the receiver
   asks the agent's standing session, usually still alive in its pane, for its handoff file exactly as a
   replacement does, waited on until its turn ends. The asking stands behind the agent's turn as an owed
-  replacement does: a round under way is waited for to its end, not only the turn it is in, so no round is cut
-  between two of its turns; and while the handoff is asked the agent's turn is held, so words that arrive wait
+  replacement does: a round doing its own work between two of its turns is waited for, so no round is cut
+  there. A round that itself waits on the agency — its turn sent and not yet ended, or refused and waited
+  out — is never waited for: the fresh session the agency asks ahead of is the one that round's turn goes on,
+  so the turn cannot end before the handoff is answered, and the asking goes at once while the round keeps the
+  agent's turn. Either way the agent's turn is held while the handoff is asked, so words that arrive wait
   for the fresh session and the room hears the `memory-tidying` line as above. A session already in a turn the
   receiver did not send is waited for: the asking waits for that turn's end on the agency's event stream and asks
   again, however long it takes. The agency lets its
