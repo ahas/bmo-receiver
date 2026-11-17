@@ -94,6 +94,8 @@ heads = [
   "[Video]",
   "[Voice]",
   "[File]",
+  # A file named after the head, as "[File plan.pdf]".
+  "[File",
   "[File:",
   "[Emoticon]",
   "Emoticon",

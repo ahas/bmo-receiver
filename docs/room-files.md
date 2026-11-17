@@ -128,7 +128,9 @@ flowchart TD
 - **Which rows a pass asks for:** a message of the room whose words are one of the placeholder heads of
   `policy/roads.toml` (`[filling]`, `heads`), or open with one followed by a space or a line break; with no
   picture on its row and no row in `collected_items`; not deleted; and never asked before. The heads are data
-  the chat services' placeholder words are matched on, never read as one service's.
+  the chat services' placeholder words are matched on, never read as one service's. A head that stops before its
+  closing bracket matches a placeholder naming the file after a space: `[File` takes `[File plan.pdf]`, while
+  `[File]` stays a head of its own.
 - **Only a room whose road declares `fetchMedia` is filled.** A room no road holds, or whose road declares no
   `fetchMedia`, is refused before anything is asked.
 - **Each row is asked by its room, its number and its sent time,** one row at a time, the newest first, so a

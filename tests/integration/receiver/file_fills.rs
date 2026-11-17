@@ -1,7 +1,8 @@
 //! A room's placeholder rows filled later from its chat service (docs/room-files.md, 「Files filled in later」): a
-//! placeholder row asked by its room, number and sent time and its files kept as a live line's are; each row asked
-//! once, its outcome recorded; a pass bounded, newest first, a dry run asking nothing; a road that cannot be reached
-//! ending the pass with nothing recorded; and a room whose road does not fetch files refused.
+//! placeholder row asked by its room, number and sent time and its files kept as a live line's are, one naming its
+//! file after the head among them; each row asked once, its outcome recorded; a pass bounded, newest first, a dry
+//! run asking nothing; a road that cannot be reached ending the pass with nothing recorded; and a room whose road
+//! does not fetch files refused.
 
 use std::io::Cursor;
 use std::sync::Arc;
@@ -147,6 +148,27 @@ async fn a_placeholder_row_is_filled_as_a_live_line_and_asked_once() {
 
   assert!(again.rows.is_empty(), "no recorded row is asked again");
   assert_eq!(chat.asked_files().len(), 4);
+}
+
+#[tokio::test]
+async fn a_placeholder_naming_its_file_after_the_head_is_asked() {
+  const ROOM: i64 = -134;
+
+  let chat = StandInChat::new("road-a")
+    .filing(41, FilesAnswer::Files(vec![file("0", "plan.pdf", "application/pdf", b"%PDF".to_vec())]));
+  let (_scratch, _data, standing, chat) = stood(ROOM, chat).await;
+
+  kept(&standing, ROOM, 41, "[File plan.pdf]").await;
+  kept(&standing, ROOM, 42, "[Filed under notes]").await;
+
+  let filled = file_fills::fill(&standing.receiver, ROOM, &pass(None, false)).await.unwrap();
+
+  assert_eq!(
+    filled.rows.iter().map(|row| (row.message, row.outcome)).collect::<Vec<_>>(),
+    vec![(41, Some(FillOutcome::Filled))],
+    "a file named after the head is a placeholder; a word that only begins like the head is not"
+  );
+  assert_eq!(chat.asked_files(), vec![41]);
 }
 
 #[tokio::test]
