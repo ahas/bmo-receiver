@@ -2,8 +2,8 @@
 //! 「Pictures received」): a picture filed under its message, brought down and laid on white where it must be; a sound
 //! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
 //! name kept apart; a file that arrived in the spool moved in by a link and one standing elsewhere copied; a sticker
-//! or an animation that moves kept as it came and a sticker's message marked; and a file that could not be written
-//! leaving its row for a later hand-over.
+//! or an animation that moves kept as it came, a still sticker keeping its transparency and a sticker's message
+//! marked; and a file that could not be written leaving its row for a later hand-over.
 
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -254,12 +254,34 @@ async fn a_sticker_that_moves_is_kept_as_it_came_under_its_own_type_and_marks_it
   assert_eq!(message_kind(&scratch, 5).await, "");
 }
 
+// A still sticker past the threshold by its size alone: noise whose left half is fully transparent.
+fn large_transparent_sticker() -> Vec<u8> {
+  let mut picture = image::load_from_memory(&noise(2000, 1100)).unwrap().to_rgba8();
+
+  for (x, _, pixel) in picture.enumerate_pixels_mut() {
+    if x < 1000 {
+      pixel.0[3] = 0;
+    }
+  }
+
+  encoded(picture.into(), ImageFormat::Png)
+}
+
 #[tokio::test]
-async fn an_animation_of_frames_is_kept_as_a_gif_and_a_still_sticker_is_drawn_as_any_picture_and_marked() {
+async fn an_animation_of_frames_is_kept_as_a_gif_and_a_still_sticker_keeps_its_transparency_as_png() {
   let (scratch, data, standing) = stood().await;
   let folder = data.path().join(format!("images/{ROOM}"));
   let gif = moving_gif();
-  let still = encoded(RgbaImage::from_pixel(8, 8, Rgba([0, 0, 0, 0])).into(), ImageFormat::Png);
+  let still = encoded(
+    RgbaImage::from_fn(8, 8, |x, _| Rgba([20, 120, 220, (x * 32) as u8])).into(),
+    ImageFormat::Png,
+  );
+  let large = large_transparent_sticker();
+
+  assert!(
+    large.len() > ROADS.pictures.kept_threshold_bytes,
+    "the sticker stands past the threshold"
+  );
 
   handed(
     &standing,
@@ -270,18 +292,30 @@ async fn an_animation_of_frames_is_kept_as_a_gif_and_a_still_sticker_is_drawn_as
   handed(
     &standing,
     7,
-    &[handed_as(ChatFileKind::Sticker, file("1", "still.png", "image/png", still))],
+    &[handed_as(ChatFileKind::Sticker, file("1", "still.png", "image/png", still.clone()))],
+  )
+  .await;
+  handed(
+    &standing,
+    8,
+    &[handed_as(ChatFileKind::Sticker, file("1", "large.png", "image/png", large))],
   )
   .await;
 
   assert_eq!(std::fs::read(folder.join("6.gif")).unwrap(), gif, "kept byte for byte");
   assert_eq!(message_kind(&scratch, 6).await, "", "an animation is no sticker");
-  assert_eq!(image_path(&scratch, 7).await, folder.join("7.jpg").to_string_lossy());
-  assert_eq!(
-    image::guess_format(&std::fs::read(folder.join("7.jpg")).unwrap()).unwrap(),
-    ImageFormat::Jpeg
-  );
+  assert_eq!(image_path(&scratch, 7).await, folder.join("7.png").to_string_lossy());
+  assert_eq!(std::fs::read(folder.join("7.png")).unwrap(), still, "kept byte for byte");
   assert_eq!(message_kind(&scratch, 7).await, "sticker");
+
+  let brought = std::fs::read(folder.join("8.png")).unwrap();
+  let read = image::load_from_memory(&brought).unwrap().to_rgba8();
+
+  assert_eq!(image_path(&scratch, 8).await, folder.join("8.png").to_string_lossy());
+  assert_eq!(image::guess_format(&brought).unwrap(), ImageFormat::Png);
+  assert_eq!((read.width(), read.height()), (ROADS.pictures.kept_max_dimension, 862));
+  assert_eq!(read.get_pixel(0, 0).0[3], 0, "its transparent half stays transparent");
+  assert_eq!(read.get_pixel(read.width() - 1, 0).0[3], 255, "its opaque half stays opaque");
 }
 
 #[tokio::test]

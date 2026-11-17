@@ -187,9 +187,10 @@ pub async fn keep(
   Ok(())
 }
 
-/// The extensions a message's picture is filed under: `jpg` as the store draws a picture, or the moving one's own
-/// that a sticker or an animation is kept as (`pictures::moving`).
-const FILED_AS: [&str; 3] = ["jpg", "webp", "gif"];
+/// The extensions a message's picture is filed under: `jpg` as the store draws a picture, the moving one's own that a
+/// sticker or an animation is kept as (`pictures::moving`), or the `png` or `webp` a still sticker keeps its
+/// transparency in (`pictures::sticker_kept`).
+const FILED_AS: [&str; 4] = ["jpg", "png", "webp", "gif"];
 
 // The name a message's picture is filed under: the first as `<message>.<extension>`, a later one with its place.
 fn picture_name(message_id: i64, before: usize, extension: &str) -> String {
@@ -208,8 +209,8 @@ pub fn later_picture(folder: &Path, message_id: i64, place: usize) -> Option<Pat
 }
 
 // One picture filed under its message, the first's path on the row: whether it was kept. A sticker or an animation
-// that moves is filed as it came under its own extension, any other picture as the store draws it; a sticker marks
-// its message a sticker (docs/pictures.md, 「Pictures received」).
+// that moves is filed as it came under its own extension, a still sticker with its transparency, any other picture
+// as the store draws it; a sticker marks its message a sticker (docs/pictures.md, 「Pictures received」).
 async fn picture(
   db: &DatabaseConnection,
   data_root: &DataRoot,
@@ -233,10 +234,11 @@ async fn picture(
       return Ok(false);
     }
   };
-  let may_move = matches!(file.kind(), Some(ChatFileKind::Sticker | ChatFileKind::Animation));
-  let filing = move || match pictures::moving(&bytes).filter(|_| may_move) {
-    Some(extension) => (bytes, extension),
-    None => (pictures::kept(bytes, keeping), "jpg"),
+  let kind = file.kind();
+  let filing = move || match (kind, pictures::moving(&bytes)) {
+    (Some(ChatFileKind::Sticker | ChatFileKind::Animation), Some(extension)) => (bytes, extension),
+    (Some(ChatFileKind::Sticker), None) => pictures::sticker_kept(bytes, keeping),
+    _ => (pictures::kept(bytes, keeping), "jpg"),
   };
   let (kept, extension) = match tokio::task::spawn_blocking(filing).await {
     Ok(kept) => kept,

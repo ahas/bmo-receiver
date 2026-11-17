@@ -54,12 +54,19 @@ receiver keeps the pictures and decides what a session is shown.
   later (`docs/room-files.md`, 「Files filled in later」).
 - **A picture larger than the resize threshold** is downscaled to the maximum dimension and re-encoded as JPEG
   before it is stored, so a session always reads a file it can afford to open; a picture that is not a JPEG and has
-  transparency is laid on white and stored as JPEG whatever its size.
+  transparency is laid on white and stored as JPEG whatever its size. A sticker keeps its transparency, as the two
+  points below state.
 - **A sticker or an animation that moves is kept as it came.** A picture the chat service hands over as a sticker
   or an animation (bmo-chat's `docs/contract.md`, 「Files」) whose bytes are an animated WebP or a GIF of more than
   one frame is filed byte for byte under the extension of its own type, `<messageId>.webp` or `<messageId>.gif`,
   and served with that type: a redraw keeps the first frame alone, so neither the threshold nor its transparency
-  redraws it. A still one is kept as any picture is.
+  redraws it. A still animation is kept as any picture is.
+- **A still sticker keeps its transparency,** since the console draws a sticker on the page's own ground, light or
+  dark. A sticker that does not move and has transparency is never laid on white: a PNG or a still WebP no larger
+  than the resize threshold is filed byte for byte as `<messageId>.png` or `<messageId>.webp`, and any other one,
+  or one larger than the threshold, is brought inside the maximum dimension, each pixel weighed by its own alpha as
+  it is brought down, and written as PNG, `<messageId>.png`. Each is served with the type of its own extension. A
+  still sticker with no transparency is kept as any picture is.
 - **A message whose picture came as a sticker is marked a sticker:** its `kind` is `sticker` (`docs/api.md`,
   「Messages」), as a sticker the record sends is, so the console draws it as a sticker rather than a photo.
 - **The message is archived like any other,** with the caption as its text or the picture placeholder when there
