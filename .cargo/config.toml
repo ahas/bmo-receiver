@@ -1,0 +1,6 @@
+# The test binaries this workspace runs test their threads below the machine's width: each test's minutes
+# stretch with whatever share of the one test server and runner it gets, and an uncapped binary takes as many
+# threads as the machine has cores. The cap is Cargo's own `[env]` table, so a person running one test can lift
+# it from the environment without touching the build.
+[env]
+RUST_TEST_THREADS = "8"
