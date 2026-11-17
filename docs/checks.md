@@ -39,7 +39,8 @@ names.
   static check and the suite run in the checkout over the range from the commit live before, and only then is
   the release prepared at the commit. A checkout holding a change not yet whole therefore fails a deployment
   even where the commit's own tree passes; a deployment is handed over from a checkout that stands whole.
-- **What the gate runs is the declaration's own steps and suite** (`testbed.toml`): the quick sweeps,
-  `cargo check --workspace --all-targets`, `cargo clippy --workspace --all-targets --locked -- -D warnings`,
-  `cargo fmt --all --check`, the workspace suite and the client's check, over the change since the commit
-  live before.
+- **What the gate runs is the declaration's quick sweeps and suite and the testbed's own Cargo workspace
+  check** (`testbed.toml`; the testbed's `docs/checks.md`, 「The static check」): the quick sweeps, then, where
+  the change since the commit live before marks a crate, the workspace's format check and its lints over every
+  target through the Cargo verb in the shared build directory, then the workspace suite and the client's check.
+  The declaration names no Cargo step of its own, so a change that marks no crate compiles no Rust.
