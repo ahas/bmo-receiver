@@ -98,10 +98,11 @@ message passes, and the record each turn of it leaves.
   session, as a delegated task does, until the agency lets that session go. The agent's own session is free
   from the moment it answered the sentinel: it takes its other rooms' rounds while the double works.
 - **The round's own turn waits only a short while for its slot.** A room's round is live conversation and never
-  waits behind the role's delegated work, so where the slot its own turn asks for is not let in, and the
-  double's session started on it, within the policy's limit (`chat-round.toml`, `[double]`, `admit_ms`), the
-  wait ends there: the slot's request is cancelled by its key and the double has not taken the round, whose
-  reason says the double's role had no free slot within that limit. The receiver logs the wait as it begins and
+  waits behind the role's delegated work, so where the slot its own turn asks for is not let in within the
+  policy's limit (`chat-round.toml`, `[double]`, `admit_ms`), the asking stops there: the slot's request is
+  cancelled by its key and the double has not taken the round, whose reason says the double's role had no free
+  slot within that limit. A slot let in within the limit goes on to start the double's session however long the
+  start takes, so no session is ever cut half started. The receiver logs the wait as it begins and
   the hand-back once the limit passes. A later turn of the process waits for its slot however long the role's
   line takes, as a delegated task does.
 - **Every slot the double holds is the receiver's own record until it is given back.** The slot's key is kept

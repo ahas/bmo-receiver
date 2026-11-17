@@ -492,12 +492,19 @@ impl Carry {
       .map_err(|why| Failure::Failed(format!("{} could not be made: {why}", folder.display())))?;
 
     let at = now_ms();
+    // The round's own turn waits only the policy's limit for its slot, since the room's round is live
+    // conversation; a later turn waits as a delegated task does (docs/drafting.md, 「A round handed to the double」).
+    let admit_within = match doubled {
+      Doubled::Round => Some(receiver.double_admit()),
+      Doubled::Later => None,
+    };
     let start = DoubleStart {
       supervisor: agent.to_owned(),
       path: folder.to_string_lossy().into_owned(),
       key: format!("{DOUBLE_SOURCE}:{agent}:{chat_id}:{at}"),
       run: format!("round-{agent}-{chat_id}-{at}"),
       title: format!("a round of chat {chat_id}"),
+      admit_within,
     };
     let slot = double_slots::Held {
       key: start.key.clone(),
@@ -508,32 +515,25 @@ impl Carry {
 
     double_slots::keep(receiver.db(), &slot).await.map_err(failed)?;
 
-    // A slot whose asking failed at any step is given back whole by its key, so nothing it was let in on waits on.
-    // The round's own turn waits only the policy's limit for it, since the room's round is live conversation; the
-    // request still waiting is cancelled by the same key (docs/drafting.md, 「A round handed to the double」).
-    let asked = match doubled {
-      Doubled::Round => {
-        let limit = receiver.double_admit();
+    if let Some(limit) = admit_within {
+      println!(
+        "chat {chat_id}: {agent}'s round waits at most {} ms for a slot of its double, asked as {}",
+        limit.as_millis(),
+        start.key
+      );
+    }
 
-        println!(
-          "chat {chat_id}: {agent}'s round waits at most {} ms for a slot of its double, asked as {}",
-          limit.as_millis(),
-          start.key
-        );
-
-        tokio::time::timeout(limit, agency.double_start(&start)).await.map_err(|_| limit)
-      }
-      Doubled::Later => Ok(agency.double_start(&start).await),
-    };
-    let seat = match asked {
-      Ok(Ok(seat)) => seat,
-      Ok(Err(why)) => {
+    // A slot whose asking failed at any step, or that was not let in within the limit, is given back whole by its
+    // key, so nothing it was let in on waits on and a request still waiting is cancelled.
+    let seat = match agency.double_start(&start).await {
+      Ok(Some(seat)) => seat,
+      Err(why) => {
         double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
 
         return Err(fault_of(why));
       }
-      Err(limit) => {
-        let waited = limit.as_millis();
+      Ok(None) => {
+        let waited = admit_within.unwrap_or_default().as_millis();
 
         eprintln!(
           "chat {chat_id}: no slot of {agent}'s double was free within {waited} ms; its request {} is cancelled and \

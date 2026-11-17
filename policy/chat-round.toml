@@ -228,8 +228,8 @@ refused_gap_ms = 10000
 pace_ms = 2000
 reattach_ms = 600000
 
-# How long a round handed to the double waits for its slot to be let in and the double's run started, in
-# milliseconds, before the round is handed back to the agent's own session (docs/drafting.md, 「A round handed to
+# How long a round handed to the double waits for its slot to be let in, in milliseconds, before the round is
+# handed back to the agent's own session (docs/drafting.md, 「A round handed to
 # the double」): a room's round is live conversation and never waits behind the role's delegated work.
 [double]
 admit_ms = 20000

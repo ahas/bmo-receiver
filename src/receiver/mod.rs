@@ -684,8 +684,8 @@ impl Receiver {
     self
   }
 
-  /// How long a round handed to the double waits for its slot to be let in and the double's run started before
-  /// the round is handed back to the agent's own session.
+  /// How long a round handed to the double waits for its slot to be let in before the round is handed back to the
+  /// agent's own session.
   pub fn double_admit(&self) -> Duration {
     self.double_admit
   }

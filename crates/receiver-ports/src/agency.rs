@@ -234,7 +234,8 @@ pub const DOUBLE_SOURCE: &str = "delegate";
 const DOUBLE_PACE: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// What a double's run is started with: the supervisor whose double it is, the folder it works at, the key its
-/// slot is asked under, the name its run goes by and the slot's title.
+/// slot is asked under, the name its run goes by, the slot's title, and the most its slot is waited for before
+/// the asking stops; none waits however long the role's line takes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DoubleStart {
   pub supervisor: String,
@@ -242,6 +243,7 @@ pub struct DoubleStart {
   pub key: String,
   pub run: String,
   pub title: String,
+  pub admit_within: Option<std::time::Duration>,
 }
 
 /// A double's run as it stands: the slot it holds, its session and the name its run goes by.
@@ -694,9 +696,11 @@ pub trait Agency: Send + Sync {
   fn turn<'a>(&'a self, turn: &'a Turn) -> BoxFuture<'a, Answer<Delivery>>;
 
   /// A run of the role the agency names for a supervisor's delegated work started as `supervisor`'s double at
-  /// `path`: a slot of the role asked and waited for however long its line takes, the role's session started on
-  /// it, and the slot bound to the run. An agency that carries no such run refuses.
-  fn double_start<'a>(&'a self, _start: &'a DoubleStart) -> BoxFuture<'a, Answer<DoubleSeat>> {
+  /// `path`: a slot of the role asked and waited for, within `admit_within` where it names a limit and however
+  /// long its line takes otherwise, the role's session started on it, and the slot bound to the run. None where
+  /// the slot was not let in within the limit: its request still stands, for the caller to give back by its key.
+  /// An agency that carries no such run refuses.
+  fn double_start<'a>(&'a self, _start: &'a DoubleStart) -> BoxFuture<'a, Answer<Option<DoubleSeat>>> {
     Box::pin(async { Err(no_double()) })
   }
 
@@ -1085,7 +1089,7 @@ impl Agency for HttpAgency {
     })
   }
 
-  fn double_start<'a>(&'a self, start: &'a DoubleStart) -> BoxFuture<'a, Answer<DoubleSeat>> {
+  fn double_start<'a>(&'a self, start: &'a DoubleStart) -> BoxFuture<'a, Answer<Option<DoubleSeat>>> {
     Box::pin(async move {
       let asked: Value = self
         .caller
@@ -1102,8 +1106,10 @@ impl Agency for HttpAgency {
         )
         .await?;
       let mut slot = SlotRead::of(&asked);
+      let deadline = start.admit_within.map(|within| tokio::time::Instant::now() + within);
 
-      // Asked for its admission again and again, however long the role's line takes.
+      // Asked for its admission again and again, until the limit where the start names one and however long the
+      // role's line takes otherwise. A slot let in goes on to its session whatever the clock says.
       while !slot.admitted() {
         if slot.given_back() {
           return Err(PortFailure::Undecodable {
@@ -1112,7 +1118,15 @@ impl Agency for HttpAgency {
           });
         }
 
-        tokio::time::sleep(DOUBLE_PACE).await;
+        let pause = match deadline {
+          Some(deadline) => match deadline.saturating_duration_since(tokio::time::Instant::now()) {
+            left if left.is_zero() => return Ok(None),
+            left => DOUBLE_PACE.min(left),
+          },
+          None => DOUBLE_PACE,
+        };
+
+        tokio::time::sleep(pause).await;
 
         let said: Value = self.caller.patch(&["slot-requests", &slot.token], &json!({})).await?;
 
@@ -1175,7 +1189,7 @@ impl Agency for HttpAgency {
         };
       }
 
-      Ok(seat)
+      Ok(Some(seat))
     })
   }
 

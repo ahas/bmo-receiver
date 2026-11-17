@@ -263,8 +263,8 @@ pub struct Attach {
   pub reattach_ms: u64,
 }
 
-/// How long a round handed to the double waits for its slot to be let in and the double's run started before the
-/// round is handed back to the agent's own session.
+/// How long a round handed to the double waits for its slot to be let in before the round is handed back to the
+/// agent's own session.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Double {

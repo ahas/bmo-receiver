@@ -1,9 +1,11 @@
 //! The agency port against a stand-in of the agency's routes (the agency's `docs/api.md`).
 
 use futures_util::StreamExt;
+use std::time::Duration;
+
 use receiver_ports::agency::{
-  Agency, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, NewSupervisor, Removal, RestKind,
-  Resting, Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
+  Agency, Delivery, DoubleSeat, DoubleStart, Event, FieldRefusal, Forgotten, HttpAgency, Load,
+  NewSupervisor, Removal, RestKind, Resting, Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
 };
 use serde_json::json;
 
@@ -795,4 +797,56 @@ async fn a_supervisor_s_switches_are_read_off_its_settings_each_on_where_they_do
   assert_eq!(agency.switches("agent-c").await.unwrap(), on, "a field not answered reads as on");
   assert_eq!(agency.switches("no-agent").await.unwrap(), on, "a supervisor not known reads as on");
   assert!(on.brain_reaches());
+}
+
+#[tokio::test]
+async fn a_double_s_slot_not_let_in_within_its_limit_is_left_unstarted_and_one_let_in_starts_whatever_the_limit()
+ {
+  let unit = StandIn::start().await;
+  let agency = HttpAgency::new(&unit.peer("t"));
+  let start = |key: &str| DoubleStart {
+    supervisor: "agent-a".to_owned(),
+    path: "/scratch".to_owned(),
+    key: key.to_owned(),
+    run: format!("round-{key}"),
+    title: "a round of chat 42".to_owned(),
+    admit_within: Some(Duration::ZERO),
+  };
+
+  // A slot the line lets in at once goes on to its session, the limit already spent.
+  unit.answer(
+    "POST /slot-requests",
+    201,
+    json!({ "token": "s1", "state": "active", "role": "doppelganger" }),
+  );
+  unit.answer("POST /sessions", 201, json!({ "id": "doppelganger@run:1" }));
+  unit.answer(
+    "PATCH /slot-requests/s1",
+    200,
+    json!({ "request": { "token": "s1", "state": "bound" } }),
+  );
+
+  assert_eq!(
+    agency.double_start(&start("k1")).await.unwrap(),
+    Some(DoubleSeat {
+      token: "s1".to_owned(),
+      session: "doppelganger@run:1".to_owned(),
+      run: "round-k1".to_owned(),
+    })
+  );
+
+  // A slot still waiting once the limit passed is not asked for again and starts nothing.
+  unit.answer(
+    "POST /slot-requests",
+    201,
+    json!({ "token": "s2", "state": "waiting", "role": "doppelganger" }),
+  );
+
+  let before = unit.took().len();
+
+  assert_eq!(agency.double_start(&start("k2")).await.unwrap(), None);
+
+  let after: Vec<String> = unit.took()[before..].iter().map(|(route, _, _)| route.clone()).collect();
+
+  assert_eq!(after, ["POST /slot-requests"]);
 }

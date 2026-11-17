@@ -1240,7 +1240,8 @@ pub struct StandInAgency {
   pub double_releases: Mutex<Vec<String>>,
   /// Whether a double's start is refused, as an agency that lets no run of the role in refuses it.
   pub double_refused: Mutex<bool>,
-  /// Whether a double's slot is asked for and never let in, as a role whose every slot a long task holds.
+  /// Whether a double's slot is asked for and never let in, as a role whose every slot a long task holds: the
+  /// start answers that it was not let in once the limit it names passes, and waits for good where it names none.
   pub double_waiting: Mutex<bool>,
   pub removals: Mutex<Vec<(String, Removal)>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
@@ -1593,7 +1594,7 @@ impl Agency for StandInAgency {
     Box::pin(async move { session.turn(turn).await })
   }
 
-  fn double_start<'a>(&'a self, start: &'a DoubleStart) -> BoxFuture<'a, Answer<DoubleSeat>> {
+  fn double_start<'a>(&'a self, start: &'a DoubleStart) -> BoxFuture<'a, Answer<Option<DoubleSeat>>> {
     if *self.double_refused.lock().unwrap() {
       return Box::pin(async {
         Err(PortFailure::Answered {
@@ -1609,7 +1610,16 @@ impl Agency for StandInAgency {
     starts.push(start.clone());
 
     if *self.double_waiting.lock().unwrap() {
-      return Box::pin(std::future::pending());
+      let limit = start.admit_within;
+
+      return Box::pin(async move {
+        match limit {
+          Some(limit) => tokio::time::sleep(limit).await,
+          None => std::future::pending().await,
+        }
+
+        Ok(None)
+      });
     }
 
     let seat = DoubleSeat {
@@ -1618,7 +1628,7 @@ impl Agency for StandInAgency {
       run: start.run.clone(),
     };
 
-    Box::pin(async move { Ok(seat) })
+    Box::pin(async move { Ok(Some(seat)) })
   }
 
   fn double_turn<'a>(
