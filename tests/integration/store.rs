@@ -260,6 +260,43 @@ async fn the_thinking_messages_a_record_holds_take_their_kind_and_lose_their_mar
 }
 
 #[tokio::test]
+async fn a_message_holding_a_kept_sticker_takes_the_sticker_kind() {
+  let database = Scratch::new().await;
+  let db = database.db();
+  let steps = undone_from(db, "m20261117_000053_sticker_messages").await;
+
+  // A message that kept a sticker file, one that kept a video, and a thinking block that somehow holds a sticker
+  // row: only the first takes the kind, and a kind already set stays.
+  let rows: [(i64, Option<&str>, &str); 3] =
+    [(1, None, "sticker"), (2, None, "video"), (3, Some("thinking"), "sticker")];
+
+  for (id, kind, kept) in rows {
+    database
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_name", "sent_at", "text", "kind")
+           VALUES (1, $1, 'person-a', $1, '[file]', $2)"#,
+        vec![id.into(), kind.map(str::to_owned).into()],
+      )
+      .await;
+    database
+      .run(
+        r#"INSERT INTO "collected_items" ("chat_id", "message_id", "sender_name", "kind", "source", "collected_at")
+           VALUES (1, $1, 'person-a', $2, 'file', $1)"#,
+        vec![id.into(), kept.into()],
+      )
+      .await;
+  }
+
+  assert_eq!(migrate(db).await.unwrap(), steps);
+  assert_eq!(
+    database
+      .texts(r#"SELECT COALESCE("kind", '') FROM "messages" ORDER BY "message_id""#)
+      .await,
+    ["sticker", "", "thinking"]
+  );
+}
+
+#[tokio::test]
 async fn what_stood_for_every_supervisor_becomes_each_supervisor_s_own() {
   let database = Scratch::new().await;
   let db = database.db();

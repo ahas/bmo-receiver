@@ -68,7 +68,8 @@ receiver keeps the pictures and decides what a session is shown.
   it is brought down, and written as PNG, `<messageId>.png`. Each is served with the type of its own extension. A
   still sticker with no transparency is kept as any picture is.
 - **A message whose picture came as a sticker is marked a sticker:** its `kind` is `sticker` (`docs/api.md`,
-  「Messages」), as a sticker the record sends is, so the console draws it as a sticker rather than a photo.
+  「Messages」), as a sticker the record sends is, so the console draws it as a sticker rather than a photo. A sticker
+  of any other type marks its message the same way (`docs/room-files.md`, 「Message files」).
 - **The message is archived like any other,** with the caption as its text or the picture placeholder when there
   is none, and the archive row keeps the stored path plus the id of the message it replies to.
 - **A picture with no caption still reaches the session with its note.** The line stands its sender's words, empty

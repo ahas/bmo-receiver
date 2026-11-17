@@ -163,7 +163,8 @@ async fn filed(path: &Path, file: &impl Handed, spool: &Path) -> io::Result<()> 
 }
 
 /// Every file a message carried kept: its pictures in the picture store, the first of them named on the message's
-/// row, and its other files in the message-file store, each with its row.
+/// row, and its other files in the message-file store, each with its row. A message a sticker came on, of whatever
+/// type, is marked a sticker (docs/room-files.md, 「Message files」).
 pub async fn keep(
   db: &DatabaseConnection,
   data_root: &DataRoot,
@@ -177,11 +178,13 @@ pub async fn keep(
       if picture(db, data_root, inbound.chat_id, inbound.message_id, file, pictures).await? {
         pictures += 1;
       }
-
-      continue;
+    } else {
+      collected(db, data_root, inbound, file).await?;
     }
+  }
 
-    collected(db, data_root, inbound, file).await?;
+  if files.iter().any(|file| file.kind() == Some(ChatFileKind::Sticker)) {
+    mark_sticker(db, inbound.chat_id, inbound.message_id).await?;
   }
 
   Ok(())
@@ -210,7 +213,7 @@ pub fn later_picture(folder: &Path, message_id: i64, place: usize) -> Option<Pat
 
 // One picture filed under its message, the first's path on the row: whether it was kept. A sticker or an animation
 // that moves is filed as it came under its own extension, a still sticker with its transparency, any other picture
-// as the store draws it; a sticker marks its message a sticker (docs/pictures.md, 「Pictures received」).
+// as the store draws it (docs/pictures.md, 「Pictures received」).
 async fn picture(
   db: &DatabaseConnection,
   data_root: &DataRoot,
@@ -270,10 +273,6 @@ async fn picture(
       ],
     )
     .await?;
-  }
-
-  if file.kind() == Some(ChatFileKind::Sticker) {
-    mark_sticker(db, chat_id, message_id).await?;
   }
 
   Ok(true)

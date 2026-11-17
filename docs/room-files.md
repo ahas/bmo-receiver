@@ -59,9 +59,14 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 - **A row's kind is what the file is:** `sticker` for a file the chat service hands over as a sticker and
   `animation` for one it hands over as an animation (bmo-chat's `docs/contract.md`, 「Files」), where the file is no
   picture; otherwise its type's, `audio`, `video` or `document`. A picture a sticker or an animation came as is
-  filed in the picture store, as it came where it moves, and a sticker's message is marked a sticker
-  (`docs/pictures.md`, 「Pictures received」). A row kept before the chat service's kind was read takes `sticker`
-  where its file is named as a sticker, `sticker-` at the head of its name.
+  filed in the picture store, as it came where it moves (`docs/pictures.md`, 「Pictures received」). A row kept
+  before the chat service's kind was read takes `sticker` where its file is named as a sticker, `sticker-` at the
+  head of its name.
+- **A message a sticker came on is a sticker,** whatever the sticker's type: its `kind` is `sticker` (`docs/api.md`,
+  「Messages」) once the chat service hands a file over as a sticker, a picture filed in the picture store and a
+  file of any other type kept here alike, and once a pass fills such a row later. A message that holds a kept row
+  of kind `sticker` reads that kind too, whenever the row was kept. A sticker whose file the chat service never
+  handed over leaves its message as it stands, a placeholder line with nothing to draw.
 - **A video or an animation with no file name of its own** is filed as `video` with the extension its type
   implies, and a sound with none as `voice` with its own (`policy/roads.toml`, `gathering`).
 - **What is kept always has a message to hang on.** A voice note, an audio file and a document are written into
@@ -76,6 +81,22 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 - **Only bytes inside the room's own folder go out.** A stored path is followed through its links first and served
   only where it resolves inside the room's folder of the message-file store; a row with no stored path, or one
   that points anywhere else or at nothing left on the disk, is answered as nothing held.
+- **A sticker is found by its message's kind.** A message whose `kind` is `sticker` holds its sticker in one of two
+  places, and the console draws whichever it holds:
+  - its picture, where its `imagePath` is not null: the bytes come from the message's picture route, a `.jpg`,
+    `.png`, `.webp` or `.gif` served with the type its extension names (`docs/pictures.md`, 「Pictures received」);
+  - otherwise a file of kind `sticker` among its `files`, the last of them where it kept several: the files route
+    lists it with `kind` `sticker`, the name the chat service gave it and whether its bytes stand (`kept`), and its
+    bytes come by its place.
+- **A sticker kept as a file is told by its name's extension,** since its row keeps no type of its own:
+  - `.tgs`, an animated sticker: a Lottie scene in JSON, gzip-compressed. The file list names no type for it and its
+    bytes go out as `application/octet-stream`; the drawer unpacks and plays it.
+  - `.webm`, a video sticker: a short VP9 video with an alpha channel and no sound, served as `video/webm`.
+  - `.webp` or `.jpg`, a still sticker kept as a file before its chat service's pictures reached the picture
+    store, served with the type its extension names.
+- **The receiver changes nothing of how a sticker moves.** A sticker kept as a file, and a picture sticker that
+  moves, stands byte for byte as it came, with whatever loop count its own bytes carry and no frame or poster of the
+  receiver's; how often a moving one plays is the drawer's to decide.
 
 ### Who a file wakes
 

@@ -3,7 +3,7 @@
 //! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
 //! name kept apart; a file that arrived in the spool moved in by a link and one standing elsewhere copied; a sticker
 //! or an animation that moves kept as it came, a still sticker keeping its transparency and a sticker's message
-//! marked; and a file that could not be written leaving its row for a later hand-over.
+//! marked whatever the sticker's type; and a file that could not be written leaving its row for a later hand-over.
 
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -369,7 +369,7 @@ async fn a_sound_or_a_video_with_no_name_is_named_for_what_it_is() {
 }
 
 #[tokio::test]
-async fn a_sticker_and_an_animation_keep_their_own_kind_and_a_sticker_picture_stays_a_picture() {
+async fn a_sticker_and_an_animation_keep_their_own_kind_and_a_sticker_file_marks_its_message_a_sticker() {
   let (scratch, _data, standing) = stood().await;
   let kinded = |id: &str, name: &str, mime: &str, kind: ChatFileKind| MessageFile {
     kind: Some(kind),
@@ -396,6 +396,12 @@ async fn a_sticker_and_an_animation_keep_their_own_kind_and_a_sticker_picture_st
       .await,
     ["clip.mp4 video", "sticker-1.tgs sticker", "sticker-2.webm sticker", "video.mp4 animation"]
   );
+  assert_eq!(message_kind(&scratch, 40).await, "sticker");
+
+  // An animation alone is no sticker.
+  handed(&standing, 41, &[kinded("1", "", "video/mp4", ChatFileKind::Animation)]).await;
+
+  assert_eq!(message_kind(&scratch, 41).await, "");
 }
 
 #[tokio::test]

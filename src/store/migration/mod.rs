@@ -56,6 +56,7 @@ pub mod m20261116_000049_draft_stages_off;
 pub mod m20261116_000050_draft_rounds_by_room;
 pub mod m20261116_000051_agent_avatar_sets;
 pub mod m20261116_000052_people_names;
+pub mod m20261117_000053_sticker_messages;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -118,6 +119,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261116_000050_draft_rounds_by_room::Migration),
       Box::new(m20261116_000051_agent_avatar_sets::Migration),
       Box::new(m20261116_000052_people_names::Migration),
+      Box::new(m20261117_000053_sticker_messages::Migration),
     ]
   }
 }
