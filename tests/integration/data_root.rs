@@ -1,4 +1,5 @@
-//! The stores under the data root that keep a folder per room (`docs/store.md`, 「The data root's folders」).
+//! The stores under the data root that keep a folder per room, and the spool emptied as the service starts
+//! (`docs/store.md`, 「The data root's folders」).
 
 use std::path::Path;
 
@@ -61,4 +62,23 @@ fn a_variable_moves_the_message_file_and_picture_stores() {
 
   std::fs::create_dir_all(images.join("-7")).unwrap();
   assert_eq!(root.room_folders(-7), [images.join("-7")]);
+}
+
+#[test]
+fn the_start_empties_the_spool_and_leaves_the_rooms_files() {
+  let dir = tempfile::tempdir().unwrap();
+  let root = DataRoot::new(dir.path());
+  let left = root.spool().join("part-1");
+  let kept = root.collected().join("-7/3-notes.txt");
+
+  std::fs::create_dir_all(root.spool()).unwrap();
+  std::fs::create_dir_all(kept.parent().unwrap()).unwrap();
+  std::fs::write(&left, b"left by a stopped receiver").unwrap();
+  std::fs::write(&kept, b"kept").unwrap();
+
+  bmo_receiver::service_start::emptied_spool(&root);
+
+  assert!(!left.exists(), "a part no holder will let go of is removed");
+  assert!(root.spool().is_dir(), "the spool itself stands");
+  assert_eq!(std::fs::read(&kept).unwrap(), b"kept");
 }

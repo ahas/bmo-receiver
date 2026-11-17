@@ -97,10 +97,27 @@ pub fn make_folders(data_root: &DataRoot) {
   }
 }
 
-/// The start's work, in order, for the receiver standing on this configuration: the folders made, the warmer told
-/// of the consumer and its one target, and the agency told of the three hooks it answers.
+/// The spool emptied of what a receiver that stopped left in it: at the start nothing has arrived yet, so every
+/// file there is one no holder will let go of again (docs/store.md, 「The data root's folders」).
+pub fn emptied_spool(data_root: &DataRoot) {
+  let Ok(entries) = std::fs::read_dir(data_root.spool()) else {
+    return;
+  };
+
+  for entry in entries.flatten() {
+    if entry.file_type().is_ok_and(|kind| kind.is_file())
+      && let Err(why) = std::fs::remove_file(entry.path())
+    {
+      eprintln!("bmo-receiver: {} could not be removed from the spool: {why}", entry.path().display());
+    }
+  }
+}
+
+/// The start's work, in order, for the receiver standing on this configuration: the folders made, the spool
+/// emptied, the warmer told of the consumer and its one target, and the agency told of the three hooks it answers.
 pub async fn settle(receiver: &Receiver, consumer: &str, listen: &str, token: &str) {
   make_folders(receiver.data_root());
+  emptied_spool(receiver.data_root());
 
   let base = base_address(listen);
   let units: Units = receiver.units().clone();

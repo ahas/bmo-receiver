@@ -152,7 +152,8 @@ the removal of the room's registration.
 
 The message-file store holds one folder that is no room's: `.spool/`, where each file a chat service carries as a
 part is written as its bytes arrive, so filing it under its message moves it within one disk rather than copying
-it (`docs/room-files.md`, 「Message files」). A file there is removed once the receiver has done with it.
+it (`docs/room-files.md`, 「Message files」). A file there is removed once the receiver has done with it, and
+whatever a receiver that stopped left there is removed as the service starts, before anything arrives.
 
 One folder under the data root holds no room's files for long: `incoming/`, where each file a form of the console
 carries is written as its bytes arrive (`docs/api.md`, 「Sends」). Each file there is the request's own and is
