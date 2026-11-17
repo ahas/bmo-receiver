@@ -20,6 +20,7 @@ use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
 use bmo_receiver::receiver::{Context, Inbound, Room};
+use bmo_receiver::routes::routes;
 use image::{ImageFormat, Rgb, RgbImage};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
@@ -29,6 +30,7 @@ use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_ports::agency::Said;
 
 use crate::integration::common::Scratch;
+use crate::integration::common::queue::{TOKEN, as_console, posted_to};
 use crate::integration::common::session::{StandInSession, drafting, drafting_with};
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
@@ -658,6 +660,54 @@ async fn a_notice_meant_for_the_room_still_goes_there() {
   assert_eq!(
     round.scratch.texts(r#"SELECT "text" FROM "messages" WHERE "chat_id" = 42"#).await,
     ["Here."]
+  );
+}
+
+// The order the agency hands over once background work a supervisor launched in a room has ended: it carries no
+// sort the receiver names, so it opens the room's round as any room reply does, and its answer is drafted,
+// questioned and sent through the same process.
+#[tokio::test]
+async fn a_background_work_s_end_opens_the_rooms_round_and_its_answer_goes_through_the_draft_process() {
+  let session = StandInSession::new(SESSION, "unscripted").answering(&["The search is done: three hits."]);
+  let round = Drafting::new(session, &["intent", "final"], 150).await;
+  let order = "Background work you launched in this room has ended (completed): the shell \"search\".";
+  let front = routes(round.standing.receiver.clone(), as_console(TOKEN));
+  let (status, queued) = posted_to(
+    front,
+    "/instructions",
+    serde_json::json!({
+      "agentName": AGENT, "room": OWNER, "said": { "order": order }, "sort": "background",
+      "kind": "background-ended:task-1", "cause": "reply", "summary": "Background work \"search\" ended",
+    }),
+  )
+  .await;
+
+  assert_eq!(status, axum::http::StatusCode::CREATED, "{queued}");
+
+  let mut last = 0;
+
+  deliver_pending(&round.standing.receiver, &round.runner, &mut last, now_ms(), 0)
+    .await
+    .unwrap();
+  round.ended(1).await;
+
+  let prompts = round.session.prompts();
+  let sent = round.sent();
+
+  assert_eq!(prompts.len(), 1, "{prompts:#?}");
+  assert!(prompts[0].contains(order), "{}", prompts[0]);
+  assert_eq!(round.log().await, ["question intent+final answered", "end  message"]);
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains("three hits"), "{sent:?}");
+  assert_eq!(
+    round
+      .scratch
+      .texts(&format!(
+        r#"SELECT (CASE WHEN "delivered_at" IS NOT NULL THEN 'delivered' ELSE 'open' END) FROM "instructions" WHERE "id" = {}"#,
+        queued["id"]
+      ))
+      .await,
+    ["delivered"]
   );
 }
 

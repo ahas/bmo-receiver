@@ -434,8 +434,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `the system` (`docs/bmo-window.md`, 「Quiet instruction」).
 - **Its `cause`** says whether somebody waits on it (`docs/wake.md`, 「Quiet instructions」). `reply`, the default,
   is a room reply: it answers something a room or the owner asked or set going — a research run's result, a
-  delegate's or a worker's answer, a job's ending and report, a reminder or a watch come due — and opens the
-  agent's turn as soon as it is queued, on a session past its cache lifetime too, which that turn replaces.
+  delegate's or a worker's answer, a job's ending and report, the end or loss of background work an agent's
+  program launched in the room (`docs/drafting.md`, 「Long work in a round」), a reminder or a watch come due —
+  and opens the agent's turn as soon as it is queued, on a session past its cache lifetime too, which that turn
+  replaces.
   `housekeeping` is a record for the agent alone that nobody waits on, and waits for a round something else opens
   where the session is past its cache lifetime; one marked `agentOnly` is housekeeping whatever it names.
 - **A quiet instruction** is one with `kind` `watch` or `reminder` and a `said.order`: it is queued under that

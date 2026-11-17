@@ -48,12 +48,15 @@ message passes, and the record each turn of it leaves.
   after it names no reason. A skip anywhere in an answer wins, and where an answer carries skips naming reasons and
   not, one that names a reason wins.
 - **A later turn of the program that says nothing leaves the answer written before it.** One turn of the process
-  can span several turns of the agent's program: words pushed after its last tool call, or a background task's
-  notice, each open one, and the agency hands each one's answer with what opened it (its `docs/agent-control.md`,
-  「The round's answer」). The receiver builds the answer from them as the agency does — a turn opened by words
-  handed over replaces it, a turn the program opened on its own adds to it — save that a turn whose answer says
-  nothing, a skip of either shape, a wait or no words, never displaces an answer that says something: the answer
-  written before it stands and is read as above. So a turn opened by a quiet instruction alone that skips does
+  can span several turns of the agent's program: words pushed after its last tool call each open one, and the
+  agency hands each one's answer with what opened it (its `docs/agent-control.md`, 「The round's answer」). The
+  receiver builds the answer from them as the agency does — a turn opened by words handed over replaces it, a
+  turn the program opened on its own adds to it — save that a turn whose answer says nothing, a skip of either
+  shape, a wait or no words, never displaces an answer that says something: the answer written before it stands
+  and is read as above. A line that carries its program's background apart, as the chat line does, reads its
+  rounds with notices apart: a turn its program opens on a background task's notice is no round's, so the
+  agency hands no such turn, and the work's end reaches the room as an instruction of its own (「Long work in a
+  round」 below). So a turn opened by a quiet instruction alone that skips does
   not take away the message written before it. A cancellation pushed into the turn is answered with a reply
   saying so (`chat-round.toml`, `[push]`), never with a skip. Where the agency hands no turns, the answer it built
   stands.
@@ -89,12 +92,26 @@ message passes, and the record each turn of it leaves.
 - **Work longer than moments goes behind the round, after the person is answered.** Where a round calls for
   work longer than moments — an investigation across files or machines, a change made and checked, something to
   wait on, more than a handful of tool calls — the round's message tells the person, in a few words, what the
-  agent will do, and the work goes behind the round as the agency's rule for a supervisor's long work says (the
-  agency's `docs/supervisors.md`, 「A supervisor's long work」): a call made apart, whose result wakes the agent
-  in the room it was asked in, for work it reports itself, and a job item for work whose result is code or a
-  document. The agent comes back to the room with the result, in the round that result opens. Work it puts in
-  its own program's background, or hands to a subagent, stays inside the turn and holds the round, so it is no
-  road for long work. The process's fixed rules say so (`chat-line.toml`, `process`).
+  agent will do, and the work goes behind the round by one of the roads the agency's rule for a supervisor's long
+  work gives (the agency's `docs/supervisors.md`, 「A supervisor's long work」):
+  - a call made apart, for work that must outlive the session, whose result wakes the agent in the room it was
+    asked in;
+  - the program's own background, a shell command or a subagent put there, for work that ends within the
+    session: the turn that launched it ends at its stop with the work still running, so the round takes that
+    turn's answer as its draft at once and runs its process on it (the agency's `docs/agent-control.md`,
+    「Background work on a line that carries it apart」), and the work, living only inside the program, is lost
+    with it;
+  - a job item for work whose result is code or a document.
+
+  The agent comes back to the room with the result, in the round that result opens. The process's fixed rules
+  say so (`chat-line.toml`, `process`). A subagent run inside the turn, for reading whose conclusion the message
+  needs, holds the round while it runs.
+- **The end of background work opens its room's round as an instruction.** The agency hands the receiver an
+  order for the supervisor in the room the work was launched in, under the sort `background`, the kind
+  `background-ended:<task>` or `background-lost:<task>` and the cause `reply` (`docs/api.md`, 「Instructions」).
+  The receiver names no sort in reading it: the order opens the agent's turn in that room as any room reply
+  does, and the answer goes through the draft process into the room. The turn the program itself opens on the
+  notice is no round's and reaches no room.
 
 ## A voice note
 
