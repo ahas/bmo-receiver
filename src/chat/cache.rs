@@ -331,14 +331,15 @@ fn transcript_of(agent: &str, chat_id: i64, previous: Option<&Route>, text: &str
 
 /// What a turn leaves of its session: the room it answered, the road it went out on, the agency's reason for a
 /// changed prefix the session's state named after it, the fingerprint of the draft process's part of the block it
-/// carried, the session it resumed where it resumed one, what the run reported of the cache, and the words it
-/// answered with.
+/// carried, whether the turn judged a replacement before it went in, the session it resumed where it resumed one,
+/// what the run reported of the cache, and the words it answered with.
 #[derive(Debug, Clone)]
 pub struct Leaving {
   pub chat_id: i64,
   pub route: Route,
   pub moved: Option<String>,
   pub process: String,
+  pub judged: bool,
   pub resumed: Option<String>,
   pub cache_reads: Option<i64>,
   pub input: Option<i64>,
@@ -346,18 +347,21 @@ pub struct Leaving {
 }
 
 /// What a turn leaves for the next: the head its session now stands on, whether it read the cache it should
-/// have, and the road the room is on.
+/// have, and the road the room is on. A turn that judged no replacement leaves the fingerprints as the last judged
+/// turn left them, so the next judged turn still finds what a deployment changed (docs/unified-bmo.md, 「Replacing
+/// the session」).
 pub async fn remember(db: &DatabaseConnection, agent: &str, leaving: &Leaving) -> Result<(), Fault> {
   if let Some(session) = &leaving.route.session {
     let key = state_key(agent, session);
-    let missed = settings::get(db, &key)
+    let held = settings::get(db, &key)
       .await?
-      .and_then(|held| serde_json::from_str::<CacheState>(&held).ok())
-      .is_some_and(|state| state.missed);
+      .and_then(|held| serde_json::from_str::<CacheState>(&held).ok());
+    let missed = held.as_ref().is_some_and(|state| state.missed);
+    let kept = held.filter(|_| !leaving.judged);
     let state = CacheState {
-      head: composed_head().to_owned(),
-      process: leaving.process.clone(),
-      moved: leaving.moved.clone(),
+      head: kept.as_ref().map_or_else(|| composed_head().to_owned(), |state| state.head.clone()),
+      process: kept.as_ref().map_or_else(|| leaving.process.clone(), |state| state.process.clone()),
+      moved: kept.as_ref().map_or_else(|| leaving.moved.clone(), |state| state.moved.clone()),
       at: now_ms(),
       missed: missed
         || (leaving.resumed.is_some()

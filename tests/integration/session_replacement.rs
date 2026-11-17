@@ -484,6 +484,48 @@ async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() 
 }
 
 #[tokio::test]
+async fn a_turn_that_judges_no_replacement_leaves_a_change_of_the_process_instructions_to_the_next_round() {
+  use bmo_receiver::chat::cache::{Leaving, active_route, remember, reset_reason};
+  use bmo_receiver::chat::room::process_mark;
+  use receiver_codes::SessionReason;
+
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  unified.round(1, "the first words").await;
+  process_row(&unified, &["final"], &[]).await;
+
+  let db = unified.scratch.db();
+  let route = active_route(db, AGENT).await.unwrap().expect("the first round kept its road");
+
+  // A situation note goes on the session as it stands, carrying the block as it now is, and judges nothing.
+  remember(
+    db,
+    AGENT,
+    &Leaving {
+      chat_id: OWNER,
+      route: route.clone(),
+      moved: None,
+      process: process_mark(db, AGENT).await.unwrap(),
+      judged: false,
+      resumed: route.session.clone(),
+      cache_reads: None,
+      input: None,
+      text: String::new(),
+    },
+  )
+  .await
+  .unwrap();
+
+  let state = unified.standing.receiver.units().agency.state(SESSION).await.unwrap_or_default();
+
+  assert_eq!(
+    reset_reason(db, AGENT, &route, &state).await.unwrap(),
+    Some(SessionReason::Process),
+    "the next round still finds the instructions the session read are not the ones that stand"
+  );
+}
+
+#[tokio::test]
 async fn a_change_that_leaves_the_process_instructions_as_they_were_replaces_nothing() {
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
 

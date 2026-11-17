@@ -242,6 +242,11 @@
   is quiet, so no session answers for long with the instructions as they were beside the instructions as they
   are. It is not the head: the agency's prefix stands unmoved, and the
   replacement is the receiver's own. A record that kept no fingerprint has nothing to compare.
+- **Only a turn that judged a replacement writes the fingerprints down.** A turn that goes on the session as it
+  stands — the situation note a session writes as it leaves a room — judges none, so it leaves the head's and
+  the process's fingerprints as the last judged turn left them: the next round's turn still finds the change a
+  deployment made, however many such turns ran first. Where the record holds none yet, that turn's own are
+  kept.
 - **A session with no record of its head** is resumed where the agency's state says it was never opened (its
   generation is 0 or not named), the record starting with its first turn, and owes a replacement otherwise.
 - **A generation the agency opens under the session is a handover the receiver did not make.** The session's

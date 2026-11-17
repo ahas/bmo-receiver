@@ -480,7 +480,8 @@ impl Carry {
       transcript: None,
     };
     // A turn that goes on the session as it stands judges no replacement.
-    let reason = if unified && !asking.standing {
+    let judged = unified && !asking.standing;
+    let reason = if judged {
       reset_reason(db, agent, &asked, &standing)
         .await
         .map_err(|why| Failure::Failed(why.detail))?
@@ -864,6 +865,7 @@ impl Carry {
           },
           moved: standing.prefix_change_reason.clone(),
           process: room.process.clone(),
+          judged,
           resumed: replaced.is_empty().then_some(started_id),
           cache_reads: standing.context.get("cacheReadTokens").and_then(Value::as_i64),
           input: standing.context.get("inputTokens").and_then(Value::as_i64),
