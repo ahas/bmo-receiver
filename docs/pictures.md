@@ -81,9 +81,13 @@ receiver keeps the pictures and decides what a session is shown.
 - **A message's picture is served by its message** (`docs/boundary-api.md`, 「A message's files and picture」),
   and only from inside the room's own folder of the picture store, its stored path followed through its links
   first.
-- **The viewer walks a room's pictures across the whole room** (「A room's pictures」): the messages a person said
-  that stored a picture, in the order the room's line stands them, asked for by a picture the reader holds, with
-  how many stand before the stretch and how many the room holds, so the viewer can say where it stands among them.
+- **The viewer walks a room's pictures across the whole room** (`docs/api.md`, 「Messages」): the messages a person
+  said that stored a picture, in the order the room's line stands them, asked for by a picture the reader holds,
+  with how many stand before the stretch and how many the room holds, so the viewer can say where it stands among
+  them.
+- **A sticker is left out of that walk:** a message of kind `sticker` (「Pictures received」) is drawn as a sticker
+  and never opened in the viewer, so the room's pictures, their pages and their count hold none, and stepping from
+  one photo lands on the next photo.
 
 ## Profile pictures
 

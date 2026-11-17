@@ -1,7 +1,8 @@
-//! A room's pictures as the console's viewer walks them (`docs/boundary-api.md`, 「A room's pictures」): the
-//! messages that stored a picture, oldest first, asked for by a picture the reader holds — that picture alone,
-//! the stretch before or after it, or the newest — with whether more stand beyond the stretch, how many stand
-//! before it and how many the room holds, and each picture's file where it still stands.
+//! A room's pictures as the console's viewer walks them (`docs/api.md`, 「Messages」; `docs/pictures.md`, 「The
+//! console's picture viewer」): the messages that stored a picture, oldest first, asked for by a picture the reader
+//! holds — that picture alone, the stretch before or after it, or the newest — with whether more stand beyond the
+//! stretch, how many stand before it and how many the room holds, and each picture's file where it still stands; a
+//! sticker's picture stands in none of it.
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
@@ -131,4 +132,47 @@ async fn a_room_with_no_pictures_answers_none() {
   scratch.message(ROOM, 1, OWNER).await;
 
   assert_eq!(shape(&walked(&front, "").await), (vec![], false, 0, 0));
+}
+
+#[tokio::test]
+async fn a_sticker_stands_in_no_page_and_no_count_between_two_photos() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let folder = front.data.path().join("images").join(ROOM.to_string());
+
+  std::fs::create_dir_all(&folder).unwrap();
+
+  for (message, kind) in [(1_i64, None), (2, Some("sticker")), (3, None)] {
+    let stored = folder.join(format!("{message}.jpg"));
+
+    std::fs::write(&stored, b"jpeg").unwrap();
+    scratch
+      .run(
+        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text",
+             "image_path", "kind") VALUES ($1, $2, $3, 'someone', $4, $5, $6, $7)"#,
+        vec![
+          ROOM.into(),
+          message.into(),
+          OWNER.into(),
+          ((1_760_000_000_i64 + message) * 1_000).into(),
+          format!("line {message}").into(),
+          stored.to_string_lossy().into_owned().into(),
+          kind.into(),
+        ],
+      )
+      .await;
+  }
+
+  assert_eq!(shape(&walked(&front, "").await), (vec![1, 3], false, 0, 2));
+  assert_eq!(
+    shape(&walked(&front, "?after=1&limit=1").await),
+    (vec![3], false, 1, 2),
+    "the next photo is the photo"
+  );
+  assert_eq!(shape(&walked(&front, "?before=3&limit=1").await), (vec![1], false, 0, 2));
+  assert_eq!(
+    shape(&walked(&front, "?at=2").await),
+    (vec![], false, 0, 2),
+    "the sticker is no picture of the room's"
+  );
 }

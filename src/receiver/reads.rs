@@ -26,8 +26,10 @@ const AFTER_CURSOR: &str = r#"(("m"."sent_at", "m"."rowid") > (SELECT "c"."sent_
    OR (NOT EXISTS (SELECT 1 FROM "messages" "c" WHERE "c"."chat_id" = $1 AND "c"."message_id" = $2)
      AND "m"."message_id" > $2))"#;
 
-// A message, read over the room's rows as `m`, that stored a picture.
-const PICTURED: &str = r#""m"."image_path" IS NOT NULL AND "m"."image_path" <> ''"#;
+// A message, read over the room's rows as `m`, that stored a picture and is no sticker: a sticker is drawn as one
+// and never walked among the room's pictures (docs/pictures.md, 「The console's picture viewer」).
+const PICTURED: &str = r#""m"."image_path" IS NOT NULL AND "m"."image_path" <> ''
+     AND "m"."kind" IS DISTINCT FROM 'sticker'"#;
 
 // Where a message stands before the cursor message the reader holds.
 const BEFORE_CURSOR: &str = r#"("m"."sent_at", "m"."rowid") < (SELECT "c"."sent_at", "c"."rowid" FROM "messages" "c"

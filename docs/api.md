@@ -372,6 +372,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Picture`** is `id`, `album`, `senderName`, `sentAt`, `text` and `file` (`name`, `bytes`, `type`), null where
   the stored picture is gone. `at` answers that picture alone, `before` the stretch ending before it, `after` the
   stretch past it, and none the newest.
+- **A sticker is no picture of the room's:** a message of kind `sticker` stands in no page, in no `before` and in
+  no `total`, though it stores a picture (`docs/pictures.md`, 「The console's picture viewer」), and `at` on one
+  answers an empty page.
 
 ## Read marks
 
