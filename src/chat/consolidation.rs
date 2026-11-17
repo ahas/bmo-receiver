@@ -65,6 +65,9 @@ pub async fn before_fold(receiver: &Receiver, agent: &str, session: &str, chat_i
     key: None,
   };
 
+  // The fold's holder waits on the agency here: a handoff asked from inside this turn is not held behind it.
+  let _at_agency = receiver.waits_on_agency(agent);
+
   match receiver.units().agency.turn(&turn).await {
     Ok(Delivery::Delivered) => true,
     Ok(Delivery::Blocked) => skipped("the session took no turn".to_owned()),

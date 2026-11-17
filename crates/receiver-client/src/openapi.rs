@@ -1376,7 +1376,7 @@ pub fn openapi() -> Value {
     vec![name_parameter("agentName")],
     Some(generator.subschema_for::<HandoffAsked>()),
     vec![(200, json_answer::<HandoffWritten>(&mut generator)), (204, empty_answer())],
-    vec!["unauthorized", "bad-request", "upstream-failed"]
+    vec!["unauthorized", "bad-request", "upstream-failed", "stopping"]
   );
   add!(
     "POST",

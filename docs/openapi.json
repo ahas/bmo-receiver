@@ -5060,7 +5060,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed"
+            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, stopping"
           }
         },
         "summary": "An agent's standing session asked for its handoff file ahead of a fresh session, kept for that session's first turn.",
@@ -5070,7 +5070,8 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
-          "upstream-failed"
+          "upstream-failed",
+          "stopping"
         ]
       }
     },

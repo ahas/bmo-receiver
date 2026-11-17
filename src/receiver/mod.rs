@@ -448,6 +448,8 @@ pub struct Receiver {
   // out: a handoff the agency asks from such a turn never waits for that round (docs/unified-bmo.md,
   // 「Replacing the session」).
   at_agency: Arc<tokio::sync::watch::Sender<std::collections::HashMap<String, usize>>>,
+  // Whether the service was told to stop: a request that waits without a bound ends on it.
+  stop: Arc<tokio::sync::watch::Sender<bool>>,
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
   // stands the receiver without that turn.
   situation_updates: bool,
@@ -540,6 +542,7 @@ impl Receiver {
       replacing: Arc::default(),
       handovers: Arc::default(),
       at_agency: Arc::new(tokio::sync::watch::channel(Default::default()).0),
+      stop: Arc::new(tokio::sync::watch::channel(false).0),
       situation_updates: true,
       review_gate: true,
       re_attach_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.attach.pace_ms.max(1)),
@@ -580,7 +583,21 @@ impl Receiver {
       .or_default() += 1;
   }
 
-  /// A round of the agent's marked as waiting on the agency, until the mark is dropped.
+  /// The service told to stop: every request waiting on `stopped` ends.
+  pub fn stop_told(&self) {
+    self.stop.send_replace(true);
+  }
+
+  /// Ends once the service is told to stop; never where it is not.
+  pub async fn stopped(&self) {
+    let mut told = self.stop.subscribe();
+
+    if told.wait_for(|told| *told).await.is_err() {
+      std::future::pending::<()>().await;
+    }
+  }
+
+  /// The holder of the agent's turn marked as waiting on the agency, until the mark is dropped.
   pub fn waits_on_agency(&self, agent: &str) -> AtAgency {
     self.at_agency.send_modify(|waiting| *waiting.entry(agent.to_owned()).or_default() += 1);
 
@@ -590,7 +607,7 @@ impl Receiver {
     }
   }
 
-  /// Ends once a round of the agent's waits on the agency; never where none comes to.
+  /// Ends once a holder of the agent's turn waits on the agency; never where none comes to.
   pub async fn round_at_agency(&self, agent: &str) {
     let mut waiting = self.at_agency.subscribe();
 

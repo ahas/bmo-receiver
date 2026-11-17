@@ -49,6 +49,7 @@ of its own.
 | 502 | `upstream-failed` | a call the route needed on another unit failed; the sentence names it |
 | 503 | `not-ready` | the service is up but a part it needs does not stand yet |
 | 503 | `outage` | a talk's provider is out |
+| 503 | `stopping` | the service was told to stop while the request waited on work that could not end first |
 | 500 | `failed` | the service failed while answering |
 
 A route's own refusals, the facts the receiver hands a room's agent and the fixed lines a room hears are the codes
@@ -693,6 +694,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **The agency lets its record of the session go before it asks,** so the session's state names no generation
   while its program still stands. The receiver reads no generation to decide whether to ask: it asks the standing
   session, and the asking itself tells whether there was one to ask.
+- **An asking never outlasts the service's stop.** However long it waits — in line, behind a round, on the
+  handoff turn — it is answered 503 `stopping` as the receiver is told to stop, so a stop never waits on it;
+  the agency opens its fresh session without the handoff.
 - **An asking while a handoff of the same agent is under way waits in line** behind it, and is then answered as
   an asking again within `again_minutes` is.
 - **An asking within `again_minutes` of the last one asked** (`handover.toml`) does not reach the standing

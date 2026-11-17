@@ -133,6 +133,8 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
     key: None,
   };
   let agency = receiver.units().agency.clone();
+  // Whoever holds the agent's turn for this handoff waits on the agency from here on.
+  let _at_agency = receiver.waits_on_agency(agent);
 
   // The stream is opened before the turn is tried: a turn that refuses this one ends after the refusal, and its
   // end is what the asking waits on.

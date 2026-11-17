@@ -242,8 +242,11 @@ async fn serve(config: &Config) -> Result<(), String> {
   // The streams are told as the signal comes, not after the serve lets go: a stream stands open until it is
   // told, and the serve waits on every one of them before it returns.
   let news = standing.news.clone();
+  let stopping = standing.receiver.clone();
   let told = async move {
     stopped().await;
+    // A request waiting without a bound is ended first, so the serve never waits on one.
+    stopping.stop_told();
     news.stopping().await;
   };
   let served = axum::serve(listener, app)

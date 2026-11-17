@@ -26,10 +26,11 @@ pub struct Asked {
 }
 
 /// 200 with the file's path and size where the standing session wrote it, 204 where the agent has no session to
-/// ask or it wrote nothing. A round of the agent's under way is waited for to its end, and a session already in a
-/// turn until that turn ends. An asking while a
+/// ask or it wrote nothing. A round doing its own work between two turns is waited for, one that itself waits on
+/// the agency is not, and a session already in a turn is waited for until that turn ends. An asking while a
 /// handoff of the same agent is under way waits for it in line, and is then answered by the handoff kept, as an
-/// asking again within the policy's span is.
+/// asking again within the policy's span is. An asking still waiting as the service is told to stop is answered
+/// 503 `stopping`.
 pub async fn hand_off(
   State(served): State<Served>,
   Path(agent): Path<String>,
@@ -41,33 +42,17 @@ pub async fn hand_off(
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "reason (non-empty string) is required"));
   }
 
-  let _asking = Asking::begin(&agent).await;
-
   let receiver = served.receiver.as_ref();
-  let reason = asked.reason.trim();
 
-  // A handoff is asked at most once in the policy's span: an asking again within it is answered with the one kept,
-  // and counted, so a road that cannot keep its session shows instead of asking turn after turn.
-  let written = match handoff::in_a_row(receiver, &agent, "handoff", false).await {
-    Some(times) => {
-      eprintln!(
-        "{agent}: a handoff asked again ({reason}), {times} in a row within {} minutes; the session is not asked \
-         again and the one kept stands: the road its program stands on may not keep a session",
-        HANDOVER.again_minutes
-      );
-      handoff::kept(receiver, &agent).await
-    }
-    None => {
-      println!("{agent}: a handoff asked ahead of a fresh session ({reason})");
-
-      // The asking stands behind the agent's round, as an owed replacement does, wherever its conversations
-      // stand.
-      let handed = match receiver.touching() {
-        Some(touching) => touching.hand_off(receiver, &agent, asked.room).await,
-        None => Carry::new(receiver.clone()).hand_off(&agent, asked.room).await,
-      };
-
-      handed.map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.reason()))?
+  // The asking waits without a bound, so the service's stop ends it: a stop never waits on a handoff.
+  let written = tokio::select! {
+    written = asked_of(receiver, &agent, asked.reason.trim(), asked.room) => written?,
+    () = receiver.stopped() => {
+      return Err(refused(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "stopping",
+        "the receiver is stopping, so the handoff is not asked",
+      ));
     }
   };
 
@@ -79,4 +64,41 @@ pub async fn hand_off(
     .into_response(),
     None => StatusCode::NO_CONTENT.into_response(),
   })
+}
+
+// The handoff asked in the agent's line: the standing session's file, the one kept where it was asked within the
+// policy's span, none where there was nothing to ask.
+async fn asked_of(
+  receiver: &crate::receiver::Receiver,
+  agent: &str,
+  reason: &str,
+  room: Option<i64>,
+) -> Result<Option<handoff::Handoff>, Refusal> {
+  let _asking = Asking::begin(agent).await;
+
+  // A handoff is asked at most once in the policy's span: an asking again within it is answered with the one kept,
+  // and counted, so a road that cannot keep its session shows instead of asking turn after turn.
+  match handoff::in_a_row(receiver, agent, "handoff", false).await {
+    Some(times) => {
+      eprintln!(
+        "{agent}: a handoff asked again ({reason}), {times} in a row within {} minutes; the session is not asked \
+         again and the one kept stands: the road its program stands on may not keep a session",
+        HANDOVER.again_minutes
+      );
+
+      Ok(handoff::kept(receiver, agent).await)
+    }
+    None => {
+      println!("{agent}: a handoff asked ahead of a fresh session ({reason})");
+
+      // The asking stands behind the agent's round, as an owed replacement does, wherever its conversations
+      // stand.
+      let handed = match receiver.touching() {
+        Some(touching) => touching.hand_off(receiver, agent, room).await,
+        None => Carry::new(receiver.clone()).hand_off(agent, room).await,
+      };
+
+      handed.map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.reason()))
+    }
+  }
 }

@@ -300,7 +300,11 @@
   again, however long it takes. The agency lets its
   record of the session go before it asks, so the state it answers names no generation while the program still
   stands; the receiver reads no generation to decide whether to ask, and the asking itself tells whether there
-  was a session to ask. A second asking for the same agent while one is under way waits in line behind it. The
+  was a session to ask. A second asking for the same agent while one is under way waits in line behind it. An
+  asking still waiting as the receiver is told to stop is answered `stopping` at once, so the stop never waits
+  on it. Every wait on the agency made by whoever holds the agent's turn — a round's turn, the consolidation
+  turn ahead of a fold, the handoff turn itself — is marked as such, so an asking the agency makes from inside
+  that wait is never held behind its own holder. The
   file it writes is kept for the agent (`<agent>_handoff_pending`, `docs/store.md`), and the next turn that finds
   a fresh session — the agency's state naming it never opened, or a generation the agency opened under the
   session, which that turn releases — carries it as its note, in the order below; a turn on a session the agency

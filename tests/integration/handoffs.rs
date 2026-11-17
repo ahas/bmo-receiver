@@ -2,7 +2,7 @@
 //! session」): the route has the agent's standing session write its handoff file and keeps it, a second asking while
 //! one runs waits in line for it, an agent with no opened session writes nothing, and the next fresh session's first turn
 //! opens on the file, then the room's words, then the brain, and a supervisor no handoff was asked for keeps its
-//! session. The asking never waits for a round that itself waits on the agency, words said meanwhile and words a
+//! session. The asking never waits for a round that itself waits on the agency and never outlasts the service's stop, words said meanwhile and words a
 //! failed round gave back are the fresh session's first turn's new messages, and a round refused because the session is in
 //! another turn waits for it and fails nothing.
 
@@ -487,6 +487,28 @@ async fn a_handoff_asked_while_the_round_waits_on_the_agency_is_asked_without_wa
 
   session.let_go();
   until_turns(&runner, &session, 2).await;
+}
+
+#[tokio::test]
+async fn an_asking_still_waiting_as_the_service_is_told_to_stop_is_answered_stopping() {
+  let session = Arc::new(
+    StandInSession::new("agent-a@agent", "unscripted")
+      .holding_the_first()
+      .acting(writing_handoff(NOTE)),
+  );
+  let (_scratch, _data, standing, _runner) = stood_handing(session.clone(), false).await;
+  let asked = asked_handoff(&standing);
+
+  // The handoff turn stands working for as long as the test holds it, so the asking waits on it.
+  until_that("the handoff turn", || session.working()).await;
+  standing.receiver.stop_told();
+
+  let answered = tokio::time::timeout(Duration::from_secs(20), asked).await;
+  let (status, body) = answered.expect("the asking outlasted the stop").unwrap();
+
+  assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+  assert_eq!(body["code"], json!("stopping"), "{body}");
+  session.let_go();
 }
 
 #[tokio::test]

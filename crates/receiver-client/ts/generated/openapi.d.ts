@@ -3723,7 +3723,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A refusal or failure: unauthorized, bad-request, upstream-failed */
+            /** @description A refusal or failure: unauthorized, bad-request, upstream-failed, stopping */
             default: {
                 headers: {
                     [name: string]: unknown;
