@@ -93,22 +93,32 @@ message passes, and the record each turn of it leaves.
   check, the items, the review, a revision and the checks are turns of the double's run, each sent as its own
   words alone, since the double's kept session holds the round. The message goes out as the agent's, by the
   round's own send.
-- **The double's session is the one its last run left.** Each turn takes a slot of the role, waits for it
-  however long its line takes, and resumes the session the role keeps at that folder on that road, so a round
-  handed over after another goes on in the same session, as a delegated task does, until the agency lets that
-  session go. The agent's own session is free from the moment it answered the sentinel: it takes its other
-  rooms' rounds while the double works.
+- **The double's session is the one its last run left.** Each turn takes a slot of the role and resumes the
+  session the role keeps at that folder on that road, so a round handed over after another goes on in the same
+  session, as a delegated task does, until the agency lets that session go. The agent's own session is free
+  from the moment it answered the sentinel: it takes its other rooms' rounds while the double works.
+- **The round's own turn waits only a short while for its slot.** A room's round is live conversation and never
+  waits behind the role's delegated work, so where the slot its own turn asks for is not let in, and the
+  double's session started on it, within the policy's limit (`chat-round.toml`, `[double]`, `admit_ms`), the
+  wait ends there: the slot's request is cancelled by its key and the double has not taken the round, whose
+  reason says the double's role had no free slot within that limit. The receiver logs the wait as it begins and
+  the hand-back once the limit passes. A later turn of the process waits for its slot however long the role's
+  line takes, as a delegated task does.
 - **Every slot the double holds is the receiver's own record until it is given back.** The slot's key is kept
   in the store before the slot is asked for and dropped once the agency took it back (`docs/store.md`,
   `double_slots`), so `quiet` counts a double's round as under way, and the receiver's start gives back every
   slot a stopped process left, with the role session bound to it, by the key it kept: no double's run outlives
   the receiver that followed it, and the rows its turn carried wait again as a restart leaves them.
-- **Words that come meanwhile go to the double's turn,** pushed as they are pushed into the agent's own, and
-  the turn's picture is drawn from the double's run.
-- **A double that does not take the round hands it back.** Where its slot or its run is refused, its turn
-  fails, or it answers the sentinel itself, the agent's own session is asked once more, under one line saying
-  the double did not take the round and why, to answer the round itself; that session holds the round already,
-  so the line is the whole of the turn. The process then goes on in the agent's own session.
+- **Words that come meanwhile go to the double's turn,** pushed as they are pushed into the agent's own once
+  that turn runs, and the turn's picture is drawn from the double's run. While the round's own turn still waits
+  for its slot there is no turn to push into, so the room's words and the quiet instructions wait in the room's
+  queue and reach whichever session takes the round: the double's turn once it runs, or the agent's own once
+  the round is handed back.
+- **A double that does not take the round hands it back.** Where its slot or its run is refused, its slot is
+  not let in within the limit above, its turn fails, or it answers the sentinel itself, the agent's own session
+  is asked once more, under one line saying the double did not take the round and why, to answer the round
+  itself; that session holds the round already, so the line is the whole of the turn. The process then goes on
+  in the agent's own session.
 - **A hand-back stops the double and returns its pushes.** The double's turn, where it may still run, is
   interrupted and its slot given back as cancelled, so no run of the double goes on beside the agent. What was
   pushed into the double's turn — the room's words and the quiet instructions — was never received by the

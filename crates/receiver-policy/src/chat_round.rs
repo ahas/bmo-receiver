@@ -263,6 +263,14 @@ pub struct Attach {
   pub reattach_ms: u64,
 }
 
+/// How long a round handed to the double waits for its slot to be let in and the double's run started before the
+/// round is handed back to the agent's own session.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Double {
+  pub admit_ms: u64,
+}
+
 /// How a round's message is put into its room: how many times its send is tried before the round fails, and the
 /// wait between two tries.
 #[derive(Debug, Deserialize)]
@@ -379,6 +387,7 @@ pub struct ChatRound {
   pub notice: Notice,
   pub pushing: Pushing,
   pub attach: Attach,
+  pub double: Double,
   pub send: Send,
   pub progress: Progress,
   pub thinking: Thinking,

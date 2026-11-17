@@ -133,15 +133,15 @@ struct Drafting {
 
 impl Drafting {
   async fn new(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, true, false, timings()).await
+    Self::with_hiding(session, rounds, ceiling_seconds, true, false, timings(), None).await
   }
 
   async fn new_visible(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, false, false, timings()).await
+    Self::with_hiding(session, rounds, ceiling_seconds, false, false, timings(), None).await
   }
 
   async fn new_reviewing(session: StandInSession, rounds: &[&str], ceiling_seconds: u32) -> Self {
-    Self::with_hiding(session, rounds, ceiling_seconds, true, true, timings()).await
+    Self::with_hiding(session, rounds, ceiling_seconds, true, true, timings(), None).await
   }
 
   async fn with_hiding(
@@ -151,6 +151,7 @@ impl Drafting {
     hide: bool,
     review: bool,
     timings: Timings,
+    double_admit: Option<Duration>,
   ) -> Self {
     let scratch = Scratch::new().await;
     let data = tempfile::tempdir().unwrap();
@@ -163,6 +164,10 @@ impl Drafting {
       woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
 
     standing.receiver = standing.receiver.with_situation_updates(!hide).with_review_gate(review);
+
+    if let Some(limit) = double_admit {
+      standing.receiver = standing.receiver.clone().admitting_double_within(limit);
+    }
 
     let session = Arc::new(
       if hide { session.hiding_situations() } else { session.showing_situations() }
@@ -461,6 +466,69 @@ async fn a_double_that_does_not_take_the_round_hands_it_back_to_the_agent_s_own_
   );
   assert_eq!(sent.len(), 1, "the agent's own answer goes out: {sent:?}");
   assert!(sent[0].contains("the agent's own message") && !sent[0].contains("HANDOFF"), "{sent:?}");
+}
+
+#[tokio::test]
+async fn a_round_waiting_past_the_limit_for_its_double_s_slot_goes_back_with_the_owner_s_words() {
+  const MEANWHILE: &str = "are you getting my messages?";
+
+  // Every turn after the hand-over is the agent's own session's, whose answers all read alike.
+  let session = StandInSession::new(SESSION, "the agent's own message").answering(&["<<HANDOFF>>"]);
+  let round = Drafting::with_hiding(
+    session,
+    &["intent", "information", "final"],
+    150,
+    true,
+    false,
+    timings(),
+    Some(Duration::from_millis(250)),
+  )
+  .await;
+
+  round.standing.agency.doubling(&["the double's message"]);
+  *round.standing.agency.double_waiting.lock().unwrap() = true;
+  round.hear(1, ASKED).await;
+  until("the double's slot asked for", || {
+    !round.standing.agency.double_starts.lock().unwrap().is_empty()
+  })
+  .await;
+  // The owner speaks while the round still waits for the double's slot.
+  round.hear(2, MEANWHILE).await;
+  until("the owner's words taken by the agent's own session", || {
+    round.session.prompts().iter().skip(1).any(|prompt| prompt.contains(MEANWHILE))
+      || round
+        .standing
+        .agency
+        .pushes
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|(_, _, words)| words.contains(MEANWHILE))
+  })
+  .await;
+  round.ended(2).await;
+
+  let own = round.session.prompts();
+  let key = round.standing.agency.double_starts.lock().unwrap()[0].key.clone();
+  let back = CHAT_LINE.room.handed_back.split("{why}").next().unwrap_or_default();
+  let sent = round.sent();
+
+  assert!(own[1].contains(back) && own[1].contains("no free slot"), "{}", own[1]);
+  assert!(
+    round.standing.agency.double_releases.lock().unwrap().contains(&key),
+    "the waiting request is given back by its key"
+  );
+  assert!(
+    round.standing.agency.double_turns.lock().unwrap().is_empty(),
+    "no turn of the double ran"
+  );
+  assert!(!sent.is_empty(), "the round is answered");
+  assert!(
+    sent
+      .iter()
+      .all(|sent| sent.contains("the agent's own message") && !sent.contains("HANDOFF")),
+    "every message that went out is the agent's own session's: {sent:?}"
+  );
 }
 
 #[test]

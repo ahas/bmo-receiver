@@ -449,12 +449,13 @@ impl Carry {
   }
 
   /// A turn of a round handed to the agent's double (docs/drafting.md, 「A round handed to the double」), carried
-  /// by a run of the double's role at the agent's scratch workspace: a slot of the role taken, the run's session
-  /// started on it, the turn sent and waited to its end, and the slot given back. The round's own turn goes
-  /// whole, the room's block and every document in full under the line that says the round was handed over; a
-  /// later turn of the process goes as its words alone, since the session the role keeps holds the round. Words
-  /// that come for the room meanwhile are pushed into the turn, and the turn's picture is drawn from its run.
-  /// Nothing of the answer is the agent's own session's: it names no session, no context and no replacement.
+  /// by a run of the double's role at the agent's scratch workspace: a slot of the role taken, the round's own turn
+  /// waiting only the policy's limit for it, the run's session started on it, the turn sent and waited to its end,
+  /// and the slot given back. The round's own turn goes whole, the room's block and every document in full under
+  /// the line that says the round was handed over; a later turn of the process goes as its words alone, since the
+  /// session the role keeps holds the round. Words that come for the room meanwhile are pushed into the turn, and
+  /// the turn's picture is drawn from its run. Nothing of the answer is the agent's own session's: it names no
+  /// session, no context and no replacement.
   async fn doubled(
     &self,
     asking: &Asking,
@@ -508,12 +509,42 @@ impl Carry {
     double_slots::keep(receiver.db(), &slot).await.map_err(failed)?;
 
     // A slot whose asking failed at any step is given back whole by its key, so nothing it was let in on waits on.
-    let seat = match agency.double_start(&start).await {
-      Ok(seat) => seat,
-      Err(why) => {
+    // The round's own turn waits only the policy's limit for it, since the room's round is live conversation; the
+    // request still waiting is cancelled by the same key (docs/drafting.md, 「A round handed to the double」).
+    let asked = match doubled {
+      Doubled::Round => {
+        let limit = receiver.double_admit();
+
+        println!(
+          "chat {chat_id}: {agent}'s round waits at most {} ms for a slot of its double, asked as {}",
+          limit.as_millis(),
+          start.key
+        );
+
+        tokio::time::timeout(limit, agency.double_start(&start)).await.map_err(|_| limit)
+      }
+      Doubled::Later => Ok(agency.double_start(&start).await),
+    };
+    let seat = match asked {
+      Ok(Ok(seat)) => seat,
+      Ok(Err(why)) => {
         double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
 
         return Err(fault_of(why));
+      }
+      Err(limit) => {
+        let waited = limit.as_millis();
+
+        eprintln!(
+          "chat {chat_id}: no slot of {agent}'s double was free within {waited} ms; its request {} is cancelled and \
+           the round handed back",
+          start.key
+        );
+        double_slots::release(receiver.db(), agency.as_ref(), &start.key).await;
+
+        return Err(Failure::Failed(format!(
+          "the double's role had no free slot within {waited} ms, so its request was cancelled"
+        )));
       }
     };
     let mut variables = serde_json::Map::new();

@@ -1240,6 +1240,8 @@ pub struct StandInAgency {
   pub double_releases: Mutex<Vec<String>>,
   /// Whether a double's start is refused, as an agency that lets no run of the role in refuses it.
   pub double_refused: Mutex<bool>,
+  /// Whether a double's slot is asked for and never let in, as a role whose every slot a long task holds.
+  pub double_waiting: Mutex<bool>,
   pub removals: Mutex<Vec<(String, Removal)>>,
   pub refusing: Mutex<Option<FieldRefusal>>,
   /// The code a removal is refused with, as the agency's 409, where a test sets one.
@@ -1317,6 +1319,7 @@ impl StandInAgency {
       double_finishes: Mutex::default(),
       double_releases: Mutex::default(),
       double_refused: Mutex::default(),
+      double_waiting: Mutex::default(),
       removals: Mutex::default(),
       refusing: Mutex::default(),
       removal_refused: Mutex::default(),
@@ -1604,6 +1607,10 @@ impl Agency for StandInAgency {
     let mut starts = self.double_starts.lock().unwrap();
 
     starts.push(start.clone());
+
+    if *self.double_waiting.lock().unwrap() {
+      return Box::pin(std::future::pending());
+    }
 
     let seat = DoubleSeat {
       token: format!("slot-{}", starts.len()),
