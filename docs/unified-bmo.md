@@ -135,7 +135,7 @@
 - **One number for each message:**
   - A message stands in the archive under the one number the road it came in or went out on gave it: a chat
     service's own number for the words it handed over and for every line the receiver sent there, an agent's
-    answer, a line of its tools or `bmo talk` and a line the receiver says itself alike. A sent line is kept once
+    answer, a message of its tools and a line the receiver says itself alike. A sent line is kept once
     the send has answered, under the number the answer names, so the transcript shows it under that number,
     `<<REPLY:n>>` pins by it and a reply on that service names it.
   - Only a message no road numbered takes the archive's own number (negative), unique within that room: words

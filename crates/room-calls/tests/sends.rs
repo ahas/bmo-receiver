@@ -6,11 +6,11 @@ use std::time::Duration;
 
 use room_calls::bot::Service;
 use room_calls::sends::{
-  Act, Asked, Asker, CONSULT_PATH, ConsultInput, FileInput, FileToSend, FixedLineInput, RandomDrawInput,
-  SENDS_PATH, SayInput, SpeakInput, StickerInput, Unsent, VoiceInput, answered, ask_consult, ask_within,
+  Act, Asked, Asker, FileInput, FileToSend, PhotoInput, Picture, RandomDrawInput, SENDS_PATH, SayInput,
+  SpeakInput, StickerInput, Unsent, VoiceInput, answered, ask_within,
 };
 use room_calls::turn::{Room, Turn};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 
@@ -126,39 +126,38 @@ fn a_voice_send_is_written_with_its_path_its_caption_and_what_it_says() {
 }
 
 #[test]
-fn a_fixed_line_is_written_with_its_code_and_fields() {
-  let mut fields = Map::new();
-
-  fields.insert("label".to_owned(), json!("the word chain"));
-  fields.insert("result".to_owned(), json!("apple"));
-
-  let asked = Asked {
-    asker: Asker {
-      room: Some(ROOM),
-      agent_name: Some("agent-a".to_owned()),
-      ..Asker::default()
-    },
-    act: Act::FixedLine(FixedLineInput {
+fn a_line_a_spoken_talk_a_voice_note_and_a_caption_hold_words_and_nothing_else_does() {
+  let photo = |caption: Option<&str>| {
+    Act::Photo(PhotoInput {
       chat: None,
       via: None,
-      code: "draw".to_owned(),
-      fields,
-    }),
+      pictures: vec![Picture {
+        url: "https://example.com/a.png".to_owned(),
+        label: None,
+      }],
+      caption: caption.map(str::to_owned),
+      reply_to: None,
+    })
   };
-  let written = serde_json::to_value(&asked).unwrap();
+  let say = Act::Say(SayInput {
+    chat: None,
+    via: None,
+    text: "Done.".to_owned(),
+    reply: false,
+    reply_to: None,
+  });
+  let sticker = Act::Sticker(StickerInput {
+    chat: None,
+    via: None,
+    emoji: "👍".to_owned(),
+    reply_to: None,
+  });
 
-  assert_eq!(
-    written,
-    json!({
-      "asker": { "room": ROOM, "agentName": "agent-a" },
-      "tool": "fixed_line",
-      "input": {
-        "code": "draw",
-        "fields": { "label": "the word chain", "result": "apple" },
-      },
-    }),
-  );
-  assert_eq!(serde_json::from_value::<Asked>(written).unwrap(), asked);
+  assert!(say.holds_words());
+  assert!(photo(Some("Here it is.")).holds_words());
+  assert!(!photo(None).holds_words());
+  assert!(!photo(Some("  ")).holds_words());
+  assert!(!sticker.holds_words());
 }
 
 #[test]
@@ -228,7 +227,7 @@ fn the_receivers_answer_says_the_lines_the_refusal_or_that_nothing_came_back() {
     },),
   );
   assert_eq!(
-    answered(CONSULT_PATH, 409, &json!({ "error": "nobody answers there" })),
+    answered(SENDS_PATH, 409, &json!({ "error": "nobody answers there" })),
     Err(Unsent::Refused {
       lines: Vec::new(),
       refusal: "nobody answers there".to_owned(),
@@ -236,19 +235,6 @@ fn the_receivers_answer_says_the_lines_the_refusal_or_that_nothing_came_back() {
   );
   assert_eq!(answered(SENDS_PATH, 502, &Value::Null), Err(Unsent::Untaken(502)));
   assert!(matches!(answered(SENDS_PATH, 200, &json!({})), Err(Unsent::Unreached(_))));
-}
-
-#[tokio::test]
-async fn a_consult_line_outside_any_agents_turn_is_refused_before_the_receiver_is_asked() {
-  let input = ConsultInput {
-    text: "Shall we split it?".to_owned(),
-    reply: None,
-  };
-
-  assert!(matches!(
-    ask_consult(&Service::default(), None, &Asker::default(), &input).await,
-    Err(Unsent::Refused { .. })
-  ));
 }
 
 #[test]

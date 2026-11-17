@@ -126,7 +126,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `roads` | `FixedLine::GoingDown`, `FixedLine::GoingDownForUpdate`; the photo and voice marks stay as data in `policy/roads.toml` |
 | `room_grants` | `RoomGrantRefusal::NotOwnersMessage` |
 | `room_removal` | `RoomRemovalRefusal`, `RoomRemovalWarning` (which also takes `private`) |
-| `sends` | `SendRefusal`, the verbs named as the chat protocol names a capability, the say run's title as `RunTitle::Say` |
+| `sends` | `SendRefusal`, the verbs named as the chat protocol names a capability |
 | `sessions` | the `SessionReason` kind; the transcript lines are English the agent reads, so they moved to the policy |
 | `talk` | `TalkRefusal`, with bmo-job's `resting`, `limit` and `outage` at bmo-job's statuses |
 | `voice` | `VoiceRefusal`, the briefing title as `RunTitle::VoiceBriefing` |

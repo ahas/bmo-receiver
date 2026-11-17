@@ -57,7 +57,7 @@ takes it outright: the table holds no default agent.
 | `agent_avatar_sets` | the picture set on an agent from the console, kept under its registration name: its stored path and when it was set; each number the agent stands under wears it as an `avatar_sets` row naming the same path (`docs/pictures.md`, 「Profile pictures」) | agent name |
 | `random_draws` | a fair draw made in a room (`docs/random-draw.md`) | its number |
 | `random_draw_rooms` | the seed a room's next draw will use and its commitment | room |
-| `say_relays` | an answer to relay back to the room that asked another room something | its number |
+| `say_relays` | an answer to relay back to the room that asked another room something; a row still naming the handed order its line rides waits for the round carrying that order to send its message before it relays anything (`docs/messages.md`, 「Words handed to the room's supervisor」) | its number |
 | `reload_pending` | a document moved that a room's session has not been told of yet | room and path |
 | `reload_sent` | when a room was last told of moved documents | room |
 | `provider_rooms` | a room a chat service numbered: its own room id, the number and its title | chat service and room id; one per number |

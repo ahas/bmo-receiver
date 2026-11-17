@@ -1,9 +1,9 @@
 # The sends the agents make into rooms, each asking the running receiver for the send through its routes, as the
-# `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): a line said in a room, a
-# picture or an album, a file or an album of files, a voice note, a reaction, a pin, a sticker, a fair draw and a
-# fixed line. Every entry is unbounded: a call ends with the receiver's answer, its connection failing or the
-# bound its act gives the receiver passing, so the tool's `timeout`, which the manifest format asks of every
-# tool, bounds no call. The crate's own test holds every entry here to the Rust tool answering it.
+# `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): words handed to another room,
+# a picture or an album, a file or an album of files, a voice note, a reaction, a pin, a sticker and a fair draw.
+# No entry puts words in a room. Every entry is unbounded: a call ends with the receiver's answer, its connection
+# failing or the bound its act gives the receiver passing, so the tool's `timeout`, which the manifest format asks
+# of every tool, bounds no call. The crate's own test holds every entry here to the Rust tool answering it.
 
 [tool]
 name = "send"
@@ -17,7 +17,7 @@ timeout = 180
 [[entry]]
 namespace = "bmo"
 name = "say"
-description = "Put a line in a room, through the output gates, without waiting for it."
+description = "Hand words to another room, the room chat names: that room's round writes and reviews them as its message. Words for this room go into your answer, never here."
 input = "say.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
@@ -29,7 +29,7 @@ verb = "text"
 [[entry]]
 namespace = "bmo"
 name = "photo"
-description = "Send a picture, or several as one album."
+description = "Send a picture, or several as one album, with no caption: what you say of it goes into your answer."
 input = "photo.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
@@ -44,7 +44,7 @@ verb = "album"
 [[entry]]
 namespace = "bmo"
 name = "file"
-description = "Send a file from this machine for the room to save or open, or several as one album, with a caption. A picture the room is to look at goes through photo, never through this entry."
+description = "Send a file from this machine for the room to save or open, or several as one album, with no caption: what you say of it goes into your answer. A picture the room is to look at goes through photo, never through this entry."
 input = "file.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
@@ -59,7 +59,7 @@ verb = "document"
 [[entry]]
 namespace = "bmo"
 name = "voice"
-description = "Send an OGG/Opus voice note from this machine, with its caption."
+description = "Hand an OGG/Opus voice note from this machine to another room, whose round says its words as its message. A voice note for this room is refused: its words go into your answer."
 input = "voice.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
@@ -128,18 +128,3 @@ unbounded = true
 [entry.facts]
 verb = "text"
 icon = "material-symbols:casino-outline-sharp"
-
-[[entry]]
-namespace = "bmo"
-name = "fixed_line"
-description = "Say a fixed line in a room by its code and fields, rendered by the web unit's language packs without the output gates or any session."
-input = "fixed_line.json"
-hints = { open_world = true }
-capabilities = ["room.tools"]
-unbounded = true
-
-[entry.bundle."room.send"]
-shown = ["code", "fields"]
-
-[entry.facts]
-verb = "text"

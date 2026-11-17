@@ -73,7 +73,7 @@ its rounds.
   message reaches the agent's session on exactly three grounds: it calls the agent by name, it replies to a
   message of the agent's own, or that room's window is open.
 - **A message of the agent's own is one the room's record holds as its words:** kept as a send of the agent's,
-  its answers and every line its tools and `bmo talk` put in the room alike (`docs/messages.md`, 「What an agent
+  its answers and every message its tools put in the room alike (`docs/messages.md`, 「What an agent
   can send back」), or filed under the number its words stand under. A line sent on a messenger is kept under the
   number the messenger gave it, which is the number a reply there names (`docs/unified-bmo.md`, 「The cases」), and
   a reply a messenger hands over to its copy of a message the record numbered answers that message
@@ -136,10 +136,10 @@ its rounds.
   room, and its `detail` is the reason the skip named, on the one line it is; a skip that named none, and a
   quiet turn that only read an instruction, carry none. The stream is told the same as `skipped`, with the room,
   that message, the verdict and that `detail`, so a screen says why the agent held its peace.
-- **A line the agent's own send puts in the room** (a `say` through `POST /sends` in its round, or the line it
-  says for words handed to it, `docs/messages.md`, 「Words handed to the room's supervisor」) opens one as an answer
-  does: the room has been spoken to, so what anyone there says back needs no name to reach the session. Words
-  handed to the agent and not yet said open nothing, since nothing reached the room.
+- **The message the agent writes for words handed to it is an answer** (`docs/messages.md`, 「Words handed to the
+  room's supervisor」) and opens one as any answer does: the room has been spoken to, so what anyone there says
+  back needs no name to reach the session. Words handed to the agent and not yet said open nothing, since nothing
+  reached the room.
 - **The open window is stored in the receiver's database,** and a turn of the room's own that ends while such a
   window is running leaves it alone rather than closing the room behind it. A restart in the middle of a
   conversation does not close it either.
@@ -378,7 +378,7 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
   housekeeping, as its producer declares it (`docs/api.md`, 「Instructions」, `cause`):
   - **A room reply** answers something a room or the owner asked or set going: a research run's result
     (`research-ended`), a delegate's or a worker's answer, a job's ending and report, a reminder or a watch come
-    due (`use-ended`), words handed to the room's supervisor, a say run's report, a relayed answer, an
+    due (`use-ended`), words handed to the room's supervisor, a relayed answer, an
     instruction typed on the console. It starts the agent's turn by itself the moment the pass finds it, on a
     session past its cache lifetime too: that turn replaces the session through the handoff and the transcript
     exactly as a room's own round does (`docs/unified-bmo.md`, 「Replacing the session」), and no person's words

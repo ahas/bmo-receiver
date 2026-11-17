@@ -29,6 +29,7 @@ pub use room_calls::promises;
 pub mod prompt;
 pub mod records;
 pub mod relaunch;
+pub mod relays;
 pub mod reply;
 pub mod reset;
 pub mod restart;

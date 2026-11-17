@@ -532,7 +532,6 @@ fn situation_instruction() -> String {
 /// instructions, in the order the block carries them.
 pub async fn process_part(db: &DatabaseConnection, agent: &str) -> Result<Vec<String>, Fault> {
   let supervisor = super::draft::table::supervisor_text(db, agent).await?;
-  let reviewed = !super::draft::table::row_of(db, agent).await?.is_some_and(|row| row.stage_off("review"));
   let mut parts = vec![
     CHAT_LINE.room.process.clone(),
     stages(db, agent).await?,
@@ -543,10 +542,8 @@ pub async fn process_part(db: &DatabaseConnection, agent: &str) -> Result<Vec<St
     ),
   ];
 
-  // A review the row switches off is not asked, so the block carries none of its instructions.
-  if reviewed {
-    parts.push(review_instruction());
-  }
+  // Every round's message is reviewed, so the block always carries the review's instructions.
+  parts.push(review_instruction());
 
   Ok(parts)
 }

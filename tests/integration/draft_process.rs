@@ -2987,25 +2987,27 @@ async fn a_row_that_switches_no_stage_off_asks_the_items_the_review_and_the_chec
 }
 
 #[tokio::test]
-async fn a_row_that_switches_every_stage_off_sends_the_draft_turn_s_answer_as_it_stands() {
+async fn a_row_that_switches_every_stage_off_still_has_the_message_reviewed() {
   let promise = fixture("promises-recorded.txt");
-  let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise]);
+  let session = StandInSession::new(SESSION, "unscripted").answering(&[&promise, "PASS"]);
   let round = Drafting::new_reviewing(session, &[], 150).await;
 
   drafting_with(round.scratch.db(), &[], &bmo_receiver::chat::draft::table::STAGES).await;
   round.hear(1, ASKED).await;
-  round.ended(1).await;
+  round.ended(2).await;
 
   let prompts = round.session.prompts();
   let sent = round.sent();
+  let log = round.log().await;
 
-  assert_eq!(prompts.len(), 1, "no item, review or check is asked: {prompts:#?}");
-  assert_eq!(round.log().await, ["turn turn answered", "end  message"]);
+  assert_eq!(prompts.len(), 2, "no item or check is asked, and the review is: {prompts:#?}");
+  assert!(prompts[1].contains(&DRAFTING.review.marker), "{}", prompts[1]);
+  assert!(log.contains(&"review review PASS".to_owned()), "{log:?}");
   assert!(sent.len() == 1 && sent[0].contains(&promise), "{sent:?}");
   assert!(!prompts[0].contains(&SECOND_ASKS.errands.record), "no rule for an item switched off");
   assert!(
-    !prompts[0].contains(&DRAFTING.review.revise),
-    "no review instructions for a review switched off"
+    prompts[0].contains(&DRAFTING.review.revise),
+    "the block always carries the review's instructions"
   );
   assert!(!prompts[0].contains(&SECOND_ASKS.errands.format), "no rule for a check switched off");
 }

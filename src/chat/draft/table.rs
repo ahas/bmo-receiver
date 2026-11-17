@@ -34,10 +34,13 @@ pub const NAME_CHARS: usize = 40;
 /// The longest a question's text may run.
 pub const TEXT_CHARS: usize = 4000;
 
-/// The stages after the message a row may switch off, in the order a settled row names them: the review, the
-/// items after the message and the checks on the final text (docs/drafting.md, 「The process table」).
-pub const STAGES: [&str; 8] =
-  ["arrived", "owed", "owner_directive", "record", "wake", "rule", "review", "format"];
+/// The stages after the message a row may switch off, in the order a settled row names them: the items after the
+/// message and the checks on the final text (docs/drafting.md, 「The process table」). The review is none of them:
+/// no message goes out unreviewed, so a row naming it is refused, and a row kept from before is read without it.
+pub const STAGES: [&str; 7] = ["arrived", "owed", "owner_directive", "record", "wake", "rule", "format"];
+
+/// The review, which every round's message passes whatever its row says.
+pub const REVIEW: &str = "review";
 
 /// The longest ceiling a row may name, in seconds.
 pub const LONGEST_CEILING: u32 = 3600;
@@ -183,18 +186,21 @@ fn set_row(row: &QueryResult) -> Result<Process, Fault> {
   let text = |column: &str| row.try_get::<String>("", column);
   let number = |column: &str| row.try_get::<i64>("", column);
 
-  Ok(Process {
-    provider: text("provider")?,
-    tier: text("tier")?,
-    agent: text("agent")?,
-    rounds: names(&text("rounds")?),
-    send_from: text("send_from")?,
-    off: names(&text("off")?),
-    stages_off: names(&text("stages_off")?),
-    ceiling_seconds: u32::try_from(number("ceiling_seconds")?).unwrap_or(0),
-    past_ceiling: PastCeiling::of(&text("past_ceiling")?).unwrap_or(PastCeiling::Send),
-    set: true,
-  })
+  Ok(
+    Process {
+      provider: text("provider")?,
+      tier: text("tier")?,
+      agent: text("agent")?,
+      rounds: names(&text("rounds")?),
+      send_from: text("send_from")?,
+      off: names(&text("off")?),
+      stages_off: names(&text("stages_off")?),
+      ceiling_seconds: u32::try_from(number("ceiling_seconds")?).unwrap_or(0),
+      past_ceiling: PastCeiling::of(&text("past_ceiling")?).unwrap_or(PastCeiling::Send),
+      set: true,
+    }
+    .settled(),
+  )
 }
 
 /// The policy's row, which a supervisor reads until the console sets it one of its own.
@@ -325,6 +331,12 @@ pub fn refusal(process: &Process, catalogue: &[Question]) -> Option<String> {
 
   if process.off.iter().any(|name| name == LAST) {
     return Some(format!("off names {LAST}, which writes the message and is never switched off."));
+  }
+
+  if process.stages_off.iter().any(|name| name == REVIEW) {
+    return Some(format!(
+      "stagesOff names {REVIEW}, which every message passes and is never switched off."
+    ));
   }
 
   if let Some(unknown) = process.stages_off.iter().find(|name| !STAGES.contains(&name.as_str())) {

@@ -438,7 +438,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `began?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor; `own` true for a `speak` asked in the asker's own round |
+| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `began?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor |
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs of the road a send naming `via` goes out on in the room |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /rooms/{roomId}/words` | `account`, `name` (the account's shown name), `text`, `replyTo?` | 201, `id`, the message kept |
@@ -467,14 +467,16 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   (`docs/receiver.md`, 「A room's chat providers」). So every `via` the room does not answer on, a provider it is
   not on among them, answers the room's own road's verbs. A room no road answers is refused 409 `conflict`. One
   provider's own verbs are its `can` on `GET /providers`.
-- **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` and
-  `random_draw`, each the arguments its tool takes (`docs/chat-mcp.md`), and `speak`, a spoken talk asked by its
-  `voice`, its written `text` and its `spoken?` words. The act goes out as the asker's agent, on the road the turn
-  names, only where that agent's round is working in the room `by` names and no job asks; every other send is
-  handed to the room's supervisor as a quiet instruction and nothing goes out (`docs/messages.md`, 「Words handed
-  to the room's supervisor」). `from` names the command or unit the words came through, which the handed words
-  carry. A `speak` sends nothing either way: in the asker's own round it answers `own` true and no lines, and the
-  command sends the note it makes as `voice`.
+- **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `react`, `pin`, `sticker` and `random_draw`, each the
+  arguments its tool takes (`docs/chat-mcp.md`), and `speak`, a spoken talk asked by its `voice`, its written
+  `text` and its `spoken?` words. Any other tool is refused 400 `bad-request`. An act that holds no words (a
+  picture or a file with no caption, a reaction, a pin, a sticker, a draw) goes out as the asker's agent, on the
+  road the turn names, only where that agent's round is working in the room `by` names and no job asks. An act
+  that holds words (`say`, `speak`, `voice`, a `photo` or `file` with a `caption`) never goes out: asked in that
+  round into the room `by` names, it is refused, its `refusal` code `words-in-answer` (409), and anywhere else it
+  is handed. Every send not carried or refused is handed to the room's supervisor as a quiet instruction and
+  nothing goes out (`docs/messages.md`, 「Words handed to the room's supervisor」). `from` names the command or
+  unit the words came through, which the handed words carry.
 - **`began`** is the moment the asking turn took its words, in epoch milliseconds. A send whose
   `began` is at or before its agent's reset point, the agency's as the receiver reads it then, is refused before
   anything else, its `refusal` (code `overtaken`, 409) telling the turn to end (`docs/wake.md`,
@@ -483,9 +485,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   reading for an agent in a room, a send that agent asks into that room, of any act and from no job, is refused
   `briefing-turn`, its `refusal` saying that the turn's answer is the script itself and nothing is sent into the
   room from it (`docs/voiced-notices.md`, 「The summary of a notice turn」).
-- **A `say`** answers once the line is on its way: the receiver puts the words through the room's gates and into
-  the room apart from the call, opens the room's window for the agent that said it, and tells the chat that set
-  it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.
+- **A `say`** is handed, or refused in its own round's room. With `reply`, asked from a round of another room,
+  the room it is handed to is armed to relay its answer back once the round carrying it has sent its message
+  (`docs/messages.md`, 「Words handed to the room's supervisor」).
 - **A photo send** is one picture or several as one album: each `url` is a web address or a file under the data
   root, with an optional `label` drawn into it, and an optional `caption`. A web address goes as it stands for the
   road to fetch; a file goes from the disk it stands on, read only as the send carries it, and one with a label
@@ -502,11 +504,6 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A voice note** is an OGG/Opus file at `path`, with its `caption`, what it `said` and the `transcript` read out,
   sent as the chat protocol's `voice` kind from the disk it stands on; only its first bytes are read here, to tell
   it is OGG.
-- **A fixed line** is a `code` and its `fields`, rendered by the web unit's `POST /words/render` in the
-  rooms' language and said into the room without the output gate or any session, since the line is already read.
-  Where the web unit cannot render it, the line is the policy's plain sentence for the code in the rooms'
-  language; a code with no sentence anywhere is refused and nothing is said (`docs/voiced-notices.md`, 「Lines that
-  stay fixed」).
 - An owner's file send is the form above.
 - **An owner's voice note** is the same form with `voice` true: one `file` that is a sound. The room keeps it
   as one message under the policy's voice word and the caption beside it, its file the recording, and hands it to
@@ -571,11 +568,6 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   it goes out on the room's own road. It wakes nobody. A message or a room the receiver does not hold is refused
   404 `not-found`, a forward into the room it stands in 400 `bad-request`, a deleted message 409 `conflict`, and a
   forward out of or into another account's private room 403 `private-room`.
-
-## Consult lines
-
-| Route | Body or query | Answers |
-|---|---|---|
 
 ## Talks
 
@@ -769,7 +761,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds`, the
   names of the questions every turn's round follows, in order; `off`, the questions of that list that are switched
   off, each keeping its place and not followed; `stagesOff`, the stages after the message that are switched off,
-  each by its name (`review`, `arrived`, `owed`, `owner_directive`, `record`, `wake` and `rule`, `format`), empty for
+  each by its name (`arrived`, `owed`, `owner_directive`, `record`, `wake` and `rule`, `format`; the review is never
+  one, and a kept row naming it is read with it left out), empty for
   none; no turn bound stands; and `source`,
   `set` where the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process
   table」). A

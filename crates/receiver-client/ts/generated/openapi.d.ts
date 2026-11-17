@@ -107,24 +107,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/consult-lines": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The block an agent is shown of the other agents' work. */
-        get: operations["consultBlock"];
-        put?: never;
-        /** A line said in the consult room under an agent's own name, or handed to that agent outside its own round. */
-        post: operations["consultLine"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/default-answerer": {
         parameters: {
             query?: never;
@@ -1805,42 +1787,6 @@ export interface components {
              */
             since: number;
         };
-        /** @description What an agent is shown of the other agents' work. */
-        ConsultBlock: {
-            block: unknown;
-        };
-        /** @description A line said in the consult room. */
-        ConsultLine: {
-            agent: string;
-            /**
-             * Format: int64
-             * @description The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its
-             *     agent's reset point is refused.
-             */
-            began?: number | null;
-            /** @description The chat that set the line off, `chat:<room>`. */
-            by?: string | null;
-            /** @description The command or unit the words come through. */
-            from?: string | null;
-            /** @default false */
-            job: boolean;
-            /**
-             * Format: int64
-             * @default null
-             */
-            replyTo: number | null;
-            text: string;
-        };
-        /** @description What a consult line came to: said, or handed to the agent as the order `handed` numbers, with no message. */
-        ConsultSaid: {
-            /** Format: int64 */
-            handed?: number | null;
-            /** Format: int64 */
-            id: number | null;
-            lines: string[];
-            /** Format: int64 */
-            room: number;
-        };
         /** @description The id a created member answers with. */
         Created: {
             /** Format: int64 */
@@ -2888,13 +2834,11 @@ export interface components {
             /** @default null */
             order: string | null;
         };
-        /** @description What a send came to: carried, or handed to the room's supervisor as the order `handed` numbers. */
+        /** @description What a send came to: carried, refused, or handed to the room's supervisor as the order `handed` numbers. */
         SendAnswer: {
             /** Format: int64 */
             handed?: number | null;
             lines: string[];
-            /** @description A spoken talk asked in the asker's own round, which the asker makes and sends as a voice note. */
-            own?: boolean | null;
             refusal: string | null;
         };
         /** @description A send asked of the receiver. */
@@ -2902,8 +2846,8 @@ export interface components {
             asker: components["schemas"]["Asker"];
             input: unknown;
             /**
-             * @description The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`,
-             *     or `speak`, a spoken talk asked by its words.
+             * @description The tool's name: `say`, `photo`, `file`, `voice`, `react`, `pin`, `sticker` or `random_draw`, or `speak`, a
+             *     spoken talk asked by its words.
              */
             tool: string;
         };
@@ -3295,70 +3239,6 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, picture-forbidden, unknown-kind, private-room, upstream-failed, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    consultBlock: {
-        parameters: {
-            query: {
-                agentName: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsultBlock"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    consultLine: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConsultLine"];
-            };
-        };
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsultSaid"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -1,7 +1,8 @@
 //! Words handed to the room's supervisor (docs/messages.md, 「Words handed to the room's supervisor」): a send is
-//! carried only in its agent's own round, and every other send — a command at a shell, a job, a worker, a unit's
-//! process, a script — is queued as an order for the room's supervisor carrying what was asked, which that
-//! supervisor says in its own turn, in its own words and voice, or lets go.
+//! carried only in its agent's own round and only where it holds no words, and every other send — words for
+//! another room, a command at a shell, a job, a worker, a unit's process, a script — is queued as an order for the
+//! room's supervisor carrying what was asked, which that supervisor's round there writes as its message, reviewed
+//! by the draft process, or lets go.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
@@ -35,7 +36,7 @@ impl Handing {
 }
 
 /// The room the asker's turn works in, read off the chat that set the send off (`chat:<room>`).
-fn turn_room(asker: &Asker) -> Option<i64> {
+pub fn turn_room(asker: &Asker) -> Option<i64> {
   asker.by.as_deref()?.trim().strip_prefix("chat:")?.trim().parse().ok()
 }
 
@@ -113,16 +114,10 @@ pub fn asked(asker: &Asker, act: &Act) -> String {
   lines.join("\n")
 }
 
-/// A line asked for the consult room, as the order hands it over.
-pub fn consulted(text: &str, reply_to: Option<i64>) -> String {
-  let handed = &CHAT_ROUND.handed;
-  let mut lines = vec![fill_marks(&handed.consulted, &[("text", text)])];
-
-  if let Some(message) = reply_to {
-    lines.push(fill_marks(&handed.reply_to, &[("message", &message.to_string())]));
-  }
-
-  lines.join("\n")
+/// The line the asker is told where the answer it wanted back will not be brought: it has asked several rooms in a
+/// short stretch, while the words themselves were still handed.
+pub fn relay_dropped() -> String {
+  CHAT_ROUND.handed.relay_dropped.clone()
 }
 
 /// The supervisor the words go to: the asker's own agent where it answers the room, and the room's voice

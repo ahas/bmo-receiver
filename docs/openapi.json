@@ -623,103 +623,6 @@
         ],
         "type": "object"
       },
-      "ConsultBlock": {
-        "description": "What an agent is shown of the other agents' work.",
-        "properties": {
-          "block": true
-        },
-        "required": [
-          "block"
-        ],
-        "type": "object"
-      },
-      "ConsultLine": {
-        "description": "A line said in the consult room.",
-        "properties": {
-          "agent": {
-            "type": "string"
-          },
-          "began": {
-            "description": "The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its\nagent's reset point is refused.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "by": {
-            "description": "The chat that set the line off, `chat:<room>`.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "from": {
-            "description": "The command or unit the words come through.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "job": {
-            "default": false,
-            "type": "boolean"
-          },
-          "replyTo": {
-            "default": null,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "text": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "agent",
-          "text",
-          "replyTo",
-          "job"
-        ],
-        "type": "object"
-      },
-      "ConsultSaid": {
-        "description": "What a consult line came to: said, or handed to the agent as the order `handed` numbers, with no message.",
-        "properties": {
-          "handed": {
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "id": {
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "lines": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "room": {
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "room",
-          "id",
-          "lines"
-        ],
-        "type": "object"
-      },
       "Created": {
         "description": "The id a created member answers with.",
         "properties": {
@@ -3522,7 +3425,7 @@
         "type": "object"
       },
       "SendAnswer": {
-        "description": "What a send came to: carried, or handed to the room's supervisor as the order `handed` numbers.",
+        "description": "What a send came to: carried, refused, or handed to the room's supervisor as the order `handed` numbers.",
         "properties": {
           "handed": {
             "format": "int64",
@@ -3536,13 +3439,6 @@
               "type": "string"
             },
             "type": "array"
-          },
-          "own": {
-            "description": "A spoken talk asked in the asker's own round, which the asker makes and sends as a voice note.",
-            "type": [
-              "boolean",
-              "null"
-            ]
           },
           "refusal": {
             "type": [
@@ -3565,7 +3461,7 @@
           },
           "input": true,
           "tool": {
-            "description": "The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`,\nor `speak`, a spoken talk asked by its words.",
+            "description": "The tool's name: `say`, `photo`, `file`, `voice`, `react`, `pin`, `sticker` or `random_draw`, or `speak`, a\nspoken talk asked by its words.",
             "type": "string"
           }
         },
@@ -4409,97 +4305,6 @@
           "no-picture-given",
           "not-a-picture",
           "private-room",
-          "upstream-failed",
-          "failed"
-        ]
-      }
-    },
-    "/consult-lines": {
-      "get": {
-        "operationId": "consultBlock",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "agentName",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConsultBlock"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, bad-request, failed"
-          }
-        },
-        "summary": "The block an agent is shown of the other agents' work.",
-        "tags": [
-          "Consult"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "bad-request",
-          "failed"
-        ]
-      },
-      "post": {
-        "operationId": "consultLine",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConsultLine"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConsultSaid"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, bad-request, upstream-failed, failed"
-          }
-        },
-        "summary": "A line said in the consult room under an agent's own name, or handed to that agent outside its own round.",
-        "tags": [
-          "Consult"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "bad-request",
           "upstream-failed",
           "failed"
         ]

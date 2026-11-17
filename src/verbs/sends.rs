@@ -20,14 +20,11 @@ use receiver_policy::roles::ROLES;
 use sea_orm::DatabaseConnection;
 
 use crate::Fault;
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::receiver::speech::KeptLine;
 use crate::receiver::{Receiver, files, rows, speech, wake};
 use crate::roads::providers::{self, Carried, Delivery, FileLimit, SaidBy};
 use crate::roads::{Road, added, record};
-use crate::verbs::{Launch, NoLaunch, VerbError};
+use crate::verbs::VerbError;
 
 /// The road a send goes out on, and who it goes out as there.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -68,8 +65,6 @@ pub struct Sends {
   receiver: Receiver,
   turn_agent: Option<String>,
   via: Option<String>,
-  launch: Arc<dyn Launch>,
-  road_within: Duration,
 }
 
 impl Sends {
@@ -78,40 +73,6 @@ impl Sends {
       receiver,
       turn_agent,
       via,
-      launch: Arc::new(NoLaunch),
-      road_within: Duration::from_secs(ROADS.say.road_seconds),
-    }
-  }
-
-  /// The sends standing on this launcher of a verb's own runs, which opens the row, starts the process and
-  /// closes the row; with none standing a verb that says a line of its own says it in the receiver itself.
-  pub fn with_launch(mut self, launch: Arc<dyn Launch>) -> Self {
-    self.launch = launch;
-    self
-  }
-
-  pub fn launch(&self) -> Arc<dyn Launch> {
-    self.launch.clone()
-  }
-
-  /// The sends giving a line's road this long to say it takes the line, in place of the policy's bound.
-  pub fn with_road_within(mut self, within: Duration) -> Self {
-    self.road_within = within;
-    self
-  }
-
-  /// The road a line goes out on, as `road` reads it, refused where the road has not answered within the bound
-  /// (`[say]` of the policy's `roads.toml`), so a call that hands the line on never waits on a road that is silent.
-  pub async fn line_road(&self, chat_id: i64) -> Result<Going, VerbError> {
-    match tokio::time::timeout(self.road_within, self.road(chat_id, "text")).await {
-      Ok(going) => going,
-      Err(_) => Err(VerbError::Refused(
-        SendRefusal::RoadUnanswered {
-          room: chat_id,
-          seconds: u64::try_from(self.road_within.as_millis().div_ceil(1000)).unwrap_or(u64::MAX),
-        }
-        .to_string(),
-      )),
     }
   }
 

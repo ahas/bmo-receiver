@@ -1336,28 +1336,6 @@ pub fn openapi() -> Value {
   );
   add!(
     "POST",
-    "/consult-lines",
-    "consultLine",
-    "Consult",
-    "A line said in the consult room under an agent's own name, or handed to that agent outside its own round.",
-    vec![],
-    Some(generator.subschema_for::<ConsultLine>()),
-    vec![(200, json_answer::<ConsultSaid>(&mut generator))],
-    vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
-  );
-  add!(
-    "GET",
-    "/consult-lines",
-    "consultBlock",
-    "Consult",
-    "The block an agent is shown of the other agents' work.",
-    vec![parameter("agentName", "string", true)],
-    None,
-    vec![(200, json_answer::<ConsultBlock>(&mut generator))],
-    vec!["unauthorized", "bad-request", "failed"]
-  );
-  add!(
-    "POST",
     "/talks",
     "talk",
     "Talks",

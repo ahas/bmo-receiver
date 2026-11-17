@@ -1,21 +1,22 @@
 //! A send asked of the running receiver (docs/boundary-api.md, 「Sends」; docs/chat-mcp.md, 「How a call runs」):
-//! a line said, a picture or an album, a file or an album of files, a voice note, a reaction, a pin, a sticker,
-//! a fair draw or a fixed line, carried on the receiver's own lines as the agent the asker names, on the road the
-//! turn names — since a sending tool's process and a shell's hold none of them — and the verbs the road a room is
-//! answered on performs, which a procedure read there is held to.
+//! a picture or an album, a file or an album of files, a reaction, a pin, a sticker or a fair draw, carried on the
+//! receiver's own lines as the agent the asker names, on the road the turn names — since a sending tool's process
+//! and a shell's hold none of them — and the verbs the road a room is answered on performs, which a procedure
+//! read there is held to.
 //!
-//! A line asked to be said is said in a run of its own, whose launcher the receiver's binary fills; asked of a
-//! service that stands without one, it is turned away before the words are put on the disk.
-//!
-//! Only a send asked in its agent's own round is carried; every other is handed to the room's supervisor as an
-//! order, and nothing goes out on that call (docs/messages.md, 「Words handed to the room's supervisor」). A send
-//! an agent asks into a room its voice briefing turn is being carried in is refused before either.
+//! Words go into a room only as a round's message, which the draft process writes and reviews (docs/messages.md,
+//! 「Words handed to the room's supervisor」). So only an act that holds no words, asked in its agent's own round,
+//! is carried; an act holding words — a line, a spoken talk, a voice note, a caption — asked there into the room
+//! that round answers is refused, and every other send is handed to the room's supervisor as an order, whose round
+//! there writes it, and nothing goes out on that call. A send an agent asks into a room its voice briefing turn is
+//! being carried in is refused before any of these.
 
 use axum::{
   body::Bytes,
   extract::{Path, RawQuery, State},
   http::StatusCode,
 };
+use receiver_codes::SendRefusal;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -26,28 +27,19 @@ use super::{Answered, Served, answered, query, read, refused};
 use crate::chat::briefing_turn;
 use crate::chat::cut_off;
 use crate::chat::handed;
+use crate::chat::relays::{self, Relay};
 use crate::receiver::Receiver;
 use crate::verbs::sends::Sends;
 use crate::verbs::{VerbError, draws, messages};
 
-// One send carried as its asker, answering the lines it said, or those lines with the refusal it ended in.
+// One send that holds no words carried as its asker, answering the lines it said, or those lines with the refusal
+// it ended in.
 async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, VerbError> {
   let Asked { asker, act } = asked;
   let chat = asker.room.ok_or_else(|| VerbError::Refused(NO_ROOM.to_owned()))?;
   let sends = Sends::new(receiver.clone(), asker.agent_name.clone(), asker.via.clone());
 
   match act {
-    Act::Say(input) => {
-      let asked = messages::SayAsked {
-        chat_id: chat,
-        text: input.text.clone(),
-        reply: input.reply,
-        reply_to: input.reply_to,
-        started_by: asker.by.clone(),
-      };
-
-      messages::say(&sends, &asked, asker.via.as_deref()).await
-    }
     Act::Photo(input) => {
       let pictures: Vec<messages::Picture> = input
         .pictures
@@ -58,16 +50,7 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
         })
         .collect();
 
-      messages::photo(
-        &sends,
-        receiver.data_root(),
-        chat,
-        &pictures,
-        input.caption.as_deref(),
-        input.reply_to,
-        asker.job,
-      )
-      .await
+      messages::photo(&sends, receiver.data_root(), chat, &pictures, input.reply_to, asker.job).await
     }
     Act::File(input) => {
       let files: Vec<messages::SendFile> = input
@@ -79,38 +62,28 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
         })
         .collect();
 
-      messages::file(
-        &sends,
-        receiver.data_root(),
-        chat,
-        &files,
-        input.caption.as_deref(),
-        input.reply_to,
-        asker.job,
-      )
-      .await
-    }
-    Act::Voice(input) => {
-      let note = messages::VoiceNote {
-        path: &input.path,
-        caption: input.caption.as_deref(),
-        said: input.said.as_deref(),
-        transcript: input.transcript.as_deref(),
-      };
-
-      messages::voice(&sends, receiver.data_root(), chat, note, input.reply_to, asker.job).await
+      messages::file(&sends, receiver.data_root(), chat, &files, input.reply_to, asker.job).await
     }
     Act::React(input) => messages::react(&sends, chat, input.message, &input.emoji).await,
     Act::Pin(input) => messages::pin(&sends, chat, input.message, input.unpin).await,
     Act::Sticker(input) => messages::sticker(&sends, chat, &input.emoji, input.reply_to).await,
     Act::RandomDraw(input) => draws::draw(&sends, chat, &input.request(), asker.via.as_deref()).await,
-    Act::FixedLine(input) => messages::fixed_line(&sends, chat, &input.code, &input.fields).await,
-    // A spoken talk in its own round is made and sent by the command that asked it, as a voice note.
-    Act::Speak(_) => Ok(Vec::new()),
+    // Words are never carried: `sends` refuses or hands an act holding them before it comes here.
+    Act::Say(_) | Act::Speak(_) | Act::Voice(_) => Err(VerbError::Refused(words_refusal(asked, chat))),
   }
 }
 
-// One send handed to the room's supervisor, answering the line saying so and the order's number.
+// The refusal of words asked in the agent's own round into the room that round answers.
+fn words_refusal(asked: &Asked, chat: i64) -> String {
+  SendRefusal::WordsInAnswer {
+    agent: asked.asker.agent_name.clone().unwrap_or_default(),
+    room: chat,
+  }
+  .to_string()
+}
+
+// One send handed to the room's supervisor, answering the line saying so and the order's number. A line asking
+// for an answer back from a round of another room waits on the order for that answer.
 async fn handed(receiver: &Receiver, asked: &Asked) -> Result<serde_json::Value, VerbError> {
   let Asked { asker, act } = asked;
   let chat = asker.room.ok_or_else(|| VerbError::Refused(NO_ROOM.to_owned()))?;
@@ -119,8 +92,20 @@ async fn handed(receiver: &Receiver, asked: &Asked) -> Result<serde_json::Value,
   let handing = handed::hand(receiver, asker, &agent, chat, &handed::asked(asker, act))
     .await
     .map_err(refused)?;
+  let mut lines = vec![handing.line()];
 
-  Ok(json!({ "lines": [handing.line()], "handed": handing.id }))
+  if let Act::Say(input) = act
+    && input.reply
+    && let Some(asking) = handed::turn_room(asker).filter(|asking| *asking != chat)
+    && relays::wait_on_order(receiver.db(), chat, asking, handing.id, &input.text)
+      .await
+      .map_err(VerbError::Store)?
+      == Relay::Dropped
+  {
+    lines.push(handed::relay_dropped());
+  }
+
+  Ok(json!({ "lines": lines, "handed": handing.id }))
 }
 
 pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {
@@ -135,15 +120,21 @@ pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {
     return answered(json!({ "lines": [], "refusal": refusal }));
   }
 
-  if !handed::own_round(&receiver, &asked.asker) {
+  let own_round = handed::own_round(&receiver, &asked.asker);
+
+  if own_round
+    && asked.act.holds_words()
+    && let Some(chat) = asked.asker.room
+    && handed::turn_room(&asked.asker) == Some(chat)
+  {
+    return answered(json!({ "lines": [], "refusal": words_refusal(&asked, chat) }));
+  }
+
+  if !own_round || asked.act.holds_words() {
     return answered(match handed(&receiver, &asked).await {
       Ok(said) => said,
       Err(why) => json!({ "lines": [], "refusal": why.to_string() }),
     });
-  }
-
-  if matches!(asked.act, Act::Speak(_)) {
-    return answered(json!({ "lines": [], "own": true }));
   }
 
   let said = match carried(&receiver, &asked).await {

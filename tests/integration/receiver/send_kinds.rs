@@ -1,7 +1,7 @@
 //! The file, voice and fixed-line kinds of a send asked of the receiver (docs/api.md, 「Sends」;
-//! docs/chat-mcp.md, 「Its entries」): a file or several as one album read off this machine, an OGG/Opus voice
-//! note with its caption and reading, and a fixed line rendered by the web unit and said without the output
-//! gate or any session.
+//! docs/chat-mcp.md, 「Its entries」): a file or several as one album read off this machine with no caption, a
+//! voice note refused in the round's own room since its words go into the round's answer, and no fixed line
+//! asked of a send at all.
 
 use std::sync::Arc;
 
@@ -107,7 +107,6 @@ async fn a_file_goes_as_a_document_and_several_go_as_one_album() {
           { "path": data.path().join("report.txt").to_string_lossy() },
           { "path": data.path().join("notes.txt").to_string_lossy() },
         ],
-        "caption": "the two of them",
       }),
     ),
   )
@@ -136,7 +135,7 @@ async fn a_file_goes_as_a_document_and_several_go_as_one_album() {
           }),
         ]
         .to_vec(),
-        caption: Some("the two of them".to_owned()),
+        caption: None,
       },
     ]
     .to_vec(),
@@ -149,7 +148,7 @@ async fn a_file_goes_as_a_document_and_several_go_as_one_album() {
 }
 
 #[tokio::test]
-async fn a_voice_note_goes_as_a_voice_message_with_its_caption_and_its_reading() {
+async fn a_voice_note_in_the_agents_own_round_is_refused_since_its_words_go_into_the_answer() {
   let (_scratch, port, road, _web, _gate, data) = stood(&[ChatCapability::Voice]).await;
 
   std::fs::write(data.path().join("note.ogg"), OGG).unwrap();
@@ -168,22 +167,16 @@ async fn a_voice_note_goes_as_a_voice_message_with_its_caption_and_its_reading()
   .await;
 
   assert_eq!(status, StatusCode::OK, "{answer:?}");
-  assert_eq!(answer["refusal"], Value::Null, "{answer:?}");
-  assert_eq!(
-    road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
-    [ChatSend::Voice {
-      audio: OGG.to_vec().into(),
-      said: "the whole of the news".to_owned(),
-      caption: Some("the news".to_owned()),
-      transcript: Some("the whole of the news".to_owned()),
-    }]
-    .to_vec(),
+  assert!(
+    answer["refusal"].as_str().is_some_and(|why| why.contains("go into the round's answer")),
+    "{answer:?}"
   );
+  assert!(road.sent().is_empty(), "no voice note went out without the draft process");
 }
 
 #[tokio::test]
-async fn a_fixed_line_is_rendered_by_the_web_unit_and_said_without_the_output_gate() {
-  let (_scratch, port, road, _web, _gate, data) = stood(&[]).await;
+async fn a_fixed_line_is_no_send_an_agent_may_ask() {
+  let (_scratch, port, road, _web, _gate, _data) = stood(&[]).await;
 
   let (status, answer) = asked(
     &port,
@@ -194,16 +187,6 @@ async fn a_fixed_line_is_rendered_by_the_web_unit_and_said_without_the_output_ga
   )
   .await;
 
-  assert_eq!(status, StatusCode::OK, "{answer:?}");
-  assert_eq!(answer["refusal"], Value::Null, "{answer:?}");
-  assert_eq!(
-    road.sent().iter().map(|held| held.send.clone()).collect::<Vec<ChatSend>>(),
-    [ChatSend::Text {
-      text: "draw in en".to_owned(),
-      silent: false,
-      fold: false,
-    }]
-    .to_vec(),
-  );
-  assert!(data.path().exists());
+  assert_eq!(status, StatusCode::BAD_REQUEST, "{answer:?}");
+  assert!(road.sent().is_empty(), "nothing was said");
 }

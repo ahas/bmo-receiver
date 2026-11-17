@@ -212,7 +212,7 @@ pub struct Handed {
   pub said: String,
   pub spoken: String,
   pub spoken_words: String,
-  pub consulted: String,
+  pub relay_dropped: String,
   pub act: String,
   pub reply_to: String,
   pub answer_wanted: String,

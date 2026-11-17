@@ -1010,8 +1010,8 @@ pub struct Holding {
 #[serde(rename_all = "camelCase")]
 pub struct SendRequest {
   pub asker: Asker,
-  /// The tool's name: `say`, `photo`, `file`, `voice`, `fixed_line`, `react`, `pin`, `sticker` or `random_draw`,
-  /// or `speak`, a spoken talk asked by its words.
+  /// The tool's name: `say`, `photo`, `file`, `voice`, `react`, `pin`, `sticker` or `random_draw`, or `speak`, a
+  /// spoken talk asked by its words.
   pub tool: String,
   pub input: Value,
 }
@@ -1039,7 +1039,7 @@ pub struct Asker {
   pub from: Option<String>,
 }
 
-/// What a send came to: carried, or handed to the room's supervisor as the order `handed` numbers.
+/// What a send came to: carried, refused, or handed to the room's supervisor as the order `handed` numbers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SendAnswer {
@@ -1047,9 +1047,6 @@ pub struct SendAnswer {
   pub refusal: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub handed: Option<i64>,
-  /// A spoken talk asked in the asker's own round, which the asker makes and sends as a voice note.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub own: Option<bool>,
 }
 
 /// The owner's words typed on a screen.
@@ -1077,46 +1074,6 @@ pub struct OwnerNotice {
   pub code: String,
   #[serde(flatten)]
   pub params: serde_json::Map<String, Value>,
-}
-
-/// A line said in the consult room.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ConsultLine {
-  pub agent: String,
-  pub text: String,
-  #[serde(default)]
-  pub reply_to: Option<i64>,
-  /// The moment the asking turn took its words, in epoch milliseconds: a turn begun at or before its
-  /// agent's reset point is refused.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub began: Option<i64>,
-  /// The chat that set the line off, `chat:<room>`.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub by: Option<String>,
-  #[serde(default)]
-  pub job: bool,
-  /// The command or unit the words come through.
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub from: Option<String>,
-}
-
-/// What a consult line came to: said, or handed to the agent as the order `handed` numbers, with no message.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ConsultSaid {
-  pub room: i64,
-  pub id: Option<i64>,
-  pub lines: Vec<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub handed: Option<i64>,
-}
-
-/// What an agent is shown of the other agents' work.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ConsultBlock {
-  pub block: Option<Value>,
 }
 
 /// A turn of a talk.

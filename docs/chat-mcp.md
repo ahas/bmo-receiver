@@ -1,6 +1,6 @@
 # The receiver's tools
 
-The agents' tools bound to the receiver: `send`, under `tools/send/`, for speaking into rooms, and `rooms`,
+The agents' tools bound to the receiver: `send`, under `tools/send/`, for acting in rooms, and `rooms`,
 under `tools/rooms/`, for opening an agent room and adding a chat-service room (「The rooms tool」 below). The
 tool host places each and serves its entries to every session whose role holds them; this document is their part
 of the catalogue and how their calls reach the receiver. The receiver's other tool, `wait`, holds no send: its
@@ -8,20 +8,23 @@ reminders and watches are `docs/reminders.md`'s. The other tools of the catalogu
 
 ## Its entries
 
-- **`say`**: words into the turn's room, or the room `chat` names, on the turn's road or the one `via` names,
-  with an optional `replyTo` naming the message in the room the line replies to;
-  `reply` asks for an answer back.
-- **`photo`**: one picture or an album, each `url` with an optional `label`, a `caption` (`docs/pictures.md`) and
-  an optional `replyTo` naming the message it replies to.
-- **`file`**: one file from this machine, or several as one album, each a `path` and an optional `name`, with a
-  `caption` and an optional `replyTo` naming the message it replies to. A file a room's folder holds goes only
+No entry puts words in a room. An agent's words reach a room only as its round's message, which the draft process
+writes and reviews (`docs/drafting.md`); an entry that holds words is refused in the round's own room and handed to
+the supervisor of any other (`docs/messages.md`, 「Words handed to the room's supervisor」).
+
+- **`say`**: words for another room, the room `chat` names, handed to that room's supervisor, whose round there
+  writes and reviews them, on the road `via` names where given, with an optional `replyTo` naming the message
+  there the line is to reply to; `reply` asks for that room's answer back. Asked for the round's own room it is
+  refused: the words go into the round's answer.
+- **`photo`**: one picture or an album, each `url` with an optional `label` (`docs/pictures.md`), and an optional
+  `replyTo` naming the message it replies to. A `caption` is words, refused in the round's own room.
+- **`file`**: one file from this machine, or several as one album, each a `path` and an optional `name`, with an
+  optional `replyTo` naming the message it replies to; a `caption` is words, as for `photo`. A file a room's folder holds goes only
   into that room, and a job sends none of them (`docs/room-files.md`). It is for a file a room saves or opens;
   a picture a room is to look at goes through `photo`, and the entry's description says so.
 - **`voice`**: an OGG/Opus voice note at `path`, with its `caption`, what it `said`, the `transcript` read out and
-  an optional `replyTo` naming the message it replies to.
-- **`fixed_line`**: a fixed line's `code` and its `fields`, which the web unit's language packs render, the
-  receiver's policy sentence standing in where they cannot (`docs/voiced-notices.md`, 「Lines that stay fixed」);
-  the receiver says it without the output gate or any session, and refuses a code no sentence can be made of.
+  an optional `replyTo` naming the message it replies to. A voice note is words, so it is refused in the round's
+  own room and handed anywhere else.
 - **`react`**: an emoji reaction on a message, or none to clear it.
 - **`pin`**: a message pinned, or unpinned.
 - **`sticker`**: one of the deployment's stickers, picked by its emoji, with an optional `replyTo` naming the
@@ -37,16 +40,14 @@ needs its road to perform, so the room's block names the sending entries a room'
 - **The tool runs its own executable,** as every placed tool does. It reads the turn from the call's session
   record (the run its place names, or the run's own variables). The record's place is its `place` where it names one, else its `labels.place`, which is
   where the tool host's record carries it; the turn's variables are then read off that place's `run.json`.
-- **Every entry but one asks the receiver for the send:** `POST /sends` with the entry's name as `tool`, its
-  arguments as `input`, and the asker (the room, the road the turn names for it, the turn's agent, the moment the
-  turn took its words as `began`, the chat that set it off as `by`, and whether a job asks). Where that agent's round is working in the room that set it off,
-  the receiver carries the act as that agent, on its own lines, and answers the lines it said, or those lines with
-  the refusal it ended in; anywhere else (a job's call, a worker's, a call made outside any round) it hands the act
-  to the room's supervisor and answers the line saying so (`docs/messages.md`, 「Words handed to the room's
-  supervisor」).
-  answers, the moment the turn took its words, the chat that set it off and whether a job asks, which the
-  receiver says or hands over the same way; a call made outside any agent's turn is refused here, since there is
-  no agent to speak as.
+- **Every entry asks the receiver for the send:** `POST /sends` with the entry's name as `tool`, its arguments as
+  `input`, and the asker (the room, the road the turn names for it, the turn's agent, the moment the turn took its
+  words as `began`, the chat that set it off as `by`, and whether a job asks). Where that agent's round is working
+  in the room that set it off and the act holds no words, the receiver carries the act as that agent, on its own
+  lines, and answers the lines it said, or those lines with the refusal it ended in; an act holding words asked
+  there into that room is refused `words-in-answer`; anything else (words for another room, a job's call, a
+  worker's, a call made outside any round) it hands to the room's supervisor and answers the line saying so
+  (`docs/messages.md`, 「Words handed to the room's supervisor」).
 - **An overtaken turn sends nothing.** The receiver reads the agent's reset point from the agency's reset-point read as
   each send asks, beside the one it keeps from the agency's cut-off (`docs/wake.md`, 「An agent's
   reset」), and refuses a send whose `began` is at or before that point, before anything else is
@@ -64,9 +65,9 @@ needs its road to perform, so the room's block names the sending entries a room'
 - **A call waits for the receiver's answer within its act's bound.** Every entry is declared unbounded, so the tool
   host sets no limit on a call; the call to the receiver carries a bound its act gives it, and ends with the
   answer, the connection failing or the bound passing, never waiting on past it. A connection is given five
-  seconds to open. A line, a spoken talk asked ahead of its synthesis, a consult line and a question of what a
-  road performs are handed on and answered at once, so the receiver is given a minute for them; a reaction, a pin,
-  a sticker, a fair draw and a fixed line go to the road within the call, three minutes; a picture, a file and a
+  seconds to open. A line, a spoken talk and a question of what a road performs are handed on or refused and
+  answered at once, so the receiver is given a minute for them; a reaction, a pin,
+  a sticker and a fair draw go to the road within the call, three minutes; a picture, a file and a
   voice note carry their bytes there, ten minutes. A call whose bound passed says so, and that what it asked may
   still be done, so the asker looks before asking it again. Every send returns once it is on its way, a draw once
   it is drawn and its line is out.
@@ -75,9 +76,10 @@ needs its road to perform, so the room's block names the sending entries a room'
 
 - **What the tool fills.** The run name, the room the turn answers, the road it answers on and who set a send off
   are never typed by the agent: each call reads them for itself.
-  - The room is the default for every entry that takes one, `say` included: an unaddressed `say` goes to the
-    turn's room, never to the owner's chat by default. An entry still takes an explicit room for the calls that
-    address another: the owner's private chat, a room a watch reports to.
+  - The room is the default for every entry that takes one: an unaddressed entry acts in the turn's room, never
+    in the owner's chat by default, and an unaddressed `say` is refused as words in the round's own room. An entry
+    still takes an explicit room for the calls that address another: the owner's private chat, a room a watch
+    reports to.
 - **When it is read.** Every call reads the context afresh, never once when the tool starts.
 - **Outside a round.** A call made while no run is going (a person typing in the pane, a keepalive touch) reads no
   room. An entry that needs a room then refuses unless it is handed one; it never falls back to the room that
@@ -104,9 +106,9 @@ needs its road to perform, so the room's block names the sending entries a room'
 The receiver's command line carries the same sends: `bmo room say`, `bmo talk`, `bmo photo`, `bmo react`,
 `bmo pin`, `bmo sticker` and `bmo draw draw` (docs/boundary-api.md, 「The unit command」).
 Each asks the receiver the same way, from its own shell's turn, so a tool and a command cannot send differently:
-in a shell of the supervisor's own working round a command sends as that supervisor, and for a person, a job, a
-script or a turn whose tool call failed it hands the words to the room's supervisor, who says them in its own
-turn.
+in a shell of the supervisor's own working round a command carries what holds no words as that supervisor and is
+refused words for that round's room, and for words for another room, a person, a job, a script or a turn whose
+tool call failed it hands the words to the room's supervisor, who writes them as its own round's message.
 
 ## The rooms tool
 

@@ -7,10 +7,14 @@ receiver keeps the pictures and decides what a session is shown.
 ## Photos
 
 - **An agent can put pictures in a chat, not just text,** with the send tool's `photo` entry or
-  `bmo room photo [--chat <chatId>] [--via <road>] --url <imageUrl> [--label <word>] [--url ... [--label ...]]
+  `bmo photo [--chat <chatId>] [--via <road>] --url <imageUrl> [--label <word>] [--url ... [--label ...]]
   [--caption <text>]` (the owner's chat when `--chat` is absent).
+- **A picture carries no words of the agent's.** In the agent's own round a picture goes without a caption, and
+  what the agent says of it is its round's message, which the draft process reviews; a caption asked there is
+  refused, and pictures asked from outside that round, a caption among them, are handed to the room's supervisor
+  (`docs/messages.md`, 「Words handed to the room's supervisor」).
 - **One picture goes as a photo and several as one album**, as many to an album as the room's chat service
-  declares, the caption on the first picture, on the road `via` names where that road reaches the room. Every
+  declares, on the road `via` names where that road reaches the room. Every
   picture is archived like any message the agent sent. The pictures of an album are never sent one by one.
 - **A `--label` after a `--url` is drawn into that picture** on a dark band along its bottom edge, so pictures of
   different things are told apart by the pictures alone.
@@ -18,9 +22,8 @@ receiver keeps the pictures and decides what a session is shown.
   transparent ground, and a labelled picture is laid on white before its band is drawn.
 - **A chat service may refuse a picture;** each picture that did not go is printed with why, and a call that sent
   none fails on a refusal naming each.
-- **If nothing can go the caption and the web addresses go as plain text** rather than losing the answer. A path
-  on this machine is never put in that text, since it is nothing to the room, and where no web address is left
-  nothing is sent at all.
+- **If nothing can go, nothing is sent:** no text stands in for the pictures, and the call's refusal names each
+  picture with why, for the round's message to say.
 - **A `--url` that is neither a web address nor a file under the data root is refused** before anything goes. A
   relative path is read against the folder that holds the data root, the data root itself and the working folder,
   in that order. A web address goes as it stands and the chat service fetches it; a file is handed over as a

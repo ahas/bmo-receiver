@@ -116,12 +116,12 @@ the operations machine's:
 
 | Noun | Words | What it asks |
 |---|---|---|
-| `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to; `--by` names the chat that set it off, the turn's own room where none is named; it answers at once with the line's id, the unit its run goes by (`say launched as bmo-say-…`), or the refusal, and where the receiver has not answered within a minute it ends with an error saying so (`docs/chat-mcp.md`, 「How a call runs」) |
+| `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to; `--by` names the chat that set it off, the turn's own room where none is named; `--reply` asks that room's answer back; it answers at once with the line saying to whom the words were handed and the order's number, or the refusal (`words-in-answer` for words asked in the shell's own round into that round's room), and where the receiver has not answered within a minute it ends with an error saying so (`docs/chat-mcp.md`, 「How a call runs」) |
 | `room registration` | `--room <id> --by <administrator> [--mode record-only\|avatar]` | `GET /rooms/{roomId}/registration` where no mode is named, printing the mode, the providers and whether the list was chosen, whether the room is read-only and by which chat services, and the answerers; a mode named goes through `PUT /rooms/{roomId}/registration`, and the registration as it now stands is printed the same way |
 | `room add` | `--provider <key> [--room-id <id> \| --contact-id <id> \| --contact-ids <id,…>] [--title <words>]` | `POST /rooms` in `record-only` mode, carrying `provider` and the one of `roomId`, `contactId` or `contactIds` named, with `title` where one is; a call naming none prints the provider's rooms and contacts by name, each with whether the receiver holds it, through `GET /providers`, `GET /providers/{key}/rooms` and `GET /providers/{key}/contacts`; the room's refusals are the receiver's own. Only the owner's word in the turn is served, and no grant names it |
 | `room fill-files` | `--room <id> [--rows <n>] [--dry-run]` | `POST /rooms/{roomId}/file-fills` (`docs/room-files.md`, 「Files filled in later」): one line for each row the pass reached, its number, what the road answered and the kinds and bytes kept, and a last line counting the rows filled and the bytes; `--dry-run` prints the rows it would ask and asks nothing |
-| `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named; a voice names a trained voice, and the line is first asked as the act `speak`: outside the agent's own round that hands the voice note over as its words, and inside it the line is synthesised by the voice engine the configuration names and sent as the room's voice note, the act `voice`, the words what the note says, which a road that folds a long reading (Telegram's expandable quote) shows folded under it; `--spoken`, taken only with `--voice`, names the spoken words the voice synthesises in their place |
-| `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture |
+| `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named, and the act `speak` where `--voice` names a trained voice, carrying the voice, the words and the `--spoken` words where given (taken only with `--voice`); either is handed or refused as `room say` is, and nothing is synthesised |
+| `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture; a caption is words, refused in the shell's own round for that round's room and handed elsewhere |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
 | `sticker` | `--chat <id> --emoji <emoji>`, or `--list` | `POST /sends`, the act `sticker`; `--list` prints the road's own sentence about its set |
@@ -135,31 +135,20 @@ the operations machine's:
 - **A send is asked as the shell's turn:** the room, the agent whose turn the process works in, the chat that set
   it off (the turn's own room where `--by` names none), whether a job asks and the noun it came through are read
   from the environment and the words, and the running receiver carries it on its own lines.
-- **A noun sends only inside its agent's own round.** Run in a shell of the room's supervisor's working round, a
-  noun sends as that supervisor; run anywhere else (the operator's shell, a job, a worker, a script, a turn whose
-  tool call failed over to the shell) it hands its words to the room's supervisor and sends nothing
-  (`docs/messages.md`, 「Words handed to the room's supervisor」). It prints the line the receiver answered with,
-  naming the agent it was handed to, and ends 0. The address and token come from the process's environment, else from the data root's `env/receiver.env`
-  (「Its tools」). A spoken `talk` asks the voice engine at the address and token the configuration names.
+- **A noun sends no words.** Run in a shell of the room's supervisor's working round, a noun carries what holds no
+  words as that supervisor, and is refused `words-in-answer` for words into that round's room, which go into the
+  round's answer; words for another room, and anything run anywhere else (the operator's shell, a job, a worker, a
+  script, a turn whose tool call failed over to the shell), are handed to the room's supervisor, whose round there
+  writes and reviews them, and nothing is sent (`docs/messages.md`, 「Words handed to the room's supervisor」). It
+  prints the line the receiver answered with, naming the agent it was handed to, and ends 0. The address and token
+  come from the process's environment, else from the data root's `env/receiver.env` (「Its tools」).
 - **`room add` is the owner's own, wherever it runs.** It answers only where the turn is the owner's, and refuses a
   job, a worker or any turn not the owner's in one sentence, since no grant in force names adding a room. A call
   naming no room, contact or contacts prints the provider's rooms and contacts instead, each by name, and writes
   nothing.
-- **A spoken `talk` is two texts.** The words are the written words, what the room reads: the voice note's
-  `said`, and the synthesis's `text`, which the engine keeps as its transcript; nothing changes them. The
-  spoken words are what the voice says, the same words as a Korean reader says them aloud. `--spoken` hands
-  them to the engine as the synthesis's `spoken`; with none given the synthesis carries the words alone and
-  the engine derives the spoken words itself. Either way the engine checks them before it speaks.
-- **A spoken `talk` is handed before it is made** where the shell is not in its agent's own round: the voice, the
-  written words and the spoken words go to the room's supervisor as they were given, and nothing is synthesised.
-- **A refusal of the engine is carried back with its sentence.** A synthesis the engine does not take in, a
-  422 `unconverted-run` among them for spoken words that still hold a Latin letter, a digit, an address, a
-  path or markup, is the verb's refusal, naming the status, the engine's code and its sentence; nothing is
-  sent to the room.
-- **A spoken `talk` follows its synthesis until it is `done` or `failed`,** however long the synthesis waits in
-  the line for a card: nothing on the verb's side ends the wait or bounds a request to the engine. While it waits,
-  each `waitingOn` sentence the engine gives is said once on standard error as it changes, under the synthesis's
-  number. A synthesis that failed is a refusal; one done is sent as the room's voice note.
+- **A spoken `talk` is handed as its words.** The voice, the written words and the spoken words go to the room's
+  supervisor as they were given, and nothing is synthesised; the supervisor's round says them as words in its
+  message.
 - **`--via <road>`** is taken after the noun's words as bmo-cli hands it on, and names the road a send goes out
   on where that road answers in the room.
 - **Every noun ends 0** where it did what it was asked, 1 where it refused, and 2 where its words or the
@@ -404,8 +393,7 @@ it serves an open room. The port reads the model as
 Its `docs/boundary-api.md` and `docs/openapi.json`, in camelCase and behind its token, at the `voice` the
 configuration names: `POST /briefings` with `voiceName`, `text`, `chatId`, `messageId`, `kind`, `title?`,
 `emotion?` and `plays`, a notice turn's summary or a line's full reading, its `text` the written words and no
-`spoken`, so the engine derives the spoken words; `POST /syntheses` with `voiceName`, `text` and `spoken?`,
-then `GET /syntheses/{id}` and its `sound`, a spoken `talk`; and `GET /briefings` with `chatId`,
+`spoken`, so the engine derives the spoken words; and `GET /briefings` with `chatId`,
 `messageId` and `kind`, the page a line's full reading is looked up in; `POST /briefings/stop` with an empty body,
 every room's briefings stopped once the whole voice briefing is switched off. The voice an agent speaks in is the
 `voice` its agency registration names. The receiver reads `id`, `state` and `kind` of a briefing, and nothing of

@@ -659,16 +659,6 @@ impl ReceiverClient {
     Self::answered(self.send(Method::POST, &["owner", "messages"], message)).await
   }
 
-  /// `POST /consult-lines`.
-  pub async fn consult_line(&self, line: &ConsultLine) -> Answer<ConsultSaid> {
-    Self::answered(self.send(Method::POST, &["consult-lines"], line)).await
-  }
-
-  /// `GET /consult-lines`.
-  pub async fn consult_block(&self, agent_name: &str) -> Answer<ConsultBlock> {
-    Self::answered(self.get(&["consult-lines"], &[("agentName", agent_name.to_owned())])).await
-  }
-
   /// `POST /talks`.
   pub async fn talk(&self, talk: &Talk) -> Answer<TalkAnswer> {
     Self::answered(self.send(Method::POST, &["talks"], talk)).await

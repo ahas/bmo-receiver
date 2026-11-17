@@ -1,524 +1,33 @@
-//! What the receiver puts into a room from a shell (docs/messages.md): a line, said from a run of its own so
-//! nobody waits on the gates; a reaction, a pin, a sticker and pictures; the owner's line that stands without the
-//! service; and a procedure document as one room may use it. Each answers the lines it prints.
-//!
-//! A line of its own is said in a run: its row, its log and its process are opened, written and closed through
-//! the launcher seam the binary fills, since the run's rows and its log are the agency's and the receiver holds
-//! only the words to be said. With no launcher standing, a line asked to be said is refused.
+//! What the receiver puts into a room for an agent's own round (docs/messages.md, 「What an agent can send
+//! back」): a reaction, a pin, a sticker, pictures and files, none of them carrying words, since the agent's words
+//! go into a room only as its round's message; and a procedure document as one room may use it. Each answers the
+//! lines it prints.
 
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use bmo_chat_client::{
   AlbumItem, ChatSend, ChatSendRequest, ChatSticker, FileBody, FileItem, MissedPictureReason,
 };
 use room_calls::procedures;
-use room_calls::reading::count_text;
-use room_calls::turn::AGENT_VARIABLE as TURN_AGENT;
-use serde_json::{Map, Value};
-use tokio::io::AsyncReadExt;
 
-use receiver_codes::RunTitle;
-use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::files::FILES;
 
-use crate::chat::instructions::{Queued, queue};
 use crate::data_root::DataRoot;
-use crate::receiver::{NotReceived, Receiver, labels, rows, wake};
+use crate::receiver::labels;
 use crate::roads::providers::FileLimit;
+use crate::verbs::VerbError;
 use crate::verbs::photo_repair::fetched;
 use crate::verbs::room_files::{room_file_refusal, room_stores};
-use crate::verbs::sends::{Going, NotSent, Sends};
-use crate::verbs::{CommandAsked, LaunchAsked, RunAsked, VerbError};
-use crate::{Fault, now_ms, one, run};
+use crate::verbs::sends::{NotSent, Sends};
 
-pub const SAY_USAGE: &str = "usage: bmo room say [--chat <chatId>] [--by chat:<chatId>] [--reply] --text <text>  (the words are read from stdin without --text)";
-
-// How long the room has to answer before the promise lapses.
-const RELAY_LIFE_MS: i64 = 30 * 60_000;
-
-// The brake on two rooms answering each other forever: a chat may ask other rooms for at most this many
-// answers in this stretch, and the ask beyond it is dropped while the words themselves still go.
-const MAX_RELAYS_ASKED: i64 = 3;
-const RELAY_CAP_WINDOW_MS: i64 = 10 * 60_000;
-
-// The first line of what was sent is named by at most this many characters.
-const OPENING_WIDTH: usize = 60;
-
-/// The unit one line's run goes by. It carries the clock, so a person reading the journal can tell which line a
-/// unit was, and a draw of its own beside it, so two lines asked in the same moment never share one.
-pub fn say_unit(now_ms: i64) -> String {
-  format!("bmo-say-{now_ms}-{:06x}", rand::random::<u32>() & 0x00ff_ffff)
-}
-
-/// Which chat is told what became of a line, or none: only a chat session, and only about a room that is not
-/// its own.
-pub fn hand_back_to(started_by: Option<&str>, chat_id: i64) -> Option<i64> {
-  let caller: i64 = started_by?.trim().strip_prefix("chat:")?.parse().ok()?;
-
-  (caller != chat_id).then_some(caller)
-}
-
-/// One line asked to be said.
-pub struct SayAsked {
-  pub chat_id: i64,
-  pub text: String,
-  /// Whether an answer is wanted back, which is asked for rather than assumed.
-  pub reply: bool,
-  /// The message this line replies to, by its number in the room.
-  pub reply_to: Option<i64>,
-  /// Who set it off: a chat session names its own chat and is told there what became of the line.
-  pub started_by: Option<String>,
-}
-
-/// Why a line is turned away before anything is opened, or none for one that may go.
-pub fn say_refusal(asked: &SayAsked) -> Option<&'static str> {
-  if asked.text.trim().is_empty() {
-    return Some("there are no words to send.");
-  }
-
-  if asked.reply && hand_back_to(asked.started_by.as_deref(), asked.chat_id).is_none() {
-    return Some(
-      "an answer comes back to the chat that asked for it, so --reply needs --by chat:<your own chatId>, and that chat cannot be the room being written to.",
-    );
-  }
-
-  None
-}
-
-/// The first line of what was sent, short enough to name the message without repeating it.
-pub fn opening(text: &str) -> String {
-  let first = text.trim().split('\n').next().unwrap_or_default();
-
-  if first.chars().count() <= OPENING_WIDTH {
-    first.to_owned()
-  } else {
-    format!("{}…", first.chars().take(OPENING_WIDTH).collect::<String>())
-  }
-}
-
-/// Whether an answer asked for will be brought back.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Relay {
-  Waiting,
-  Dropped,
-}
-
-/// What a session is told when its words reached the other room.
-pub fn sent_instruction(chat_id: i64, text: &str, reply: Option<Relay>) -> String {
-  let mut lines = vec![format!(
-    "The message you sent to chat {chat_id} has gone out and is in that room now. First line: {}",
-    opening(text),
-  )];
-
-  match reply {
-    Some(Relay::Waiting) => lines.extend([
-      "You asked that room for an answer, so its answer will reach you here on its own as another note like this one. Do not go looking for it and do not send again while you wait; if none comes, that room had nothing to say.",
-      "Nothing is needed of you now. Say here that it went only if somebody in this chat is waiting to hear that much, and then in one short line.",
-    ].map(str::to_owned)),
-    Some(Relay::Dropped) => lines.extend([
-      "You asked that room for an answer and this one will not be brought back: you have asked other rooms for several answers in a short stretch, which is the shape of two rooms talking to each other in a circle, so the asking is off for a while. The words themselves went.",
-      "Say plainly in this chat that no answer is coming back from that room this time, if anybody here was waiting on one.",
-    ].map(str::to_owned)),
-    None => lines.push(
-      "Nothing is needed of you for it. Say so here only if somebody in this chat is waiting to hear that it went, and then in one short line.".to_owned(),
-    ),
-  }
-
-  lines.join("\n")
-}
-
-/// What a session is told when its words did not go out.
-pub fn failed_instruction(chat_id: i64, text: &str, reason: &str) -> String {
-  [
-    format!("The message you sent to chat {chat_id} did not go out, and nothing more is coming from it. Reason: {reason}"),
-    format!("First line of what did not go: {}", opening(text)),
-    "Say plainly in this chat that it did not reach that room, and never say it did. Send it again only if somebody asks for it.".to_owned(),
-  ]
-  .join("\n")
-}
-
-/// A line put in a room without holding up whoever asked for it: the road asked, the words put on the disk for
-/// the run alone, the run's row opened and the run launched, answered the moment it is up.
+// A send pinned as a reply to the message `reply_to` names, where it names one.
 fn replying(mut request: ChatSendRequest, reply_to: Option<i64>) -> ChatSendRequest {
   request.reply_to_message_id = reply_to;
   request
 }
 
-pub async fn say(sends: &Sends, asked: &SayAsked, via: Option<&str>) -> Result<Vec<String>, VerbError> {
-  if let Some(refusal) = say_refusal(asked) {
-    return Err(VerbError::Refused(format!("say: {refusal}\n{SAY_USAGE}")));
-  }
-
-  // The road is asked first, and a road that does not answer within the bound refuses the line, so the call
-  // answers at once either way.
-  sends.line_road(asked.chat_id).await?;
-
-  let unit = say_unit(now_ms());
-  let text_path = std::env::temp_dir().join(format!("{unit}.txt"));
-
-  write_private(&text_path, asked.text.trim())
-    .map_err(|why| VerbError::Refused(format!("the words could not be put on the disk: {why}")))?;
-
-  // A line that answers a named message is said by the receiver itself, not through a runner, so the reply target
-  // the tool carries reaches the room with it.
-  if asked.reply_to.is_some() {
-    let run = SayRun {
-      chat_id: asked.chat_id,
-      text_path,
-      run_id: None,
-      unit: unit.clone(),
-      started_by: asked.started_by.clone().unwrap_or_default(),
-      reply: asked.reply,
-      reply_to: asked.reply_to,
-      via: via.map(str::to_owned),
-    };
-
-    said_apart(sends, run);
-
-    return Ok(vec![launched_line(&unit, asked.chat_id)]);
-  }
-
-  let run_id = sends
-    .launch()
-    .start(&RunAsked {
-      agent: "say".to_owned(),
-      chat_id: asked.chat_id,
-      unit: unit.clone(),
-      started_by: asked.started_by.clone(),
-      asked_by: sends.turn_agent().map(str::to_owned),
-    })
-    .await;
-  let room = rows::chat_title(&sends.db(), asked.chat_id)
-    .await
-    .ok()
-    .flatten()
-    .unwrap_or_else(|| asked.chat_id.to_string());
-  let title = serde_json::to_string(&RunTitle::Say { room }).unwrap_or_default();
-  let mut args = vec![
-    "say-runner".to_owned(),
-    asked.chat_id.to_string(),
-    text_path.to_string_lossy().into_owned(),
-    run_id.map(|id| id.to_string()).unwrap_or_default(),
-    unit.clone(),
-    asked.started_by.clone().unwrap_or_default(),
-    if asked.reply { "reply".to_owned() } else { String::new() },
-  ];
-
-  if let Some(via) = via {
-    args.extend(["--via".to_owned(), via.to_owned()]);
-  }
-
-  let command = CommandAsked {
-    name: "say-runner".to_owned(),
-    args,
-    env: sends
-      .turn_agent()
-      .map(|agent| vec![(TURN_AGENT.to_owned(), agent.to_owned())])
-      .unwrap_or_default(),
-  };
-  let launched = sends
-    .launch()
-    .launch(&LaunchAsked {
-      run_id,
-      unit: unit.clone(),
-      title,
-      agent: "say".to_owned(),
-      command,
-      scratch: vec![text_path.clone()],
-      utility: true,
-    })
-    .await;
-
-  // With no launcher standing, the receiver says the line itself, apart from the call, as the runner would.
-  if !launched {
-    let run = SayRun {
-      chat_id: asked.chat_id,
-      text_path,
-      run_id,
-      unit: unit.clone(),
-      started_by: asked.started_by.clone().unwrap_or_default(),
-      reply: asked.reply,
-      reply_to: asked.reply_to,
-      via: via.map(str::to_owned),
-    };
-
-    said_apart(sends, run);
-  }
-
-  Ok(vec![launched_line(&unit, asked.chat_id)])
-}
-
-// A line said by the receiver itself, apart from the call that asked it, as a runner would say it.
-fn said_apart(sends: &Sends, run: SayRun) {
-  let sends = sends.clone();
-
-  tokio::spawn(async move {
-    if let Err(why) = say_run(&sends, &run).await {
-      eprintln!("say: chat {}: {why}", run.chat_id);
-    }
-  });
-}
-
-// What the call answers once a line is handed on: the send's id, the unit its run goes by.
-fn launched_line(unit: &str, chat_id: i64) -> String {
-  format!(
-    "say launched as {unit}; it puts the words in chat {chat_id} by itself and says so when it is done. Do not wait for it and do not send them again."
-  )
-}
-
-// Owner-only from the moment the file exists: these are somebody's own words.
-fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
-  use std::os::unix::fs::OpenOptionsExt as _;
-
-  std::fs::OpenOptions::new()
-    .write(true)
-    .create(true)
-    .truncate(true)
-    .mode(0o600)
-    .open(path)?
-    .write_all(text.as_bytes())
-}
-
-/// One line's run as its launcher handed it over.
-pub struct SayRun {
-  pub chat_id: i64,
-  pub text_path: PathBuf,
-  /// The row the launcher opened, or none where it opened none.
-  pub run_id: Option<i64>,
-  /// The unit the run is, which its log lines are grouped under; empty for no log.
-  pub unit: String,
-  /// The chat that set it off, empty where nobody named one.
-  pub started_by: String,
-  /// Whether that chat asked the room for an answer back.
-  pub reply: bool,
-  /// The message this line replies to, by its number in the room.
-  pub reply_to: Option<i64>,
-  /// The road the caller's turn is read on, which the news of the line goes back on.
-  pub via: Option<String>,
-}
-
-/// The half of a line that says it, in its own run: the words through the room's gates and into the room, the
-/// row closed with how it ended, the room's window opened, and whoever asked told what became of them. A
-/// stop from outside and gates that never finish end it the same way a refusal does.
-pub async fn say_run(sends: &Sends, run_: &SayRun) -> Result<Vec<String>, VerbError> {
-  let text = std::fs::read_to_string(&run_.text_path)
-    .map_err(|why| VerbError::Refused(format!("{}: {why}", run_.text_path.display())))?
-    .trim()
-    .to_owned();
-  let started_by = (!run_.started_by.is_empty()).then_some(run_.started_by.as_str());
-  let teller = hand_back_to(started_by, run_.chat_id);
-  let length = count_text(text.encode_utf16().count());
-  let chat = run_.chat_id.to_string();
-
-  logged(sends, &run_.unit, "start", format!("started: {length} characters to chat {chat}")).await;
-
-  let said = async {
-    let road = sends.road(run_.chat_id, "text").await.map_err(|why| why.to_string())?;
-
-    sends
-      .send(
-        &road,
-        &replying(
-          ChatSendRequest::new(
-            run_.chat_id,
-            // A line's words go out as any message does: no send path fixes their form, so no fold is
-            // asked here.
-            ChatSend::Text {
-              text: text.clone(),
-              silent: false,
-              fold: false,
-            },
-          ),
-          run_.reply_to,
-        ),
-      )
-      .await
-      .map(drop)
-      .map_err(|why| match why {
-        NotSent::Refused(why) | NotSent::Failed(why) => why,
-      })
-  };
-
-  if let Err(reason) = stopped_or(said).await {
-    logged(sends, &run_.unit, "end", format!("failed: {reason}")).await;
-
-    if let Some(teller) = teller {
-      let speaker = match sends.turn_agent() {
-        Some(agent) => agent.to_owned(),
-        None => sends.receiver().default_answerer(),
-      };
-      let note = failed_instruction(run_.chat_id, &text, &reason);
-      let queued = Queued {
-        sort: Some("say"),
-        via: run_.via.as_deref(),
-        ..Queued::default()
-      };
-
-      if let Err(why) = queue(&sends.db(), &speaker, teller, &note, &queued).await {
-        eprintln!("say: chat {teller} could not be told: {}", why.detail);
-      }
-    }
-
-    let _ = std::fs::remove_file(&run_.text_path);
-
-    if let Some(run_id) = run_.run_id {
-      sends.launch().close(run_id, "failed").await;
-    }
-
-    return Err(VerbError::Refused(format!("say run failed: {reason}")));
-  }
-
-  // The room has been spoken to, so for the next few minutes an answer in it needs no name to reach the
-  // session of the agent that said the line, as if it had said it in the room itself: the agent whose turn set
-  // the run going, the room's own voice where none did.
-  let asker = match run_.run_id {
-    Some(id) => sends.launch().asked_by(id).await,
-    None => None,
-  };
-  let speaker = asker.unwrap_or(
-    wake::agents::voice_of(&sends.receiver(), run_.chat_id)
-      .await
-      .unwrap_or(sends.receiver().default_answerer()),
-  );
-  let window = window_seconds(&sends.receiver(), &speaker).await;
-  let until = now_ms() + window * 1000;
-
-  wake::agents::open_window(&sends.db(), run_.chat_id, &speaker, until)
-    .await
-    .map_err(unheard)?;
-  sends.receiver().news().window(run_.chat_id);
-  wake::agents::watch_window(&sends.receiver(), run_.chat_id, &speaker, until);
-
-  let relay = arm_relay(sends, &run_.unit, run_.chat_id, teller, run_.reply, &text).await?;
-
-  if let Some(teller) = teller {
-    let note = sent_instruction(run_.chat_id, &text, relay);
-    let queued = Queued {
-      sort: Some("say"),
-      via: run_.via.as_deref(),
-      ..Queued::default()
-    };
-
-    if let Err(why) = queue(&sends.db(), &speaker, teller, &note, &queued).await {
-      eprintln!("say: chat {teller} could not be told: {}", why.detail);
-    }
-  }
-
-  let _ = std::fs::remove_file(&run_.text_path);
-  logged(sends, &run_.unit, "end", format!("sent {length} characters to chat {chat}")).await;
-
-  if let Some(run_id) = run_.run_id {
-    sends.launch().close(run_id, "done").await;
-  }
-
-  Ok(vec![format!("say: sent {length} characters to chat {}", run_.chat_id)])
-}
-
-// A line of the run's log, written under its unit; nothing is written where the run has no unit.
-async fn logged(sends: &Sends, unit: &str, kind: &str, words: String) {
-  if unit.is_empty() {
-    return;
-  }
-
-  sends.launch().log(unit, kind, &words).await;
-}
-
-// The sending raced against a stop from outside: how it ended, or why it did not. The gates take as long as they
-// take; the run ends when they finish or when it is stopped.
-async fn stopped_or(said: impl std::future::Future<Output = Result<(), String>>) -> Result<(), String> {
-  use tokio::signal::unix::{SignalKind, signal};
-
-  let mut term = signal(SignalKind::terminate()).map_err(|why| why.to_string())?;
-  let mut interrupt = signal(SignalKind::interrupt()).map_err(|why| why.to_string())?;
-
-  tokio::select! {
-    said = said => said,
-    _ = term.recv() => Err("stopped by SIGTERM".to_owned()),
-    _ = interrupt.recv() => Err("stopped by SIGINT".to_owned()),
-  }
-}
-
-// How long an agent's window runs, in seconds, as its registration gives it and the round's own length where
-// it gives none.
-async fn window_seconds(receiver: &Receiver, agent: &str) -> i64 {
-  let listed = receiver.agents().await.ok();
-
-  listed
-    .as_ref()
-    .and_then(|listed| {
-      listed
-        .agents
-        .iter()
-        .find(|one| one.name == agent)
-        .and_then(|one| one.row.get("windowSeconds").and_then(|held| held.as_i64()))
-    })
-    .unwrap_or(CHAT_ROUND.conversation.window_seconds)
-}
-
-// The promise of an answer, left where the room's own next answer will find it, armed only once the words
-// are in the room.
-async fn arm_relay(
-  sends: &Sends,
-  unit: &str,
-  chat_id: i64,
-  teller: Option<i64>,
-  reply: bool,
-  text: &str,
-) -> Result<Option<Relay>, VerbError> {
-  let Some(teller) = teller.filter(|_| reply) else { return Ok(None) };
-  let since = now_ms() - RELAY_CAP_WINDOW_MS;
-  let asked: i64 = one(
-    &sends.db(),
-    r#"SELECT COUNT(*) AS "n" FROM "say_relays" WHERE "reply_to" = $1 AND "created_at" >= $2"#,
-    vec![teller.into(), since.into()],
-  )
-  .await?
-  .map(|row| row.try_get("", "n"))
-  .transpose()
-  .map_err(Fault::from)?
-  .unwrap_or(0);
-
-  if asked >= MAX_RELAYS_ASKED {
-    logged(
-      sends,
-      unit,
-      "note",
-      format!(
-        "chat {teller} has asked {asked} rooms for an answer in this stretch, so this one is dropped"
-      ),
-    )
-    .await;
-
-    return Ok(Some(Relay::Dropped));
-  }
-
-  run(
-    &sends.db(),
-    r#"INSERT INTO "say_relays" ("chat_id", "reply_to", "opening", "created_at", "expires_at") VALUES ($1, $2, $3, $4, $5)"#,
-    vec![
-      chat_id.into(),
-      teller.into(),
-      opening(text).into(),
-      now_ms().into(),
-      (now_ms() + RELAY_LIFE_MS).into(),
-    ],
-  )
-  .await.map_err(store)?;
-
-  Ok(Some(Relay::Waiting))
-}
-
 fn refused(why: NotSent) -> VerbError {
   VerbError::Refused(why.to_string())
-}
-
-fn unheard(why: NotReceived) -> VerbError {
-  VerbError::Refused(why.to_string())
-}
-
-fn store(why: Fault) -> VerbError {
-  VerbError::Store(why)
 }
 
 /// A message pinned in a room, quietly, or unpinned.
@@ -644,13 +153,12 @@ enum PictureSource {
 /// road is asked before anything is uploaded, a label is drawn in where one is named, and what did not go is
 /// said by address with why. A web address goes as it stands; a file under the data root goes from the disk, read
 /// only as the send carries it, since no road reaches this machine's data root. Anything else is refused before
-/// anything goes.
+/// anything goes. No caption goes with them: what the agent says of them is its round's message.
 pub async fn photo(
   sends: &Sends,
   data_root: &DataRoot,
   chat_id: i64,
   pictures: &[Picture],
-  caption: Option<&str>,
   reply_to: Option<i64>,
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
@@ -718,7 +226,7 @@ pub async fn photo(
           chat_id,
           ChatSend::Album {
             items,
-            caption: caption.map(str::to_owned),
+            caption: None,
           },
         ),
         reply_to,
@@ -830,14 +338,13 @@ async fn taken_file(
   })
 }
 
-/// One file or several: one goes as a document, several as one album, each from this machine's disk. A caption goes
-/// on an album, and ahead of a document as a line of its own, since the document kind carries none.
+/// One file or several: one goes as a document, several as one album, each from this machine's disk, with no
+/// caption, since what the agent says of them is its round's message.
 pub async fn file(
   sends: &Sends,
   data_root: &DataRoot,
   chat_id: i64,
   files: &[SendFile],
-  caption: Option<&str>,
   reply_to: Option<i64>,
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
@@ -856,33 +363,11 @@ pub async fn file(
     return Err(VerbError::Refused("a file to send and the room to send it to".to_owned()));
   }
 
-  let caption = caption.map(str::trim).filter(|caption| !caption.is_empty());
   let mut lines: Vec<String> = vec![];
 
   if held.len() == 1 {
     let file = held.remove(0);
     let road = sends.road(chat_id, "document").await?;
-
-    if let Some(caption) = caption {
-      sends
-        .send(
-          &road,
-          &replying(
-            ChatSendRequest::new(
-              chat_id,
-              ChatSend::Text {
-                text: caption.to_owned(),
-                silent: false,
-                fold: false,
-              },
-            ),
-            reply_to,
-          ),
-        )
-        .await
-        .map_err(refused)?;
-      lines.push("said the caption".to_owned());
-    }
 
     let sent = sends
       .send(
@@ -900,16 +385,8 @@ pub async fn file(
       )
       .await;
 
-    match sent {
-      Ok(_) => lines.push(format!("sent {} to chat {chat_id}", file.name)),
-      Err(why) if lines.is_empty() => return Err(refused(why)),
-      Err(why) => {
-        return Err(VerbError::Partly {
-          lines,
-          refusal: why.to_string(),
-        });
-      }
-    }
+    sent.map_err(refused)?;
+    lines.push(format!("sent {} to chat {chat_id}", file.name));
   } else {
     let road = sends.road(chat_id, "album").await?;
     let count = held.len();
@@ -931,7 +408,7 @@ pub async fn file(
             chat_id,
             ChatSend::Album {
               items,
-              caption: caption.map(str::to_owned),
+              caption: None,
             },
           ),
           reply_to,
@@ -954,123 +431,6 @@ pub async fn file(
   }
 
   Ok(lines)
-}
-
-/// A voice note asked of a room: the file's path, its caption, what it says and what was read out.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct VoiceNote<'a> {
-  pub path: &'a str,
-  pub caption: Option<&'a str>,
-  pub said: Option<&'a str>,
-  pub transcript: Option<&'a str>,
-}
-
-/// A voice note: an OGG/Opus file on this machine's disk, with its caption and what it says, sent as a voice
-/// message the room can play; only its first bytes are read here, to tell it is OGG.
-pub async fn voice(
-  sends: &Sends,
-  data_root: &DataRoot,
-  chat_id: i64,
-  note: VoiceNote<'_>,
-  reply_to: Option<i64>,
-  job: bool,
-) -> Result<Vec<String>, VerbError> {
-  let path = note.path.trim();
-  let limit = sends.file_limit(chat_id).await?;
-  let file = taken_file(data_root, chat_id, path, None, job, limit.as_ref()).await?;
-
-  if !ogg(&file.path).await {
-    return Err(VerbError::Refused(format!(
-      "{path} is not an OGG/Opus file, so it is not sent as a voice note"
-    )));
-  }
-
-  let caption = note.caption.map(str::trim).filter(|caption| !caption.is_empty()).map(str::to_owned);
-  let transcript = note
-    .transcript
-    .map(str::trim)
-    .filter(|transcript| !transcript.is_empty())
-    .map(str::to_owned);
-  let said = note
-    .said
-    .map(str::trim)
-    .filter(|said| !said.is_empty())
-    .map(str::to_owned)
-    .or_else(|| transcript.clone())
-    .or_else(|| caption.clone())
-    .or_else(|| Path::new(&file.name).file_stem().map(|stem| stem.to_string_lossy().into_owned()))
-    .unwrap_or_else(|| "voice".to_owned());
-  let road = sends.road(chat_id, "voice").await?;
-
-  sends
-    .send(
-      &road,
-      &replying(
-        ChatSendRequest::new(
-          chat_id,
-          ChatSend::Voice {
-            audio: file.body(),
-            said,
-            caption,
-            transcript,
-          },
-        ),
-        reply_to,
-      ),
-    )
-    .await
-    .map_err(refused)?;
-
-  Ok(vec![format!("sent the voice note {} to chat {chat_id}", file.name)])
-}
-
-// Whether the file at `path` opens as an OGG stream does, its first four bytes alone read.
-async fn ogg(path: &Path) -> bool {
-  let mut start = [0_u8; 4];
-  let Ok(mut file) = tokio::fs::File::open(path).await else {
-    return false;
-  };
-
-  file.read_exact(&mut start).await.is_ok() && &start == b"OggS"
-}
-
-/// A fixed line: its code and fields rendered by the web unit's language packs, said into the room without the
-/// output gate or any session, since the line is already read.
-pub async fn fixed_line(
-  sends: &Sends,
-  chat_id: i64,
-  code: &str,
-  fields: &Map<String, Value>,
-) -> Result<Vec<String>, VerbError> {
-  let code = code.trim();
-
-  if code.is_empty() {
-    return Err(VerbError::Refused("a fixed line's code to send".to_owned()));
-  }
-
-  let road = sends.road(chat_id, "text").await?;
-  let Some(text) = sends.speech().rendered_code(code, fields.clone()).await else {
-    return Err(VerbError::Refused(format!(
-      "no sentence in the rooms' language can be made of the fixed line {code}, so nothing was said"
-    )));
-  };
-
-  sends
-    .send(
-      &road,
-      &ChatSendRequest::new(
-        chat_id,
-        ChatSend::Text {
-          text,
-          silent: false,
-          fold: false,
-        },
-      ),
-    )
-    .await
-    .map_err(refused)?;
-
-  Ok(vec![format!("said the fixed line {code} in chat {chat_id}")])
 }
 
 // One picture resolved: a web address as it stands, or a file under the data root by where it stands. An address
@@ -1196,61 +556,6 @@ fn labelled_name(source: &PictureSource) -> String {
     .unwrap_or_else(|| "picture".to_owned());
 
   format!("{stem}.jpg")
-}
-
-/// One line to the owner, word for word and at once, where a line nobody asked for goes in his chat — its
-/// record, kept by the receiver's own lines, whose keeping tells the screens that ring his devices — and on
-/// the chat's own road where that could not take it: no gate and no session in between, for a sender that
-/// cannot count on the receiver being up.
-pub async fn tell_owner(sends: &Sends, text: &str) -> Result<Vec<String>, VerbError> {
-  let text = text.trim();
-
-  if text.is_empty() {
-    return Err(VerbError::Refused(
-      "usage: bmo owner tell --text '<words>'  (or the words on stdin)".to_owned(),
-    ));
-  }
-
-  let send = ChatSend::Text {
-    text: text.to_owned(),
-    silent: false,
-    fold: false,
-  };
-  // A line to the owner goes into his private room.
-  let owner = sends.receiver().owner_room();
-  let unasked = sends.own_road(owner, "text").await;
-  let unasked_key = unasked.as_ref().map(|going| going.road.key().to_owned()).ok();
-  let Err(why) = on(sends, owner, &send, unasked).await else {
-    return Ok(vec!["tell-owner: sent".to_owned()]);
-  };
-  let own = sends.room_road(owner, "text").await;
-
-  // A road that already refused it is not asked again: a line it may have carried after all goes once.
-  if own.as_ref().map(|going| going.road.key().to_owned()).ok() == unasked_key {
-    return Err(VerbError::Refused(format!("tell-owner: the line was not sent: {why}")));
-  }
-
-  match on(sends, owner, &send, own).await {
-    Ok(()) => Ok(vec![format!("tell-owner: sent on the chat's own road, its record refused: {why}")]),
-    Err(again) => Err(VerbError::Refused(format!("tell-owner: the line was not sent: {why}; {again}"))),
-  }
-}
-
-// One line carried on a road, or why it did not.
-async fn on(
-  sends: &Sends,
-  owner: i64,
-  send: &ChatSend,
-  road: Result<Going, VerbError>,
-) -> Result<(), String> {
-  match road {
-    Ok(road) => sends
-      .send(&road, &ChatSendRequest::new(owner, send.clone()))
-      .await
-      .map(drop)
-      .map_err(|why| why.to_string()),
-    Err(why) => Err(why.to_string()),
-  }
 }
 
 /// A procedure document as the room it is read in may use it: the sections and lines for a verb that room's

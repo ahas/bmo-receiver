@@ -16,8 +16,6 @@ pub enum RunTitle {
   Fold,
   /// A voice briefing for a room.
   VoiceBriefing { room: String },
-  /// A line said into a room by a run of its own.
-  Say { room: String },
 }
 
 /// Why a room's session was replaced rather than resumed.

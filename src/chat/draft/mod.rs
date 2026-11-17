@@ -1150,7 +1150,7 @@ impl Drafter {
     let mut previous: Option<String> = None;
     let mut reviews = 0;
 
-    while receiver.review_gate() && plan.runs("review") && reviews < 8 {
+    while receiver.review_gate() && reviews < 8 {
       let started = now_ms();
       let answered = run.ask(Kind::Review, "review", &run.review_prompt(&message.text)).await?;
       let Some(answer) = answered else {

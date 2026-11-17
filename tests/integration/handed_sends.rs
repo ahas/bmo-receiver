@@ -1,7 +1,8 @@
-//! Words handed to the room's supervisor (docs/messages.md, 「Words handed to the room's supervisor」): a send asked
-//! in its agent's own round goes out, and every other — a command at a shell outside any turn, an agent outside
-//! its round, a job, a spoken talk, a consult line — is queued as an order for the room's supervisor, and
-//! nothing reaches the room on that call.
+//! Words handed to the room's supervisor (docs/messages.md, 「Words handed to the room's supervisor」): words go
+//! into a room only as a round's message, so a send holding words asked in its agent's own round into that round's
+//! room is refused, one asked into another room is handed to that room's supervisor, and only a send holding none
+//! goes out in the round; every other — a command at a shell outside any turn, an agent outside its round, a job,
+//! a spoken talk — is queued as an order for the room's supervisor, and nothing reaches the room on that call.
 
 use std::sync::Arc;
 
@@ -21,6 +22,7 @@ use crate::integration::common::alone::alone;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, registration, standing,
 };
+use bmo_receiver::chat::relays;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::routes::routes;
 use bmo_receiver::verbs::asked_sends::shell_asker;
@@ -29,13 +31,14 @@ use room_calls::sends::{Act, Asked, SayInput};
 
 const TOKEN: &str = "the-token";
 const ROOM: i64 = -100;
+const OTHER: i64 = -200;
 
 // A receiver over a scratch database, its rounds standing as working everywhere, reaching one road that holds
 // the room, with the default answerer registered.
 async fn stood() -> (Scratch, Router, Arc<StandInChat>, Standing, TempDir) {
   let scratch = Scratch::new().await;
   let data = tempfile::tempdir().unwrap();
-  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER));
+  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM, OTHER]).owners(OWNER));
   let standing = standing(scratch.db(), DataRoot::new(data.path()), [road.clone()].to_vec());
   let mut agent = registration(AGENT, SENDER, [ADDRESS].to_vec(), None);
 
@@ -149,28 +152,115 @@ async fn a_say_a_command_asks_outside_any_turn_becomes_an_order_for_the_rooms_su
 }
 
 #[tokio::test]
-async fn a_send_in_the_agents_own_round_goes_out_and_the_same_send_outside_it_is_handed() {
-  let (scratch, port, road, standing, _data) = stood().await;
+async fn words_asked_in_the_agents_own_round_into_its_room_are_refused_and_nothing_goes_out() {
+  let (scratch, port, road, _standing, _data) = stood().await;
   let turn = json!({ "room": ROOM, "agentName": AGENT, "by": format!("chat:{ROOM}") });
 
-  let (status, answer) = asked(&port, "/sends", say(turn.clone(), "Done.")).await;
+  let (status, answer) = asked(&port, "/sends", say(turn, "Checking the card now.")).await;
 
   assert_eq!(status, StatusCode::OK, "{answer:?}");
-  assert_eq!(answer["handed"], Value::Null, "the round's own send is carried: {answer:?}");
+  assert_eq!(answer["handed"], Value::Null, "{answer:?}");
+  assert!(
+    answer["refusal"].as_str().is_some_and(|why| why.contains("go into the round's answer")),
+    "a line in the round's own room is the round's answer: {answer:?}"
+  );
+  assert!(road.sent().is_empty(), "no line went out without the draft process");
   assert!(orders(&scratch).await.is_empty(), "nothing was handed");
+}
 
-  standing.taken.standing_idle();
+#[tokio::test]
+async fn words_asked_in_a_round_into_another_room_are_handed_to_that_rooms_supervisor_and_nothing_goes_out()
+{
+  let (scratch, port, road, _standing, _data) = stood().await;
+  let turn = json!({ "room": OTHER, "agentName": AGENT, "by": format!("chat:{ROOM}") });
 
-  let (status, answer) = asked(&port, "/sends", say(turn, "Done again.")).await;
+  let (status, answer) = asked(&port, "/sends", say(turn, "The plan for Saturday stands.")).await;
 
   assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(answer["refusal"], Value::Null, "{answer:?}");
   assert!(answer["handed"].as_i64().is_some(), "{answer:?}");
+  assert!(road.sent().is_empty(), "the other room's round writes and reviews the words");
 
   let orders = orders(&scratch).await;
 
   assert_eq!(orders.len(), 1, "{orders:?}");
-  assert!(orders[0].3.contains(&format!("{AGENT}, from outside a round of its own")), "{orders:?}");
-  assert!(road.sent().iter().all(|sent| sent.room_id == ROOM), "a carried send stays in its room");
+  assert_eq!((orders[0].1, orders[0].2.as_str()), (OTHER, "handed"), "{orders:?}");
+  assert!(orders[0].3.contains("a line: The plan for Saturday stands."), "{orders:?}");
+}
+
+#[tokio::test]
+async fn a_caption_in_the_agents_own_round_is_refused_and_what_holds_no_words_goes_out() {
+  let (scratch, port, road, _standing, _data) = stood().await;
+  let turn = json!({ "room": ROOM, "agentName": AGENT, "by": format!("chat:{ROOM}") });
+  let photo = json!({
+    "asker": turn,
+    "tool": "photo",
+    "input": { "pictures": [{ "url": "https://example.com/a.png" }], "caption": "Here is the chart." },
+  });
+
+  let (status, answer) = asked(&port, "/sends", photo).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert!(
+    answer["refusal"].as_str().is_some_and(|why| why.contains("go into the round's answer")),
+    "{answer:?}"
+  );
+  assert!(road.sent().is_empty(), "the captioned picture did not go");
+
+  let sticker = json!({ "asker": turn, "tool": "sticker", "input": { "emoji": "👍" } });
+  let (status, answer) = asked(&port, "/sends", sticker).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+  assert_eq!(answer["handed"], Value::Null, "{answer:?}");
+  assert!(orders(&scratch).await.is_empty(), "nothing was handed");
+  assert!(
+    road.sent().iter().all(|sent| sent.room_id == ROOM),
+    "a send of no words is carried in its round"
+  );
+}
+
+#[tokio::test]
+async fn a_line_handed_with_an_answer_wanted_relays_nothing_until_its_round_sends() {
+  let (scratch, port, _road, _standing, _data) = stood().await;
+  let turn = json!({ "room": OTHER, "agentName": AGENT, "by": format!("chat:{ROOM}") });
+  let body =
+    json!({ "asker": turn, "tool": "say", "input": { "text": "Is Saturday still on?", "reply": true } });
+
+  let (status, answer) = asked(&port, "/sends", body).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer:?}");
+
+  let order = answer["handed"].as_i64().unwrap();
+  let waiting = |scratch: &Scratch| {
+    let db = scratch.db().clone();
+
+    async move {
+      db.query_all(sea_orm::Statement::from_string(
+        sea_orm::DbBackend::Postgres,
+        format!(r#"SELECT "reply_to", "order_id" FROM "say_relays" WHERE "chat_id" = {OTHER}"#),
+      ))
+      .await
+      .unwrap()
+      .iter()
+      .map(|row| {
+        (
+          row.try_get::<i64>("", "reply_to").unwrap(),
+          row.try_get::<Option<i64>>("", "order_id").unwrap(),
+        )
+      })
+      .collect::<Vec<_>>()
+    }
+  };
+
+  assert_eq!(waiting(&scratch).await, [(ROOM, Some(order))].to_vec(), "the relay waits on the order");
+
+  relays::arm(scratch.db(), OTHER, &[order]).await.unwrap();
+
+  assert_eq!(
+    waiting(&scratch).await,
+    [(ROOM, None)].to_vec(),
+    "the round that sent it armed the relay"
+  );
 }
 
 #[tokio::test]
@@ -193,7 +283,7 @@ async fn a_jobs_send_is_handed_even_while_the_round_works() {
 }
 
 #[tokio::test]
-async fn a_spoken_talk_is_handed_as_its_words_and_in_its_own_round_is_left_to_the_command() {
+async fn a_spoken_talk_is_handed_as_its_words_and_in_its_own_round_is_refused() {
   let (scratch, port, road, standing, _data) = stood().await;
   let speak = |asker: Value| {
     json!({
@@ -207,10 +297,10 @@ async fn a_spoken_talk_is_handed_as_its_words_and_in_its_own_round_is_left_to_th
   let (status, answer) = asked(&port, "/sends", speak(turn)).await;
 
   assert_eq!(status, StatusCode::OK, "{answer:?}");
-  assert_eq!(
-    answer,
-    json!({ "lines": [], "own": true }),
-    "the command makes the note in its own round"
+  assert_eq!(answer["own"], Value::Null, "{answer:?}");
+  assert!(
+    answer["refusal"].as_str().is_some_and(|why| why.contains("go into the round's answer")),
+    "a voice note in the round's own room is words for its answer: {answer:?}"
   );
 
   standing.taken.standing_idle();

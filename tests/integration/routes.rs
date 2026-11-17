@@ -265,15 +265,20 @@ async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
   assert_eq!(&body["stagesOff"], &json!([]), "a row that names no stage switches none off: {body}");
 
   // The stages after the message a row switches off are kept in the table's order, each once; a name that is no
-  // stage refuses the row.
+  // stage refuses the row, and so does the review, which every message passes.
   let (status, body) = put(
     &front,
     row,
-    json!({ "rounds": ["information", "final"], "stagesOff": ["format", "review", "review"] }),
+    json!({ "rounds": ["information", "final"], "stagesOff": ["format", "wake", "wake"] }),
   )
   .await;
 
-  assert_eq!((status, &body["stagesOff"]), (StatusCode::OK, &json!(["review", "format"])), "{body}");
+  assert_eq!((status, &body["stagesOff"]), (StatusCode::OK, &json!(["wake", "format"])), "{body}");
+
+  let (status, body) =
+    put(&front, row, json!({ "rounds": ["information", "final"], "stagesOff": ["review"] })).await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
 
   let (status, body) =
     put(&front, row, json!({ "rounds": ["information", "final"], "stagesOff": ["everything"] })).await;

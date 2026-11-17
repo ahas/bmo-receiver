@@ -1,6 +1,7 @@
 //! The sends the agents make into rooms, the entries of the `send` tool (docs/chat-mcp.md, 「Its entries」;
-//! 「How a call runs」): a line said in a room, a picture or an album, a file or an album
-//! of files, a voice note, a reaction, a pin, a sticker, a fair draw and a fixed line. Every entry asks the
+//! 「How a call runs」): words handed to another room, a picture or an album, a file or an album of files, a voice
+//! note, a reaction, a pin, a sticker and a fair draw. No entry puts words in a room: the receiver refuses them in
+//! the round's own room and hands them to the round of any other. Every entry asks the
 //! running receiver for the send, as the `bmo` commands doing the same sends ask it. A call reads its turn
 //! afresh from the session's record and refuses one its agent's reset overtook before it asks anything, and
 //! reaches each unit where the record's data root names it (docs/chat-mcp.md, 「Where each unit is found」).
@@ -10,8 +11,8 @@ use serde_json::{Value, json};
 use room_calls::{
   bot::Service,
   sends::{
-    Act, Asker, FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput,
-    StickerInput, Unsent, VoiceInput, ask,
+    Act, Asker, FileInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
+    Unsent, VoiceInput, ask,
   },
   turn::{NO_ROOM, Turn},
 };
@@ -48,28 +49,28 @@ const fn entry(
 pub const ENTRIES: &[Entry] = &[
   entry(
     "say",
-    "Put a line in a room, through the output gates, without waiting for it.",
+    "Hand words to another room, the room chat names: that room's round writes and reviews them as its message. Words for this room go into your answer, never here.",
     "say.json",
     input_schema::<SayInput>,
     None,
   ),
   entry(
     "photo",
-    "Send a picture, or several as one album.",
+    "Send a picture, or several as one album, with no caption: what you say of it goes into your answer.",
     "photo.json",
     input_schema::<PhotoInput>,
     None,
   ),
   entry(
     "file",
-    "Send a file from this machine for the room to save or open, or several as one album, with a caption. A picture the room is to look at goes through photo, never through this entry.",
+    "Send a file from this machine for the room to save or open, or several as one album, with no caption: what you say of it goes into your answer. A picture the room is to look at goes through photo, never through this entry.",
     "file.json",
     input_schema::<FileInput>,
     None,
   ),
   entry(
     "voice",
-    "Send an OGG/Opus voice note from this machine, with its caption.",
+    "Hand an OGG/Opus voice note from this machine to another room, whose round says its words as its message. A voice note for this room is refused: its words go into your answer.",
     "voice.json",
     input_schema::<VoiceInput>,
     None,
@@ -94,13 +95,6 @@ pub const ENTRIES: &[Entry] = &[
     "Draw fairly for anything decided by chance — dice, a number, winners, an order, a tie-break — post the result with its seed in the room, and answer with the result.",
     "random_draw.json",
     input_schema::<RandomDrawInput>,
-    None,
-  ),
-  entry(
-    "fixed_line",
-    "Say a fixed line in a room by its code and fields, rendered by the web unit's language packs without the output gates or any session.",
-    "fixed_line.json",
-    input_schema::<FixedLineInput>,
     None,
   ),
 ];
@@ -179,11 +173,6 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
         let input: RandomDrawInput = read(name, arguments)?;
 
         send(&receiver, &turn, input.chat, input.via.clone(), Act::RandomDraw(input)).await
-      }
-      "fixed_line" => {
-        let input: FixedLineInput = read(name, arguments)?;
-
-        send(&receiver, &turn, input.chat, input.via.clone(), Act::FixedLine(input)).await
       }
       other => Answer::failure(format!("this executable holds no entry {other}")),
     })

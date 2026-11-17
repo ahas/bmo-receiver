@@ -136,31 +136,28 @@ and when a room sees it typing.
 
 ## What an agent can send back
 
-- **Each send is an entry of the send tool** (`docs/chat-mcp.md`), and some are a noun of the receiver's command
-  line (docs/boundary-api.md, 「The unit command」), which sends only inside the agent's own round and hands its
-  words over everywhere else (「Words handed to the room's supervisor」):
-  - text (`say`; `bmo room say`, whose words are said by a run of their own);
-  - a photo, or several as one album (`photo`; `bmo photo`);
-  - a file from this machine, or several as one album (`file`);
-  - a voice note, OGG/Opus with its caption (`voice`);
-  - a fixed line, a code and its fields the web unit renders, said without the output gate or any session
-    (`fixed_line`);
+- **Words go out only as a round's message.** The agent's words reach a room as the answer of its round there,
+  written and reviewed by the draft process (`docs/drafting.md`), with what the answer's marks ask of it:
   - a reply pinned to a message (`<<REPLY>>`);
-  - an answer folded where its road's dialect folds (`<<FOLD>>`, `docs/wake.md` 「Folds」);
+  - an answer folded where its road's dialect folds (`<<FOLD>>`, `docs/wake.md` 「Folds」).
+- **Each send is an entry of the send tool** (`docs/chat-mcp.md`), and some are a noun of the receiver's command
+  line (docs/boundary-api.md, 「The unit command」). A send carries no words of its own. In the agent's own round
+  it carries what holds none, into any room the agent answers, and anything asked from outside that round is
+  handed to the room's supervisor (「Words handed to the room's supervisor」):
+  - a photo, or several as one album, with no caption (`photo`; `bmo photo`);
+  - a file from this machine, or several as one album, with no caption (`file`);
   - an emoji reaction (`react`; `bmo react`, allowed in restricted runs too);
   - one of its own stickers (`sticker`; `bmo sticker`, from the sticker set the deployment names, picked by
     feeling emoji, allowed in restricted runs too, archived like a received sticker);
-  - a pinned message (`pin`; `bmo pin`, the owner's alone by the session's judgement).
+  - a pinned message (`pin`; `bmo pin`, the owner's alone by the session's judgement);
+  - a fair draw and its room line (`random_draw`; `bmo draw draw`, `docs/random-draw.md`).
+- **A line, a spoken talk, a voice note and a caption are words.** `say` (`bmo room say`), a spoken `talk`
+  (`speak`), `voice`, and a `photo` or `file` naming a `caption` are each refused in the round's own room and
+  handed everywhere else (「Words handed to the room's supervisor」).
 - **A send asks the room's road first:** the road its caller's turn is read on (`via`) where that road answers in
   the room, the room's own otherwise; the agent whose turn it is, which sends only into a room it answers and only
   where its role gives sending; and whether the road performs the verb at all, as its chat service's capabilities
   declare. A refusal is the road's one sentence, and nothing is sent.
-- **A line asked to be said answers its call at once.** Its road is asked first, and given the policy's bound
-  (`roads.toml`, `[say]`, twenty seconds) to say it holds the room and takes a line; a road that has not answered by
-  then has the call refused `road-unanswered` (`docs/codes.md`), with nothing sent. Otherwise the call answers with
-  the line's id, the unit its run goes by, and the words are said apart from it, a line answering a named message
-  among them, so no call waits on a road taking its time. What became of the line is told afterwards to the chat
-  that set it off, where that is another room.
 - **Every send goes through bmo-chat-client** to the chat service the room's road names (`POST /send`,
   `POST /media`), in the words' form the dialect of that chat service reads (`POST /dialect/read`).
 - **A send that puts a message in the room is kept in the room's record as the words of the agent it went out
@@ -215,14 +212,25 @@ and when a room sees it typing.
 
 ## Words handed to the room's supervisor
 
-Every message a room receives comes from that room's supervisor, the one that answers it. Anything else
-that wants something said there hands the words to that supervisor, and the supervisor says it in its own turn.
+Every message a room receives comes from that room's supervisor, the one that answers it, and every word of it is
+the message of a round of that room, written and reviewed by the draft process (`docs/drafting.md`). No send puts
+words in a room: anything that wants something said there hands the words to that room's supervisor, whose round
+there writes them as its message, the review included.
 
-- **A send is carried only in its supervisor's own round.** `POST /sends` carries an act as asked where its asker
-  names an agent, no job asks it, and that agent has a round working at that moment in the room that set the send
-  off (the asker's `by`, `chat:<room>`): the round's own turn and every later question of its draft process, in
-  which the send tool's entries and the shell verbs of that turn run. The room it sends into may be another room
-  the agent answers. A round's own answer is the other way a supervisor speaks, and asks nothing of this.
+- **A send is carried only in its supervisor's own round, and only where it holds no words.** `POST /sends`
+  carries an act as asked where its asker names an agent, no job asks it, that agent has a round working at that
+  moment in the room that set the send off (the asker's `by`, `chat:<room>`), and the act holds no words: a
+  picture or a file with no caption, a reaction, a pin, a sticker or a fair draw. Those are carried in the round's
+  own turn and every later question of its draft process, where the send tool's entries and the shell verbs of
+  that turn run, into that room or another room the agent answers.
+- **Words asked in the round's own room are refused.** A line, a spoken talk, a voice note, or a picture or a file
+  with a caption, asked in the agent's own round into the room that round answers, is refused `words-in-answer`
+  (`docs/codes.md`, 「SendRefusal」), its sentence saying that the words go into the round's answer, which the draft
+  process reviews; nothing reaches the room. A progress line said while work runs is the same line, and is refused
+  the same way.
+- **Words asked into another room are handed there.** The same acts asked in the agent's own round into another
+  room are handed to that room's supervisor as below, so a supervisor that wants words in another room asks for a
+  round of that room carrying them, which writes and reviews them there.
 - **A voice briefing turn is no round to send from.** The turn that writes a line's summary or full reading
   answers with the script alone, and a send its agent asks into that room meanwhile is refused `briefing-turn`
   (`docs/voiced-notices.md`, 「The summary of a notice turn」).
@@ -230,26 +238,26 @@ that wants something said there hands the words to that supervisor, and the supe
   run, a worker, a runner, a unit's own process, a script or a turn's tool call that failed over to the shell asks
   the same route, and the receiver queues a quiet instruction marked as words handed to the supervisor and
   carrying what was asked as data: who handed it, the command or unit it came through where the asker names one
-  (`from`), the room, the act and its arguments (the words, the pictures, the files, the voice note, the
-  reaction, the pin, the sticker, the draw or the fixed line) and the road it named. The rule the marker stands
-  for — that every message a room receives comes from its supervisor, that it says the words there in its own
-  turn or skips in the round's form, and that an act handed as an entry of the send tool goes out through that same
-  entry — stands in the room's block. The asker is answered with one line naming the agent
-  it was handed to, and the instruction's number as `handed`.
-- **Who it is handed to:** the asker's own agent where that agent answers the room (a supervisor's shell outside
-  its round, a process of its own past its turn), and the room's voice otherwise (`docs/voiced-notices.md`,
-  「The rule」).
-- **The supervisor decides in its own turn.** The instruction is an order of the sort `handed`, queued for the room
-  the words are for and on the road the asker named; it opens a turn there and never rides. The supervisor says
-  it in its own words and voice, as its rule for handed lines says (the agency's chat manual): it relays it as it
-  stands, rephrases it, folds it, pins it as a reply, speaks it as a voice note, or judges it not worth saying and
-  skips in the round's form. Whatever it sends is its own send, through every gate its turn goes through. An act
-  handed as an entry of the send tool goes out through that same entry where the supervisor sends it: a picture as a
-  picture, a file as a file.
-- **A voice note is handed as its words.** A spoken talk asks the act `speak` (the voice named, the written words,
-  and the spoken words where given) before anything is synthesised. Outside the asker's own round it is handed
-  like any other act, so the supervisor speaks it in its own voice; in the asker's own round the receiver answers
-  `own` and sends nothing, and the command makes the note and sends it as `voice`.
+  (`from`), the room, the act and its arguments (the words, the pictures, the files, the voice note, the spoken
+  talk, the reaction, the pin, the sticker or the draw) and the road it named. The rule the marker stands for
+  stands in the room's block. The asker is answered with one line naming the agent it was handed to, and the
+  instruction's number as `handed`.
+- **Who it is handed to:** the asker's own agent where that agent answers the room (a supervisor's round in
+  another room, its shell outside its round, a process of its own past its turn), and the room's voice otherwise
+  (`docs/voiced-notices.md`, 「The rule」).
+- **The supervisor says it as its round's message.** The instruction is an order of the sort `handed`, queued for
+  the room the words are for and on the road the asker named; it opens a turn there and never rides. The
+  supervisor writes the handed words into its round's answer, in its own words and voice, as its rule for handed
+  lines says (the agency's chat manual): it relays them as they stand, rephrases them, folds them, pins them as a
+  reply, or judges them not worth saying and skips in the round's form. The answer is the round's message and
+  passes every question, the review and every check its round runs. A spoken talk and a voice note handed are said
+  as words in that message. A picture or a file handed goes out through that same entry with no caption, and the
+  caption's words are written into the message.
+- **An answer wanted back is armed when the line goes out.** A line asked with `reply` from a round of another
+  room (the asker's `by`) names that room as the one waiting. Once the round carrying the order sends its message,
+  the room it went to is armed to relay its next answer to the waiting room as a quiet instruction (sort `relay`,
+  `docs/bmo-window.md`, 「Quiet instruction」); a round that sends nothing arms nothing, and a waiting room that has
+  already asked the most rooms one room may ask within the stretch arms no more.
 - **A person's own words are not handed:** what the owner puts in a room from the console, forwards there or does
   to a message is his own (`docs/receiver.md`, 「The owner's words」), and a line the receiver says as the service
   is the system's own (`docs/voiced-notices.md`, 「System notices」 and 「Lines that stay fixed」).

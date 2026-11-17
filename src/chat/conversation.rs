@@ -2397,6 +2397,12 @@ impl Conversations {
 
       self.hand_filed(chat_id, sent.message_id, &via, room).await;
       self.relay_answer(chat_id, &sent.text).await;
+
+      // A line handed here with an answer wanted back is out now, so the room's next answer goes back to the room
+      // that asked; armed after this answer's own relay, so the line itself is never relayed.
+      if let Err(why) = super::relays::arm(receiver.db(), chat_id, &ids).await {
+        eprintln!("chat {chat_id}: the relays waiting on this round's orders were not armed: {why}");
+      }
     }
 
     // A notice turn of the owner's private chat is heard as well as read (docs/voiced-notices.md, 「The summary of
@@ -3058,14 +3064,16 @@ impl Conversations {
     }));
   }
 
-  // The answer a room asked for of this one, as a quiet instruction to the room that asked.
+  // The answer a room asked for of this one, as a quiet instruction to the room that asked; a relay still waiting on
+  // the order its line rides relays nothing.
   async fn relay_answer(&self, chat_id: i64, answer: &str) {
     let db = self.0.receiver.db();
     let now = now_ms();
     let row = one(
       db,
       r#"SELECT "id", "reply_to", "opening" FROM "say_relays"
-         WHERE "chat_id" = $1 AND "delivered_at" IS NULL AND "expires_at" > $2 ORDER BY "id" ASC LIMIT 1"#,
+         WHERE "chat_id" = $1 AND "delivered_at" IS NULL AND "order_id" IS NULL AND "expires_at" > $2
+         ORDER BY "id" ASC LIMIT 1"#,
       vec![chat_id.into(), now.into()],
     )
     .await

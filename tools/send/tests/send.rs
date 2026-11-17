@@ -16,8 +16,7 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 use room_calls::sends::{
-  FileInput, FixedLineInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
-  VoiceInput,
+  FileInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput, VoiceInput,
 };
 use room_calls::turn::NO_ROOM;
 use send_tool::{ENTRIES, call};
@@ -279,36 +278,6 @@ async fn voice_is_asked_with_its_path_its_caption_and_what_it_says() {
         "said": "today's news",
         "transcript": "the whole of the news",
       },
-    }),
-  );
-}
-
-#[tokio::test]
-async fn a_fixed_line_is_asked_by_its_code_and_fields() {
-  let book = Book::default();
-  let base = stood(book.clone()).await;
-  let data = tempdir().unwrap();
-  write_env(data.path(), base);
-  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
-
-  let answered = call(
-    &session,
-    "fixed_line",
-    json!({ "code": "draw", "fields": { "label": "the word chain", "result": "apple" } }),
-  )
-  .await;
-
-  assert_eq!(schema_of("fixed_line.json"), input_schema::<FixedLineInput>());
-  assert!(!answered.is_error, "{}", answered.plain());
-  let (route, body) = asked_of(&book);
-
-  assert_eq!(route.as_str(), "/sends");
-  assert_eq!(
-    body,
-    json!({
-      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
-      "tool": "fixed_line",
-      "input": { "code": "draw", "fields": { "label": "the word chain", "result": "apple" } },
     }),
   );
 }

@@ -339,10 +339,8 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
   (`policy/fixed-lines.toml`), its fields filled in as words: a list as its members, a draw's result as its values.
   Where the policy holds no sentence for the code in that language, the line is dropped, nothing reaches the room,
   and the journal says which line and why. A code and its fields, or any JSON, never stand in a room.
-- **A session may ask for one through a send.** The send tool's `fixed_line` kind carries a code and its fields,
-  and the receiver renders and says it without the output gate or any session, for a line that must reach
-  the room as itself (`docs/chat-mcp.md`, 「Its entries」). A code that neither the pack nor the policy can make a
-  sentence of is refused, and nothing is said.
+- **A fixed line is the service's own, never an agent's.** No send asks for one: a session's words reach a room
+  only as its round's message, which the draft process reviews (`docs/drafting.md`).
 
 | Line | Why it stays fixed |
 | --- | --- |
@@ -353,4 +351,4 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
 | `account-let-in`, `account-left`, `account-taken-out` (an account let into a room, leaving it, or taken out, each naming the accounts by their keys, `docs/receiver.md`, 「Console rooms and accounts」) | It records who did it, as it was done, for every member to read; no session is woken for it. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
-| Pass-through content (search, browse and say results) | An agent, or whoever set it, already wrote it. |
+| A login's end (「What each path says」) | The agency composed it from its policy, and the model whose login ended may be the one that would say it. |

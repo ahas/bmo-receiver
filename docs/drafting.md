@@ -29,9 +29,15 @@ message passes, and the record each turn of it leaves.
   or its tool. A file, a cache or an earlier answer that mirrors that state is not a source. What has no source
   is read now, and what cannot be read now is said as not confirmed, never as fact. The process's fixed rules
   and the `facts` question both say so.
+- **The draft process is the only road the agent's words take into a room.** A round's message is the one text an
+  agent puts in a room, and it goes out only once the process, its review included, has let it through. No send
+  carries words: a line, a spoken talk, a voice note or a caption asked of the send tool or a shell verb in the
+  round's own room is refused, and one asked into another room or from outside a round is handed to that room's
+  supervisor, whose round there writes and reviews it (`docs/messages.md`, 「Words handed to the room's
+  supervisor」). A progress line is no exception: while work runs, nothing is said until the message.
 - **Every tool the round's turn has is open in the draft turn:** reading and writing memories, searching, filing
-  a job, `say`. A question to read more is followed by reading; a question whether a promise was kept is
-  followed by keeping it.
+  a job, and the sends that carry no words. A question to read more is followed by reading; a question whether a
+  promise was kept is followed by keeping it.
 - **Every later turn of the process is a turn of the same session,** opened as `question` (`docs/bmo-window.md`,
   「The openings」), so it holds the round's intent, its reference and its cache: the closing check, an item, the
   review, a revision the review sent back and a check.
@@ -157,9 +163,11 @@ message passes, and the record each turn of it leaves.
     on a short word or a quiet instruction — a launch, a hold, a review's move, a deployment — is held to the
     same questions as anything it does;
   - `off`, the questions of that list that are switched off: each keeps its place in it and is not followed;
-  - `stagesOff`, the stages after the message that are switched off, each by its name: `review`, the items
-    `arrived`, `owed`, `owner_directive`, `record`, `wake` and `rule`, and the check `format`. None is switched
-    off where the row names none, which is the policy's row and every row the console set without it.
+  - `stagesOff`, the stages after the message that are switched off, each by its name: the items `arrived`,
+    `owed`, `owner_directive`, `record`, `wake` and `rule`, and the check `format`. None is switched off where the
+    row names none, which is the policy's row and every row the console set without it. The review is no such
+    stage: every round's message is reviewed whatever its row says, since no unreviewed message goes out, and a
+    row kept from before that still names `review` is read with it ignored.
 - **A question switched off is not part of the process until it is switched on again.** A round follows its
   list without the questions `off` names, in the list's order: the round's line names only the questions
   followed, and the room's block carries no line for one switched off.
@@ -183,12 +191,10 @@ message passes, and the record each turn of it leaves.
 - **A list that holds questions ends in `final` and holds it nowhere else.** An empty list follows nothing: the
   round's turn goes out as the window composed it and its answer is the message, held to the items, the review
   and the checks below that the row does not switch off.
-- **A stage switched off is not asked, and the room's block carries no rule for it.** The review switched off
-  sends the message as the draft turn, the closing check and the items left it, with no review row and no
-  revision; an item switched off is not asked whatever the code's reading of the message says; the `format` check
+- **A stage switched off is not asked, and the room's block carries no rule for it.** An item switched off is not asked whatever the code's reading of the message says; the `format` check
   switched off reads nothing of the final text and withholds nothing. The process's fixed rules in the room's
-  block stand whatever the row switches off. A row that switches off every question and every stage makes the
-  draft turn's answer the message as it stands, with no further turn.
+  block stand whatever the row switches off. A row that switches off every question and every stage still has
+  the draft turn's answer reviewed before it is the message.
 
 ## A supervisor whose brain or reference is off
 
@@ -465,7 +471,7 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
 
 ## The checks on the final text
 
-- **Once the review has passed, or where the row switches the review off, the text is checked before it is
+- **Once the review has passed, the text is checked before it is
   sent,** with no model, each check the row does not switch off:
   - `format`: none of the process's own lines stands in the text: no text of a question the round followed, not
     the round's line, and not the head of the block of words that came meanwhile.
@@ -581,7 +587,8 @@ and `owner_directive`, asked only where no message stands yet, answer with the m
   stands: the provider and the tier are `*` and the agent a supervisor's name, and any other key is refused
   `bad-request`. `off` and `stagesOff` are left out for none. A list naming a question the supervisor's catalogue
   does not hold, a list that holds questions and does not end in `final` or holds it before the end, an `off`
-  that names `final`, or a `stagesOff` naming anything but the stages 「The process table」 names is refused
+  that names `final`, or a `stagesOff` naming anything but the stages 「The process table」 names, `review` among
+  them, is refused
   `bad-request`, and nothing is written; a stage named twice is kept once, in the order the table names them. A row that still carries `light`, `lightChars`,
   `sendFrom`, `turnSeconds`, `ceilingSeconds` or `pastCeiling` loads with them ignored.
 - **`DELETE /draft-processes/{provider}/{tier}/{agentName}`** takes a supervisor's row away, and the supervisor

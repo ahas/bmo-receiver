@@ -61,11 +61,14 @@ pub enum SendRefusal {
      sent into the room from it; answer with the script alone, with no talk, send or voice note"
   )]
   BriefingTurn { agent: String, room: i64 },
-  /// The road a line goes out on did not say within the bound whether it takes the line.
+  /// The agent's own round asked words into the room it answers: a line, a spoken talk, a voice note or a caption,
+  /// whose words go only into the round's answer, which the draft process reviews.
   #[error(
-    "the road of the room {room} did not answer within {seconds} seconds, so nothing was sent; try again later"
+    "this round of {agent} answers the room {room}, so words for it go into the round's answer, which the draft \
+     process reviews, and no send carries them; nothing was sent: write the words into the answer, and send a \
+     picture or a file without a caption"
   )]
-  RoadUnanswered { room: i64, seconds: u64 },
+  WordsInAnswer { agent: String, room: i64 },
 }
 
 impl SendRefusal {
@@ -85,8 +88,8 @@ impl SendRefusal {
       | Self::SpeakerRefused { .. }
       | Self::Unnumbered { .. }
       | Self::ArchivedRoom { .. }
-      | Self::BriefingTurn { .. } => StatusCode::CONFLICT,
-      Self::RoadUnanswered { .. } => StatusCode::GATEWAY_TIMEOUT,
+      | Self::BriefingTurn { .. }
+      | Self::WordsInAnswer { .. } => StatusCode::CONFLICT,
     }
   }
 }
