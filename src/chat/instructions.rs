@@ -45,8 +45,8 @@ pub trait Rooms: Send + Sync {
   /// Whether the agent's conversations stand at all, so a row of its own is not written for nothing.
   fn standing(&self, agent: &str) -> bool;
 
-  /// Whether the room has fallen silent for the agent: the rest closes it and nothing else would answer it.
-  fn silenced(&self, agent: &str, chat_id: i64) -> BoxFuture<'_, bool>;
+  /// Whether the rest closes the agent's own road, so no round of its could take a row in any room until it lifts.
+  fn road_rests(&self, agent: &str) -> BoxFuture<'_, bool>;
 
   /// Whether a round of the agent's stands in any room now, so an expired row it could still take is held for it
   /// rather than let go.
@@ -76,10 +76,10 @@ impl Rooms for Runner {
     self.standing(agent).is_some()
   }
 
-  fn silenced(&self, agent: &str, chat_id: i64) -> BoxFuture<'_, bool> {
+  fn road_rests(&self, agent: &str) -> BoxFuture<'_, bool> {
     let conversations: Conversations = self.of(agent);
 
-    Box::pin(async move { conversations.silenced(chat_id).await })
+    Box::pin(async move { conversations.road_rests().await })
   }
 
   fn busy(&self, agent: &str) -> bool {
@@ -705,7 +705,10 @@ pub async fn deliver_pending(
       continue;
     }
 
-    if rooms.silenced(&row.agent, row.chat_id).await {
+    // A row whose agent's road the rest closes waits for the road in every room, the owner's chat among them:
+    // a round on it could only fail, and rounds that fail the policy's limit let the row go untold
+    // (docs/bmo-window.md, 「Quiet instruction」).
+    if rooms.road_rests(&row.agent).await {
       continue;
     }
 
@@ -1044,12 +1047,12 @@ impl Rooms for Holding<'_> {
     self.rooms.standing(agent)
   }
 
-  fn silenced(&self, agent: &str, chat_id: i64) -> BoxFuture<'_, bool> {
+  fn road_rests(&self, agent: &str) -> BoxFuture<'_, bool> {
     if self.held.contains(agent) {
       return Box::pin(async { true });
     }
 
-    self.rooms.silenced(agent, chat_id)
+    self.rooms.road_rests(agent)
   }
 
   fn busy(&self, agent: &str) -> bool {

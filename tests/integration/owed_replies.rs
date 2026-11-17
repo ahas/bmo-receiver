@@ -53,7 +53,7 @@ impl Rooms for Recorded {
     true
   }
 
-  fn silenced(&self, _agent: &str, _chat_id: i64) -> BoxFuture<'_, bool> {
+  fn road_rests(&self, _agent: &str) -> BoxFuture<'_, bool> {
     Box::pin(async { false })
   }
 

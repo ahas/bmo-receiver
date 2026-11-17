@@ -209,8 +209,11 @@ that session without the room hearing it.
 - **It never holds a room open.** A skip of an instruction opens no window, and a conversation opened for
   an instruction closes as soon as it is done, so a room is never listened to on an instruction's account; an
   answer to the room's own messages is the one thing that keeps the room open.
-- **The pass skips rows for a chat the usage rest has silenced for the row's agent** until the rest lifts, and the rows of an agent
-  whose last round failed with the agency unreachable until the agency answers a read again.
+- **The pass skips the rows of an agent whose road the usage rest closes,** in every chat, the owner's private
+  chat among them, until the rest lifts at its known end or the agency answers that the agent's road takes a turn
+  again: a round on that road could only fail, so none of those rows is handed, counted as failed or let go
+  meanwhile. It skips the rows of an agent whose last round failed with the agency unreachable until the agency
+  answers a read again.
 - **Cold wakes are paced.** Handing an instruction to a chat that is not talking resumes its session and
   prefills its whole context again, so a reload that queues one row per room would re-prefill every room at
   once. So the pass lets a cold wake through only when the launch gap has passed since the last one, the same

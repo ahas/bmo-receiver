@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 
 use receiver_ports::agency::RestKind;
 
-use super::conversation::Conversations;
+use super::conversation::{Conversations, unanswered};
 use super::notices;
 use super::notices::Voiced;
 use super::relaunch::{Deployed, deployment};
@@ -395,11 +395,13 @@ pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), 
     };
     let last = unread.last().map(|message| message.message_id).unwrap_or_default();
     let mut served: Vec<Conversations> = vec![];
+    let mut resting: Vec<&str> = vec![];
 
     for agent in &agents {
       let conversations = runner.of(agent);
 
       if conversations.silenced(chat_id).await {
+        resting.push(agent);
         continue;
       }
 
@@ -424,6 +426,13 @@ pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), 
       println!("resuming backlog in chat {chat_id} for {agent}: {} message(s)", words.len());
       conversations.wake(words, room).await;
       served.push(conversations);
+    }
+
+    // Words no answerer took because the rest closes its road are said once, as the wake says them.
+    if served.is_empty() && !resting.is_empty() {
+      let held: Vec<i64> = unread.iter().map(|message| message.message_id).collect();
+
+      unanswered(chat_id, &held, &format!("the road of {} is closed by the rest", resting.join(", ")));
     }
 
     // One room at a time: the next room waits until this room's turns have gone out and its read mark stands at

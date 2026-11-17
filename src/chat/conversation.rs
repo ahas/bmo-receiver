@@ -326,11 +326,12 @@ pub trait Noting: Send + Sync {
   ) -> BoxFuture<'a, ()>;
 }
 
-/// The health of the rooms' sessions as the conversations read it: whether a room has fallen silent, the order a
-/// broken run raises, and the minute the failure orders are looked over on. Filled by the module that owns the
-/// health.
+/// The health of the rooms' sessions as the conversations read it: whether a room has fallen silent or the rest
+/// closes the agent's road, the order a broken run raises, and the minute the failure orders are looked over on.
+/// Filled by the module that owns the health.
 pub trait Health: Send + Sync {
   fn silenced<'a>(&'a self, receiver: &'a Receiver, agent: &'a str, chat_id: i64) -> BoxFuture<'a, bool>;
+  fn road_rests<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
   fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()>;
   fn orders(&self, receiver: &Receiver);
 }
@@ -591,6 +592,16 @@ pub struct Waiting {
 }
 
 impl Conv {
+  // The numbers of the room's words it holds and no round has answered: those a wait holds, then those queued.
+  fn words_held(&self) -> Vec<i64> {
+    self
+      .held_words
+      .iter()
+      .chain(self.buffer.iter())
+      .map(|message| message.message_id)
+      .collect()
+  }
+
   // Words a push took that the turn did not, back at the front of what waits, in the order they came.
   fn give_back(
     &mut self,
@@ -1586,6 +1597,11 @@ impl Conversations {
     self.0.health.silenced(&self.0.receiver, self.agent(), chat_id).await
   }
 
+  /// Whether the rest closes this agent's own road, in every room alike: no round on it could be taken now.
+  pub async fn road_rests(&self) -> bool {
+    self.0.health.road_rests(&self.0.receiver, self.agent()).await
+  }
+
   pub async fn close(&self, chat_id: i64) {
     let (conv, gathering) = {
       let mut state = self.state();
@@ -1655,12 +1671,18 @@ impl Conversations {
     self.speaker_in(chat_id).await;
 
     if self.silenced(chat_id).await {
-      if let Some(conv) = self.state().active.get_mut(&chat_id) {
+      let (message, held) = {
+        let mut state = self.state();
+        let Some(conv) = state.active.get_mut(&chat_id) else {
+          return;
+        };
+
         conv.in_flight = false;
-      }
+        (conv.held.last_consumed_id, conv.words_held())
+      };
 
-      let message = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
-
+      // The words it held go with it unanswered, said once (docs/wake.md, 「Who reaches the session」).
+      unanswered(chat_id, &held, &format!("{}'s road is closed by the rest", self.agent()));
       self.close(chat_id).await;
       self.publish(waited(chat_id, message, None));
       return;
@@ -1818,7 +1840,9 @@ impl Conversations {
     let times = conv.given_back + i64::from(counted);
 
     if times >= CHAT_ROUND.instructions.failure_limit {
-      eprintln!("chat {chat_id}: the words of a round failed {times} times go with it as read");
+      let held: Vec<i64> = record.took.iter().map(|message| message.message_id).collect();
+
+      unanswered(chat_id, &held, &format!("its round failed {times} times, so they go with it as read"));
 
       return;
     }
@@ -3791,6 +3815,18 @@ impl Drop for Follower {
   fn drop(&mut self) {
     self.conversations.0.receiver.news().clear_standing(self.slot);
   }
+}
+
+/// The one journal line a conversation says for the room's words it lets go unanswered, naming them, where it held
+/// any (docs/wake.md, 「Who reaches the session」).
+pub fn unanswered(chat_id: i64, messages: &[i64], why: &str) {
+  if messages.is_empty() {
+    return;
+  }
+
+  let named = messages.iter().map(i64::to_string).collect::<Vec<_>>().join(", ");
+
+  println!("chat {chat_id}: message(s) {named} go unanswered: {why}");
 }
 
 // The person a wait stands on: the sender, or the room itself where no sender is known.

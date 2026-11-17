@@ -30,6 +30,7 @@ mod reattach;
 mod receiver;
 mod relaunch;
 mod reset_point;
+mod rested_road;
 mod room_record;
 mod room_removal;
 mod room_round;

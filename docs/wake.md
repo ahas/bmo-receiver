@@ -89,6 +89,18 @@ its rounds.
   opened. A quiet instruction is a wake of its own that opens nothing for the room (`docs/bmo-window.md`,
   「Quiet instruction」).
 - **A conversation already running in the room is no ground:** it admits nothing the window would not.
+- **A person's message the room keeps and no agent takes says why in the journal, once for that message.** The
+  line names the room and the message and the one stop that held it before every agent: words that are nothing
+  but the secret marker, a room not listened to, added `record-only`, archived or read-only, a message at or
+  before the room's read position, a muted sender. Where the room was weighed agent by agent, it names each
+  designated agent with what kept it out: no call, no reply to its words and its window closed, its road closed
+  by the rest, its account's machine gone or left, no conversations standing. A message an agent filed, or one
+  standing under a designated agent's own number, is no word owed an answer and says nothing; the owner's
+  answer to a job's question, handed to bmo-job, says nothing either.
+- **A conversation that took a person's words and lets them go unanswered says so the same way**, once with
+  the messages it held: a round its agent's road cannot take under the rest (「The room's queue and the round」),
+  words a restart left unread in a room whose answerer's road the rest closes, and words given back by rounds
+  that failed the policy's limit.
 
 ## The names and the window
 

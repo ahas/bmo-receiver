@@ -69,6 +69,10 @@ impl Wake for Waking {
       // Words that are nothing but the secret marker are no words, and wake nobody (docs/wake.md, 「The names and
       // the window」).
       if secrets::only_marked(&inbound.text) {
+        if how != How::Filed {
+          unanswered(inbound, "its words are nothing but the secret marker");
+        }
+
         return Ok(());
       }
 
@@ -98,7 +102,8 @@ impl Wake for Waking {
   }
 }
 
-/// A message woken on: every designated agent of the room it wakes is handed it.
+/// A message woken on: every designated agent of the room it wakes is handed it. A person's message no agent
+/// takes says why in the journal, once (docs/wake.md, 「Who reaches the session」).
 pub async fn woken_on(
   receiver: &Receiver,
   inbound: &Inbound,
@@ -109,6 +114,7 @@ pub async fn woken_on(
   let archive = receiver.db();
   let chat_id = inbound.chat_id;
   let now = crate::now_ms();
+  let owed = owed_an_answer(inbound, room, basis);
 
   // The console reads a job's questions beside the queue, so a question settled here is news of the same kind
   // as a moved row, and so is one whose clock a talk has stopped.
@@ -118,19 +124,20 @@ pub async fn woken_on(
     return Ok(());
   }
 
-  if wakes_nobody(receiver, chat_id).await? {
+  if let Some(why) = wakes_nobody(receiver, chat_id).await? {
+    if owed {
+      unanswered(inbound, why);
+    }
+
     return Ok(());
   }
 
-  // Dropped here even where it calls an agent, so it is said: a road that filed a message too early in the
-  // room's line is found in the journal, not taken for one never sent.
+  // Dropped here even where it calls an agent, so it is said whoever wrote it: a road that filed a message too
+  // early in the room's line is found in the journal, not taken for one never sent.
   if rows::is_read(archive, chat_id, inbound.message_id).await? {
     let position = rows::last_read(archive, chat_id).await?.unwrap_or_default();
 
-    println!(
-      "routing: chat {chat_id} message {} stands at or before the read position (message {position}), so it wakes nobody",
-      inbound.message_id
-    );
+    unanswered(inbound, &format!("it stands at or before the read position (message {position})"));
 
     return Ok(());
   }
@@ -140,15 +147,26 @@ pub async fn woken_on(
     && let Some(sender) = inbound.sender_id
     && standing::is_muted(receiver, chat_id, sender).await?
   {
+    unanswered(inbound, "its sender is muted in the room");
+
     return Ok(());
   }
 
   let rest_gated = !room.owner_room && resting(receiver).await?;
   let (agents, alone) = room_designated(receiver, chat_id, room).await?;
+  let mut kept_out = KeptOut::default();
 
   for agent in &agents {
-    let Some(ground) = ground(receiver, agent, inbound, room, alone, basis, now).await? else {
-      continue;
+    let ground = match weigh(receiver, agent, inbound, room, alone, basis, now).await? {
+      Weighed::Woken(ground) => ground,
+      Weighed::Own => {
+        kept_out.own = true;
+        continue;
+      }
+      Weighed::Unwoken => {
+        kept_out.say(&agent.name, "no call, no reply to its words and its window closed");
+        continue;
+      }
     };
     let files = if !owner && !basis.by_agent {
       files_leading_up(receiver, inbound, &agents).await?
@@ -157,7 +175,7 @@ pub async fn woken_on(
     };
 
     // Every woken agent's turn goes to its own conversations, which open and close its window in the room.
-    hand(
+    let handed = hand(
       receiver,
       &agent.name,
       inbound,
@@ -168,13 +186,69 @@ pub async fn woken_on(
       rest_gated,
     )
     .await;
+
+    kept_out.handed(&agent.name, handed);
   }
 
   if let Some(own) = called_own(receiver, inbound, room, &agents, basis).await? {
-    hand(receiver, &own.name, inbound, &[], true, false, room, rest_gated).await;
+    let handed = hand(receiver, &own.name, inbound, &[], true, false, room, rest_gated).await;
+
+    kept_out.handed(&own.name, handed);
+  }
+
+  if owed && let Some(why) = kept_out.why() {
+    unanswered(inbound, &why);
   }
 
   Ok(())
+}
+
+/// Whether a message is a word owed an answer, so its waking nobody is said: not one an agent filed, nor one under
+/// the agent's number in the room.
+fn owed_an_answer(inbound: &Inbound, room: Room, basis: &Basis<'_>) -> bool {
+  !basis.by_agent && (room.identity.is_none() || inbound.sender_id != room.identity)
+}
+
+// The one journal line a kept message no agent takes is said in (docs/wake.md, 「Who reaches the session」).
+fn unanswered(inbound: &Inbound, why: &str) {
+  println!("chat {}: message {} wakes nobody: {why}", inbound.chat_id, inbound.message_id);
+}
+
+/// What kept each designated agent of a room from a message, gathered as the room is weighed agent by agent, so
+/// a message nobody takes is said once with every agent's reason.
+#[derive(Default)]
+struct KeptOut {
+  // Whether the message is one agent's own words, which is no word owed an answer.
+  own: bool,
+  // Whether any agent's conversations took it.
+  taken: bool,
+  reasons: Vec<String>,
+}
+
+impl KeptOut {
+  fn say(&mut self, agent: &str, why: &str) {
+    self.reasons.push(format!("{agent}: {why}"));
+  }
+
+  fn handed(&mut self, agent: &str, handed: Result<(), &'static str>) {
+    match handed {
+      Ok(()) => self.taken = true,
+      Err(why) => self.say(agent, why),
+    }
+  }
+
+  // Why nobody took the message, where nobody did and it is owed an answer.
+  fn why(&self) -> Option<String> {
+    if self.taken || self.own {
+      return None;
+    }
+
+    if self.reasons.is_empty() {
+      return Some("the room designates no agent".to_owned());
+    }
+
+    Some(self.reasons.join("; "))
+  }
 }
 
 /// The caller's own supervisor a person calls by name into a group room that does not name it, where the room
@@ -244,7 +318,7 @@ pub async fn wakes(
   inbound: &Inbound,
   room: Room,
 ) -> Result<bool, NotReceived> {
-  if secrets::only_marked(&inbound.text) || wakes_nobody(receiver, inbound.chat_id).await? {
+  if secrets::only_marked(&inbound.text) || wakes_nobody(receiver, inbound.chat_id).await?.is_some() {
     return Ok(false);
   }
 
@@ -253,49 +327,61 @@ pub async fn wakes(
     return Ok(false);
   };
 
-  Ok(
-    ground(
-      receiver,
-      agent,
-      inbound,
-      room,
-      alone,
-      &Basis {
-        text: &inbound.text,
-        by_agent: false,
-      },
-      crate::now_ms(),
-    )
-    .await?
-    .is_some(),
+  let weighed = weigh(
+    receiver,
+    agent,
+    inbound,
+    room,
+    alone,
+    &Basis {
+      text: &inbound.text,
+      by_agent: false,
+    },
+    crate::now_ms(),
   )
+  .await?;
+
+  Ok(matches!(weighed, Weighed::Woken(_)))
 }
 
-// Whether the room wakes no agent at all: one the receiver does not listen to, one added for the user alone, an
-// archived room, or a read-only room, which only the owner's account reads (docs/receiver.md, 「A read-only room」).
-async fn wakes_nobody(receiver: &Receiver, chat_id: i64) -> Result<bool, NotReceived> {
+// Why the room wakes no agent at all, where it wakes none: one the receiver does not listen to, one added for the
+// user alone, an archived room, or a read-only room, which only the owner's account reads (docs/receiver.md, 「A
+// read-only room」).
+async fn wakes_nobody(receiver: &Receiver, chat_id: i64) -> Result<Option<&'static str>, NotReceived> {
   // A room the console's room list does not hold is kept and not listened to (docs/wake.md, 「Who reaches the
   // session」).
   if !receiver.listens(chat_id).await? {
-    return Ok(true);
+    return Ok(Some("the room is not listened to"));
   }
 
   if added::mode_of(receiver.db(), chat_id).await? == Some(RoomMode::RecordOnly) {
-    return Ok(true);
+    return Ok(Some("the room is added record-only"));
   }
 
   // An archived room is locked: its record stands and nothing in it wakes an agent (docs/receiver.md, 「An archived
   // room」).
   if crate::roads::archived::archived(receiver.db(), chat_id).await?.is_some() {
-    return Ok(true);
+    return Ok(Some("the room is archived"));
   }
 
-  Ok(providers::read_only(receiver.db(), receiver.roads(), chat_id).await?)
+  let read_only = providers::read_only(receiver.db(), receiver.roads(), chat_id).await?;
+
+  Ok(read_only.then_some("the room is read-only"))
 }
 
-// Why a message wakes one agent of its room, or nothing where it does not. One rule for every agent, whoever
-// wrote the message: its own words never wake it.
-async fn ground(
+/// What weighing a message for one designated agent of its room came to.
+enum Weighed {
+  /// It wakes the agent, on this ground.
+  Woken(Ground),
+  /// It is the agent's own words, which never wake it.
+  Own,
+  /// No ground holds for it.
+  Unwoken,
+}
+
+// Why a message wakes one agent of its room, or why it does not. One rule for every agent, whoever wrote the
+// message: its own words never wake it.
+async fn weigh(
   receiver: &Receiver,
   agent: &Designated,
   inbound: &Inbound,
@@ -303,7 +389,7 @@ async fn ground(
   alone: bool,
   basis: &Basis<'_>,
   now: i64,
-) -> Result<Option<Ground>, NotReceived> {
+) -> Result<Weighed, NotReceived> {
   let archive = receiver.db();
   let own = own_number(receiver, agent, &inbound.via, room.identity).await?;
 
@@ -311,26 +397,30 @@ async fn ground(
   if (inbound.sender_id.is_some() && inbound.sender_id == own)
     || holds_own(archive, inbound.chat_id, inbound.message_id, &agent.name, None).await?
   {
-    return Ok(None);
+    return Ok(Weighed::Own);
   }
 
   if agent.called_by(basis.text) {
-    return Ok(Some(Ground::Called));
+    return Ok(Weighed::Woken(Ground::Called));
   }
 
   if let Some(replied) = inbound.reply_to_message_id
     && holds_own(archive, inbound.chat_id, replied, &agent.name, own).await?
   {
-    return Ok(Some(Ground::Answered));
+    return Ok(Weighed::Woken(Ground::Answered));
   }
 
   // A private chat needs no name for a person's words alone, so two agents answering it do not wake each other on
   // every answer.
   if alone && !basis.by_agent {
-    return Ok(Some(Ground::Alone));
+    return Ok(Weighed::Woken(Ground::Alone));
   }
 
-  Ok((window_until(archive, inbound.chat_id, &agent.name).await? > now).then_some(Ground::Window))
+  if window_until(archive, inbound.chat_id, &agent.name).await? > now {
+    return Ok(Weighed::Woken(Ground::Window));
+  }
+
+  Ok(Weighed::Unwoken)
 }
 
 /// The files a person posted just before words of theirs that woke the default answerer, which woke nobody
@@ -370,8 +460,8 @@ async fn files_leading_up(
 
 /// A woken agent's turn handed to its conversations: the files leading up to the message first, then the
 /// message, opening the window where its ground does, each read through a reader where it came by a mode its
-/// road cannot pin an answer to; whether it was taken. A turn the rest's gate closed is taken only where the
-/// agent's one road answers through the rest.
+/// road cannot pin an answer to; taken, or why not. A turn the rest's gate closed is taken only where the agent's
+/// one road answers through the rest.
 #[allow(clippy::too_many_arguments)]
 pub async fn hand(
   receiver: &Receiver,
@@ -382,30 +472,20 @@ pub async fn hand(
   window_only: bool,
   room: Room,
   rest_gated: bool,
-) -> bool {
+) -> Result<(), &'static str> {
   if rest_gated
     && asked("whether the agent's road answers", road_answers(receiver, agent).await) != Some(true)
   {
-    return false;
+    return Err("its road is closed by the rest");
   }
 
   let Some(runner) = receiver.runner() else {
-    eprintln!(
-      "chat {}: no conversations stand to take message {}",
-      inbound.chat_id, inbound.message_id
-    );
-
-    return false;
+    return Err("no conversations stand to take it");
   };
 
   // An agent of an account whose machine is gone is woken nowhere (docs/wake.md, 「Who reaches the session」).
   if !agents::account_stands(receiver, agent).await {
-    println!(
-      "chat {}: {agent}'s account has no machine attached, so message {} wakes it not",
-      inbound.chat_id, inbound.message_id
-    );
-
-    return false;
+    return Err("its account has no machine attached or has left");
   }
 
   let pinnable = receiver.roads().pinnable(&inbound.via, inbound.mode.as_deref()).await;
@@ -415,10 +495,11 @@ pub async fn hand(
     ..message.clone()
   };
   let carried_files = files.iter().map(carried).collect::<Vec<Inbound>>();
-
-  runner
+  let taken = runner
     .hand(agent, &carried_files, &carried(inbound), room, opens_window, window_only)
-    .await
+    .await;
+
+  if taken { Ok(()) } else { Err("its conversations did not take it") }
 }
 
 /// Words the owner said through another road — the screen, a talk — handed straight to his own conversation as

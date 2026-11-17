@@ -20,12 +20,18 @@ const ORDER_KIND: &str = "failure-order";
 
 /// Whether a room has fallen silent for the agent answering it: the rest closes that agent's road and nothing
 /// else would answer it. The road asked of is the answering agent's own, so a room a supervisor on another road
-/// answers is not closed by the rest of the default answerer's.
+/// answers is not closed by the rest of the default answerer's. The owner's chat never falls silent.
 pub async fn silenced(receiver: &Receiver, agent: &str, chat_id: i64) -> bool {
   if receiver.roads().is_owner_room(chat_id).await {
     return false;
   }
 
+  road_rests(receiver, agent).await
+}
+
+/// Whether the rest closes the agent's own road: the rest stands and the agency does not answer that the agent's
+/// one road takes a turn through it, so any round on that road could only fail until the rest lifts.
+pub async fn road_rests(receiver: &Receiver, agent: &str) -> bool {
   resting(receiver).await.unwrap_or(false) && !road_answers(receiver, agent).await.unwrap_or(false)
 }
 
@@ -72,6 +78,10 @@ impl RoomHealth {
 impl crate::chat::conversation::Health for RoomHealth {
   fn silenced<'a>(&'a self, receiver: &'a Receiver, agent: &'a str, chat_id: i64) -> BoxFuture<'a, bool> {
     Box::pin(async move { silenced(receiver, agent, chat_id).await })
+  }
+
+  fn road_rests<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool> {
+    Box::pin(road_rests(receiver, agent))
   }
 
   /// A stop is not a failure and says nothing; a broken run raises the order the agent investigates, and the
