@@ -1,14 +1,15 @@
 //! The files a message carried, kept as they are handed over (docs/room-files.md, 「Message files」; docs/pictures.md,
 //! 「Pictures received」): a picture filed under its message, brought down and laid on white where it must be; a sound
 //! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
-//! name kept apart; a sticker or an animation that moves kept as it came and a sticker's message marked; and a file
-//! that could not be written leaving its row for a later hand-over.
+//! name kept apart; a file that arrived in the spool moved in by a link and one standing elsewhere copied; a sticker
+//! or an animation that moves kept as it came and a sticker's message marked; and a file that could not be written
+//! leaving its row for a later hand-over.
 
 use std::collections::HashSet;
 use std::io::Cursor;
 use std::sync::Arc;
 
-use bmo_chat_client::{ChatFileKind, GatheredPatch, MessageFile};
+use bmo_chat_client::{ChatFileKind, FileBody, GatheredPatch, MessageFile};
 use bmo_receiver::chat::shape::Reading;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::{Context, Room, rows};
@@ -381,6 +382,47 @@ async fn the_same_file_handed_over_twice_is_kept_once() {
 
   assert_eq!(rows.len(), 1);
   assert_eq!(std::fs::read(&rows[0]).unwrap(), b"first");
+}
+
+#[tokio::test]
+async fn a_file_in_the_spool_is_filed_by_a_link_and_a_file_standing_elsewhere_is_copied() {
+  use std::os::unix::fs::MetadataExt;
+
+  let (_scratch, data, standing) = stood().await;
+  let spool = DataRoot::new(data.path()).spool();
+  let arrived = spool.join("part-1");
+  let elsewhere = data.path().join("report.txt");
+
+  std::fs::create_dir_all(&spool).unwrap();
+  std::fs::write(&arrived, b"arrived").unwrap();
+  std::fs::write(&elsewhere, b"the sender's").unwrap();
+
+  let stored = |id: &str, name: &str, path: &std::path::Path| MessageFile {
+    bytes: FileBody::stored(path),
+    ..file(id, name, "text/plain", vec![])
+  };
+
+  handed(
+    &standing,
+    12,
+    &[stored("a", "arrived.txt", &arrived), stored("b", "report.txt", &elsewhere)],
+  )
+  .await;
+
+  let folder = data.path().join(format!("collected/{ROOM}"));
+  let inode = |path: &std::path::Path| std::fs::metadata(path).unwrap().ino();
+
+  assert_eq!(
+    inode(&folder.join("12-arrived.txt")),
+    inode(&arrived),
+    "moved within the disk, not copied"
+  );
+  assert_ne!(
+    inode(&folder.join("12-report.txt")),
+    inode(&elsewhere),
+    "the sender's file is left its own"
+  );
+  assert_eq!(std::fs::read(folder.join("12-report.txt")).unwrap(), b"the sender's");
 }
 
 #[tokio::test]

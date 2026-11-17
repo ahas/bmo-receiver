@@ -146,7 +146,7 @@ impl Config {
   /// The units a receiver reaches: the chat services through their roads, and each unit this configuration names.
   pub fn units(&self) -> Units {
     Units {
-      roads: Roads::new(ChatServices::from_peers(&self.roads)),
+      roads: Roads::new(ChatServices::from_peers(&self.roads, &self.roots().spool())),
       agency: Arc::new(HttpAgency::new(&self.agency)),
       gate: Arc::new(HttpGate::new(&self.gate)),
       job: Arc::new(HttpJob::new(&self.job)),

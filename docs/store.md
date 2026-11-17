@@ -150,6 +150,10 @@ The data root is the configuration's. Three stores under it keep a folder per ro
 A room's folder in a store is found only where it stands; finding it makes nothing. The folders go only with
 the removal of the room's registration.
 
+The message-file store holds one folder that is no room's: `.spool/`, where each file a chat service carries as a
+part is written as its bytes arrive, so filing it under its message moves it within one disk rather than copying
+it (`docs/room-files.md`, 「Message files」). A file there is removed once the receiver has done with it.
+
 One folder under the data root holds no room's files for long: `incoming/`, where each file a form of the console
 carries is written as its bytes arrive (`docs/api.md`, 「Sends」). Each file there is the request's own and is
 removed once the request is answered, its bytes filed under the message by then (`docs/room-files.md`,

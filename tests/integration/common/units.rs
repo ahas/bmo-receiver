@@ -8,12 +8,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use bmo_chat_client::{
-  AccountRoomsQuery, AvatarsQuery, ChatAvatar, ChatAvatarKind, ChatCapability, ChatContact,
+  AccountRoomsQuery, AlbumItem, AvatarsQuery, ChatAvatar, ChatAvatarKind, ChatCapability, ChatContact,
   ChatContactKind, ChatDeclaration, ChatDialectDeclaration, ChatDialectLimits, ChatHealth,
   ChatMediaRequest, ChatMember, ChatMembers, ChatModeStanding, ChatNumberRanges, ChatNumberSpace,
-  ChatNumbering, ChatPicture, ChatReach, ChatReadMode, ChatReceiver, ChatSendRequest, ChatSent, ChatStart,
-  ChatStartRequest, ChatVerb, ChatVoice, ClientFailure, ContactsQuery, DialectChecked, DialectReading,
-  MessageFile, Page, ProviderRoom, RoomKind, RoomQuery,
+  ChatNumbering, ChatPicture, ChatReach, ChatReadMode, ChatReceiver, ChatSend, ChatSendRequest, ChatSent,
+  ChatStart, ChatStartRequest, ChatVerb, ChatVoice, ClientFailure, ContactsQuery, DialectChecked,
+  DialectReading, FileBody, MessageFile, Page, ProviderRoom, RoomKind, RoomQuery,
 };
 
 use bmo_receiver::data_root::DataRoot;
@@ -81,6 +81,8 @@ pub struct StandInChat {
   /// The read modes it declares, each by its voice and where it stands.
   pub modes: Mutex<Vec<(ChatVoice, ChatModeStanding)>>,
   pub sends: Mutex<Vec<ChatSendRequest>>,
+  /// Where each file it was handed from the receiver's disk stood, rather than in memory, in the order sent.
+  pub streamed: Mutex<Vec<PathBuf>>,
   /// The kinds of send each voice refuses, as a platform refuses what an account cannot do; a refused send is
   /// not among the sends carried through.
   pub voice_refusals: Vec<(ChatVoice, ChatVerb)>,
@@ -285,6 +287,11 @@ impl StandInChat {
 
   pub fn sent(&self) -> Vec<ChatSendRequest> {
     self.sends.lock().unwrap().clone()
+  }
+
+  /// Where each file a send handed over from the disk stood, in the order sent.
+  pub fn streamed(&self) -> Vec<PathBuf> {
+    self.streamed.lock().unwrap().clone()
   }
 
   /// How often a send was turned down for the voice it was asked in, each voice refusal counted once.
@@ -523,7 +530,9 @@ impl Chat for StandInChat {
         *self.holding_send.lock().unwrap() = false;
       }
 
-      self.sends.lock().unwrap().push(request.clone());
+      let crossed = crossed(request, &self.streamed).await;
+
+      self.sends.lock().unwrap().push(crossed);
 
       Ok(answer)
     })
@@ -2563,4 +2572,33 @@ pub fn unrun(
     brain,
     holders,
   }
+}
+
+// A send as a chat service receives it: a file the receiver hands over from its disk arrives as its bytes, read
+// as the send crosses, so a test reads what went whatever became of the file after; where it stood is noted in
+// `streamed`.
+async fn crossed(request: &ChatSendRequest, streamed: &Mutex<Vec<PathBuf>>) -> ChatSendRequest {
+  async fn bytes(body: &mut FileBody, streamed: &Mutex<Vec<PathBuf>>) {
+    if let FileBody::Stored(stored) = body {
+      streamed.lock().unwrap().push(stored.path().to_path_buf());
+      *body = body.read().await.expect("a stored file is readable as it is sent").into();
+    }
+  }
+
+  let mut crossed = request.clone();
+
+  match &mut crossed.send {
+    ChatSend::Document { bytes: body, .. } => bytes(body, streamed).await,
+    ChatSend::Audio { audio, .. } | ChatSend::Voice { audio, .. } => bytes(audio, streamed).await,
+    ChatSend::Album { items, .. } => {
+      for item in items {
+        if let AlbumItem::File(file) = item {
+          bytes(&mut file.bytes, streamed).await;
+        }
+      }
+    }
+    _ => {}
+  }
+
+  crossed
 }

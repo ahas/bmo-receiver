@@ -485,16 +485,20 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   it off what became of them. A launcher the binary stands carries it as a run of its own where one stands.
 - **A photo send** is one picture or several as one album: each `url` is a web address or a file under the data
   root, with an optional `label` drawn into it, and an optional `caption`. A web address goes as it stands for the
-  road to fetch; a file is read here and goes as its bytes. An address that is neither is refused before anything
+  road to fetch; a file goes from the disk it stands on, read only as the send carries it, and one with a label
+  drawn into it goes as the drawn bytes. An address that is neither is refused before anything
   goes, and every picture that did not go is named with why. A picture kept in the room is filed under its
   message (`docs/pictures.md`, 「A picture an agent sent」).
 - **A file send** is one document, or several files as one album: each file a `path` on this machine and an
-  optional `name`, with an optional `caption`. The bytes go to the verb the room's road declares, `document` for
-  one file and `album` for several; a file a room's folder holds goes only into that room, and a job sends none.
+  optional `name`, with an optional `caption`. The files go to the verb the room's road declares, `document` for
+  one file and `album` for several, each from the disk it stands on and read only as the send carries it
+  (bmo-chat's `docs/protocol.md`, 「Files carried as parts」), never whole in the receiver's memory; a file a room's
+  folder holds goes only into that room, and a job sends none.
   A file past the largest the room takes (「A route that takes files」 above) is refused before anything goes, as
   is a voice note's. Each file that went is filed under its message (`docs/room-files.md`, 「Message files」).
 - **A voice note** is an OGG/Opus file at `path`, with its `caption`, what it `said` and the `transcript` read out,
-  sent as the chat protocol's `voice` kind.
+  sent as the chat protocol's `voice` kind from the disk it stands on; only its first bytes are read here, to tell
+  it is OGG.
 - **A fixed line** is a `code` and its `fields`, rendered by the web unit's `POST /words/render` in the
   rooms' language and said into the room without the output gate or any session, since the line is already read.
   Where the web unit cannot render it, the line is the policy's plain sentence for the code in the rooms'

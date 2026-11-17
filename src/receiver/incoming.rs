@@ -8,7 +8,7 @@ use std::io;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-use bmo_chat_client::ChatFileKind;
+use bmo_chat_client::{ChatFileKind, FileBody};
 use tempfile::TempPath;
 use tokio::io::AsyncWriteExt;
 
@@ -85,6 +85,12 @@ impl Incoming {
   pub fn size(&self) -> u64 {
     self.size
   }
+
+  /// Its bytes as a chat service is handed them: from where they stand under `incoming/`, read only as the send
+  /// carries them, so they go before the request that holds them is answered.
+  pub fn body(&self) -> FileBody {
+    FileBody::stored(self.path.to_path_buf())
+  }
 }
 
 impl Handed for Incoming {
@@ -109,7 +115,7 @@ impl Handed for Incoming {
     tokio::fs::read(&self.path).await
   }
 
-  async fn filed_at(&self, path: &Path) -> io::Result<()> {
+  async fn filed_at(&self, path: &Path, _spool: &Path) -> io::Result<()> {
     if tokio::fs::hard_link(&self.path, path).await.is_ok() {
       return Ok(());
     }

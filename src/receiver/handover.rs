@@ -7,6 +7,7 @@
 //! (docs/receiver.md, 「A room's chat providers」). A typing mark and a presence change are held and told as the present,
 //! never kept (docs/receiver.md, 「Typing and presence」).
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -466,6 +467,12 @@ impl ChatReceiver for Receiver {
     }
 
     Ok(answered)
+  }
+
+  // A file carried as a part is written into the message-file store's spool, so filing it moves it within one disk
+  // (docs/room-files.md, 「Message files」).
+  fn spool(&self) -> PathBuf {
+    self.data_root().spool()
   }
 }
 

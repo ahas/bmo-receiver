@@ -26,12 +26,20 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   or asked of the service again on its route of a message's files (bmo-chat's `docs/protocol.md`): for a
   replied-to picture (`docs/pictures.md`, 「Whether an agent looks」) and for a row filled in later (「Files filled
   in later」).
+- **A file a chat service carries as a part arrives on the disk:** the base library writes it, as its bytes come,
+  into the spool, the folder `.spool/` in the message-file store, whether it comes with a hand-over, with a
+  gathering's patch or in the answer of a fetch of a message's files (bmo-chat's `docs/contract.md`, 「A file's
+  bytes」). Filing it links it under its message, so it is moved rather than copied: the store and the spool stand
+  on one disk, and the spool's name for the file goes once the receiver has done with it. Until then it stays
+  readable where it arrived, for the hearing of a voice note and for the room's other providers it is carried to.
+  A file a chat service hands over inline is written from memory.
 - **A file an agent sent is kept from the send itself.** The bytes a send hands over — a file send's document
   or album, a sound, a voice note — are filed under the message the send is kept as, the way a received file
   is: a picture in the picture store (`docs/pictures.md`, 「A picture an agent sent」),
-  anything else here, by its own name, a voice note under the name a sound with none takes. A file the road
-  said did not go is left out, and keeping never fails a send: the file is already in the room by the time it
-  runs, so a file that could not be kept is said in the journal.
+  anything else here, by its own name, a voice note under the name a sound with none takes. A file a send took
+  from where it stands on this machine is copied here, since that file is still its sender's to change. A file
+  the road said did not go is left out, and keeping never fails a send: the file is already in the room by the
+  time it runs, so a file that could not be kept is said in the journal.
 - **Every file is recorded in `collected_items`** (chat, sender, message id, kind, source, stored path, and the
   file's id among its message's files) and keeping the same file twice is a no-op.
 - **Twice means the same file.** Every file a message carried crosses as a message file, with an id the chat

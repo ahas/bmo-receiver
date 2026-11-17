@@ -14,7 +14,10 @@ use crate::stand_in::{StandIn, call};
 #[tokio::test]
 async fn a_road_named_in_the_configuration_is_reached_through_the_chat_client() {
   let unit = StandIn::start().await;
-  let chats = ChatServices::from_peers(&BTreeMap::from([("road-a".to_owned(), unit.peer("chat-token"))]));
+  let chats = ChatServices::from_peers(
+    &BTreeMap::from([("road-a".to_owned(), unit.peer("chat-token"))]),
+    &std::env::temp_dir(),
+  );
 
   unit.answer("GET /health", 200, json!({ "ready": true, "reason": null, "version": "0.1.0" }));
   unit.answer(
@@ -72,13 +75,16 @@ fn text(text: &str) -> ChatSendRequest {
 #[tokio::test]
 async fn a_refused_road_is_skipped_at_once_and_a_live_slow_one_still_waits() {
   let closed = std::net::TcpListener::bind("[::1]:0").unwrap().local_addr().unwrap();
-  let down = ChatServices::from_peers(&BTreeMap::from([(
-    "road-down".to_owned(),
-    Peer {
-      base: format!("http://{closed}"),
-      token: "t".to_owned(),
-    },
-  )]));
+  let down = ChatServices::from_peers(
+    &BTreeMap::from([(
+      "road-down".to_owned(),
+      Peer {
+        base: format!("http://{closed}"),
+        token: "t".to_owned(),
+      },
+    )]),
+    &std::env::temp_dir(),
+  );
   let started = Instant::now();
   let failure = down.road("road-down").unwrap().send(&text("hello")).await.unwrap_err();
 
@@ -91,7 +97,10 @@ async fn a_refused_road_is_skipped_at_once_and_a_live_slow_one_still_waits() {
   let unit = StandIn::start().await;
   unit.answer_after("POST /sends", 200, json!({ "messageId": 7 }), Duration::from_millis(150));
 
-  let slow = ChatServices::from_peers(&BTreeMap::from([("road-slow".to_owned(), unit.peer("t"))]));
+  let slow = ChatServices::from_peers(
+    &BTreeMap::from([("road-slow".to_owned(), unit.peer("t"))]),
+    &std::env::temp_dir(),
+  );
   let started = Instant::now();
   let sent = slow.road("road-slow").unwrap().send(&text("hello")).await.unwrap();
 
@@ -102,7 +111,10 @@ async fn a_refused_road_is_skipped_at_once_and_a_live_slow_one_still_waits() {
 #[tokio::test]
 async fn a_run_of_calls_on_a_road_goes_over_the_one_connection_its_client_keeps() {
   let unit = StandIn::start().await;
-  let chats = ChatServices::from_peers(&BTreeMap::from([("road-a".to_owned(), unit.peer("t"))]));
+  let chats = ChatServices::from_peers(
+    &BTreeMap::from([("road-a".to_owned(), unit.peer("t"))]),
+    &std::env::temp_dir(),
+  );
 
   unit.answer("GET /health", 200, json!({ "ready": true, "reason": null, "version": "0.1.0" }));
   unit.answer(

@@ -141,6 +141,11 @@ async fn a_file_goes_as_a_document_and_several_go_as_one_album() {
     ]
     .to_vec(),
   );
+  assert_eq!(
+    road.streamed(),
+    ["report.txt", "report.txt", "notes.txt"].map(|name| data.path().join(name)),
+    "each file is handed over from the disk it stands on, never read whole first"
+  );
 }
 
 #[tokio::test]

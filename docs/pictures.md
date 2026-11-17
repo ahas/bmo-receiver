@@ -23,8 +23,10 @@ receiver keeps the pictures and decides what a session is shown.
   nothing is sent at all.
 - **A `--url` that is neither a web address nor a file under the data root is refused** before anything goes. A
   relative path is read against the folder that holds the data root, the data root itself and the working folder,
-  in that order. A web address goes as it stands and the chat service fetches it; a file is read here and handed
-  over as its bytes, so a chat service needs no reach into this machine's data root.
+  in that order. A web address goes as it stands and the chat service fetches it; a file is handed over as a
+  file on this machine's disk, read from it only as the send carries it (bmo-chat's `docs/protocol.md`, 「Files
+  carried as parts」), so a chat service needs no reach into this machine's data root and the receiver never holds
+  the file whole. A picture with a label drawn into it is read here to be drawn, and goes as the drawn bytes.
 
 ## A picture an agent sent
 

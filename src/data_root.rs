@@ -60,6 +60,13 @@ impl DataRoot {
     moved(std::env::var_os("BMO_COLLECT_DIR")).unwrap_or_else(|| self.root.join("collected"))
   }
 
+  /// The folder in the message-file store each file a chat service carries as a part is written into as it
+  /// arrives, so filing it under its message moves it within one disk rather than copying it (`docs/store.md`,
+  /// 「The data root's folders」).
+  pub fn spool(&self) -> PathBuf {
+    self.collected().join(".spool")
+  }
+
   /// The picture store: the folder `BMO_IMAGE_DIR` names, the data root's own otherwise.
   pub fn images(&self) -> PathBuf {
     moved(std::env::var_os("BMO_IMAGE_DIR")).unwrap_or_else(|| self.root.join("images"))

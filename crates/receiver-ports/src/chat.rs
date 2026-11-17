@@ -5,6 +5,7 @@
 //! service is waited on (docs/receiver.md, 「A room's chat providers」).
 
 use std::collections::BTreeMap;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -199,8 +200,9 @@ pub struct ChatServices {
 }
 
 impl ChatServices {
-  /// A client of each chat service at the address and behind the token its road's peer names.
-  pub fn from_peers(peers: &BTreeMap<String, Peer>) -> Self {
+  /// A client of each chat service at the address and behind the token its road's peer names, each file a service
+  /// answers as a part written into `spool` as it arrives.
+  pub fn from_peers(peers: &BTreeMap<String, Peer>, spool: &Path) -> Self {
     Self {
       roads: peers
         .iter()
@@ -214,7 +216,9 @@ impl ChatServices {
             waiter: Arc::new(RealClock),
           };
           let chat: Arc<dyn Chat> = Arc::new(
-            ChatProviderClient::new(peer.base.clone(), peer.token.clone()).with_patience(patience),
+            ChatProviderClient::new(peer.base.clone(), peer.token.clone())
+              .with_patience(patience)
+              .with_spool(spool),
           );
 
           (road.clone(), chat)

@@ -33,8 +33,8 @@ pub trait Handed: Sync {
   fn kind(&self) -> Option<ChatFileKind>;
   /// Its bytes read whole, as a picture is drawn from them.
   fn bytes(&self) -> impl Future<Output = io::Result<Vec<u8>>> + Send;
-  /// Its bytes filed at `path`, in a folder that already stands.
-  fn filed_at(&self, path: &Path) -> impl Future<Output = io::Result<()>> + Send;
+  /// Its bytes filed at `path`, in a folder that already stands; a file that arrived in `spool` is moved from it.
+  fn filed_at(&self, path: &Path, spool: &Path) -> impl Future<Output = io::Result<()>> + Send;
 }
 
 impl Handed for MessageFile {
@@ -58,12 +58,14 @@ impl Handed for MessageFile {
     self.bytes.read().await
   }
 
-  // A file that arrived as a part stands in the chat client's spool, which removes it once the last holder lets
-  // go: it is linked where it is filed, else copied, and never read whole into memory.
-  async fn filed_at(&self, path: &Path) -> io::Result<()> {
+  // A file that arrived as a part stands in the spool, whose name for it goes once its last holder lets go: it is
+  // linked where it is filed, which moves it, while the hearing and the carriage to other providers still read it
+  // where it arrived. A file a send took from where it stands is its sender's to change, so it is copied. Neither
+  // is read whole into memory.
+  async fn filed_at(&self, path: &Path, spool: &Path) -> io::Result<()> {
     match &self.bytes {
       FileBody::Stored(stored) => {
-        if tokio::fs::hard_link(stored.path(), path).await.is_ok() {
+        if stored.path().starts_with(spool) && tokio::fs::hard_link(stored.path(), path).await.is_ok() {
           return Ok(());
         }
 
@@ -152,12 +154,12 @@ async fn written(path: &Path, bytes: &[u8]) -> io::Result<()> {
 }
 
 // A file filed at `path`, its folder made where it is missing.
-async fn filed(path: &Path, file: &impl Handed) -> io::Result<()> {
+async fn filed(path: &Path, file: &impl Handed, spool: &Path) -> io::Result<()> {
   if let Some(folder) = path.parent() {
     tokio::fs::create_dir_all(folder).await?;
   }
 
-  file.filed_at(path).await
+  file.filed_at(path, spool).await
 }
 
 /// Every file a message carried kept: its pictures in the picture store, the first of them named on the message's
@@ -309,7 +311,7 @@ async fn collected(
   let taken = taken_paths(db, inbound, standing.as_ref().map(|row| row.id)).await?;
   let path =
     free_path(&room_path(&data_root.collected(), inbound.chat_id), inbound.message_id, &source, &taken);
-  let (stored, summary) = match filed(&path, file).await {
+  let (stored, summary) = match filed(&path, file, &data_root.spool()).await {
     Ok(()) => (Some(path), None),
     Err(why) => {
       eprintln!("bmo-receiver: the file {source} of message {} was not kept: {why}", inbound.message_id);

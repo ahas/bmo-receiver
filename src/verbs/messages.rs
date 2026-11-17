@@ -9,11 +9,14 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use bmo_chat_client::{AlbumItem, ChatSend, ChatSendRequest, ChatSticker, FileItem, MissedPictureReason};
+use bmo_chat_client::{
+  AlbumItem, ChatSend, ChatSendRequest, ChatSticker, FileBody, FileItem, MissedPictureReason,
+};
 use room_calls::procedures;
 use room_calls::reading::count_text;
 use room_calls::turn::AGENT_VARIABLE as TURN_AGENT;
 use serde_json::{Map, Value};
+use tokio::io::AsyncReadExt;
 
 use receiver_codes::RunTitle;
 use receiver_policy::chat_round::CHAT_ROUND;
@@ -626,21 +629,22 @@ pub struct Picture {
   pub label: Option<String>,
 }
 
-/// One picture as it stands before a road carries it: a web address the road fetches for itself, or the bytes of
-/// a file under the data root, read here so the road needs no reach into this machine's data root.
+/// One picture as it stands before a road carries it: a web address the road fetches for itself, or a file under
+/// the data root, handed over from the disk so the road needs no reach into this machine's data root.
 enum PictureSource {
   Web(String),
   Kept {
     name: String,
     mime: String,
-    bytes: Vec<u8>,
+    path: PathBuf,
   },
 }
 
 /// One picture, or several as one album: none that a room keeps goes into another room or out of a job, the
 /// road is asked before anything is uploaded, a label is drawn in where one is named, and what did not go is
-/// said by address with why. A web address goes as it stands; a file under the data root is read here and goes
-/// as its bytes, since no road reaches this machine's data root. Anything else is refused before anything goes.
+/// said by address with why. A web address goes as it stands; a file under the data root goes from the disk, read
+/// only as the send carries it, since no road reaches this machine's data root. Anything else is refused before
+/// anything goes.
 pub async fn photo(
   sends: &Sends,
   data_root: &DataRoot,
@@ -698,10 +702,10 @@ pub async fn photo(
 
     items.push(match source {
       PictureSource::Web(address) => AlbumItem::Address { address },
-      PictureSource::Kept { name, mime, bytes } => AlbumItem::File(FileItem {
+      PictureSource::Kept { name, mime, path } => AlbumItem::File(FileItem {
         name,
         mime,
-        bytes: bytes.into(),
+        bytes: FileBody::stored(path),
       }),
     });
   }
@@ -765,39 +769,48 @@ pub struct SendFile {
   pub name: Option<String>,
 }
 
-// One file read off this machine for a send: the name the room reads, its type and its bytes.
-struct ReadFile {
+// One file of this machine taken for a send: the name the room reads, its type and where it stands, read only as
+// the send carries it (docs/api.md, 「Sends」).
+struct TakenFile {
   name: String,
   mime: String,
-  bytes: Vec<u8>,
+  path: PathBuf,
 }
 
-// A file read for a send, refused where it is past the largest the room takes (docs/api.md, 「Sends」) or is no
+impl TakenFile {
+  fn body(&self) -> FileBody {
+    FileBody::stored(&self.path)
+  }
+}
+
+// A file taken for a send, refused where it is past the largest the room takes (docs/api.md, 「Sends」) or is no
 // file; a file a room's folder holds goes only into that room and out of no job.
-async fn read_file(
+async fn taken_file(
   data_root: &DataRoot,
   chat_id: i64,
   path: &str,
   name: Option<&str>,
   job: bool,
   limit: Option<&FileLimit>,
-) -> Result<ReadFile, VerbError> {
+) -> Result<TakenFile, VerbError> {
   if let Some(refusal) = room_file_refusal(path, chat_id, &room_stores(data_root), job) {
     return Err(VerbError::Refused(refusal));
   }
 
-  let length = tokio::fs::metadata(path)
+  let standing = tokio::fs::metadata(path)
     .await
-    .map_err(|why| VerbError::Refused(format!("{path} is no file on this machine: {why}")))?
-    .len();
+    .map_err(|why| VerbError::Refused(format!("{path} is no file on this machine: {why}")))?;
+
+  if !standing.is_file() {
+    return Err(VerbError::Refused(format!("{path} is no file on this machine")));
+  }
+
+  let length = standing.len();
 
   if let Some(refusal) = limit.and_then(|limit| limit.turns_away(path, length)) {
     return Err(VerbError::Refused(refusal.to_string()));
   }
 
-  let bytes = tokio::fs::read(path)
-    .await
-    .map_err(|why| VerbError::Refused(format!("{path} could not be read: {why}")))?;
   let named = name
     .map(str::trim)
     .filter(|name| !name.is_empty())
@@ -810,14 +823,14 @@ async fn read_file(
     .map(|kind| kind.essence_str().to_owned())
     .unwrap_or_else(|| "application/octet-stream".to_owned());
 
-  Ok(ReadFile {
+  Ok(TakenFile {
     name: named,
     mime,
-    bytes,
+    path: PathBuf::from(path),
   })
 }
 
-/// One file or several: one goes as a document, several as one album, each read from this machine. A caption goes
+/// One file or several: one goes as a document, several as one album, each from this machine's disk. A caption goes
 /// on an album, and ahead of a document as a line of its own, since the document kind carries none.
 pub async fn file(
   sends: &Sends,
@@ -828,14 +841,14 @@ pub async fn file(
   reply_to: Option<i64>,
   job: bool,
 ) -> Result<Vec<String>, VerbError> {
-  let mut held: Vec<ReadFile> = vec![];
+  let mut held: Vec<TakenFile> = vec![];
   let limit = sends.file_limit(chat_id).await?;
 
   for file in files {
     let path = file.path.trim();
 
     if !path.is_empty() {
-      held.push(read_file(data_root, chat_id, path, file.name.as_deref(), job, limit.as_ref()).await?);
+      held.push(taken_file(data_root, chat_id, path, file.name.as_deref(), job, limit.as_ref()).await?);
     }
   }
 
@@ -878,7 +891,7 @@ pub async fn file(
           ChatSendRequest::new(
             chat_id,
             ChatSend::Document {
-              bytes: file.bytes.into(),
+              bytes: file.body(),
               file_name: file.name.clone(),
             },
           ),
@@ -904,9 +917,9 @@ pub async fn file(
       .into_iter()
       .map(|file| {
         AlbumItem::File(FileItem {
+          bytes: file.body(),
           name: file.name,
           mime: file.mime,
-          bytes: file.bytes.into(),
         })
       })
       .collect();
@@ -952,8 +965,8 @@ pub struct VoiceNote<'a> {
   pub transcript: Option<&'a str>,
 }
 
-/// A voice note: an OGG/Opus file read from this machine, with its caption and what it says, sent as a voice
-/// message the room can play.
+/// A voice note: an OGG/Opus file on this machine's disk, with its caption and what it says, sent as a voice
+/// message the room can play; only its first bytes are read here, to tell it is OGG.
 pub async fn voice(
   sends: &Sends,
   data_root: &DataRoot,
@@ -964,9 +977,9 @@ pub async fn voice(
 ) -> Result<Vec<String>, VerbError> {
   let path = note.path.trim();
   let limit = sends.file_limit(chat_id).await?;
-  let file = read_file(data_root, chat_id, path, None, job, limit.as_ref()).await?;
+  let file = taken_file(data_root, chat_id, path, None, job, limit.as_ref()).await?;
 
-  if !file.bytes.starts_with(b"OggS") {
+  if !ogg(&file.path).await {
     return Err(VerbError::Refused(format!(
       "{path} is not an OGG/Opus file, so it is not sent as a voice note"
     )));
@@ -996,7 +1009,7 @@ pub async fn voice(
         ChatSendRequest::new(
           chat_id,
           ChatSend::Voice {
-            audio: file.bytes.into(),
+            audio: file.body(),
             said,
             caption,
             transcript,
@@ -1009,6 +1022,16 @@ pub async fn voice(
     .map_err(refused)?;
 
   Ok(vec![format!("sent the voice note {} to chat {chat_id}", file.name)])
+}
+
+// Whether the file at `path` opens as an OGG stream does, its first four bytes alone read.
+async fn ogg(path: &Path) -> bool {
+  let mut start = [0_u8; 4];
+  let Ok(mut file) = tokio::fs::File::open(path).await else {
+    return false;
+  };
+
+  file.read_exact(&mut start).await.is_ok() && &start == b"OggS"
 }
 
 /// A fixed line: its code and fields rendered by the web unit's language packs, said into the room without the
@@ -1050,7 +1073,7 @@ pub async fn fixed_line(
   Ok(vec![format!("said the fixed line {code} in chat {chat_id}")])
 }
 
-// One picture resolved: a web address as it stands, or a file under the data root read into bytes. An address
+// One picture resolved: a web address as it stands, or a file under the data root by where it stands. An address
 // that is neither is refused with the reason the pictures policy names.
 async fn picture_source(data_root: &DataRoot, address: &str) -> Result<PictureSource, VerbError> {
   if crate::web_address::is_web_address(address) {
@@ -1059,9 +1082,6 @@ async fn picture_source(data_root: &DataRoot, address: &str) -> Result<PictureSo
 
   let path =
     kept_path(data_root, address).map_err(|reason| VerbError::Refused(format!("{address}: {reason}")))?;
-  let bytes = tokio::fs::read(&path)
-    .await
-    .map_err(|why| VerbError::Refused(format!("{address} could not be read: {why}")))?;
   let name = path
     .file_name()
     .map(|name| name.to_string_lossy().into_owned())
@@ -1072,7 +1092,7 @@ async fn picture_source(data_root: &DataRoot, address: &str) -> Result<PictureSo
     .map(|kind| kind.essence_str().to_owned())
     .unwrap_or_else(|| "application/octet-stream".to_owned());
 
-  Ok(PictureSource::Kept { name, mime, bytes })
+  Ok(PictureSource::Kept { name, mime, path })
 }
 
 // Where the file an address names stands under the data root, every link followed, or why it may not be sent.
@@ -1140,12 +1160,13 @@ fn resolved_room_refusal(
   room_file_refusal(&path.to_string_lossy(), chat_id, stores, job)
 }
 
-// A picture with its word drawn into it, as the JPEG bytes the road carries. None where it could not be read,
-// was no picture, or the label said nothing, so the caller sends the picture as it stands instead.
+// A picture with its word drawn into it, as the JPEG bytes the road carries: the one picture read whole, since it
+// is drawn. None where it could not be read, was no picture, or the label said nothing, so the caller sends the
+// picture as it stands instead.
 async fn labelled_item(source: &PictureSource, label: &str) -> Option<FileItem> {
   let bytes = match source {
     PictureSource::Web(address) => fetched(address).await.ok()?,
-    PictureSource::Kept { bytes, .. } => bytes.clone(),
+    PictureSource::Kept { path, .. } => tokio::fs::read(path).await.ok()?,
   };
 
   if bytes.is_empty() {

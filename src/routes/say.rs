@@ -8,7 +8,7 @@ use axum::{
   extract::{Multipart, Path, State},
   http::StatusCode,
 };
-use bmo_chat_client::{ChatFileKind, FileItem, MessageFile};
+use bmo_chat_client::{ChatFileKind, FileBody, FileItem, MessageFile};
 use receiver_codes::OwnerSendRefusal;
 use receiver_policy::roads::ROADS;
 use serde::Deserialize;
@@ -441,8 +441,8 @@ pub(super) async fn files_said(
   answered(json!({ "id": first.message_id, "sent": sent, "checking": [], "failed": turned_away }))
 }
 
-// The files a form carried, read back off the disk whole and handed to the room's chat services inline: none
-// where the room goes on to no chat service, so a room on the record alone never holds them in memory. A file that cannot be read back is left out and said in the log; the room has kept it all the same.
+// The files a form carried, handed to the room's chat services from where they stand on the disk, read only as each
+// send carries them: none where the room goes on to no chat service.
 async fn carried_files(receiver: &Receiver, chat_id: i64, kept: &[Incoming]) -> Option<Vec<FileItem>> {
   match providers::carries(receiver.db(), receiver.roads(), chat_id).await {
     Ok(true) => {}
@@ -457,23 +457,16 @@ async fn carried_files(receiver: &Receiver, chat_id: i64, kept: &[Incoming]) -> 
     }
   }
 
-  let mut files: Vec<FileItem> = vec![];
-
-  for file in kept {
-    match file.bytes().await {
-      Ok(bytes) => files.push(FileItem {
+  Some(
+    kept
+      .iter()
+      .map(|file| FileItem {
         name: file.name().to_owned(),
         mime: file.mime().to_owned(),
-        bytes: bytes.into(),
-      }),
-      Err(why) => eprintln!(
-        "bmo-receiver: the file {} kept in room {chat_id} was not read back to carry: {why}",
-        file.name()
-      ),
-    }
-  }
-
-  Some(files)
+        bytes: file.body(),
+      })
+      .collect(),
+  )
 }
 
 // One message carrying a file kept in the room under the next console number, and the agents it calls for woken:
@@ -757,12 +750,12 @@ pub async fn forward(
   Ok((StatusCode::CREATED, Json(json!({ "room": asked.to, "id": copy }))))
 }
 
-// The picture a message of a room stores, read back as the one file of a message: none where the stored path
-// does not stand inside the room's picture folder or the file is no longer there.
+// The picture a message of a room stores, as the one file of a message, read from the disk only as it is kept
+// again or carried: none where the stored path does not stand inside the room's picture folder or the file is no
+// longer there.
 fn stored_picture(receiver: &Receiver, room: i64, stored: &str) -> Option<MessageFile> {
   let folder = room_path(&receiver.data_root().images(), room);
   let real = inside(&folder, stored)?;
-  let bytes = std::fs::read(&real).ok()?;
   let name = real.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
   let mime = mime_guess::from_path(&real).first_or_octet_stream().essence_str().to_owned();
 
@@ -770,7 +763,7 @@ fn stored_picture(receiver: &Receiver, room: i64, stored: &str) -> Option<Messag
     id: "1".to_owned(),
     name,
     mime,
-    bytes: bytes.into(),
+    bytes: FileBody::stored(real),
     kind: None,
   })
 }
