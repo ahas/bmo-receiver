@@ -83,10 +83,12 @@ message passes, and the record each turn of it leaves.
 - **Work longer than moments goes behind the round, after the person is answered.** Where a round calls for
   work longer than moments — an investigation across files or machines, a change made and checked, something to
   wait on, more than a handful of tool calls — the round's message tells the person, in a few words, what the
-  agent will do, and the work goes behind the round as the agency's rule for a supervisor's long work says: a
-  background run or a subagent of the agent's own program for work it reports itself, a job item for work whose
-  result is code or a document. The agent comes back to the room with the result. The process's fixed rules say
-  so (`chat-line.toml`, `process`).
+  agent will do, and the work goes behind the round as the agency's rule for a supervisor's long work says (the
+  agency's `docs/supervisors.md`, 「A supervisor's long work」): a call made apart, whose result wakes the agent
+  in the room it was asked in, for work it reports itself, and a job item for work whose result is code or a
+  document. The agent comes back to the room with the result, in the round that result opens. Work it puts in
+  its own program's background, or hands to a subagent, stays inside the turn and holds the round, so it is no
+  road for long work. The process's fixed rules say so (`chat-line.toml`, `process`).
 
 ## A voice note
 
