@@ -1,4 +1,3 @@
 /target
 /crates/receiver-client/ts/node_modules
-.graph/*
-!.graph/settings.toml
+.graph/
