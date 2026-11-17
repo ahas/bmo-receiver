@@ -492,11 +492,12 @@ impl Carry {
       .map_err(|why| Failure::Failed(format!("{} could not be made: {why}", folder.display())))?;
 
     let at = now_ms();
-    // The round's own turn waits only the policy's limit for its slot, since the room's round is live
-    // conversation; a later turn waits as a delegated task does (docs/drafting.md, 「A round handed to the double」).
-    let admit_within = match doubled {
-      Doubled::Round => Some(receiver.double_admit()),
-      Doubled::Later => None,
+    // The round's own turn asks as a short ask and waits only the policy's limit for its slot, since the room's
+    // round is live conversation; a later turn asks and waits as a delegated task does (docs/drafting.md, 「A round
+    // handed to the double」).
+    let (admit_within, short) = match doubled {
+      Doubled::Round => (Some(receiver.double_admit()), true),
+      Doubled::Later => (None, false),
     };
     let start = DoubleStart {
       supervisor: agent.to_owned(),
@@ -505,6 +506,7 @@ impl Carry {
       run: format!("round-{agent}-{chat_id}-{at}"),
       title: format!("a round of chat {chat_id}"),
       admit_within,
+      short,
     };
     let slot = double_slots::Held {
       key: start.key.clone(),

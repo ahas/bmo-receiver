@@ -389,6 +389,11 @@ async fn a_draft_turn_that_hands_its_round_over_is_carried_again_by_the_double_w
 
   assert_eq!(own.len(), 1, "the agent's own session took the round's turn and no other: {own:#?}");
   assert!(!starts.is_empty(), "a run of the double was started");
+  assert!(starts[0].short, "the round's own turn asks its slot as a short ask");
+  assert!(
+    starts[1..].iter().all(|start| !start.short),
+    "a later turn of the process asks as a delegated task does: {starts:#?}"
+  );
 
   for start in &starts {
     assert_eq!(start.supervisor, AGENT);

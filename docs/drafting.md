@@ -97,9 +97,14 @@ message passes, and the record each turn of it leaves.
   session the role keeps at that folder on that road, so a round handed over after another goes on in the same
   session, as a delegated task does, until the agency lets that session go. The agent's own session is free
   from the moment it answered the sentinel: it takes its other rooms' rounds while the double works.
+- **The round's own turn asks its slot as a short ask.** Its slot request carries `short`, the mark that vouches
+  for one short turn someone is waiting on now, so where the role's delegated tasks hold every slot the agency
+  lets it in on the one seat beyond the role's cap (the agency's `docs/role-slots.md`, 「A short ask」). No other
+  ask of the receiver's carries the mark: a later turn of the process asks as a delegated task does.
 - **The round's own turn waits only a short while for its slot.** A room's round is live conversation and never
   waits behind the role's delegated work, so where the slot its own turn asks for is not let in within the
-  policy's limit (`chat-round.toml`, `[double]`, `admit_ms`), the asking stops there: the slot's request is
+  policy's limit (`chat-round.toml`, `[double]`, `admit_ms`), as where another short run or a run that is no
+  delegated task holds the seat, the asking stops there: the slot's request is
   cancelled by its key and the double has not taken the round, whose reason says the double's role had no free
   slot within that limit. A slot let in within the limit goes on to start the double's session however long the
   start takes, so no session is ever cut half started. The receiver logs the wait as it begins and

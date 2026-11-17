@@ -7,7 +7,7 @@ use receiver_ports::agency::{
   Agency, Delivery, DoubleSeat, DoubleStart, Event, FieldRefusal, Forgotten, HttpAgency, Load,
   NewSupervisor, Removal, RestKind, Resting, Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::stand_in::{StandIn, call};
 
@@ -811,6 +811,7 @@ async fn a_double_s_slot_not_let_in_within_its_limit_is_left_unstarted_and_one_l
     run: format!("round-{key}"),
     title: "a round of chat 42".to_owned(),
     admit_within: Some(Duration::ZERO),
+    short: key == "k1",
   };
 
   // A slot the line lets in at once goes on to its session, the limit already spent.
@@ -849,4 +850,14 @@ async fn a_double_s_slot_not_let_in_within_its_limit_is_left_unstarted_and_one_l
   let after: Vec<String> = unit.took()[before..].iter().map(|(route, _, _)| route.clone()).collect();
 
   assert_eq!(after, ["POST /slot-requests"]);
+
+  // The slot is asked with the short mark exactly as its start names it.
+  let marks: Vec<Value> = unit
+    .took()
+    .iter()
+    .filter(|(route, _, _)| route == "POST /slot-requests")
+    .map(|(_, _, body)| body.as_ref().unwrap()["short"].clone())
+    .collect();
+
+  assert_eq!(marks, [json!(true), json!(false)]);
 }

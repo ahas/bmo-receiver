@@ -217,7 +217,7 @@ room's matter.
 | interrupt a turn | `PATCH /sessions/{sessionId}/turns/{turnId}` | `state`, the turn is `interrupted` | the turn |
 | fold a session | `POST /sessions/{sessionId}/folds` | | `sessionId`, `at` |
 | end a session | `DELETE /sessions/{sessionId}` | | nothing |
-| ask a slot of the double's role | `POST /slot-requests` | `requestKey`, `owner`, `source`, `title`, `askedBy`, the supervisor whose round it is, and `path`, that supervisor's scratch workspace | the request: its `token`, `state` and `role` |
+| ask a slot of the double's role | `POST /slot-requests` | `requestKey`, `owner`, `source`, `title`, `askedBy`, the supervisor whose round it is, `path`, that supervisor's scratch workspace, and `short`, true for a round's own turn alone (`docs/drafting.md`, 「A round handed to the double」) | the request: its `token`, `state` and `role` |
 | a slot's admission | `PATCH /slot-requests/{token}` | nothing, asked again at a steady pace until the request is `active`; a round's own turn stops asking once the policy's limit passes and gives the request back by its key | `request`, the request as it stands |
 | start the double's run | `POST /sessions` | `scope` `role`, `agentName`, the slot's role, `slot`, `cwd` and `supervisor` | the session's `id` |
 | bind a slot to its run | `PATCH /slot-requests/{token}` | `state` `bound`, `childId` | the request |

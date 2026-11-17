@@ -234,8 +234,9 @@ pub const DOUBLE_SOURCE: &str = "delegate";
 const DOUBLE_PACE: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// What a double's run is started with: the supervisor whose double it is, the folder it works at, the key its
-/// slot is asked under, the name its run goes by, the slot's title, and the most its slot is waited for before
-/// the asking stops; none waits however long the role's line takes.
+/// slot is asked under, the name its run goes by, the slot's title, the most its slot is waited for before the
+/// asking stops (none waits however long the role's line takes), and whether its caller vouches that the run is
+/// one short turn someone is waiting on now, which the agency lets in on its one seat beyond the role's cap.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DoubleStart {
   pub supervisor: String,
@@ -244,6 +245,7 @@ pub struct DoubleStart {
   pub run: String,
   pub title: String,
   pub admit_within: Option<std::time::Duration>,
+  pub short: bool,
 }
 
 /// A double's run as it stands: the slot it holds, its session and the name its run goes by.
@@ -1102,6 +1104,7 @@ impl Agency for HttpAgency {
             "title": start.title,
             "askedBy": start.supervisor,
             "path": start.path,
+            "short": start.short,
           }),
         )
         .await?;
