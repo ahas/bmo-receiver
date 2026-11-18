@@ -51,7 +51,7 @@ holds any).
 | `docs/codes.md` | Every refusal, fact, fixed line and kind the receiver gives, with its fields and status |
 | `docs/policy.md` | The policy files and the keys the receiver reads |
 | `docs/PERSONAL-DATA.md` | The personal data no tracked file may hold, and the check that holds it |
-| `docs/checks.md` | The repository checks: dependencies, manifests, layout, the version, the testbed's declaration, Hangul, personal data and names |
+| `docs/checks.md` | The repository checks: dependencies, manifests, layout, the version, Hangul, personal data and names |
 | `docs/wording.md` | The terms this repository's English text bans, held to by the testbed's wording check |
 | `docs/inventory.md` | Every member of the single repository this one was separated from: where it stands here, the task that carried it, and the unit that owns the ones that did not come |
 

@@ -17,8 +17,6 @@ names; the personal-data check reads every tracked file for the five kinds `docs
 - **Manifests.** Only Cargo manifests stand at the root; no other build tool's manifest does.
 - **Layout.** No tracked path holds a directory named after the directory it stands in.
 - **The version.** `VERSION` holds the workspace's version.
-- **The testbed's declaration.** `testbed.toml` names only keys of the testbed's format, its major version,
-  the Cargo and Bun suites and the three base libraries.
 - **Hangul.** No tracked code file holds a Hangul character. Korean words the code matches on, and the
   script ranges it tells them by, are data, kept under `policy/` and `tests/fixtures/`.
 - **Personal data.** No tracked file holds a mail address, a home path, a telephone number, a token or a
