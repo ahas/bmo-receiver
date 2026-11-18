@@ -1301,6 +1301,8 @@ pub struct StandInAgency {
   pub resets: Mutex<Vec<(String, Value)>>,
   pub pushes: Mutex<Vec<(String, i64, String)>>,
   pub saying: Mutex<Option<Said>>,
+  /// Whether every push is answered that no such turn is going.
+  pub turn_gone: Mutex<bool>,
   /// Where a test holds pushes: each one, once recorded, answers only after the test lets one go here.
   pub held_pushes: Mutex<Option<Arc<tokio::sync::Notify>>>,
   pub agents: Mutex<Vec<Agent>>,
@@ -1373,6 +1375,7 @@ impl StandInAgency {
       resets: Mutex::default(),
       pushes: Mutex::default(),
       saying: Mutex::default(),
+      turn_gone: Mutex::default(),
       held_pushes: Mutex::default(),
       agents: Mutex::default(),
       agents_asked: AtomicUsize::new(0),
@@ -1840,10 +1843,19 @@ impl Agency for StandInAgency {
 
     let said = *self.saying.lock().unwrap();
     let held = self.held_pushes.lock().unwrap().clone();
+    let gone = *self.turn_gone.lock().unwrap();
 
     Box::pin(async move {
       if let Some(held) = held {
         held.notified().await;
+      }
+
+      if gone {
+        return Err(PortFailure::Answered {
+          url: "agency/session/push".to_owned(),
+          status: 404,
+          answer: None,
+        });
       }
 
       said.ok_or(PortFailure::Transport {

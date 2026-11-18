@@ -181,7 +181,8 @@ that session without the room hearing it.
   back to wait the same way and are counted the same way (`docs/messages.md`, 「Read marker」).
 - **A turn is a resource the round re-attaches to, never one held call.** The round sends its turn under a key of
   its own (`docs/boundary-api.md`, 「The agency」) and follows the turn's end on the agency's event stream. A cut
-  — the stream ending or failing, or the send's connection closing — is no end of the turn: the round opens the
+  — the stream ending or failing, the send's connection closing, or the agency answering words offered to the
+  working turn that no such turn is going, which is an end the stream never told — is no end of the turn: the round opens the
   stream again and reads the events the agency kept since the last one heard before the turn went out, where the
   turn's end, once it came, stands. Where none does it reads the turn: one still running is followed on; one whose
   read carries its end gives it; one read as ended with its end nowhere the round can read, and one the agency

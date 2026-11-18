@@ -706,7 +706,19 @@ impl Carry {
           if let Some(turning) = followed.turn()
             && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
           {
-            quiet_until = pushed(agency.as_ref(), &session.id, turning, follower).await;
+            let offered = pushed(agency.as_ref(), &session.id, turning, follower).await;
+
+            quiet_until = offered.quiet_until;
+
+            // The agency no longer works the turn and the stream told no end of it: the round re-attaches and
+            // reads the end the agency kept.
+            if offered.turn_gone {
+              eprintln!(
+                "session {}: turn {turning} is no longer going and no end of it was heard; re-attaching to read it",
+                session.id
+              );
+              followed.cut();
+            }
           }
 
           true
@@ -905,28 +917,38 @@ impl Carry {
   }
 }
 
+/// What became of an offer of the words that came for the round's room while its turn works: the moment before
+/// which nothing more is offered, where a refusal or a push that failed asks for that gap, and whether the agency
+/// answered that no such turn is going.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Offered {
+  pub quiet_until: Option<tokio::time::Instant>,
+  pub turn_gone: bool,
+}
+
 /// The words that came for the round's room while its turn works, offered to the turn and settled on what the
-/// agency said became of them; answered with the moment before which nothing more is offered, where a refusal
-/// or a push that failed asks for that gap.
-pub async fn pushed(
-  agency: &dyn Agency,
-  session: &str,
-  turn: i64,
-  aside: &dyn Aside,
-) -> Option<tokio::time::Instant> {
-  let words = aside.offer().await?;
+/// agency said became of them.
+pub async fn pushed(agency: &dyn Agency, session: &str, turn: i64, aside: &dyn Aside) -> Offered {
+  let Some(words) = aside.offer().await else {
+    return Offered::default();
+  };
+  let mut turn_gone = false;
   let said = match agency.push(session, turn, &words).await {
     Ok(said) => said,
     Err(why) => {
       eprintln!("session {session}: words for the working turn did not go in: {why}");
+      turn_gone = matches!(why, PortFailure::Answered { status: 404, .. });
       Said::Refused
     }
   };
 
   aside.settle(said.into()).await;
 
-  (said == Said::Refused)
-    .then(|| tokio::time::Instant::now() + Duration::from_millis(CHAT_ROUND.pushing.refused_gap_ms))
+  Offered {
+    quiet_until: (said == Said::Refused)
+      .then(|| tokio::time::Instant::now() + Duration::from_millis(CHAT_ROUND.pushing.refused_gap_ms)),
+    turn_gone,
+  }
 }
 
 impl Carrying for Carry {
