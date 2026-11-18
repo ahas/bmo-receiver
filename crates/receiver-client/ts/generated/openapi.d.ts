@@ -1309,7 +1309,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** An organisation unit's people, as the web unit answers them at that moment, let into a room by another, with one line naming the unit; the room keeps no link to the unit. */
+        /** An organisation unit's people who have not left, as the web unit answers them at that moment, let into a room by another, with one line naming the unit; the room keeps no link to the unit. */
         post: operations["letInUnit"];
         delete?: never;
         options?: never;

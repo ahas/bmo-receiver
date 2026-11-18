@@ -272,10 +272,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **An organisation unit's members are let in by one call,** `POST /rooms/{roomId}/unit-accounts`: the receiver
   asks the web unit for the unit (`GET /units/{unit}`) and lets in, as above, the users whose home unit it is and
   those holding a post in it, as they stand at that moment, and the room hears one line naming the unit:
-  `unit-let-in` (its fields `unit`, `unitName`, `accounts`, the keys this call let in, and `by`). The room keeps
-  no link to the unit: a person who joins it later is not let in by it, and one who leaves it stays a member. A
-  unit the web unit does not hold is refused 404 `not-found`, and a web unit that does not answer 502
-  `upstream-failed`, with nobody let in. `GET /rooms/{roomId}/accounts` of a
+  `unit-let-in` (its fields `unit`, `unitName`, `accounts`, the keys this call let in, and `by`). An account the
+  web unit marks as having left (`GET /users/{user}/node`, its `left`) still stands in its unit there, and is
+  left out: it is neither let in nor named in `accounts`, `letIn` or the line, and one that is already a member
+  stays as it stands. The room keeps no link to the unit: a person who joins it later is not let in by it, and
+  one who leaves it stays a member. A unit the web unit does not hold is refused 404 `not-found`, and a web unit
+  that does not answer, for the unit or for whether one of its people has left, 502 `upstream-failed`, with
+  nobody let in. `GET /rooms/{roomId}/accounts` of a
   private room answers its own account alone. `GET /accounts/{account}/rooms` answers the rooms the account is a
   member of now with its private rooms: those of the supervisors it owns, and the owner's private room for the
   owner's account; the rooms it reaches through a chat service's identities are the console's to compose.

@@ -391,7 +391,8 @@ whether it is attached and whether the account has left (`GET /users/{user}/node
 `left`), whether one user heads
 another's unit (`GET /users/{user}/unit`, then `POST /checks/unit`), an organisation unit's name and its people
 (`GET /units/{unit}`, read for its `name`, its `members` and the `user` of each of its `concurrent` posts, each
-user an account's key as decimal text), and the rooms the console has open:
+user an account's key as decimal text, its `members` still holding an account that has left, so letting a unit in
+reads each person's `GET /users/{user}/node` for its `left`), and the rooms the console has open:
 `GET /watching` answers `rooms` and the moment the console last reported, which the restart's backlog reads before
 it serves an open room. The port reads the model as
 `inForce`, a grant's holder as `subjectKey` and a grant's lapse as `expiresAt`, and sends a grant's lapse as

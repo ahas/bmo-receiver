@@ -10,6 +10,7 @@ use axum::{
   extract::{Path, State},
   http::StatusCode,
 };
+use futures_util::future::try_join_all;
 use receiver_codes::{FixedLine, RoomAccountRefusal};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -245,8 +246,35 @@ pub async fn let_in_several(State(served): State<Served>, writable: WritableRoom
   answered(json!({ "accounts": members, "letIn": let_in }))
 }
 
-/// `POST /rooms/{roomId}/unit-accounts`: the people of an organisation unit, as the web unit answers them at this
-/// moment, let in by `by` with one line naming the unit; the room keeps no link to the unit.
+// The refusal of a call the web unit did not answer.
+fn upstream(why: impl std::fmt::Display) -> Refusal {
+  refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string())
+}
+
+// The people of a unit whose accounts have not left, in the unit's order: the web unit keeps an account that has
+// left in its unit and marks the departure on the account's machine standing, never in the unit's answer.
+async fn not_left(receiver: &Receiver, people: &[i64]) -> Result<Vec<i64>, Refusal> {
+  let web = &receiver.units().web;
+  let nodes = try_join_all(people.iter().map(|account| async move {
+    let user = account.to_string();
+
+    web.node_of(&user).await
+  }))
+  .await
+  .map_err(upstream)?;
+
+  Ok(
+    people
+      .iter()
+      .zip(nodes)
+      .filter(|(_, node)| !node.left)
+      .map(|(account, _)| *account)
+      .collect(),
+  )
+}
+
+/// `POST /rooms/{roomId}/unit-accounts`: the people of an organisation unit who have not left, as the web unit
+/// answers them at this moment, let in by `by` with one line naming the unit; the room keeps no link to the unit.
 pub async fn let_in_unit(State(served): State<Served>, writable: WritableRoom) -> Answered {
   let room = writable.room;
   let by = by_of(&writable)?;
@@ -264,9 +292,10 @@ pub async fn let_in_unit(State(served): State<Served>, writable: WritableRoom) -
         &format!("The web unit holds no organisation unit {}.", asked.unit),
       ));
     }
-    Err(why) => return Err(refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string())),
+    Err(why) => return Err(upstream(why)),
   };
-  let (members, let_in) = all_let_in(&receiver, room, &unit.people, by).await?;
+  let people = not_left(&receiver, &unit.people).await?;
+  let (members, let_in) = all_let_in(&receiver, room, &people, by).await?;
 
   if !let_in.is_empty() {
     let line = FixedLine::UnitLetIn {

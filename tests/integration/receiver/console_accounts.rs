@@ -557,6 +557,57 @@ async fn an_organisation_units_people_come_in_as_they_stand_then_with_one_line_n
   assert_eq!(lines(&stood, room).await.len(), 2, "nothing written for it");
 }
 
+// The accounts a let-in answers, by key.
+fn answered_accounts(answer: &Value) -> Vec<i64> {
+  answer["accounts"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .map(|member| member["account"].as_i64().unwrap())
+    .collect()
+}
+
+#[tokio::test]
+async fn a_units_person_who_has_left_is_neither_let_in_nor_named_in_its_line() {
+  let stood = stood(false).await;
+  let room = group(&stood.port, BEA).await;
+  let path = format!("/rooms/{room}/unit-accounts");
+
+  stood.standing.web.organising(5, "Design", &[BEA, CAL, DAN, EVE]);
+  stood.standing.web.leaving(&DAN.to_string());
+
+  let (status, answer) = asked(&stood.port, "POST", &path, Some(json!({ "unit": 5, "by": BEA }))).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+  assert_eq!(answer["letIn"], json!([CAL, EVE]));
+  assert_eq!(answered_accounts(&answer), [BEA, CAL, EVE]);
+  assert_eq!(
+    kept_lines(&stood, room).await,
+    [fixed(
+      "unit-let-in",
+      json!({ "unit": 5, "unitName": "Design", "accounts": [CAL, EVE], "by": BEA })
+    )]
+  );
+  assert_eq!(members(&stood, room).await.as_array().unwrap().len(), 3);
+
+  // A web unit that does not say whether one of the people has left lets nobody in.
+  let other = group(&stood.port, BEA).await;
+
+  stood.standing.web.not_answering_node_of(&EVE.to_string());
+
+  let (status, refusal) = asked(
+    &stood.port,
+    "POST",
+    &format!("/rooms/{other}/unit-accounts"),
+    Some(json!({ "unit": 5, "by": BEA })),
+  )
+  .await;
+
+  assert_eq!((status, refusal["code"].clone()), (StatusCode::BAD_GATEWAY, json!("upstream-failed")));
+  assert_eq!(members(&stood, other).await.as_array().unwrap().len(), 1, "the opener alone");
+  assert!(lines(&stood, other).await.is_empty(), "nothing written for it");
+}
+
 #[tokio::test]
 async fn an_accounts_record_identity_is_made_once_and_kept() {
   let stood = stood(false).await;

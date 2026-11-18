@@ -924,6 +924,8 @@ pub struct StandInWeb {
   pub watched: Mutex<Vec<i64>>,
   // The machine each user's account is bound to, and whether it is attached.
   pub nodes: Mutex<BTreeMap<String, UserNode>>,
+  // The users whose machine standing it does not answer.
+  pub unread_nodes: Mutex<BTreeSet<String>>,
   // Each (head, user) where the head heads the user's unit.
   pub heads: Mutex<BTreeSet<(String, String)>>,
   // Whether it answers no sender's user, as a web unit restarting does.
@@ -941,6 +943,7 @@ impl StandInWeb {
       admins: Mutex::default(),
       watched: Mutex::default(),
       nodes: Mutex::default(),
+      unread_nodes: Mutex::default(),
       heads: Mutex::default(),
       down: Mutex::default(),
       organisation: Mutex::default(),
@@ -1003,6 +1006,21 @@ impl StandInWeb {
         left: false,
       },
     );
+  }
+
+  /// A user's account marked left, bound to no machine.
+  pub fn leaving(&self, user: &str) {
+    let left = UserNode {
+      left: true,
+      ..UserNode::default()
+    };
+
+    self.nodes.lock().unwrap().insert(user.to_owned(), left);
+  }
+
+  /// A user whose machine standing it answers no more.
+  pub fn not_answering_node_of(&self, user: &str) {
+    self.unread_nodes.lock().unwrap().insert(user.to_owned());
   }
 }
 
@@ -1097,6 +1115,16 @@ impl Web for StandInWeb {
   }
 
   fn node_of<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<UserNode>> {
+    if self.unread_nodes.lock().unwrap().contains(user) {
+      return Box::pin(async move {
+        Err(PortFailure::Answered {
+          url: format!("http://web.invalid/users/{user}/node"),
+          status: 503,
+          answer: None,
+        })
+      });
+    }
+
     let node = self.nodes.lock().unwrap().get(user).cloned().unwrap_or_default();
 
     Box::pin(async move { Ok(node) })
