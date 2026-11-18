@@ -798,4 +798,12 @@ async fn a_judgement_that_skips_bare_is_asked_once_over_and_keeps_none_given() {
     "the round log says why, or that none was given"
   );
   assert!(round.chat.sent().is_empty(), "a round that ends at its judgement sends nothing");
+
+  let why = vec![Some("none given".to_owned())];
+
+  assert_eq!(
+    round.standing.silences(),
+    (why.clone(), why),
+    "the gate and the stream say none was given"
+  );
 }

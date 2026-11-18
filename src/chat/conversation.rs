@@ -251,6 +251,9 @@ pub struct Made {
   /// The message the agent marked as the one its answer answers, by its number, where it marked one: zero for a
   /// mark naming none, which is the newest message the round answers.
   pub reply_to: Option<i64>,
+  /// Why the round sends nothing, where it sends nothing, as its `skipped` judgement says it (docs/wake.md, 「The
+  /// names and the window」); none where a message goes out.
+  pub silence: Option<String>,
 }
 
 /// What makes a round's message (docs/drafting.md): the process a round opens before its turn goes out, whose
@@ -425,9 +428,9 @@ struct Conv {
   given_back: i64,
 }
 
-// Words of a room the agent passed over, by its own judgement: the reason its skip named, where it named one.
+// Words of a room the agent passed over, by its own judgement: the reason its skip named, or that it named none.
 struct Passed {
-  reason: Option<String>,
+  reason: String,
 }
 
 // The words a round that failed left unread, waiting for the room's next round (docs/messages.md, 「Read
@@ -2068,7 +2071,7 @@ impl Conversations {
       self.consume(chat_id, &batch).await;
       held.last_consumed_id = self.state().active.get(&chat_id).and_then(|conv| conv.held.last_consumed_id);
 
-      return self.silent_end(chat_id, &batch, &held, passed.reason.as_deref()).await;
+      return self.silent_end(chat_id, &batch, &held, Some(&passed.reason)).await;
     }
 
     let owed = if chat_id == self.owner_room() {
@@ -2324,8 +2327,15 @@ impl Conversations {
 
     held.context_tokens = reply.context_tokens.or(held.context_tokens);
 
+    // A round that sends nothing says why: the reason the process handed back, else the one the answer names, else
+    // that none was given.
     if let Some(skip) = super::sentinels::skip_alone(&reply.text) {
-      return self.silent_end(chat_id, &batch, &held, skip.reason()).await;
+      let reason = made
+        .silence
+        .or_else(|| skip.reason().map(str::to_owned))
+        .unwrap_or_else(|| super::draft::log::NO_REASON.to_owned());
+
+      return self.silent_end(chat_id, &batch, &held, Some(&reason)).await;
     }
 
     self.keep_session(chat_id, &held);
@@ -2456,7 +2466,7 @@ impl Conversations {
     Err(Failure::Failed(format!("the round's message was not sent after {tries} tries: {why}")))
   }
 
-  // A round that ends in silence: its session kept, its skip written down with the reason it named and the round
+  // A round that ends in silence: its session kept, its skip written down with why it sent nothing and the round
   // over, as an answered round is once its answer has gone out; a round of the system's lines alone closes a
   // conversation nothing keeps open.
   async fn silent_end(
@@ -2652,17 +2662,15 @@ impl Conversations {
       // What the round log's row says of the reason, and the passing over itself where the turn ended in one.
       let (ended, reason, passed) =
         match super::sentinels::skip_alone(&crate::form::strip_prompt_scaffolding(&reply.text)) {
-          Some(super::sentinels::Skip::Reasoned(reason)) => (
-            super::draft::log::Answered::Skip,
-            Some(reason.clone()),
-            Some(Passed {
-              reason: Some(reason),
-            }),
-          ),
+          Some(super::sentinels::Skip::Reasoned(reason)) => {
+            (super::draft::log::Answered::Skip, Some(reason.clone()), Some(Passed { reason }))
+          }
           Some(super::sentinels::Skip::Bare) if over_skip => (
             super::draft::log::Answered::Skip,
             Some(super::draft::log::NO_REASON.to_owned()),
-            Some(Passed { reason: None }),
+            Some(Passed {
+              reason: super::draft::log::NO_REASON.to_owned(),
+            }),
           ),
           Some(super::sentinels::Skip::Bare) => (super::draft::log::Answered::NoVerdict, None, None),
           None => (super::draft::log::Answered::Answered, None, None),
@@ -3036,8 +3044,8 @@ impl Conversations {
     }
   }
 
-  // A round that ended in silence is written down as the ending it was, on the message it read, with the reason
-  // its skip named where it named one (docs/wake.md, 「The names and the window」).
+  // A round that ended in silence is written down as the ending it was, on the message it read, with why it sent
+  // nothing where the round holds a reason (docs/wake.md, 「The names and the window」).
   async fn record_skip(&self, chat_id: i64, message_id: Option<i64>, reason: Option<&str>) {
     let judgement = Judgement {
       room_id: chat_id,

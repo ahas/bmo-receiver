@@ -133,9 +133,13 @@ its rounds.
   session open through a conversation it is not in.
 - **A round that ends in silence is written down with why.** Its ending is a judgement of the stage `skipped`
   with the verdict `SKIP`, under the last message the round read, or under none where it read nothing of the
-  room, and its `detail` is the reason the skip named, on the one line it is; a skip that named none, and a
-  quiet turn that only read an instruction, carry none. The stream is told the same as `skipped`, with the room,
-  that message, the verdict and that `detail`, so a screen says why the agent held its peace.
+  room, and its `detail` is why the round sent nothing: the reason the skip named, on the one line it is, as the
+  round log keeps it, whether the agent's own judgement of the room's words or the round's draft process ended in
+  the skip; `none given` where the agent named none even when asked over; and `withheld: ` then the checks that
+  failed twice where the draft process withheld the message (`docs/drafting.md`, 「The round log」). Only a round
+  that holds no reason at all carries none, as a quiet turn that only read an instruction does. The stream is told
+  the same as `skipped`, with the room, that message, the verdict and that `detail`, so a screen says why the
+  agent held its peace.
 - **The message the agent writes for words handed to it is an answer** (`docs/messages.md`, 「Words handed to the
   room's supervisor」) and opens one as any answer does: the room has been spoken to, so what anyone there says
   back needs no name to reach the session. Words handed to the agent and not yet said open nothing, since nothing

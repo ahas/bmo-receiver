@@ -846,13 +846,15 @@ impl Chat for StandInChat {
 /// One index asked of the gate: the room, and the session and agent it was asked for.
 pub type IndexAsked = (i64, Option<String>, Option<String>);
 
-/// The gate: every attach of a round's judgements asked is kept, each the room, the message and the round's start, and every copy of gate options asked is kept, each the agent it is for and
+/// The gate: every judgement written is kept, every attach of a round's judgements asked is kept, each the room,
+/// the message and the round's start, and every copy of gate options asked is kept, each the agent it is for and
 /// the agent copied from.
 #[derive(Default)]
 pub struct StandInGate {
   /// The entries the reference selection answers, and how many times it was asked.
   pub entries: Mutex<Vec<Entry>>,
   pub referred: Mutex<usize>,
+  pub judged: Mutex<Vec<Judgement>>,
   pub attached: Mutex<Vec<(i64, i64, i64)>>,
   pub copied: Mutex<Vec<(String, String)>>,
   /// The index the gate serves, by room, and the session and agent each was asked for; none served where empty.
@@ -892,7 +894,9 @@ impl Gate for StandInGate {
     Box::pin(async move { Ok(entries) })
   }
 
-  fn judge<'a>(&'a self, _judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {
+  fn judge<'a>(&'a self, judgement: &'a Judgement) -> BoxFuture<'a, Answer<()>> {
+    self.judged.lock().unwrap().push(judgement.clone());
+
     Box::pin(async { Ok(()) })
   }
 
@@ -2405,6 +2409,30 @@ pub struct Standing {
   pub hearing: Arc<StandInHearing>,
   pub brain: Arc<StandInBrain>,
   pub holders: Arc<StandInHolders>,
+}
+
+impl Standing {
+  /// Why each round that sent nothing says it sent nothing, in the order the rounds ended: the `detail` of each
+  /// `skipped` judgement the gate was handed, and of each `skipped` event the stream was told.
+  pub fn silences(&self) -> (Vec<Option<String>>, Vec<Option<String>>) {
+    let judged = self
+      .gate
+      .judged
+      .lock()
+      .unwrap()
+      .iter()
+      .filter(|judgement| judgement.gate_name == "skipped")
+      .map(|judgement| judgement.detail.clone())
+      .collect();
+    let told = self
+      .heard
+      .events("skipped")
+      .iter()
+      .map(|event| event["detail"].as_str().map(str::to_owned))
+      .collect();
+
+    (judged, told)
+  }
 }
 
 /// The same standing, with the receiver's own wake in place of the recording one: the rule every message is

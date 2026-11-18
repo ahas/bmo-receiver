@@ -825,6 +825,20 @@ impl Run<'_> {
       own_done: self.own_marked(Mark::Done),
       own_separate: self.own_marked(Mark::Separate),
       reply_to: self.marks.iter().rev().find(|(mark, _)| *mark == Mark::Reply).map(|(_, id)| *id),
+      silence: None,
+    }
+  }
+
+  // What the process hands back where the round skipped: nothing to send, and the reason its log keeps.
+  fn made_skip(&self) -> Made {
+    self.made_silent(self.skip_reason.as_deref().unwrap_or(NO_REASON))
+  }
+
+  // What the process hands back where the round sends nothing, with why.
+  fn made_silent(&self, why: &str) -> Made {
+    Made {
+      silence: Some(why.to_owned()),
+      ..self.made(SKIP)
     }
   }
 
@@ -1092,7 +1106,7 @@ impl Drafter {
 
       run.end(ended, row, now_ms() - drafted.began).await;
 
-      return Ok(run.made(SKIP));
+      return Ok(run.made_skip());
     };
 
     // The items the code's readings call for. Each asks only for the recording: its answer is the short mark
@@ -1237,7 +1251,7 @@ impl Drafter {
             run.skipped(answer.reason.as_deref());
             run.end(Ended::Skip, row, now_ms() - drafted.began).await;
 
-            return Ok(run.made(SKIP));
+            return Ok(run.made_skip());
           }
 
           message = answer.reply;
@@ -1269,15 +1283,13 @@ impl Drafter {
       let blocking: Vec<Check> = failed.to_vec();
 
       if blocking.iter().any(|check| asked.contains(check)) {
-        let names: Vec<&str> = blocking.iter().map(|check| check.word()).collect();
+        let names = blocking.iter().map(|check| check.word()).collect::<Vec<_>>().join(", ");
 
-        eprintln!("chat {chat}: the message was withheld: {} failed", names.join(", "));
+        eprintln!("chat {chat}: the message was withheld: {names} failed");
 
-        run
-          .end(Ended::Withheld, &format!("{row}; {}", names.join(", ")), now_ms() - drafted.began)
-          .await;
+        run.end(Ended::Withheld, &format!("{row}; {names}"), now_ms() - drafted.began).await;
 
-        return Ok(run.made(SKIP));
+        return Ok(run.made_silent(&format!("withheld: {names}")));
       }
 
       for check in failed {
@@ -1295,7 +1307,7 @@ impl Drafter {
               run.skipped(answer.reason.as_deref());
               run.end(Ended::Skip, row, now_ms() - drafted.began).await;
 
-              return Ok(run.made(SKIP));
+              return Ok(run.made_skip());
             }
 
             if !is_wait(&answer.reply.text) {

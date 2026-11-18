@@ -627,6 +627,11 @@ async fn an_agent_only_notice_reaches_the_agent_and_leaves_no_room_message() {
     round.scratch.texts(r#"SELECT "text" FROM "messages" WHERE "chat_id" = 42"#).await,
     Vec::<String>::new()
   );
+  assert_eq!(
+    round.standing.silences(),
+    (vec![None], vec![None]),
+    "a quiet turn holds no reason, and its skip carries none"
+  );
 }
 
 #[tokio::test]
@@ -1021,6 +1026,14 @@ async fn a_skip_in_the_draft_turn_sends_nothing() {
     ],
     "every skip row says why, and so does the round's end"
   );
+
+  let why = vec![Some("nothing to add".to_owned())];
+
+  assert_eq!(
+    round.standing.silences(),
+    (why.clone(), why),
+    "the gate's judgement and the stream say the reason the round's log ends on"
+  );
 }
 
 #[tokio::test]
@@ -1073,6 +1086,14 @@ async fn a_bare_skip_asks_the_same_turn_once_over_and_a_second_one_ends_the_roun
       "end 5 skip */*/agent-a; skipped: none given",
     ],
     "a skip that names none is no verdict, and the round log says none given"
+  );
+
+  let why = vec![Some("none given".to_owned())];
+
+  assert_eq!(
+    round.standing.silences(),
+    (why.clone(), why),
+    "the gate and the stream say none was given"
   );
 }
 
@@ -1631,6 +1652,10 @@ async fn a_check_that_fails_twice_withholds_the_message() {
 
   assert_eq!(end.len(), 1);
   assert!(end[0].starts_with("withheld ") && end[0].ends_with("format"), "{end:?}");
+
+  let why = vec![Some("withheld: format".to_owned())];
+
+  assert_eq!(round.standing.silences(), (why.clone(), why), "the gate and the stream name the checks");
 }
 
 #[tokio::test]

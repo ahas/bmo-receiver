@@ -65,8 +65,9 @@ message passes, and the record each turn of it leaves.
   after its colon, is read as no verdict, and the same turn is asked once more under one line saying that a skip
   names its reason in that form (`drafting.toml`, `skip_again`), the session holding the round already. A second
   answer naming none ends the round as a skip whose reason is recorded as `none given`, so a round log that ends
-  in a skip always says why, or says that no reason was given. The asking is the only repair a bare skip gets: a
-  turn that answers anything else is read as it answers.
+  in a skip always says why, or says that no reason was given, and the round's `skipped` judgement and its
+  stream event carry the same reason (`docs/wake.md`, 「The names and the window」). The asking is the only repair
+  a bare skip gets: a turn that answers anything else is read as it answers.
 - **The bare marker stands where a rule gives it whole.** The handoff turn, a consolidation turn and the
   situation-note turn are each told to output exactly `<<SKIP>>` and ask no reason, since nothing of them goes to
   a room and what they leave unsaid is settled by their own rule; the reader of those turns takes a skip naming a
