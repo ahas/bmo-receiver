@@ -487,9 +487,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
   `totalTokens` null until the agency serves a tally by agent and room.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
-- **bmo-chat's handed-over message** carries words alone, with no field for what a line is: a person joining or
-  leaving a chat service's room reaches the receiver as the words the service writes for it, kept as anyone's
-  message, and no screen can tell it from a person's words until the protocol carries the line's code and fields.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver
   learns a message was taken as a move: until one does, a move is woken on as any message is.
 - **bmo-chat's `POST /sends`** carries no word of who said a message the receiver carries to another provider

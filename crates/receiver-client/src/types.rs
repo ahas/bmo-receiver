@@ -292,7 +292,8 @@ pub struct Message {
   /// null on a message that came in from a provider.
   pub voice: Option<String>,
   /// `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,
-  /// `fixed-line` for a fixed line the receiver said into the room itself, null for any other message.
+  /// `fixed-line` for a fixed line the receiver said into the room itself and for a line a chat service handed
+  /// over, null for any other message.
   #[serde(default)]
   pub kind: Option<String>,
   /// On a message of kind `fixed-line`, the line it was said from; null on any other.

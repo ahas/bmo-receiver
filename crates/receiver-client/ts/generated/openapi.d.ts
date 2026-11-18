@@ -2301,7 +2301,8 @@ export interface components {
             imagePath: string | null;
             /**
              * @description `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,
-             *     `fixed-line` for a fixed line the receiver said into the room itself, null for any other message.
+             *     `fixed-line` for a fixed line the receiver said into the room itself and for a line a chat service handed
+             *     over, null for any other message.
              * @default null
              */
             kind: string | null;

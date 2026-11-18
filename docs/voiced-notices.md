@@ -341,6 +341,10 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
   and the journal says which line and why. A code and its fields, or any JSON, never stand in a room.
 - **A fixed line is the service's own, never an agent's.** No send asks for one: a session's words reach a room
   only as its round's message, which the draft process reviews (`docs/drafting.md`).
+- **A line a chat service hands over is kept as a fixed line.** A person coming into a room or going out of it, said
+  by the platform as a line (bmo-chat's `docs/contract.md`, 「Lines」), is kept with the kind `fixed-line` and its
+  code and fields as they came, beside the plain sentence the service wrote for it (`docs/api.md`, 「The chat
+  services」).
 - **A fixed line the receiver says into a room itself is kept as one.** The room's record keeps its words as they
   were rendered, with the kind `fixed-line` and the line it was said from, its code and its fields, so a screen
   reading the room knows what the line is without matching its words (`docs/api.md`, 「Messages」). This holds for

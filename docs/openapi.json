@@ -1891,7 +1891,7 @@
           },
           "kind": {
             "default": null,
-            "description": "`sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,\n`fixed-line` for a fixed line the receiver said into the room itself, null for any other message.",
+            "description": "`sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,\n`fixed-line` for a fixed line the receiver said into the room itself and for a line a chat service handed\nover, null for any other message.",
             "type": [
               "string",
               "null"

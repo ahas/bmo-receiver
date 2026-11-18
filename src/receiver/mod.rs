@@ -107,6 +107,9 @@ pub struct Context {
   pub carries_file: bool,
   /// Whether the chat service is still gathering the message's file, and hands it over later.
   pub gathering: bool,
+  /// The line the platform said, its `code` and `fields`, where the message is one rather than anyone's words; the
+  /// message is kept as a fixed line (docs/voiced-notices.md, 「Lines that stay fixed」).
+  pub line: Option<Value>,
 }
 
 /// What the road a message came in on says of its room.
@@ -949,6 +952,10 @@ impl Receiver {
       }
     } else {
       rows::save_message(&self.db, inbound, None, None).await?;
+    }
+
+    if let Some(line) = &context.line {
+      crate::roads::record::mark_fixed_line(&self.db, inbound.chat_id, inbound.message_id, line).await?;
     }
     self.told_kept(inbound);
 

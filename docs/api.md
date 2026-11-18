@@ -337,7 +337,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
   `transcript` (the words heard in a voice note, or null), `voiceSeconds` (how long the recording ran, or null),
-  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker` for a sticker the record sent and for a message a chat service handed a sticker over on, as its picture or as a file of any type (`docs/room-files.md`, 「What the console reads of them」), `thinking` for a thinking block a record holds as a message, `fixed-line` for a fixed line the receiver said into the room itself (`docs/voiced-notices.md`, 「Lines that stay fixed」), or null for any other), `line` (on a message of kind `fixed-line`, the line it was said from, its `code` and its `fields` as `docs/codes.md`, 「Fixed lines」, names them, and null on any other), `editedAt`, `deletedAt` and
+  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker` for a sticker the record sent and for a message a chat service handed a sticker over on, as its picture or as a file of any type (`docs/room-files.md`, 「What the console reads of them」), `thinking` for a thinking block a record holds as a message, `fixed-line` for a fixed line the receiver said into the room itself (`docs/voiced-notices.md`, 「Lines that stay fixed」) and for a line a chat service handed over (「The chat services」), or null for any other), `line` (on a message of kind `fixed-line`, the line it was said from, its `code` and its `fields`: as `docs/codes.md`, 「Fixed lines」, names them on the receiver's own, and as the chat service handed them over on a provider's, a code the receiver does not know among them, and null on any other), `editedAt`, `deletedAt` and
   `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
   `situation` (the room's situation note as it stood when the round that judged this message opened — its `text`,
@@ -881,7 +881,7 @@ states it; it is repeated here only so one document holds every route the receiv
 
 | Route | What a provider does |
 |---|---|
-| `PUT /chat/rooms/{roomId}/messages/{messageId}` | hands over a message, live, edited or read back |
+| `PUT /chat/rooms/{roomId}/messages/{messageId}` | hands over a message, live, edited or read back; one handed over with a `line` (bmo-chat's `docs/contract.md`, 「Lines」), live or read back, is kept as kind `fixed-line` with the line's `code` and `fields` as they came, beside its words (「Messages」) |
 | `PATCH /chat/rooms/{roomId}/messages/{messageId}` | hands over the files a gathering message promised |
 | `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room added on the asking provider and still on its list, whatever its mode, and false for every other room (`docs/receiver.md`, 「A read-only room」); `listened` is the room's own, as a `Room` answers it (「Rooms」); the answer is read off what the receiver holds, and no chat service is asked for it (`docs/receiver.md`, 「What is kept for a moment」) |
 | `GET /chat/rooms` | asks the rooms whose past it may read back |

@@ -14,6 +14,7 @@ mod files;
 mod job_queue;
 mod listening;
 mod message_files;
+mod message_lines;
 mod message_metadata;
 mod notices;
 mod owner_road;

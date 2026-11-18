@@ -2,10 +2,11 @@
 //! read back, and the files a message's gathering promised, served by bmo-chat-client's receiving-side router and
 //! judged by the one receiver. What the service already knows of the room is taken as it says it; a hand-over that
 //! says nothing of the room is read off the room's road. What the platform handed over beside a message as its
-//! `metadata` is kept as it arrived once the message is judged. A message said live and kept goes on to the room's
-//! other providers, and a provider's copy of a message carried to it from the room is that message, held already
-//! (docs/receiver.md, 「A room's chat providers」). A typing mark and a presence change are held and told as the present,
-//! never kept (docs/receiver.md, 「Typing and presence」).
+//! `metadata` is kept as it arrived once the message is judged, and a message handed over as a line the platform
+//! said is kept as a fixed line, its code and fields beside its words. A message said live and kept goes on to the
+//! room's other providers, and a provider's copy of a message carried to it from the room is that message, held
+//! already (docs/receiver.md, 「A room's chat providers」). A typing mark and a presence change are held and told as
+//! the present, never kept (docs/receiver.md, 「Typing and presence」).
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,9 +14,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use bmo_chat_client::{
   AvatarChange, ChatReceiver, Deletion, ErrorCode, FileItem, GatheredPatch, HandedMessage, HeldMessage,
-  InboundChatContext, MessageOrigin, PresenceChange, ReactionChange, ReceiverRoom, RoomFacts, RoomKind,
-  RoomQuery, RoomsQuery, TypingMark, WireError, receiver_router,
+  InboundChatContext, MessageLine, MessageOrigin, PresenceChange, ReactionChange, ReceiverRoom, RoomFacts,
+  RoomKind, RoomQuery, RoomsQuery, TypingMark, WireError, receiver_router,
 };
+use serde_json::{Value, json};
 
 use super::{Context, Inbound, NotReceived, Receiver, Room, metadata};
 use crate::all;
@@ -68,7 +70,14 @@ pub fn context(context: &InboundChatContext) -> Context {
     spoken_text: context.spoken_text.clone(),
     carries_file: context.carries_file,
     gathering: false,
+    line: None,
   }
+}
+
+/// The line a message is, where the platform said one, as a fixed line is kept: its `code` and its `fields` as they
+/// came, a code the receiver does not know among them (bmo-chat's docs/contract.md, 「Lines」).
+pub fn line(line: &MessageLine) -> Value {
+  json!({ "code": line.code, "fields": line.fields })
 }
 
 /// A file a message carried, as a send carries it on.
@@ -80,9 +89,9 @@ pub fn file_item(file: &bmo_chat_client::MessageFile) -> FileItem {
   }
 }
 
-/// The message with its words, its caption and every string of the payload beside it read for secret-shaped runs
-/// (docs/messages.md, 「Secrets taken out」), before anything keeps or forwards any of them. The journal says how
-/// many runs it lost, and nothing of its words.
+/// The message with its words, its caption, every string of the payload beside it and of its line's fields read for
+/// secret-shaped runs (docs/messages.md, 「Secrets taken out」), before anything keeps or forwards any of them. The
+/// journal says how many runs it lost, and nothing of its words.
 pub fn without_secrets(room_id: i64, message_id: i64, mut message: HandedMessage) -> HandedMessage {
   let words = secrets::redact(&message.text);
   let mut runs = words.runs;
@@ -98,6 +107,10 @@ pub fn without_secrets(room_id: i64, message_id: i64, mut message: HandedMessage
 
   if let Some(metadata) = message.context.metadata.as_mut() {
     runs += secrets::redact_value(metadata);
+  }
+
+  if let Some(line) = message.line.as_mut() {
+    runs += line.fields.values_mut().map(secrets::redact_value).sum::<usize>();
   }
 
   if runs > 0 {
@@ -208,6 +221,7 @@ impl ChatReceiver for Receiver {
     let said = answering_the_kept(self, inbound(room_id, message_id, &message)).await.map_err(failed)?;
     let mut seen = context(&message.context);
     seen.gathering = message.gathering;
+    seen.line = message.line.as_ref().map(line);
 
     match message.origin {
       MessageOrigin::History => {

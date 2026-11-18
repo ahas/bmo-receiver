@@ -69,11 +69,12 @@ and when a room sees it typing.
 - **A message's words are read for secret-shaped runs before anything keeps or forwards them,** and each run is
   replaced by the marker `<redacted-secret>`: in the row the record keeps, in what is carried to the room's other
   providers, in what a turn is handed and in what the console's live events and pages read. So are the words of an
-  edit, a file's caption, every string of the payload a chat service hands over beside a message, what bmo-ear heard
-  in a voice note, the new words a person's edit from the console carries, and the words and captions the owner puts
-  in a room or says to a room's session from the console (`docs/receiver.md`, 「The owner's words」), the
-  progress lines a working turn's picture carries (`docs/receiver.md`, 「The event stream」), and the thinking
-  block that picture carries (「A working turn's thinking」 below).
+  edit, a file's caption, every string of the payload a chat service hands over beside a message and of the fields
+  of a line it hands over as one, what bmo-ear heard in a voice note, the new words a person's edit from the console
+  carries, and the words and captions the owner puts in a room or says to a room's session from the console
+  (`docs/receiver.md`, 「The owner's words」), the progress lines a working turn's picture carries
+  (`docs/receiver.md`, 「The event stream」), and the thinking block that picture carries (「A working turn's
+  thinking」 below).
 - **The shapes are data,** the policy's `secret-shapes.toml` (`docs/policy.md`), read in the order it lists them,
   each a regular expression with a name; where a shape names a part of its run `secret`, that part alone is
   replaced, so a `name=value` keeps its name and loses its value. As it stands it holds a platform's 64-character
