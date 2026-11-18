@@ -128,6 +128,10 @@ pub struct Roads {
   chats: ChatServices,
   declared: Arc<Mutex<BTreeMap<String, ChatDeclaration>>>,
   rooms: Kept<(String, i64), Option<ProviderRoom>>,
+  // The chat services that did not answer of a room in time, each passed by while it is kept here.
+  silent: Kept<String, ()>,
+  // How long a chat service is waited for when it is asked of a room.
+  answer_within: Duration,
   // The receiver's store, which says which rooms stand on the record alone; given once the receiver stands.
   store: Arc<OnceLock<sea_orm::DatabaseConnection>>,
   // The owner's private room: the configuration's `owner_room`, else the room numbered as his own number; given
@@ -162,6 +166,8 @@ impl Roads {
       chats,
       declared: Arc::default(),
       rooms: Kept::new(span),
+      silent: Kept::new(Duration::from_secs(KEPT.road_silent_seconds)),
+      answer_within: Duration::from_secs(KEPT.road_answer_seconds),
       store: Arc::default(),
       owners: Arc::default(),
       accounts: Arc::default(),
@@ -418,11 +424,26 @@ impl Roads {
       return None;
     }
 
-    let said = match self.service(key)?.room(chat_id).await {
-      Ok(room) => Some(room).filter(|room| room.owns),
-      Err(ClientFailure::Answered { status: 404, .. }) => None,
-      Err(why) => {
+    if self.silent.get(&key.to_owned()).is_some() {
+      return None;
+    }
+
+    let service = self.service(key)?;
+    let said = match tokio::time::timeout(self.answer_within, service.room(chat_id)).await {
+      Ok(Ok(room)) => Some(room).filter(|room| room.owns),
+      Ok(Err(ClientFailure::Answered { status: 404, .. })) => None,
+      Ok(Err(why)) => {
         eprintln!("bmo-receiver: the {key} road did not answer what it says of the room: {why}");
+        self.silent.keep(key.to_owned(), ());
+
+        return None;
+      }
+      Err(_) => {
+        eprintln!(
+          "bmo-receiver: the {key} road did not answer what it says of the room within {} s, so it is asked of no room for a while",
+          self.answer_within.as_secs()
+        );
+        self.silent.keep(key.to_owned(), ());
 
         return None;
       }

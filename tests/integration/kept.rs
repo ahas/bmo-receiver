@@ -10,6 +10,7 @@ use axum::http::StatusCode;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::receiver::wake::agents;
 use bmo_receiver::roads::Roads;
+use receiver_policy::kept::KEPT;
 use receiver_ports::chat::{Chat, ChatServices};
 
 use crate::integration::common::Scratch;
@@ -56,6 +57,33 @@ async fn a_rooms_facts_are_asked_once_within_the_span_and_again_after_it() {
   assert!(roads.is_owner_room(HELD).await);
   assert!(!roads.is_owner_room(NOT_HELD).await);
   assert_eq!(asked(&chat), 5, "past the span each room is asked again");
+}
+
+// "A request that walks every room waits for a service that is slow or out of reach once, not once a room."
+#[tokio::test]
+async fn a_chat_service_that_does_not_answer_is_waited_for_once_and_passed_by_for_the_other_rooms() {
+  let hung = Arc::new(StandInChat::new("chat-a").silent());
+  let roads =
+    Roads::keeping_for(ChatServices::of([("chat-a".to_owned(), hung.clone() as Arc<dyn Chat>)]), SPAN);
+  let began = std::time::Instant::now();
+
+  for room in [HELD, NOT_HELD, -703, -704, -705] {
+    assert!(
+      !roads.is_owner_room(room).await,
+      "a room its service does not answer for is no owner's room"
+    );
+  }
+
+  assert_eq!(
+    asked(&hung),
+    1,
+    "the service is asked of the first room and of no other while it is passed by"
+  );
+  assert!(
+    began.elapsed() < Duration::from_secs(2 * KEPT.road_answer_seconds),
+    "five rooms waited for the service once: {:?}",
+    began.elapsed()
+  );
 }
 
 #[tokio::test]

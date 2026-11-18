@@ -6,6 +6,14 @@
 # service a lookup on its platform.
 room_seconds = 60
 
+# How long a chat service is waited for when it is asked of a room, in seconds. A service on this machine answers
+# in milliseconds; one that takes longer is waiting on its platform.
+road_answer_seconds = 3
+
+# How long a chat service that did not answer in that span, or could not be reached, is asked of no room, in
+# seconds, so a request that walks every room waits for it once.
+road_silent_seconds = 30
+
 # The agency's list of agents, awake or not, in seconds. A wake turns on whether an agent is awake, so a change
 # made at the agency is read within this span.
 agents_seconds = 10

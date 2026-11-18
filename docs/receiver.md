@@ -831,6 +831,11 @@ flowchart TD
 - **A room's facts are kept by road and room:** the answer of each chat service asked, a room the service does not
   hold kept as not held, a room the record holds alone read off the record each time and never asked of a service
   (「A room's chat providers」), and an answer that did not come kept not at all, so the next read asks again.
+- **A chat service is waited for a few seconds, and one that did not answer is passed by for a while.** The
+  receiver waits `road_answer_seconds` for a service's answer about a room. Where none comes in that span, or the
+  service cannot be reached, the service is read as not answering and is asked of no room for
+  `road_silent_seconds`: a request that walks every room waits for a service that is slow or out of reach once,
+  not once a room, and the rooms it would have answered for are read off what the record keeps.
   Within the span every reader of the facts reads the kept answer: the room list and one room, the message page's
   `by`, the wake, the roads a line goes out on.
 - **A chat service asking the receiver for a room is answered off what the receiver holds,** and no chat service is
