@@ -124,10 +124,15 @@ fn opened_before_move(age: Duration) -> bool {
 }
 
 /// A pool of at most `max` connections on the database, which never hands out a connection opened
-/// before the database's shape last moved under this process.
+/// before the database's shape last moved under this process, and closes none for its age or for standing
+/// idle. With either limit set the pool library runs a task that walks the idle connections as many times
+/// as its idle count reads, and that count is written after a connection is already back in the queue: read
+/// between the two it is one below nought, and the task then walks without end on one core.
 pub fn pool(max: u32) -> PgPoolOptions {
   PgPoolOptions::new()
     .max_connections(max)
+    .idle_timeout(None)
+    .max_lifetime(None)
     .before_acquire(|_, meta| Box::pin(async move { Ok(!opened_before_move(meta.age)) }))
 }
 

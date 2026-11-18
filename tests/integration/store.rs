@@ -387,6 +387,15 @@ async fn the_numbers_of_a_family_of_keys_are_read_in_order_and_its_prefix_matche
   assert_eq!(settings::numbered(db, "mark_").await.unwrap(), [3, 12]);
 }
 
+#[test]
+fn a_pool_closes_no_connection_for_its_age_or_for_standing_idle() {
+  let pool = pool::pool(4);
+
+  assert_eq!(pool.get_idle_timeout(), None);
+  assert_eq!(pool.get_max_lifetime(), None);
+  assert_eq!(pool.get_max_connections(), 4);
+}
+
 // The mark a stale plan leaves stands for the whole process and closes every connection opened before
 // it, so these tests take turns rather than close each other's.
 static ONE_AT_A_TIME: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

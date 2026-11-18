@@ -8,7 +8,10 @@ data root. No other unit reads or writes either: a unit that needs a room's rows
 
 - **The address is the configuration's** (`docs/boundary-api.md`, 「Configuration」). The receiver connects
   through a pool that never hands out a connection opened before the database's shape last moved under the
-  process, and runs every migration it has not run yet before it serves.
+  process, and runs every migration it has not run yet before it serves. A connection of the pool is kept
+  until the process ends: the pool closes none for its age or for standing idle, since the task of the pool
+  library that would close them can read its count of idle connections mid-change and then turns on a
+  processor core without end.
 - **Migrations are run by SeaORM's migrator,** which keeps the ones it ran in its own table, `seaql_migrations`,
   beside the receiver's. Each migration states its tables in SQL and takes them down in the reverse order.
 - **Every statement goes through the store's three helpers,** one row, every row, or what a statement wrote.

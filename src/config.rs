@@ -18,16 +18,20 @@ use receiver_ports::job::HttpJob;
 use receiver_ports::voice::{HttpVoice, VoiceEngine};
 use receiver_ports::warmer::HttpWarmer;
 use receiver_ports::web::HttpWeb;
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::DatabaseConnection;
 use serde::Deserialize;
 
 use crate::data_root::DataRoot;
 use crate::receiver::{Deployment, Receiver, Units};
 use crate::roads::Roads;
+use crate::store::pool;
 use crate::verbs::reload::Places;
 
 /// The consumer the receiver registers with the cache warmer, unless the configuration names another.
 const CONSUMER: &str = "receiver";
+
+// How many connections the receiver holds on its database at most.
+const SERVING_CONNECTIONS: u32 = 10;
 
 /// The configuration file's own name.
 pub const SETTINGS: &str = "settings.toml";
@@ -134,11 +138,9 @@ impl Config {
 
   /// The receiver's database, connected.
   pub async fn connect(&self) -> Result<DatabaseConnection, String> {
-    let mut options = ConnectOptions::new(self.database.clone());
-
-    options.sqlx_logging(false);
-
-    Database::connect(options).await.map_err(|why| format!("the database: {why}"))
+    pool::connect(&self.database, pool::pool(SERVING_CONNECTIONS))
+      .await
+      .map_err(|why| format!("the database: {why}"))
   }
 
   /// The deployment's names, with the words a room calls the configured agent by read off its registration.
