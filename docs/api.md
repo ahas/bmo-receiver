@@ -691,12 +691,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 - **The switches** are the whole briefing's and whether a summary plays by itself (`docs/voiced-notices.md`, 「The
   voice briefing」); each is on unless it was set off. A body naming neither switch, or both, or a value that is not
-  a boolean, is refused 400 `one-switch`. Setting `on` to false asks the voice engine to stop every briefing it
-  holds; the answer waits on none of it, and a stop that failed is asked again until it is made.
-- **A line's full reading** is launched in the voice engine where none stands, or answered as it stands there. It
-  is refused 409 `switched-off` while the whole briefing is off, 409 `voiceless` where the line's agent has no
-  voice, 404 `not-found` where the message is no agent's line with words, and 502 `unreachable` where no voice
-  engine is configured or the engine did not answer. The sound is the engine's: the console reads it there by the
+  a boolean, is refused 400 `one-switch`. `on` governs only the summaries the receiver speaks unasked: setting
+  it to false asks the voice engine to stop every summary it holds, and no full reading; the answer waits on none
+  of it, and a stop that failed is asked again until it is made.
+- **A line's full reading** is launched in the voice engine where none stands, or answered as it stands there,
+  whichever way `on` stands. It is refused 409 `voiceless` where the line's agent has no voice, 404 `not-found`
+  where the message is no agent's line with words, and 502 `unreachable` where no voice engine is configured or
+  the engine did not answer. The sound is the engine's: the console reads it there by the
   briefing's id. Launching one writes in the line's room, a turn of the line's agent there writing the script and
   a briefing the engine keeps for the room, so another account's ask in a private room is refused 403
   `private-room` before either.

@@ -12,5 +12,6 @@ mod holders;
 mod http;
 mod job;
 mod tool_host;
+mod voice;
 mod warmer;
 mod web;

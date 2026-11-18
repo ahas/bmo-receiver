@@ -1434,7 +1434,6 @@ pub fn openapi() -> Value {
       "unauthorized",
       "bad-request",
       "not-found",
-      "switched-off",
       "voiceless",
       "unreachable",
       "private-room",

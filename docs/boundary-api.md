@@ -404,8 +404,9 @@ Its `docs/boundary-api.md` and `docs/openapi.json`, in camelCase and behind its 
 configuration names: `POST /briefings` with `voiceName`, `text`, `chatId`, `messageId`, `kind`, `title?`,
 `emotion?` and `plays`, a notice turn's summary or a line's full reading, its `text` the written words and no
 `spoken`, so the engine derives the spoken words; and `GET /briefings` with `chatId`,
-`messageId` and `kind`, the page a line's full reading is looked up in; `POST /briefings/stop` with an empty body,
-every room's briefings stopped once the whole voice briefing is switched off. The voice an agent speaks in is the
+`messageId` and `kind`, the page a line's full reading is looked up in; `POST /briefings/stop` with `kind`
+`summary` and no room, every room's summaries stopped once the whole voice briefing is switched off, while a
+full reading a person asked for goes on. The voice an agent speaks in is the
 `voice` its agency registration names. The receiver reads `id`, `state` and `kind` of a briefing, and nothing of
 its sound: listeners read that, and the briefing's events, from the engine.
 
@@ -546,6 +547,11 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
   message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
   the release's `VERSION` file where it does not (「The deployments」).
+- **The voice engine's `POST /briefings/stop`** takes `chatId` alone and refuses any other field, so a stop
+  stops every kind; the receiver sends `kind`, `summary`, to stop the summaries alone and leave a full reading
+  speaking, and the engine is to take it, stop that kind alone and name it on its `briefings.stopped`, so a
+  listener falls silent for that kind alone. Until it does, the engine refuses the receiver's stop, which is
+  asked again at the policy's pace while the switch stays off, so no summary is stopped by the switch.
 - **The brain's `docs/boundary-api.md`** does not yet state `GET /brains/{brainId}/consolidation`; the receiver
   reads it as 「The brain」 above states, `consolidationDue` among `unconsolidatedImportance`, `threshold` and
   `unconsolidatedCount`, until it does.

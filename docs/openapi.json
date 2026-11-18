@@ -7985,7 +7985,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, switched-off, voiceless, unreachable, private-room, upstream-failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, voiceless, unreachable, private-room, upstream-failed"
           }
         },
         "summary": "A line's full reading, launched in the voice engine where none stands, answered as it stands there otherwise.",
@@ -7996,7 +7996,6 @@
           "unauthorized",
           "bad-request",
           "not-found",
-          "switched-off",
           "voiceless",
           "unreachable",
           "private-room",

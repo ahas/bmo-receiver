@@ -69,7 +69,6 @@ family. No code carries a sentence in a room's language.
 
 | Code | Status | Fields | When |
 |---|---|---|---|
-| `switched-off` | 409 | | the voice briefing is switched off |
 | `voiceless` | 409 | `label` | the agent has no voice |
 | `unsigned` | 400 | | a briefing that says nobody launched it |
 | `wordless` | 400 | | a briefing with nothing to say |

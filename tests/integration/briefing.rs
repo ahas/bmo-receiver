@@ -1,9 +1,9 @@
 //! The voice briefing (docs/voiced-notices.md, 「The voice briefing」; docs/api.md, 「The voice briefing」): its two
-//! switches moved one at a time and the whole one told to the owner, every briefing the engine holds stopped once the
-//! whole one is off and none of them played after, a line's full reading launched once and then answered as it
-//! stands, its refusals, and a notice turn of the owner's chat summarised by its own session and
-//! handed to the voice engine while a round somebody spoke in is not, and no send of the agent's into the room
-//! carried while its briefing turn is.
+//! switches moved one at a time and the whole one told to the owner, every summary the engine holds stopped once the
+//! whole one is off and none of them played after while a person's reading goes on, a line's full reading launched
+//! once and then answered as it stands, with the switch off as on, its refusals, and a notice turn of the owner's
+//! chat summarised by its own session and handed to the voice engine while a round somebody spoke in, or one with
+//! the switch off, is not, and no send of the agent's into the room carried while its briefing turn is.
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -13,7 +13,7 @@ use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::StatusCode;
 use bmo_receiver::chat::around::Around;
-use bmo_receiver::chat::briefing::{Summary, line_opening, reading_of, summary_of};
+use bmo_receiver::chat::briefing::{Summary, line_opening, reading_of, speak_summary, summary_of};
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
@@ -28,7 +28,7 @@ use tempfile::tempdir;
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{get, post, put, stood};
+use crate::integration::common::queue::{Front, get, post, put, stood};
 use crate::integration::common::session::StandInSession;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
@@ -119,74 +119,78 @@ async fn a_stop_the_engine_did_not_take_is_asked_again_and_every_write_of_off_as
 }
 
 #[tokio::test]
-async fn switching_the_whole_briefing_off_stops_a_waiting_a_speaking_and_a_just_taken_briefing_and_none_plays_after()
+async fn switching_the_whole_briefing_off_stops_every_summary_even_one_just_taken_and_leaves_a_persons_reading_running()
  {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
+  let receiver = front.standing.receiver.clone();
   let voice = front.standing.voice.clone();
-  let reading = |message: i64| format!("/rooms/{ROOM}/messages/{message}/reading");
+  let summarise = |message: i64| {
+    let receiver = receiver.clone();
+
+    async move { speak_summary(&receiver, AGENT, ROOM, message, "The backup finished.", None).await }
+  };
 
   front.standing.agency.registering(vec![voiced(Some(VOICE))]);
 
-  for message in [11, 12, 13] {
+  for message in [11, 12] {
     line(&scratch, message, Some(AGENT), "Agent A").await;
   }
 
-  // Each reading is waited out until its launch let go of its line, past the switch it reads once the engine took it,
-  // so only the third is taken as the switch moves.
-  let launched = |message: i64| !front.standing.receiver.scripting().holds(ROOM, message);
+  // Briefings 1 and 2 are summaries, one waiting and one speaking; 3 and 4 are readings a person asked for, likewise.
+  summarise(11).await;
+  summarise(12).await;
+  launch(&front, 11, 3).await;
+  launch(&front, 12, 4).await;
 
-  post(&front, &reading(11), json!({})).await;
-  until("the waiting reading taken", || voice.briefed().len() == 1 && launched(11)).await;
-  post(&front, &reading(12), json!({})).await;
-  until("the speaking reading taken", || voice.briefed().len() == 2 && launched(12)).await;
-  voice.states.lock().unwrap().insert(2, "speaking".to_owned());
+  for speaking in [2, 4] {
+    voice.states.lock().unwrap().insert(speaking, "speaking".to_owned());
+  }
 
-  // The third reading is handed over while the switch stands on, and the engine takes it only once it is off.
+  // The fifth, a summary, is handed over while the switch stands on, and the engine takes it only once it is off.
   let held = voice.taking.write().await;
+  let just_taken = tokio::spawn(summarise(13));
 
-  post(&front, &reading(13), json!({})).await;
-  until("the third reading handed over", || voice.handed.load(Ordering::SeqCst) == 3).await;
+  until("the summary of line 13 handed over", || voice.handed.load(Ordering::SeqCst) == 5).await;
 
   let (status, _) = put(&front, "/voice-briefing", json!({ "on": false })).await;
 
   assert_eq!(status, StatusCode::OK);
   until("the stop taken", || voice.stops() == [true]).await;
+  drop(held);
+  just_taken.await.unwrap();
+  until("the summary taken as the switch moved stopped", || voice.state_of(5) == "stopped").await;
+  assert_eq!(voice.stops(), [true, true], "taken after the off, it was stopped by a stop of its own");
   assert_eq!(
-    (voice.state_of(1), voice.state_of(2)),
-    ("stopped".to_owned(), "stopped".to_owned()),
-    "the waiting and the speaking briefing are stopped"
+    (1..=5).map(|id| voice.state_of(id)).collect::<Vec<_>>(),
+    ["stopped", "stopped", "waiting", "speaking", "stopped"],
+    "every summary is stopped, and the readings a person asked for go on"
   );
 
-  drop(held);
-  until("the briefing taken as the switch moved stopped", || voice.state_of(3) == "stopped").await;
-  assert_eq!(voice.stops(), [true, true], "taken after the off, it was stopped by a stop of its own");
-
-  let (_, refused) = post(&front, &reading(11), json!({})).await;
-
-  assert_eq!(refused["code"].as_str(), Some("switched-off"), "nothing is read while it is off");
-
+  summarise(14).await;
   put(&front, "/voice-briefing", json!({ "on": true })).await;
 
   assert_eq!(
     (voice.handed.load(Ordering::SeqCst), voice.stops().len()),
-    (3, 2),
-    "switching it on hands the engine nothing"
+    (5, 2),
+    "no summary is handed over while it is off, and switching it on hands the engine nothing"
   );
   assert!(
-    (1..=3).all(|id| voice.state_of(id) == "stopped"),
+    [1, 2, 5].iter().all(|id| voice.state_of(*id) == "stopped"),
     "no stopped briefing is ever taken up again"
   );
+}
 
-  let (_, asked) = post(&front, &reading(11), json!({})).await;
+// A line's full reading asked for, waited out until its launch let go of the line and the engine holds `briefings`.
+async fn launch(front: &Front, message: i64, briefings: usize) {
+  let (status, body) = post(front, &format!("/rooms/{ROOM}/messages/{message}/reading"), json!({})).await;
 
-  assert_eq!(
-    asked,
-    json!({ "state": "making", "briefingId": null }),
-    "a stopped reading is never answered"
-  );
-  until("a reading asked again launched anew", || voice.briefed().len() == 4).await;
-  assert_eq!((voice.state_of(1), voice.state_of(4)), ("stopped".to_owned(), "waiting".to_owned()));
+  assert_eq!((status, body["state"].as_str()), (StatusCode::OK, Some("making")), "{body}");
+  until("the reading taken", || {
+    front.standing.voice.briefed().len() == briefings
+      && !front.standing.receiver.scripting().holds(ROOM, message)
+  })
+  .await;
 }
 
 #[tokio::test]
@@ -281,11 +285,15 @@ async fn a_lines_full_reading_is_launched_once_then_answered_as_it_stands_and_re
 
   assert_eq!((status, body["code"].as_str()), (StatusCode::CONFLICT, Some("voiceless")));
 
+  // A reading that was stopped stands for nothing, so asking again launches it anew, whichever way the switch stands.
+  front.standing.agency.registering(vec![voiced(Some(VOICE))]);
+  front.standing.voice.states.lock().unwrap().insert(1, "stopped".to_owned());
   put(&front, "/voice-briefing", json!({ "on": false })).await;
+  launch(&front, 11, 2).await;
 
-  let (status, body) = post(&front, &reading(11), json!({})).await;
+  let relaunched = &front.standing.voice.briefed()[1];
 
-  assert_eq!((status, body["code"].as_str()), (StatusCode::CONFLICT, Some("switched-off")));
+  assert_eq!((relaunched.kind.as_str(), relaunched.message_id), ("full", Some(11)));
 }
 
 async fn until(what: &str, holds: impl Fn() -> bool) {
@@ -480,7 +488,8 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
 }
 
 #[tokio::test]
-async fn a_round_the_owner_spoke_in_and_an_agent_with_no_voice_are_never_summarised() {
+async fn a_round_the_owner_spoke_in_a_notice_turn_with_the_switch_off_and_an_agent_with_no_voice_are_never_summarised()
+ {
   let owner = Owner::new(StandInSession::new("agent-a@agent", "Here."), Some(VOICE)).await;
   let message = Inbound {
     chat_id: OWNER,
@@ -510,6 +519,23 @@ async fn a_round_the_owner_spoke_in_and_an_agent_with_no_voice_are_never_summari
   owner.over(1).await;
 
   assert_eq!(owner.session.prompts().len(), 1, "a conversation is not summarised");
+  assert!(owner.standing.voice.briefed().is_empty());
+
+  bmo_receiver::store::settings::set(owner.scratch.db(), bmo_receiver::chat::briefing::SWITCH, "off")
+    .await
+    .unwrap();
+  owner
+    .runner
+    .of(AGENT)
+    .instruct(OWNER, "The backup finished.".to_owned(), None, None, vec![])
+    .await;
+  owner.over(2).await;
+
+  assert_eq!(
+    owner.session.prompts().len(),
+    2,
+    "with the switch off, no summary is asked of the session"
+  );
   assert!(owner.standing.voice.briefed().is_empty());
 
   let voiceless = Owner::new(StandInSession::new("agent-a@agent", "The backup finished."), None).await;

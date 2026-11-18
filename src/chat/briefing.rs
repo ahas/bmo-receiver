@@ -1,7 +1,8 @@
-//! The voice briefing (docs/voiced-notices.md, 「The voice briefing」): its two switches, the engine's briefings
+//! The voice briefing (docs/voiced-notices.md, 「The voice briefing」): its two switches, the engine's summaries
 //! stopped when the whole one is switched off, the voice an agent speaks in, the emotion a session's answer names,
 //! a notice turn's summary handed to the voice engine, and a line's full reading launched or answered as it stands
-//! there. The engine speaks and keeps every briefing; this decides when one is spoken.
+//! there whichever way the switch stands. The engine speaks and keeps every briefing; this decides when one is
+//! spoken.
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -21,6 +22,12 @@ pub const SWITCH: &str = "voice_briefing";
 /// The setting whether a summary plays by itself is switched by, on unless it holds `off`.
 pub const AUTOPLAY: &str = "voice_briefing_autoplay";
 
+/// The kind of briefing spoken unasked, the only one the whole switch governs.
+pub const SUMMARY: &str = "summary";
+
+/// The kind of briefing a person asks for from a line, made whichever way the switch stands.
+pub const FULL: &str = "full";
+
 /// The kind the owner's line about the switch stands under, one waiting at a time.
 const SWITCH_KIND: &str = "voice-briefing";
 
@@ -37,7 +44,7 @@ pub async fn switches(receiver: &Receiver) -> (bool, bool) {
   (on(receiver, SWITCH).await, on(receiver, AUTOPLAY).await)
 }
 
-/// One switch set; setting the whole briefing off stops every briefing the engine holds, and moving it queues its
+/// One switch set; setting the whole briefing off stops every summary the engine holds, and moving it queues its
 /// line for the owner's private chat, where a write that changes nothing says nothing.
 pub async fn set(receiver: &Receiver, key: &str, value: bool) -> Result<(), NotReceived> {
   let was = on(receiver, key).await;
@@ -68,9 +75,10 @@ pub async fn set(receiver: &Receiver, key: &str, value: bool) -> Result<(), NotR
   Ok(())
 }
 
-/// Every briefing the engine holds that has not ended stopped, as the whole briefing switched off asks: asked now,
-/// and where the engine did not take the stop, asked again at the policy's pace for as long as the switch stays
-/// off. Nothing waits on it, since a call to an engine that is down waits until it listens.
+/// Every summary the engine holds that has not ended stopped, as the whole briefing switched off asks, and no full
+/// reading a person asked for: asked now, and where the engine did not take the stop, asked again at the policy's
+/// pace for as long as the switch stays off. Nothing waits on it, since a call to an engine that is down waits
+/// until it listens.
 pub fn silence(receiver: &Receiver) {
   let Some(engine) = receiver.units().voice.clone() else {
     return;
@@ -89,16 +97,16 @@ pub fn silence(receiver: &Receiver) {
   });
 }
 
-/// The engine asked once to stop every room's briefings; whether it did.
+/// The engine asked once to stop every room's summaries; whether it did.
 async fn stopped(engine: &dyn VoiceEngine) -> bool {
-  match engine.stop_all().await {
+  match engine.stop_kind(SUMMARY).await {
     Ok(stopped) => {
-      println!("voice briefing: switched off, {} briefings stopped", stopped.len());
+      println!("voice briefing: switched off, {} summaries stopped", stopped.len());
       true
     }
     Err(why) => {
       eprintln!(
-        "voice briefing: switched off, but the engine did not stop its briefings, asked again: {why}"
+        "voice briefing: switched off, but the engine did not stop its summaries, asked again: {why}"
       );
       false
     }
@@ -112,18 +120,18 @@ async fn switched_back_on(receiver: &Receiver) -> bool {
     .is_ok_and(|value| value.as_deref() != Some("off"))
 }
 
-/// A briefing handed to the engine while the whole switch stands on; none where it is off. One the engine took
+/// A summary handed to the engine while the whole switch stands on; none where it is off. One the engine took
 /// while the switch was being set off is stopped with the rest, since the switch is read again once it is taken.
-async fn hand_over(
+async fn hand_over_summary(
   receiver: &Receiver,
   engine: &dyn VoiceEngine,
-  briefing: &NewBriefing,
+  summary: &NewBriefing,
 ) -> Option<Answer<Briefing>> {
   if !on(receiver, SWITCH).await {
     return None;
   }
 
-  let taken = engine.brief(briefing).await;
+  let taken = engine.brief(summary).await;
 
   if taken.is_ok() && !on(receiver, SWITCH).await {
     silence(receiver);
@@ -283,13 +291,13 @@ pub async fn speak_summary(
     text,
     chat_id,
     message_id: Some(message_id),
-    kind: "summary".to_owned(),
+    kind: SUMMARY.to_owned(),
     title,
     emotion,
     plays: on(receiver, AUTOPLAY).await,
   };
 
-  match hand_over(receiver, engine.as_ref(), &briefing).await {
+  match hand_over_summary(receiver, engine.as_ref(), &briefing).await {
     Some(Ok(taken)) => println!("notice turn in {chat_id}: summary taken as briefing {}", taken.id),
     Some(Err(why)) => eprintln!("notice turn in {chat_id} could not be summarised: {why}"),
     None => {
@@ -329,12 +337,9 @@ impl From<NotReceived> for Unread {
 }
 
 /// A line's full reading: answered as it stands in the engine where one is waiting, speaking or done, launched
-/// otherwise. Only an agent's own line, in a voice its registration names, has one.
+/// otherwise. Only an agent's own line, in a voice its registration names, has one; a person asks for it, so the
+/// whole switch is never read for it.
 pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Result<Reading, Unread> {
-  if !on(receiver, SWITCH).await {
-    return Err(Unread::Refused(VoiceRefusal::SwitchedOff));
-  }
-
   let line = crate::one(
     receiver.db(),
     r#"SELECT "text", "agent_name", "sender_name" FROM "messages" WHERE "chat_id" = $1 AND "message_id" = $2"#,
@@ -369,7 +374,7 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
     return Err(unreachable("no voice engine is configured".to_owned()));
   };
   let standing = engine
-    .of_line(chat_id, message_id, "full")
+    .of_line(chat_id, message_id, FULL)
     .await
     .map_err(|why| unreachable(why.to_string()))?;
 
@@ -406,16 +411,14 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
       text,
       chat_id,
       message_id: Some(message_id),
-      kind: "full".to_owned(),
+      kind: FULL.to_owned(),
       title: None,
       emotion,
       plays: false,
     };
 
-    match hand_over(&receiver, engine.as_ref(), &briefing).await {
-      Some(Ok(_)) => {}
-      Some(Err(why)) => eprintln!("chat {chat_id}: the full reading of {message_id} was not taken: {why}"),
-      None => println!("chat {chat_id}: the voice briefing was switched off, so {message_id} is not read"),
+    if let Err(why) = engine.brief(&briefing).await {
+      eprintln!("chat {chat_id}: the full reading of {message_id} was not taken: {why}");
     }
 
     receiver.scripting().ends(chat_id, message_id);

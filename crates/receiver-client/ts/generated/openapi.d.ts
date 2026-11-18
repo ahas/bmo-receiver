@@ -5441,7 +5441,7 @@ export interface operations {
                     "application/json": components["schemas"]["LineReading"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, switched-off, voiceless, unreachable, private-room, upstream-failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, voiceless, unreachable, private-room, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -2102,8 +2102,8 @@ impl Runner for Taken {
 }
 
 /// The voice engine, keeping every briefing it was handed and answering a line's briefings from them, each in the
-/// state the test gives it, else in the state the test sets for all; a stop ends every briefing not yet ended, once
-/// the stops the test makes fail have failed. A briefing is taken only once the test lets go of `taking`.
+/// state the test gives it, else in the state the test sets for all; a stop ends every briefing of its kind not yet
+/// ended, once the stops the test makes fail have failed. A briefing is taken only once the test lets go of `taking`.
 pub struct StandInVoice {
   pub briefed: Mutex<Vec<NewBriefing>>,
   pub state: Mutex<String>,
@@ -2292,7 +2292,7 @@ impl VoiceEngine for StandInVoice {
     })
   }
 
-  fn stop_all(&self) -> BoxFuture<'_, Answer<Vec<Briefing>>> {
+  fn stop_kind<'a>(&'a self, kind: &'a str) -> BoxFuture<'a, Answer<Vec<Briefing>>> {
     Box::pin(async move {
       let mut failing = self.failing_stops.lock().unwrap();
 
@@ -2318,7 +2318,7 @@ impl VoiceEngine for StandInVoice {
           kind: one.kind,
           state: self.state_of(at as i64 + 1),
         })
-        .filter(|one| ["waiting", "speaking"].contains(&one.state.as_str()))
+        .filter(|one| one.kind == kind && ["waiting", "speaking"].contains(&one.state.as_str()))
         .map(|one| Briefing {
           state: "stopped".to_owned(),
           ..one
