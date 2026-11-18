@@ -147,18 +147,12 @@ impl crate::chat::conversation::Orders for FailureOrders {
           continue;
         }
 
-        let line = receiver
-          .speech()
-          .rendered(&FixedLine::RunBroken {
-            agent: agent.clone(),
-            cause: row.try_get::<Option<String>>("", "text").ok().flatten(),
-            record: None,
-          })
-          .await;
-
-        if let Some(line) = line {
-          let _ = receiver.speech().say(owner, &line).await;
-        }
+        let line = FixedLine::RunBroken {
+          agent: agent.clone(),
+          cause: row.try_get::<Option<String>>("", "text").ok().flatten(),
+          record: None,
+        };
+        let _ = receiver.speech().say_line(owner, &line).await;
 
         let _ = run(
           receiver.db(),

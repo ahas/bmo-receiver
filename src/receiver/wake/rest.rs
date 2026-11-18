@@ -132,11 +132,7 @@ pub fn rest_line(kind: RestKind, until: Option<i64>) -> FixedLine {
 
 /// The line the owner hears as the silence begins, rendered in the rooms' language where the web unit stands.
 pub async fn tell_rest(receiver: &Receiver, line: &FixedLine) -> Result<(), NotSaid> {
-  let Some(line) = receiver.speech().rendered(line).await else {
-    return Ok(());
-  };
-
-  receiver.speech().say(receiver.owner_room(), &line).await.map(drop)
+  receiver.speech().say_line(receiver.owner_room(), line).await.map(drop)
 }
 
 /// The kind a rest is published under where it closed the last login that would answer.

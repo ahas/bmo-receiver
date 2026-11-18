@@ -2,8 +2,8 @@
 //! 「The web unit」).
 
 use receiver_ports::web::{
-  Checked, Grant, GrantMessage, GrantRow, Grantee, HttpWeb, MessageCheck, ObjectCheck, Render, RoomCheck,
-  User, Web,
+  Checked, Grant, GrantMessage, GrantRow, Grantee, HttpWeb, MessageCheck, ObjectCheck, OrganisationUnit,
+  Render, RoomCheck, User, Web,
 };
 use serde_json::{Map, json};
 
@@ -176,4 +176,31 @@ async fn the_account_model_the_checks_the_grants_and_a_fixed_line_go_out_as_the_
       ),
     ]
   );
+}
+
+#[tokio::test]
+async fn an_organisation_unit_is_read_as_its_home_members_then_its_post_holders_each_once() {
+  let unit = StandIn::start().await;
+  let web = HttpWeb::new(&unit.peer("t"));
+
+  unit.answer(
+    "GET /units/5",
+    200,
+    json!({
+      "id": 5, "name": "Design", "company": { "id": 1, "name": "Co" }, "path": [], "children": [],
+      "heads": ["7"], "members": ["7", "8"], "roles": [], "acting": null,
+      "concurrent": [{ "user": "9", "head": false }, { "user": "8", "head": true }],
+    }),
+  );
+  unit.answer("GET /units/6", 404, json!({ "code": "not-found", "error": "No such unit." }));
+
+  assert_eq!(
+    web.organisation_unit(5).await.unwrap(),
+    Some(OrganisationUnit {
+      id: 5,
+      name: "Design".to_owned(),
+      people: vec![7, 8, 9],
+    })
+  );
+  assert_eq!(web.organisation_unit(6).await.unwrap(), None, "a unit the web unit does not hold");
 }

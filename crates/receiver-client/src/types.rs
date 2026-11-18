@@ -291,10 +291,13 @@ pub struct Message {
   /// The voice the send went out in (`bot-account`, `human-avatar`, `human-reader`), set beside `agentName` and
   /// null on a message that came in from a provider.
   pub voice: Option<String>,
-  /// `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, null
-  /// for any other message.
+  /// `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,
+  /// `fixed-line` for a fixed line the receiver said into the room itself, null for any other message.
   #[serde(default)]
   pub kind: Option<String>,
+  /// On a message of kind `fixed-line`, the line it was said from; null on any other.
+  #[serde(default)]
+  pub line: Option<KeptFixedLine>,
   /// When the record kept an edit of the message, in epoch milliseconds.
   #[serde(default)]
   pub edited_at: Option<i64>,
@@ -328,6 +331,14 @@ pub struct Message {
   /// an act alone, and where there is nothing to name the field is left out.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub not_carried: Option<Vec<NotCarried>>,
+}
+
+/// A fixed line as a message keeps it: its code and the fields it carries, as the receiver's `docs/codes.md`,
+/// 「Fixed lines」, names them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct KeptFixedLine {
+  pub code: String,
+  pub fields: serde_json::Map<String, Value>,
 }
 
 /// One chat service that did not carry an act on a message: its key, the `reason` the act did not go there
@@ -684,6 +695,42 @@ pub struct RoomAccounts {
 #[serde(rename_all = "camelCase")]
 pub struct LetIn {
   pub by: i64,
+}
+
+/// `POST /rooms/{roomId}/accounts`: the accounts let in, at least one and each once, and the account letting them in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LetInSeveral {
+  pub accounts: Vec<i64>,
+  pub by: i64,
+}
+
+/// `POST /rooms/{roomId}/accounts`: each account asked as a member as it now stands, and those the call let in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LetInAccounts {
+  pub accounts: Vec<RoomAccount>,
+  pub let_in: Vec<i64>,
+}
+
+/// `POST /rooms/{roomId}/unit-accounts`: the organisation unit whose people are let in, by its number in the web
+/// unit, and the account letting them in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LetInUnit {
+  pub unit: i64,
+  pub by: i64,
+}
+
+/// `POST /rooms/{roomId}/unit-accounts`: the unit as the web unit named it then, each of its people as a member of
+/// the room as it now stands, and those the call let in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LetInUnitAccounts {
+  pub unit: i64,
+  pub unit_name: String,
+  pub accounts: Vec<RoomAccount>,
+  pub let_in: Vec<i64>,
 }
 
 /// `PUT /accounts/{account}/identity`'s body: the name the account's record identity goes by from then, the same

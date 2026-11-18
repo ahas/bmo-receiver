@@ -421,6 +421,16 @@ impl ReceiverClient {
     Self::answered(self.send(Method::PUT, &path, &LetIn { by })).await
   }
 
+  /// `POST /rooms/{roomId}/accounts`.
+  pub async fn let_in_several(&self, room_id: i64, asked: &LetInSeveral) -> Answer<LetInAccounts> {
+    Self::answered(self.send(Method::POST, &["rooms", &room_id.to_string(), "accounts"], asked)).await
+  }
+
+  /// `POST /rooms/{roomId}/unit-accounts`.
+  pub async fn let_in_unit(&self, room_id: i64, asked: &LetInUnit) -> Answer<LetInUnitAccounts> {
+    Self::answered(self.send(Method::POST, &["rooms", &room_id.to_string(), "unit-accounts"], asked)).await
+  }
+
   /// `DELETE /rooms/{roomId}/accounts/{account}`, the member itself as `by` where it leaves.
   pub async fn take_out(&self, room_id: i64, account: i64, by: i64) -> Answer<()> {
     let path = ["rooms", &room_id.to_string(), "accounts", &account.to_string()];

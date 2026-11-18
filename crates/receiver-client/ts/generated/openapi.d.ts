@@ -635,7 +635,8 @@ export interface paths {
         /** A room's members by account in the console; a private room's own account alone. */
         get: operations["roomAccounts"];
         put?: never;
-        post?: never;
+        /** Several accounts let into a room by another, with one line naming those it let in; a member already one stands as it is. */
+        post: operations["letInSeveral"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1293,6 +1294,23 @@ export interface paths {
         put?: never;
         /** An account writing in a room in the console, or no longer: told on the event stream and handed to the room's chat services as a typing send in the writer's own voice, never kept. */
         post: operations["accountTyping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{roomId}/unit-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An organisation unit's people, as the web unit answers them at that moment, let into a room by another, with one line naming the unit; the room keeps no link to the unit. */
+        post: operations["letInUnit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2180,10 +2198,52 @@ export interface components {
             storedPath: string | null;
             summary: string | null;
         };
+        /**
+         * @description A fixed line as a message keeps it: its code and the fields it carries, as the receiver's `docs/codes.md`,
+         *     「Fixed lines」, names them.
+         */
+        KeptFixedLine: {
+            code: string;
+            fields: {
+                [key: string]: unknown;
+            };
+        };
         /** @description `PUT /rooms/{roomId}/accounts/{account}`: the account letting another in. */
         LetIn: {
             /** Format: int64 */
             by: number;
+        };
+        /** @description `POST /rooms/{roomId}/accounts`: each account asked as a member as it now stands, and those the call let in. */
+        LetInAccounts: {
+            accounts: components["schemas"]["RoomAccount"][];
+            letIn: number[];
+        };
+        /** @description `POST /rooms/{roomId}/accounts`: the accounts let in, at least one and each once, and the account letting them in. */
+        LetInSeveral: {
+            accounts: number[];
+            /** Format: int64 */
+            by: number;
+        };
+        /**
+         * @description `POST /rooms/{roomId}/unit-accounts`: the organisation unit whose people are let in, by its number in the web
+         *     unit, and the account letting them in.
+         */
+        LetInUnit: {
+            /** Format: int64 */
+            by: number;
+            /** Format: int64 */
+            unit: number;
+        };
+        /**
+         * @description `POST /rooms/{roomId}/unit-accounts`: the unit as the web unit named it then, each of its people as a member of
+         *     the room as it now stands, and those the call let in.
+         */
+        LetInUnitAccounts: {
+            accounts: components["schemas"]["RoomAccount"][];
+            letIn: number[];
+            /** Format: int64 */
+            unit: number;
+            unitName: string;
         };
         /**
          * @description A line's full reading: `making` while its script is written and the voice engine speaks it, `ready` once it
@@ -2240,11 +2300,16 @@ export interface components {
             id: number;
             imagePath: string | null;
             /**
-             * @description `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, null
-             *     for any other message.
+             * @description `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,
+             *     `fixed-line` for a fixed line the receiver said into the room itself, null for any other message.
              * @default null
              */
             kind: string | null;
+            /**
+             * @description On a message of kind `fixed-line`, the line it was said from; null on any other.
+             * @default null
+             */
+            line: components["schemas"]["KeptFixedLine"] | null;
             /**
              * @description The chat services that did not carry an act on this message, each a `NotCarried`: it stands on the answer of
              *     an act alone, and where there is nothing to name the field is left out.
@@ -4520,6 +4585,41 @@ export interface operations {
             };
         };
     };
+    letInSeveral: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LetInSeveral"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LetInAccounts"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     letIn: {
         parameters: {
             query?: never;
@@ -6194,6 +6294,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    letInUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LetInUnit"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LetInUnitAccounts"];
+                };
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
             default: {

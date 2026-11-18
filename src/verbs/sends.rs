@@ -198,6 +198,7 @@ impl Sends {
       sent: Some((key, sent.message_id)),
       agent: Some(&agent),
       voice,
+      line: None,
     };
     let kept = self.receiver.speech().kept_carrying(&line, Carried::Send(request.send.clone())).await;
 
@@ -382,6 +383,7 @@ impl Sends {
       name: &name,
       agent: Some(&agent),
       voice: None,
+      line: None,
     };
     let message_id = record::keep(self.receiver.db(), self.receiver.news(), line).await.map_err(kept)?;
 

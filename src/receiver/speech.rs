@@ -12,7 +12,7 @@ use receiver_policy::fill_marks;
 use receiver_policy::fixed_lines::FIXED_LINES;
 use receiver_ports::web::Render;
 use sea_orm::DatabaseConnection;
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::default_answerer::DefaultAnswerer;
 use super::{Deployment, News, Units};
@@ -52,7 +52,8 @@ impl NotSaid {
 }
 
 /// A line the room's record keeps as an agent's: its room and words, the message it answers, the road it was
-/// already sent on with the number that road gave it, the agent whose words it holds, and the voice it went out in.
+/// already sent on with the number that road gave it, the agent whose words it holds, the voice it went out in, and
+/// the fixed line it was said from, its code and fields, where it is one.
 #[derive(Clone, Copy)]
 pub struct KeptLine<'a> {
   pub chat_id: i64,
@@ -61,6 +62,7 @@ pub struct KeptLine<'a> {
   pub sent: Option<(&'a str, Option<i64>)>,
   pub agent: Option<&'a str>,
   pub voice: Option<ChatVoice>,
+  pub line: Option<&'a Value>,
 }
 
 /// What saying a line stands on: the database a record keeps it in, the deployment it speaks for, the units its
@@ -94,6 +96,25 @@ impl Speech {
   /// A line in a room, where a line nobody asked for goes there: the number of its first message, where its road
   /// gives one.
   pub async fn say(&self, chat_id: i64, text: &str) -> Result<Option<i64>, NotSaid> {
+    self.said_as(chat_id, text, None).await
+  }
+
+  /// A fixed line said in a room as `say` says a line, in the rooms' language, and kept as the line it was said from
+  /// (docs/voiced-notices.md, 「Lines that stay fixed」); nothing where no sentence can be made of it.
+  pub async fn say_line(&self, chat_id: i64, line: &FixedLine) -> Result<Option<i64>, NotSaid> {
+    let Some((code, fields)) = code_and_fields(line) else {
+      return Ok(None);
+    };
+    let Some(text) = self.rendered_code(&code, fields.clone()).await else {
+      return Ok(None);
+    };
+    let kept = json!({ "code": code, "fields": fields });
+
+    self.said_as(chat_id, &text, Some(&kept)).await
+  }
+
+  // A line in a room as `say` says it, kept as the fixed line `line` names where it names one.
+  async fn said_as(&self, chat_id: i64, text: &str, line: Option<&Value>) -> Result<Option<i64>, NotSaid> {
     if providers::read_only(&self.db, &self.units.roads, chat_id).await? {
       return Err(NotSaid::ReadOnly { chat_id });
     }
@@ -104,8 +125,8 @@ impl Speech {
 
     let road = self.units.roads.unasked(chat_id).await.ok_or(NotSaid::NoRoad { chat_id })?;
     match road {
-      Road::Record => self.kept(chat_id, text, None, None, None).await.map(Some),
-      Road::Service(key) => self.sent(&key, chat_id, text).await,
+      Road::Record => self.kept_as(chat_id, text, None, line).await.map(Some),
+      Road::Service(key) => self.sent(&key, chat_id, text, line).await,
     }
   }
 
@@ -116,26 +137,14 @@ impl Speech {
 
   /// A room just shut told so, in the one fixed line; nothing where no sentence can be made of it.
   pub async fn denied(&self, chat_id: i64) -> Result<Option<i64>, NotSaid> {
-    let Some(line) = self.rendered(&FixedLine::ChatDenied).await else {
-      return Ok(None);
-    };
-
-    self.say(chat_id, &line).await
+    self.say_line(chat_id, &FixedLine::ChatDenied).await
   }
 
   /// A fixed line's words in the rooms' language, as the web unit's language packs render it, or the policy's plain
   /// sentence for it where they cannot; none where neither can, and the journal says so. A person never reads a
   /// line's code or its fields.
   pub async fn rendered(&self, line: &FixedLine) -> Option<String> {
-    let Ok(Value::Object(mut fields)) = serde_json::to_value(line) else {
-      eprintln!("bmo-receiver: a fixed line did not read as its fields, so nothing was said");
-
-      return None;
-    };
-    let code = fields
-      .remove("code")
-      .and_then(|code| code.as_str().map(str::to_owned))
-      .unwrap_or_default();
+    let (code, fields) = code_and_fields(line)?;
 
     self.rendered_code(&code, fields).await
   }
@@ -195,6 +204,29 @@ impl Speech {
       sent,
       agent,
       voice,
+      line: None,
+    };
+
+    self.kept_carrying(&said, Carried::words(text)).await
+  }
+
+  // A line nobody asked for kept in the room's record in the road's own voice, as the fixed line `line` names where
+  // it names one.
+  async fn kept_as(
+    &self,
+    chat_id: i64,
+    text: &str,
+    sent: Option<(&str, Option<i64>)>,
+    line: Option<&Value>,
+  ) -> Result<i64, NotSaid> {
+    let said = KeptLine {
+      chat_id,
+      text,
+      reply_to: None,
+      sent,
+      agent: None,
+      voice: None,
+      line,
     };
 
     self.kept_carrying(&said, Carried::words(text)).await
@@ -211,6 +243,7 @@ impl Speech {
       sent,
       agent,
       voice,
+      line,
     } = *said;
     let roads = &self.units.roads;
     // The words are the speaking agent's: under its own number in the room, the room's road's or else the
@@ -251,6 +284,7 @@ impl Speech {
       name: &name,
       agent,
       voice: voice.as_deref(),
+      line,
     };
 
     let message_id = record::keep(&self.db, self.news.as_ref(), kept).await?;
@@ -298,7 +332,13 @@ impl Speech {
 
   // A line nobody asked for sent on a chat service's road, kept in the room's record under the number the road
   // gave it, in the road's own voice.
-  async fn sent(&self, key: &str, chat_id: i64, text: &str) -> Result<Option<i64>, NotSaid> {
+  async fn sent(
+    &self,
+    key: &str,
+    chat_id: i64,
+    text: &str,
+    line: Option<&Value>,
+  ) -> Result<Option<i64>, NotSaid> {
     let send = ChatSend::Text {
       text: text.to_owned(),
       silent: false,
@@ -307,7 +347,7 @@ impl Speech {
     let number = self.act(key, &ChatSendRequest::new(chat_id, send)).await?;
 
     // The line is in the room either way; a record that could not keep it is said in the journal.
-    if let Err(why) = self.kept(chat_id, text, Some((key, number)), None, None).await {
+    if let Err(why) = self.kept_as(chat_id, text, Some((key, number)), line).await {
       eprintln!("chat {chat_id}: a line said on {key} was not kept: {why}");
     }
 
@@ -356,6 +396,22 @@ impl Speech {
       }),
     }
   }
+}
+
+// A fixed line's code and its fields, as the web unit and the record read them; none, with the journal told, where
+// the line does not read as its fields.
+fn code_and_fields(line: &FixedLine) -> Option<(String, Map<String, Value>)> {
+  let Ok(Value::Object(mut fields)) = serde_json::to_value(line) else {
+    eprintln!("bmo-receiver: a fixed line did not read as its fields, so nothing was said");
+
+    return None;
+  };
+  let code = fields
+    .remove("code")
+    .and_then(|code| code.as_str().map(str::to_owned))
+    .unwrap_or_default();
+
+  Some((code, fields))
 }
 
 /// A fixed line as the policy's plain sentence for its code in the rooms' language, its fields filled in as words;

@@ -158,6 +158,7 @@ async fn carry(
     sent: None,
     agent: Some(&agent),
     voice: None,
+    line: None,
   };
   // The number the answer went out as, and the number the room keeps it under.
   let numbers = match road {

@@ -368,6 +368,7 @@ pub async fn sticker(
     name: &name,
     agent: None,
     voice: None,
+    line: None,
   };
   let message = record::keep(receiver.db(), receiver.news(), kept).await.map_err(store)?;
 

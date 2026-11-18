@@ -1642,6 +1642,23 @@
         ],
         "type": "object"
       },
+      "KeptFixedLine": {
+        "description": "A fixed line as a message keeps it: its code and the fields it carries, as the receiver's `docs/codes.md`,\n「Fixed lines」, names them.",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "fields"
+        ],
+        "type": "object"
+      },
       "LetIn": {
         "description": "`PUT /rooms/{roomId}/accounts/{account}`: the account letting another in.",
         "properties": {
@@ -1652,6 +1669,100 @@
         },
         "required": [
           "by"
+        ],
+        "type": "object"
+      },
+      "LetInAccounts": {
+        "description": "`POST /rooms/{roomId}/accounts`: each account asked as a member as it now stands, and those the call let in.",
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/RoomAccount"
+            },
+            "type": "array"
+          },
+          "letIn": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "accounts",
+          "letIn"
+        ],
+        "type": "object"
+      },
+      "LetInSeveral": {
+        "description": "`POST /rooms/{roomId}/accounts`: the accounts let in, at least one and each once, and the account letting them in.",
+        "properties": {
+          "accounts": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "by": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accounts",
+          "by"
+        ],
+        "type": "object"
+      },
+      "LetInUnit": {
+        "description": "`POST /rooms/{roomId}/unit-accounts`: the organisation unit whose people are let in, by its number in the web\nunit, and the account letting them in.",
+        "properties": {
+          "by": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unit": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "unit",
+          "by"
+        ],
+        "type": "object"
+      },
+      "LetInUnitAccounts": {
+        "description": "`POST /rooms/{roomId}/unit-accounts`: the unit as the web unit named it then, each of its people as a member of\nthe room as it now stands, and those the call let in.",
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/RoomAccount"
+            },
+            "type": "array"
+          },
+          "letIn": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "unit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unitName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit",
+          "unitName",
+          "accounts",
+          "letIn"
         ],
         "type": "object"
       },
@@ -1780,11 +1891,23 @@
           },
           "kind": {
             "default": null,
-            "description": "`sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, null\nfor any other message.",
+            "description": "`sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,\n`fixed-line` for a fixed line the receiver said into the room itself, null for any other message.",
             "type": [
               "string",
               "null"
             ]
+          },
+          "line": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KeptFixedLine"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "On a message of kind `fixed-line`, the line it was said from; null on any other."
           },
           "notCarried": {
             "description": "The chat services that did not carry an act on this message, each a `NotCarried`: it stands on the answer of\nan act alone, and where there is nothing to name the field is left out.",
@@ -1915,6 +2038,7 @@
           "agentName",
           "voice",
           "kind",
+          "line",
           "editedAt",
           "deletedAt",
           "pinnedAt",
@@ -6262,6 +6386,64 @@
           "upstream-failed",
           "failed"
         ]
+      },
+      "post": {
+        "operationId": "letInSeveral",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LetInSeveral"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetInAccounts"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
+          }
+        },
+        "summary": "Several accounts let into a room by another, with one line naming those it let in; a member already one stands as it is.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "private-room",
+          "upstream-failed",
+          "failed"
+        ]
       }
     },
     "/rooms/{roomId}/accounts/{account}": {
@@ -9325,6 +9507,66 @@
           }
         },
         "summary": "An account writing in a room in the console, or no longer: told on the event stream and handed to the room's chat services as a typing send in the writer's own voice, never kept.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "private-room",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/unit-accounts": {
+      "post": {
+        "operationId": "letInUnit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LetInUnit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetInUnitAccounts"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
+          }
+        },
+        "summary": "An organisation unit's people, as the web unit answers them at that moment, let into a room by another, with one line naming the unit; the room keeps no link to the unit.",
         "tags": [
           "Rooms"
         ],

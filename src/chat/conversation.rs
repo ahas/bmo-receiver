@@ -1083,11 +1083,9 @@ impl Conversations {
   // The fixed line telling a room its words wait for the fresh session, said as the agent.
   async fn say_tidying(&self, chat_id: i64) {
     let receiver = &self.0.receiver;
-    let Some(line) = receiver.speech().rendered(&receiver_codes::FixedLine::MemoryTidying).await else {
-      return;
-    };
+    let line = receiver_codes::FixedLine::MemoryTidying;
 
-    if let Err(why) = receiver.speech().say(chat_id, &line).await {
+    if let Err(why) = receiver.speech().say_line(chat_id, &line).await {
       eprintln!("chat {chat_id}: the memory-tidying line was not said: {why}");
     }
   }

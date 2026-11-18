@@ -195,6 +195,7 @@ async fn said_by(front: &Front, agent: &str, number: i64) {
     name: "Agent",
     agent: Some(agent),
     voice: None,
+    line: None,
   };
 
   record::keep(receiver.db(), receiver.news(), line).await.unwrap();

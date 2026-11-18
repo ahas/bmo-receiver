@@ -124,6 +124,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `GET /rooms/{roomId}/members` | | `members`, the people in the room as its own chat service lists them, each `person` (the sender number the room's messages carry, or null where the service gave the person none), `name` and `statusMessage` (or null) |
 | `GET /rooms/{roomId}/accounts` | | `accounts`, the room's members by account, each `account`, `addedBy` and `addedAt` (both null for a private room's own account, which nobody let in) |
 | `PUT /rooms/{roomId}/accounts/{account}` | `by`, the account letting it in | the member, `account`, `addedBy` and `addedAt`; the same member where it already is one |
+| `POST /rooms/{roomId}/accounts` | `accounts`, the keys of the accounts to let in, at least one; `by`, the account letting them in | `accounts`, each account asked as a member as it now stands, and `letIn`, the keys of those this call let in |
+| `POST /rooms/{roomId}/unit-accounts` | `unit`, an organisation unit's number in the web unit; `by`, the account letting its members in | `unit`, `unitName`, `accounts`, each of the unit's members as a member of the room as it now stands, and `letIn`, the keys of those this call let in |
 | `DELETE /rooms/{roomId}/accounts/{account}` | `by`, the account taking it out, the member itself where it leaves | 204 |
 | `PUT /accounts/{account}/identity` | `name?`, the name the identity goes by from then | `account` and `sender`, the account's record identity, made where it does not stand |
 | `GET /accounts/{account}/rooms` | | `rooms`, the numbers of the rooms the account is a member of in the console, its private rooms among them |
@@ -261,7 +263,19 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `account-taken-out` (`account` and `by`) otherwise; a member let in again, or one not a member taken out,
   writes nothing and answers as it stands. The receiver judges no right of `by`: the console asks the web unit who
   may before it calls. A room the receiver does not hold is refused 404 `not-found`, a `by` missing 400
-  `bad-request`, and either change in a private room 403 `private-room`. `GET /rooms/{roomId}/accounts` of a
+  `bad-request`, and a change in a private room 403 `private-room`.
+- **Several accounts are let in by one call,** `POST /rooms/{roomId}/accounts`, each as `PUT` lets one in, and the
+  room hears one line for all of them: `accounts-let-in` (its fields `accounts`, the keys this call let in, and
+  `by`), or `account-let-in` where it let in only one; an account already a member is left as it stands and
+  named in no line, and a call that let nobody in writes nothing. A list naming no account, or an account twice,
+  is refused 400 `bad-request`.
+- **An organisation unit's members are let in by one call,** `POST /rooms/{roomId}/unit-accounts`: the receiver
+  asks the web unit for the unit (`GET /units/{unit}`) and lets in, as above, the users whose home unit it is and
+  those holding a post in it, as they stand at that moment, and the room hears one line naming the unit:
+  `unit-let-in` (its fields `unit`, `unitName`, `accounts`, the keys this call let in, and `by`). The room keeps
+  no link to the unit: a person who joins it later is not let in by it, and one who leaves it stays a member. A
+  unit the web unit does not hold is refused 404 `not-found`, and a web unit that does not answer 502
+  `upstream-failed`, with nobody let in. `GET /rooms/{roomId}/accounts` of a
   private room answers its own account alone. `GET /accounts/{account}/rooms` answers the rooms the account is a
   member of now with its private rooms: those of the supervisors it owns, and the owner's private room for the
   owner's account; the rooms it reaches through a chat service's identities are the console's to compose.
@@ -320,7 +334,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Message`** is `id`, `room`, `senderId` (or null), `senderName`, `sentAt`, `text`, `imagePath` (or null),
   `replyToMessageId` (or null), `answerSeconds`, `round`, `album`, `via`, `agentName` (or null), `voice` (or null),
   `transcript` (the words heard in a voice note, or null), `voiceSeconds` (how long the recording ran, or null),
-  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker` for a sticker the record sent and for a message a chat service handed a sticker over on, as its picture or as a file of any type (`docs/room-files.md`, 「What the console reads of them」), `thinking` for a thinking block a record holds as a message, or null for any other), `editedAt`, `deletedAt` and
+  `voiceState` (`heard`, `failed`, or null), `kind` (`sticker` for a sticker the record sent and for a message a chat service handed a sticker over on, as its picture or as a file of any type (`docs/room-files.md`, 「What the console reads of them」), `thinking` for a thinking block a record holds as a message, `fixed-line` for a fixed line the receiver said into the room itself (`docs/voiced-notices.md`, 「Lines that stay fixed」), or null for any other), `line` (on a message of kind `fixed-line`, the line it was said from, its `code` and its `fields` as `docs/codes.md`, 「Fixed lines」, names them, and null on any other), `editedAt`, `deletedAt` and
   `pinnedAt` (epoch milliseconds, or null), `reactions`, each `emoji` with `by`, who put it there (an agent's name
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
   `situation` (the room's situation note as it stood when the round that judged this message opened — its `text`,

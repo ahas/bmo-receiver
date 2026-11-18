@@ -1,6 +1,6 @@
 //! The console's accounts in its rooms (docs/api.md, 「Rooms」 and 「Sends」; docs/receiver.md, 「Console rooms and
 //! accounts」): an account's record identity, the rooms it is a member of, a room's members by account let in and
-//! taken out with a line saying so, and an account's words and files said in a room, kept under the owner's sender
+//! taken out with a line saying so, several or an organisation unit's members let in with one line for them all, and an account's words and files said in a room, kept under the owner's sender
 //! for the owner's account and under the account's record identity for any other. The receiver judges no right of an
 //! account here; it holds only that nothing in a private room is said or changed by another account.
 
@@ -149,14 +149,137 @@ async fn changeable(receiver: &Receiver, room: i64, by: i64) -> Result<(), Refus
   Ok(())
 }
 
-// A line the room hears of a member's change, said by the receiver itself; a room that takes no line is said in the
-// journal instead, and the change stands either way.
+// A line the room hears of a member's change, said by the receiver itself and kept as the fixed line it is; a room
+// that takes no line is said in the journal instead, and the change stands either way.
 async fn told(receiver: &Receiver, room: i64, line: FixedLine) {
-  let Some(text) = receiver.speech().rendered(&line).await else { return };
-
-  if let Err(why) = receiver.speech().say(room, &text).await {
+  if let Err(why) = receiver.speech().say_line(room, &line).await {
     println!("chat {room}: a member's change went unsaid: {why}");
   }
+}
+
+// The account a write acts for, refused where the call names none.
+fn by_of(writable: &WritableRoom) -> Result<i64, Refusal> {
+  writable
+    .writer
+    .account()
+    .ok_or_else(|| refused(StatusCode::BAD_REQUEST, "bad-request", "by (an account) is required"))
+}
+
+/// What `POST /rooms/{roomId}/accounts` carries beside `by`: the accounts to let in.
+#[derive(Deserialize)]
+pub struct Several {
+  #[serde(default)]
+  accounts: Vec<i64>,
+}
+
+/// What `POST /rooms/{roomId}/unit-accounts` carries beside `by`: the organisation unit whose people are let in.
+#[derive(Deserialize)]
+pub struct FromUnit {
+  unit: i64,
+}
+
+// Every account let in by `by` as `PUT` lets one in, in the order given: each as a member as it now stands, and the
+// keys of those this call let in.
+async fn all_let_in(
+  receiver: &Receiver,
+  room: i64,
+  accounts: &[i64],
+  by: i64,
+) -> Result<(Vec<Value>, Vec<i64>), Refusal> {
+  let mut members = vec![];
+  let mut let_in = vec![];
+
+  for &account in accounts {
+    let (member, now) = accounts::let_in(receiver.db(), room, account, by).await.map_err(store)?;
+
+    members.push(member_shape(&member));
+
+    if now {
+      let_in.push(account);
+    }
+  }
+
+  Ok((members, let_in))
+}
+
+/// `POST /rooms/{roomId}/accounts`: several accounts let in by `by`, with one line naming those it let in; a member
+/// already one stands as it is, and a call that let nobody in writes nothing.
+pub async fn let_in_several(State(served): State<Served>, writable: WritableRoom) -> Answered {
+  let room = writable.room;
+  let by = by_of(&writable)?;
+  let asked = read::<Several>(writable.writer.body())?;
+  let mut seen = asked.accounts.clone();
+
+  seen.sort_unstable();
+  seen.dedup();
+
+  if asked.accounts.is_empty() || seen.len() != asked.accounts.len() {
+    return Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      "accounts names at least one account, each once",
+    ));
+  }
+
+  let receiver: Receiver = (*served.receiver).clone();
+
+  changeable(&receiver, room, by).await?;
+
+  let (members, let_in) = all_let_in(&receiver, room, &asked.accounts, by).await?;
+  let line = match let_in.as_slice() {
+    [] => None,
+    [account] => Some(FixedLine::AccountLetIn {
+      account: *account,
+      by,
+    }),
+    _ => Some(FixedLine::AccountsLetIn {
+      accounts: let_in.clone(),
+      by,
+    }),
+  };
+
+  if let Some(line) = line {
+    told(&receiver, room, line).await;
+  }
+
+  answered(json!({ "accounts": members, "letIn": let_in }))
+}
+
+/// `POST /rooms/{roomId}/unit-accounts`: the people of an organisation unit, as the web unit answers them at this
+/// moment, let in by `by` with one line naming the unit; the room keeps no link to the unit.
+pub async fn let_in_unit(State(served): State<Served>, writable: WritableRoom) -> Answered {
+  let room = writable.room;
+  let by = by_of(&writable)?;
+  let asked = read::<FromUnit>(writable.writer.body())?;
+  let receiver: Receiver = (*served.receiver).clone();
+
+  changeable(&receiver, room, by).await?;
+
+  let unit = match receiver.units().web.organisation_unit(asked.unit).await {
+    Ok(Some(unit)) => unit,
+    Ok(None) => {
+      return Err(refused(
+        StatusCode::NOT_FOUND,
+        "not-found",
+        &format!("The web unit holds no organisation unit {}.", asked.unit),
+      ));
+    }
+    Err(why) => return Err(refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string())),
+  };
+  let (members, let_in) = all_let_in(&receiver, room, &unit.people, by).await?;
+
+  if !let_in.is_empty() {
+    let line = FixedLine::UnitLetIn {
+      unit: unit.id,
+      unit_name: unit.name.clone(),
+      accounts: let_in.clone(),
+      by,
+    };
+
+    told(&receiver, room, line).await;
+  }
+
+  answered(json!({ "unit": unit.id, "unitName": unit.name, "accounts": members, "letIn": let_in }))
 }
 
 /// `PUT /rooms/{roomId}/accounts/{account}`: an account let in by `by`, with a line saying so; the member as it
@@ -168,9 +291,7 @@ pub async fn let_in(
 ) -> Answered {
   let room = writable.room;
   let account = account_key(&account)?;
-  let Some(by) = writable.writer.account() else {
-    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "by (an account) is required"));
-  };
+  let by = by_of(&writable)?;
   let receiver: Receiver = (*served.receiver).clone();
 
   changeable(&receiver, room, by).await?;
@@ -193,9 +314,7 @@ pub async fn take_out(
 ) -> Result<StatusCode, Refusal> {
   let room = writable.room;
   let account = account_key(&account)?;
-  let Some(by) = writable.writer.account() else {
-    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "by (an account) is required"));
-  };
+  let by = by_of(&writable)?;
   let receiver: Receiver = (*served.receiver).clone();
 
   changeable(&receiver, room, by).await?;

@@ -39,6 +39,17 @@ pub enum FixedLine {
   AccountLeft { account: i64 },
   /// An account taken out of a room in the console by another, both by their keys.
   AccountTakenOut { account: i64, by: i64 },
+  /// Several accounts let into a room in the console by another in one call, all by their keys: those it let in.
+  AccountsLetIn { accounts: Vec<i64>, by: i64 },
+  /// The members of an organisation unit, as they stood at that moment, let into a room in the console by another:
+  /// the unit by its number and its name then, and those it let in and who did by their keys.
+  UnitLetIn {
+    unit: i64,
+    #[serde(rename = "unitName")]
+    unit_name: String,
+    accounts: Vec<i64>,
+    by: i64,
+  },
 }
 
 coded!(FixedLine);

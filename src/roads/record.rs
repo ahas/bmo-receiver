@@ -4,6 +4,7 @@
 //! road numbered takes the record's own, counting down from minus one, so it never meets a number a platform gave.
 
 use sea_orm::{DatabaseConnection, TransactionTrait};
+use serde_json::Value;
 
 use receiver_policy::roads::ROADS;
 
@@ -65,7 +66,7 @@ pub async fn agent_number(db: &DatabaseConnection, road: &str, agent: &str) -> R
 /// What a word kept in the record is: its room, the number the road it went out on gave it where one did, its words
 /// and what it answers, the road it is kept under, and who said it, by number and name. A send the receiver makes
 /// itself also names the agent whose words these are and the voice it went out in; a word that is nobody's send
-/// leaves both unset.
+/// leaves both unset. A fixed line the receiver says itself names the line it was said from, its code and fields.
 pub struct Kept<'a> {
   pub chat_id: i64,
   pub number: Option<i64>,
@@ -76,6 +77,7 @@ pub struct Kept<'a> {
   pub name: &'a str,
   pub agent: Option<&'a str>,
   pub voice: Option<&'a str>,
+  pub line: Option<&'a Value>,
 }
 
 /// Words kept in a room's record under the number their road gave them, else under the record's next number, and
@@ -105,6 +107,11 @@ pub async fn keep(db: &DatabaseConnection, news: &dyn News, kept: Kept<'_>) -> R
   };
 
   rows::save_message(db, &message, kept.agent, kept.voice).await?;
+
+  if let Some(line) = kept.line {
+    mark_fixed_line(db, message.chat_id, message.message_id, line).await?;
+  }
+
   news.message(message.chat_id, message.message_id);
 
   if let (Some(agent), Some(number)) = (kept.agent, message.sender_id) {
@@ -228,6 +235,26 @@ pub async fn act(
   run(db, sql, values).await?;
 
   Ok(true)
+}
+
+/// The kind a message a fixed line was said as stands under (docs/voiced-notices.md, 「Lines that stay fixed」).
+pub const FIXED_LINE: &str = "fixed-line";
+
+/// A message kept as a fixed line: its kind marked and the line it was said from, its code and fields, kept beside
+/// its words.
+pub async fn mark_fixed_line(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  message_id: i64,
+  line: &Value,
+) -> Result<(), Fault> {
+  run(
+    db,
+    r#"UPDATE "messages" SET "kind" = $3, "line" = $4 WHERE "chat_id" = $1 AND "message_id" = $2"#,
+    vec![chat_id.into(), message_id.into(), FIXED_LINE.into(), line.to_string().into()],
+  )
+  .await
+  .map(drop)
 }
 
 /// A message kept as a sticker: its kind marked once it stands.

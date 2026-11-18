@@ -241,6 +241,8 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/rooms/{roomId}/members", get(rooms::room_members)),
     ("GET", "/rooms/{roomId}/accounts", get(accounts::members)),
     ("PUT", "/rooms/{roomId}/accounts/{account}", put(accounts::let_in)),
+    ("POST", "/rooms/{roomId}/accounts", post(accounts::let_in_several)),
+    ("POST", "/rooms/{roomId}/unit-accounts", post(accounts::let_in_unit)),
     ("DELETE", "/rooms/{roomId}/accounts/{account}", delete(accounts::take_out)),
     ("PUT", "/accounts/{account}/identity", put(accounts::identity)),
     ("GET", "/accounts/{account}/rooms", get(accounts::rooms)),

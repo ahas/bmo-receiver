@@ -368,7 +368,10 @@ flowchart TD
   chat service carries they are those beside the people the service lists, whom the console links to accounts
   itself. An account is let in by another (`by`), and goes out by itself or is taken out; each of those writes a
   line into the room saying who did what to whom, a fixed line the room's members all read (`docs/voiced-notices.md`,
-  「Lines that stay fixed」). A member taken out is no longer listed and no longer reads the room through its
+  「Lines that stay fixed」). Several accounts let in by one call write one line naming them all, and so do the
+  members of an organisation unit let in together: the unit's members are read from the web unit's organisation
+  as they stand at that moment, each is let in as an account is, and the room keeps no link to the unit, so a
+  person who joins the unit later is not let in by it and one who leaves it stays a member. A member taken out is no longer listed and no longer reads the room through its
   membership. An agent room opened by an account (`POST /rooms`, `openedBy`) has that account as its first member,
   let in by itself and with no line.
 - **A BMO's private room is the record room written when the supervisor was added,** naming it alone: its own

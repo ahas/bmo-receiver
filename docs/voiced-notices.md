@@ -341,6 +341,12 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
   and the journal says which line and why. A code and its fields, or any JSON, never stand in a room.
 - **A fixed line is the service's own, never an agent's.** No send asks for one: a session's words reach a room
   only as its round's message, which the draft process reviews (`docs/drafting.md`).
+- **A fixed line the receiver says into a room itself is kept as one.** The room's record keeps its words as they
+  were rendered, with the kind `fixed-line` and the line it was said from, its code and its fields, so a screen
+  reading the room knows what the line is without matching its words (`docs/api.md`, 「Messages」). This holds for
+  each line in the table below the receiver says on its own: the rest, a broken run's last resort, a shut room, a
+  memory being tidied and a room's members by account. A draw's line goes out as the agent's send and the
+  going-down notices as system notices under the service's mark (「System notices」), so neither carries the kind.
 
 | Line | Why it stays fixed |
 | --- | --- |
@@ -349,6 +355,6 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `run-broken`, the last resort when a run broke and the agent cannot answer the order about it | No session is able to say it; it is composed out of what the broken run left. |
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
-| `account-let-in`, `account-left`, `account-taken-out` (an account let into a room, leaving it, or taken out, each naming the accounts by their keys, `docs/receiver.md`, 「Console rooms and accounts」) | It records who did it, as it was done, for every member to read; no session is woken for it. |
+| `account-let-in`, `accounts-let-in`, `unit-let-in`, `account-left`, `account-taken-out` (an account let into a room, several let in at once, an organisation unit's members let in, an account leaving or taken out, each naming the accounts by their keys, `docs/receiver.md`, 「Console rooms and accounts」) | It records who did it, as it was done, for every member to read; no session is woken for it. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
 | A login's end (「What each path says」) | The agency composed it from its policy, and the model whose login ended may be the one that would say it. |

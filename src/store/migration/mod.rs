@@ -59,6 +59,7 @@ pub mod m20261116_000052_people_names;
 pub mod m20261117_000053_sticker_messages;
 pub mod m20261117_000054_double_slots_dropped;
 pub mod m20261117_000055_relays_wait_on_orders;
+pub mod m20261118_000056_fixed_line_messages;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -124,6 +125,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261117_000053_sticker_messages::Migration),
       Box::new(m20261117_000054_double_slots_dropped::Migration),
       Box::new(m20261117_000055_relays_wait_on_orders::Migration),
+      Box::new(m20261118_000056_fixed_line_messages::Migration),
     ]
   }
 }

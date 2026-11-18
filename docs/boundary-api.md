@@ -389,7 +389,9 @@ and its senders, the grants in a room, a sender's relation in a room, a message'
 relation on an object, making and revoking a grant, a fixed line's words, the machine a user's account is bound to,
 whether it is attached and whether the account has left (`GET /users/{user}/node`, answering `agent`, `attached` and
 `left`), whether one user heads
-another's unit (`GET /users/{user}/unit`, then `POST /checks/unit`), and the rooms the console has open:
+another's unit (`GET /users/{user}/unit`, then `POST /checks/unit`), an organisation unit's name and its people
+(`GET /units/{unit}`, read for its `name`, its `members` and the `user` of each of its `concurrent` posts, each
+user an account's key as decimal text), and the rooms the console has open:
 `GET /watching` answers `rooms` and the moment the console last reported, which the restart's backlog reads before
 it serves an open room. The port reads the model as
 `inForce`, a grant's holder as `subjectKey` and a grant's lapse as `expiresAt`, and sends a grant's lapse as
@@ -484,6 +486,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
   `totalTokens` null until the agency serves a tally by agent and room.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
+- **bmo-chat's handed-over message** carries words alone, with no field for what a line is: a person joining or
+  leaving a chat service's room reaches the receiver as the words the service writes for it, kept as anyone's
+  message, and no screen can tell it from a person's words until the protocol carries the line's code and fields.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver
   learns a message was taken as a move: until one does, a move is woken on as any message is.
 - **bmo-chat's `POST /sends`** carries no word of who said a message the receiver carries to another provider
@@ -492,8 +497,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The web unit** is to link each account's record identity (`PUT /accounts/{account}/identity`) to that
   account's user as it links any chat service's identity, and to ask it for every account that stands already,
   naming it with the account's shown name there and whenever a profile's full name changes, so the record reads the
-  name with no words sent, and its language packs to render `account-let-in`, `account-left` and `account-taken-out` with the accounts'
-  names and word `private-room` (`docs/codes.md`). Until then an account's words stand under its record identity
+  name with no words sent, and its language packs to render `account-let-in`, `accounts-let-in`, `unit-let-in`,
+  `account-left` and `account-taken-out` with the accounts' names, `accounts` as a list of them, and the unit by
+  `unitName`, and word `private-room` (`docs/codes.md`). Until then an account's words stand under its record identity
   all the same, its own supervisor reads a room by its membership alone, and the lines fall back to the policy's
   plain sentences, which name the accounts by their keys.
 - **A chat service that declares `speakers`** is handed `account:<account>` as the speaker of another account's

@@ -15,6 +15,8 @@ draw = "추첨 {number}번 결과: {result} (시드 {seed}, 다음 시드 약속
 account-let-in = "계정 {by}이(가) 계정 {account}을(를) 이 방에 들였어요."
 account-left = "계정 {account}이(가) 이 방에서 나갔어요."
 account-taken-out = "계정 {by}이(가) 계정 {account}을(를) 이 방에서 내보냈어요."
+accounts-let-in = "계정 {by}이(가) 계정 {accounts}을(를) 대화상대로 추가했어요."
+unit-let-in = "계정 {by}이(가) {unitName}을(를) 대화상대로 추가했어요."
 
 [sentences.en]
 rest-begins = "A usage limit has been reached, so I cannot answer for a while. I will answer again once it lifts."
@@ -28,3 +30,5 @@ draw = "Draw {number}: {result} (seed {seed}, next seed commitment {next})"
 account-let-in = "Account {by} let account {account} into this room."
 account-left = "Account {account} left this room."
 account-taken-out = "Account {by} took account {account} out of this room."
+accounts-let-in = "Account {by} let accounts {accounts} into this room."
+unit-let-in = "Account {by} let the members of {unitName} into this room."

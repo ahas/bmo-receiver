@@ -158,6 +158,7 @@ pub async fn message_shape(receiver: &Receiver, room: i64, message: i64) -> Resu
     "agentName": kept.agent_name,
     "voice": kept.voice,
     "kind": kept.kind,
+    "line": kept.line,
     "editedAt": kept.edited_at,
     "deletedAt": kept.deleted_at,
     "pinnedAt": kept.pinned_at,

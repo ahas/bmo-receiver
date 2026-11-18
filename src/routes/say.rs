@@ -680,6 +680,7 @@ pub async fn forward(
     name: &name,
     agent: None,
     voice: None,
+    line: None,
   };
   let copy = record::keep(receiver.db(), receiver.news(), kept).await.map_err(store)?;
   // The picture the message stores is kept again under the copy, and goes on to the room's other providers

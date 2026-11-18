@@ -8,6 +8,7 @@
 use sea_orm::{DatabaseConnection, DbErr, QueryResult};
 
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::Fault;
 use crate::now_ms;
@@ -87,9 +88,11 @@ pub struct Page {
   pub via: Option<String>,
   pub agent_name: Option<String>,
   pub voice: Option<String>,
-  /// `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message, none
-  /// for any other.
+  /// `sticker` for a sticker kept on the record, `thinking` for a thinking block a record holds as a message,
+  /// `fixed-line` for a fixed line the receiver said itself, none for any other.
   pub kind: Option<String>,
+  /// The fixed line a message of kind `fixed-line` was said from, its `code` and `fields`; none on any other.
+  pub line: Option<Value>,
   pub edited_at: Option<i64>,
   pub deleted_at: Option<i64>,
   pub pinned_at: Option<i64>,
@@ -142,6 +145,10 @@ impl Page {
       agent_name: row.try_get("", "agent_name")?,
       voice: row.try_get("", "voice")?,
       kind: row.try_get("", "kind").unwrap_or(None),
+      line: row
+        .try_get::<Option<String>>("", "line")
+        .unwrap_or(None)
+        .and_then(|line| serde_json::from_str(&line).ok()),
       edited_at: row.try_get("", "edited_at").unwrap_or(None),
       deleted_at: row.try_get("", "deleted_at").unwrap_or(None),
       pinned_at: row.try_get("", "pinned_at").unwrap_or(None),

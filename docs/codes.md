@@ -246,6 +246,8 @@ session once the setting has changed, one waiting per setting.
 | `account-let-in` | `account`, `by` | an account let into a room in the console by another (`docs/receiver.md`, 「Console rooms and accounts」) |
 | `account-left` | `account` | an account went out of a room in the console by itself |
 | `account-taken-out` | `account`, `by` | an account taken out of a room in the console by another |
+| `accounts-let-in` | `accounts` (a list of account keys), `by` | several accounts let into a room in the console by another in one call, the list naming those it let in |
+| `unit-let-in` | `unit` (the unit's number), `unitName` (its name as the web unit answered it then), `accounts` (a list of account keys), `by` | the members of an organisation unit, as they stood at that moment, let into a room in the console by another, the list naming those it let in |
 
 ## Kinds
 

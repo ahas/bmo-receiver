@@ -1,5 +1,5 @@
-//! The web unit's port: the account model, a sender's user, a user, the relation checks, the grants, and the
-//! words of a fixed line (`docs/boundary-api.md`, 「The web unit」). The web unit's `docs/boundary.md` states these
+//! The web unit's port: the account model, a sender's user, a user, the relation checks, the grants, an
+//! organisation unit's people, and the words of a fixed line (`docs/boundary-api.md`, 「The web unit」). The web unit's `docs/boundary.md` states these
 //! routes in the common wire format, so every body here is camelCase.
 
 use futures_util::future::BoxFuture;
@@ -101,6 +101,51 @@ pub struct Render {
   pub language: String,
 }
 
+/// An organisation unit as the receiver reads it: its number, its name, and the people standing in it as they stand
+/// now, each by the key of their account, those whose home unit it is first and the holders of a post in it after,
+/// each once.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OrganisationUnit {
+  pub id: i64,
+  pub name: String,
+  pub people: Vec<i64>,
+}
+
+#[derive(Deserialize)]
+struct UnitView {
+  id: i64,
+  name: String,
+  #[serde(default)]
+  members: Vec<String>,
+  #[serde(default)]
+  concurrent: Vec<ConcurrentPost>,
+}
+
+#[derive(Deserialize)]
+struct ConcurrentPost {
+  user: String,
+}
+
+impl From<UnitView> for OrganisationUnit {
+  fn from(view: UnitView) -> Self {
+    let mut people: Vec<i64> = vec![];
+    let users = view.members.iter().chain(view.concurrent.iter().map(|post| &post.user));
+
+    // A user is an account's key as decimal text; one that reads as no key names no account the receiver holds.
+    for account in users.filter_map(|user| user.trim().parse::<i64>().ok()) {
+      if !people.contains(&account) {
+        people.push(account);
+      }
+    }
+
+    OrganisationUnit {
+      id: view.id,
+      name: view.name,
+      people,
+    }
+  }
+}
+
 /// Every call the receiver makes on the web unit.
 pub trait Web: Send + Sync {
   /// Whether the account model is in force.
@@ -141,6 +186,9 @@ pub trait Web: Send + Sync {
 
   /// Whether one user heads the unit another stands in, through a head grant on it or on a unit above it.
   fn heads_unit_of<'a>(&'a self, head: &'a str, user: &'a str) -> BoxFuture<'a, Answer<bool>>;
+
+  /// An organisation unit and the people standing in it now; none where the web unit holds no such unit.
+  fn organisation_unit(&self, unit: i64) -> BoxFuture<'_, Answer<Option<OrganisationUnit>>>;
 }
 
 #[derive(Deserialize)]
@@ -350,6 +398,14 @@ impl Web for HttpWeb {
         .await?;
 
       Ok(checked.allowed)
+    })
+  }
+
+  fn organisation_unit(&self, unit: i64) -> BoxFuture<'_, Answer<Option<OrganisationUnit>>> {
+    Box::pin(async move {
+      let found: Option<UnitView> = self.caller.found(&["units", &unit.to_string()], &[]).await?;
+
+      Ok(found.map(OrganisationUnit::from))
     })
   }
 }

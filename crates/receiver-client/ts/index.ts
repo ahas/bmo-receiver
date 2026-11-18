@@ -33,6 +33,11 @@ export type AgentRoom = Schemas["AgentRoom"];
 export type RoomAccount = Schemas["RoomAccount"];
 export type RoomAccounts = Schemas["RoomAccounts"];
 export type LetIn = Schemas["LetIn"];
+export type LetInSeveral = Schemas["LetInSeveral"];
+export type LetInAccounts = Schemas["LetInAccounts"];
+export type LetInUnit = Schemas["LetInUnit"];
+export type LetInUnitAccounts = Schemas["LetInUnitAccounts"];
+export type KeptFixedLine = Schemas["KeptFixedLine"];
 export type AccountIdentity = Schemas["AccountIdentity"];
 export type AccountNaming = Schemas["AccountNaming"];
 export type AccountMemberships = Schemas["AccountMemberships"];
@@ -390,6 +395,16 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(
         await client.PUT("/rooms/{roomId}/accounts/{account}", { params: { path: { roomId, account } }, body }),
       );
+    },
+
+    /** `POST /rooms/{roomId}/accounts`: several accounts let in with one line. */
+    async letInSeveral(roomId: number, body: LetInSeveral): Promise<LetInAccounts> {
+      return answered(await client.POST("/rooms/{roomId}/accounts", { params: { path: { roomId } }, body }));
+    },
+
+    /** `POST /rooms/{roomId}/unit-accounts`: an organisation unit's people let in as they stand now, with one line. */
+    async letInUnit(roomId: number, body: LetInUnit): Promise<LetInUnitAccounts> {
+      return answered(await client.POST("/rooms/{roomId}/unit-accounts", { params: { path: { roomId } }, body }));
     },
 
     /** `DELETE /rooms/{roomId}/accounts/{account}`, the member itself as `by` where it leaves. */

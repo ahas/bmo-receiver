@@ -38,7 +38,8 @@ use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
 use receiver_ports::warmer::{Target, Used, Warmer};
 use receiver_ports::web::{
-  Checked, Grant, GrantRow, MessageCheck, ObjectCheck, Render, RoomCheck, User, UserNode, Web,
+  Checked, Grant, GrantRow, MessageCheck, ObjectCheck, OrganisationUnit, Render, RoomCheck, User, UserNode,
+  Web,
 };
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
@@ -923,6 +924,8 @@ pub struct StandInWeb {
   pub heads: Mutex<BTreeSet<(String, String)>>,
   // Whether it answers no sender's user, as a web unit restarting does.
   pub down: Mutex<bool>,
+  // The organisation units it holds, by number.
+  pub organisation: Mutex<BTreeMap<i64, OrganisationUnit>>,
 }
 
 impl StandInWeb {
@@ -936,7 +939,19 @@ impl StandInWeb {
       nodes: Mutex::default(),
       heads: Mutex::default(),
       down: Mutex::default(),
+      organisation: Mutex::default(),
     }
+  }
+
+  /// An organisation unit it holds from now on, with the people standing in it.
+  pub fn organising(&self, unit: i64, name: &str, people: &[i64]) {
+    let held = OrganisationUnit {
+      id: unit,
+      name: name.to_owned(),
+      people: people.to_vec(),
+    };
+
+    self.organisation.lock().unwrap().insert(unit, held);
   }
 
   /// Answering no sender's user from now on.
@@ -1087,6 +1102,12 @@ impl Web for StandInWeb {
     let heads = self.heads.lock().unwrap().contains(&(head.to_owned(), user.to_owned()));
 
     Box::pin(async move { Ok(heads) })
+  }
+
+  fn organisation_unit(&self, unit: i64) -> BoxFuture<'_, Answer<Option<OrganisationUnit>>> {
+    let held = self.organisation.lock().unwrap().get(&unit).cloned();
+
+    Box::pin(async move { Ok(held) })
   }
 }
 

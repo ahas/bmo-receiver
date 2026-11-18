@@ -975,6 +975,28 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
   );
   add!(
+    "POST",
+    "/rooms/{roomId}/accounts",
+    "letInSeveral",
+    "Rooms",
+    "Several accounts let into a room by another, with one line naming those it let in; a member already one stands as it is.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<LetInSeveral>()),
+    vec![(200, json_answer::<LetInAccounts>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
+  );
+  add!(
+    "POST",
+    "/rooms/{roomId}/unit-accounts",
+    "letInUnit",
+    "Rooms",
+    "An organisation unit's people, as the web unit answers them at that moment, let into a room by another, with one line naming the unit; the room keeps no link to the unit.",
+    vec![path_parameter("roomId")],
+    Some(generator.subschema_for::<LetInUnit>()),
+    vec![(200, json_answer::<LetInUnitAccounts>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
+  );
+  add!(
     "DELETE",
     "/rooms/{roomId}/accounts/{account}",
     "takeOut",

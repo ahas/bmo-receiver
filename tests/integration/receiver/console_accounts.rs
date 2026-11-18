@@ -1,6 +1,7 @@
 //! The console's accounts in its rooms (docs/receiver.md, 「Console rooms and accounts」): words another account
 //! says carry nothing granted to the owner, the owner's account keeps all of it as his own road does, a provider
 //! speaks as the account only where it says it can, a room's members by account come and go with a line saying so,
+//! several of them or an organisation unit's people come in by one call with one line kept as the fixed line it is,
 //! an account's record identity is made once and goes by the name last given with no words needed, a BMO's private
 //! room wakes on its account's words alone and refuses every other, a read of it leaves nothing behind, and a
 //! messenger's member is answered as before. Every room read
@@ -43,6 +44,8 @@ const PRIVATE_ROOMS: &str = "m20261116_000048_private_rooms";
 const OWNERS: i64 = 1;
 const BEA: i64 = 7;
 const CAL: i64 = 8;
+const DAN: i64 = 9;
+const EVE: i64 = 10;
 // The supervisor Bea owns, with its own room on the record.
 const BEAS_BMO: &str = "agent-b";
 const BEAS_ROOM: i64 = -9000000000050;
@@ -456,6 +459,102 @@ async fn an_account_is_let_in_and_taken_out_with_a_line_saying_who() {
       .0,
     StatusCode::NOT_FOUND
   );
+}
+
+// Each fixed line the room's messages page serves, oldest first: its kind and the line it was said from.
+async fn kept_lines(stood: &Stood, room: i64) -> Vec<(Value, Value)> {
+  let (_, page) = asked(&stood.port, "GET", &format!("/rooms/{room}/messages?limit=50"), None).await;
+  let mut items: Vec<Value> = page["items"].as_array().unwrap().clone();
+
+  items.sort_by_key(|item| item["sentAt"].as_i64());
+
+  items.iter().map(|item| (item["kind"].clone(), item["line"].clone())).collect()
+}
+
+fn fixed(code: &str, fields: Value) -> (Value, Value) {
+  (json!("fixed-line"), json!({ "code": code, "fields": fields }))
+}
+
+#[tokio::test]
+async fn several_accounts_come_in_by_one_call_with_one_line_kept_as_the_fixed_line_it_is() {
+  let stood = stood(false).await;
+  let room = group(&stood.port, BEA).await;
+  let path = format!("/rooms/{room}/accounts");
+  let (status, answer) =
+    asked(&stood.port, "POST", &path, Some(json!({ "accounts": [CAL, DAN], "by": BEA }))).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+  assert_eq!(answer["letIn"], json!([CAL, DAN]));
+  assert_eq!(answer["accounts"][1]["addedBy"], json!(BEA));
+
+  // One new among members already in: the one-account line; none new: nothing.
+  let (_, answer) =
+    asked(&stood.port, "POST", &path, Some(json!({ "accounts": [BEA, CAL, EVE], "by": BEA }))).await;
+
+  assert_eq!(answer["letIn"], json!([EVE]));
+  assert_eq!(answer["accounts"].as_array().unwrap().len(), 3);
+  asked(&stood.port, "POST", &path, Some(json!({ "accounts": [CAL], "by": BEA }))).await;
+
+  assert_eq!(lines(&stood, room).await, ["accounts-let-in in en", "account-let-in in en"]);
+  assert_eq!(
+    kept_lines(&stood, room).await,
+    [
+      fixed("accounts-let-in", json!({ "accounts": [CAL, DAN], "by": BEA })),
+      fixed("account-let-in", json!({ "account": EVE, "by": BEA })),
+    ],
+    "each line served with its kind, code and fields"
+  );
+  assert_eq!(members(&stood, room).await.as_array().unwrap().len(), 4);
+
+  for body in [
+    json!({ "accounts": [], "by": BEA }),
+    json!({ "accounts": [DAN, DAN], "by": BEA }),
+    json!({ "accounts": [DAN] }),
+  ] {
+    assert_eq!(
+      asked(&stood.port, "POST", &path, Some(body.clone())).await.0,
+      StatusCode::BAD_REQUEST,
+      "{body}"
+    );
+  }
+}
+
+#[tokio::test]
+async fn an_organisation_units_people_come_in_as_they_stand_then_with_one_line_naming_it() {
+  let stood = stood(false).await;
+  let room = group(&stood.port, BEA).await;
+  let path = format!("/rooms/{room}/unit-accounts");
+
+  stood.standing.web.organising(5, "Design", &[BEA, CAL, DAN]);
+
+  let (status, answer) = asked(&stood.port, "POST", &path, Some(json!({ "unit": 5, "by": BEA }))).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+  assert_eq!((answer["unit"].clone(), answer["unitName"].clone()), (json!(5), json!("Design")));
+  assert_eq!(answer["letIn"], json!([CAL, DAN]), "the opener already stood");
+  assert_eq!(
+    kept_lines(&stood, room).await,
+    [fixed(
+      "unit-let-in",
+      json!({ "unit": 5, "unitName": "Design", "accounts": [CAL, DAN], "by": BEA })
+    )]
+  );
+
+  // The room keeps no link to the unit: a person who joins it later is not let in until it is asked again.
+  stood.standing.web.organising(5, "Design", &[BEA, CAL, DAN, EVE]);
+
+  assert_eq!(members(&stood, room).await.as_array().unwrap().len(), 3);
+
+  let (_, again) = asked(&stood.port, "POST", &path, Some(json!({ "unit": 5, "by": BEA }))).await;
+
+  assert_eq!(again["letIn"], json!([EVE]));
+  assert_eq!(lines(&stood, room).await, ["unit-let-in in en", "unit-let-in in en"]);
+  assert_eq!(
+    asked(&stood.port, "POST", &path, Some(json!({ "unit": 6, "by": BEA }))).await.0,
+    StatusCode::NOT_FOUND,
+    "a unit the web unit does not hold"
+  );
+  assert_eq!(lines(&stood, room).await.len(), 2, "nothing written for it");
 }
 
 #[tokio::test]
