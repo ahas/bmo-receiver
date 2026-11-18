@@ -29,7 +29,7 @@ repository's, under `tools/`, each with its `tool.toml`.
   `tests/fixtures/`, never in `.rs` files.
 - **No personal data in a tracked file.** A mail address, a home path, a telephone number, a token or a
   private network address stands in no file and no commit; `docs/PERSONAL-DATA.md` states the rule, and the
-  suite's `personal_data` check fails on one.
+  testbed's `personal-data` check fails on one.
 - **No agent names, owner names or host names** in code, documents or commits. An agent is named by its
   registration and the service's configuration; tests use neutral names such as `agent-a` and `agent-b`. No
   list of forbidden names is kept in the repository; the names check reads one from outside it

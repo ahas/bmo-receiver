@@ -22,7 +22,6 @@ mod mid_turn;
 mod open_files;
 mod openings;
 mod parity;
-mod personal_data;
 mod presence;
 mod progress;
 mod promises;

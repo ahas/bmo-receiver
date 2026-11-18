@@ -1,6 +1,7 @@
 //! Checks that span the repository: what its packages may depend on, its layout and manifests, its one
 //! version, the testbed's declaration, and what no tracked file may hold (Hangul in Rust source, and the names
-//! a list kept outside the repository gives). The five kinds of personal data are held by `personal_data`.
+//! a list kept outside the repository gives). The five kinds of personal data are held by the testbed's
+//! `personal-data` check, which the declaration enables.
 
 use std::fs;
 use std::io::ErrorKind;

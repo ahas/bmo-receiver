@@ -58,7 +58,7 @@ holds any).
 ## Personal data
 
 No tracked file holds a mail address, a home path, a telephone number, a token or a private network address.
-`docs/PERSONAL-DATA.md` states the rule, and the suite's `personal_data` check reads every tracked file for
+`docs/PERSONAL-DATA.md` states the rule, and the testbed's `personal-data` check reads every tracked file for
 it, reporting the file, the line and the kind but never the value.
 
 ## Version
@@ -83,7 +83,7 @@ cargo fmt --all --check
 `bmo-testbed check quick` runs the four sweeps that read the tree before anything runs: the glossary's terms,
 Korean in the code, the README's folder table and the dependencies the manifests name. The names a person, an
 agent or a machine goes by are checked by the repository's own test, which reads the list from outside the
-checkout. The `personal_data` check reads every tracked file for a mail address, a home path, a telephone
+checkout. The testbed's `personal-data` check reads every tracked file for a mail address, a home path, a telephone
 number, a token and a private network address (`docs/PERSONAL-DATA.md`).
 
 The tests that use a database make their own on the PostgreSQL server `BMO_TEST_POSTGRES` names, which the

@@ -32,11 +32,11 @@ placeholder as a name in angle brackets, never a credential-shaped value.
 
 ## The check
 
-The suite carries one check over every tracked file, `personal_data` under `tests/`. It reads each file as text
-and looks for the five kinds above. The kinds it reports are `mail`, `home-path`, `telephone`, `token` and
-`private-network`.
+The testbed's `personal-data` check, which the declaration enables, reads every tracked file as text and looks
+for the five kinds above (the testbed's `docs/checks.md`, 「The quick checks」). It runs with the quick checks,
+before anything is built.
 
-A failure names the file, the line and the kind, and never the value that matched. A finding fails the suite; it
+A finding names the file, the line and the kind, and never the value that matched. A finding fails the check; it
 is no warning.
 
 The check reads its own source as it reads any other tracked file, so a fixture that must contain a prohibited
