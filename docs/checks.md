@@ -1,6 +1,6 @@
 # The repository checks
 
-`tests/repository.rs` holds the checks that span the repository. It runs with the
+`tests/repository.rs` holds the checks that span the repository and that no quick check of the testbed holds. It runs with the
 root package's tests. Beside it the testbed's declaration enables five sweeps that read the tree before
 anything runs, a line per fault each: the wording check holds every file that is not a test file to the terms
 `docs/wording.md` bans; the Korean check holds each code file to the lines `korean-ledger.json` allows it, a

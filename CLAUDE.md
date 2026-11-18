@@ -17,8 +17,8 @@ repository's, under `tools/`, each with its `tool.toml`.
   makes on another unit and the gaps a sibling's document has not yet matched.
 - **No `bmo-*` dependency but the base libraries** `bmo-chat`, `bmo-chat-client` and `bmo-ui`. Another unit
   is reached through a port in this repository, over HTTP; a helper an old shared crate held is copied into
-  a crate here. `tests/repository.rs` fails on any other `bmo-*` dependency and on the old shared crate
-  names (`docs/checks.md`).
+  a crate here. The testbed's `dependencies` check fails on any other `bmo-*` dependency, and
+  `tests/repository.rs` on the old shared crate names (`docs/checks.md`).
 - **A base never knows its consumers.** A port, a crate or a route supplies the mechanism and a safe
   default; no code here names the unit or agent that calls it, and nothing branches on a chat service's
   name: what differs between them is asked of what each declares.
