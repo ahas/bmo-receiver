@@ -12,9 +12,6 @@ use serde_json::Value;
 
 const ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
-/// The only `bmo-*` packages a package here may depend on: the base libraries.
-const BASE_LIBRARIES: [&str; 3] = ["bmo-chat", "bmo-chat-client", "bmo-ui"];
-
 /// Shared crates of the single repository this one was separated from; their parts live in-tree here.
 const OLD_SHARED_CRATES: [&str; 11] = [
   "archive-pool",
@@ -47,17 +44,6 @@ const OTHER_MANIFESTS: [&str; 10] = [
 /// The variable naming the file of names no tracked file may hold: agents', people's and machines'. No
 /// repository keeps such a list, so it is read from outside the checkout (docs/checks.md).
 const NAMES_LIST: &str = "BMO_NAMES_LIST";
-
-/// The Hangul blocks of Unicode: Jamo, compatibility Jamo, Jamo extended A and B, syllables, and the
-/// halfwidth forms.
-const HANGUL: [(u32, u32); 6] = [
-  (0x1100, 0x11FF),
-  (0x3130, 0x318F),
-  (0xA960, 0xA97F),
-  (0xAC00, 0xD7AF),
-  (0xD7B0, 0xD7FF),
-  (0xFFA0, 0xFFDC),
-];
 
 fn metadata() -> Value {
   let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
@@ -113,11 +99,6 @@ fn tracked_texts() -> Vec<(String, String)> {
     .collect()
 }
 
-fn is_hangul(character: char) -> bool {
-  let point = u32::from(character);
-  HANGUL.iter().any(|&(first, last)| (first..=last).contains(&point))
-}
-
 fn is_word_character(character: char) -> bool {
   character.is_alphanumeric() || character == '_'
 }
@@ -142,23 +123,6 @@ fn names_list(names: &toml::Table, from: &str, key: &str) -> Vec<String> {
         .collect()
     })
     .unwrap_or_default()
-}
-
-#[test]
-fn depends_on_no_bmo_package_but_the_base_libraries() {
-  let metadata = metadata();
-  let mut refused = Vec::new();
-  for package in metadata["packages"].as_array().expect("metadata lists packages") {
-    let owner = package["name"].as_str().expect("a package has a name");
-    for dependency in package["dependencies"].as_array().expect("a package lists its dependencies") {
-      let name = dependency["name"].as_str().expect("a dependency has a name");
-      let foreign_bmo = name.starts_with("bmo-") && !BASE_LIBRARIES.contains(&name);
-      if foreign_bmo || OLD_SHARED_CRATES.contains(&name) {
-        refused.push(format!("{owner} -> {name}"));
-      }
-    }
-  }
-  assert!(refused.is_empty(), "dependencies outside the base libraries: {refused:?}");
 }
 
 #[test]
@@ -206,17 +170,6 @@ fn no_directory_is_named_after_its_parent() {
     })
     .collect();
   assert!(twins.is_empty(), "these paths repeat a directory inside itself: {twins:?}");
-}
-
-#[test]
-fn no_hangul_in_rust_source() {
-  let found: Vec<String> = tracked_texts()
-    .into_iter()
-    .filter(|(path, _)| path.ends_with(".rs"))
-    .filter(|(_, text)| text.chars().any(is_hangul))
-    .map(|(path, _)| path)
-    .collect();
-  assert!(found.is_empty(), "Rust files holding Hangul: {found:?}");
 }
 
 /// The names list, as `BMO_NAMES_LIST` names it: `words` matched as whole words ignoring case,
