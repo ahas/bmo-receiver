@@ -117,6 +117,7 @@ fn handed(inbound: &Inbound, files: Vec<bmo_chat_client::MessageFile>, room: Roo
     sender_name: inbound.sender_name.clone(),
     sent_at: inbound.sent_at,
     text: inbound.text.clone(),
+    line: None,
     reply_to_message_id: inbound.reply_to_message_id,
     via: inbound.via.clone(),
     album: inbound.album,
