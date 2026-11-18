@@ -283,7 +283,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-chat-client"
-version = "0.1.0-rev.9"
+version = "0.1.0-rev.10"
 dependencies = [
  "async-trait",
  "axum",
