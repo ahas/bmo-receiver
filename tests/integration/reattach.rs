@@ -1,12 +1,12 @@
 //! A turn is a resource the round re-attaches to, never one held call (docs/bmo-window.md, 「Quiet instruction」):
 //! a stream the agency cut mid-turn is opened again, the end that came meanwhile read off the events kept or off
-//! the turn itself, a turn the agency holds no record of fails uncounted, and a turn never named asks to be sent
-//! again under its key.
+//! the turn itself, a turn the agency holds no record of fails uncounted, a turn never named asks to be sent
+//! again under its key, and a look that carried no words probes the named turn where the stream stays silent.
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use bmo_receiver::chat::attach::{Followed, Step};
+use bmo_receiver::chat::attach::{Followed, Probed, Step};
 use bmo_receiver::chat::conversation::Failure;
 use receiver_ports::agency::{Delivery, Event, TurnRead};
 use serde_json::json;
@@ -141,4 +141,70 @@ async fn an_end_the_agency_names_under_turn_is_the_end_of_that_turn_alone() {
   };
 
   assert_eq!(ended["answer"].as_str(), Some("its own"));
+}
+
+#[tokio::test]
+async fn a_probe_of_the_named_turn_carries_its_end_or_tells_it_gone_or_says_nothing() {
+  let running = Arc::new(StandInAgency::new());
+  running.reading(
+    5,
+    TurnRead {
+      state: "running".to_owned(),
+      ..TurnRead::default()
+    },
+  );
+  let followed = cut_after_its_start(&running).await;
+
+  assert!(matches!(followed.probe().await, Probed::Going), "a turn still working is followed on");
+
+  let ended = Arc::new(StandInAgency::new());
+  ended.reading(
+    5,
+    TurnRead {
+      state: "ended".to_owned(),
+      outcome: Some("answered".to_owned()),
+      answer: Some("read".to_owned()),
+      reason: None,
+      delivery: Some(Delivery::Delivered),
+    },
+  );
+  let followed = cut_after_its_start(&ended).await;
+
+  let Probed::Ended(end) = followed.probe().await else {
+    panic!("a read carrying the end gives it as the stream's own end would")
+  };
+
+  assert_eq!((end["answer"].as_str(), end["delivery"].as_str()), (Some("read"), Some("delivered")));
+
+  let unreadable = Arc::new(StandInAgency::new());
+  unreadable.reading(
+    5,
+    TurnRead {
+      state: "ended".to_owned(),
+      ..TurnRead::default()
+    },
+  );
+  let followed = cut_after_its_start(&unreadable).await;
+
+  assert!(
+    matches!(followed.probe().await, Probed::Gone),
+    "an end the read does not carry is unheard"
+  );
+
+  let unrecorded = Arc::new(StandInAgency::new());
+  let followed = cut_after_its_start(&unrecorded).await;
+
+  assert!(
+    matches!(followed.probe().await, Probed::Gone),
+    "no record of the turn is an end gone past reading"
+  );
+
+  let absent = Arc::new(StandInAgency::new());
+  absent.turn_read_unreachable.store(true, std::sync::atomic::Ordering::SeqCst);
+  let followed = cut_after_its_start(&absent).await;
+
+  assert!(
+    matches!(followed.probe().await, Probed::Going),
+    "an agency that answers nothing says nothing"
+  );
 }

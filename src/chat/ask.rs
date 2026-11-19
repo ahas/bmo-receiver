@@ -19,7 +19,7 @@ use receiver_policy::handover::HANDOVER;
 use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
 use receiver_ports::http::PortFailure;
 
-use super::attach::{Followed, Step};
+use super::attach::{Followed, Probed, Step};
 use super::cache::{
   Leaving, Route, active_route, owe_replacement, owed_replacement, remember, reset_reason,
   settle_replacement, spend_force, transcript, waits_for_quiet,
@@ -703,22 +703,49 @@ impl Carry {
           false
         }
         _ = look.tick() => {
-          if let Some(turning) = followed.turn()
-            && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until)
-          {
-            let offered = pushed(agency.as_ref(), &session.id, turning, follower).await;
+          let turning = followed.turn();
+          let asked = turning.is_some() && quiet_until.is_none_or(|until| tokio::time::Instant::now() >= until);
+          let mut offered = Offered::default();
 
+          if asked {
+            offered = pushed(agency.as_ref(), &session.id, turning.unwrap(), follower).await;
             quiet_until = offered.quiet_until;
+          }
 
-            // The agency no longer works the turn and the stream told no end of it: the round re-attaches and
-            // reads the end the agency kept.
-            if offered.turn_gone {
-              eprintln!(
+          // The agency no longer works the turn and the stream told no end of it: the round re-attaches and
+          // reads the end the agency kept. A push that went in answers that the turn stands going; a look
+          // that carried no words reads the turn itself, whose end the read carries moves the round on as
+          // the stream's own end would, and a turn read gone, or a send answered whose turn no event ever
+          // named, cuts the following — its re-attachment may still give the end whole off the events kept.
+          let gone = match turning {
+            Some(_) if offered.turn_gone => true,
+            Some(_) if offered.unasked => match followed.probe().await {
+              Probed::Ended(end) => {
+                ended = Some(end);
+
+                false
+              }
+              Probed::Gone => true,
+              Probed::Going => false,
+            },
+            None => delivered.is_some(),
+            _ => false,
+          };
+
+          if gone {
+            match (turning, delivered.is_some()) {
+              (Some(turning), _) => eprintln!(
                 "session {}: turn {turning} is no longer going and no end of it was heard; re-attaching to read it",
                 session.id
-              );
-              followed.cut();
+              ),
+              (None, true) => eprintln!(
+                "session {}: its send answered and no turn of it was ever named; re-attaching to read what stands",
+                session.id
+              ),
+              (None, false) => {}
             }
+
+            followed.cut();
           }
 
           true
@@ -918,19 +945,24 @@ impl Carry {
 }
 
 /// What became of an offer of the words that came for the round's room while its turn works: the moment before
-/// which nothing more is offered, where a refusal or a push that failed asks for that gap, and whether the agency
-/// answered that no such turn is going.
+/// which nothing more is offered, where a refusal or a push that failed asks for that gap, whether the agency
+/// answered that no such turn is going, and whether the look had no words at all and therefore asked the agency
+/// nothing.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Offered {
   pub quiet_until: Option<tokio::time::Instant>,
   pub turn_gone: bool,
+  pub unasked: bool,
 }
 
 /// The words that came for the round's room while its turn works, offered to the turn and settled on what the
-/// agency said became of them.
+/// agency said became of them; a look with no words asks the agency nothing, and `unasked` says so.
 pub async fn pushed(agency: &dyn Agency, session: &str, turn: i64, aside: &dyn Aside) -> Offered {
   let Some(words) = aside.offer().await else {
-    return Offered::default();
+    return Offered {
+      unasked: true,
+      ..Offered::default()
+    };
   };
   let mut turn_gone = false;
   let said = match agency.push(session, turn, &words).await {
@@ -948,6 +980,7 @@ pub async fn pushed(agency: &dyn Agency, session: &str, turn: i64, aside: &dyn A
     quiet_until: (said == Said::Refused)
       .then(|| tokio::time::Instant::now() + Duration::from_millis(CHAT_ROUND.pushing.refused_gap_ms)),
     turn_gone,
+    unasked: false,
   }
 }
 

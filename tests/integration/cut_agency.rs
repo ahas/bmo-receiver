@@ -2,7 +2,9 @@
 //! instruction」): the turn goes to an agency served on a real port, which the test stops, cutting the send and the
 //! event stream, and starts again. A turn the agency still holds is re-attached to and its end read off the events
 //! it kept, never sent twice; a send cut before its turn was named goes again under its key and attaches to one
-//! turn; a turn the agency lost fails the round uncounted and gives its row back, never settled.
+//! turn; a turn the agency lost fails the round uncounted and gives its row back, never settled; and a turn that
+//! ends while its stream stands listening unheard is found at the next look, the round failing and running again
+//! rather than holding the agent behind an end nobody will tell.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -302,6 +304,67 @@ async fn a_turn_the_restarted_agency_lost_fails_the_round_uncounted_and_gives_it
   assert!(
     cut.sent().iter().all(|sent| !sent.contains(ANSWER)),
     "no answer went out for a turn whose end was never read: {:?}",
+    cut.sent()
+  );
+}
+
+#[tokio::test]
+async fn a_turn_that_ends_unheard_while_the_stream_listens_is_found_by_the_comparison() {
+  let cut = Cut::stood().await;
+  let id = cut.instruct().await;
+
+  cut.carried(id).await;
+
+  // The turn ends with its stream still open and its end kept by nobody: the comparison reads the closed
+  // turn, the round re-attaches, fails uncounted, and gives its row back.
+  cut.served.end_unheard(1, ANSWER);
+
+  cut
+    .row_until(
+      id,
+      &Row {
+        settled: false,
+        session: None,
+        turn: None,
+        restarts: 1,
+        failures: 0,
+        let_go: None,
+      },
+    )
+    .await;
+  until("the round's end", || cut.runner.idle()).await;
+  assert_eq!(cut.served.sends().len(), 1, "nothing is sent for the turn that ended unheard");
+  assert!(
+    cut.sent().iter().all(|sent| !sent.contains(ANSWER)),
+    "no answer went out for a turn whose end was never read: {:?}",
+    cut.sent()
+  );
+
+  // The row goes round again, handed to its room's conversation as the pass would hand it, on a turn of its
+  // own this time, whose end is told as ever.
+  cut.runner.of(AGENT).instruct(OWNER, CHECK.to_owned(), Some(id), None, vec![]).await;
+
+  until("the turn sent again", || cut.served.turns() == [1, 2]).await;
+  cut.served.end(2, ANSWER);
+  until("the answer in the room", || !cut.sent().is_empty()).await;
+  until("the round's end", || cut.runner.idle()).await;
+  cut
+    .row_until(
+      id,
+      &Row {
+        settled: true,
+        session: Some(SESSION.to_owned()),
+        turn: Some(2),
+        restarts: 1,
+        failures: 0,
+        let_go: None,
+      },
+    )
+    .await;
+
+  assert!(
+    cut.sent()[0].contains(ANSWER),
+    "the second turn's answered end settled its row: {:?}",
     cut.sent()
   );
 }

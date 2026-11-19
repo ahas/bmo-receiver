@@ -1,10 +1,12 @@
 //! A turn followed to its end across cuts (docs/bmo-window.md, 「Quiet instruction」): a turn is a resource the
 //! round re-attaches to, never one held call. The round follows the turn's events on the agency's stream; a stream
-//! that ends or fails, or a send whose connection closed, is no end of the turn. The round then opens the stream
-//! again and reads the events the agency kept since the last one heard, where the turn's end stands once it came;
-//! where none does it reads the turn: one still running is followed on, one whose read carries its end gives it,
-//! and one read as ended with no end anywhere, or one the agency holds no record of, fails the round, uncounted.
-//! While the agency answers nothing the round keeps asking, and fails, uncounted, only past the policy's while.
+//! that ends or fails, or a send whose connection closed, is no end of the turn. A look that carried no words to
+//! the named turn reads it at the agency (`Followed::probe`), so an end the stream loses cannot pass unheard. The
+//! round then opens the stream again and reads the events the agency kept since the last one heard, where the
+//! turn's end stands once it came; where none does it reads the turn: one still running is followed on, one whose
+//! read carries its end gives it, and one read as ended with no end anywhere, or one the agency holds no record
+//! of, fails the round, uncounted. While the agency answers nothing the round keeps asking, and fails, uncounted,
+//! only past the policy's while.
 
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
@@ -49,6 +51,15 @@ pub enum Step {
   Unnamed,
 }
 
+/// What reading the named turn at the agency came to: the turn still going, the end the read itself carried,
+/// or the turn gone — read as ended with nothing carrying its end, or answered with no record of it.
+#[derive(Debug)]
+pub enum Probed {
+  Going,
+  Ended(Value),
+  Gone,
+}
+
 /// The turn's id and run, once the agency named them, and the number of the last event heard.
 #[derive(Clone, Debug, Default)]
 struct Named {
@@ -61,6 +72,8 @@ struct Named {
 /// ever dropped halfway: the round reads its steps as they come, tells it of a cut send, and reads the turn's id
 /// and run once the agency named them. The following stops once the turn ended or failed, or the round lets it go.
 pub struct Followed {
+  agency: Arc<dyn Agency>,
+  session: String,
   steps: mpsc::UnboundedReceiver<Result<Step, Failure>>,
   cuts: Arc<Notify>,
   named: Arc<Mutex<Named>>,
@@ -89,7 +102,7 @@ impl Followed {
     let cuts = Arc::new(Notify::new());
     let (told, steps) = mpsc::unbounded_channel();
     let attached = Attached {
-      agency,
+      agency: agency.clone(),
       session: session.to_owned(),
       kinds,
       stream,
@@ -102,10 +115,41 @@ impl Followed {
     let following = tokio::spawn(attached.follow(told, cuts.clone()));
 
     Followed {
+      agency,
+      session: session.to_owned(),
       steps,
       cuts,
       named,
       following,
+    }
+  }
+
+  /// What a look at the named turn standing gone comes to, read where the stream has said nothing: the turn's
+  /// end where the read itself carries it, nothing where the turn still runs or the agency answered nothing,
+  /// and gone where the read says ended with no end the read carries or the agency holds no record of it — a
+  /// turn gone is cut, and the re-attachment reads what became of it off the events kept or the turn, failing
+  /// the round uncounted where nothing carries its end any more.
+  pub async fn probe(&self) -> Probed {
+    let Some(turn) = self.turn() else { return Probed::Going };
+
+    match self.agency.turn_read(&self.session, turn).await {
+      // A read carrying the end gives it whole, as the stream's own end would.
+      Ok(read) if read.ended() && read.outcome.is_some() => Probed::Ended(json!({
+        "session": self.session,
+        "turnId": turn,
+        "outcome": read.outcome,
+        "answer": read.answer,
+        "reason": read.reason,
+        "delivery": read.delivery,
+      })),
+      Ok(read) if read.ended() => Probed::Gone,
+      Ok(_) => Probed::Going,
+      Err(why) if unreachable(&why) => Probed::Going,
+      Err(why) => {
+        eprintln!("session {}: the turn read answered nothing of it: {why}", self.session);
+
+        Probed::Gone
+      }
     }
   }
 

@@ -68,6 +68,9 @@ pub struct StandInSession {
   // were refused so.
   busy: Mutex<bool>,
   refused: Mutex<usize>,
+  // Each turn it carried, by its number: whether it stands working yet and its end once it came, as the agency's
+  // store is what its turn read answers from.
+  turn_store: Mutex<std::collections::BTreeMap<i64, (bool, Option<serde_json::Value>)>>,
 }
 
 impl StandInSession {
@@ -99,7 +102,33 @@ impl StandInSession {
       refusing: Mutex::default(),
       busy: Mutex::default(),
       refused: Mutex::default(),
+      turn_store: Mutex::default(),
     }
+  }
+
+  /// What the agency's turn read answers for the turn numbered `turn`: `running` while it works, `ended` once it
+  /// ended, nothing where no such turn was ever carried.
+  pub fn read(&self, turn: i64) -> Option<receiver_ports::agency::TurnRead> {
+    use receiver_ports::agency::TurnRead;
+
+    let (working, end) = self.turn_store.lock().unwrap().get(&turn).cloned()?;
+
+    if working {
+      return Some(TurnRead {
+        state: "running".to_owned(),
+        ..TurnRead::default()
+      });
+    }
+
+    let end = end.unwrap_or_else(|| json!({}));
+
+    Some(TurnRead {
+      state: "ended".to_owned(),
+      outcome: end.get("outcome").and_then(|one| one.as_str()).map(str::to_owned),
+      answer: end.get("answer").and_then(|one| one.as_str()).map(str::to_owned),
+      reason: end.get("reason").and_then(|one| one.as_str()).map(str::to_owned),
+      delivery: end.get("delivery").cloned().and_then(|one| serde_json::from_value(one).ok()),
+    })
   }
 
   /// A turn asked while another works is refused 409 `session-busy`, as the agency refuses a session in a turn.
@@ -382,6 +411,10 @@ impl StandInSession {
 
       *self.working.lock().unwrap() = true;
 
+      if !hidden {
+        self.turn_store.lock().unwrap().insert(number as i64, (true, None));
+      }
+
       if names_late {
         self.name.notified().await;
       }
@@ -412,6 +445,13 @@ impl StandInSession {
 
       ended["session"] = json!(self.id);
       *self.working.lock().unwrap() = false;
+
+      // The hidden turns answer under the next carried turn's number, so they stand in the read store under
+      // none of them; what the probe can come to read is a carried turn's own standing only.
+      if !hidden && let Some(standing) = self.turn_store.lock().unwrap().get_mut(&(number as i64)) {
+        *standing = (false, Some(ended.clone()));
+      }
+
       self.told("turn.ended", ended);
 
       Ok(Delivery::Delivered)

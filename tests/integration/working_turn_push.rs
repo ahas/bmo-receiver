@@ -98,11 +98,18 @@ async fn a_refused_push_and_a_failed_one_settle_as_refused_and_hold_the_next_off
 }
 
 #[tokio::test]
-async fn a_round_with_nothing_to_offer_pushes_nothing() {
+async fn a_round_with_nothing_to_offer_pushes_nothing_and_asks_the_agency_nothing() {
   let agency = saying(Some(Said::Delivered));
   let round = Offering::of(None);
 
-  assert_eq!(pushed(&agency, SESSION, TURN, &round).await, Offered::default());
+  // `unasked` is what tells the round's look to read the turn itself where the push could not speak for it.
+  assert_eq!(
+    pushed(&agency, SESSION, TURN, &round).await,
+    Offered {
+      unasked: true,
+      ..Offered::default()
+    }
+  );
   assert!(agency.pushes.lock().unwrap().is_empty());
   assert!(round.settled().is_empty());
 }

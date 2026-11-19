@@ -375,6 +375,18 @@ impl ServedAgency {
     self.shared.ends.send_modify(|ends| *ends += 1);
   }
 
+  /// The turn ended answered with `answer` as the stream never told it: the send waiting on it is answered and
+  /// the turn read says `ended`, but no end event is kept or published, as one dropped between the agency and a
+  /// listening stream is.
+  pub fn end_unheard(&self, turn: i64, answer: &str) {
+    let mut book = self.shared.book.lock().unwrap();
+    let standing = book.turns.get_mut(&turn).expect("the turn stands");
+
+    standing.1 = Some(answer.to_owned());
+    drop(book);
+    self.shared.ends.send_modify(|ends| *ends += 1);
+  }
+
   /// All it kept forgotten, as an agency whose store was lost.
   pub fn forget(&self) {
     let mut book = self.shared.book.lock().unwrap();

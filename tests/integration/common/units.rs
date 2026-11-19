@@ -1303,6 +1303,11 @@ pub struct StandInAgency {
   pub saying: Mutex<Option<Said>>,
   /// Whether every push is answered that no such turn is going.
   pub turn_gone: Mutex<bool>,
+  /// Every turn it was asked to read, the session and the turn, in order.
+  pub turn_reads: Mutex<Vec<(String, i64)>>,
+  /// Whether its turn read reaches nothing at all, as an agency that is not there does. Where the read reaches
+  /// the session it stands, it answers that turn's standing as the session knows it.
+  pub turn_read_unreachable: std::sync::atomic::AtomicBool,
   /// Where a test holds pushes: each one, once recorded, answers only after the test lets one go here.
   pub held_pushes: Mutex<Option<Arc<tokio::sync::Notify>>>,
   pub agents: Mutex<Vec<Agent>>,
@@ -1376,6 +1381,8 @@ impl StandInAgency {
       pushes: Mutex::default(),
       saying: Mutex::default(),
       turn_gone: Mutex::default(),
+      turn_reads: Mutex::default(),
+      turn_read_unreachable: std::sync::atomic::AtomicBool::new(false),
       held_pushes: Mutex::default(),
       agents: Mutex::default(),
       agents_asked: AtomicUsize::new(0),
@@ -1779,11 +1786,28 @@ impl Agency for StandInAgency {
   }
 
   fn turn_read<'a>(&'a self, session: &'a str, turn: i64) -> BoxFuture<'a, Answer<TurnRead>> {
+    self.turn_reads.lock().unwrap().push((session.to_owned(), turn));
+
     if let Some(carrier) = self.carrier() {
       return Box::pin(async move { carrier.turn_read(session, turn).await });
     }
 
-    let read = self.turns.lock().unwrap().get(&turn).cloned();
+    if self.turn_read_unreachable.load(Ordering::SeqCst) {
+      return Box::pin(async move {
+        Err(PortFailure::Transport {
+          url: format!("agency/sessions/{session}/turns/{turn}"),
+          why: "the agency is not there".to_owned(),
+        })
+      });
+    }
+
+    let read = self
+      .turns
+      .lock()
+      .unwrap()
+      .get(&turn)
+      .cloned()
+      .or_else(|| self.standing_session().and_then(|session| session.read(turn)));
 
     Box::pin(async move {
       read.ok_or_else(|| PortFailure::Answered {
