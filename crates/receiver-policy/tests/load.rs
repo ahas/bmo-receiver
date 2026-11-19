@@ -171,7 +171,7 @@ fn the_other_lines_carry_their_marks_and_numbers() {
   assert!(WAKE.file_lead_messages > 0);
   assert!(HANDOVER.transcript.answer.contains("{agent}"));
   assert!(CHAT_HEALTH.order.what.contains("{where}") && CHAT_HEALTH.order.check_seconds > 0);
-  assert!(REST.threshold > 0.0 && REST.lift_check_seconds > 0);
+  assert!(REST.lift_check_seconds > 0);
   assert!(RESIDENT_TURN.fold_ratio > 0.0 && RESIDENT_TURN.fold_ratio < 1.0);
   assert!(!KEEPALIVE.prompt.is_empty());
 }

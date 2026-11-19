@@ -1,18 +1,6 @@
-# The rest a usage limit calls for, as the receiver closes and opens its rooms by it (docs/receiver.md): the shares
-# of a login's windows past which it rests, how long a rest lasts where its limit named no end, and how often a
-# rest past its end is looked for. The line a room hears as a rest begins is the fixed line `rest-begins`.
-
-# The share of the five-hour window past which a login rests.
-threshold = 0.99
-# The share of the weekly window past which a login rests.
-weekly_threshold = 0.99
-
-# How long a login is put aside where its limit named no reset moment, in seconds.
-fallback_seconds = 3600
-
-# How long a rest lasts when the provider itself is down, in seconds: long enough to stop hammering it, short
-# enough that the agent is back the moment it is.
-outage_seconds = 60
+# The rest as the receiver lifts it (docs/receiver.md): how often a rest past its end is looked for. When a login
+# rests, and until when, is the agency's alone; the line a room hears as a rest begins is the fixed line
+# `rest-begins`.
 
 # How often a rest past its end is looked for and lifted, in seconds.
 lift_check_seconds = 30

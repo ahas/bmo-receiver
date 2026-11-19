@@ -4,7 +4,7 @@ use futures_util::StreamExt;
 
 use receiver_ports::agency::{
   Agency, Delivery, Event, FieldRefusal, Forgotten, HttpAgency, Load, NewSupervisor, Removal, RestKind,
-  Resting, Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
+  Run, Said, Scope, Switches, Turn, TurnRead, TurnRoom,
 };
 use serde_json::json;
 
@@ -382,7 +382,7 @@ async fn a_passed_rest_reads_its_empty_answer_and_a_road_for_no_supervisor_is_re
   let unit = StandIn::start().await;
   let agency = HttpAgency::new(&unit.peer("t"));
 
-  let cleared = json!({ "clearPassed": true, "until": null, "kind": null, "account": null });
+  let cleared = json!({ "clearPassed": true });
 
   unit.answer(
     "PATCH /rest",
@@ -414,35 +414,6 @@ async fn a_passed_rest_reads_its_empty_answer_and_a_road_for_no_supervisor_is_re
       call("PATCH /rest", "", Some(cleared)),
       call("GET /supervisors/no-agent/road", "", None),
     ]
-  );
-}
-
-#[tokio::test]
-async fn a_rest_is_written_and_its_silence_read_across_the_one_patch_route() {
-  let unit = StandIn::start().await;
-  let agency = HttpAgency::new(&unit.peer("t"));
-  let resting = Resting {
-    until: 1_900_000_000,
-    kind: RestKind::Limit,
-    account: Some("account-a".to_owned()),
-  };
-
-  unit.answer(
-    "PATCH /rest",
-    200,
-    json!({ "resting": true, "until": 1_900_000_000, "kind": "limit", "accountId": "account-a", "silenced": true }),
-  );
-
-  assert!(agency.write_rest(&resting).await.unwrap().silenced);
-  assert_eq!(
-    unit.took(),
-    [call(
-      "PATCH /rest",
-      "",
-      Some(
-        json!({ "clearPassed": false, "until": 1_900_000_000, "kind": "limit", "account": "account-a" })
-      )
-    )]
   );
 }
 

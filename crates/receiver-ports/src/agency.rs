@@ -462,16 +462,6 @@ pub enum RestKind {
   Outage,
 }
 
-impl RestKind {
-  /// The word the agency names the kind by.
-  pub fn word(self) -> &'static str {
-    match self {
-      Self::Limit => "limit",
-      Self::Outage => "outage",
-    }
-  }
-}
-
 /// The deployment's rest: whether it stands now, until when in epoch seconds, and why.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Rest {
@@ -480,22 +470,6 @@ pub struct Rest {
   pub until: Option<i64>,
   #[serde(default)]
   pub kind: Option<RestKind>,
-}
-
-/// A rest written down: whether it is the one that silenced the deployment.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Written {
-  #[serde(default)]
-  pub silenced: bool,
-}
-
-/// A rest written: until when in epoch seconds, why, and the login a limit is its own.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Resting {
-  pub until: i64,
-  pub kind: RestKind,
-  #[serde(default)]
-  pub account: Option<String>,
 }
 
 /// Why the deployment rested where its rest has just passed: none while it still rests or rested for no
@@ -599,9 +573,6 @@ pub trait Agency: Send + Sync {
 
   /// The deployment's rest: whether it stands, until when, and why.
   fn rest(&self) -> BoxFuture<'_, Answer<Rest>>;
-
-  /// A rest written down; whether it is the one that silenced the deployment.
-  fn write_rest<'a>(&'a self, resting: &'a Resting) -> BoxFuture<'a, Answer<Written>>;
 
   /// Why the deployment rested where its rest has just passed.
   fn passed_rest(&self) -> BoxFuture<'_, Answer<Passed>>;
@@ -758,14 +729,11 @@ struct SessionPage {
   items: Vec<SessionMember>,
 }
 
-/// The body that writes a rest down or clears the rests that have passed.
+/// The body that clears the rests that have passed.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct RestAsk<'a> {
+struct RestAsk {
   clear_passed: bool,
-  until: Option<i64>,
-  kind: Option<&'a str>,
-  account: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -927,27 +895,9 @@ impl Agency for HttpAgency {
     Box::pin(self.caller.get(&["rest"], &[]))
   }
 
-  fn write_rest<'a>(&'a self, resting: &'a Resting) -> BoxFuture<'a, Answer<Written>> {
-    Box::pin(async move {
-      let ask = RestAsk {
-        clear_passed: false,
-        until: Some(resting.until),
-        kind: Some(resting.kind.word()),
-        account: resting.account.as_deref(),
-      };
-
-      self.caller.patch(&["rest"], &ask).await
-    })
-  }
-
   fn passed_rest(&self) -> BoxFuture<'_, Answer<Passed>> {
     Box::pin(async move {
-      let ask = RestAsk {
-        clear_passed: true,
-        until: None,
-        kind: None,
-        account: None,
-      };
+      let ask = RestAsk { clear_passed: true };
 
       self.caller.patch(&["rest"], &ask).await
     })

@@ -4,7 +4,6 @@
 //! account model through their stand-ins.
 
 mod question;
-mod rest;
 mod sent_lines;
 
 use std::sync::Arc;

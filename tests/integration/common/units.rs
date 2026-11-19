@@ -25,8 +25,8 @@ use futures_util::StreamExt;
 use futures_util::future::BoxFuture;
 use receiver_ports::agency::{
   Agency, Agent, Agents, Delivery, Event, Events, FieldRefusal, Forgotten, KeptEvents, Load, NewSupervisor,
-  OpenRun, Passed, Removal, Repository, ResetPoint, Rest, RestKind, Resting, Role, Run, RunLine,
-  RunningJob, Said, Scope, Session, SessionState, Switches, Turn, TurnRead, Written,
+  OpenRun, Passed, Removal, Repository, ResetPoint, Rest, RestKind, Role, Run, RunLine, RunningJob, Said,
+  Scope, Session, SessionState, Switches, Turn, TurnRead,
 };
 use receiver_ports::brain::BrainUnit;
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
@@ -1323,7 +1323,6 @@ pub struct StandInAgency {
   pub rest: Mutex<Rest>,
   // Whether its rest is answered in a shape the call does not read, as an agency of another version answers.
   pub rest_unreadable: Mutex<bool>,
-  pub written: Mutex<Vec<Resting>>,
   pub passed: Mutex<Option<RestKind>>,
   // The rooms it was asked to forget, each with whether the asking was a preview.
   pub forgotten: Mutex<Vec<(i64, bool)>>,
@@ -1396,7 +1395,6 @@ impl StandInAgency {
         kind: None,
       }),
       rest_unreadable: Mutex::default(),
-      written: Mutex::default(),
       passed: Mutex::default(),
       forgotten: Mutex::default(),
       roles: Mutex::default(),
@@ -1488,10 +1486,6 @@ impl StandInAgency {
   /// Its rest answered from now on in a shape the call does not read.
   pub fn rest_unreadable(&self) {
     *self.rest_unreadable.lock().unwrap() = true;
-  }
-
-  pub fn asked(&self) -> Vec<Resting> {
-    self.written.lock().unwrap().clone()
   }
 
   /// The session its turns go on.
@@ -1611,12 +1605,6 @@ impl Agency for StandInAgency {
     let rest = self.rest.lock().unwrap().clone();
 
     Box::pin(async move { Ok(rest) })
-  }
-
-  fn write_rest<'a>(&'a self, resting: &'a Resting) -> BoxFuture<'a, Answer<Written>> {
-    self.written.lock().unwrap().push(resting.clone());
-
-    Box::pin(async move { Ok(Written { silenced: true }) })
   }
 
   fn passed_rest(&self) -> BoxFuture<'_, Answer<Passed>> {
