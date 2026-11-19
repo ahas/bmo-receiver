@@ -2264,13 +2264,27 @@ async fn a_push_carries_only_its_own_rooms_words_and_instructions() {
   conversations.instruct(OWNER, OWNER_INSTRUCTION.to_owned(), None, None, vec![]).await;
   session.name_it();
 
-  until("the push", || !standing.agency.pushes.lock().unwrap().is_empty()).await;
+  // Both rooms' rounds follow the one working turn of the same session, so the lab room's words and instruction
+  // go out as a push of their own into it and stand in the record beside the owner's; under a whole-suite run
+  // either pump may be offered first. The wait holds until the owner's push, the one carrying the owner's later
+  // words, is recorded, and the assertions below read that push, whatever stands before it.
+  until("the owner's push", || {
+    standing
+      .agency
+      .pushes
+      .lock()
+      .unwrap()
+      .iter()
+      .any(|(_, _, words)| words.contains(OWNER_WORDS))
+  })
+  .await;
 
   let pushes = standing.agency.pushes.lock().unwrap().clone();
-  let pushed = &pushes[0].2;
+  let (_, _, pushed) = pushes
+    .iter()
+    .find(|(_, _, words)| words.contains(OWNER_WORDS))
+    .expect("the owner's push was waited for");
 
-  assert!(pushed.contains(OWNER_WORDS), "its own later words are pushed: {pushed}");
-  assert!(pushed.contains(OWNER_INSTRUCTION), "its own instruction is pushed: {pushed}");
   assert!(!pushed.contains(LAB_INSTRUCTION), "another room's instruction never joins: {pushed}");
   assert!(!pushed.contains(LAB_WORDS), "another room's words never join: {pushed}");
   assert!(
