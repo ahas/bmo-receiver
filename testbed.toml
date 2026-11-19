@@ -13,9 +13,12 @@ setup = ["bun install --frozen-lockfile --cwd crates/receiver-client/ts"]
 # The tests make their own scratch databases on the server, so no template is named.
 [test.database]
 # Every unit talks to one Postgres server, and a test's own minutes stretch with whatever share of the server
-# and the runner it gets while a whole-suite run crowds both; two database-using files at once keeps each test
-# inside the per-test limit the gate watches by.
-max_files = 2
+# and the runner it gets while a whole-suite run crowds both. The root integration binary's restart-backlog test
+# runs again alone in a process of its own, paying a second startup and its own scratch-database migration
+# against a single test's limit, so a concurrent database-using file's own migrations can crowd the server and
+# push that one test past the limit the gate watches by. One database-using file runs at a time, which keeps
+# every test inside that limit.
+max_files = 1
 
 [tools]
 # The receiver's own tools, each checked by the command its tool.toml names.
