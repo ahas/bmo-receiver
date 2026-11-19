@@ -533,6 +533,38 @@ async fn an_owner_notice_is_queued_for_the_chat_agent_in_the_owners_private_chat
 }
 
 #[tokio::test]
+async fn a_question_settled_on_its_recommendation_is_told_to_the_owner_in_the_receiver_s_own_words() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+  let (made, _) = post(
+    &front,
+    "/owner/notices",
+    json!({
+      "code": "job-question-settled", "questionId": 40, "itemId": 95, "answer": "b", "why": "b keeps the contract"
+    }),
+  )
+  .await;
+
+  assert_eq!(made, StatusCode::CREATED);
+  assert_eq!(
+    told(
+      &scratch,
+      &[
+        "did not answer question #40 on item #95 by its due time, so it was settled on its recommendation, with the answer: b. The recommendation's reason: b keeps the contract".to_owned(),
+        "tell the owner he did not answer in time, so it went with the recommendation".to_owned(),
+      ]
+    )
+    .await,
+    1,
+  );
+  assert_eq!(
+    told(&scratch, &[r#""code":"job-question-settled""#.to_owned()]).await,
+    0,
+    "no code left for the agent to read"
+  );
+}
+
+#[tokio::test]
 async fn a_unit_declared_a_holder_keeps_its_declaration_and_declaring_again_replaces_it() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;

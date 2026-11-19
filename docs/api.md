@@ -427,7 +427,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Notice`** is `id`, `kind`, `summary`, `text` and `createdAt`. The list is walked by `before` or
   `after`, an instruction id, and narrowed by `kind` and by the span it was queued in, both ends included.
 - **An owner notice** is queued for the default answerer in the owner's private room, carrying the code and its
-  parameters as a fact.
+  parameters as a fact. A code the receiver words itself is told in its own words instead (`policy/owner-facts.toml`):
+  `job-question-settled`, with `questionId`, `itemId` (or null), `answer` and `why`, is a question the owner did
+  not answer by its due time, settled on its recommendation, and its line says so and names the answer it went
+  with and the recommendation's reason.
 
 ## Instructions
 
