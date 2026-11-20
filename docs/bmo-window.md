@@ -460,8 +460,8 @@ Beside the reference, a turn carries the room's messages the agent has not read:
     of it joins the round or goes back to wait.
 - **`question`**: a system instruction inside the same round (`docs/instruction.md`): an instruction stage of the
   chain, or the closing check. The message turn itself rides the round's own turn. It carries its marker and its data
-  — for a stage the stage's own words and the message as it stands, for the closing check the message and the room's
-  words that came in meanwhile — and no reference of its own: the core went in with the round's turn
+  — for a stage the stage's own words, for the closing check the room's words that came in meanwhile, and the message
+  as it stands only where the session's last answer was not the message — and no reference of its own: the core went in with the round's turn
   and the brain's index with the room's block at session opening. The closing check, once the
   message stands, carries the room's words that came in meanwhile and no push put in as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.

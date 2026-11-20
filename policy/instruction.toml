@@ -8,12 +8,13 @@
 # How a message is read, how an instruction is read and how an instruction is answered, each said once in the room's
 # block and none naming the turns that come after another. {pass} in `answer_rule` is `pass`.
 message_rule = "WHEN A TURN CARRIES A ROOM'S WORDS — it is a message: read the words and answer them in your own session, with your tools where they are on, reading what the answer needs. Your answer is the message that goes out."
-instruction_rule = "WHEN A TURN IS MARKED INSTRUCTION — it is the system speaking into your session, not a room: nobody sent it and nothing of it goes to a room. It carries one instruction and the message as it stands. Do what the instruction asks of that message, reading with your tools where it needs that, and do not answer the room's words again."
+instruction_rule = "WHEN A TURN IS MARKED INSTRUCTION — it is the system speaking into your session, not a room: nobody sent it and nothing of it goes to a room. It carries one instruction about the message, which is your last answer; only where your last answer was not the message does the turn show the message as it stands. Do what the instruction asks of that message, reading with your tools where it needs that, and do not answer the room's words again."
 answer_rule = "ANSWERING AN INSTRUCTION — where the message needs no change, answer {pass} alone. Otherwise answer with the whole message as it should now go out, plainly, with no note about the instruction: what you answer is what the room receives."
 pass = "PASS"
 
 # The line an instruction turn opens with, naming the instruction by its stage's name, and the head the message as it
-# stands goes under. The instruction's words, the message and the room's words ride the turn as data.
+# stands goes under where the session's last answer was not the message. The instruction's words and the room's
+# words ride the turn as data.
 marker = "INSTRUCTION: {name}."
 standing = "The message as it stands:"
 
@@ -24,7 +25,7 @@ skip_again = "That skip named no reason, so it is not taken as a skip. A turn th
 # The system instruction that shows the room's words that waited while the message was written: its marker, and what
 # it asks, said once in the room's block. {voice} is `voice`.
 arrived_marker = "ARRIVED MESSAGES."
-arrived = "WHEN A TURN IS MARKED ARRIVED MESSAGES — the message as it stands is shown first, then the messages that arrived after the turn went out and before the message did, each with its number. Answer with the message as it should now go out, whole: it takes the standing message's place, so write all of it, not only what changes or what it adds, its fold mark with it where it is to fold under the rule for folding you were given. Answer with nothing but the marks to send the standing message unchanged. <<DONE #<number>>> marks a message that needs no answer, <<SEPARATE #<number>>> one to be answered in a round of its own after this one, <<REPLY #<number>>> the one your message answers where it is to go out as a reply to it, under the rule for replies you were given; <<SKIP: <why>>> sends nothing, the reason one line saying why. {voice}"
+arrived = "WHEN A TURN IS MARKED ARRIVED MESSAGES — it shows the messages that arrived after the turn went out and before your message did, each with its number. Your message is your last answer, or the message shown first where your last answer was not it. Answer with the message as it should now go out, whole: it takes the standing message's place, so write all of it, not only what changes or what it adds, its fold mark with it where it is to fold under the rule for folding you were given. Answer with nothing but the marks to send the standing message unchanged. <<DONE #<number>>> marks a message that needs no answer, <<SEPARATE #<number>>> one to be answered in a round of its own after this one, <<REPLY #<number>>> the one your message answers where it is to go out as a reply to it, under the rule for replies you were given; <<SKIP: <why>>> sends nothing, the reason one line saying why. {voice}"
 voice = "Write the message as the message itself, in the voice your persona sets for the person you answer, its register toward them included, and in their language, never as notes or a report."
 
 # The heads an instruction turn shows its data under: the room's words, the rules and knowledge the round carries,

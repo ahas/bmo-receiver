@@ -246,6 +246,9 @@ pub struct Made {
   /// Why the round sends nothing, where it sends nothing, as its `skipped` judgement says it (docs/wake.md, 「The
   /// names and the window」); none where a message goes out.
   pub silence: Option<String>,
+  /// Whether the session's last answer in the round was the message itself, so a later turn of the same session
+  /// names it as that answer rather than carrying it again.
+  pub said_last: bool,
 }
 
 /// What makes a round's message once its message turn answered (docs/instruction.md): the words that arrived
@@ -2241,6 +2244,8 @@ impl Conversations {
       )
       .await?;
 
+    let said_last = made.said_last;
+
     reply = made.reply;
 
     // Each message shown to the round carries what its mark made of it, naming where the round's own verdict stands.
@@ -2395,7 +2400,7 @@ impl Conversations {
       && !instructions.is_empty()
       && super::briefing::speaks(&receiver, self.agent()).await
     {
-      self.summarise(chat_id, &mut held, &via, sent).await;
+      self.summarise(chat_id, &mut held, &via, sent, said_last).await;
     }
 
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
@@ -2684,17 +2689,19 @@ impl Conversations {
 
   // A notice turn's summary, written by the same session in one turn of the summary's quiet instruction once
   // the line has gone out, and handed to the voice engine with the line it speaks; a session that gives none has
-  // the line's opening spoken.
-  async fn summarise(&self, chat_id: i64, held: &mut Held, via: &str, sent: &Sent) {
+  // the line's opening spoken. Where the session's last answer was the line, the turn names it as that answer and
+  // carries it no more (docs/voiced-notices.md, 「The summary of a notice turn」).
+  async fn summarise(&self, chat_id: i64, held: &mut Held, via: &str, sent: &Sent, said_last: bool) {
     let receiver = self.receiver();
+    let line = if said_last {
+      CHAT_ROUND.voice.summary_own.clone()
+    } else {
+      fill_marks(&CHAT_ROUND.voice.summary, &[("line", &sent.text)])
+    };
     let asking = Asking {
       chat_id,
       session: held.session.clone().unwrap_or_default(),
-      prompt: format!(
-        "{}\n{}",
-        CHAT_ROUND.voice.summary_marker,
-        fill_marks(&CHAT_ROUND.voice.summary, &[("line", &sent.text)])
-      ),
+      prompt: format!("{}\n{line}", CHAT_ROUND.voice.summary_marker),
       via: (!via.is_empty()).then(|| via.to_owned()),
       privileged: held.all_from_owner,
       answers: vec![],

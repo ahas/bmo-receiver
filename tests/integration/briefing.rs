@@ -377,9 +377,15 @@ struct Owner {
 
 impl Owner {
   async fn new(session: StandInSession, voice: Option<&str>) -> Self {
+    Owner::staged(session, voice, &[]).await
+  }
+
+  // The owner's chat whose supervisor runs `chain` after each message, the receiver running its stages where the
+  // chain names any.
+  async fn staged(session: StandInSession, voice: Option<&str>, chain: &[&str]) -> Self {
     let scratch = Scratch::new().await;
 
-    crate::integration::common::session::no_stages(scratch.db()).await;
+    crate::integration::common::session::set_chain(scratch.db(), chain).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
@@ -390,7 +396,10 @@ impl Owner {
     std::fs::write(prompts.join(&CHAT_LINE.room.group_document), "A group room.").unwrap();
     std::fs::write(prompts.join(&CHAT_LINE.capabilities.document), "What the agent can do.").unwrap();
 
-    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+    let mut standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+
+    standing.receiver = standing.receiver.clone().with_instruction_gate(!chain.is_empty());
+
     let session = Arc::new(session);
     let receiver = standing.receiver.clone();
     let timings = Timings {
@@ -460,10 +469,15 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
   assert!(
     prompts[1].contains(&CHAT_ROUND.voice.summary_marker)
       && !prompts[1].contains(&CHAT_ROUND.voice.summary_rule),
-    "the summary turn carries the marker and its line, no instruction: {}",
+    "the summary turn carries the marker, no instruction: {}",
     prompts[1]
   );
-  assert!(prompts[1].contains("The nightly backup finished."));
+  assert!(
+    prompts[1].contains(&CHAT_ROUND.voice.summary_own)
+      && !prompts[1].contains("The nightly backup finished."),
+    "the line was the session's last answer, so the turn names it and carries it no more: {}",
+    prompts[1]
+  );
 
   let briefed = owner.standing.voice.briefed();
 
@@ -484,6 +498,40 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
   assert!(
     kept.iter().all(|line| !line.contains("Backup done")),
     "the summary goes to no room: {kept:?}"
+  );
+}
+
+#[tokio::test]
+async fn a_summary_turn_carries_the_line_where_the_sessions_last_answer_was_not_it() {
+  let session = StandInSession::new("agent-a@agent", "unused")
+    .answering(&[
+      "The nightly backup finished.",
+      "PASS",
+      &format!(
+        "{}\nBackup done\nThe backup finished overnight.",
+        emotion_line(&CHAT_ROUND.voice.emotions[1])
+      ),
+    ])
+    .showing_stages();
+  let owner = Owner::staged(session, Some(VOICE), &["review"]).await;
+
+  owner
+    .runner
+    .of(AGENT)
+    .instruct(OWNER, "The nightly backup is done.".to_owned(), None, None, vec![])
+    .await;
+  owner.over(3).await;
+
+  let prompts = owner.session.prompts();
+
+  assert_eq!(prompts.len(), 3, "the message turn, the stage and the summary: {prompts:#?}");
+  assert!(
+    prompts[2].contains(&receiver_policy::fill_marks(
+      &CHAT_ROUND.voice.summary,
+      &[("line", "The nightly backup finished.")]
+    )),
+    "the stage's PASS was the last answer, so the line is carried: {}",
+    prompts[2]
   );
 }
 

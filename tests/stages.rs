@@ -4,12 +4,27 @@
 
 use bmo_receiver::chat::stages::log::Answered;
 use bmo_receiver::chat::stages::table::{Chain, chain_refusal, followed, policy_holds, text_refusal};
-use bmo_receiver::chat::stages::{Spanned, closing_words, read_answer, spanned_answer, stage_verdict};
+use bmo_receiver::chat::stages::{
+  Spanned, closing_words, read_answer, said_last, spanned_answer, stage_verdict,
+};
 use receiver_policy::instruction::INSTRUCTION;
 
 #[test]
-fn the_closing_check_shows_the_message_as_it_stands_and_asks_for_it_whole() {
-  let turn = closing_words("  the message as it stands  ", "#7: words that came");
+fn the_closing_check_shows_the_message_only_where_it_was_not_the_last_answer() {
+  let own = closing_words(None, "#7: words that came");
+
+  assert_eq!(
+    own,
+    format!("{}\n\n#7: words that came", INSTRUCTION.arrived_marker),
+    "the last answer is the message"
+  );
+  assert!(
+    said_last("  the message\nas it stands ", "the message as it stands"),
+    "white space aside"
+  );
+  assert!(!said_last("PASS", "the message as it stands"));
+
+  let turn = closing_words(Some("  the message as it stands  "), "#7: words that came");
 
   assert!(turn.starts_with(&INSTRUCTION.arrived_marker), "{turn}");
   assert!(

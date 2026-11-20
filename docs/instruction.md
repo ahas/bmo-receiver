@@ -14,14 +14,18 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   each instruction stage of the chain, and the turn that shows the words that arrived meanwhile.
 - **The room's block says how to read each and how to answer each, and nothing more.** It carries, once: how a turn that
   carries a room's words is read and that its answer is the message (`instruction.toml`, `message_rule`); how a turn marked
-  `INSTRUCTION` is read, the system speaking and no room, one instruction over the message as it stands
-  (`instruction_rule`); how an instruction is answered, the whole message as it should now go out or `PASS` alone where it
+  `INSTRUCTION` is read, the system speaking and no room, one instruction about the message, which is the agent's last
+  answer (`instruction_rule`); how an instruction is answered, the whole message as it should now go out or `PASS` alone where it
   needs no change (`answer_rule`, whose `{pass}` mark fills to `pass`); and what the turn marked `ARRIVED MESSAGES` asks
   (`arrived`). It describes no chain, names no stage and carries no stage's words, so the block is the same for every
   supervisor whatever its chain.
 - **An instruction's words ride its own turn.** A stage's turn opens on the line naming the stage (`marker`, its `{name}` the
-  stage's name), then the stage's words, then the message as it stands and the round's data (「The stages before the send」
-  below).
+  stage's name), then the stage's words and the round's data (「The stages before the send」 below).
+- **The message is the agent's last answer, and no instruction carries it again.** The agent's own output is what goes out,
+  so an instruction is about the answer the session just gave. Only where the session's last answer was not the message,
+  a `PASS` or an answer of marks alone since, does the turn carry the message as it stands under its head (`standing`); the
+  receiver tells the two apart by the session's last answer, its words with white space aside. The same holds for the summary
+  a notice turn is asked of the line it sent (`docs/voiced-notices.md`, 「The summary of a notice turn」).
 - **A screen tells a message received only on the message turn.** Each turn of the round is told on the event stream as it
   starts with what reaches the agent on it, `message` or `system` (「The round log」 below), so a screen showing a system
   instruction shows no message received for it.
@@ -247,7 +251,8 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   receiver takes what waited and shows it in the closing check as one block, composed as a push's paragraph is but for the rule each
   message is judged by, which the room's block states: each message stands with its number.
 - **Once the message stands, one closing check.** Where words waited when the message came to stand, and the session is asked once
-  more before the stages: the marker that names the check (`arrived_marker`), the message as it stands, then the block of what arrived.
+  more before the stages: the marker that names the check (`arrived_marker`), then the block of what arrived; the message is the
+  session's last answer, and the turn carries it as it stands first only where it was not (「What reaches an agent」 above).
   What the check does stands in the room's block (`instruction.toml`, `arrived`). The answer, marks taken out, is the whole message as
   it should now go out, answering the words that arrived as well, and it takes the standing message's place: nothing is joined to
   anything, so no part of the message goes out twice. An answer that is nothing but marks sends the standing message unchanged, a wait
@@ -318,7 +323,7 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 
 - **The chain runs in order once the message stands.** Each stage is one more turn of the same session, a system instruction:
   the line naming the stage (`marker`), the stage's words as the supervisor's catalogue holds them, the message as it stands
-  (`standing`), then the room's words, the people the message answers and the rules this round carries (shown under their
+  (`standing`) only where the session's last answer was not the message, then the room's words, the people the message answers and the rules this round carries (shown under their
   heads `words`, `answers`, `person`, `rules`, `handed`, `room_handed` as data), so the agent can hold the message to what the
   stage asks of it. The final answer after the last stage is the message that is sent. A stage the chain names whose words
   the catalogue no longer holds is not asked.

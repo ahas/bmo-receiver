@@ -31,6 +31,8 @@ pub struct Voice {
   /// in the room's block, `{line}` the line the turn sent.
   pub summary_marker: String,
   pub summary: String,
+  /// The line naming the line as the session's own last answer, carried in its place where it was.
+  pub summary_own: String,
   pub summary_rule: String,
   /// The marker a line's full reading carries, the line it reads as data, and the rule the marker stands for in
   /// the room's block, `{line}` the line.

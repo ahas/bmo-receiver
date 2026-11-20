@@ -233,7 +233,9 @@ spoken, and the session writes what is said.
   carried quiet instructions and no message of anyone; it sent a line, so a skip or a wait is not
   spoken; the switch is on; and its agent has a voice.
 - **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one turn once the line has gone out and before the round lets go of the room. The instruction is marked and
-  carries the line as the facts; what the marker asks for — the emotion line, then a one-line title saying what the briefing is about,
+  names the line as the session's last answer, just sent (`summary_own`), since the session wrote it; where its last answer
+  was not the line, a stage's `PASS` since or a line the session did not write, it carries the line as the facts instead
+  (`summary`); what the marker asks for — the emotion line, then a one-line title saying what the briefing is about,
   in the agent's own words for this briefing, then one or two sentences of the line's gist as a spoken script,
   never the line read out, every notice of the turn covered in its newest state — stands in the room's block
   (`policy/chat-round.toml`, `[voice]`, `summary_marker`, `summary_rule`). Its answer goes to no road and stands
