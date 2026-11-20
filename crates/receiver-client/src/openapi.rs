@@ -998,6 +998,17 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/rooms/{roomId}/audience",
+    "roomAudience",
+    "Rooms",
+    "Whether everyone in a room stands in the company of a supervisor's owner: its audience for that supervisor.",
+    vec![path_parameter("roomId"), parameter("agent", "string", true)],
+    None,
+    vec![(200, json_answer::<RoomAudience>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "failed"]
+  );
+  add!(
+    "GET",
     "/rooms/{roomId}/accounts",
     "roomAccounts",
     "Rooms",

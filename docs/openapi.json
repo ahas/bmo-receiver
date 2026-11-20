@@ -498,6 +498,14 @@
         ],
         "type": "object"
       },
+      "Audience": {
+        "description": "Whom a room's reference may reach for a supervisor (`docs/receiver.md`, 「Whether someone outside the company\nsits in a room」): `internal` where everyone in the room stands in the company of the supervisor's owner.",
+        "enum": [
+          "internal",
+          "external"
+        ],
+        "type": "string"
+      },
       "Avatar": {
         "description": "One profile picture the archive keeps.",
         "properties": {
@@ -3103,6 +3111,27 @@
           "room",
           "archivedAt",
           "archivedBy"
+        ],
+        "type": "object"
+      },
+      "RoomAudience": {
+        "description": "`GET /rooms/{roomId}/audience`: a room's audience for a supervisor.",
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "audience": {
+            "$ref": "#/components/schemas/Audience"
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "agent",
+          "audience"
         ],
         "type": "object"
       },
@@ -6680,6 +6709,62 @@
           "not-found",
           "private-room",
           "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/audience": {
+      "get": {
+        "operationId": "roomAudience",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomAudience"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
+          }
+        },
+        "summary": "Whether everyone in a room stands in the company of a supervisor's owner: its audience for that supervisor.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
           "failed"
         ]
       }

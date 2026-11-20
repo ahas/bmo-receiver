@@ -7,7 +7,8 @@
 //! messenger's member is answered as before. Every room read
 //! says whose private room it is, every write another account makes in one is refused while its own go through, a
 //! group room every other member has left stays a group room, a forward stands under the account that forwards, and
-//! the files an account sends are read whole past the framework's two mebibytes.
+//! the files an account sends are read whole past the framework's two mebibytes. A room's audience for a supervisor
+//! is internal only while everyone it seats stands in the company of the supervisor's owner.
 
 use std::sync::Arc;
 
@@ -17,7 +18,7 @@ use axum::{
   extract::Request,
   http::StatusCode,
 };
-use bmo_chat_client::{ChatModeStanding, ChatSend, ChatVoice};
+use bmo_chat_client::{ChatCapability, ChatMember, ChatModeStanding, ChatSend, ChatVoice};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 use tower::ServiceExt;
@@ -49,9 +50,23 @@ const EVE: i64 = 10;
 // The supervisor Bea owns, with its own room on the record.
 const BEAS_BMO: &str = "agent-b";
 const BEAS_ROOM: i64 = -9000000000050;
-// A room a messenger holds, which says nothing of speakers, and one that speaks as Cal alone.
+// A room a messenger holds, which says nothing of speakers and lists no members, and one that speaks as Cal alone
+// and lists the owner, its agent and one more person.
 const LINKED: i64 = -100;
 const SPOKEN: i64 = -200;
+// The one person the room that speaks as Cal lists beside the owner and its agent.
+const LISTED: i64 = 555;
+// The company the owner's account and Bea's stand in, and another.
+const COMPANY: i64 = 100;
+const ELSEWHERE: i64 = 200;
+
+fn listed(person: i64) -> ChatMember {
+  ChatMember {
+    person: Some(person),
+    name: format!("person {person}"),
+    status_message: None,
+  }
+}
 
 struct Stood {
   scratch: Scratch,
@@ -77,7 +92,9 @@ async fn stood_linked(waking: bool, linked_owner: bool) -> Stood {
   let spoken = StandInChat::new("road-b")
     .holding(&[SPOKEN])
     .agent_in(SPOKEN, 901)
-    .speaking_for(&["account:8"]);
+    .speaking_for(&["account:8"])
+    .canning(&[ChatCapability::MemberList])
+    .membering(SPOKEN, [OWNER, 901, LISTED].map(listed).to_vec());
 
   for road in [&linked, &spoken] {
     road.moding(ChatVoice::BotAccount, ChatModeStanding::Active);
@@ -1963,4 +1980,107 @@ async fn an_ownerless_persons_bmo_is_adopted_by_the_account_its_name_names() {
   assert_eq!(private_rooms::owner_from_name("u0"), None);
   assert_eq!(private_rooms::owner_from_name("u"), None);
   assert_eq!(private_rooms::owner_from_name("u-7"), None);
+}
+
+// The room's audience for a supervisor, as the route answers it.
+async fn audience(stood: &Stood, room: i64, agent: &str) -> Value {
+  let (status, answer) =
+    asked(&stood.port, "GET", &format!("/rooms/{room}/audience?agent={agent}"), None).await;
+
+  assert_eq!(status, StatusCode::OK, "{answer}");
+  assert_eq!((answer["room"].clone(), answer["agent"].clone()), (json!(room), json!(agent)));
+  answer["audience"].clone()
+}
+
+#[tokio::test]
+async fn a_room_is_internal_while_every_member_account_stands_in_the_owners_company() {
+  let stood = stood(false).await;
+  let web = &stood.standing.web;
+  let room = group(&stood.port, BEA).await;
+
+  web.placing(&BEA.to_string(), COMPANY);
+  web.placing(&CAL.to_string(), ELSEWHERE);
+
+  assert_eq!(audience(&stood, room, BEAS_BMO).await, json!("internal"));
+  assert_eq!(
+    audience(&stood, BEAS_ROOM, BEAS_BMO).await,
+    json!("internal"),
+    "a private room seats its account"
+  );
+  assert_eq!(
+    audience(&stood, room, AGENT).await,
+    json!("external"),
+    "a supervisor whose owner stands in no company reads every room as outside it"
+  );
+  assert_eq!(
+    audience(&stood, room, "agent-z").await,
+    json!("external"),
+    "and so does one nobody registers"
+  );
+
+  asked(&stood.port, "PUT", &format!("/rooms/{room}/accounts/{CAL}"), Some(json!({ "by": BEA }))).await;
+
+  assert_eq!(audience(&stood, room, BEAS_BMO).await, json!("external"), "a member of another company");
+
+  asked(&stood.port, "DELETE", &format!("/rooms/{room}/accounts/{CAL}?by={BEA}"), None).await;
+
+  assert_eq!(
+    audience(&stood, room, BEAS_BMO).await,
+    json!("internal"),
+    "read afresh once the member is out"
+  );
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/rooms/{room}/audience?agent=%20"), None).await.0,
+    StatusCode::BAD_REQUEST
+  );
+  assert_eq!(
+    asked(&stood.port, "GET", &format!("/rooms/-9000000000099/audience?agent={AGENT}"), None)
+      .await
+      .0,
+    StatusCode::NOT_FOUND
+  );
+}
+
+#[tokio::test]
+async fn a_messengers_room_is_internal_only_while_everyone_its_service_lists_is_read_in_the_owners_company()
+{
+  let stood = stood(false).await;
+  let web = &stood.standing.web;
+
+  web.placing(&OWNERS.to_string(), COMPANY);
+  // The agent's own number on the road, as the receiver records it once the road gives it.
+  stood
+    .scratch
+    .run(
+      r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ('road-b', $1, 901)"#,
+      vec![AGENT.into()],
+    )
+    .await;
+
+  assert_eq!(
+    audience(&stood, SPOKEN, AGENT).await,
+    json!("external"),
+    "a listed person linked to no user"
+  );
+
+  web.linking(LISTED, CAL.to_string());
+
+  assert_eq!(
+    audience(&stood, SPOKEN, AGENT).await,
+    json!("external"),
+    "a person placed in no company"
+  );
+
+  web.placing(&CAL.to_string(), COMPANY);
+
+  assert_eq!(
+    audience(&stood, SPOKEN, AGENT).await,
+    json!("internal"),
+    "the agent's own number counts nobody"
+  );
+  assert_eq!(
+    audience(&stood, LINKED, AGENT).await,
+    json!("external"),
+    "a service that lists no members leaves the room unread"
+  );
 }

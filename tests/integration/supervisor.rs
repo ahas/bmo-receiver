@@ -18,7 +18,7 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::instruction::INSTRUCTION;
 use receiver_ports::agency::Load;
-use receiver_ports::gate::{Entry, IndexGroup, Source};
+use receiver_ports::gate::{Audience, Entry, IndexGroup, Source};
 
 use crate::integration::common::Scratch;
 use crate::integration::common::session::StandInSession;
@@ -477,9 +477,20 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
 
   assert_eq!(
     asked[0],
-    (ROOM, Some(SESSION.to_owned()), Some(AGENT.to_owned())),
-    "the index is the session's"
+    (ROOM, Some(SESSION.to_owned()), Some(AGENT.to_owned()), Audience::External),
+    "the index is the session's, read for outsiders where the agent's owner stands in no company"
   );
+  let audiences: Vec<Audience> = round
+    .standing
+    .gate
+    .envelopes
+    .lock()
+    .unwrap()
+    .iter()
+    .map(|envelope| envelope.audience)
+    .collect();
+
+  assert_eq!(audiences, [Audience::External; 2], "and so is each turn's envelope");
 }
 
 #[tokio::test]

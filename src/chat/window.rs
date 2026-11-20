@@ -18,6 +18,7 @@ use receiver_ports::gate::{Entry, Envelope, RoomKind, Situation, Source, TurnEve
 
 use super::thread::{ThreadMark, thread_entry};
 use crate::Fault;
+use crate::audience::audience;
 use crate::now_ms;
 use crate::receiver::{Inbound, Receiver, Room, rows};
 
@@ -170,7 +171,8 @@ pub async fn gate_index(
   session: Option<&str>,
   agent: &str,
 ) -> Option<(Vec<(Group, usize)>, HashMap<Group, String>)> {
-  let groups = match receiver.units().gate.index(chat_id, session, Some(agent)).await {
+  let room_audience = audience(receiver, chat_id, agent).await;
+  let groups = match receiver.units().gate.index(chat_id, session, Some(agent), room_audience).await {
     Ok(Some(groups)) => groups,
     Ok(None) => return None,
     Err(why) => {
@@ -387,25 +389,28 @@ pub async fn select(receiver: &Receiver, material: &Material<'_>) -> Result<Sele
   situation_lines.extend(instruction_lines);
   situation_lines.extend(material.said.iter().cloned());
 
-  let envelope = Envelope {
-    room_id: chat_id,
-    message_id,
-    lines,
-    speaker_ids: speakers,
-    situation: Some(Situation {
-      agent_name: material.agent.to_owned(),
-      room_kind: if material.room.owner_room { RoomKind::Owner } else { RoomKind::Group },
-      events: material.events.to_vec(),
-      now_at: now_ms(),
-    }),
-    holds: material.holds.map(|holds| holds.iter().map(String::clone).collect()),
-    round: material.round.clone(),
-    people_spoke: spoke,
-    answered,
-    records: true,
-  };
-  // A supervisor whose brain or reference is off is handed nothing the gate would attach from it.
+  // A supervisor whose brain or reference is off is handed nothing the gate would attach from it, and the room is
+  // read for no audience.
   let asked = if brain_reaches(receiver, material.agent).await {
+    let envelope = Envelope {
+      room_id: chat_id,
+      message_id,
+      lines,
+      speaker_ids: speakers,
+      situation: Some(Situation {
+        agent_name: material.agent.to_owned(),
+        room_kind: if material.room.owner_room { RoomKind::Owner } else { RoomKind::Group },
+        events: material.events.to_vec(),
+        now_at: now_ms(),
+      }),
+      holds: material.holds.map(|holds| holds.iter().map(String::clone).collect()),
+      round: material.round.clone(),
+      people_spoke: spoke,
+      answered,
+      records: true,
+      audience: audience(receiver, chat_id, material.agent).await,
+    };
+
     receiver.units().gate.reference(&envelope).await
   } else {
     Ok(vec![])

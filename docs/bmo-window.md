@@ -313,6 +313,9 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
     line of the agent's own, and the words of a console talk. A turn with no line at all hands none;
   - the numbers of the people who spoke this turn;
   - the situation: the turn's agent, the room's kind, the events the turn carries and the moment it is asked;
+  - the room's audience for the turn's agent, whether anyone outside the company of its owner sits there
+    (`docs/receiver.md`, 「Whether someone outside the company sits in a room」), read only where the agent's brain
+    and reference are on;
   - for what a round puts into its turns after its own — a push, or the words a later question carries — what
     the round already holds, so nothing it carries is handed again (「The openings」 below), and the round the
     turn belongs to;

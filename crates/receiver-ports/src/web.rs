@@ -189,11 +189,22 @@ pub trait Web: Send + Sync {
 
   /// An organisation unit and the people standing in it now; none where the web unit holds no such unit.
   fn organisation_unit(&self, unit: i64) -> BoxFuture<'_, Answer<Option<OrganisationUnit>>>;
+
+  /// The company a user stands in, by its number; none where the web unit places the user in no unit, which is
+  /// also all a web unit that serves no organisation answers.
+  fn company_of<'a>(&'a self, _user: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
+    Box::pin(async { Ok(None) })
+  }
 }
 
 #[derive(Deserialize)]
 struct UnitOf {
   unit: UnitId,
+}
+
+#[derive(Deserialize)]
+struct CompanyOf {
+  company: UnitId,
 }
 
 #[derive(Deserialize)]
@@ -406,6 +417,14 @@ impl Web for HttpWeb {
       let found: Option<UnitView> = self.caller.found(&["units", &unit.to_string()], &[]).await?;
 
       Ok(found.map(OrganisationUnit::from))
+    })
+  }
+
+  fn company_of<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<Option<i64>>> {
+    Box::pin(async move {
+      let found: Option<CompanyOf> = self.caller.found(&["users", user, "unit"], &[]).await?;
+
+      Ok(found.map(|standing| standing.company.id))
     })
   }
 }

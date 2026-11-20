@@ -274,10 +274,11 @@ impl Run<'_> {
     } else {
       Default::default()
     };
+    let room_audience = crate::audience::audience(receiver, chat, self.agent).await;
     let index: Vec<(String, IndexEntry)> = receiver
       .units()
       .gate
-      .index(chat, session, Some(self.agent))
+      .index(chat, session, Some(self.agent), room_audience)
       .await
       .ok()
       .flatten()

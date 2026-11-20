@@ -466,6 +466,31 @@ flowchart TD
   - a provider with no voice of its own active is handed nothing of another account's words, and the journal says
     so, so no account's words go out in another person's account.
 
+## Whether someone outside the company sits in a room
+
+A supervisor's reference carries what the organisation of the person it serves holds, and an org memory marked
+internal-only is kept from a room where someone outside that person's company sits (the gate's
+`docs/reference-selection.md`, 「What an organisation hands its members」). The receiver, which knows a room's
+members, says which a room is for a supervisor: its audience, `internal` where everyone in it stands in the company
+and `external` otherwise.
+
+- **The company is the supervisor's owner's:** the account the agency registers as its `ownerAccount`, and the
+  company the web unit places that account in (`docs/boundary-api.md`, 「The web unit」). A supervisor of no account,
+  one the agency does not register, and an owner the web unit places in no unit have no company, and every room is
+  `external` for them.
+- **Who sits in a room:** in a private room, its one account (「Console rooms and accounts」 above); in any other
+  room, the accounts that are its members and the people each chat service on the room's list of providers lists in
+  it (`GET /rooms/{roomId}/members` of the service), less every number an agent's own words stand under.
+- **A person's company** is the one the web unit places their user in: an account is its own user, and a listed
+  person is the user the account model links their sender to.
+- **`internal` only where everyone is read and stands in the company.** Every other case is `external`: a person in
+  another company or in none, a listed person the service gave no number or whom no user is linked to, a sealed
+  private room, a chat service on the list that lists no members, refuses or does not answer, and an agency or a web
+  unit that does not answer. A failure never lets an internal-only memory into a room.
+- **It is read afresh each time it is asked** and kept nowhere, so a person let in counts from the next turn on.
+- **It is said** on every turn's envelope and on the index the receiver reads (`docs/boundary-api.md`, 「The
+  gate」), and answered to any caller by `GET /rooms/{roomId}/audience` (`docs/api.md`, 「Rooms」).
+
 ## The event stream
 
 - **The frames of `GET /events`:**

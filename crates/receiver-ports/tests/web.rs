@@ -204,3 +204,22 @@ async fn an_organisation_unit_is_read_as_its_home_members_then_its_post_holders_
   );
   assert_eq!(web.organisation_unit(6).await.unwrap(), None, "a unit the web unit does not hold");
 }
+
+#[tokio::test]
+async fn a_users_company_is_the_company_its_unit_names_and_none_for_a_user_placed_in_no_unit() {
+  let unit = StandIn::start().await;
+  let web = HttpWeb::new(&unit.peer("t"));
+
+  unit.answer(
+    "GET /users/7/unit",
+    200,
+    json!({
+      "user": "7", "unit": { "id": 5, "name": "Design" }, "company": { "id": 1, "name": "Co" },
+      "path": [{ "id": 1, "name": "Co" }, { "id": 5, "name": "Design" }],
+    }),
+  );
+  unit.answer("GET /users/8/unit", 404, json!({ "code": "not-found", "error": "No such user." }));
+
+  assert_eq!(web.company_of("7").await.unwrap(), Some(1));
+  assert_eq!(web.company_of("8").await.unwrap(), None, "a user placed in no unit");
+}

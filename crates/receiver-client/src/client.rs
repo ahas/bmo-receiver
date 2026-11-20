@@ -431,6 +431,12 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "members"])).await
   }
 
+  /// `GET /rooms/{roomId}/audience`.
+  pub async fn room_audience(&self, room_id: i64, agent: &str) -> Answer<RoomAudience> {
+    Self::answered(self.get(&["rooms", &room_id.to_string(), "audience"], &[("agent", agent.to_owned())]))
+      .await
+  }
+
   /// `GET /rooms/{roomId}/accounts`.
   pub async fn room_accounts(&self, room_id: i64) -> Answer<RoomAccounts> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "accounts"])).await

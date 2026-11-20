@@ -691,6 +691,24 @@ pub struct RoomAccounts {
   pub accounts: Vec<RoomAccount>,
 }
 
+/// Whom a room's reference may reach for a supervisor (`docs/receiver.md`, 「Whether someone outside the company
+/// sits in a room」): `internal` where everyone in the room stands in the company of the supervisor's owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Audience {
+  Internal,
+  External,
+}
+
+/// `GET /rooms/{roomId}/audience`: a room's audience for a supervisor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomAudience {
+  pub room: i64,
+  pub agent: String,
+  pub audience: Audience,
+}
+
 /// `PUT /rooms/{roomId}/accounts/{account}`: the account letting another in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

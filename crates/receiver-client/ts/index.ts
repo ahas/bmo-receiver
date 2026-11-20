@@ -32,6 +32,8 @@ export type RoomMember = Schemas["RoomMember"];
 export type AgentRoom = Schemas["AgentRoom"];
 export type RoomAccount = Schemas["RoomAccount"];
 export type RoomAccounts = Schemas["RoomAccounts"];
+export type Audience = Schemas["Audience"];
+export type RoomAudience = Schemas["RoomAudience"];
 export type LetIn = Schemas["LetIn"];
 export type LetInSeveral = Schemas["LetInSeveral"];
 export type LetInAccounts = Schemas["LetInAccounts"];
@@ -400,6 +402,13 @@ export function receiverClient(options: ReceiverOptions) {
     /** `POST /rooms` with no chat service: an agent room on the record alone, opened by an account. */
     async addAgentRoom(body: AgentRoom): Promise<Room> {
       return answered(await client.POST("/rooms", { body }));
+    },
+
+    /** `GET /rooms/{roomId}/audience`: whether everyone in the room stands in the company of the agent's owner. */
+    async roomAudience(roomId: number, agent: string): Promise<RoomAudience> {
+      return answered(
+        await client.GET("/rooms/{roomId}/audience", { params: { path: { roomId }, query: { agent } } }),
+      );
     },
 
     /** `GET /rooms/{roomId}/accounts`. */

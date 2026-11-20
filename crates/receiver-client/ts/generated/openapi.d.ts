@@ -696,6 +696,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/audience": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether everyone in a room stands in the company of a supervisor's owner: its audience for that supervisor. */
+        get: operations["roomAudience"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/avatar": {
         parameters: {
             query?: never;
@@ -1773,6 +1790,12 @@ export interface components {
             /** @default null */
             via: string | null;
         };
+        /**
+         * @description Whom a room's reference may reach for a supervisor (`docs/receiver.md`, 「Whether someone outside the company
+         *     sits in a room」): `internal` where everyone in the room stands in the company of the supervisor's owner.
+         * @enum {string}
+         */
+        Audience: "internal" | "external";
         /** @description One profile picture the archive keeps. */
         Avatar: {
             /** Format: int64 */
@@ -2753,6 +2776,13 @@ export interface components {
             archivedAt: number | null;
             /** @description Who archived it; null while it is open. */
             archivedBy: string | null;
+            /** Format: int64 */
+            room: number;
+        };
+        /** @description `GET /rooms/{roomId}/audience`: a room's audience for a supervisor. */
+        RoomAudience: {
+            agent: string;
+            audience: components["schemas"]["Audience"];
             /** Format: int64 */
             room: number;
         };
@@ -4779,6 +4809,39 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-room-leader, not-found, private-room, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomAudience: {
+        parameters: {
+            query: {
+                agent: string;
+            };
+            header?: never;
+            path: {
+                roomId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomAudience"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

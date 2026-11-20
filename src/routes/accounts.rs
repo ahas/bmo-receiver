@@ -7,7 +7,7 @@
 use axum::{
   Json,
   body::Bytes,
-  extract::{Path, State},
+  extract::{Path, RawQuery, State},
   http::StatusCode,
 };
 use futures_util::future::try_join_all;
@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::say::{Speaking, files_form, files_said, said, sendable, speakable};
 use super::writable::WritableRoom;
-use super::{Answered, Refusal, Served, answered, code, read, refused, store};
+use super::{Answered, Refusal, Served, answered, code, query, read, refused, store};
 use crate::accounts::{self, Member, Privacy, Speaker};
 use crate::receiver::{NotReceived, Receiver};
 use crate::roads::providers::SaidBy;
@@ -136,6 +136,34 @@ pub async fn members(State(served): State<Served>, Path(room): Path<i64>) -> Ans
   };
 
   answered(json!({ "accounts": members.iter().map(member_shape).collect::<Vec<Value>>() }))
+}
+
+/// What `GET /rooms/{roomId}/audience` asks: the supervisor the room's audience is read for.
+#[derive(Deserialize)]
+struct AudienceAsk {
+  agent: String,
+}
+
+/// `GET /rooms/{roomId}/audience`: whether everyone in the room stands in the company of the supervisor's owner
+/// (docs/receiver.md, 「Whether someone outside the company sits in a room」).
+pub async fn audience(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
+  let asked = query::<AudienceAsk>(raw)?;
+  let agent = asked.agent.trim();
+  let receiver: Receiver = (*served.receiver).clone();
+
+  if agent.is_empty() {
+    return Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      "agent (a supervisor's name) is required",
+    ));
+  }
+
+  held(&receiver, room).await?;
+
+  let audience = crate::audience::audience(&receiver, room, agent).await;
+
+  answered(json!({ "room": room, "agent": agent, "audience": audience }))
 }
 
 // A room whose members can be changed: one the receiver holds that is no one's private room, sealed ones among

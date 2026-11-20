@@ -4,6 +4,7 @@
 //! reached through a port over HTTP; the chat services through bmo-chat-client.
 
 pub mod accounts;
+pub mod audience;
 pub mod chat;
 pub mod command;
 pub mod config;

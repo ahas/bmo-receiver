@@ -38,6 +38,26 @@ pub struct Situation {
   pub now_at: i64,
 }
 
+/// Whom a room's reference may reach for an agent: `internal` where everyone in the room stands in the company of
+/// the agent's owner, `external` where anyone else sits there or who sits there could not be read
+/// (`docs/receiver.md`, 「Whether someone outside the company sits in a room」).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Audience {
+  Internal,
+  External,
+}
+
+impl Audience {
+  /// The word the gate reads it by.
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::Internal => "internal",
+      Self::External => "external",
+    }
+  }
+}
+
 /// A turn's envelope, as the gate's reference road reads it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,6 +83,8 @@ pub struct Envelope {
   pub answered: Option<String>,
   /// Whether the turn's road records its gates.
   pub records: bool,
+  /// Whom the room's reference may reach for the turn's agent.
+  pub audience: Audience,
 }
 
 /// Which sort of thing a piece of the reference is.
@@ -126,13 +148,14 @@ pub trait Gate: Send + Sync {
   fn copy_options<'a>(&'a self, agent_name: &'a str, from_agent_name: &'a str)
   -> BoxFuture<'a, Answer<()>>;
 
-  /// The brain's index for an agent in a room, its unread counted against the session's loads; none where the gate
-  /// serves no index.
+  /// The brain's index for an agent in a room and the audience the room holds, its unread counted against the
+  /// session's loads; none where the gate serves no index.
   fn index<'a>(
     &'a self,
     _room: i64,
     _session: Option<&'a str>,
     _agent: Option<&'a str>,
+    _audience: Audience,
   ) -> BoxFuture<'a, Answer<Option<Vec<IndexGroup>>>> {
     Box::pin(async { Ok(None) })
   }
@@ -218,12 +241,14 @@ impl Gate for HttpGate {
     room: i64,
     session: Option<&'a str>,
     agent: Option<&'a str>,
+    audience: Audience,
   ) -> BoxFuture<'a, Answer<Option<Vec<IndexGroup>>>> {
     Box::pin(async move {
       let mut query = vec![("room", room.to_string())];
 
       query.extend(session.map(|session| ("session", session.to_owned())));
       query.extend(agent.map(|agent| ("agent", agent.to_owned())));
+      query.push(("audience", audience.as_str().to_owned()));
 
       let index: Index = self.caller.get(&["reference", "index"], &query).await?;
 

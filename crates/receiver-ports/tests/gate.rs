@@ -2,7 +2,7 @@
 //! and 「Gates」).
 
 use receiver_ports::gate::{
-  Entry, Envelope, Gate, HttpGate, Judgement, RoomKind, Situation, Source, TurnEvent,
+  Audience, Entry, Envelope, Gate, HttpGate, Judgement, RoomKind, Situation, Source, TurnEvent,
 };
 use serde_json::json;
 
@@ -21,6 +21,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
   unit.answer("POST /judgements", 201, json!({ "id": 1 }));
   unit.answer_empty("POST /judgements/attached", 204);
   unit.answer_empty("POST /options/copied", 204);
+  unit.answer("GET /reference/index", 200, json!({ "groups": [] }));
 
   let envelope = Envelope {
     room_id: -7,
@@ -41,6 +42,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
     people_spoke: true,
     answered: None,
     records: true,
+    audience: Audience::External,
   };
 
   assert_eq!(
@@ -67,6 +69,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
   gate.judge(&judgement).await.unwrap();
   gate.attach(-7, 12, 1_700_000_000_000).await.unwrap();
   gate.copy_options("agent-d", "agent-a").await.unwrap();
+  gate.index(-7, None, Some("agent-a"), Audience::Internal).await.unwrap();
 
   assert_eq!(
     unit.took(),
@@ -88,6 +91,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
           "round": "r-1",
           "peopleSpoke": true,
           "records": true,
+          "audience": "external",
         }))
       ),
       call(
@@ -105,6 +109,7 @@ async fn every_call_on_the_gate_goes_out_in_the_shape_the_gate_publishes() {
         "",
         Some(json!({ "agentName": "agent-d", "fromAgentName": "agent-a" }))
       ),
+      call("GET /reference/index", "room=-7&agent=agent-a&audience=internal", None),
     ]
   );
   assert!(unit.calls().iter().all(|call| call.authorization.as_deref() == Some("Bearer t")));
