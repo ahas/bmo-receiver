@@ -458,6 +458,7 @@ pub struct Index {
   pub knowledge: String,
   pub people: String,
   pub room_memories: String,
+  pub organisation: String,
   pub walk_head: String,
   pub walk_room: String,
   pub walk_untitled: String,

@@ -340,9 +340,10 @@ own thread.
 The brain's index is not carried by a turn. It rides the room's block, the session's system prompt, when the
 block goes in full — the session's opening on that room — and the agent reads anything more it needs itself:
 
-- **One line, once** — the system documents, the room's rules, knowledge, the people the brain knows and the
-  room's memories, each with how many entries of it the session had not read when it opened and, where the gate
-  gives one, what changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its
+- **One line, once** — the system documents, the room's rules, knowledge, the people the brain knows, the
+  room's memories and the organisation's, the memories of the units the agent's owner stands in beyond the org
+  sheet a turn carries, each with how many entries of it the session had not read when it opened and, where the
+  gate gives one, what changed in it lately (`chat-round.toml`, `[index]`). An entry the session holds at its
   version, by the agency's record of the session's loads (`GET /session-loads/{sessionId}`), is read and counted
   out.
 - **Then one hint, never an order:** look one up only when the answer needs it, and otherwise just

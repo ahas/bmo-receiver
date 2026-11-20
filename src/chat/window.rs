@@ -71,16 +71,18 @@ pub enum Group {
   Knowledge,
   People,
   RoomMemories,
+  Organisation,
 }
 
 impl Group {
   /// Every group, in the order a turn names them.
-  pub const ALL: [Group; 5] = [
+  pub const ALL: [Group; 6] = [
     Self::SystemDocuments,
     Self::RoomRules,
     Self::Knowledge,
     Self::People,
     Self::RoomMemories,
+    Self::Organisation,
   ];
 
   /// The group an entry the gate answers stands in, by where it was read from.
@@ -102,6 +104,7 @@ impl Group {
       "knowledge" => Some(Self::Knowledge),
       "people" => Some(Self::People),
       "room-memories" => Some(Self::RoomMemories),
+      "organisation" => Some(Self::Organisation),
       _ => None,
     }
   }
@@ -116,6 +119,7 @@ impl Group {
       Self::Knowledge => &said.knowledge,
       Self::People => &said.people,
       Self::RoomMemories => &said.room_memories,
+      Self::Organisation => &said.organisation,
     }
   }
 }

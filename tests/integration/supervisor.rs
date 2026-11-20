@@ -445,6 +445,7 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
       group("knowledge", 7, None),
       group("people", 1, None),
       group("room-memories", 3, None),
+      group("organisation", 2, Some("1 entry changed in the last three days.")),
     ],
   );
   round.hand(1, "agent-a what do the rules say", true).await;
@@ -462,6 +463,10 @@ async fn the_turns_index_is_the_gates_with_its_hint_and_the_sessions_reads_count
     "{block}"
   );
   assert!(block.contains(&format!("{} 7", index.knowledge)), "{block}");
+  assert!(
+    block.contains(&format!("{} 2 (1 entry changed in the last three days)", index.organisation)),
+    "the organisation's memories are counted with their hint: {block}"
+  );
   assert!(block.contains(&index.hint), "the nudge stands in the room's block");
   assert!(
     !turn.contains(&index.head) && !turn.contains(&index.hint),
