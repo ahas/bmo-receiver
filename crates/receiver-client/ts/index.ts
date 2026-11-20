@@ -593,7 +593,7 @@ export function receiverClient(options: ReceiverOptions) {
       );
     },
 
-    /** `GET /instruction-stages`: every row, or with a supervisor named the one row it reads. */
+    /** `GET /instruction-stages`: every chain, or with a supervisor named the one chain it follows. */
     async instructionChains(agentName?: string): Promise<Page<InstructionChain>> {
       return answered(
         await client.GET("/instruction-stages", {
@@ -602,28 +602,16 @@ export function receiverClient(options: ReceiverOptions) {
       );
     },
 
-    /** `PUT /instruction-stages/{provider}/{tier}/{agentName}`: a supervisor's row, its provider and tier `*`. */
-    async setInstructionChain(
-      provider: string,
-      tier: string,
-      agentName: string,
-      body: InstructionChainSet,
-    ): Promise<InstructionChain> {
+    /** `PUT /instruction-stages/{agentName}`: a supervisor's own chain. */
+    async setInstructionChain(agentName: string, body: InstructionChainSet): Promise<InstructionChain> {
       return answered(
-        await client.PUT("/instruction-stages/{provider}/{tier}/{agentName}", {
-          params: { path: { provider, tier, agentName } },
-          body,
-        }),
+        await client.PUT("/instruction-stages/{agentName}", { params: { path: { agentName } }, body }),
       );
     },
 
-    /** `DELETE /instruction-stages/{provider}/{tier}/{agentName}`. */
-    async removeInstructionChain(provider: string, tier: string, agentName: string): Promise<void> {
-      answered(
-        await client.DELETE("/instruction-stages/{provider}/{tier}/{agentName}", {
-          params: { path: { provider, tier, agentName } },
-        }),
-      );
+    /** `DELETE /instruction-stages/{agentName}`: the supervisor follows the policy's chain again. */
+    async removeInstructionChain(agentName: string): Promise<void> {
+      answered(await client.DELETE("/instruction-stages/{agentName}", { params: { path: { agentName } } }));
     },
 
     /** `GET /instruction-texts`: a supervisor's catalogue, or the policy's alone where none is named. */
