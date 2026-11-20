@@ -343,6 +343,13 @@ pub trait Runner: Send + Sync {
   fn in_briefing(&self, _agent: &str, _chat_id: i64) -> bool {
     false
   }
+
+  /// The answer of the agent's round working in the room marked to go out said aloud, with the emotion it is said
+  /// with (docs/voiced-notices.md, 「An answer said aloud」): whether a round stood there to mark; none does where no
+  /// conversations stand.
+  fn speak(&self, _agent: &str, _chat_id: i64, _spoken: crate::chat::spoken::Spoken) -> bool {
+    false
+  }
 }
 
 /// The conversations where none stand: no turn is taken.

@@ -1,0 +1,14 @@
+{
+  "additionalProperties": false,
+  "description": "The round's own answer said aloud: the agent asks, in its round, that the answer it writes there go out as a\nvoice note in its own voice, said with the emotion it names.",
+  "properties": {
+    "emotion": {
+      "description": "The one emotion the answer is said with, of those the room's block lists; said plainly where absent.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "type": "object"
+}

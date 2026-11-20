@@ -8,8 +8,9 @@
 //! 「Words handed to the room's supervisor」). So only an act that holds no words, asked in its agent's own round,
 //! is carried; an act holding words — a line, a spoken talk, a voice note, a caption — asked there into the room
 //! that round answers is refused, and every other send is handed to the room's supervisor as an order, whose round
-//! there writes it, and nothing goes out on that call. A send an agent asks into a room its voice briefing turn is
-//! being carried in is refused before any of these.
+//! there writes it, and nothing goes out on that call. `speak` marks the asker's own round's answer to go out said
+//! aloud, and is refused anywhere else (docs/voiced-notices.md, 「An answer said aloud」). A send an agent asks into
+//! a room its voice briefing turn is being carried in is refused before any of these.
 
 use axum::{
   body::Bytes,
@@ -28,6 +29,7 @@ use crate::chat::briefing_turn;
 use crate::chat::cut_off;
 use crate::chat::handed;
 use crate::chat::relays::{self, Relay};
+use crate::chat::spoken;
 use crate::receiver::Receiver;
 use crate::verbs::sends::Sends;
 use crate::verbs::{VerbError, draws, messages};
@@ -69,7 +71,12 @@ async fn carried(receiver: &Receiver, asked: &Asked) -> Result<Vec<String>, Verb
     Act::Sticker(input) => messages::sticker(&sends, chat, &input.emoji, input.reply_to).await,
     Act::RandomDraw(input) => draws::draw(&sends, chat, &input.request(), asker.via.as_deref()).await,
     // Words are never carried: `sends` refuses or hands an act holding them before it comes here.
-    Act::Say(_) | Act::Speak(_) | Act::Voice(_) => Err(VerbError::Refused(words_refusal(asked, chat))),
+    Act::Say(_) | Act::Talk(_) | Act::Voice(_) => Err(VerbError::Refused(words_refusal(asked, chat))),
+    // An answer said aloud is marked on its round, never carried: `sends` marks it before it comes here.
+    Act::Speak(input) => spoken::mark(receiver, asker, input)
+      .await
+      .map(|line| vec![line])
+      .map_err(VerbError::Refused),
   }
 }
 
@@ -118,6 +125,14 @@ pub async fn sends(State(served): State<Served>, body: Bytes) -> Answered {
 
   if let Some(refusal) = briefing_turn::refused(&receiver, &asked.asker) {
     return answered(json!({ "lines": [], "refusal": refusal }));
+  }
+
+  // An answer said aloud is marked on the asker's own round, or refused; it is never handed.
+  if let Act::Speak(input) = &asked.act {
+    return answered(match spoken::mark(&receiver, &asked.asker, input).await {
+      Ok(line) => json!({ "lines": [line] }),
+      Err(refusal) => json!({ "lines": [], "refusal": refusal }),
+    });
   }
 
   let own_round = handed::own_round(&receiver, &asked.asker);

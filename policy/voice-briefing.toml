@@ -1,5 +1,13 @@
 # The voice briefing's whole switch (docs/voiced-notices.md, 「The switches」): how the receiver keeps asking the
-# voice engine to stop its briefings once the switch is set off and a stop it asked for failed.
+# voice engine to stop its briefings once the switch is set off and a stop it asked for failed; and how an answer said
+# aloud is waited on (docs/voiced-notices.md, 「An answer said aloud」).
 
 # How long the receiver waits before asking the engine to stop again, in milliseconds.
 stop_again_ms = 5000
+
+# How often an answer's speech is read while the engine speaks it, in milliseconds.
+speech_read_every_ms = 500
+
+# How long an answer's speech is waited for before the room is answered in writing and the speech stopped, in
+# milliseconds.
+speech_within_ms = 600000

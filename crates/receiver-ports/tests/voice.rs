@@ -34,6 +34,7 @@ async fn a_briefing_a_lines_lookup_and_a_stop_of_one_kind_go_out_as_the_engine_p
       title: None,
       emotion: None,
       plays: false,
+      key: None,
     })
     .await
     .unwrap();
@@ -43,6 +44,7 @@ async fn a_briefing_a_lines_lookup_and_a_stop_of_one_kind_go_out_as_the_engine_p
     id,
     kind: kind.to_owned(),
     state: state.to_owned(),
+    synthesis_id: None,
   };
 
   assert_eq!(

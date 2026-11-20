@@ -1,7 +1,8 @@
 # The sends the agents make into rooms, each asking the running receiver for the send through its routes, as the
 # `bmo` commands doing the same sends ask it (docs/chat-mcp.md, 「How a call runs」): words handed to another room,
-# a picture or an album, a file or an album of files, a voice note, a reaction, a pin, a sticker and a fair draw.
-# No entry puts words in a room. Every entry is unbounded: a call ends with the receiver's answer, its connection
+# a picture or an album, a file or an album of files, a voice note, the round's own answer said aloud, a reaction,
+# a pin, a sticker and a fair draw. No entry puts words in a room: speak marks the round's answer, which the round
+# writes and its stages check, to go out as a voice note. Every entry is unbounded: a call ends with the receiver's answer, its connection
 # failing or the bound its act gives the receiver passing, so the tool's `timeout`, which the manifest format asks
 # of every tool, bounds no call. The crate's own test holds every entry here to the Rust tool answering it.
 
@@ -67,6 +68,18 @@ unbounded = true
 
 [entry.bundle."room.send"]
 shown = ["path", "caption", "transcript"]
+
+[entry.facts]
+verb = "voice"
+
+[[entry]]
+namespace = "bmo"
+name = "speak"
+description = "Say this round's answer aloud yourself: the answer you write in this round goes out as a voice note in your own voice, your face speaking it, its words standing with the note. Name the emotion it is said with. Only for your own round in the room it answers."
+input = "speak.json"
+hints = { open_world = true }
+capabilities = ["room.tools"]
+unbounded = true
 
 [entry.facts]
 verb = "voice"

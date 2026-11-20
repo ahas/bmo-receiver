@@ -146,7 +146,7 @@ pub struct VoiceInput {
 /// the room reads and the spoken words the voice says, where they are given.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct SpeakInput {
+pub struct TalkInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
@@ -163,6 +163,16 @@ pub struct SpeakInput {
   /// The message this send replies to, by its number in the room.
   #[serde(rename = "replyTo", default, skip_serializing_if = "Option::is_none")]
   pub reply_to: Option<i64>,
+}
+
+/// The round's own answer said aloud: the agent asks, in its round, that the answer it writes there go out as a
+/// voice note in its own voice, said with the emotion it names.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpeakInput {
+  /// The one emotion the answer is said with, of those the room's block lists; said plainly where absent.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub emotion: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -288,8 +298,10 @@ pub enum Act {
   Pin(PinInput),
   Sticker(StickerInput),
   RandomDraw(RandomDrawInput),
-  /// A spoken talk asked by its words, which no tool entry asks: words, so it is never carried.
+  /// The round's own answer said aloud as a voice note: it carries no words, which its round's answer holds.
   Speak(SpeakInput),
+  /// A spoken talk asked by its words, which no tool entry asks: words, so it is never carried.
+  Talk(TalkInput),
 }
 
 impl Act {
@@ -297,9 +309,11 @@ impl Act {
   /// handed on and answered at once, the other acts go to the road within the call, and files take the longest.
   pub fn answered_within(&self) -> Duration {
     match self {
-      Self::Say(_) | Self::Speak(_) => HANDED_WITHIN,
+      Self::Say(_) | Self::Talk(_) => HANDED_WITHIN,
       Self::Photo(_) | Self::File(_) | Self::Voice(_) => FILES_WITHIN,
-      Self::React(_) | Self::Pin(_) | Self::Sticker(_) | Self::RandomDraw(_) => CARRIED_WITHIN,
+      Self::React(_) | Self::Pin(_) | Self::Sticker(_) | Self::RandomDraw(_) | Self::Speak(_) => {
+        CARRIED_WITHIN
+      }
     }
   }
 
@@ -307,10 +321,10 @@ impl Act {
   /// file with a caption. Such an act is never carried, since words go into a room only as a round's message.
   pub fn holds_words(&self) -> bool {
     match self {
-      Self::Say(_) | Self::Speak(_) | Self::Voice(_) => true,
+      Self::Say(_) | Self::Talk(_) | Self::Voice(_) => true,
       Self::Photo(input) => worded(input.caption.as_deref()),
       Self::File(input) => worded(input.caption.as_deref()),
-      Self::React(_) | Self::Pin(_) | Self::Sticker(_) | Self::RandomDraw(_) => false,
+      Self::React(_) | Self::Pin(_) | Self::Sticker(_) | Self::RandomDraw(_) | Self::Speak(_) => false,
     }
   }
 
@@ -326,6 +340,7 @@ impl Act {
       Self::Sticker(_) => "sticker",
       Self::RandomDraw(_) => "random_draw",
       Self::Speak(_) => "speak",
+      Self::Talk(_) => "talk",
     }
   }
 }

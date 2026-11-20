@@ -5,7 +5,7 @@
 //! line is asked by its words — the voice, the written words and the spoken words where given — and nothing is
 //! synthesised.
 
-use room_calls::sends::{Act, SayInput, SpeakInput};
+use room_calls::sends::{Act, SayInput, TalkInput};
 
 use crate::command::{SayArgs, words};
 use crate::config::Config;
@@ -31,7 +31,7 @@ pub async fn talk(
       reply: args.reply,
       reply_to: args.reply_to,
     }),
-    Some(voice) => Act::Speak(SpeakInput {
+    Some(voice) => Act::Talk(TalkInput {
       chat: None,
       via: None,
       voice,

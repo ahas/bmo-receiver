@@ -152,9 +152,12 @@ and when a room sees it typing.
     feeling emoji, allowed in restricted runs too, archived like a received sticker);
   - a pinned message (`pin`; `bmo pin`, the owner's alone by the session's judgement);
   - a fair draw and its room line (`random_draw`; `bmo draw draw`, `docs/random-draw.md`).
-- **A line, a spoken talk, a voice note and a caption are words.** `say` (`bmo room say`), a spoken `talk`
-  (`speak`), `voice`, and a `photo` or `file` naming a `caption` are each refused in the round's own room and
-  handed everywhere else (「Words handed to the room's supervisor」).
+- **A line, a spoken talk, a voice note and a caption are words.** `say` (`bmo room say`), a spoken talk
+  (`bmo talk --voice`, the act `talk`), `voice`, and a `photo` or `file` naming a `caption` are each refused in the
+  round's own room and handed everywhere else (「Words handed to the room's supervisor」).
+- **The round's own answer goes out said aloud where the round asks it.** `speak` carries no words: in the agent's
+  own round it marks the answer that round writes and its stages check to go out as a voice note in the agent's own
+  voice, and it is refused anywhere else (`docs/voiced-notices.md`, 「An answer said aloud」).
 - **A send asks the room's road first:** the road its caller's turn is read on (`via`) where that road answers in
   the room, the room's own otherwise; the agent whose turn it is, which sends only into a room it answers and only
   where its role gives sending; and whether the road performs the verb at all, as its chat service's capabilities
@@ -227,7 +230,8 @@ that room's supervisor, whose round there writes them as its message, its stages
 - **Words asked in the round's own room are refused.** A line, a spoken talk, a voice note, or a picture or a file
   with a caption, asked in the agent's own round into the room that round answers, is refused `words-in-answer`
   (`docs/codes.md`, 「SendRefusal」), its sentence saying that the words go into the round's answer, which the instruction
-  stages check before it goes out; nothing reaches the room. A progress line said while work runs is the same line, and is refused
+  stages check before it goes out, and that `speak` has that answer itself go out as a voice note; nothing reaches the
+  room. A progress line said while work runs is the same line, and is refused
   the same way.
 - **Words asked into another room are handed there.** The same acts asked in the agent's own round into another
   room are handed to that room's supervisor as below, so a supervisor that wants words in another room asks for a

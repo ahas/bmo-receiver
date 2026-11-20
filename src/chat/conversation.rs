@@ -270,6 +270,8 @@ pub struct ReplyRoad {
   pub asked_at: Option<i64>,
   /// When the round began, in epoch milliseconds: its judgements are the ones written since.
   pub began: i64,
+  /// How the answer goes out said aloud, where its round asked it with speak.
+  pub spoken: Option<super::spoken::Spoken>,
 }
 
 /// What sends a round's answer into its room, on the road the turn answers on: the number of the message it went
@@ -415,6 +417,8 @@ struct Conv {
   carried: Option<Carried>,
   // How often the words it opened on were given back by a round that failed.
   given_back: i64,
+  // How the working round's answer goes out said aloud, where the round asked it with speak.
+  spoken: Option<super::spoken::Spoken>,
 }
 
 // Words of a room the agent passed over, by its own judgement: the reason its skip named, or that it named none.
@@ -634,6 +638,7 @@ impl Conv {
       timer: None,
       carried: None,
       given_back: 0,
+      spoken: None,
     }
   }
 }
@@ -1564,6 +1569,21 @@ impl Conversations {
     self.0.briefings.in_flight(chat_id)
   }
 
+  /// The answer of the round working in the room marked to go out said aloud (docs/voiced-notices.md, 「An answer
+  /// said aloud」): whether a round stood there to mark. A later mark of the same round replaces the earlier one.
+  pub fn speak(&self, chat_id: i64, spoken: super::spoken::Spoken) -> bool {
+    let mut state = self.state();
+
+    match state.active.get_mut(&chat_id) {
+      Some(conv) if conv.in_flight => {
+        conv.spoken = Some(spoken);
+
+        true
+      }
+      _ => false,
+    }
+  }
+
   /// Whether a room has fallen silent for this agent: the rest closes its road and nothing else would answer it.
   pub async fn silenced(&self, chat_id: i64) -> bool {
     self.0.health.silenced(&self.0.receiver, self.agent(), chat_id).await
@@ -1636,6 +1656,8 @@ impl Conversations {
       }
 
       conv.in_flight = true;
+      // A round's answer goes out said aloud only where that round asked it.
+      conv.spoken = None;
     }
 
     // Every turn is shown as its agent's, from whatever it comes to: the default answerer as the room's own voice,
@@ -2320,9 +2342,12 @@ impl Conversations {
     let waiting = {
       let state = self.state();
 
-      state.active.get(&chat_id).map(|conv| (conv.reply_target, conv.asked_at))
+      state
+        .active
+        .get(&chat_id)
+        .map(|conv| (conv.reply_target, conv.asked_at, conv.spoken.clone()))
     };
-    let (reply_to, asked_at) = waiting.unwrap_or((None, None));
+    let (reply_to, asked_at, spoken) = waiting.unwrap_or((None, None, None));
     // The round is answered only once its message went out (docs/wake.md, 「The room's queue and the round」): a
     // message no try put into the room fails the round before its read mark is written, and every word it read
     // waits for the next.
@@ -2336,6 +2361,7 @@ impl Conversations {
         round: round.to_owned(),
         asked_at,
         began,
+        spoken,
       };
 
       // The answer is let through: the room is shown typing until the round ends (docs/messages.md, 「Typing」).

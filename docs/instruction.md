@@ -54,7 +54,9 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   words: a line, a spoken talk, a voice note or a caption asked of the send tool or a shell verb in the round's own room
   is refused, and one asked into another room or from outside a round is handed to that room's supervisor, whose round
   there writes and reviews it (`docs/messages.md`, 「Words handed to the room's supervisor」). A progress line is no
-  exception: while work runs, nothing is said until the message.
+  exception: while work runs, nothing is said until the message. A message its round asked said aloud with `speak`
+  takes the same road and goes out, once let through, as a voice note saying it (`docs/voiced-notices.md`, 「An
+  answer said aloud」).
 - **Every tool the round's turn has is open in the message turn:** reading and writing memories, searching, filing a job,
   and the sends that carry no words. A question to read more is followed by reading; a question whether a promise was kept
   is followed by keeping it.

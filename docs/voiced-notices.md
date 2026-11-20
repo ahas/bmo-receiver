@@ -167,7 +167,8 @@ agent that answers the room says the line.
 ## The voice briefing
 
 A line of the default answerer's is heard as well as read: a notice turn of the owner's private chat is spoken as a
-summary, and any agent's line can be read out whole from its chip. The voice engine speaks and keeps every
+summary, and any agent's line can be read out whole from its chip. An answer the agent itself says aloud is no briefing
+of these: it goes out as a voice note (「An answer said aloud」). The voice engine speaks and keeps every
 briefing with its room and its line (its `docs/boundary-api.md`, 「Briefings」); the receiver decides when one is
 spoken, and the session writes what is said.
 
@@ -294,6 +295,42 @@ spoken, and the session writes what is said.
 - **A briefing a unit other than the engine put in a room as a voice message** is told through the receiver's
   `POST /events` as a `briefing` event, stamped with whether it plays by itself as the second switch stands, and
   goes out on the receiver's stream to the same listeners.
+
+## An answer said aloud
+
+An agent asked to say something aloud in a room it answers says its round's answer in its own voice: the answer
+goes out as a voice note, and the voice engine keeps it as the agent speaking as itself (its `docs/boundary-api.md`,
+「Briefings」, the kind `speech`), which a listener showing the agent's face plays as it is said. Any other sound
+an agent makes, a voice generated through the voice's own tool among them, is a file it sends, and is no speech.
+
+- **The round asks it with `speak`,** an entry of the send tool (`docs/chat-mcp.md`), naming the emotion the answer
+  is said with, one of `[voice]` `emotions` (`policy/chat-round.toml`), or none. It carries no words: it marks the
+  answer the round writes, which the message turn writes and the instruction stages check as every answer is
+  (`docs/instruction.md`), and is answered with the line `[voice]` `speak_marked` says. A later `speak` of the same
+  round replaces the earlier mark, and a round that ends without sending leaves no mark on the next.
+- **Only the agent's own round, in the room it answers, is marked.** `speak` asked anywhere else, from a shell, a
+  job, another room or once the round has ended, is refused `speak-outside-round`; one naming an emotion outside the
+  set is refused `speak-emotion`; one of an agent whose registration names no voice is refused `speak-voiceless`;
+  and one where no voice engine is named is refused `speak-no-engine` (`docs/codes.md`, 「SendRefusal」). A voice
+  briefing turn's refusal, `briefing-turn`, comes before every other.
+- **A road that sends no voice note says so.** `speak` asks the room's road, as every send does, whether it performs
+  `voice`, and is refused with the road's own sentence where it does not, so the round answers in writing. A room's
+  block leaves the entry out where its road does not perform `voice` (`docs/chat-mcp.md`, 「One list in every room」).
+- **The answer is spoken once it has passed its stages.** As the round's message goes out, the receiver hands the
+  answer, as it stands then, to the engine with `POST /briefings` of kind `speech`: in the agent's voice, for the
+  room, awaiting its line, with the emotion named, playing by itself, and keyed by the round, so a send tried again
+  takes the same speech. It reads the speech at the pace `speech_read_every_ms` sets (`policy/voice-briefing.toml`)
+  until it is done, and fetches its sound.
+- **It goes out as a voice note with its words.** The note carries the answer as what it says, which a road shows or
+  folds with the note, so the words stand in the room as well as the sound; the room's record keeps the message under
+  the voice mark and the note's sound under it (`docs/room-files.md`, 「Message files」), and the speech is told the
+  line it went out as (`POST /briefings/{briefingId}/line`).
+- **An answer that could not be said goes out written.** Where the road answering does not perform `voice`, the
+  engine refuses or fails the speech, or the speech has not ended within `speech_within_ms`, the answer goes out as
+  text, as any answer does, the journal saying why; a speech the bound let go is stopped (`POST /briefings/stop`, the
+  room and the kind `speech`).
+- **The voice briefing's switches do not govern it.** Somebody asked for it, so it is said with the whole briefing
+  switched off, and it plays by itself whatever the second switch says.
 
 ## Operating notices per chat
 

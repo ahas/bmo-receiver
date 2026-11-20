@@ -7,7 +7,7 @@ use std::time::Duration;
 use room_calls::bot::Service;
 use room_calls::sends::{
   Act, Asked, Asker, FileInput, FileToSend, PhotoInput, Picture, RandomDrawInput, SENDS_PATH, SayInput,
-  SpeakInput, StickerInput, Unsent, VoiceInput, answered, ask_within,
+  StickerInput, TalkInput, Unsent, VoiceInput, answered, ask_within,
 };
 use room_calls::turn::{Room, Turn};
 use serde_json::{Value, json};
@@ -238,14 +238,14 @@ fn the_receivers_answer_says_the_lines_the_refusal_or_that_nothing_came_back() {
 }
 
 #[test]
-fn a_spoken_talk_is_asked_by_its_words_under_the_speak_act() {
+fn a_spoken_talk_is_asked_by_its_words_under_the_talk_act() {
   let asked = Asked {
     asker: Asker {
       room: Some(ROOM),
       from: Some("bmo talk".to_owned()),
       ..Asker::default()
     },
-    act: Act::Speak(SpeakInput {
+    act: Act::Talk(TalkInput {
       chat: None,
       via: None,
       voice: "voice-a".to_owned(),
@@ -255,12 +255,12 @@ fn a_spoken_talk_is_asked_by_its_words_under_the_speak_act() {
     }),
   };
 
-  assert_eq!(asked.act.tool(), "speak");
+  assert_eq!(asked.act.tool(), "talk");
   assert_eq!(
     serde_json::to_value(&asked).unwrap(),
     json!({
       "asker": { "room": ROOM, "from": "bmo talk" },
-      "tool": "speak",
+      "tool": "talk",
       "input": { "voice": "voice-a", "text": "Written words.", "spoken": "Spoken words." },
     }),
   );

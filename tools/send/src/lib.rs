@@ -1,7 +1,8 @@
 //! The sends the agents make into rooms, the entries of the `send` tool (docs/chat-mcp.md, 「Its entries」;
 //! 「How a call runs」): words handed to another room, a picture or an album, a file or an album of files, a voice
-//! note, a reaction, a pin, a sticker and a fair draw. No entry puts words in a room: the receiver refuses them in
-//! the round's own room and hands them to the round of any other. Every entry asks the
+//! note, the round's own answer said aloud, a reaction, a pin, a sticker and a fair draw. No entry puts words in a
+//! room: the receiver refuses them in the round's own room and hands them to the round of any other, and `speak`
+//! marks the round's answer, which the round writes, to go out as a voice note. Every entry asks the
 //! running receiver for the send, as the `bmo` commands doing the same sends ask it. A call reads its turn
 //! afresh from the session's record and refuses one its agent's reset overtook before it asks anything, and
 //! reaches each unit where the record's data root names it (docs/chat-mcp.md, 「Where each unit is found」).
@@ -11,8 +12,8 @@ use serde_json::{Value, json};
 use room_calls::{
   bot::Service,
   sends::{
-    Act, Asker, FileInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput,
-    Unsent, VoiceInput, ask,
+    Act, Asker, FileInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, SpeakInput,
+    StickerInput, Unsent, VoiceInput, ask,
   },
   turn::{NO_ROOM, Turn},
 };
@@ -73,6 +74,13 @@ pub const ENTRIES: &[Entry] = &[
     "Hand an OGG/Opus voice note from this machine to another room, whose round says its words as its message. A voice note for this room is refused: its words go into your answer.",
     "voice.json",
     input_schema::<VoiceInput>,
+    None,
+  ),
+  entry(
+    "speak",
+    "Say this round's answer aloud yourself: the answer you write in this round goes out as a voice note in your own voice, your face speaking it, its words standing with the note. Name the emotion it is said with. Only for your own round in the room it answers.",
+    "speak.json",
+    input_schema::<SpeakInput>,
     None,
   ),
   entry(
@@ -153,6 +161,11 @@ pub async fn call(session: &Session, name: &str, arguments: Value) -> Answer {
         let input: VoiceInput = read(name, arguments)?;
 
         send(&receiver, &turn, input.chat, input.via.clone(), Act::Voice(input)).await
+      }
+      "speak" => {
+        let input: SpeakInput = read(name, arguments)?;
+
+        send(&receiver, &turn, None, None, Act::Speak(input)).await
       }
       "react" => {
         let input: ReactInput = read(name, arguments)?;

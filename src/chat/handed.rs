@@ -6,7 +6,7 @@
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
-use room_calls::sends::{Act, Asker, SpeakInput};
+use room_calls::sends::{Act, Asker, TalkInput};
 
 use crate::chat::instructions::{Queued, queue};
 use crate::receiver::wake::agents;
@@ -66,7 +66,7 @@ fn who(asker: &Asker) -> String {
 }
 
 // A spoken talk's words: the voice, the written words and the spoken words where given.
-fn spoken(input: &SpeakInput) -> Vec<String> {
+fn spoken(input: &TalkInput) -> Vec<String> {
   let handed = &CHAT_ROUND.handed;
   let mut lines = vec![fill_marks(&handed.spoken, &[("voice", &input.voice), ("text", &input.text)])];
 
@@ -91,7 +91,7 @@ pub fn asked(asker: &Asker, act: &Act) -> String {
 
       (lines, input.reply_to)
     }
-    Act::Speak(input) => (spoken(input), input.reply_to),
+    Act::Talk(input) => (spoken(input), input.reply_to),
     other => {
       let input = serde_json::to_value(other)
         .ok()

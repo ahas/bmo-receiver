@@ -487,7 +487,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `began?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `speak` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor |
+| `POST /sends` | `asker` (`room?`, `via?`, `agentName?`, `began?`, `by?`, `job`, `from?`), `tool`, `input`; the `say`, `photo`, `file`, `voice`, `sticker` and `talk` acts take an optional `replyTo`, the message in the room the send replies to | `lines`, what the act said, and `refusal` where it ended in one; `handed`, the instruction's number, where it was handed to the room's supervisor |
 | `GET /rooms/{roomId}/send-verbs` | `via` | a page of the verbs of the road a send naming `via` goes out on in the room |
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /rooms/{roomId}/words` | `account`, `name` (the account's shown name), `text`, `replyTo?` | 201, `id`, the message kept |
@@ -516,14 +516,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   (`docs/receiver.md`, 「A room's chat providers」). So every `via` the room does not answer on, a provider it is
   not on among them, answers the room's own road's verbs. A room no road answers is refused 409 `conflict`. One
   provider's own verbs are its `can` on `GET /providers`.
-- **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `react`, `pin`, `sticker` and `random_draw`, each the
-  arguments its tool takes (`docs/chat-mcp.md`), and `speak`, a spoken talk asked by its `voice`, its written
-  `text` and its `spoken?` words. Any other tool is refused 400 `bad-request`. An act that holds no words (a
+- **`tool` and `input`:** `say`, `photo`, `file`, `voice`, `speak`, `react`, `pin`, `sticker` and `random_draw`,
+  each the arguments its tool takes (`docs/chat-mcp.md`), and `talk`, a spoken talk asked by its `voice`, its
+  written `text` and its `spoken?` words. Any other tool is refused 400 `bad-request`. An act that holds no words (a
   picture or a file with no caption, a reaction, a pin, a sticker, a draw) goes out as the asker's agent, on the
   road the turn names, only where that agent's round is working in the room `by` names and no job asks. An act
-  that holds words (`say`, `speak`, `voice`, a `photo` or `file` with a `caption`) never goes out: asked in that
+  that holds words (`say`, `talk`, `voice`, a `photo` or `file` with a `caption`) never goes out: asked in that
   round into the room `by` names, it is refused, its `refusal` code `words-in-answer` (409), and anywhere else it
-  is handed. Every send not carried or refused is handed to the room's supervisor as a quiet instruction and
+  is handed. `speak` marks that round's answer to go out as a voice note and is refused anywhere else
+  (`docs/voiced-notices.md`, 「An answer said aloud」). Every send not carried or refused is handed to the room's supervisor as a quiet instruction and
   nothing goes out (`docs/messages.md`, 「Words handed to the room's supervisor」). `from` names the command or
   unit the words came through, which the handed words carry.
 - **`began`** is the moment the asking turn took its words, in epoch milliseconds. A send whose

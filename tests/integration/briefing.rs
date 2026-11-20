@@ -13,6 +13,7 @@ use std::time::Duration;
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::StatusCode;
+use bmo_chat_client::{ChatSend, FileBody};
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::briefing::{Summary, line_opening, reading_of, speak_summary, summary_of};
 use bmo_receiver::chat::conversation::Timings;
@@ -23,7 +24,8 @@ use bmo_receiver::routes::routes;
 use receiver_codes::SendRefusal;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use room_calls::sends::{Act, Asked, Asker, SayInput, SpeakInput};
+use receiver_policy::fill_marks;
+use room_calls::sends::{Act, Asked, Asker, SayInput, SpeakInput, TalkInput};
 use serde_json::{Value, json};
 use tempfile::tempdir;
 use tower::ServiceExt;
@@ -32,7 +34,7 @@ use crate::integration::common::Scratch;
 use crate::integration::common::queue::{Front, get, post, put, stood};
 use crate::integration::common::session::StandInSession;
 use crate::integration::common::units::{
-  ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
+  ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, stand_in_sound, unrun, woken,
 };
 
 const VOICE: &str = "voice-a";
@@ -374,6 +376,7 @@ struct Owner {
   standing: Standing,
   session: Arc<StandInSession>,
   runner: Runner,
+  chat: Arc<StandInChat>,
 }
 
 impl Owner {
@@ -384,12 +387,17 @@ impl Owner {
   // The owner's chat whose supervisor runs `chain` after each message, the receiver running its stages where the
   // chain names any.
   async fn staged(session: StandInSession, voice: Option<&str>, chain: &[&str]) -> Self {
+    Owner::on(StandInChat::new("road-a").owners(OWNER), session, voice, chain).await
+  }
+
+  // The owner's chat on the road `chat` stands in for.
+  async fn on(chat: StandInChat, session: StandInSession, voice: Option<&str>, chain: &[&str]) -> Self {
     let scratch = Scratch::new().await;
 
     crate::integration::common::session::set_chain(scratch.db(), chain).await;
 
     let data = tempfile::tempdir().unwrap();
-    let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+    let chat = Arc::new(chat);
     let prompts = data.path().join("prompts").join("chat");
 
     std::fs::create_dir_all(&prompts).unwrap();
@@ -397,7 +405,8 @@ impl Owner {
     std::fs::write(prompts.join(&CHAT_LINE.room.group_document), "A group room.").unwrap();
     std::fs::write(prompts.join(&CHAT_LINE.capabilities.document), "What the agent can do.").unwrap();
 
-    let mut standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+    let mut standing =
+      woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
 
     standing.receiver = standing.receiver.clone().with_instruction_gate(!chain.is_empty());
 
@@ -421,6 +430,7 @@ impl Owner {
       standing,
       session,
       runner,
+      chat,
     }
   }
 
@@ -721,8 +731,8 @@ fn say(text: &str) -> Act {
   })
 }
 
-fn speak(text: &str) -> Act {
-  Act::Speak(SpeakInput {
+fn talk(text: &str) -> Act {
+  Act::Talk(TalkInput {
     chat: None,
     via: None,
     voice: VOICE.to_owned(),
@@ -759,7 +769,7 @@ async fn a_send_the_agent_asks_into_the_room_during_its_summary_turn_is_refused_
   .await;
   assert!(owner.session.prompts()[1].contains(&CHAT_ROUND.voice.summary_marker));
 
-  for act in [say(LINE), speak(LINE)] {
+  for act in [say(LINE), talk(LINE)] {
     let answer = sent(&owner, OWNER, act).await;
 
     assert_eq!(answer["refusal"], json!(briefing_refusal(OWNER)), "{answer}");
@@ -818,7 +828,7 @@ async fn a_send_the_agent_asks_into_the_lines_room_during_its_reading_turn_is_re
     .unwrap();
   until("the reading turn working", || owner.session.working()).await;
 
-  let answer = sent(&owner, OWNER, speak("Backup: done.")).await;
+  let answer = sent(&owner, OWNER, talk("Backup: done.")).await;
 
   assert_eq!(answer["refusal"], json!(briefing_refusal(OWNER)), "{answer}");
 
@@ -828,4 +838,153 @@ async fn a_send_the_agent_asks_into_the_lines_room_during_its_reading_turn_is_re
   let after = sent(&owner, OWNER, say("Later.")).await;
 
   assert!(after.get("refusal").is_none() && after["handed"].is_i64(), "{after}");
+}
+
+fn speak(emotion: Option<&str>) -> Act {
+  Act::Speak(SpeakInput {
+    emotion: emotion.map(str::to_owned),
+  })
+}
+
+// Every voice note the road was asked to send, as its sound and what it says.
+fn voice_notes(owner: &Owner) -> Vec<(FileBody, String)> {
+  owner
+    .chat
+    .sent()
+    .into_iter()
+    .filter_map(|request| match request.send {
+      ChatSend::Voice { audio, said, .. } => Some((audio, said)),
+      _ => None,
+    })
+    .collect()
+}
+
+// Every line the road was asked to send as text.
+fn texts(owner: &Owner) -> Vec<String> {
+  owner
+    .chat
+    .sent()
+    .into_iter()
+    .filter_map(|request| match request.send {
+      ChatSend::Text { text, .. } => Some(text),
+      _ => None,
+    })
+    .collect()
+}
+
+// "a round asked to speak sends its answer, as its stages let it through, as a voice note of the engine's speech of
+// it in the agent's own voice, the words with the note, and the speech is told the line it went out as"
+#[tokio::test]
+async fn a_round_asked_to_speak_sends_its_answer_as_a_voice_note_in_its_own_voice() {
+  const ANSWER: &str = "Hello there, said in my own voice.";
+
+  let owner = Owner::on(
+    StandInChat::new("road-a").owners(OWNER).voicing(),
+    StandInSession::new("agent-a@agent", "unused")
+      .answering(&[ANSWER, "<<SKIP>>"])
+      .holding_turn(1),
+    Some(VOICE),
+    &[],
+  )
+  .await;
+  let emotion = CHAT_ROUND.voice.emotions[1].clone();
+
+  *owner.standing.voice.state.lock().unwrap() = "done".to_owned();
+  owner
+    .runner
+    .of(AGENT)
+    .instruct(OWNER, "Say hello aloud.".to_owned(), None, None, vec![])
+    .await;
+  until("the message turn working", || {
+    owner.session.prompts().len() == 1 && owner.session.working()
+  })
+  .await;
+
+  let marked = sent(&owner, OWNER, speak(Some(&emotion))).await;
+
+  assert!(marked.get("refusal").is_none(), "{marked}");
+  assert_eq!(
+    marked["lines"],
+    json!([fill_marks(
+      &CHAT_ROUND.voice.speak_marked,
+      &[("emotion", &format!("with the emotion {emotion}"))]
+    )])
+  );
+
+  owner.session.let_go();
+  owner.over(2).await;
+
+  let briefed = owner.standing.voice.briefed();
+  let speech = &briefed[0];
+
+  assert_eq!(speech.kind, "speech", "{briefed:#?}");
+  assert_eq!((speech.chat_id, speech.message_id, speech.plays), (OWNER, None, true));
+  assert_eq!(speech.voice_name, VOICE);
+  assert_eq!(speech.text, ANSWER);
+  assert_eq!(speech.emotion.as_ref(), Some(&emotion));
+  assert!(
+    speech.key.as_deref().is_some_and(|key| key.starts_with("receiver:speech:")),
+    "{speech:?}"
+  );
+  assert_eq!(voice_notes(&owner), [(FileBody::Inline(stand_in_sound(1)), ANSWER.to_owned())]);
+  assert!(
+    texts(&owner).iter().all(|text| !text.contains(ANSWER)),
+    "the answer went out once, said aloud"
+  );
+
+  let lines = owner.standing.voice.lines();
+
+  assert_eq!(lines.len(), 1, "{lines:?}");
+  assert_eq!(lines[0].0, 1, "the speech is told its line");
+}
+
+// "speak is refused where the road sends no voice note, for an emotion outside the set and outside the round, and
+// an answer marked by nothing goes out written"
+#[tokio::test]
+async fn speak_is_refused_off_a_voice_road_for_an_unknown_emotion_and_outside_its_round() {
+  const ANSWER: &str = "Written, since this road sends no voice note.";
+
+  let owner = Owner::new(
+    StandInSession::new("agent-a@agent", "unused")
+      .answering(&[ANSWER, "<<SKIP>>"])
+      .holding_turn(1),
+    Some(VOICE),
+  )
+  .await;
+
+  owner
+    .runner
+    .of(AGENT)
+    .instruct(OWNER, "Say it aloud.".to_owned(), None, None, vec![])
+    .await;
+  until("the message turn working", || {
+    owner.session.prompts().len() == 1 && owner.session.working()
+  })
+  .await;
+
+  let unknown = sent(&owner, OWNER, speak(Some("unknown"))).await;
+  let off_road = sent(&owner, OWNER, speak(None)).await;
+
+  assert!(unknown["refusal"].as_str().unwrap().contains("unknown is not an emotion"), "{unknown}");
+  assert!(off_road["refusal"].as_str().unwrap().contains("does not perform `voice`"), "{off_road}");
+
+  owner.session.let_go();
+  owner.over(2).await;
+
+  let after = sent(&owner, OWNER, speak(None)).await;
+
+  assert_eq!(
+    after["refusal"],
+    json!(
+      SendRefusal::SpeakOutsideRound {
+        agent: AGENT.to_owned(),
+        room: OWNER
+      }
+      .to_string()
+    ),
+    "{after}"
+  );
+  assert!(voice_notes(&owner).is_empty());
+  assert!(texts(&owner).iter().any(|text| text.contains(ANSWER)), "the answer went out written");
+  assert!(owner.standing.voice.briefed().iter().all(|one| one.kind != "speech"));
 }

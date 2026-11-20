@@ -66,9 +66,26 @@ pub enum SendRefusal {
   #[error(
     "this round of {agent} answers the room {room}, so words for it go into the round's answer, which the round's \
      message turn writes and the instruction stages check, and no send carries them; nothing was sent: write the words into \
-     the answer, and send a picture or a file without a caption"
+     the answer, send a picture or a file without a caption, and ask speak to have the answer itself go out as a voice \
+     note in your voice"
   )]
   WordsInAnswer { agent: String, room: i64 },
+  /// `speak` asked outside a round of the asker's own in the room the round answers: only that round's answer is
+  /// said aloud.
+  #[error(
+    "speak says aloud the answer of a round of {agent} in the room that round answers, and no such round of {agent} \
+     is working in the room {room}; nothing was marked: words for another room are handed there with say"
+  )]
+  SpeakOutsideRound { agent: String, room: i64 },
+  /// `speak` named an emotion outside the set an answer is said with.
+  #[error("{emotion} is not an emotion an answer is said with; name one of {emotions}, or none")]
+  SpeakEmotion { emotion: String, emotions: String },
+  /// `speak` asked by an agent whose registration names no voice.
+  #[error("{agent} has no voice of its own, so its answer goes out written; nothing was marked")]
+  SpeakVoiceless { agent: String },
+  /// `speak` asked where no voice engine is named, so nothing is spoken.
+  #[error("no voice engine is named, so the answer goes out written; nothing was marked")]
+  SpeakNoEngine,
 }
 
 impl SendRefusal {
@@ -89,7 +106,11 @@ impl SendRefusal {
       | Self::Unnumbered { .. }
       | Self::ArchivedRoom { .. }
       | Self::BriefingTurn { .. }
-      | Self::WordsInAnswer { .. } => StatusCode::CONFLICT,
+      | Self::WordsInAnswer { .. }
+      | Self::SpeakOutsideRound { .. }
+      | Self::SpeakVoiceless { .. }
+      | Self::SpeakNoEngine => StatusCode::CONFLICT,
+      Self::SpeakEmotion { .. } => StatusCode::BAD_REQUEST,
     }
   }
 }

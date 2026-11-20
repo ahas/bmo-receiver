@@ -16,7 +16,8 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 use room_calls::sends::{
-  FileInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, StickerInput, VoiceInput,
+  FileInput, PhotoInput, PinInput, RandomDrawInput, ReactInput, SayInput, SpeakInput, StickerInput,
+  VoiceInput,
 };
 use room_calls::turn::NO_ROOM;
 use send_tool::{ENTRIES, call};
@@ -278,6 +279,32 @@ async fn voice_is_asked_with_its_path_its_caption_and_what_it_says() {
         "said": "today's news",
         "transcript": "the whole of the news",
       },
+    }),
+  );
+}
+
+// "speak is asked of the sends route for the turn's own room alone, with the emotion it names"
+#[tokio::test]
+async fn speak_is_asked_for_the_turns_own_room_with_its_emotion() {
+  let book = Book::default();
+  let base = stood(book.clone()).await;
+  let data = tempdir().unwrap();
+  write_env(data.path(), base);
+  let session = record(data.path(), "agent-a", ROOM, "road-a", 1_000);
+
+  let answered = call(&session, "speak", json!({ "emotion": "calm" })).await;
+
+  assert_eq!(schema_of("speak.json"), input_schema::<SpeakInput>());
+  assert!(!answered.is_error, "{}", answered.plain());
+  let (route, body) = asked_of(&book);
+
+  assert_eq!(route.as_str(), "/sends");
+  assert_eq!(
+    body,
+    json!({
+      "asker": { "room": ROOM, "via": "road-a", "agentName": "agent-a", "began": 1_000, "by": format!("chat:{ROOM}") },
+      "tool": "speak",
+      "input": { "emotion": "calm" },
     }),
   );
 }

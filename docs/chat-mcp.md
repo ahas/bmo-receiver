@@ -22,6 +22,10 @@ the supervisor of any other (`docs/messages.md`, 「Words handed to the room's s
   optional `replyTo` naming the message it replies to; a `caption` is words, as for `photo`. A file a room's folder holds goes only
   into that room, and a job sends none of them (`docs/room-files.md`). It is for a file a room saves or opens;
   a picture a room is to look at goes through `photo`, and the entry's description says so.
+- **`speak`**: the round's own answer said aloud, with an optional `emotion`: in the agent's own round it marks
+  the answer that round writes to go out as a voice note in the agent's own voice, and it is refused anywhere else
+  (`docs/voiced-notices.md`, 「An answer said aloud」). Its verb is `voice`, so a room whose road sends no voice note
+  is not shown it.
 - **`voice`**: an OGG/Opus voice note at `path`, with its `caption`, what it `said`, the `transcript` read out and
   an optional `replyTo` naming the message it replies to. A voice note is words, so it is refused in the round's
   own room and handed anywhere else.
@@ -67,7 +71,7 @@ needs its road to perform, so the room's block names the sending entries a room'
   answer, the connection failing or the bound passing, never waiting on past it. A connection is given five
   seconds to open. A line, a spoken talk and a question of what a road performs are handed on or refused and
   answered at once, so the receiver is given a minute for them; a reaction, a pin,
-  a sticker and a fair draw go to the road within the call, three minutes; a picture, a file and a
+  a sticker, a fair draw and the mark `speak` leaves go to the road or the round within the call, three minutes; a picture, a file and a
   voice note carry their bytes there, ten minutes. A call whose bound passed says so, and that what it asked may
   still be done, so the asker looks before asking it again. Every send returns once it is on its way, a draw once
   it is drawn and its line is out.

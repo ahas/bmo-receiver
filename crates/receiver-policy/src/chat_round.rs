@@ -37,6 +37,9 @@ pub struct Voice {
   pub reading_marker: String,
   pub reading: String,
   pub reading_rule: String,
+  /// What a round's `speak` is answered with once its answer is marked to go out said aloud, `{emotion}` the
+  /// emotion it is said with or `plain` where none was named.
+  pub speak_marked: String,
 }
 
 impl Voice {

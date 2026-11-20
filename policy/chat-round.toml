@@ -49,6 +49,9 @@ summary_rule = "WHEN A QUIET INSTRUCTION IS MARKED {marker} — the line just se
 reading_marker = "VOICE READING."
 reading = "This is the line, as the facts:\n{line}\nEND OF FACTS"
 reading_rule = "WHEN A QUIET INSTRUCTION IS MARKED {marker} — the owner asked to hear this line read out in full, in your voice. On the first line, {label} and the one emotion the reading is said with, the one of {emotions} that fits what the line tells, the word alone as written there. Then write the whole line as a spoken script, in the line's language: everything it says, in sentences a person would say aloud, a list read out as sentences, every figure, name and conclusion kept. Write names, acronyms, numbers, dates, times and units as the line writes them. No markup, no symbols, no list, no quotation. What you write after the emotion line is kept as the reading's words, and the voice says those same words in a Korean reader's reading, with no word added, dropped or moved. Write nothing else. Tools are off for this turn: make no tool call, and send nothing into any room from it, no talk, no send and no voice note; the answer itself becomes the line's reading, which the line already carries. This answer goes to no room."
+# What a round's speak is answered with once its answer is marked to go out said aloud (docs/voiced-notices.md,
+# 「An answer said aloud」); {emotion} is the emotion it is said with, or plain where none was named.
+speak_marked = "Marked: the answer this round writes goes out as a voice note in your own voice, said {emotion}, its words standing with the note. Write it as you would say it aloud, in sentences and with no markup, and nothing else beside it."
 
 # The blocks the room's words stand in.
 [blocks]

@@ -2,13 +2,16 @@
 //! the send's own markers taken off, the dashes replaced, and sent on the road the turn
 //! answers on — the one its words came in on where that road reaches the room — in the one send that road divides
 //! into its parts, the first pinned to the message it answers, folded only where the answer's own mark asks it
-//! (docs/wake.md, 「Folds」). What went out names the round that wrote it, is attached to the run the round's turn
+//! (docs/wake.md, 「Folds」). An answer its round asked said aloud goes out as a voice note in the agent's own voice,
+//! its words beside it, where the voice engine spoke it, and written where it did not (docs/voiced-notices.md, 「An
+//! answer said aloud」). What went out names the round that wrote it, is attached to the run the round's turn
 //! opened at the agency, and the send's own verdict is written beside the round's.
 
-use bmo_chat_client::{ChatSend, ChatSendRequest};
+use bmo_chat_client::{ChatSend, ChatSendRequest, FileBody};
 
 use super::conversation::{BoxFuture, Reply, ReplyRoad, Sent, Unsent};
 use super::sentinels::asks_fold;
+use super::spoken::{self, Spoken, Voiced};
 use super::turnover::judge;
 use crate::form::{outgoing, strip_prompt_scaffolding, without_control_markers};
 use crate::now_ms;
@@ -16,6 +19,7 @@ use crate::receiver::speech::KeptLine;
 use crate::receiver::{Receiver, rows};
 use crate::roads::providers::Carried;
 use crate::roads::{Road, added};
+use crate::verbs::sends::{keep_sent_files, kept_line};
 
 /// An answer bound for a room: the agent whose answer it is, its words, the message it answers, the road its words
 /// came in on, when the round that wrote it began and its name, and when the room said the earliest thing it
@@ -34,6 +38,9 @@ pub struct OutgoingReply {
   pub round_started_at: Option<i64>,
   pub round: Option<String>,
   pub asked_at: Option<i64>,
+  /// How the answer goes out said aloud, where its round asked it with speak.
+  #[serde(skip)]
+  pub spoken: Option<Spoken>,
 }
 
 // The round's judgements that were written before the message existed, filed by the gate, whose they are, under
@@ -126,7 +133,36 @@ pub async fn send_reply(receiver: &Receiver, reply: &OutgoingReply) -> Result<Se
 
       Err(Unsent::nothing_went("no road answers the room"))
     }
-    Some(road) => carry(receiver, road, reply, &text, fold, started).await,
+    Some(road) => {
+      let voiced = voiced(receiver, &road, reply, &text).await;
+
+      carry(receiver, road, reply, &text, fold, started, voiced).await
+    }
+  }
+}
+
+// The answer's speech, where its round asked it said aloud and the road performs a voice note; none where it did
+// not, and none where the speech did not stand, which the journal is told, so the answer goes out written.
+async fn voiced(receiver: &Receiver, road: &Road, reply: &OutgoingReply, text: &str) -> Option<Voiced> {
+  let spoken = reply.spoken.as_ref()?;
+  let chat_id = reply.chat_id;
+
+  if !receiver.roads().facts(road).await.can("voice") {
+    eprintln!("chat {chat_id}: the road answering performs no voice note, so the answer goes out written");
+
+    return None;
+  }
+
+  let agent = reply.agent.clone().unwrap_or_else(|| receiver.default_answerer());
+  let key = reply.round.as_deref().map(|round| format!("receiver:speech:{round}"));
+
+  match spoken::voiced(receiver, &agent, chat_id, text, spoken, key).await {
+    Ok(voiced) => Some(voiced),
+    Err(why) => {
+      eprintln!("chat {chat_id}: the answer was not said aloud, so it goes out written: {why}");
+
+      None
+    }
   }
 }
 
@@ -139,21 +175,33 @@ async fn carry(
   text: &str,
   fold: bool,
   started: i64,
+  voiced: Option<Voiced>,
 ) -> Result<Sent, Unsent> {
   let chat_id = reply.chat_id;
-  let send = ChatSend::Text {
-    text: text.to_owned(),
-    silent: false,
-    fold,
+  // A voice note says the answer and carries its words, which a road folds under it.
+  let send = match &voiced {
+    Some(voiced) => ChatSend::Voice {
+      audio: FileBody::Inline(voiced.sound.clone()),
+      said: text.to_owned(),
+      caption: None,
+      transcript: None,
+    },
+    None => ChatSend::Text {
+      text: text.to_owned(),
+      silent: false,
+      fold,
+    },
   };
   let mut request = ChatSendRequest::new(chat_id, send.clone());
   request.reply_to_message_id = reply.reply_to;
   let agent = reply.agent.clone().unwrap_or_else(|| receiver.default_answerer());
+  let kept_text = kept_line(&send);
+  let road_key = road.key().to_owned();
   // The answer as the room keeps it, which goes on to the room's other providers as the same send, its fold
   // with it.
   let line = KeptLine {
     chat_id,
-    text,
+    text: &kept_text,
     reply_to: reply.reply_to,
     sent: None,
     agent: Some(&agent),
@@ -223,6 +271,15 @@ async fn carry(
     }
   };
 
+  // A voice note's sound is kept with the message the room keeps, and its speech is told the line it went out as.
+  if let Some(voiced) = &voiced {
+    if let Err(why) = keep_sent_files(receiver, &road_key, &request, kept, &[]).await {
+      eprintln!("chat {chat_id}: the answer's voice note was not kept: {}", why.detail);
+    }
+
+    spoken::name_line(receiver, chat_id, voiced.briefing, message_id).await;
+  }
+
   mark_round(receiver, chat_id, kept, reply.round.as_deref()).await;
   attach_run(receiver, chat_id, kept, reply.round.as_deref()).await;
   answer_wait(receiver, chat_id, kept, reply.asked_at).await;
@@ -269,6 +326,7 @@ impl crate::chat::conversation::Sending for Sender {
           round_started_at: Some(road.began),
           round: Some(road.round.to_owned()),
           asked_at: road.asked_at,
+          spoken: road.spoken.clone(),
         },
       )
       .await

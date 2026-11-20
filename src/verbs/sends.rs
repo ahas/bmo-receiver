@@ -236,18 +236,7 @@ impl Sends {
     message_id: i64,
     missed: &[MissedPicture],
   ) -> Result<(), Fault> {
-    let files = sent_files(&request.send, missed);
-
-    if files.is_empty() {
-      return Ok(());
-    }
-
-    let db = self.receiver.db();
-    let Some(kept) = rows::message(db, request.room_id, message_id, via).await? else {
-      return Ok(());
-    };
-
-    files::keep(db, self.receiver.data_root(), &kept, &files).await
+    keep_sent_files(&self.receiver, via, request, message_id, missed).await
   }
 
   // A read-only or archived room refused before any road is chosen, so nothing is sent or kept there.
@@ -546,10 +535,33 @@ fn puts_message(send: &ChatSend) -> bool {
   )
 }
 
+/// The files a send handed over as bytes, kept under the record row its message stands as on the road `via`
+/// (docs/room-files.md, 「Message files」), a file the road said did not go left out.
+pub async fn keep_sent_files(
+  receiver: &Receiver,
+  via: &str,
+  request: &ChatSendRequest,
+  message_id: i64,
+  missed: &[MissedPicture],
+) -> Result<(), Fault> {
+  let files = sent_files(&request.send, missed);
+
+  if files.is_empty() {
+    return Ok(());
+  }
+
+  let db = receiver.db();
+  let Some(kept) = rows::message(db, request.room_id, message_id, via).await? else {
+    return Ok(());
+  };
+
+  files::keep(db, receiver.data_root(), &kept, &files).await
+}
+
 /// What a send's words are, as the room's record keeps them: a line as it stands, a picture or an album under
 /// its caption, a file, a sound and a voice under the marks the policy keeps them with, a sticker as its emoji or
 /// a platform item under its title, else its key.
-fn kept_line(send: &ChatSend) -> String {
+pub fn kept_line(send: &ChatSend) -> String {
   match send {
     ChatSend::Text { text, .. } => text.clone(),
     ChatSend::Photo { caption, .. } | ChatSend::Album { caption, .. } => {

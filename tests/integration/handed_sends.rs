@@ -288,7 +288,7 @@ async fn a_spoken_talk_is_handed_as_its_words_and_in_its_own_round_is_refused() 
   let speak = |asker: Value| {
     json!({
       "asker": asker,
-      "tool": "speak",
+      "tool": "talk",
       "input": { "voice": "voice-a", "text": "Three items closed.", "spoken": "Three items closed, spoken." },
     })
   };

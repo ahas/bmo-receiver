@@ -127,7 +127,7 @@ the operations machine's:
 | `room registration` | `--room <id> --by <administrator> [--mode record-only\|avatar]` | `GET /rooms/{roomId}/registration` where no mode is named, printing the mode, the providers and whether the list was chosen, whether the room is read-only and by which chat services, and the answerers; a mode named goes through `PUT /rooms/{roomId}/registration`, and the registration as it now stands is printed the same way |
 | `room add` | `--provider <key> [--room-id <id> \| --contact-id <id> \| --contact-ids <id,…>] [--title <words>]` | `POST /rooms` in `record-only` mode, carrying `provider` and the one of `roomId`, `contactId` or `contactIds` named, with `title` where one is; a call naming none prints the provider's rooms and contacts by name, each with whether the receiver holds it, through `GET /providers`, `GET /providers/{key}/rooms` and `GET /providers/{key}/contacts`; the room's refusals are the receiver's own. Only the owner's word in the turn is served, and no grant names it |
 | `room fill-files` | `--room <id> [--rows <n>] [--dry-run]` | `POST /rooms/{roomId}/file-fills` (`docs/room-files.md`, 「Files filled in later」): one line for each row the pass reached, its number, what the road answered and the kinds and bytes kept, and a last line counting the rows filled and the bytes; `--dry-run` prints the rows it would ask and asks nothing |
-| `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named, and the act `speak` where `--voice` names a trained voice, carrying the voice, the words and the `--spoken` words where given (taken only with `--voice`); either is handed or refused as `room say` is, and nothing is synthesised |
+| `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named, and the act `talk` where `--voice` names a trained voice, carrying the voice, the words and the `--spoken` words where given (taken only with `--voice`); either is handed or refused as `room say` is, and nothing is synthesised |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture; a caption is words, refused in the shell's own round for that round's room and handed elsewhere |
 | `react` | `--chat <id> --message <id> --emoji <emoji>` | `POST /sends`, the act `react`; `none` clears the agent's own |
 | `pin` | `--chat <id> --message <id> [--unpin]` | `POST /sends`, the act `pin` |
@@ -405,13 +405,16 @@ it serves an open room. The port reads the model as
 
 Its `docs/boundary-api.md` and `docs/openapi.json`, in camelCase and behind its token, at the `voice` the
 configuration names: `POST /briefings` with `voiceName`, `text`, `chatId`, `messageId`, `kind`, `title?`,
-`emotion?` and `plays`, a notice turn's summary or a line's full reading, its `text` the written words and no
-`spoken`, so the engine derives the spoken words; and `GET /briefings` with `chatId`,
-`messageId` and `kind`, the page a line's full reading is looked up in; `POST /briefings/stop` with `kind`
-`summary` and no room, every room's summaries stopped once the whole voice briefing is switched off, while a
-full reading a person asked for goes on. The voice an agent speaks in is the
-`voice` its agency registration names. The receiver reads `id`, `state` and `kind` of a briefing, and nothing of
-its sound: listeners read that, and the briefing's events, from the engine.
+`emotion?`, `plays` and `key?`, a notice turn's summary, a line's full reading or an answer said aloud (`speech`,
+with no `messageId` and keyed by its round), its `text` the written words and no `spoken`, so the engine derives the
+spoken words; `GET /briefings` with `chatId`, `messageId` and `kind`, the page a line's full reading is looked up
+in; `GET /briefings/{briefingId}`, a speech read until it ends; `GET /briefings/{briefingId}/sound`, a done speech's
+sound, which goes out as the answer's voice note; `POST /briefings/{briefingId}/line` with `messageId`, the line a
+speech went out as; `POST /briefings/stop` with `kind` `summary` and no room, every room's summaries stopped once
+the whole voice briefing is switched off, while a full reading a person asked for goes on, and with `chatId` and
+`kind` `speech`, a room's speech the receiver waited on past its bound. The voice an agent speaks in is the `voice`
+its agency registration names. The receiver reads `id`, `state`, `kind` and `synthesisId` of a briefing, and the
+sound of a speech alone: listeners read a summary's sound, and every briefing's events, from the engine.
 
 ### The cache warmer
 
@@ -547,11 +550,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
   message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
   the release's `VERSION` file where it does not (「The deployments」).
-- **The voice engine's `POST /briefings/stop`** takes `chatId` alone and refuses any other field, so a stop
-  stops every kind; the receiver sends `kind`, `summary`, to stop the summaries alone and leave a full reading
-  speaking, and the engine is to take it, stop that kind alone and name it on its `briefings.stopped`, so a
-  listener falls silent for that kind alone. Until it does, the engine refuses the receiver's stop, which is
-  asked again at the policy's pace while the switch stays off, so no summary is stopped by the switch.
 - **The brain's `docs/boundary-api.md`** does not yet state `GET /brains/{brainId}/consolidation`; the receiver
   reads it as 「The brain」 above states, `consolidationDue` among `unconsolidatedImportance`, `threshold` and
   `unconsolidatedCount`, until it does.

@@ -272,6 +272,12 @@ impl StandInChat {
     self
   }
 
+  /// The service declares `voice`: it sends a voice note.
+  pub fn voicing(self) -> Self {
+    self.cans.lock().unwrap().insert(ChatCapability::Voice);
+    self
+  }
+
   /// Every send carried through so far, in order.
   /// The service answers a message's files as given when they are asked again, and declares `fetchMedia`.
   pub fn filing(mut self, message: i64, answer: FilesAnswer) -> Self {
@@ -2141,6 +2147,13 @@ pub struct StandInVoice {
   pub failing_stops: Mutex<usize>,
   /// Every stop asked, in order, each with whether it was taken.
   pub stops: Mutex<Vec<bool>>,
+  /// Every line named, as the briefing and the message it went out as.
+  pub lines: Mutex<Vec<(i64, i64)>>,
+}
+
+/// The sound the stand-in engine answers for a done briefing: the start of an Ogg stream and the briefing's id.
+pub fn stand_in_sound(briefing_id: i64) -> Vec<u8> {
+  format!("OggS briefing {briefing_id}").into_bytes()
 }
 
 impl StandInVoice {
@@ -2153,7 +2166,13 @@ impl StandInVoice {
       handed: AtomicUsize::default(),
       failing_stops: Mutex::default(),
       stops: Mutex::default(),
+      lines: Mutex::default(),
     }
+  }
+
+  /// Every line named, as the briefing and the message it went out as.
+  pub fn lines(&self) -> Vec<(i64, i64)> {
+    self.lines.lock().unwrap().clone()
   }
 
   /// Every briefing taken, in order.
@@ -2320,6 +2339,7 @@ impl VoiceEngine for StandInVoice {
         id: briefed.len() as i64,
         kind: briefing.kind.clone(),
         state: "waiting".to_owned(),
+        synthesis_id: Some(briefed.len() as i64),
       })
     })
   }
@@ -2344,6 +2364,7 @@ impl VoiceEngine for StandInVoice {
             id: at as i64 + 1,
             kind: one.kind,
             state: self.state_of(at as i64 + 1),
+            synthesis_id: Some(at as i64 + 1),
           })
           .collect(),
       )
@@ -2375,6 +2396,7 @@ impl VoiceEngine for StandInVoice {
           id: at as i64 + 1,
           kind: one.kind,
           state: self.state_of(at as i64 + 1),
+          synthesis_id: Some(at as i64 + 1),
         })
         .filter(|one| one.kind == kind && ["waiting", "speaking"].contains(&one.state.as_str()))
         .map(|one| Briefing {
@@ -2389,6 +2411,65 @@ impl VoiceEngine for StandInVoice {
       }
 
       Ok(stopped)
+    })
+  }
+
+  fn stop_in<'a>(&'a self, chat_id: i64, kind: &'a str) -> BoxFuture<'a, Answer<Vec<Briefing>>> {
+    Box::pin(async move {
+      self.stops.lock().unwrap().push(true);
+
+      let stopped: Vec<Briefing> = self
+        .briefed()
+        .into_iter()
+        .enumerate()
+        .filter(|(at, one)| {
+          one.chat_id == chat_id
+            && one.kind == kind
+            && ["waiting", "speaking"].contains(&self.state_of(*at as i64 + 1).as_str())
+        })
+        .map(|(at, one)| Briefing {
+          id: at as i64 + 1,
+          kind: one.kind,
+          state: "stopped".to_owned(),
+          synthesis_id: Some(at as i64 + 1),
+        })
+        .collect();
+      let mut states = self.states.lock().unwrap();
+
+      for one in &stopped {
+        states.insert(one.id, one.state.clone());
+      }
+
+      Ok(stopped)
+    })
+  }
+
+  fn briefing(&self, briefing_id: i64) -> BoxFuture<'_, Answer<Briefing>> {
+    Box::pin(async move {
+      let kind = self
+        .briefed()
+        .get(briefing_id as usize - 1)
+        .map(|one| one.kind.clone())
+        .unwrap_or_default();
+
+      Ok(Briefing {
+        id: briefing_id,
+        kind,
+        state: self.state_of(briefing_id),
+        synthesis_id: Some(briefing_id),
+      })
+    })
+  }
+
+  fn sound(&self, briefing_id: i64) -> BoxFuture<'_, Answer<Vec<u8>>> {
+    Box::pin(async move { Ok(stand_in_sound(briefing_id)) })
+  }
+
+  fn name_line(&self, briefing_id: i64, message_id: i64) -> BoxFuture<'_, Answer<Briefing>> {
+    Box::pin(async move {
+      self.lines.lock().unwrap().push((briefing_id, message_id));
+
+      self.briefing(briefing_id).await
     })
   }
 }

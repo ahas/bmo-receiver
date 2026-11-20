@@ -108,6 +108,10 @@ family. No code carries a sentence in a room's language.
 | `job-sends-room-file` | 403 | | a job asked to send a room's file |
 | `briefing-turn` | 409 | `agent`, `room` | the agent's session asked a send into the room while the receiver carries its voice briefing turn there, whose answer is the script itself |
 | `words-in-answer` | 409 | `agent`, `room` | the agent's own round asked a line, a spoken talk, a voice note or a caption into the room it answers, whose words go only into the round's answer, which the instruction pipeline reviews (`docs/messages.md`, 「Words handed to the room's supervisor」) |
+| `speak-outside-round` | 409 | `agent`, `room` | `speak` was asked outside a round of the agent's own in the room that round answers; only that round's answer is said aloud (`docs/voiced-notices.md`, 「An answer said aloud」) |
+| `speak-emotion` | 400 | `emotion`, `emotions` | `speak` named an emotion outside the set an answer is said with |
+| `speak-voiceless` | 409 | `agent` | `speak` was asked by an agent whose registration names no voice |
+| `speak-no-engine` | 409 | | `speak` was asked where no voice engine is named |
 
 ### RoomGrantRefusal
 
