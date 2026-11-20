@@ -41,6 +41,18 @@ room_handed = "The room's words {ids} were handed in this turn; only the lines a
 # its own follows it, and an empty chain sends the message as the message turn wrote it.
 chain = ["review"]
 
+# The audit of the people the message answers, a fixed system instruction asked before the chain on every round
+# whose session has read nothing from the brain about one of them (docs/instruction.md, 「The audit before the
+# stages」). `name` is the name its row of the round log and its marker go by; `text` heads the instruction; a line
+# follows for each person it names, `read` where the brain holds records of them and `ask` where it holds no name
+# for them and they were never asked, `read_ask` where both hold. {name} and {id} are the person's.
+[audit]
+name = "audit"
+text = "This session has read nothing from the brain about the people below whom the message answers. Read their brain records with your tools, how each is to be addressed and their traits, and answer with the message revised to fit them, or PASS where it already fits."
+read = "- {name} (id {id}): read their records."
+ask = "- {name} (id {id}): the brain holds nothing about them. Have the message ask them once how they want to be called, and when they answer, record it with your brain tool as a memory of type name about them."
+read_ask = "- {name} (id {id}): read their records; the brain holds no name for them. Have the message ask them once how they want to be called, and when they answer, record it with your brain tool as a memory of type name about them."
+
 # The words of each instruction, by its stage's name, last of the file so the table holds nothing but them: the
 # words the deployment set, which the console sets over per supervisor in the person's own words.
 [stages]

@@ -28,7 +28,7 @@ use receiver_ports::agency::{
   OpenRun, Passed, Removal, Repository, ResetPoint, Rest, RestKind, Role, Run, RunLine, RunningJob, Said,
   Scope, Session, SessionState, Switches, Turn, TurnRead,
 };
-use receiver_ports::brain::BrainUnit;
+use receiver_ports::brain::{BrainUnit, Known};
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Entry, Envelope, Gate, IndexGroup, Judgement};
 use receiver_ports::hearing::{Heard as HearingHeard, Hearing};
@@ -2178,10 +2178,13 @@ impl StandInVoice {
 pub const BRAIN: i64 = 9;
 
 /// The brain as a test sets it: every agent's brain is `BRAIN`, whether a consolidation is due is what the test
-/// says, and every fold reported is kept, by the brain and the session key.
+/// says, and every fold reported is kept, by the brain and the session key. It keeps people only once a test says
+/// what it holds of them: what it holds of each person by key, and whom each memory is about.
 pub struct StandInBrain {
   pub due: Mutex<bool>,
   pub folds: Mutex<Vec<(i64, String)>>,
+  pub people: Mutex<Option<HashMap<String, Known>>>,
+  pub about: Mutex<HashMap<i64, Vec<String>>>,
 }
 
 impl StandInBrain {
@@ -2189,7 +2192,16 @@ impl StandInBrain {
     Self {
       due: Mutex::new(false),
       folds: Mutex::default(),
+      people: Mutex::default(),
+      about: Mutex::default(),
     }
+  }
+
+  /// From now on it keeps people, holding what `known` names of each and nothing of anyone else.
+  pub fn knowing(&self, known: &[(&str, Known)]) {
+    let held = known.iter().map(|(key, known)| ((*key).to_owned(), *known)).collect();
+
+    *self.people.lock().unwrap() = Some(held);
   }
 
   /// Every fold reported, in order.
@@ -2209,6 +2221,28 @@ impl BrainUnit for StandInBrain {
     self.folds.lock().unwrap().push((BRAIN, session_key.to_owned()));
 
     Box::pin(async { Ok(Some(0)) })
+  }
+
+  fn person<'a>(&'a self, _agent: &'a str, key: &'a str) -> BoxFuture<'a, Answer<Option<Known>>> {
+    let known = self
+      .people
+      .lock()
+      .unwrap()
+      .as_ref()
+      .map(|people| people.get(key).copied().unwrap_or_default());
+
+    Box::pin(async move { Ok(known) })
+  }
+
+  fn people_of<'a>(
+    &'a self,
+    _agent: &'a str,
+    memories: &'a [i64],
+  ) -> BoxFuture<'a, Answer<Option<Vec<String>>>> {
+    let about = self.about.lock().unwrap();
+    let people = memories.iter().flat_map(|id| about.get(id).cloned().unwrap_or_default()).collect();
+
+    Box::pin(async move { Ok(Some(people)) })
   }
 }
 

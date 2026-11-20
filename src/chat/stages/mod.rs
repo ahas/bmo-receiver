@@ -6,6 +6,7 @@
 //! turn that sends nothing answers `<<SKIP: <why>>>` and ends the round with nothing sent. Every turn of the round is
 //! written in the round log.
 
+pub mod audit;
 pub mod log;
 pub mod table;
 
@@ -431,32 +432,40 @@ impl Run<'_> {
     )
   }
 
-  // The people the message answers, one line each in the order they first spoke (docs/instruction.md, 「The stages before the send」):
-  // every sender of the round's words and of those shown to it, but the agent itself and the senders of words its
-  // answer marked as needing no answer or as answered in a round of their own.
-  fn answered_people(&self) -> Vec<String> {
-    let said = &INSTRUCTION;
+  // The people the message answers, in the order they first spoke (docs/instruction.md, 「The stages before the
+  // send」): every sender of the round's words and of those shown to it, but the agent itself and the senders of
+  // words its answer marked as needing no answer or as answered in a round of their own. Each is the name they go by
+  // in the room's words and their sender number, where the chat service gave one.
+  fn answered(&self) -> Vec<(String, Option<i64>)> {
     let set_aside =
       |id: i64| self.marks.contains(&(Mark::Done, id)) || self.marks.contains(&(Mark::Separate, id));
-    let mut seen: Vec<Option<i64>> = vec![];
-    let mut people = vec![];
+    let mut people: Vec<(String, Option<i64>)> = vec![];
 
     for message in self.message_turn.batch.iter().chain(self.shown.iter()) {
       if message.sender_id == self.message_turn.room.identity
         || set_aside(message.message_id)
-        || seen.contains(&message.sender_id)
+        || people.iter().any(|(_, id)| *id == message.sender_id)
       {
         continue;
       }
 
-      seen.push(message.sender_id);
-
-      let id = message.sender_id.map_or_else(|| "unknown".to_owned(), |id| id.to_string());
-
-      people.push(fill_marks(&said.person, &[("name", &message.sender_name), ("id", &id)]));
+      people.push((message.sender_name.clone(), message.sender_id));
     }
 
     people
+  }
+
+  // The people the message answers, one line each as a stage's turn shows them.
+  fn answered_people(&self) -> Vec<String> {
+    self
+      .answered()
+      .into_iter()
+      .map(|(name, id)| {
+        let id = id.map_or_else(|| "unknown".to_owned(), |id| id.to_string());
+
+        fill_marks(&INSTRUCTION.person, &[("name", &name), ("id", &id)])
+      })
+      .collect()
   }
 
   // One more turn of the same session, its row written down. Where the turn skipped naming no reason, the same turn
@@ -581,11 +590,13 @@ impl Run<'_> {
     Ok(answer)
   }
 
-  // One instruction stage of the chain asked over the message as it stands, its row written with its verdict, and
+  // One instruction stage asked over the message as it stands, a stage of the chain or the audit, its row written
+  // under `kind` with its verdict, and
   // the message that goes on from it: the stage's whole answer where it revised the message, the standing one where
   // it passed. The room's words and the rules it carried in full go to the later stages as marks.
   async fn stage(
     &mut self,
+    kind: Kind,
     stage: &Stage,
     place: (usize, usize),
     message: Reply,
@@ -602,14 +613,14 @@ impl Run<'_> {
     tell_start(self.conversations, message_turn.round, self.held.chat_id, self.agent, started);
 
     let words = self.stage_prompt(&stage.name, &stage.text, &message.text);
-    let mut answer = self.carry(Kind::Stage, &stage.name, &words, false).await?;
+    let mut answer = self.carry(kind, &stage.name, &words, false).await?;
     let verdict = stage_verdict(&answer.reply.text, answer.ended, &message.text);
     let reason =
       (answer.ended == Answered::Skip).then(|| answer.reason.clone().unwrap_or(NO_REASON.to_owned()));
 
     answer.ended = verdict;
     answer.reason = reason;
-    answer.write(&mut self.log, Kind::Stage, &stage.name).await;
+    answer.write(&mut self.log, kind, &stage.name).await;
 
     for message in self.shown.iter().chain(message_turn.batch) {
       self.turn_mark.hand_room(message.message_id);
@@ -620,6 +631,102 @@ impl Run<'_> {
     }
 
     Ok(if verdict == Answered::Revised { answer.reply } else { message })
+  }
+}
+
+impl Run<'_> {
+  // The audit of the people the message answers (docs/instruction.md, 「The audit before the stages」): asked where the
+  // session read nothing from the brain about one of them, naming each such person with what the agent is to do,
+  // and skipped where it read something of every one, where the brain does not reach the supervisor's turns or the
+  // agent has no brain. The people it has the message ask how they want to be called are kept as asked, so none is
+  // asked twice.
+  async fn audit(&mut self, message: Reply) -> Result<Reply, Failure> {
+    let receiver = self.stager.receiver.clone();
+    let Some(brain) = receiver.units().brain.clone() else {
+      return Ok(message);
+    };
+
+    if !super::window::brain_reaches(&receiver, self.agent).await {
+      return Ok(message);
+    }
+
+    let read = self.people_read().await;
+    let asked = audit::asked(receiver.db(), self.agent).await;
+    let said = &INSTRUCTION.audit;
+    let mut lines: Vec<String> = vec![];
+    let mut asking: Vec<String> = vec![];
+
+    for (name, id) in self.answered() {
+      let Some(id) = id else { continue };
+      let key = id.to_string();
+
+      if read.contains(&key) {
+        continue;
+      }
+
+      let known = match brain.person(self.agent, &key).await {
+        Ok(Some(known)) => known,
+        Ok(None) => return Ok(message),
+        Err(why) => {
+          eprintln!("chat {}: what the brain holds of {key} could not be read: {}", self.held.chat_id, why);
+          continue;
+        }
+      };
+      let owed = audit::owed(known, asked.contains(&key));
+      let Some(line) = owed.line(said) else { continue };
+
+      if owed.asks() {
+        asking.push(key.clone());
+      }
+
+      lines.push(fill_marks(line, &[("name", &name), ("id", &key)]));
+    }
+
+    if lines.is_empty() {
+      return Ok(message);
+    }
+
+    let stage = Stage {
+      name: said.name.clone(),
+      text: format!("{}\n{}", said.text, lines.join("\n")),
+      set: false,
+    };
+    let message = self.stage(Kind::Audit, &stage, (1, 1), message).await?;
+
+    if let Err(why) = audit::keep_asked(receiver.db(), self.agent, &asking).await {
+      eprintln!("chat {}: the people asked their names were not kept: {}", self.held.chat_id, why.detail);
+    }
+
+    Ok(message)
+  }
+
+  // The people this session has read something of from the brain, by key: every piece its loads hold, the agency's
+  // record of what it was handed and read through the gate, and the round's own core, read as a person's sheet by its
+  // path or as a memory whose subjects the brain names.
+  async fn people_read(&self) -> HashSet<String> {
+    let receiver = &self.stager.receiver;
+    let session = self.latest.session.as_deref();
+    let mut paths: Vec<String> = super::context::loaded_in(receiver, session)
+      .await
+      .unwrap_or_default()
+      .into_keys()
+      .collect();
+
+    paths.extend(self.message_turn.selection.entries.iter().map(|entry| entry.path.clone()));
+
+    let mut read: HashSet<String> = paths.iter().filter_map(|path| audit::sheet_of(path)).collect();
+    let memories: Vec<i64> = paths.iter().filter_map(|path| memory_of(path, self.held.chat_id)).collect();
+
+    if let Some(brain) = receiver.units().brain.as_ref()
+      && !memories.is_empty()
+    {
+      match brain.people_of(self.agent, &memories).await {
+        Ok(people) => read.extend(people.unwrap_or_default()),
+        Err(why) => eprintln!("chat {}: whom the memories read are about: {}", self.held.chat_id, why),
+      }
+    }
+
+    read
   }
 }
 
@@ -909,13 +1016,26 @@ impl Stager {
       return Ok(run.made_skip());
     };
 
-    // The instruction stages, in the order the supervisor's chain sets them, where the receiver runs them. A stage
-    // whose run failed fails the round, so no message goes out past a stage it did not pass through; the answer
+    // The audit of the people the message answers, then the instruction stages in the order the supervisor's chain
+    // sets them, where the receiver runs them. A stage whose run failed fails the round, so no message goes out past a stage it did not pass through; the answer
     // after the last stage is what is sent.
-    let chain = if receiver.instruction_gate() { self.chain(agent).await } else { vec![] };
+    let gated = receiver.instruction_gate();
+
+    if gated {
+      match run.audit(message).await {
+        Ok(next) => message = next,
+        Err(failure) => {
+          run.give_back_shown();
+
+          return Err(failure);
+        }
+      }
+    }
+
+    let chain = if gated { self.chain(agent).await } else { vec![] };
 
     for (at, stage) in chain.iter().enumerate() {
-      match run.stage(stage, (at + 1, chain.len()), message).await {
+      match run.stage(Kind::Stage, stage, (at + 1, chain.len()), message).await {
         Ok(next) => message = next,
         Err(failure) => {
           run.give_back_shown();

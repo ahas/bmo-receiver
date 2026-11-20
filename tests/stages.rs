@@ -203,3 +203,21 @@ fn the_answers_of_a_turns_end_are_read_with_what_opened_each() {
   assert_eq!(Spanned::of(&ended), [handed("a"), program("b")]);
   assert!(Spanned::of(&serde_json::json!({ "answer": "b" })).is_empty());
 }
+
+#[test]
+fn a_sheet_is_told_by_the_person_key_in_its_path_and_owed_by_what_the_brain_holds() {
+  use bmo_receiver::chat::stages::audit::{Owed, owed, sheet_of};
+  use receiver_ports::brain::Known;
+
+  assert_eq!(sheet_of("rooms/42/people/7/sheet.md").as_deref(), Some("7"));
+  assert_eq!(sheet_of("people/7"), None, "a key with nothing under it names no sheet");
+  assert_eq!(sheet_of("memories/42/memory-9"), None);
+
+  let known = |held, named| Known { held, named };
+
+  assert_eq!(owed(known(true, true), false), Owed::Read);
+  assert_eq!(owed(known(true, false), false), Owed::ReadAndAsk);
+  assert_eq!(owed(known(true, false), true), Owed::Read, "a person asked once is not asked again");
+  assert_eq!(owed(known(false, false), false), Owed::Ask);
+  assert_eq!(owed(known(false, false), true), Owed::Nothing);
+}

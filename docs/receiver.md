@@ -496,8 +496,8 @@ flowchart TD
   a turn's row the program's turns it spanned, each empty or null where it does not stand (`docs/instruction.md`, 「The
   round log」), each turn of it as it starts as
   `draft` of kind `start` with its `round`, `agentName`, `number` and `count` (its place from 1 among the turns of
-  its sort and how many there are: the message turn and the check of the words that arrived meanwhile 1 of 1, a
-  stage its place in the chain), `question` (`message`, `arrived` or the stage's name), `input` (`message` for the
+  its sort and how many there are: the message turn, the check of the words that arrived meanwhile and the audit 1
+  of 1, a stage its place in the chain), `question` (`message`, `arrived`, `audit` or the stage's name), `input` (`message` for the
   turn that carries the room's words, `system` for a system instruction the round opens, `docs/bmo-window.md`, 「A
   message and an instruction」) and `at`, and none of a row's answer fields, a turn of a conversation as
   it begins, moves, sends and ends, each of these under the turn's `speaker` (`docs/api.md`, 「Events and the live

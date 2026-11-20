@@ -6,6 +6,21 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
+/// The audit of the people the message answers, asked before the chain where the session read nothing of one of
+/// them: the name its row and marker go by, the text heading it and the line for each person it names.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Audit {
+  pub name: String,
+  pub text: String,
+  /// A person whose records the brain holds and the session has not read; `{name}` and `{id}` are theirs.
+  pub read: String,
+  /// A person the brain holds nothing about, never asked how they want to be called.
+  pub ask: String,
+  /// A person whose records the brain holds with no name among them, never asked.
+  pub read_ask: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Instruction {
@@ -39,6 +54,8 @@ pub struct Instruction {
   pub handed: String,
   /// The head the instruction turn shows the room's words that went in full in an earlier turn of it under.
   pub room_handed: String,
+  /// The audit of the people the message answers, asked before the chain.
+  pub audit: Audit,
   /// The default chain of instruction stages, in the order they are asked once the message stands.
   pub chain: Vec<String>,
   /// The words of each stage's instruction, by the stage's name.

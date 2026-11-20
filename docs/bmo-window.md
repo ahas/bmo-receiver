@@ -118,7 +118,7 @@ is written.
 - **An instruction divides.** A **quiet instruction** is a row of the instruction table handed to the chat's own
   session (「Quiet instruction」 below): the system telling that session something without the room hearing it, kept in
   its own block with its publisher and its words. A **system instruction** is a turn the round's or the session's own
-  work opens in that session: an instruction stage of the chain, the closing check, the agent's first judgement, the
+  work opens in that session: the audit of the people a message answers, an instruction stage of the chain, the closing check, the agent's first judgement, the
   situation note, a handoff and a consolidation. Each carries a marker naming what it asks, never the shape of a
   person's message, so a screen that shows the turn at all shows an instruction and not a message received.
 - **Both kinds of instruction reach the session the rooms' words reach,** hold the round's rules and go through the

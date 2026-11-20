@@ -10,8 +10,8 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 
 - **What reaches an agent is a message or an instruction** (`docs/bmo-window.md`, 「A message and an instruction」). A
   message is a room's words, and the turn that carries them is the round's message turn. An instruction is a quiet one the
-  system hands the session, or a system instruction the round itself opens: each instruction stage of the chain, and the
-  turn that shows the words that arrived meanwhile.
+  system hands the session, or a system instruction the round itself opens: the audit of the people the message answers,
+  each instruction stage of the chain, and the turn that shows the words that arrived meanwhile.
 - **The room's block says how to read each and how to answer each, and nothing more.** It carries, once: how a turn that
   carries a room's words is read and that its answer is the message (`instruction.toml`, `message_rule`); how a turn marked
   `INSTRUCTION` is read, the system speaking and no room, one instruction over the message as it stands
@@ -287,6 +287,32 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   message. Nothing else makes the room hear silence but an answer that says so.
 - **Before the message turn has answered, no message stands.** A pipeline that has its message goes on to the closing check and the stages below.
 
+## The audit before the stages
+
+- **A fixed audit runs before the chain, on every round whose message stands,** and no setting switches it off or
+  edits it: it is the policy's (`instruction.toml`, `[audit]`). It asks whether this session has read anything from the
+  brain about each person the message answers, every sender of the round's words and of those shown to it but the agent
+  itself and words marked done or separate.
+- **What the session read is the agency's record of its loads,** the pieces the gate handed the session and those it read
+  through the gate's index (the agency's `GET /session-loads/{sessionId}`), with the round's own core: a person counts as
+  read where a piece is their sheet, told by the person's key in its path (`…/people/<key>/…`), or a memory the brain
+  names them a subject of. Only the brain counts: a room's persona documents are no source. The brain's own marks of what
+  it handed a session are not read, since no live session's recall keeps them, and the agent's own brain tool reads are
+  not counted, since its calls reach the brain without the gate and leave no load.
+- **A person read in this session is passed over.** For one read in nothing, the brain is asked what it holds of them
+  (「The brain」 of `docs/boundary-api.md`): their records and whether one of them is a name. The audit names each such
+  person on a line of its own (`read`, `ask` or `read_ask`): where the brain holds records, the agent is to read them,
+  the form of address and the traits; where none of them is a name, or the brain holds nothing of them, the agent is to
+  have the message ask them once how they want to be called, and to record the answer as a `name` memory about them
+  with its brain tool once they answer.
+- **A person is asked once.** The people the audit had the message ask stand per agent under `<agent>_names_asked`
+  (`docs/store.md`), so a later round in any room never asks the same person again, the answer standing in the brain once
+  given. A person asked before whom the brain still holds nothing of is passed over.
+- **The audit is one system instruction,** asked as a stage is (「The stages before the send」 below): its marker names
+  the stage `audit`, its words are the policy's `text` and the people's lines, and it is answered with the message
+  reprinted whole or `PASS`. Where no person is owed a line, where the brain does not reach the supervisor's turns
+  (「A supervisor whose brain or reference is off」) or where the agent has no brain, no audit is asked.
+
 ## The stages before the send
 
 - **The chain runs in order once the message stands.** Each stage is one more turn of the same session, a system instruction:
@@ -322,11 +348,11 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 ## The round log
 
 - **Every turn of the pipeline leaves a row of the receiver's round log** (`instruction_rounds`, `docs/store.md`): the round it belongs to, the room, the agent, its number
-  (from 1, the message turn and then the closing check and each stage in the order asked), its name (the stage's name, `arrived` for the closing check, `message` for the message turn),
+  (from 1, the message turn and then the closing check, the audit and each stage in the order asked), its name (the stage's name, `arrived` for the closing check, `message` for the message turn),
   its kind, how long its answer is in characters, whether the answer differs from the one before it, how it ended, the answer itself and how long the turn took.
-- **The kinds are `supervisor`, `turn`, `arrived`, `stage` and `end`;** the closing check is a turn of kind `arrived`, and a stage's turn one of kind `stage`. A turn's row ends `answered`,
+- **The kinds are `supervisor`, `turn`, `arrived`, `audit`, `stage` and `end`;** the closing check is a turn of kind `arrived`, the audit one of kind `audit` named `audit`, and a stage's turn one of kind `stage`. A turn's row ends `answered`,
   `send` where its answer opened on `<<SEND>>` and became the message, `no-verdict` where it skipped naming no reason and the same turn was asked once over, `skip` or `failed`; a stage's
-  row carries the agent's answer and ends `pass` where the message went on unchanged, `revised` where the answer took its place, or `failed`, and its detail keeps the reason a skip named.
+  row and the audit's carry the agent's answer and end `pass` where the message went on unchanged, `revised` where the answer took its place, or `failed`, and its detail keeps the reason a skip named.
 - **The round's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where nothing does, and in its detail the supervisor whose chain the round read and,
   where the round skipped, the reason (`; skipped: ` then the reason, or `none given`).
 - **The end row names what the round read,** its `reads`, each a `path`, what the piece holds (`holds`), the brain memory it is (`memoryId`) and how it was read (`how`), and the session
@@ -334,9 +360,9 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   stream as it is written, a `draft` event (`docs/receiver.md`, 「The event stream」), and the log is read by round (`GET /rounds/pipeline`): the rounds a reader names, as a screen names those its
   messages stand under, in the order of their names; or, where it names none, the room's newest rounds, at most `limit` of them (20 by default, 200 at most), oldest first, the page's
   `more` saying older rounds stand.
-- **Each turn of the pipeline is told as it starts, too,** before its answer: a `draft` event of kind `start` with the `round`, the `agentName`, `number` and `count` (the message turn
-  and the closing check 1 of 1, a stage its place in the chain and the chain's length), `question` the name its row goes by, `input` what reaches the agent on it (`message` for the
-  message turn, `system` for the closing check and each stage) and `at`. It is no row of the log, and the turn's own row follows it once the answer is in. A screen tells the message
+- **Each turn of the pipeline is told as it starts, too,** before its answer: a `draft` event of kind `start` with the `round`, the `agentName`, `number` and `count` (the message turn,
+  the closing check and the audit 1 of 1, a stage its place in the chain and the chain's length), `question` the name its row goes by, `input` what reaches the agent on it (`message` for the
+  message turn, `system` for the closing check, the audit and each stage) and `at`. It is no row of the log, and the turn's own row follows it once the answer is in. A screen tells the message
   being written by the message turn and the stage being asked by a stage's, and shows no message received on a system instruction. The gate's `draft` stage and the console's pipeline
   chip read this log.
 

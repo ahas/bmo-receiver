@@ -277,7 +277,8 @@ over them by path.
 
 Its `docs/boundary-api.md`, in camelCase and behind its token, at the `brain` the configuration names or the
 address its `env/brain.env` gives. The receiver reaches it for the two moments the brain's consolidation answers
-to (the brain's `docs/design.md`, 「Consolidation」) and for nothing the agent reads or writes itself: what the
+to (the brain's `docs/design.md`, 「Consolidation」), for what it holds of the people a round's audit names
+(`docs/instruction.md`, 「The audit before the stages」), and for nothing the agent reads or writes itself: what the
 agent remembers it writes with its own brain tool, and what a turn is handed of the brain is the gate's choice
 (「The gate」 below).
 
@@ -286,6 +287,9 @@ agent remembers it writes with its own brain tool, and what a turn is handed of 
 | the agent's brain | `GET /brains?agentKey=&limit=2` | the turn's agent | `items`, of which the receiver reads `id`: the one brain registered for the agent; none, or more than one, is read as no brain, and the calls below are not made |
 | whether a consolidation is due | `GET /brains/{brainId}/consolidation` | | `unconsolidatedImportance`, `consolidationDue`, `threshold` and `unconsolidatedCount`, of which the receiver reads `consolidationDue`; a reading with no effect on the brain |
 | a fold reported | `POST /brains/{brainId}/folds` | `sessionKey`, the agency's id of the session folded | `clearedCount` |
+| a person's subject | `GET /brains/{brainId}/subjects?type=person&key=&limit=1` | the person's sender number | `items`, of which the receiver reads `id` and `name`: none where the brain holds nothing of them, and a name where one of their records is a `name` memory |
+| whether the brain holds records of a person | `GET /brains/{brainId}/memories?subjectId=&status=active&limit=1` | the person's subject | `items`: none where no live record is about them |
+| whom memories are about | `GET /brains/{brainId}/memories?ids=&limit=` | the memories a session loaded, at most 200 | `items`, of which the receiver reads each one's `subjects`, `type` and `key`: the people of type `person` |
 
 - **The agent's brain is kept for the process,** by the agent's name, once a lookup has found it: the next
   call for the agent uses the kept id and asks no lookup. A call on a kept id that the brain answers 404 lets

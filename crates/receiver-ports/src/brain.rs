@@ -1,5 +1,6 @@
-//! The brain's port: whether a consolidation is due for an agent, and a session's fold reported to the agent's
-//! brain (`docs/boundary-api.md`, 「The brain」; the brain's `docs/boundary-api.md`). Bodies are camelCase, behind
+//! The brain's port: whether a consolidation is due for an agent, a session's fold reported to the agent's brain,
+//! what the brain holds of a person and whom a set of memories is about (`docs/boundary-api.md`, 「The brain」; the
+//! brain's `docs/boundary-api.md`). Bodies are camelCase, behind
 //! the bearer token the configuration holds for it. Every call is offered once: a refused connection ends it.
 //! The agent's brain is kept by the agent's name once a lookup found it, and let go where the brain answers a
 //! call on it 404, so the next call looks it up again.
@@ -30,6 +31,50 @@ struct Consolidation {
   consolidation_due: bool,
 }
 
+/// A subject as the brain lists it, of which the receiver reads its id, its type and key, and its name: the text
+/// of its newest active `name` memory, null where it has none.
+#[derive(Deserialize)]
+struct Subject {
+  id: i64,
+  #[serde(rename = "type", default)]
+  kind: String,
+  #[serde(default)]
+  key: String,
+  #[serde(default)]
+  name: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Subjects {
+  items: Vec<Subject>,
+}
+
+/// A memory as the brain lists it, of which the receiver reads the subjects it is about.
+#[derive(Deserialize)]
+struct Memory {
+  #[serde(default)]
+  subjects: Vec<Subject>,
+}
+
+#[derive(Deserialize)]
+struct Memories {
+  items: Vec<Memory>,
+}
+
+/// What an agent's brain holds of one person: whether any live memory is about them, and whether one of those is a
+/// `name` memory, the form they are called by.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Known {
+  pub held: bool,
+  pub named: bool,
+}
+
+/// The subject type a person stands under in the brain, keyed by the sender number the receiver holds.
+pub const PERSON: &str = "person";
+
+/// The most memories one read of their subjects names.
+pub const SUBJECTS_READ_MOST: usize = 200;
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Fold<'a> {
@@ -50,6 +95,22 @@ pub trait BrainUnit: Send + Sync {
 
   /// A session's fold reported to the agent's brain under its key; the marks it cleared.
   fn fold<'a>(&'a self, agent: &'a str, session_key: &'a str) -> BoxFuture<'a, Answer<Option<i64>>>;
+
+  /// What the agent's brain holds of the person keyed `key`; none where the agent has no brain, and none on a
+  /// brain that keeps no people.
+  fn person<'a>(&'a self, _agent: &'a str, _key: &'a str) -> BoxFuture<'a, Answer<Option<Known>>> {
+    Box::pin(async { Ok(None) })
+  }
+
+  /// The keys of the people the memories named are about, each once, out of at most `SUBJECTS_READ_MOST` of them;
+  /// none where the agent has no brain, and none on a brain that keeps no people.
+  fn people_of<'a>(
+    &'a self,
+    _agent: &'a str,
+    _memories: &'a [i64],
+  ) -> BoxFuture<'a, Answer<Option<Vec<String>>>> {
+    Box::pin(async { Ok(None) })
+  }
 }
 
 /// The brain over HTTP, with the agents' brains it has found.
@@ -133,6 +194,70 @@ impl BrainUnit for HttpBrain {
         self.caller.post(&["brains", &brain, "folds"], &Fold { session_key }).await;
 
       Ok(self.settled(agent, folded)?.map(|folded| folded.cleared_count))
+    })
+  }
+
+  fn person<'a>(&'a self, agent: &'a str, key: &'a str) -> BoxFuture<'a, Answer<Option<Known>>> {
+    Box::pin(async move {
+      let Some(brain) = self.brain_of(agent).await? else {
+        return Ok(None);
+      };
+      let brain = brain.to_string();
+      let query = [("type", PERSON.to_owned()), ("key", key.to_owned()), ("limit", "1".to_owned())];
+      let found: Answer<Subjects> = self.caller.get(&["brains", &brain, "subjects"], &query).await;
+      let Some(found) = self.settled(agent, found)? else {
+        return Ok(None);
+      };
+      let Some(subject) = found.items.into_iter().next() else {
+        return Ok(Some(Known::default()));
+      };
+      let query = [
+        ("subjectId", subject.id.to_string()),
+        ("status", "active".to_owned()),
+        ("limit", "1".to_owned()),
+      ];
+      let held: Answer<Memories> = self.caller.get(&["brains", &brain, "memories"], &query).await;
+      let Some(held) = self.settled(agent, held)? else {
+        return Ok(None);
+      };
+
+      Ok(Some(Known {
+        held: !held.items.is_empty(),
+        named: subject.name.is_some_and(|name| !name.trim().is_empty()),
+      }))
+    })
+  }
+
+  fn people_of<'a>(
+    &'a self,
+    agent: &'a str,
+    memories: &'a [i64],
+  ) -> BoxFuture<'a, Answer<Option<Vec<String>>>> {
+    Box::pin(async move {
+      let named: Vec<String> = memories.iter().take(SUBJECTS_READ_MOST).map(i64::to_string).collect();
+
+      if named.is_empty() {
+        return Ok(Some(vec![]));
+      }
+
+      let Some(brain) = self.brain_of(agent).await? else {
+        return Ok(None);
+      };
+      let brain = brain.to_string();
+      let query = [("ids", named.join(",")), ("limit", named.len().to_string())];
+      let read: Answer<Memories> = self.caller.get(&["brains", &brain, "memories"], &query).await;
+      let Some(read) = self.settled(agent, read)? else {
+        return Ok(None);
+      };
+      let mut people: Vec<String> = vec![];
+
+      for subject in read.items.into_iter().flat_map(|memory| memory.subjects) {
+        if subject.kind == PERSON && !people.contains(&subject.key) {
+          people.push(subject.key);
+        }
+      }
+
+      Ok(Some(people))
     })
   }
 }

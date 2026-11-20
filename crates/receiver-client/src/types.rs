@@ -1368,18 +1368,18 @@ pub struct RoundPipeline {
 pub struct PipelineRound {
   pub id: i64,
   pub agent_name: String,
-  /// From 1, the round's own turn first and then the check of the words that arrived meanwhile and each stage in the
-  /// order asked; 0 for the agent's own judgement before a round its open window alone let in.
+  /// From 1, the round's own turn first and then the check of the words that arrived meanwhile, the audit and each
+  /// stage in the order asked; 0 for the agent's own judgement before a round its open window alone let in.
   pub number: i64,
   /// The row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn.
   pub question: String,
   /// `supervisor` (the agent's own judgement before a round), `turn` (the round's own turn), `arrived` (the closing
-  /// check) or `stage` (an instruction stage), or `end`.
+  /// check), `audit` (the audit of the people the message answers) or `stage` (an instruction stage), or `end`.
   pub kind: String,
   pub answer_chars: i64,
   pub changed: bool,
-  /// `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for a
-  /// stage; `message` or `skip` for the end.
+  /// `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for
+  /// the audit and a stage; `message` or `skip` for the end.
   pub outcome: String,
   pub detail: Option<String>,
   pub answer: Option<String>,

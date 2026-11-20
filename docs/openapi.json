@@ -2585,7 +2585,7 @@
             "type": "integer"
           },
           "kind": {
-            "description": "`supervisor` (the agent's own judgement before a round), `turn` (the round's own turn), `arrived` (the closing\ncheck) or `stage` (an instruction stage), or `end`.",
+            "description": "`supervisor` (the agent's own judgement before a round), `turn` (the round's own turn), `arrived` (the closing\ncheck), `audit` (the audit of the people the message answers) or `stage` (an instruction stage), or `end`.",
             "type": "string"
           },
           "loaded": {
@@ -2602,12 +2602,12 @@
             "type": "integer"
           },
           "number": {
-            "description": "From 1, the round's own turn first and then the check of the words that arrived meanwhile and each stage in the\norder asked; 0 for the agent's own judgement before a round its open window alone let in.",
+            "description": "From 1, the round's own turn first and then the check of the words that arrived meanwhile, the audit and each\nstage in the order asked; 0 for the agent's own judgement before a round its open window alone let in.",
             "format": "int64",
             "type": "integer"
           },
           "outcome": {
-            "description": "`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for a\nstage; `message` or `skip` for the end.",
+            "description": "`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for\nthe audit and a stage; `message` or `skip` for the end.",
             "type": "string"
           },
           "question": {

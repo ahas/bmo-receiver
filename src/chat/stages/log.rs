@@ -82,6 +82,8 @@ pub enum Kind {
   Turn,
   /// The system instruction that shows the room's words that arrived meanwhile.
   Arrived,
+  /// The audit of the people the message answers, a fixed system instruction before the chain.
+  Audit,
   /// An instruction stage of the chain the message passes before it goes out.
   Stage,
   /// The round's end.
@@ -94,6 +96,7 @@ impl Kind {
       Self::Supervisor => "supervisor",
       Self::Turn => "turn",
       Self::Arrived => "arrived",
+      Self::Audit => "audit",
       Self::Stage => "stage",
       Self::End => "end",
     }

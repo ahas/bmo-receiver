@@ -9,6 +9,7 @@ use std::time::Duration;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::runner::Runner;
+use bmo_receiver::chat::stages::audit;
 use bmo_receiver::chat::stages::table::set_text;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::events::Events;
@@ -16,6 +17,8 @@ use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::fill_marks;
 use receiver_policy::instruction::INSTRUCTION;
+use receiver_ports::agency::Load;
+use receiver_ports::brain::Known;
 use serde_json::Value;
 
 use crate::integration::common::Scratch;
@@ -87,27 +90,36 @@ async fn until(what: &str, holds: impl Fn() -> bool) {
   assert!(waited.is_ok(), "{what} never came");
 }
 
-/// One round of the owner's chat run through the chain `[names, facts]`, its session answering `answers` in turn
-/// with every stage's turn shown: what the session was asked, what the room received, the round log's rows and the
-/// stream's news.
+/// The owner's chat standing on a receiver that runs the audit and the instruction stages, its supervisor following
+/// `chain` with the words `[names, facts]` set for those two stages, its session answering in turn with every stage's
+/// turn shown: what the session was asked, what the room received, the round log's rows and the stream's news.
 struct Staged {
   scratch: Scratch,
   _data: tempfile::TempDir,
-  _standing: Standing,
+  standing: Standing,
+  runner: Runner,
   chat: Arc<StandInChat>,
   session: Arc<StandInSession>,
   events: Arc<Events>,
 }
 
 impl Staged {
+  /// One round of the owner's words through the chain `[names, facts]`, the brain keeping no people.
   async fn run(session: StandInSession) -> Self {
+    let staged = Staged::stand(session, &[NAMES.0, FACTS.0]).await;
+
+    staged.say(1, ASKED).await;
+    staged
+  }
+
+  async fn stand(session: StandInSession, chain: &[&str]) -> Self {
     let scratch = Scratch::new().await;
 
     for (name, text) in [NAMES, FACTS] {
       set_text(scratch.db(), AGENT, name, text).await.unwrap();
     }
 
-    set_chain(scratch.db(), &[NAMES.0, FACTS.0]).await;
+    set_chain(scratch.db(), chain).await;
 
     let data = tempfile::tempdir().unwrap();
     let prompts = data.path().join("prompts").join("chat");
@@ -130,20 +142,31 @@ impl Staged {
     standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
     standing.agency.carrying_on(session.clone());
     receiver.hold_runner(Arc::new(runner.clone()));
-    receiver.message(&said(1, ASKED), &Context::default(), owners_room()).await.unwrap();
-    until("the round's end", || {
-      runner.idle() && !session.working() && !session.prompts().is_empty()
-    })
-    .await;
 
     Staged {
       scratch,
       _data: data,
-      _standing: standing,
+      standing,
+      runner,
       chat,
       session,
       events,
     }
+  }
+
+  // The owner's words heard in his chat, and the round they open run to its end.
+  async fn say(&self, message_id: i64, text: &str) {
+    let before = self.session.prompts().len();
+    let receiver = self.standing.receiver.clone();
+
+    receiver
+      .message(&said(message_id, text), &Context::default(), owners_room())
+      .await
+      .unwrap();
+    until("the round's end", || {
+      self.runner.idle() && !self.session.working() && self.session.prompts().len() > before
+    })
+    .await;
   }
 
   // The words of every send the room's chat service was handed.
@@ -239,4 +262,88 @@ async fn a_stage_whose_run_failed_sends_nothing() {
     round.sent()
   );
   assert!(round.log().await.contains(&"stage facts failed".to_owned()), "{:?}", round.log().await);
+}
+
+// The audit's marker line, naming its stage.
+fn audit_marker() -> String {
+  fill_marks(&INSTRUCTION.marker, &[("name", &INSTRUCTION.audit.name)])
+}
+
+// The audit's line for the owner, out of the policy's line `line`.
+fn owner_line(line: &str) -> String {
+  fill_marks(line, &[("name", "tester"), ("id", &OWNER.to_string())])
+}
+
+#[tokio::test]
+async fn a_person_the_brain_holds_nothing_of_is_asked_once_how_they_want_to_be_called() {
+  let session = StandInSession::new(SESSION, "unused").answering(&[WRITTEN, REVISED, WRITTEN]);
+  let staged = Staged::stand(session, &[]).await;
+
+  staged.standing.brain.knowing(&[]);
+  staged.say(1, ASKED).await;
+
+  let prompts = staged.session.prompts();
+
+  assert_eq!(prompts.len(), 2, "the message turn and the audit: {prompts:#?}");
+  assert!(prompts[1].starts_with(&audit_marker()), "{}", prompts[1]);
+  assert!(prompts[1].contains(&owner_line(&INSTRUCTION.audit.ask)), "{}", prompts[1]);
+  assert!(
+    staged.sent()[0].contains(REVISED),
+    "the audit's revision is what goes out: {:?}",
+    staged.sent()
+  );
+  assert_eq!(staged.log().await, ["turn message answered", "audit audit revised", "end  message"]);
+  assert_eq!(staged.started()[1], ("audit".to_owned(), "system".to_owned()));
+
+  // Asked once, the person is not asked again in a later round.
+  staged.say(2, "and the tests?").await;
+  assert_eq!(
+    staged.session.prompts().len(),
+    3,
+    "the later round asks no audit: {:#?}",
+    staged.session.prompts()
+  );
+}
+
+#[tokio::test]
+async fn a_person_whose_memory_the_session_holds_is_not_audited() {
+  let staged = Staged::stand(StandInSession::new(SESSION, "unused").answering(&[WRITTEN]), &[]).await;
+  let held = Known {
+    held: true,
+    named: true,
+  };
+
+  staged.standing.brain.knowing(&[(&OWNER.to_string(), held)]);
+  staged.standing.brain.about.lock().unwrap().insert(77, vec![OWNER.to_string()]);
+  staged.standing.agency.loads.lock().unwrap().insert(
+    SESSION.to_owned(),
+    vec![Load {
+      path: "memories/77".to_owned(),
+      version: "1".to_owned(),
+    }],
+  );
+  staged.say(1, ASKED).await;
+
+  assert_eq!(staged.session.prompts().len(), 1, "{:#?}", staged.session.prompts());
+  assert!(staged.sent()[0].contains(WRITTEN), "{:?}", staged.sent());
+}
+
+#[tokio::test]
+async fn a_named_person_the_session_read_nothing_of_is_sent_to_their_records_and_never_asked() {
+  let session = StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "PASS"]);
+  let staged = Staged::stand(session, &[]).await;
+  let held = Known {
+    held: true,
+    named: true,
+  };
+
+  staged.standing.brain.knowing(&[(&OWNER.to_string(), held)]);
+  staged.say(1, ASKED).await;
+
+  let prompts = staged.session.prompts();
+
+  assert!(prompts[1].contains(&owner_line(&INSTRUCTION.audit.read)), "{}", prompts[1]);
+  assert!(!prompts[1].contains(&owner_line(&INSTRUCTION.audit.read_ask)), "{}", prompts[1]);
+  assert!(staged.sent()[0].contains(WRITTEN), "a passed audit sends the message as written");
+  assert!(audit::asked(staged.scratch.db(), AGENT).await.is_empty(), "nobody was asked");
 }

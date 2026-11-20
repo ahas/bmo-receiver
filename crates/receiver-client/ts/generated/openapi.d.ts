@@ -2511,7 +2511,7 @@ export interface components {
             id: number;
             /**
              * @description `supervisor` (the agent's own judgement before a round), `turn` (the round's own turn), `arrived` (the closing
-             *     check) or `stage` (an instruction stage), or `end`.
+             *     check), `audit` (the audit of the people the message answers) or `stage` (an instruction stage), or `end`.
              */
             kind: string;
             /**
@@ -2525,13 +2525,13 @@ export interface components {
             ms: number;
             /**
              * Format: int64
-             * @description From 1, the round's own turn first and then the check of the words that arrived meanwhile and each stage in the
-             *     order asked; 0 for the agent's own judgement before a round its open window alone let in.
+             * @description From 1, the round's own turn first and then the check of the words that arrived meanwhile, the audit and each
+             *     stage in the order asked; 0 for the agent's own judgement before a round its open window alone let in.
              */
             number: number;
             /**
-             * @description `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for a
-             *     stage; `message` or `skip` for the end.
+             * @description `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for
+             *     the audit and a stage; `message` or `skip` for the end.
              */
             outcome: string;
             /** @description The row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn. */
