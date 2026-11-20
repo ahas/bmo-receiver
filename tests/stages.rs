@@ -4,7 +4,10 @@
 
 use bmo_receiver::chat::stages::log::Answered;
 use bmo_receiver::chat::stages::table::{Chain, chain_refusal, followed, policy_holds, text_refusal};
-use bmo_receiver::chat::stages::{Spanned, closing_words, read_answer, spanned_answer, stage_verdict};
+use bmo_receiver::chat::stages::{
+  Spanned, closing_words, read_answer, room_line, spanned_answer, stage_verdict,
+};
+use bmo_receiver::receiver::Inbound;
 use receiver_policy::instruction::INSTRUCTION;
 
 #[test]
@@ -12,6 +15,33 @@ fn the_closing_check_shows_what_arrived_and_carries_no_message() {
   let turn = closing_words("#7: words that came");
 
   assert_eq!(turn, format!("{}\n\n#7: words that came", INSTRUCTION.arrived_marker));
+}
+
+fn said_by(sender_id: Option<i64>) -> Inbound {
+  Inbound {
+    chat_id: -100,
+    message_id: 7,
+    sender_id,
+    sender_name: "tester".into(),
+    sent_at: 1_760_000_000,
+    text: "is the build green".into(),
+    image_path: None,
+    image_state: None,
+    transcript: None,
+    voice_seconds: None,
+    voice_state: None,
+    reply_to_message_id: None,
+    via: "road-a".into(),
+    mode: None,
+    via_reader: None,
+    album: None,
+  }
+}
+
+#[test]
+fn a_stage_shows_a_room_line_with_its_sender_s_id_plainly_and_without_one_where_none_came() {
+  assert_eq!(room_line(&said_by(Some(42))), "#7 tester (id 42): is the build green");
+  assert_eq!(room_line(&said_by(None)), "#7 tester: is the build green");
 }
 
 #[test]

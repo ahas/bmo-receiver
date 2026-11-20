@@ -145,6 +145,17 @@ pub fn closing_words(block: &str) -> String {
   format!("{}\n\n{block}", INSTRUCTION.arrived_marker)
 }
 
+/// One of the room's words as an instruction stage's turn shows it: its number, its sender and the sender's id where
+/// the chat service gave one, then its text.
+pub fn room_line(message: &Inbound) -> String {
+  let sender = match message.sender_id {
+    Some(id) => format!("{} (id {id})", message.sender_name),
+    None => message.sender_name.clone(),
+  };
+
+  format!("#{} {sender}: {}", message.message_id, message.text)
+}
+
 /// An answer that says something: not empty, not a skip of either shape and not a wait.
 pub fn usable(text: &str) -> bool {
   !text.is_empty() && skip(text).is_none() && !is_skip(text) && !is_wait(text)
@@ -380,10 +391,7 @@ impl Run<'_> {
           handed.push(message.message_id);
         }
       } else {
-        words.push(format!(
-          "#{} {} (id {:?}): {}",
-          message.message_id, message.sender_name, message.sender_id, message.text
-        ));
+        words.push(room_line(message));
       }
     }
 
