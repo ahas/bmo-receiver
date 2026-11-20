@@ -22,7 +22,7 @@ use receiver_ports::http::PortFailure;
 use super::attach::{Followed, Probed, Step};
 use super::cache::{
   Leaving, Route, active_route, owe_replacement, owed_replacement, remember, reset_reason,
-  settle_replacement, spend_force, transcript, waits_for_quiet,
+  settle_replacement, spend_force, waits_for_quiet,
 };
 use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
@@ -202,15 +202,8 @@ pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
 
   let note = match handed {
     Some(handed) => Note::Handed(handed),
-    None => match transcript(db, agent).await.ok().flatten() {
-      Some(kept) => Note::Carried(kept),
-      None => Note::Lost,
-    },
+    None => handoff::fallback(receiver, agent, None, reason).await,
   };
-
-  if note == Note::Lost {
-    handoff::tell_lost(receiver, agent, reason).await;
-  }
 
   handoff::keep_pending(receiver, agent, &note).await;
 
@@ -357,16 +350,8 @@ impl Carry {
 
     let note = match handed {
       Some(handed) => Note::Handed(handed),
-      None => match transcript(db, agent).await.ok().flatten() {
-        Some(kept) => Note::Carried(kept),
-        None => Note::Lost,
-      },
+      None => handoff::fallback(receiver, agent, None, reason).await,
     };
-
-    if note == Note::Lost {
-      handoff::tell_lost(receiver, agent, reason).await;
-    }
-
     let again = agency.start(agent, scope).await;
 
     receiver.replacing_ends(agent);
@@ -426,7 +411,13 @@ impl Carry {
 
     receiver.replacing_ends(agent);
 
+    // The session asked wrote nothing: what the receiver keeps of its answers stands in for the fresh session's
+    // first turn, or the word that nothing was recovered, the owner told once.
     let Some(handed) = handed else {
+      let note = handoff::fallback(receiver, agent, None, SessionReason::Asked).await;
+
+      handoff::keep_pending(receiver, agent, &note).await;
+
       return Ok(None);
     };
 
@@ -474,8 +465,6 @@ impl Carry {
     let asked = Route {
       provider: standing.provider.as_deref().unwrap_or_default().to_owned(),
       model: standing.model.as_deref().unwrap_or_default().to_owned(),
-      effort: String::new(),
-      account: None,
       session: Some(started_id.clone()),
       transcript: None,
     };
@@ -560,6 +549,16 @@ impl Carry {
     let fresh = !standing.generation.as_i64().is_some_and(|generation| generation > 0) || released;
     let pending = handoff::take_pending(receiver, agent, fresh && note.is_none()).await;
     let note = note.or_else(|| pending.as_ref().map(carried_note));
+    // A session the agency opened without the handoff it was owed opens on what the receiver keeps of its answers
+    // — a room's own session on that room's — or on the word that nothing was recovered (docs/unified-bmo.md,
+    // 「Replacing the session」).
+    let lost = match &note {
+      None if standing.handoff_lost => {
+        Some(handoff::fallback(receiver, agent, (!unified).then_some(chat_id), SessionReason::Asked).await)
+      }
+      _ => None,
+    };
+    let note = note.or_else(|| lost.as_ref().map(carried_note));
 
     // The turn is composed for the session it goes on: a new one holds nothing yet, so the room's block and every
     // reference document go in full.
@@ -896,8 +895,6 @@ impl Carry {
           route: Route {
             provider: standing.provider.as_deref().unwrap_or_default().to_owned(),
             model: standing.model.as_deref().unwrap_or_default().to_owned(),
-            effort: String::new(),
-            account: None,
             session: Some(session.id.to_owned()),
             transcript: None,
           },

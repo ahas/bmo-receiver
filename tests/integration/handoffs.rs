@@ -129,10 +129,32 @@ async fn a_session_whose_turn_cannot_be_carried_hands_nothing_over() {
   front.standing.agency.registering(vec![agent]);
   front.standing.agency.carrying_on(session.clone());
 
+  // What the receiver keeps of the session's answers stands in for the handoff it could not write.
+  let transcript = "agent-c (room 1): the answer it gave";
+
+  bmo_receiver::chat::cache::set_active_route(
+    scratch.db(),
+    "agent-c",
+    &bmo_receiver::chat::cache::Route {
+      transcript: Some(transcript.to_owned()),
+      ..bmo_receiver::chat::cache::Route::default()
+    },
+  )
+  .await
+  .unwrap();
+
   let (status, _) = post(&front, "/handoffs/agent-c", json!({ "reason": "a program stood anew" })).await;
 
   assert_eq!(status, StatusCode::NO_CONTENT);
   assert!(session.prompts().is_empty(), "no handoff was written");
+  assert_eq!(
+    settings::get(scratch.db(), &bmo_receiver::chat::handoff::carried_key("agent-c"))
+      .await
+      .unwrap()
+      .as_deref(),
+    Some(transcript),
+    "the fresh session's first turn opens on the transcript instead"
+  );
 }
 
 #[tokio::test]

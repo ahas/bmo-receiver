@@ -184,9 +184,11 @@
 
 ## Replacing the session
 
-- **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
-  effort, or another login), the instruction pipeline's instructions it was handed changed, or the owner asked for a
-  fresh start. A road moved only where the agency's state of the session names a provider and a model that differ
+- **The session is replaced, not burned again,** when its head moved, its road moved (another provider or model),
+  the instruction pipeline's instructions it was handed changed, or the owner asked for a fresh start. A move of
+  the effort or of the login is the agency's to find and replace: its state of a session names neither, and it
+  asks the old session's handoff through `POST /handoffs/{agentName}` before it opens the fresh one (below). A
+  road moved only where the agency's state of the session names a provider and a model that differ
   from the ones it stood on: a state the agency could not answer — while it restarts — or one naming none — a
   session opened afresh and not yet through its first turn — says nothing of the road and replaces nothing. The agency carries the replacement as the session's provider declares.
   A full session whose provider hands it over by its own note (`providers.toml`, `handover = "handoff"`) is not
@@ -290,6 +292,12 @@
 - **Only where neither stands** does the first turn open on `NEW SESSION.` saying memory could not be restored;
   the whole old context is never read again. The owner's private chat is then queued one notice
   (`handoff-lost`, `docs/codes.md`) that the handoff could not be recovered.
+- **A fresh session the agency opened without its handoff opens the same way.** Where the agency's state of the
+  session names `handoffLost` — its ask for the handoff failed, or a room's own handoff turn failed or wrote no
+  note — the first turn on it that carries no note of its own opens on `WHAT YOU ANSWERED BEFORE.` with the
+  transcript, and where none is kept on `NEW SESSION.`, the owner told once. For a room's own session the
+  transcript is what the agent answered in that room alone, kept by the agent and the room, so no other room's
+  words reach it.
 - **The owner's word to start afresh is spent** by the replacement it asked for: one word, one replacement.
 - **No fresh session opens without its handoff, whoever opens it.** Where the agency is about to open a fresh
   session for an agent that had one — the kept session gone, a program stood anew that cannot resume it, its own
@@ -314,8 +322,9 @@
   file it writes is kept for the agent (`<agent>_handoff_pending`, `docs/store.md`), and the next turn that finds
   a fresh session — the agency's state naming it never opened, or a generation the agency opened under the
   session, which that turn releases — carries it as its note, in the order below; a turn on a session the agency
-  resumed lets it go. Where the agent has no session to ask, or it wrote nothing, the transcript the receiver
-  keeps stands in at the next replacement as above.
+  resumed lets it go. Where the session asked wrote nothing, the transcript the receiver keeps is kept for that
+  first turn in the file's place (`<agent>_transcript_pending`), and where none is kept the first turn opens on
+  `NEW SESSION.` with the owner told once, as above. Where the agent has no session to ask, nothing is kept.
 - **A handoff is asked at most once in a span** (`handover.toml`, `again_minutes`). The agency asking again for
   the same agent's handoff within that span of the last one the standing session was asked for is answered with
   the file that one kept, where it is still kept, else with nothing, and the standing session is not asked. Each

@@ -158,8 +158,6 @@ async fn opening_turn(
   let asked = Route {
     provider: state.provider.clone().unwrap_or_default(),
     model: state.model.clone().unwrap_or_default(),
-    effort: String::new(),
-    account: None,
     session: standing.map(str::to_owned),
     transcript: None,
   };

@@ -36,7 +36,6 @@ async fn kept(scratch: &Scratch, idle_minutes: i64) {
   let route = Route {
     provider: "claude-code".to_owned(),
     model: "model-a".to_owned(),
-    effort: String::new(),
     session: Some(SESSION.to_owned()),
     ..Route::default()
   };

@@ -369,6 +369,50 @@ async fn a_session_that_writes_no_handoff_leaves_the_transcript_of_what_it_answe
 }
 
 #[tokio::test]
+async fn a_session_the_agency_opened_without_its_handoff_opens_on_the_transcript_of_what_it_answered() {
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  unified.round(1, "the first words").await;
+
+  // The agency replaced the session and its ask for the handoff failed: its state says so until a turn answered.
+  unified.session.handoff_lost(true);
+  unified.round(2, "the second words").await;
+
+  let prompts = unified.session.prompts();
+  let first = prompts.last().unwrap();
+
+  assert!(first.starts_with(&HANDOVER.chat.carried_marker), "{first}");
+  assert!(first.contains(&format!("{AGENT} (room {OWNER}): {ANSWER}")), "{first}");
+  assert!(unified.lost_notices().await.is_empty(), "a transcript was carried, so nothing is told");
+
+  // The agency lets the word go once that turn answered; the next turn goes on as any other.
+  unified.session.handoff_lost(false);
+  unified.round(3, "the third words").await;
+
+  let prompts = unified.session.prompts();
+
+  assert!(!prompts.last().unwrap().starts_with(&HANDOVER.chat.carried_marker), "{prompts:?}");
+}
+
+#[tokio::test]
+async fn a_session_the_agency_opened_without_its_handoff_and_no_transcript_opens_on_nothing_recovered_and_tells_the_owner()
+ {
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+
+  unified.session.handoff_lost(true);
+  unified.round(1, "the first words").await;
+
+  let prompts = unified.session.prompts();
+  let first = prompts.last().unwrap();
+
+  assert!(first.starts_with(&HANDOVER.chat.lost_marker), "{first}");
+
+  let told = unified.lost_notices().await;
+
+  assert_eq!(told.len(), 1, "{told:?}");
+}
+
+#[tokio::test]
 async fn nothing_is_recovered_only_where_neither_a_handoff_nor_a_transcript_stands_and_the_owner_is_told() {
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
 
@@ -534,8 +578,8 @@ fn a_state_naming_no_road_moves_no_road() {
     ..Route::default()
   };
 
-  assert_eq!(route_reason(&held, "", "", "", None), None, "an unread state");
-  assert_eq!(route_reason(&held, "provider-a", "", "", None), None, "a state naming no model");
-  assert_eq!(route_reason(&held, "provider-a", "model-a", "", None), None);
-  assert_eq!(route_reason(&held, "provider-a", "model-b", "", None), Some(SessionReason::Route));
+  assert_eq!(route_reason(&held, "", ""), None, "an unread state");
+  assert_eq!(route_reason(&held, "provider-a", ""), None, "a state naming no model");
+  assert_eq!(route_reason(&held, "provider-a", "model-a"), None);
+  assert_eq!(route_reason(&held, "provider-a", "model-b"), Some(SessionReason::Route));
 }
