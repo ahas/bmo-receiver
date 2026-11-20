@@ -326,6 +326,11 @@ that room's supervisor, whose round there writes them as its message, its stages
 - **A chat already talking when the scan runs is not passed over** (most often the turn that says the agent is
   back, which reads no message as its own to answer): its unread messages are handed into that talk as new
   messages, and one the talk already holds is not taken twice.
+- **A line the service itself put in the room is handed as the record holds it, and is nobody speaking.** The
+  going-down notice a stop left (`docs/voiced-notices.md`, 「System notices」) stands after the read mark like any
+  line, so it reaches the round after the restart as a new message; it gives the agent the room as it stands,
+  and does not make that round one somebody spoke in (`docs/voiced-notices.md`, 「The summary of a notice
+  turn」).
 - **A chat with no marker yet is marked as read up to its newest message instead,** so old history is never
   replayed.
 - **Messages already answered are ignored when a chat service hands them over again.**

@@ -2388,10 +2388,11 @@ impl Conversations {
     }
 
     // A notice turn of the owner's private chat is heard as well as read (docs/voiced-notices.md, 「The summary of
-    // a notice turn」): nobody spoke in its round, and it sent a line.
+    // a notice turn」): nobody spoke in its round, a line the service itself put in the room being nobody, and it
+    // sent a line.
     if let Some(sent) = &sent
       && chat_id == self.owner_room()
-      && batch.is_empty()
+      && !super::briefing::somebody_spoke(&batch, room)
       && !instructions.is_empty()
       && super::briefing::speaks(&receiver, self.agent()).await
     {

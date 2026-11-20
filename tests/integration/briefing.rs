@@ -2,8 +2,9 @@
 //! switches moved one at a time and the whole one told to the owner, every summary the engine holds stopped once the
 //! whole one is off and none of them played after while a person's reading goes on, a line's full reading launched
 //! once and then answered as it stands, with the switch off as on, its refusals, and a notice turn of the owner's
-//! chat summarised by its own session and handed to the voice engine while a round somebody spoke in, or one with
-//! the switch off, is not, and no send of the agent's into the room carried while its briefing turn is.
+//! chat summarised by its own session and handed to the voice engine, a line the service itself put in the room
+//! counting as nobody speaking, while a round somebody spoke in, or one with the switch off, is not, and no send of
+//! the agent's into the room carried while its briefing turn is.
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -593,6 +594,60 @@ async fn a_round_the_owner_spoke_in_a_notice_turn_with_the_switch_off_and_an_age
 
   assert_eq!(voiceless.session.prompts().len(), 1, "an agent with no voice is never spoken");
   assert!(voiceless.standing.voice.briefed().is_empty());
+}
+
+#[tokio::test]
+async fn a_notice_round_whose_new_messages_hold_only_the_services_own_line_is_summarised() {
+  let owner = Owner::new(
+    StandInSession::new("agent-a@agent", "unused").answering(&[
+      "I am back.",
+      &format!("{}\nBack again\nThe service is back.", emotion_line(&CHAT_ROUND.voice.emotions[1])),
+    ]),
+    Some(VOICE),
+  )
+  .await;
+  // The going-down notice as the backlog hands it after a restart: kept on the record under no sender.
+  let notice = Inbound {
+    chat_id: OWNER,
+    message_id: -6,
+    sender_id: None,
+    sender_name: "service".into(),
+    sent_at: 1_760_000_000_100,
+    text: "Restarting for a moment.".into(),
+    image_path: None,
+    image_state: None,
+    transcript: None,
+    voice_seconds: None,
+    voice_state: None,
+    reply_to_message_id: None,
+    via: "record".into(),
+    mode: None,
+    via_reader: Some(false),
+    album: None,
+  };
+  let conversations = owner.runner.of(AGENT);
+
+  conversations
+    .instruct(OWNER, "The service is back after a restart.".to_owned(), None, None, vec![])
+    .await;
+  // Handed into the talk the back notice opened before its round takes what it carries, with no yield between.
+  conversations.wake(vec![notice], owners_room()).await;
+  owner.over(2).await;
+
+  let prompts = owner.session.prompts();
+
+  assert_eq!(prompts.len(), 2, "the notice turn and its summary: {prompts:#?}");
+  assert!(
+    prompts[0].contains("Restarting for a moment."),
+    "the service's line is one of the round's new messages: {}",
+    prompts[0]
+  );
+
+  let briefed = owner.standing.voice.briefed();
+
+  assert_eq!(briefed.len(), 1, "the service's own line is nobody speaking");
+  assert_eq!(briefed[0].kind, "summary");
+  assert_eq!(briefed[0].text, "The service is back.");
 }
 
 #[tokio::test]

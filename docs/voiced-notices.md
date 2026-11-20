@@ -232,6 +232,11 @@ spoken, and the session writes what is said.
 - **A turn qualifies** when all of these hold: it is the owner's private chat; nobody spoke in its round, so it
   carried quiet instructions and no message of anyone; it sent a line, so a skip or a wait is not
   spoken; the switch is on; and its agent has a voice.
+- **A line the service itself put in the room is nobody speaking.** Such a line stands under no sender, or under
+  the room's own account on a chat service's road; the going-down notice (「System notices」) is one. A round
+  whose new messages hold only such lines, as the first round after a restart may hold the going-down notice the
+  backlog hands it (`docs/messages.md`, 「Backlog」), still qualifies; one message under any other sender makes
+  the round a conversation.
 - **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one turn once the line has gone out and before the round lets go of the room. The instruction is marked and
   names the line as the message the session just sent (`summary`) and carries it no more: the session wrote it, a stage's
   `PASS` leaves it as it was, and the round holds the session until the summary is written, so no other room's turn
@@ -331,6 +336,8 @@ spoken, and the session writes what is said.
   sender whose words open with the mark.
 - **It is never heard in an agent's voice.** It carries no full-reading chip, and no turn sends it, so no notice
   turn's summary speaks it.
+- **It never makes a round a conversation.** Handed to a round as a new message, it counts as nobody speaking,
+  so the notice turn it rides in is still summarised (「The summary of a notice turn」).
 
 ## Lines that stay fixed
 

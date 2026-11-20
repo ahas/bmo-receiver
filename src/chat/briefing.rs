@@ -13,7 +13,7 @@ use receiver_ports::http::Answer;
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
 
 use super::notices::{Voiced, queue_notice};
-use crate::receiver::{NotReceived, Receiver};
+use crate::receiver::{Inbound, NotReceived, Receiver, Room};
 use crate::store::settings;
 
 /// The setting the whole briefing is switched by, on unless it holds `off`.
@@ -312,6 +312,15 @@ pub async fn speaks(receiver: &Receiver, agent: &str) -> bool {
   receiver.units().voice.is_some()
     && on(receiver, SWITCH).await
     && voice_of(receiver, agent).await.is_some()
+}
+
+/// Whether somebody spoke in a round's new messages (docs/voiced-notices.md, 「The summary of a notice turn」): a
+/// message under a sender other than the room's own account. A line the service itself put in the room stands
+/// under no sender, or under the room's own account, and is nobody speaking.
+pub fn somebody_spoke(batch: &[Inbound], room: Room) -> bool {
+  batch
+    .iter()
+    .any(|message| message.sender_id.is_some_and(|sender| Some(sender) != room.identity))
 }
 
 /// Where a line's full reading stands: being made, or ready to be heard, with the engine's briefing.
