@@ -805,7 +805,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A room's messages, by a cursor and a limit, those carrying a text, or an agent's unread or marked ones. */
+        /** A room's messages, by a cursor and a limit, those carrying a text or holding a kind, or an agent's unread or marked ones. */
         get: operations["messages"];
         put?: never;
         post?: never;
@@ -4966,6 +4966,7 @@ export interface operations {
                 unread?: boolean;
                 by?: string;
                 q?: string;
+                holding?: "media" | "file" | "music" | "voice" | "link";
             };
             header?: never;
             path: {
@@ -4984,7 +4985,7 @@ export interface operations {
                     "application/json": components["schemas"]["Page3"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, not-found, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

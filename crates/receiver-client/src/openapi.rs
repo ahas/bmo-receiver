@@ -44,6 +44,15 @@ fn parameter(name: &str, kind: &str, required: bool) -> Value {
   })
 }
 
+fn choice_parameter(name: &str, values: &[&str]) -> Value {
+  json!({
+    "name": name,
+    "in": "query",
+    "required": false,
+    "schema": { "type": "string", "enum": values },
+  })
+}
+
 fn path_parameter(name: &str) -> Value {
   json!({
     "name": name,
@@ -383,7 +392,7 @@ pub fn openapi() -> Value {
     "/rooms/{roomId}/messages",
     "messages",
     "Messages",
-    "A room's messages, by a cursor and a limit, those carrying a text, or an agent's unread or marked ones.",
+    "A room's messages, by a cursor and a limit, those carrying a text or holding a kind, or an agent's unread or marked ones.",
     vec![
       path_parameter("roomId"),
       parameter("before", "integer", false),
@@ -394,11 +403,12 @@ pub fn openapi() -> Value {
       parameter("marked", "boolean", false),
       parameter("unread", "boolean", false),
       parameter("by", "string", false),
-      parameter("q", "string", false)
+      parameter("q", "string", false),
+      choice_parameter("holding", &["media", "file", "music", "voice", "link"])
     ],
     None,
     vec![(200, json_answer::<Page<Message>>(&mut generator))],
-    vec!["unauthorized", "not-found", "failed"]
+    vec!["unauthorized", "bad-request", "not-found", "failed"]
   );
   add!(
     "GET",

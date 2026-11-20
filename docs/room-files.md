@@ -98,6 +98,17 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   moves, stands byte for byte as it came, with whatever loop count its own bytes carry and no frame or poster of the
   receiver's; how often a moving one plays is the drawer's to decide.
 
+### A room's files by kind
+
+- **A room's kept files fall into four kinds a reader lists**, and the messages route's `holding` lists the
+  messages holding each (`docs/api.md`, 「Messages」), beside the links a message's words carry:
+  - media: the pictures, read from the message's own row, a sticker's left out, and the files kept as `video` or
+    `animation`;
+  - files: the files kept as `document`;
+  - voice notes and music: the files kept as `audio`, a voice note's where the message is one (its hearing is
+    marked on it, or its words open with the receiver's voice mark) and music's where it is not.
+- **A sticker stands under none of them**, kept as a picture or as a file of kind `sticker` alike.
+
 ### Who a file wakes
 
 - **Most files wake nobody:** a voice note is not something a session can hear, and waking one for every note in a

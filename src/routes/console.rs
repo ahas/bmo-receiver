@@ -70,6 +70,10 @@ pub struct MessageQuery {
   /// `person`, `agent` or `any`: whose messages the page holds.
   #[serde(default)]
   by: Option<String>,
+
+  /// What the page's messages hold: media, files, music, voice notes or links, walked by `before` alone.
+  #[serde(default)]
+  holding: Option<reads::Holding>,
 }
 
 #[derive(Deserialize)]
@@ -215,12 +219,20 @@ pub async fn title(State(served): State<Served>, Path(room): Path<i64>) -> Answe
     .and_then(answered)
 }
 
-/// One room's line: the messages a person said, a stretch an agent has read or has not, walked by `before` or
-/// `after` and answered as a page.
+/// One room's line: the messages a person said, a stretch an agent has read or has not, those carrying a text or
+/// holding a kind, walked by `before` or `after` and answered as a page.
 pub async fn messages(State(served): State<Served>, Path(room): Path<i64>, raw: RawQuery) -> Answered {
   let asked = query::<MessageQuery>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
   let bound = window(asked.limit);
+
+  let combined = asked.q.is_some() || asked.after.is_some() || asked.unread || asked.marked;
+
+  if asked.holding.is_some() && combined {
+    let why = "holding is walked by before alone: it takes no q, after, unread or marked.";
+
+    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", why));
+  }
 
   match (&asked.agent_name, asked.unread, asked.marked) {
     (Some(agent), true, _) => {
@@ -240,11 +252,12 @@ pub async fn messages(State(served): State<Served>, Path(room): Path<i64>, raw: 
     }
     _ => {
       let searched = asked.q.as_deref().map(str::trim).filter(|text| !text.is_empty());
-      let found = match (searched, asked.before, asked.after) {
-        (Some(text), before, _) => reads::matching(receiver.db(), room, text, before, bound).await,
-        (None, Some(before), _) => reads::before(receiver.db(), room, before, bound).await,
-        (None, None, Some(after)) => reads::after(receiver.db(), room, after, bound).await,
-        (None, None, None) => reads::latest(receiver.db(), room, bound).await,
+      let found = match (asked.holding, searched, asked.before, asked.after) {
+        (Some(holding), _, before, _) => reads::holding(receiver.db(), room, holding, before, bound).await,
+        (None, Some(text), before, _) => reads::matching(receiver.db(), room, text, before, bound).await,
+        (None, None, Some(before), _) => reads::before(receiver.db(), room, before, bound).await,
+        (None, None, None, Some(after)) => reads::after(receiver.db(), room, after, bound).await,
+        (None, None, None, None) => reads::latest(receiver.db(), room, bound).await,
       }
       .map_err(store)?;
       let more = i64::try_from(found.len()).unwrap_or(0) == bound;

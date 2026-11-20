@@ -7045,6 +7045,21 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "holding",
+            "required": false,
+            "schema": {
+              "enum": [
+                "media",
+                "file",
+                "music",
+                "voice",
+                "link"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7066,15 +7081,16 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, not-found, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
           }
         },
-        "summary": "A room's messages, by a cursor and a limit, those carrying a text, or an agent's unread or marked ones.",
+        "summary": "A room's messages, by a cursor and a limit, those carrying a text or holding a kind, or an agent's unread or marked ones.",
         "tags": [
           "Messages"
         ],
         "x-codes": [
           "unauthorized",
+          "bad-request",
           "not-found",
           "failed"
         ]

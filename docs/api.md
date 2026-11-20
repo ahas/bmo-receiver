@@ -297,7 +297,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `GET /rooms/{roomId}/messages` | `before`, `after`, `limit`, `agentName`, `since`, `marked`, `unread`, `by`, `q` | a page of `Message` |
+| `GET /rooms/{roomId}/messages` | `before`, `after`, `limit`, `agentName`, `since`, `marked`, `unread`, `by`, `q`, `holding` | a page of `Message` |
 | `GET /supervisors/{supervisorName}/rooms/{roomId}/messages` | `before`, `after`, `limit` | a page of `Message` |
 | `GET /rooms/{roomId}/messages/{messageId}` | | one `Message` |
 | `GET /rooms/{roomId}/pins` | | `items`, the room's pinned messages, newest pin first, each a `Message` |
@@ -326,6 +326,20 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **`q` searches the room:** the page holds only the messages whose words carry the text, case set aside and
   read as given (no pattern), newest page first and walked by `before`, each in the one message shape; `by`
   narrows it as it narrows any page, and a deleted message's cleared words carry nothing.
+- **`holding` lists what the room's messages hold:** the page holds only the messages holding that kind, one of
+  five (`docs/room-files.md`, 「A room's files by kind」):
+  - `media`, a picture the message stored that is no sticker, or a kept file of kind `video` or `animation`;
+  - `file`, a kept file of kind `document`;
+  - `voice`, a kept file of kind `audio` on a voice note: a message whose hearing is marked on it (`voiceState`
+    not null), or whose words, leading whitespace set aside, open with the receiver's own voice mark;
+  - `music`, a kept file of kind `audio` on a message that is no voice note by the same test;
+  - `link`, words that carry `http://` or `https://`, case set aside. The receiver filters on the words alone and
+    leaves reading the addresses out of them to the reader.
+
+  A message holding several kinds stands under each. The page is walked by `before` and `limit` as the search is,
+  newest page first and each page oldest first, with `more` where older ones stand; `by` and the leaving out of
+  a client's opening apply as on any page. A `holding` that is none of the five, or one asked together with `q`,
+  `after`, `unread` or `marked`, is refused 400 `bad-request`.
 - **A supervisor reads a group room's messages through its own route,** `GET
   /supervisors/{supervisorName}/rooms/{roomId}/messages`, newest page first and walked by `before` or `after`.
   The room's answerers read it, and so does a member's own supervisor: one whose `ownerAccount` is a member of

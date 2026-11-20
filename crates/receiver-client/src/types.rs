@@ -1587,6 +1587,9 @@ pub struct MessageQuery {
   /// `person`, `agent` or `any`.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub by: Option<String>,
+  /// `media`, `file`, `music`, `voice` or `link`: only the messages holding that kind, walked by `before`.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub holding: Option<String>,
 }
 
 /// The query of a room's picture page.

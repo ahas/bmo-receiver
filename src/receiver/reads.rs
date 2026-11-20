@@ -5,9 +5,10 @@
 //! by its number, since a room carries two numberings and a number of one says nothing about where it stands
 //! among the other's.
 
+use receiver_policy::roads::ROADS;
 use sea_orm::{DatabaseConnection, DbErr, QueryResult};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::Fault;
@@ -479,6 +480,92 @@ pub async fn matching(
       db,
       &sql,
       vec![chat_id.into(), cursor.unwrap_or_default().into(), text.into(), count.into()],
+    )
+    .await?
+    .iter()
+    .map(Page::of)
+    .collect::<Result<_, _>>()?,
+  )
+}
+
+/// What a message holds, as a room's messages are asked for by it (docs/api.md, 「Messages」; docs/room-files.md,
+/// 「A room's files by kind」). A message holding several stands under each.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Holding {
+  /// A picture that is no sticker, a video or an animation.
+  Media,
+  /// A document.
+  File,
+  /// A sound that is no voice note.
+  Music,
+  /// A voice note.
+  Voice,
+  /// Words that carry a web address.
+  Link,
+}
+
+impl Holding {
+  // The condition a message, read over the room's rows as `m`, meets where it holds this; `$3` is the receiver's
+  // voice mark.
+  fn condition(self) -> String {
+    match self {
+      Holding::Media => format!("(({PICTURED}) OR {})", filed("'video', 'animation'")),
+      Holding::File => filed("'document'"),
+      Holding::Music => format!("({} AND NOT {VOICE_NOTE})", filed("'audio'")),
+      Holding::Voice => format!("({} AND {VOICE_NOTE})", filed("'audio'")),
+      Holding::Link => LINKED.to_owned(),
+    }
+  }
+}
+
+// A message, read over the room's rows as `m`, whose words carry a web address's scheme, case set aside. The store
+// only tells such words; the reader reads the addresses out of them with its own link reading.
+const LINKED: &str =
+  r#"(strpos(lower("m"."text"), 'http://') > 0 OR strpos(lower("m"."text"), 'https://') > 0)"#;
+
+// A message, read over the room's rows as `m`, that is a voice note: its hearing is marked on it, or its words,
+// leading whitespace set aside, open with the receiver's voice mark, bound as `$3`.
+const VOICE_NOTE: &str =
+  r#"("m"."voice_state" IS NOT NULL OR starts_with(regexp_replace("m"."text", '^\s+', ''), $3))"#;
+
+// A message, read over the room's rows as `m`, that has a kept file of one of `kinds`, a list of SQL literals of
+// the kinds a kept file's row names (`files::kept_kind`).
+fn filed(kinds: &str) -> String {
+  format!(
+    r#"EXISTS (SELECT 1 FROM "collected_items" "f"
+     WHERE "f"."chat_id" = "m"."chat_id" AND "f"."message_id" = "m"."message_id" AND "f"."kind" IN ({kinds}))"#
+  )
+}
+
+/// The room's messages holding `holding`, the newest `count` before the cursor message (the newest where there is
+/// none), answered oldest first.
+pub async fn holding(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  holding: Holding,
+  cursor: Option<i64>,
+  count: i64,
+) -> Result<Vec<Page>, Fault> {
+  let cursor_clause = if cursor.is_some() { format!("AND {BEFORE_CURSOR}") } else { String::new() };
+  let condition = holding.condition();
+  let sql = format!(
+    r#"SELECT * FROM (SELECT * FROM "messages" "m" WHERE "m"."chat_id" = $1 {cursor_clause}
+         AND {condition}
+         ORDER BY "m"."sent_at" DESC, "m"."rowid" DESC LIMIT $4) "l"
+       ORDER BY "l"."sent_at", "l"."rowid""#
+  );
+
+  Ok(
+    all(
+      db,
+      &sql,
+      vec![
+        chat_id.into(),
+        cursor.unwrap_or_default().into(),
+        ROADS.marks.voice.as_str().into(),
+        count.into(),
+      ],
     )
     .await?
     .iter()
