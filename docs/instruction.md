@@ -143,14 +143,17 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   any stage, read by that supervisor alone, and may add a stage under a new name. A text set for one supervisor is read by
   no other, and nothing the console sets stands for every supervisor.
 - **Each stage's text names what the stage holds the message to, and quotes no sentence for the agent to copy.** Its
-  default stands in the policy (`instruction.toml`, `[stages]`) and is the words the deployment set for it, Korean among
-  them; the console sets a supervisor's text over it (「The routes」 below), in the words the person sets. A stage's name
-  is a lowercase word of letters, digits and dashes opening on a letter (of at most 40 characters), never `message`,
-  `arrived` or the audit's `audit`, which the round's fixed turns go by; its text is not empty and at most 4,000
-  characters. The policy's default chain is the single `review` stage, and its text asks whether the message answers every
-  person it addresses by the term the brain keeps for them, and whether the brain was searched enough. What a stage is
-  answered with stands once in the block's rule for answering an instruction, not in a stage's text. A supervisor chains several
-  stages by listing them in the order to run them.
+  default stands in the policy (`instruction.toml`, `[stages]`) and is the words the deployment set for it, in English
+  as every line an agent reads; the console sets a supervisor's text over it (「The routes」 below), in the words the
+  person sets. A stage's name is a lowercase word of letters, digits and dashes opening on a letter (of at most 40
+  characters), never `message`, `arrived` or the audit's `audit`, which the round's fixed turns go by; its text is not
+  empty and at most 4,000 characters. The policy's default chain is the single `review` stage, and its text asks of the
+  last answer, for every person it answers or names, whether it addresses them by the form the brain holds for them and
+  in the right register and writes in their language; whether the brain was read for what the answer needs and every
+  statement about live system state comes from a read made in this turn; whether it answers only what was asked without
+  restating what the agent was told; and whether it follows the writing rules, with no dash. What a stage is answered
+  with stands once in the block's rule for answering an instruction; the default `review` text closes by restating it,
+  the corrected message whole or PASS. A supervisor chains several stages by listing them in the order to run them.
 - **The block carries how a turn is read, and a stage's turn carries the stage.** What the block says once stands in
   「What reaches an agent」 above; beside it the block carries the confidence rule, the source rule, that nothing is hedged,
   that a skip in its form ends the round and is for words that ask nothing and change nothing (naming its reason on one

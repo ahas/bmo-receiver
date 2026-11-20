@@ -55,4 +55,4 @@ read_ask = "- {name} (id {id}): read their records; the brain holds no name for 
 # The words of each instruction, by its stage's name, last of the file so the table holds nothing but them: the
 # words the deployment set, which the console sets over per supervisor in the person's own words.
 [stages]
-review = "메세지 내용에서 답변하는 모든 인물에 대한 호칭을 지켰습니까? 충분히 브레인을 검색했습니까?"
+review = "Review your last answer before it is sent. For every person it answers or names: is the form of address the one the brain holds for them, and is the register right? Is it written in that person's language? Did you read the brain for what the answer needs, and is every statement about live system state from a read made in this turn? Does it answer only what was asked, without restating what you were told? Does it follow the writing rules, with no dash? If anything falls short, print the corrected message whole; otherwise answer PASS."
