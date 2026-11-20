@@ -799,7 +799,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   stages, each text replaced by the console's for that supervisor, then the stages the console added for it.
 - **A chain set is refused `bad-request`,** with nothing written, where it names a stage whose text the catalogue
   does not hold; an empty chain is allowed and runs no stage. A stage's name that is not a lowercase word of letters,
-  digits and dashes of at most 40 characters, or a text that is empty or past 4,000 characters, is refused the same way.
+  digits and dashes opening on a letter, of at most 40 characters, or a text that is empty or past 4,000 characters, is refused the same way.
 - **A stage's text taken away** leaves the catalogue where the console added the stage, and stands again in the
   policy's text where the policy holds it. A stage the console added that a chain of its supervisor still names is
   refused `conflict`, since the chain would name nothing: it is taken out of the chain first.

@@ -141,7 +141,7 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 - **Each stage's text names what the stage holds the message to, and quotes no sentence for the agent to copy.** Its
   default stands in the policy (`instruction.toml`, `[stages]`) and is the words the deployment set for it, Korean among
   them; the console sets a supervisor's text over it (「The routes」 below), in the words the person sets. A stage's name
-  is a lowercase word of letters, digits and dashes (of at most 40 characters); its text is not empty and at most 4,000
+  is a lowercase word of letters, digits and dashes opening on a letter (of at most 40 characters); its text is not empty and at most 4,000
   characters. The policy's default chain is the single `review` stage, and its text asks whether the message answers every
   person it addresses by the term the brain keeps for them, and whether the brain was searched enough. What a stage is
   answered with stands once in the block's rule for answering an instruction, not in a stage's text. A supervisor chains several
@@ -381,7 +381,7 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   naming a stage whose text the catalogue does not hold, or naming a stage twice (kept once, in the order named), is refused `bad-request`, and nothing is written.
 - **`DELETE /instruction-stages/{agentName}`** takes a supervisor's chain away, and the supervisor reads the policy's again. A key the console set no chain for is `not-found`.
 - **`GET /instruction-texts`** answers a supervisor's stage catalogue where `agentName` names one, and the policy's alone where it names none, each stage with its `source` (`set` where the console set its words, `default` where the policy's stand) and its `policyText`, the policy's words of the stage, null for one the console added.
-  **`PUT /instruction-texts/{agentName}/{name}`** sets a stage's text for that supervisor, a name being a lowercase word of letters, digits and dashes, and a text at most 4,000 characters and not empty.
+  **`PUT /instruction-texts/{agentName}/{name}`** sets a stage's text for that supervisor, a name being a lowercase word of letters, digits and dashes opening on a letter, and a text at most 4,000 characters and not empty.
 - **`DELETE /instruction-texts/{agentName}/{name}`** takes the console's text of a supervisor's stage away. A stage the console added leaves that supervisor's catalogue; one the policy holds
   stands again in the policy's text. A stage the console added that a chain of its supervisor still names is refused `conflict`, since the chain would name nothing: it is taken out of the chain first. A name the
   console set no text for is `not-found`.

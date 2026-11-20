@@ -264,7 +264,8 @@ pub fn text_refusal(name: &str, text: &str) -> Option<String> {
 
   if !named {
     return Some(format!(
-      "A stage's name is a lowercase word of letters, digits and dashes of at most {NAME_CHARS} characters."
+      "A stage's name is a lowercase word of letters, digits and dashes opening on a letter, of at most \
+       {NAME_CHARS} characters."
     ));
   }
 
