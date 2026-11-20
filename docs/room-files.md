@@ -102,11 +102,16 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
 
 - **A room's kept files fall into four kinds a reader lists**, and the messages route's `holding` lists the
   messages holding each (`docs/api.md`, 「Messages」), beside the links a message's words carry:
-  - media: the pictures, read from the message's own row, a sticker's left out, and the files kept as `video` or
-    `animation`;
-  - files: the files kept as `document`;
+  - media: the pictures, read from the message's own row, a sticker's left out, the files kept as `video` or
+    `animation`, and the files kept as `document` whose name implies a video's type;
+  - files: the files kept as `document` whose name implies neither a video's type nor a sound's;
   - voice notes and music: the files kept as `audio`, a voice note's where the message is one (its hearing is
-    marked on it, or its words open with the receiver's voice mark) and music's where it is not.
+    marked on it, its words open with the receiver's voice mark, or its sound came with no name of its own, a
+    recording, and stands under the name the receiver gives such a sound) and music's where it is not, and the files
+    kept as `document` whose name implies a sound's type, which are music.
+- **A document is counted by what it is, not by how it was sent.** A video or a sound sent as a file, and a round
+  video note handed over with no type of its own, are kept as `document`; the type its name implies, the one its
+  file is served with, says it is a video or a sound all the same.
 - **A sticker stands under none of them**, kept as a picture or as a file of kind `sticker` alike.
 
 ### Who a file wakes

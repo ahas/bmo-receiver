@@ -328,15 +328,20 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   narrows it as it narrows any page, and a deleted message's cleared words carry nothing.
 - **`holding` lists what the room's messages hold:** the page holds only the messages holding that kind, one of
   five (`docs/room-files.md`, 「A room's files by kind」):
-  - `media`, a picture the message stored that is no sticker, or a kept file of kind `video` or `animation`;
-  - `file`, a kept file of kind `document`;
+  - `media`, a picture the message stored that is no sticker, a kept file of kind `video` or `animation`, or a
+    kept `document` whose name implies a video's type;
+  - `file`, a kept `document` whose name implies neither a video's type nor a sound's, a name with no ending among
+    them;
   - `voice`, a kept file of kind `audio` on a voice note: a message whose hearing is marked on it (`voiceState`
-    not null), or whose words, leading whitespace set aside, open with the receiver's own voice mark;
-  - `music`, a kept file of kind `audio` on a message that is no voice note by the same test;
+    not null), whose words, leading whitespace set aside, open with the receiver's own voice mark, or whose sound
+    came with no name of its own and stands under the name the receiver gives such a sound;
+  - `music`, a kept file of kind `audio`, or a kept `document` whose name implies a sound's type, on a message that
+    is no voice note by the same test;
   - `link`, words that carry `http://` or `https://`, case set aside. The receiver filters on the words alone and
     leaves reading the addresses out of them to the reader.
 
-  A message holding several kinds stands under each. The page is walked by `before` and `limit` as the search is,
+  The type a name implies is the one a message's files are served with, its first guess by the name's ending. A
+  message holding several kinds stands under each. The page is walked by `before` and `limit` as the search is,
   newest page first and each page oldest first, with `more` where older ones stand; `by` and the leaving out of
   a client's opening apply as on any page. A `holding` that is none of the five, or one asked together with `q`,
   `after`, `unread` or `marked`, is refused 400 `bad-request`.

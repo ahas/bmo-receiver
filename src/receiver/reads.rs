@@ -493,11 +493,11 @@ pub async fn matching(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Holding {
-  /// A picture that is no sticker, a video or an animation.
+  /// A picture that is no sticker, a video or an animation, or a document whose name is a video's.
   Media,
-  /// A document.
+  /// A document whose name is neither a video's nor a sound's.
   File,
-  /// A sound that is no voice note.
+  /// A sound that is no voice note, or a document whose name is a sound's.
   Music,
   /// A voice note.
   Voice,
@@ -507,12 +507,16 @@ pub enum Holding {
 
 impl Holding {
   // The condition a message, read over the room's rows as `m`, meets where it holds this; `$3` is the receiver's
-  // voice mark.
+  // voice mark and `$5` the name it gives a sound that came with none.
   fn condition(self) -> String {
     match self {
-      Holding::Media => format!("(({PICTURED}) OR {})", filed("'video', 'animation'")),
-      Holding::File => filed("'document'"),
-      Holding::Music => format!("({} AND NOT {VOICE_NOTE})", filed("'audio'")),
+      Holding::Media => {
+        format!("(({PICTURED}) OR {} OR {})", filed("'video', 'animation'"), named(Played::Video))
+      }
+      Holding::File => documented(&format!("NOT ({})", Played::Video.or(Played::Sound))),
+      Holding::Music => {
+        format!("(({} OR {}) AND NOT {VOICE_NOTE})", filed("'audio'"), named(Played::Sound))
+      }
       Holding::Voice => format!("({} AND {VOICE_NOTE})", filed("'audio'")),
       Holding::Link => LINKED.to_owned(),
     }
@@ -524,10 +528,15 @@ impl Holding {
 const LINKED: &str =
   r#"(strpos(lower("m"."text"), 'http://') > 0 OR strpos(lower("m"."text"), 'https://') > 0)"#;
 
-// A message, read over the room's rows as `m`, that is a voice note: its hearing is marked on it, or its words,
-// leading whitespace set aside, open with the receiver's voice mark, bound as `$3`.
-const VOICE_NOTE: &str =
-  r#"("m"."voice_state" IS NOT NULL OR starts_with(regexp_replace("m"."text", '^\s+', ''), $3))"#;
+// A message, read over the room's rows as `m`, that is a voice note: its hearing is marked on it, its words, leading
+// whitespace set aside, open with the receiver's voice mark, bound as `$3`, or its sound came with no name of its own
+// and stands under the name the receiver gives such a sound, bound as `$5` (`files::named`): a recording, where a
+// sound somebody sent as a file carries its own name.
+const VOICE_NOTE: &str = r#"("m"."voice_state" IS NOT NULL
+     OR starts_with(regexp_replace("m"."text", '^\s+', ''), $3)
+     OR EXISTS (SELECT 1 FROM "collected_items" "v"
+       WHERE "v"."chat_id" = "m"."chat_id" AND "v"."message_id" = "m"."message_id" AND "v"."kind" = 'audio'
+         AND starts_with("v"."source", $5 || '.')))"#;
 
 // A message, read over the room's rows as `m`, that has a kept file of one of `kinds`, a list of SQL literals of
 // the kinds a kept file's row names (`files::kept_kind`).
@@ -536,6 +545,74 @@ fn filed(kinds: &str) -> String {
     r#"EXISTS (SELECT 1 FROM "collected_items" "f"
      WHERE "f"."chat_id" = "m"."chat_id" AND "f"."message_id" = "m"."message_id" AND "f"."kind" IN ({kinds}))"#
   )
+}
+
+// A message, read over the room's rows as `m`, that has a kept document meeting `condition`, read over the file's
+// row as `f`.
+fn documented(condition: &str) -> String {
+  format!(
+    r#"EXISTS (SELECT 1 FROM "collected_items" "f"
+     WHERE "f"."chat_id" = "m"."chat_id" AND "f"."message_id" = "m"."message_id" AND "f"."kind" = 'document'
+       AND {condition})"#
+  )
+}
+
+// A message, read over the room's rows as `m`, that has a kept document whose name is of the `played` kind.
+fn named(played: Played) -> String {
+  documented(&played.condition())
+}
+
+/// What a kept document is played as, by the type its name implies, as the message's files are served with it
+/// (`routes::message_files`): a document sent as a file is a video or a sound all the same where its name says so.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Played {
+  Video,
+  Sound,
+}
+
+impl Played {
+  fn top(self) -> &'static str {
+    match self {
+      Played::Video => "video",
+      Played::Sound => "audio",
+    }
+  }
+
+  // The name endings whose first implied type is this kind's, as `mime_guess` reads a name; every ending is letters
+  // and figures alone, so it stands in the SQL as a literal of its own.
+  fn endings(self) -> Vec<&'static str> {
+    mime_guess::get_mime_extensions_str("*/*")
+      .unwrap_or_default()
+      .iter()
+      .copied()
+      .filter(|ending| ending.bytes().all(|byte| byte.is_ascii_alphanumeric()))
+      .filter(|ending| {
+        mime_guess::from_ext(ending)
+          .first()
+          .is_some_and(|guessed| guessed.type_() == self.top())
+      })
+      .collect()
+  }
+
+  // The condition a kept file, read over its row as `f`, meets where its name's ending is this kind's; a name with no
+  // ending meets none.
+  fn condition(self) -> String {
+    let endings: Vec<String> = self
+      .endings()
+      .iter()
+      .map(|ending| format!("'{}'", ending.to_ascii_lowercase()))
+      .collect();
+
+    format!(
+      r#"coalesce(lower(substring("f"."source" from '\.([A-Za-z0-9]+)$')), '') IN ({})"#,
+      endings.join(", ")
+    )
+  }
+
+  // Either of two kinds' conditions.
+  fn or(self, other: Played) -> String {
+    format!("({} OR {})", self.condition(), other.condition())
+  }
 }
 
 /// The room's messages holding `holding`, the newest `count` before the cursor message (the newest where there is
@@ -565,6 +642,7 @@ pub async fn holding(
         cursor.unwrap_or_default().into(),
         ROADS.marks.voice.as_str().into(),
         count.into(),
+        ROADS.gathering.voice_name.as_str().into(),
       ],
     )
     .await?
