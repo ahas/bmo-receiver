@@ -233,6 +233,8 @@ pub struct Push {
   pub messages: String,
   pub instructions: String,
   pub joined: String,
+  /// The line the opening of a push that carries quiet instructions and none of the room's words ends on.
+  pub kept: String,
   pub scope: String,
   pub rule: String,
 }

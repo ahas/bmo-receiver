@@ -791,7 +791,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `id`, `agentName`, `number` (from 1, the round's own turn first and then the check of the words that arrived meanwhile, the audit and each instruction stage in the order asked; 0 for the agent's own
   judgement before a round), `question` (the row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn), `kind` (`supervisor`, the agent's own judgement whether to answer words
   its open window alone let in; `turn`, the round's own turn; `arrived`, the closing check; `audit`, the audit of the people the message answers; `stage`, an instruction stage; or `end`), `answerChars`,
-  `changed`, `outcome` (`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for the audit and a stage, each row carrying its answer; `message` or `skip` for the end), `detail` (or null: a row ending `skip` names there why the
+  `changed`, `outcome` (`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check, and `pass` for a check whose empty answer kept the message; `pass`, `revised` or `failed` for the audit and a stage, each row carrying its answer; `message` or `skip` for the end), `detail` (or null: a row ending `skip` names there why the
   round sent nothing, or `none given`), `answer` (or null), `ms`, `at` and `reads`:
   on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
   `read`; `docs/instruction.md`, 「The round log」), and empty on every other row; `session` and `loaded`: on the end,

@@ -421,8 +421,10 @@ Beside the reference, a turn carries the room's messages the agent has not read:
   - **What it carries.** The room's words the room queue handed over since the turn went out, and the quiet
     instructions delivered meanwhile, in one paragraph: the short marker that names the push, what arrived as
     data, the messages as a round's block renders them, each with its sender, its words and its number, the
-    numbers named as added to the turn's scope, then the instructions in their own block. No instruction
-    sentence stands in it: what the marker means stands in the room's block. No piece goes in with it: the
+    numbers named as added to the turn's scope, then the instructions in their own block. A push that carries
+    quiet instructions and none of the room's words adds one line to its opening (`kept`): the message written
+    before it stands and goes out unless the turn writes a new one, so writing nothing keeps it. No other
+    instruction sentence stands in it: what the marker means stands in the room's block. No piece goes in with it: the
     brain's index went in with the room's block at session opening.
   - **Only this room's words.** The push takes its messages from the room's own conversation, keyed by its chat
     id, and its quiet instructions from that same room's rows: another room's message or instruction never joins
@@ -443,8 +445,10 @@ Beside the reference, a turn carries the room's messages the agent has not read:
     the reply being made, a cancellation or a correction heeded at once, the work it cancels stopped and the
     reply saying so; a message that needs an answer of its own that does not fit this reply is held with
     `<<SEPARATE #<number>>>`; a message that only continues or restates what this reply already answers is set
-    aside with `<<DONE #<number>>>`. The block also says that only what is written after the marker goes out,
-    so the reply is written whole after it whatever the agent decides.
+    aside with `<<DONE #<number>>>`. The block also says that what is written after the marker replaces the
+    reply written before it, so a reply that changes is written whole after it, and that writing nothing after
+    it keeps the reply written before it, as it does in every round where a message stands
+    (`docs/instruction.md`, 「What it is」).
   - **How the round settles each pushed message.** A pushed message is shown to the round as one in the closing
     check is, and the round settles it by the marks its answers set (`docs/instruction.md`, 「What came in
     meanwhile」): one marked neither way is the round's own, answered or heeded by its message, the read mark
@@ -586,7 +590,7 @@ flowchart TD
   round, each question's own text stands in the room's block, the agent establishes what the message needs
   before it writes it, and what it answers is its own; no model judges the answer.
 - **What checks a message before it goes out is the supervisor's chain of instruction stages** (`docs/instruction.md`,
-  「The stages before the send」): a system instruction a stage, each answered with the message reprinted or `PASS`,
+  「The stages before the send」): a system instruction a stage, each answered with the message reprinted or nothing,
   and the checks that stay in code are the ones `docs/answer-checks.md` names.
 
 ## What keeps the window the only way in

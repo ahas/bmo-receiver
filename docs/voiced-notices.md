@@ -239,8 +239,8 @@ spoken, and the session writes what is said.
   backlog hands it (`docs/messages.md`, 「Backlog」), still qualifies; one message under any other sender makes
   the round a conversation.
 - **The session writes the summary,** in a quiet instruction of its own, asked of the same session in one turn once the line has gone out and before the round lets go of the room. The instruction is marked and
-  names the line as the message the session just sent (`summary`) and carries it no more: the session wrote it, a stage's
-  `PASS` leaves it as it was, and the round holds the session until the summary is written, so no other room's turn
+  names the line as the message the session just sent (`summary`) and carries it no more: the session wrote it, a stage that writes
+  nothing leaves it as it was, and the round holds the session until the summary is written, so no other room's turn
   comes between; what the marker asks for — the emotion line, then a one-line title saying what the briefing is about,
   in the agent's own words for this briefing, then one or two sentences of the line's gist as a spoken script,
   never the line read out, every notice of the turn covered in its newest state — stands in the room's block

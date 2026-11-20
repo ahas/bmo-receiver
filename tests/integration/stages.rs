@@ -1,7 +1,8 @@
 //! A room's round carried through its chain of instruction stages (docs/instruction.md, 「The stages before the
 //! send」): the message turn writes the message, each stage is one system instruction carrying its own words over
-//! the message as it stands, a stage that answers PASS leaves it as it was, a stage that reprints it changed puts
-//! its whole answer in its place, and the answer after the last stage is what the room receives.
+//! the message as it stands, a stage that writes nothing leaves it as it was, a stage that writes any other
+//! message, `PASS` among them, puts its whole answer in its place, and the answer after the last stage is what the
+//! room receives.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -199,9 +200,8 @@ impl Staged {
 }
 
 #[tokio::test]
-async fn the_stages_run_in_order_a_pass_keeps_the_message_and_the_last_answer_is_what_the_room_receives() {
-  let round =
-    Staged::run(StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "PASS", REVISED])).await;
+async fn the_stages_run_in_order_an_empty_answer_keeps_the_message_and_the_last_answer_goes_out() {
+  let round = Staged::run(StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "", REVISED])).await;
   let prompts = round.session.prompts();
 
   assert_eq!(prompts.len(), 3, "the message turn and one turn a stage: {prompts:#?}");
@@ -213,7 +213,7 @@ async fn the_stages_run_in_order_a_pass_keeps_the_message_and_the_last_answer_is
     assert!(prompt.contains(text), "the stage's words ride its turn: {prompt}");
   }
 
-  // The message is the agent's own last one, so no stage turn carries it again, after a PASS as well.
+  // The message is the agent's own last one, so no stage turn carries it again, after an empty answer as well.
   for prompt in &prompts[1..] {
     assert!(!prompt.contains(WRITTEN), "{prompt}");
   }
@@ -242,8 +242,7 @@ async fn the_stages_run_in_order_a_pass_keeps_the_message_and_the_last_answer_is
 
 #[tokio::test]
 async fn a_chain_of_passes_sends_the_message_the_message_turn_wrote() {
-  let round =
-    Staged::run(StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "PASS", WRITTEN])).await;
+  let round = Staged::run(StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "", WRITTEN])).await;
 
   assert_eq!(round.sent().len(), 1, "{:?}", round.sent());
   assert!(round.sent()[0].contains(WRITTEN), "{:?}", round.sent());
@@ -255,8 +254,20 @@ async fn a_chain_of_passes_sends_the_message_the_message_turn_wrote() {
 }
 
 #[tokio::test]
+async fn a_stage_that_answers_pass_sends_pass_as_the_message() {
+  let round = Staged::run(StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "PASS", ""])).await;
+
+  assert_eq!(round.sent().len(), 1, "{:?}", round.sent());
+  assert!(round.sent()[0].contains("\"PASS\""), "PASS is the message's words: {:?}", round.sent());
+  assert_eq!(
+    round.log().await,
+    ["turn message answered", "stage names revised", "stage facts pass", "end  message"]
+  );
+}
+
+#[tokio::test]
 async fn a_stage_whose_run_failed_sends_nothing() {
-  let session = StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "PASS"]).failing(FACTS.1);
+  let session = StandInSession::new(SESSION, "unused").answering(&[WRITTEN, ""]).failing(FACTS.1);
   let round = Staged::run(session).await;
 
   assert_eq!(round.session.prompts().len(), 3, "the message turn and both stages were asked");
@@ -334,7 +345,7 @@ async fn a_person_whose_memory_the_session_holds_is_not_audited() {
 
 #[tokio::test]
 async fn a_named_person_the_session_read_nothing_of_is_sent_to_their_records_and_never_asked() {
-  let session = StandInSession::new(SESSION, "unused").answering(&[WRITTEN, "PASS"]);
+  let session = StandInSession::new(SESSION, "unused").answering(&[WRITTEN, ""]);
   let staged = Staged::stand(session, &[]).await;
   let held = Known {
     held: true,

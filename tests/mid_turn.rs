@@ -1,5 +1,6 @@
 //! The mid-turn paragraph's opening: it names the push and what arrived as data, and carries no instruction
-//! sentence; the rule the marker stands for is said once in the room's block.
+//! sentence but the line a push of quiet instructions alone ends on; the rule the marker stands for is said once in
+//! the room's block.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;
@@ -34,4 +35,15 @@ fn the_opening_carries_no_instruction_sentence() {
     "the marks are the block's to name: {both}"
   );
   assert!(push.rule.contains(&push.marker) || push.rule.contains("{marker}"), "{}", push.rule);
+}
+
+#[test]
+fn a_push_of_quiet_instructions_alone_says_the_reply_written_before_it_stands() {
+  let push = &CHAT_ROUND.push;
+  let quiet = note(0, 2);
+
+  assert!(quiet.starts_with(&push.marker), "{quiet}");
+  assert!(quiet.ends_with(&push.kept), "the opening ends on the kept line: {quiet}");
+  assert!(!note(1, 1).contains(&push.kept), "the room's words may change the reply");
+  assert!(!note(2, 0).contains(&push.kept), "the room's words may change the reply");
 }

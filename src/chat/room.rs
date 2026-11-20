@@ -430,7 +430,7 @@ fn reading_rules() -> String {
   [
     INSTRUCTION.message_rule.clone(),
     INSTRUCTION.instruction_rule.clone(),
-    fill_marks(&INSTRUCTION.answer_rule, &[("pass", &INSTRUCTION.pass)]),
+    INSTRUCTION.answer_rule.clone(),
     fill_marks(&INSTRUCTION.arrived, &[("voice", &INSTRUCTION.voice)]),
   ]
   .join("\n")

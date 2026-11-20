@@ -51,7 +51,8 @@ pub struct Paragraph {
 }
 
 /// The paragraph's opening, as data: the marker that names the push and what arrived. What the marker means
-/// stands in the room's block.
+/// stands in the room's block; a push of quiet instructions alone ends its opening on the line saying that the
+/// reply written before it stands unless the turn writes a new one (docs/bmo-window.md, 「The openings」, `push`).
 pub fn note(messages: usize, instructions: usize) -> String {
   let push = &CHAT_ROUND.push;
   let mut what = vec![];
@@ -68,7 +69,9 @@ pub fn note(messages: usize, instructions: usize) -> String {
     return String::new();
   }
 
-  format!("{}\n{}", push.marker, what.join(&push.joined))
+  let opening = format!("{}\n{}", push.marker, what.join(&push.joined));
+
+  if messages == 0 { format!("{opening}\n{}", push.kept) } else { opening }
 }
 
 /// The paragraph the push's words go into the working turn as.
