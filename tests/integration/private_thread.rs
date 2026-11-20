@@ -205,7 +205,7 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
   );
   assert!(selection.thread_mark.is_none());
 
-  let reads = bmo_receiver::chat::draft::held_reads(&selection.held);
+  let reads = bmo_receiver::chat::stages::held_reads(&selection.held);
 
   assert!(
     reads.iter().any(|read| read.path.starts_with("threads/user-") && read.how == "held"),

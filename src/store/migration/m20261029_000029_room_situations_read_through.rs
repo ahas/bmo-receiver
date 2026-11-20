@@ -1,4 +1,4 @@
-//! The position a room's situation note has read its room's record to (docs/drafting.md, 「The situation note」):
+//! The position a room's situation note has read its room's record to (docs/instruction.md, 「The situation note」):
 //! the row of the last message the note took in, so the update turn is handed only what came after it.
 
 use sea_orm_migration::prelude::*;

@@ -1,0 +1,12 @@
+# The words an answer's own sentences are read by (docs/answer-checks.md): the Korean words a promise is read by,
+# which are words of the room's language and so data.
+
+# The words a sentence is read by, each a regular expression both sides compile as it stands. A pattern
+# said to be followed by no syllable is matched only where no Korean syllable comes right after it, which
+# each side adds in its own way.
+[reading]
+# The syllables a sentence of an answer ends on where white space follows them, beside the marks that end
+# one wherever they stand.
+closings = "요다"
+# Something that has to happen first: a job, a unit on another machine, a deployment, a result.
+awaiting = '(끝나|마치|완료되|나오|올라가|배포되|돌아오|들어오|도착하|떨어지)(면|는\s?대로)|(끝난|마친|완료된|나온|올라간|배포된|돌아온|들어온|도착한)\s?(뒤|후|다음)|끝나고|배포\s?(뒤|후)|결과(가|를)?\s?(오면|받으면|나오면)'

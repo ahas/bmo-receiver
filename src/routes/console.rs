@@ -407,7 +407,7 @@ pub async fn room_window(State(served): State<Served>, Path(room): Path<i64>) ->
 }
 
 /// A room's situation note as it stands, with when it last changed: the note the round updates before it judges a line
-/// (docs/drafting.md, 「The situation note」). A room with no note answers none and no moment.
+/// (docs/instruction.md, 「The situation note」). A room with no note answers none and no moment.
 pub async fn room_situation(State(served): State<Served>, Path(room): Path<i64>) -> Answered {
   let db = served.receiver.db();
   let held = crate::chat::situation::read_at(db, room).await.map_err(store)?;

@@ -289,122 +289,11 @@ async fn a_route_whose_needs_are_not_met_names_what_is_missing() {
 }
 
 #[tokio::test]
-async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
+async fn a_supervisor_s_stage_chain_and_texts_are_its_own_and_an_added_stage_leaves_once_no_chain_names_it()
+{
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;
-  let row = "/draft-processes/*/*/agent-a";
-  let set = |rounds: Value, off: Value| json!({ "rounds": rounds, "light": ["final"], "off": off, "lightChars": 12 });
-
-  // A question switched off keeps its place; a name no list holds is dropped.
-  let (status, body) =
-    put(&front, row, set(json!(["information", "facts", "final"]), json!(["facts", "intent"]))).await;
-
-  assert_eq!(status, StatusCode::OK, "{body}");
-  assert_eq!(body["rounds"], json!(["information", "facts", "final"]));
-  assert_eq!(body["off"], json!(["facts"]));
-
-  let (_, page) = get(&front, "/draft-processes").await;
-
-  assert_eq!(page["items"][0]["source"], json!("default"), "the policy's row opens the table: {page}");
-  assert_eq!(page["items"][1]["agentName"], json!("agent-a"), "{page}");
-  assert_eq!(page["items"][1]["off"], json!(["facts"]), "{page}");
-
-  // A supervisor named reads one row: its own, or the policy's where it has none.
-  let (_, page) = get(&front, "/draft-processes?agentName=agent-a").await;
-
-  assert_eq!(page["items"].as_array().map(Vec::len), Some(1), "{page}");
-  assert_eq!(page["items"][0]["source"], json!("set"), "{page}");
-
-  let (_, page) = get(&front, "/draft-processes?agentName=agent-b").await;
-
-  assert_eq!(page["items"].as_array().map(Vec::len), Some(1), "{page}");
-  assert_eq!(page["items"][0]["source"], json!("default"), "{page}");
-
-  // No row stands for every supervisor, and none for a provider or a tier.
-  for key in ["/draft-processes/*/*/*", "/draft-processes/provider-a/*/agent-a"] {
-    let (status, body) = put(&front, key, set(json!(["final"]), json!([]))).await;
-
-    assert_eq!(
-      (status, refused(&body).as_str()),
-      (StatusCode::BAD_REQUEST, "bad-request"),
-      "{key}: {body}"
-    );
-  }
-
-  // A set that names no `off` switches nothing off.
-  let (status, body) = put(
-    &front,
-    row,
-    json!({ "rounds": ["information", "final"], "light": ["final"], "lightChars": 12 }),
-  )
-  .await;
-
-  assert_eq!((status, &body["off"]), (StatusCode::OK, &json!([])), "{body}");
-  assert_eq!(&body["stagesOff"], &json!([]), "a row that names no stage switches none off: {body}");
-
-  // The stages after the message a row switches off are kept in the table's order, each once; a name that is no
-  // stage refuses the row, and so does the review, which every message passes.
-  let (status, body) = put(
-    &front,
-    row,
-    json!({ "rounds": ["information", "final"], "stagesOff": ["format", "wake", "wake"] }),
-  )
-  .await;
-
-  assert_eq!((status, &body["stagesOff"]), (StatusCode::OK, &json!(["wake", "format"])), "{body}");
-
-  let (status, body) =
-    put(&front, row, json!({ "rounds": ["information", "final"], "stagesOff": ["review"] })).await;
-
-  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
-
-  let (status, body) =
-    put(&front, row, json!({ "rounds": ["information", "final"], "stagesOff": ["everything"] })).await;
-
-  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
-
-  let (status, body) = put(&front, row, json!({ "rounds": ["information", "final"] })).await;
-
-  assert_eq!((status, &body["stagesOff"]), (StatusCode::OK, &json!([])), "{body}");
-
-  let (status, body) = put(&front, row, set(json!(["information", "final"]), json!(["final"]))).await;
-
-  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
-
-  // A question the console added is taken away once no list names it.
-  let (status, _) =
-    put(&front, "/draft-questions/agent-a/tone", json!({ "text": "Is the tone right?" })).await;
-
-  assert_eq!(status, StatusCode::OK);
-
-  // The question is that supervisor's: another's lists may not name it, and no text is set for every one.
-  let (status, body) =
-    put(&front, "/draft-processes/*/*/agent-b", set(json!(["tone", "final"]), json!([]))).await;
-
-  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
-
-  let (status, body) =
-    put(&front, "/draft-questions/*/tone", json!({ "text": "Is the tone right?" })).await;
-
-  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
-
-  let (status, _) = put(&front, row, set(json!(["tone", "final"]), json!([]))).await;
-
-  assert_eq!(status, StatusCode::OK);
-
-  let (status, body) = remove(&front, "/draft-questions/agent-a/tone").await;
-
-  assert_eq!((status, refused(&body).as_str()), (StatusCode::CONFLICT, "conflict"), "{body}");
-
-  let (status, _) = put(&front, row, set(json!(["final"]), json!([]))).await;
-
-  assert_eq!(status, StatusCode::OK);
-  assert_eq!(remove(&front, "/draft-questions/agent-a/tone").await.0, StatusCode::NO_CONTENT);
-
-  let (status, body) = remove(&front, "/draft-questions/agent-a/tone").await;
-
-  assert_eq!((status, refused(&body).as_str()), (StatusCode::NOT_FOUND, "not-found"), "{body}");
-
+  let chain = "/instruction-stages/agent-a";
   let names = |page: &Value| -> Vec<String> {
     page["items"]
       .as_array()
@@ -413,28 +302,89 @@ async fn a_draft_question_is_switched_off_and_a_console_question_taken_away() {
       .map(|one| format!("{} {}", one["name"].as_str().unwrap(), one["source"].as_str().unwrap()))
       .collect()
   };
-  let (_, page) = get(&front, "/draft-questions?agentName=agent-a").await;
 
-  assert!(!names(&page).iter().any(|one| one.starts_with("tone ")), "{page}");
+  // A supervisor with no chain of its own follows the policy's.
+  let (_, page) = get(&front, "/instruction-stages?agentName=agent-a").await;
 
-  // A question the policy holds stands again in the policy's text, a list naming it or not.
-  let (status, _) = put(&front, "/draft-questions/agent-a/final", json!({ "text": "Write it now." })).await;
-
-  assert_eq!(status, StatusCode::OK);
-
-  let (_, own) = get(&front, "/draft-questions?agentName=agent-a").await;
-  let (_, other) = get(&front, "/draft-questions?agentName=agent-b").await;
-  let (_, policy) = get(&front, "/draft-questions").await;
-
-  assert!(names(&own).contains(&"final set".to_owned()), "{own}");
-  assert!(
-    names(&other).contains(&"final default".to_owned()),
-    "another supervisor reads the policy's: {other}"
+  assert_eq!(page["items"].as_array().map(Vec::len), Some(1), "{page}");
+  assert_eq!(
+    (&page["items"][0]["agentName"], &page["items"][0]["source"]),
+    (&json!("*"), &json!("default"))
   );
-  assert!(names(&policy).contains(&"final default".to_owned()), "{policy}");
-  assert_eq!(remove(&front, "/draft-questions/agent-a/final").await.0, StatusCode::NO_CONTENT);
 
-  let (_, page) = get(&front, "/draft-questions?agentName=agent-a").await;
+  // A stage the console adds is that supervisor's: its chain may name it, another's may not.
+  let (status, body) =
+    put(&front, "/instruction-texts/agent-a/tone", json!({ "text": "Is the tone right?" })).await;
 
-  assert!(names(&page).contains(&"final default".to_owned()), "{page}");
+  assert_eq!((status, &body["policyText"]), (StatusCode::OK, &Value::Null), "{body}");
+
+  let (status, body) = put(&front, chain, json!({ "stages": ["tone", "review", "tone"] })).await;
+
+  assert_eq!(
+    (status, &body["stages"]),
+    (StatusCode::OK, &json!(["tone", "review"])),
+    "named once each: {body}"
+  );
+
+  let (status, body) = put(&front, "/instruction-stages/agent-b", json!({ "stages": ["tone"] })).await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::BAD_REQUEST, "bad-request"), "{body}");
+
+  let (_, page) = get(&front, "/instruction-stages").await;
+
+  assert_eq!(
+    page["items"][0]["source"],
+    json!("default"),
+    "the policy's chain opens the table: {page}"
+  );
+  assert_eq!(page["items"][1]["agentName"], json!("agent-a"), "{page}");
+
+  // No chain and no text stands for every supervisor, and a stage's name and text are held to their shape.
+  for (key, body) in [
+    ("/instruction-stages/*", json!({ "stages": ["review"] })),
+    ("/instruction-texts/*/tone", json!({ "text": "Is the tone right?" })),
+    ("/instruction-texts/agent-a/Tone", json!({ "text": "Is the tone right?" })),
+    ("/instruction-texts/agent-a/tone", json!({ "text": " " })),
+  ] {
+    let (status, answer) = put(&front, key, body).await;
+
+    assert_eq!(
+      (status, refused(&answer).as_str()),
+      (StatusCode::BAD_REQUEST, "bad-request"),
+      "{key}: {answer}"
+    );
+  }
+
+  // An added stage a chain still names stays; once out of the chain it leaves the catalogue.
+  let (status, body) = remove(&front, "/instruction-texts/agent-a/tone").await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::CONFLICT, "conflict"), "{body}");
+  assert_eq!(put(&front, chain, json!({ "stages": ["review"] })).await.0, StatusCode::OK);
+  assert_eq!(remove(&front, "/instruction-texts/agent-a/tone").await.0, StatusCode::NO_CONTENT);
+
+  let (status, body) = remove(&front, "/instruction-texts/agent-a/tone").await;
+
+  assert_eq!((status, refused(&body).as_str()), (StatusCode::NOT_FOUND, "not-found"), "{body}");
+
+  // A policy stage's text set for one supervisor is read by it alone, and carries the policy's text to go back to.
+  let (status, body) =
+    put(&front, "/instruction-texts/agent-a/review", json!({ "text": "Check the names." })).await;
+
+  assert_eq!(status, StatusCode::OK, "{body}");
+  assert!(body["policyText"].as_str().is_some_and(|text| text != "Check the names."), "{body}");
+
+  let (_, own) = get(&front, "/instruction-texts?agentName=agent-a").await;
+  let (_, other) = get(&front, "/instruction-texts?agentName=agent-b").await;
+
+  assert_eq!(names(&own), ["review set"], "{own}");
+  assert_eq!(names(&other), ["review default"], "another supervisor reads the policy's: {other}");
+  assert_eq!(remove(&front, "/instruction-texts/agent-a/review").await.0, StatusCode::NO_CONTENT);
+
+  let (_, own) = get(&front, "/instruction-texts?agentName=agent-a").await;
+
+  assert_eq!(names(&own), ["review default"], "{own}");
+
+  // The chain taken away, the supervisor follows the policy's again.
+  assert_eq!(remove(&front, chain).await.0, StatusCode::NO_CONTENT);
+  assert_eq!(remove(&front, chain).await.0, StatusCode::NOT_FOUND);
 }

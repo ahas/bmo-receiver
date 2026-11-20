@@ -564,7 +564,7 @@ pub trait Agency: Send + Sync {
   /// no supervisor has the name.
   fn road_answers<'a>(&'a self, supervisor: &'a str) -> BoxFuture<'a, Answer<bool>>;
 
-  /// A supervisor's brain and reference switches, as its settings say (docs/drafting.md, 「A supervisor
+  /// A supervisor's brain and reference switches, as its settings say (docs/instruction.md, 「A supervisor
   /// whose brain or reference is off」): each on where they do not say it, where no supervisor has the name,
   /// and on an agency that keeps no such setting.
   fn switches<'a>(&'a self, _supervisor: &'a str) -> BoxFuture<'a, Answer<Switches>> {
@@ -813,7 +813,7 @@ struct SupervisorSettingsPage {
 }
 
 /// A supervisor's switches over what of its brain reaches its turns, each on where its settings do not
-/// say it (docs/drafting.md, 「A supervisor whose brain or reference is off」).
+/// say it (docs/instruction.md, 「A supervisor whose brain or reference is off」).
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Switches {

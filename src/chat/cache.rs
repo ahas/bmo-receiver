@@ -62,8 +62,8 @@ pub struct Route {
 /// What the receiver knows of one session's cache between turns: the fingerprint of the head its last turn stood
 /// on, the reason the agency gave then for a changed prefix, the moment it was last seen, and whether a turn
 /// resumed it and read nothing from the cache. A record kept before the head was fingerprinted holds none, and the
-/// next turn's head is taken as the one it stands on. `process` is the fingerprint of the draft process's part of
-/// the room's block as that turn carried it; a record that kept none has nothing to compare.
+/// next turn's head is taken as the one it stands on. `process` is the fingerprint of the block's rules for reading
+/// a turn as that turn carried them; a record that kept none has nothing to compare.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CacheState {
   #[serde(default)]
@@ -154,8 +154,8 @@ pub fn route_reason(
 }
 
 /// Why the session this turn would resume may not be resumed as it stands: the owner's word, a road moved, a
-/// session opened before with no record of its head, a head moved, or the draft process's instructions no longer
-/// the ones its last turn carried. A cache lifetime passed is no reason: the turn resumes the session and the
+/// session opened before with no record of its head, a head moved, or the block's rules for reading a turn no
+/// longer the ones its last turn carried. A cache lifetime passed is no reason: the turn resumes the session and the
 /// provider reads its prefix again. `standing` is the agency's
 /// state of the session, read before the turn: whether it was ever opened, and why its prefix changed where the
 /// agency names it. Nothing of the turn's own composition is read (docs/unified-bmo.md, 「Replacing the session」).
@@ -195,7 +195,7 @@ pub async fn reset_reason(
     return Ok(Some(SessionReason::Prefix));
   }
 
-  if !state.process.is_empty() && state.process != super::room::process_mark(db, agent).await? {
+  if !state.process.is_empty() && state.process != super::room::process_mark() {
     return Ok(Some(SessionReason::Process));
   }
 
@@ -330,7 +330,7 @@ fn transcript_of(agent: &str, chat_id: i64, previous: Option<&Route>, text: &str
 }
 
 /// What a turn leaves of its session: the room it answered, the road it went out on, the agency's reason for a
-/// changed prefix the session's state named after it, the fingerprint of the draft process's part of the block it
+/// changed prefix the session's state named after it, the fingerprint of the block's rules for reading a turn it
 /// carried, whether the turn judged a replacement before it went in, the session it resumed where it resumed one,
 /// what the run reported of the cache, and the words it answered with.
 #[derive(Debug, Clone)]

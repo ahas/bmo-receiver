@@ -1528,79 +1528,79 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
-    "/rounds/drafts",
-    "roundDrafts",
+    "/rounds/pipeline",
+    "roundPipeline",
     "Rounds",
-    "For a room and the rounds named, or its newest rounds where none is named, every row each round's draft process wrote.",
+    "For a room and the rounds named, or its newest rounds where none is named, every row each round's instruction pipeline wrote.",
     vec![
       parameter("room", "integer", true),
       parameter("rounds", "string", false),
       parameter("limit", "integer", false),
     ],
     None,
-    vec![(200, json_answer::<Page<RoundDrafts>>(&mut generator))],
+    vec![(200, json_answer::<Page<RoundPipeline>>(&mut generator))],
     vec!["unauthorized", "bad-request", "failed"]
   );
   add!(
     "GET",
-    "/draft-processes",
-    "draftProcesses",
-    "Drafts",
-    "Every row of the draft process table, the policy's and each supervisor's own; for a supervisor named, the one row it reads.",
+    "/instruction-stages",
+    "instructionChains",
+    "Instruction",
+    "Every row of the instruction stage table, the policy's and each supervisor's own; for a supervisor named, the one row it reads.",
     vec![parameter("agentName", "string", false)],
     None,
-    vec![(200, json_answer::<Page<DraftProcess>>(&mut generator))],
+    vec![(200, json_answer::<Page<InstructionChain>>(&mut generator))],
     vec!["unauthorized", "failed"]
   );
   add!(
     "PUT",
-    "/draft-processes/{provider}/{tier}/{agentName}",
-    "setDraftProcess",
-    "Drafts",
-    "A supervisor's row set by the console.",
-    vec![name_parameter("provider"), name_parameter("tier"), name_parameter("agentName")],
-    Some(generator.subschema_for::<DraftProcessSet>()),
-    vec![(200, json_answer::<DraftProcess>(&mut generator))],
+    "/instruction-stages/{agentName}",
+    "setInstructionChain",
+    "Instruction",
+    "A supervisor's chain of instruction stages set by the console.",
+    vec![name_parameter("agentName")],
+    Some(generator.subschema_for::<InstructionChainSet>()),
+    vec![(200, json_answer::<InstructionChain>(&mut generator))],
     vec!["unauthorized", "bad-request", "failed"]
   );
   add!(
     "DELETE",
-    "/draft-processes/{provider}/{tier}/{agentName}",
-    "removeDraftProcess",
-    "Drafts",
-    "A supervisor's row taken away.",
-    vec![name_parameter("provider"), name_parameter("tier"), name_parameter("agentName")],
+    "/instruction-stages/{agentName}",
+    "removeInstructionChain",
+    "Instruction",
+    "A supervisor's chain taken away, the supervisor reading the policy's again.",
+    vec![name_parameter("agentName")],
     None,
     vec![(204, empty_answer())],
     vec!["unauthorized", "not-found", "failed"]
   );
   add!(
     "GET",
-    "/draft-questions",
-    "draftQuestions",
-    "Drafts",
+    "/instruction-texts",
+    "instructionTexts",
+    "Instruction",
     "A supervisor's catalogue of questions, or the policy's alone where none is named.",
     vec![parameter("agentName", "string", false)],
     None,
-    vec![(200, json_answer::<Page<DraftQuestion>>(&mut generator))],
+    vec![(200, json_answer::<Page<InstructionText>>(&mut generator))],
     vec!["unauthorized", "failed"]
   );
   add!(
     "PUT",
-    "/draft-questions/{agentName}/{name}",
-    "setDraftQuestion",
-    "Drafts",
+    "/instruction-texts/{agentName}/{name}",
+    "setInstructionText",
+    "Instruction",
     "A question's text set by the console for a supervisor.",
     vec![name_parameter("agentName"), name_parameter("name")],
-    Some(generator.subschema_for::<DraftQuestionSet>()),
-    vec![(200, json_answer::<DraftQuestion>(&mut generator))],
+    Some(generator.subschema_for::<InstructionTextSet>()),
+    vec![(200, json_answer::<InstructionText>(&mut generator))],
     vec!["unauthorized", "bad-request", "failed"]
   );
   add!(
     "DELETE",
-    "/draft-questions/{agentName}/{name}",
-    "removeDraftQuestion",
-    "Drafts",
+    "/instruction-texts/{agentName}/{name}",
+    "removeInstructionText",
+    "Instruction",
     "The console's text of a supervisor's question taken away.",
     vec![name_parameter("agentName"), name_parameter("name")],
     None,

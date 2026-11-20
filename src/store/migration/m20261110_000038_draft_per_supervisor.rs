@@ -1,5 +1,5 @@
 //! The draft process's rows and question texts as each supervisor's own (`docs/store.md`, 「The tables」;
-//! `docs/drafting.md`, 「The process table」 and 「The questions」): a question's text is kept by the supervisor it was
+//! `docs/instruction.md`, 「How a supervisor reads the chain」 and 「The stage chain and its texts」): a question's text is kept by the supervisor it was
 //! set for, and what stood for every supervisor stands as each one's own, for the supervisors a room names.
 
 use sea_orm_migration::prelude::*;

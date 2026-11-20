@@ -141,22 +141,18 @@ async fn a_supervisor_stands_with_its_gate_options_copied_and_its_rooms_go_to_th
   assert_eq!(status, StatusCode::OK, "{answer}");
   assert_eq!(answer["supervisors"], json!([ADDED]), "the new room names the supervisor alone");
 
-  // What the console set the supervisor goes with it: its draft process row and its question texts.
+  // What the console set the supervisor goes with it: its chain of instruction stages and their texts.
   let (status, answer) = put(
     &front,
-    &format!("/draft-questions/{ADDED}/tone"),
+    &format!("/instruction-texts/{ADDED}/tone"),
     json!({ "text": "Is the tone right?" }),
   )
   .await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
 
-  let (status, answer) = put(
-    &front,
-    &format!("/draft-processes/*/*/{ADDED}"),
-    json!({ "rounds": ["tone", "final"], "light": ["final"], "lightChars": 12 }),
-  )
-  .await;
+  let (status, answer) =
+    put(&front, &format!("/instruction-stages/{ADDED}"), json!({ "stages": ["tone", "review"] })).await;
 
   assert_eq!(status, StatusCode::OK, "{answer}");
 
@@ -164,8 +160,8 @@ async fn a_supervisor_stands_with_its_gate_options_copied_and_its_rooms_go_to_th
 
   assert_eq!(status, StatusCode::NO_CONTENT, "{answer}");
 
-  let (_, row) = get(&front, &format!("/draft-processes?agentName={ADDED}")).await;
-  let (_, catalogue) = get(&front, &format!("/draft-questions?agentName={ADDED}")).await;
+  let (_, row) = get(&front, &format!("/instruction-stages?agentName={ADDED}")).await;
+  let (_, catalogue) = get(&front, &format!("/instruction-texts?agentName={ADDED}")).await;
 
   assert_eq!(row["items"][0]["source"], json!("default"), "{row}");
   assert!(

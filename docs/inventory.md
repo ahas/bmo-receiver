@@ -105,7 +105,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 
 | Member | Stands here as | Carried by |
 |---|---|---|
-| own: `chat-round`, `roads`, `wake`, `talk`, `restart`, `second-asks`, `handover`, `files`, `code-review`, `queue` | `policy/` of the same names | build-3 (Copy the receiver's policy) |
+| own: `chat-round`, `roads`, `wake`, `talk`, `restart`, `answer-reading`, `handover`, `files`, `code-review`, `queue` | `policy/` of the same names | build-3 (Copy the receiver's policy) |
 | shared, the keys the receiver acts on: `chat-health`, `chat-line`, `rest`, `resident-turn`, `run-lines`, `roles`, `keepalive`, `providers` | `policy/` of the same names, the old `providers/` folder become one `providers.toml` | build-3 |
 | `commands.toml` | `policy/commands.toml`: the phrases the owner's commands are matched by, the polite endings and the option suffixes | build-2 (Turn room words into codes) |
 | the loader | `crates/receiver-policy`, one module per file, held to the folder by its load test | build-3 |
@@ -153,7 +153,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `tests/integration/receiver/wake.rs`, the colocated `wake/question` and `wake/rest` modules | `tests/integration/wake.rs`, `tests/integration/wake/question.rs`, `tests/integration/wake/rest.rs` | build-7 |
 | the colocated modules of `chat/conversation`, `mid_turn`, `window`, `shape`, `room`, `context`, `records`, `form`, `text`, `dashes`, `js`, `web_address` | `tests/` of those names | build-8 |
 | `tests/integration/private_thread.rs` | of the same name | build-8 |
-| the colocated modules of `chat/ask`, `progress`, `again`, and the promises reading | `tests/ask.rs`, `tests/progress.rs`, `tests/draft.rs`, `tests/promises.rs` | build-9 |
+| the colocated modules of `chat/ask`, `progress`, `again`, and the promises reading | `tests/ask.rs`, `tests/progress.rs`, `tests/stages.rs`, `tests/promises.rs` | build-9 |
 | `tests/integration/stop_notice.rs` | of the same name | build-9 |
 | `receiver/talk.rs` and `chat/talk`'s colocated module | `tests/integration/talks.rs`, `tests/talk.rs` | build-10 |
 | `tests/integration/verbs_messages.rs`, `verbs_draws.rs`, `receiver/owner_sends.rs`, `receiver/owner_words.rs` | of the same names | build-11 |

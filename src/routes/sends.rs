@@ -4,7 +4,7 @@
 //! and a shell's hold none of them — and the verbs the road a room is answered on performs, which a procedure
 //! read there is held to.
 //!
-//! Words go into a room only as a round's message, which the draft process writes and reviews (docs/messages.md,
+//! Words go into a room only as a round's message, which the round writes and its stages check (docs/messages.md,
 //! 「Words handed to the room's supervisor」). So only an act that holds no words, asked in its agent's own round,
 //! is carried; an act holding words — a line, a spoken talk, a voice note, a caption — asked there into the room
 //! that round answers is refused, and every other send is handed to the room's supervisor as an order, whose round

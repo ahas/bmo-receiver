@@ -8,8 +8,8 @@ reminders and watches are `docs/reminders.md`'s. The other tools of the catalogu
 
 ## Its entries
 
-No entry puts words in a room. An agent's words reach a room only as its round's message, which the draft process
-writes and reviews (`docs/drafting.md`); an entry that holds words is refused in the round's own room and handed to
+No entry puts words in a room. An agent's words reach a room only as its round's message, which its message turn
+writes and its instruction stages check (`docs/instruction.md`); an entry that holds words is refused in the round's own room and handed to
 the supervisor of any other (`docs/messages.md`, 「Words handed to the room's supervisor」).
 
 - **`say`**: words for another room, the room `chat` names, handed to that room's supervisor, whose round there

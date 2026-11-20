@@ -189,7 +189,7 @@ instruction = """Something was handed to you to put in chat {room}, by {who}. It
 WHAT WAS HANDED:
 {asked}
 END OF WHAT WAS HANDED"""
-rule = "WHEN A TURN IS MARKED {marker} — every message a room receives comes from that room's supervisor, so whether and how it is said is yours, and its words go out only as this round's message, which the draft process reviews. Write what was handed into this turn's answer, in your own words and voice: as it stands, rephrased, folded or as a reply. A line, a voice note or a spoken talk is said as words in your message. A picture or a file goes out through that same entry of the send tool with no caption, and its caption's words go into your message. No send tool entry carries words. Where it is not worth saying, skip, naming on one line why."
+rule = "WHEN A TURN IS MARKED {marker} — every message a room receives comes from that room's supervisor, so whether and how it is said is yours, and its words go out only as this round's message. Write what was handed into this turn's answer, in your own words and voice: as it stands, rephrased, folded or as a reply. A line, a voice note or a spoken talk is said as words in your message. A picture or a file goes out through that same entry of the send tool with no caption, and its caption's words go into your message. No send tool entry carries words. Where it is not worth saying, skip, naming on one line why."
 answered = "Handed to {agent} to say in chat {room} in its own turn (order {id}); nothing went out on this call, so do not send it again."
 relay_dropped = "The answer you asked of that room will not be brought back: this room has asked other rooms for several answers in a short stretch, which is the shape of two rooms talking to each other in a circle, so the asking is off for a while. The words themselves were handed."
 
@@ -312,7 +312,7 @@ rule = "WHEN A TURN IS MARKED {marker} — answer it as the round below says; yo
 answered_chars = 300
 
 # What a round's reads name a piece of the turn's core by where neither the gate's index nor the gate names it, by
-# the gate's word for the piece's sort (docs/drafting.md, 「The round log」).
+# the gate's word for the piece's sort (docs/instruction.md, 「The round log」).
 [reference.holds]
 document = "a reference document"
 person = "a person's sheet"
@@ -324,7 +324,7 @@ room = "the room"
 archive = "the room's archive"
 
 # The room's situation note, updated by one turn in every round with words, before its judgement or its own
-# turn (docs/drafting.md, 「The situation note」), the owner's private chat included: the instruction the room's
+# turn (docs/instruction.md, 「The situation note」), the owner's private chat included: the instruction the room's
 # block carries once per session, the mark the note turn carries, and the lines the note as it stands and the
 # messages that came in since it last read the room's record stand under.
 [situation]
@@ -350,22 +350,22 @@ claim = "(제가|내가|저는|나는).{0,40}(보냈|답했|첨부했|고쳤|처
 
 # The agent's own judgement that opens a round whose every message reached it on its open window alone
 # (docs/wake.md, 「The room's queue and the round」): the marker the judgement turn carries; the head and the
-# question, which together are the draft catalogue's `supervisor` text where the console set none
-# (docs/drafting.md, 「The routes」); the rule the marker stands for and the shape of a turn and each round, both
+# question, the words the judgement asks, said once in the room's block; the rule the marker stands for and the shape
+# of a turn and each round, both
 # said once in the room's block; the lines the room's situation, its recent words and the words judged stand
 # under, as data; and the name its row of the round log goes under.
 [supervisor]
 marker = "SUPERVISOR ROUND."
 # The shape of a turn and of each round, and where each round's rulebook stands: said once in the room's block,
 # short, naming the rulebooks rather than repeating them.
-structure = "A TURN is one pass over a room's words, and its ROUNDS are the turns you are asked inside it. This is the supervisor's round: answer <<SKIP: <why>>> or one short line saying whether the words are yours, and take no other action; a skip names its reason on one line, since a bare <<SKIP>> is read as no verdict and asks the round again. The draft round follows the questions its line names, with its tools, and answers with the message; the review round answers PASS or REJECT with a reason; an item or check round follows its rule in the room block. The room block's draft round, the review's own line and each item's rule there are the rulebooks: follow them, do not repeat them."
+structure = "A TURN is one pass over a room's words, and its ROUNDS are the turns you are asked inside it. This is the supervisor's round: answer <<SKIP: <why>>> or one short line saying whether the words are yours, and take no other action; a skip names its reason on one line, since a bare <<SKIP>> is read as no verdict and asks the round again. The room block's rules for reading a message and an instruction and for answering each are the rulebooks: follow them, do not repeat them."
 # What a turn marked with the marker does, and the catalogue's supervisor text the console set or the policy's
 # head and question where it set none.
 rule = "WHEN A TURN IS MARKED {marker} — {question}"
 head = "BEFORE THIS ROUND: the words in the turn did not name you, did not reply to your words and do not stand in a private chat. Decide first whether to answer them."
 recent = "The room's recent words:"
 judged = "The words to judge:"
-question = "Are these words said to you, or do they want your answer? Where neither, answer <<SKIP: <why>>> alone, the reason one line in English saying why the words are not yours: nothing is sent, the round ends and the reason stands in its record. A bare <<SKIP>> names no reason, is read as no verdict and asks this turn again. Where either, answer one short line saying which; the round then goes on, and the answer is written in it. A draft or a note from this session is not a message unless the room's record holds it: judge the room's words and its record, never a draft."
+question = "Are these words said to you, or do they want your answer? Where neither, answer <<SKIP: <why>>> alone, the reason one line in English saying why the words are not yours: nothing is sent, the round ends and the reason stands in its record. A bare <<SKIP>> names no reason, is read as no verdict and asks this turn again. Where either, answer one short line saying which; the round then goes on, and the answer is written in it. An answer or a note from this session is not a message unless the room's record holds it: judge the room's words and its record, never an unsent answer."
 name = "supervisor"
 
 # The brain's index a turn carries in place of the pieces (docs/bmo-window.md, 「What every turn carries」): the head

@@ -38,15 +38,15 @@
   root, and the room's own persona, `prompts/persona/rooms/<chat id>.md`, each under its header in the turn's block.
 - **What a turn's scaffolding means is said there once**, not on every turn: that a quiet instruction comes from
   the system, is acted on as the owner's word and may be skipped (in a round of a room, in the round's form, which
-  names why: `docs/drafting.md`, 「What it is」); that a reference block outranks
+  names why: `docs/instruction.md`, 「What it is」); that a reference block outranks
   the session's memory and what its already-loaded marks are; what a room context mark is; that the system lines
   are English while the language an answer is written in is the agent's own judgement, never a line of the turn;
-  and what the owed-answer line withholds. The draft process's questions and the stage each asks stand there,
-  and so do the voice a message is written in, the review's instruction and verdict wording, the
+  and what the owed-answer line withholds. The rules for reading a message and an instruction and for answering each
+  stand there, and so do the voice a message is written in, the
   situation-note instruction with its ceiling, the closing rules (how a turn opens and closes, when a `<<WAIT>>`
   is right, and that the owner's own words in his own chat are always answered), the queue rule, the brain's
-  rule and the memories rule, so a round's turn names only the questions its round follows, a note turn
-  carries only its mark, and the review turn carries only its mark and the material it reads. The turn carries
+  rule and the memories rule, so a note turn carries only its mark, and an instruction stage's turn carries
+  only its mark, its own words and the material it reads. The turn carries
   only what changes from turn to turn: the room and its facts, the words themselves, the round's mark and the
   material the gate attaches.
 - **Kept out of the system prompt:** each room's tone and traits, the group-room rules, the private chat's
@@ -80,7 +80,7 @@
     agency opens under the session empty it (`DELETE /session-loads/{sessionId}`).
   - **A person's own thread** is the receiver's own document, not the gate's: a session is handed it whole on its
     first turn in the person's private room, then only the lines added since the last line it was handed, under a
-    heading saying so; a turn with no new line attaches nothing and its draft record lists the piece as `held`. The
+    heading saying so; a turn with no new line attaches nothing and its pipeline record lists the piece as `held`. The
     last line handed is kept for that session, not the room: a session continued across a restart keeps it and
     gets only the added lines, while a new or replaced session, a fold's included, and a new generation the agency
     opens under it start again from the whole thread. The mark is let go when that session is replaced or folds,
@@ -185,7 +185,7 @@
 ## Replacing the session
 
 - **The session is replaced, not burned again,** when its head moved, its road moved (another provider, model or
-  effort, or another login), the draft process's instructions it was handed changed, or the owner asked for a
+  effort, or another login), the instruction pipeline's instructions it was handed changed, or the owner asked for a
   fresh start. A road moved only where the agency's state of the session names a provider and a model that differ
   from the ones it stood on: a state the agency could not answer — while it restarts — or one naming none — a
   session opened afresh and not yet through its first turn — says nothing of the road and replaces nothing. The agency carries the replacement as the session's provider declares.
@@ -195,7 +195,7 @@
   reads its prefix again.
 - **A replacement never stands between a question and its answer.** A session that cannot take the turn — its
   road moved, its window full, its model replaced on its own — is replaced ahead of the turn. For every other
-  reason (its head moved, no record of its head, the draft process's instructions changed, a handover asked
+  reason (its head moved, no record of its head, the instruction pipeline's instructions changed, a handover asked
   for) the turn goes on in the session as it stands, and the replacement is written down as owed, with the
   reason it was first owed for. It is made once the agent is quiet, behind the agent's turn: right after the
   round that found it ends with no words of any room waiting, else after the next round that ends so, ahead of
@@ -225,18 +225,19 @@
 - **The head is what the session's cache stands on:** the common system prompt, which the agency composes and
   keeps. A turn the receiver composes is appended after the session's own history and moves nothing ahead of
   it, so no part of a turn is the head: not the room-switch block or its mark, its opening index, the turn's
-  scope line, the room's facts, or the words and instructions it carries, and not a question, an item or a
-  check of the draft process. A turn of any room on an unmoved head resumes the session.
+  scope line, the room's facts, or the words and instructions it carries, and not an instruction stage or the
+  closing check of the round. A turn of any room on an unmoved head resumes the session.
 - **The agency says whether the head moved.** The session's state names why its prefix changed where the
   agency names it (`prefixChangeReason`, the agency's `docs/api.md`, 「Sessions」); each turn the receiver
   carries keeps the reason the state named, and a later turn whose state names another replaces the session.
   Where the agency names none, the receiver's own measure stands in: the fingerprint of the fixed lines every
   round's turn is written in (the round policy's header, block, closing, queue and push lines), which a
   deployment that rewrites them moves and nothing a room or a turn fills in does.
-- **The draft process's instructions are read once by a session.** The process's part of the room's block —
-  its fixed rules, the stage lines of the questions the process asks, what a send does, the rules of the items
-  and the checks, the agent's first judgement and the review's instructions (`docs/drafting.md`, 「The
-  questions」) — is a supervisor's own and the same in every room it answers, and it is what tells the session how each round is answered. The receiver keeps, with what it knows of
+- **The rules for reading a turn are read once by a session.** That part of the room's block — how a room's words
+  are answered, how a message and an instruction are read and answered, and the agent's first judgement
+  (`docs/instruction.md`, 「What reaches an agent」) — is the deployment's, the same for every supervisor in every
+  room, and it is what tells the session how each turn is read. A chain or a stage's words the console sets
+  stand in no block and move nothing here. The receiver keeps, with what it knows of
   the session's cache, the fingerprint of that part as the session's last turn carried it; a turn that finds
   it another leaves the replacement owed, with the reason `process`, and the session is replaced once the agent
   is quiet, so no session answers for long with the instructions as they were beside the instructions as they
@@ -255,7 +256,7 @@
   finds the state past the generation this session last answered on, the session gone where one was answered on,
   or the agency's announcement of the session on its stream releases what the ended generation held before its
   prompt is composed: the room block, the note versions, the cache record and the count of what the round log says
-  it read (`docs/drafting.md`, 「The round log」), and the fold reported to the brain
+  it read (`docs/instruction.md`, 「The round log」), and the fold reported to the brain
   so the marks it handed that session clear (`docs/boundary-api.md`, 「The brain」). The session's loads are the
   agency's, and it releases them as it opens the generation; the receiver deletes them only where they still
   stand, since a turn it composed against the ended generation may have written them back after that. A plain
@@ -263,7 +264,7 @@
   to another room of the one session across rooms.
 - **Before the old session is asked for its handoff it writes the notes it owes.** The situation note of every
   room the agent answered in since that room's note was last updated is updated first, one turn a room on
-  the session that is about to end (`docs/drafting.md`, 「The situation note」). The notes are the rooms' own and
+  the session that is about to end (`docs/instruction.md`, 「The situation note」). The notes are the rooms' own and
   no part of the handoff document: the fresh session reads each room's note in its first round there. The
   handoff the agency asks for ahead of a fresh session writes them the same way.
 - **Before the old session is ended it consolidates and writes its handoff,** whatever the reason. The receiver
@@ -373,9 +374,9 @@ at those moments and tells the brain of a fold it asks of the session itself.
 - **At a hand-off** the closing session consolidates what it holds, then tells the brain it folds
   (`brain_fold`), then writes its handoff (「Replacing the session」 above).
 - **When the brain says it is due,** the room's block carries the due line at session opening
-  (`docs/bmo-window.md`, 「What every turn carries」), and the round's `memory` question consolidates in that
-  turn, bounded to what the turn can afford: the first episodes the brain answers, never all of them, and no `brain_fold` (`docs/drafting.md`,
-  「The questions」).
+  (`docs/bmo-window.md`, 「What every turn carries」), and the round's message turn consolidates in that turn,
+  bounded to what the turn can afford: the first episodes the brain answers, never all of them, and no
+  `brain_fold`.
 - **At a fold the receiver asks of the session,** in this order: one quiet turn on the session, tools on, carrying
   the `CONSOLIDATE.` marker with the room's block, whose rule (`handover.toml`, `consolidate_rule`) says what the
   turn is: the session consolidates the first of its unconsolidated episodes, as many as the turn can afford and
@@ -412,7 +413,7 @@ at those moments and tells the brain of a fold it asks of the session itself.
 - **The run-privilege mark** at the head of the request (the turn's `privileged`) only says whether all new
   messages this turn are the owner's; it is not a lock. It is read off the words each round itself takes, in
   any room, his private room or not, and whatever an earlier round of the same conversation read, and every
-  question of that round's draft process carries it. Only people's words count: a line an agent said, any
+  later turn of that round carries it. Only people's words count: a line an agent said, any
   supervisor's or the receiver's own, neither grants it nor takes it away, so a round whose people's
   words are all the owner's is his. A round that takes no people's words, a quiet instruction's or agents' lines
   alone, is the owner's in his private room alone.

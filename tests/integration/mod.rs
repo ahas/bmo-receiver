@@ -14,7 +14,7 @@ mod contracts;
 mod cut_agency;
 mod data_root;
 mod double_slots;
-mod draft_process;
+
 mod expiry;
 mod handed_sends;
 mod handoffs;
@@ -42,6 +42,7 @@ mod session_loads;
 mod session_replacement;
 mod situation;
 mod speakers;
+mod stages;
 mod stop_notice;
 mod store;
 mod supervisor;

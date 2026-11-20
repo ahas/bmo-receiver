@@ -494,7 +494,8 @@ pub fn judgement(
   })
 }
 
-/// One row of a round's draft process, as the round log keeps it (docs/drafting.md, 「The round log」).
+/// One row of a round's log, or a turn of it told starting, under the event name the gate reads (docs/instruction.md,
+/// 「The round log」).
 pub fn draft(chat_id: i64, row: &Value) -> Value {
   let mut event = json!({ "type": "draft", "chatId": chat_id, "messageId": null });
 

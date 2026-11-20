@@ -648,317 +648,6 @@
         ],
         "type": "object"
       },
-      "DraftProcess": {
-        "description": "A row of the draft process table (docs/drafting.md, 「The process table」).",
-        "properties": {
-          "agentName": {
-            "description": "An agent, or `*` for any.",
-            "type": "string"
-          },
-          "ceilingSeconds": {
-            "format": "uint32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "off": {
-            "description": "The questions of `rounds` that are switched off: each keeps its place and is not followed.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "pastCeiling": {
-            "description": "`send` or `skip`.",
-            "type": "string"
-          },
-          "provider": {
-            "description": "A provider's key, or `*` for any.",
-            "type": "string"
-          },
-          "rounds": {
-            "description": "The questions every turn's round follows, in order.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "sendFrom": {
-            "description": "The question a row once read a send from: kept as it came and read by nothing.",
-            "type": "string"
-          },
-          "source": {
-            "description": "`set` or `default`.",
-            "type": "string"
-          },
-          "stagesOff": {
-            "default": [],
-            "description": "The stages after the message that are switched off: `review`, the items and the checks, by name.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "tier": {
-            "description": "A tier, or `*` for any.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "provider",
-          "tier",
-          "agentName",
-          "rounds",
-          "sendFrom",
-          "off",
-          "stagesOff",
-          "ceilingSeconds",
-          "pastCeiling",
-          "source"
-        ],
-        "type": "object"
-      },
-      "DraftProcessSet": {
-        "description": "A row of the draft process table set by the console.",
-        "properties": {
-          "ceilingSeconds": {
-            "format": "uint32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "off": {
-            "default": [],
-            "description": "The questions of `rounds` that are switched off; left out for none.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "pastCeiling": {
-            "description": "`send` or `skip`.",
-            "type": "string"
-          },
-          "rounds": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "sendFrom": {
-            "default": "",
-            "description": "Read and ignored: the draft turn's answer is the message.",
-            "type": "string"
-          },
-          "stagesOff": {
-            "default": [],
-            "description": "The stages after the message that are switched off; left out for none.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "rounds",
-          "sendFrom",
-          "off",
-          "stagesOff",
-          "ceilingSeconds",
-          "pastCeiling"
-        ],
-        "type": "object"
-      },
-      "DraftQuestion": {
-        "description": "A question of the draft process's catalogue.",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "source": {
-            "description": "`set` or `default`.",
-            "type": "string"
-          },
-          "text": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "text",
-          "source"
-        ],
-        "type": "object"
-      },
-      "DraftQuestionSet": {
-        "description": "A question's text set by the console.",
-        "properties": {
-          "text": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "type": "object"
-      },
-      "DraftRead": {
-        "description": "One thing a round read from the brain (docs/drafting.md, 「The round log」).",
-        "properties": {
-          "holds": {
-            "description": "What it holds: the index's words for it where the gate's index lists it, else the name it went in with.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "how": {
-            "description": "`attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session\nholding that version, or a piece the agent read again through the index at a version the session already\nheld) or `read` (a piece the agent read itself through the index during the round at a version new to it).",
-            "type": "string"
-          },
-          "memoryId": {
-            "description": "The brain memory it is, where it is one.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "path": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "holds",
-          "how"
-        ],
-        "type": "object"
-      },
-      "DraftRound": {
-        "description": "One turn of a round's draft process, or its end.",
-        "properties": {
-          "agentName": {
-            "type": "string"
-          },
-          "answer": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "answerChars": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "at": {
-            "description": "Epoch milliseconds.",
-            "format": "int64",
-            "type": "integer"
-          },
-          "changed": {
-            "type": "boolean"
-          },
-          "detail": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "id": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "kind": {
-            "description": "`supervisor` (the agent's own judgement whether to answer, before the round), `turn` (only where the process\nasks no question), `question`, `item`, `check` or `end`.",
-            "type": "string"
-          },
-          "loaded": {
-            "default": null,
-            "description": "On the end, how many pieces the room's earlier rounds of the same session read in full (`attached` or\n`read`), 0 for a session's first round in the room or a round on no session; null on every other row.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "ms": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "number": {
-            "description": "From 1, each question, item and check in the order asked, the round's own turn being the first question's\nrow; 0 for the agent's own judgement before a round its open window alone let in.",
-            "format": "int64",
-            "type": "integer"
-          },
-          "outcome": {
-            "description": "`answered`, `send`, `skip` or `failed` for a turn; `message`, `skip` or `withheld` for the end.",
-            "type": "string"
-          },
-          "question": {
-            "type": "string"
-          },
-          "reads": {
-            "default": [],
-            "description": "On the end, what the round read from the brain; empty on every other row.",
-            "items": {
-              "$ref": "#/components/schemas/DraftRead"
-            },
-            "type": "array"
-          },
-          "session": {
-            "default": null,
-            "description": "On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "versions": {
-            "default": [],
-            "description": "On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in\norder, the row's answer built from them; empty on every other row.",
-            "items": {
-              "$ref": "#/components/schemas/DraftVersion"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "id",
-          "agentName",
-          "number",
-          "question",
-          "kind",
-          "answerChars",
-          "changed",
-          "outcome",
-          "detail",
-          "answer",
-          "ms",
-          "at",
-          "reads",
-          "session",
-          "loaded",
-          "versions"
-        ],
-        "type": "object"
-      },
-      "DraftVersion": {
-        "description": "One answer of the program's turns a turn of the process spanned (docs/drafting.md, 「The round log」).",
-        "properties": {
-          "opened": {
-            "description": "What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or\n`program`, the program on its own (a background task's notice).",
-            "type": "string"
-          },
-          "text": {
-            "description": "That turn's answer as it wrote it.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text",
-          "opened"
-        ],
-        "type": "object"
-      },
       "Editing": {
         "description": "The new words of the signed-in person's own message.",
         "properties": {
@@ -1466,6 +1155,47 @@
           }
         ]
       },
+      "InstructionChain": {
+        "description": "A row of a round's pipeline (docs/instruction.md, 「The round log」).",
+        "properties": {
+          "agentName": {
+            "description": "The supervisor's name, or `*` for the policy's default chain every supervisor follows until it sets one.",
+            "type": "string"
+          },
+          "source": {
+            "description": "`set` or `default`.",
+            "type": "string"
+          },
+          "stages": {
+            "description": "The chain's stage names, in the order they are asked once the message stands; empty runs no stage.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "agentName",
+          "stages",
+          "source"
+        ],
+        "type": "object"
+      },
+      "InstructionChainSet": {
+        "description": "A supervisor's chain set by the console.",
+        "properties": {
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "stages"
+        ],
+        "type": "object"
+      },
       "InstructionRequest": {
         "description": "An instruction queued for an agent's session.",
         "properties": {
@@ -1585,6 +1315,47 @@
           "delivered"
         ],
         "type": "string"
+      },
+      "InstructionText": {
+        "description": "A stage of the catalogue: its name, its text and whether the console set the text; the policy's text of it where\nthe console set one for a supervisor and the policy holds it too, null for a stage the console added.",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "policyText": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "description": "`set` or `default`.",
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "text",
+          "source",
+          "policyText"
+        ],
+        "type": "object"
+      },
+      "InstructionTextSet": {
+        "description": "A question's text set by the console.",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
       },
       "KeepMarks": {
         "description": "The body that marks a room's messages read into an agent's book.",
@@ -2336,7 +2107,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/RoundDrafts"
+              "$ref": "#/components/schemas/RoundPipeline"
             },
             "type": "array"
           },
@@ -2355,7 +2126,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/DraftProcess"
+              "$ref": "#/components/schemas/InstructionChain"
             },
             "type": "array"
           },
@@ -2374,7 +2145,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/DraftQuestion"
+              "$ref": "#/components/schemas/InstructionText"
             },
             "type": "array"
           },
@@ -2776,6 +2547,115 @@
         },
         "required": [
           "items"
+        ],
+        "type": "object"
+      },
+      "PipelineRound": {
+        "description": "One turn of a round, or its end.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          },
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "answerChars": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "at": {
+            "description": "Epoch milliseconds.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "changed": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "description": "`supervisor` (the agent's own judgement before a round), `turn` (the round's own turn), `arrived` (the closing\ncheck) or `stage` (an instruction stage), or `end`.",
+            "type": "string"
+          },
+          "loaded": {
+            "default": null,
+            "description": "On the end, how many pieces the room's earlier rounds of the same session read in full (`attached` or\n`read`), 0 for a session's first round in the room or a round on no session; null on every other row.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "number": {
+            "description": "From 1, the round's own turn first and then the check of the words that arrived meanwhile and each stage in the\norder asked; 0 for the agent's own judgement before a round its open window alone let in.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "description": "`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for a\nstage; `message` or `skip` for the end.",
+            "type": "string"
+          },
+          "question": {
+            "description": "The row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn.",
+            "type": "string"
+          },
+          "reads": {
+            "default": [],
+            "description": "On the end, what the round read from the brain; empty on every other row.",
+            "items": {
+              "$ref": "#/components/schemas/RoundRead"
+            },
+            "type": "array"
+          },
+          "session": {
+            "default": null,
+            "description": "On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "versions": {
+            "default": [],
+            "description": "On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in\norder, the row's answer built from them; empty on every other row.",
+            "items": {
+              "$ref": "#/components/schemas/RoundVersion"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "agentName",
+          "number",
+          "question",
+          "kind",
+          "answerChars",
+          "changed",
+          "outcome",
+          "detail",
+          "answer",
+          "ms",
+          "at",
+          "reads",
+          "session",
+          "loaded",
+          "versions"
         ],
         "type": "object"
       },
@@ -3490,25 +3370,6 @@
         ],
         "type": "object"
       },
-      "RoundDrafts": {
-        "description": "What a round's draft process wrote, row by row (docs/drafting.md, 「The round log」).",
-        "properties": {
-          "round": {
-            "type": "string"
-          },
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/DraftRound"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "round",
-          "rows"
-        ],
-        "type": "object"
-      },
       "RoundOpening": {
         "description": "What a round settled, without the instructions' text.",
         "properties": {
@@ -3525,6 +3386,76 @@
         "required": [
           "round",
           "instructions"
+        ],
+        "type": "object"
+      },
+      "RoundPipeline": {
+        "description": "What a round's turns wrote in the round log, row by row (docs/instruction.md, 「The round log」).",
+        "properties": {
+          "round": {
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRound"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "round",
+          "rows"
+        ],
+        "type": "object"
+      },
+      "RoundRead": {
+        "description": "One thing a round read from the brain (docs/instruction.md, 「The round log」).",
+        "properties": {
+          "holds": {
+            "description": "What it holds: the index's words for it where the gate's index lists it, else the name it went in with.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "how": {
+            "description": "`attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session\nholding that version, or a piece the agent read again through the index at a version the session already\nheld) or `read` (a piece the agent read itself through the index during the round at a version new to it).",
+            "type": "string"
+          },
+          "memoryId": {
+            "description": "The brain memory it is, where it is one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "holds",
+          "how"
+        ],
+        "type": "object"
+      },
+      "RoundVersion": {
+        "description": "One answer of the program's turns a turn of the process spanned (docs/instruction.md, 「The round log」).",
+        "properties": {
+          "opened": {
+            "description": "What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or\n`program`, the program on its own (a background task's notice).",
+            "type": "string"
+          },
+          "text": {
+            "description": "That turn's answer as it wrote it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "opened"
         ],
         "type": "object"
       },
@@ -4514,331 +4445,6 @@
         ]
       }
     },
-    "/draft-processes": {
-      "get": {
-        "operationId": "draftProcesses",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "agentName",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Page13"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, failed"
-          }
-        },
-        "summary": "Every row of the draft process table, the policy's and each supervisor's own; for a supervisor named, the one row it reads.",
-        "tags": [
-          "Drafts"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "failed"
-        ]
-      }
-    },
-    "/draft-processes/{provider}/{tier}/{agentName}": {
-      "delete": {
-        "operationId": "removeDraftProcess",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "provider",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "tier",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "agentName",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Done; no content."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, not-found, failed"
-          }
-        },
-        "summary": "A supervisor's row taken away.",
-        "tags": [
-          "Drafts"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "not-found",
-          "failed"
-        ]
-      },
-      "put": {
-        "operationId": "setDraftProcess",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "provider",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "tier",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "agentName",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DraftProcessSet"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftProcess"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, bad-request, failed"
-          }
-        },
-        "summary": "A supervisor's row set by the console.",
-        "tags": [
-          "Drafts"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "bad-request",
-          "failed"
-        ]
-      }
-    },
-    "/draft-questions": {
-      "get": {
-        "operationId": "draftQuestions",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "agentName",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Page14"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, failed"
-          }
-        },
-        "summary": "A supervisor's catalogue of questions, or the policy's alone where none is named.",
-        "tags": [
-          "Drafts"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "failed"
-        ]
-      }
-    },
-    "/draft-questions/{agentName}/{name}": {
-      "delete": {
-        "operationId": "removeDraftQuestion",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "agentName",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Done; no content."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, not-found, conflict, failed"
-          }
-        },
-        "summary": "The console's text of a supervisor's question taken away.",
-        "tags": [
-          "Drafts"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "not-found",
-          "conflict",
-          "failed"
-        ]
-      },
-      "put": {
-        "operationId": "setDraftQuestion",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "agentName",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DraftQuestionSet"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftQuestion"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, bad-request, failed"
-          }
-        },
-        "summary": "A question's text set by the console for a supervisor.",
-        "tags": [
-          "Drafts"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "bad-request",
-          "failed"
-        ]
-      }
-    },
     "/events": {
       "get": {
         "operationId": "events",
@@ -5144,6 +4750,299 @@
         "summary": "A hook the agency calls at a point of its work.",
         "tags": [
           "Hooks"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/instruction-stages": {
+      "get": {
+        "operationId": "instructionChains",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page13"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "Every row of the instruction stage table, the policy's and each supervisor's own; for a supervisor named, the one row it reads.",
+        "tags": [
+          "Instruction"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/instruction-stages/{agentName}": {
+      "delete": {
+        "operationId": "removeInstructionChain",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, failed"
+          }
+        },
+        "summary": "A supervisor's chain taken away, the supervisor reading the policy's again.",
+        "tags": [
+          "Instruction"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "setInstructionChain",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstructionChainSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionChain"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "A supervisor's chain of instruction stages set by the console.",
+        "tags": [
+          "Instruction"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/instruction-texts": {
+      "get": {
+        "operationId": "instructionTexts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agentName",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page14"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "A supervisor's catalogue of questions, or the policy's alone where none is named.",
+        "tags": [
+          "Instruction"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      }
+    },
+    "/instruction-texts/{agentName}/{name}": {
+      "delete": {
+        "operationId": "removeInstructionText",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, not-found, conflict, failed"
+          }
+        },
+        "summary": "The console's text of a supervisor's question taken away.",
+        "tags": [
+          "Instruction"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "not-found",
+          "conflict",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "setInstructionText",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstructionTextSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionText"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "A question's text set by the console for a supervisor.",
+        "tags": [
+          "Instruction"
         ],
         "x-codes": [
           "unauthorized",
@@ -9764,68 +9663,6 @@
         ]
       }
     },
-    "/rounds/drafts": {
-      "get": {
-        "operationId": "roundDrafts",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "room",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "rounds",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Page12"
-                }
-              }
-            },
-            "description": "Answered."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, bad-request, failed"
-          }
-        },
-        "summary": "For a room and the rounds named, or its newest rounds where none is named, every row each round's draft process wrote.",
-        "tags": [
-          "Rounds"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "bad-request",
-          "failed"
-        ]
-      }
-    },
     "/rounds/openings": {
       "get": {
         "operationId": "roundOpenings",
@@ -9930,6 +9767,68 @@
         "x-codes": [
           "unauthorized",
           "not-found",
+          "failed"
+        ]
+      }
+    },
+    "/rounds/pipeline": {
+      "get": {
+        "operationId": "roundPipeline",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "room",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "rounds",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page12"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, failed"
+          }
+        },
+        "summary": "For a room and the rounds named, or its newest rounds where none is named, every row each round's instruction pipeline wrote.",
+        "tags": [
+          "Rounds"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
           "failed"
         ]
       }

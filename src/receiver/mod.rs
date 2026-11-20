@@ -324,7 +324,7 @@ pub trait Runner: Send + Sync {
   }
 
   /// The situation notes the agent owes written by its session, each in one light turn that judges no
-  /// replacement (docs/drafting.md, 「The situation note」): asked before that session is asked for its handoff.
+  /// replacement (docs/instruction.md, 「The situation note」): asked before that session is asked for its handoff.
   /// Nothing is written where no conversations stand.
   fn owed_notes<'a>(&'a self, _agent: &'a str, _session: &'a str) -> BoxFuture<'a, ()> {
     Box::pin(async {})
@@ -456,9 +456,9 @@ pub struct Receiver {
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
   // stands the receiver without that turn.
   situation_updates: bool,
-  // Whether the draft process's review gate stands: on for the service, off where a test stands the receiver
-  // without that turn.
-  review_gate: bool,
+  // Whether a round runs its instruction stages: on for the service, off where a test stands the receiver with the
+  // message sent unchecked.
+  instruction_gate: bool,
   // How long a round waits between two tries to re-attach to a cut turn while the agency answers nothing.
   re_attach_pace: Duration,
   // How long a round waits between two tries to put its message into its room.
@@ -547,7 +547,7 @@ impl Receiver {
       at_agency: Arc::new(tokio::sync::watch::channel(Default::default()).0),
       stop: Arc::new(tokio::sync::watch::channel(false).0),
       situation_updates: true,
-      review_gate: true,
+      instruction_gate: true,
       re_attach_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.attach.pace_ms.max(1)),
       send_again_pace: Duration::from_millis(receiver_policy::chat_round::CHAT_ROUND.send.gap_ms.max(1)),
       voice_stop_pace: Duration::from_millis(
@@ -656,15 +656,15 @@ impl Receiver {
     self.situation_updates
   }
 
-  /// The same receiver, with the draft process's review gate on or off.
-  pub fn with_review_gate(mut self, on: bool) -> Self {
-    self.review_gate = on;
+  /// The same receiver, running a round's instruction stages or sending its message unchecked.
+  pub fn with_instruction_gate(mut self, on: bool) -> Self {
+    self.instruction_gate = on;
     self
   }
 
-  /// Whether the draft process's review gate stands.
-  pub fn review_gate(&self) -> bool {
-    self.review_gate
+  /// Whether a round runs its instruction stages.
+  pub fn instruction_gate(&self) -> bool {
+    self.instruction_gate
   }
 
   /// The same receiver, waiting `pace` between two tries to re-attach to a cut turn rather than the policy's.

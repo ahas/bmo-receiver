@@ -1,5 +1,5 @@
 //! The version of a room's situation note a chat session was last given (docs/store.md, 「The tables」;
-//! docs/drafting.md, 「The situation note」): one row a session and a room, replaced when the note changes.
+//! docs/instruction.md, 「The situation note」): one row a session and a room, replaced when the note changes.
 
 use sea_orm_migration::prelude::*;
 

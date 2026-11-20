@@ -1,4 +1,4 @@
-//! The bound of one turn of a draft process row (`docs/store.md`, 「The tables」; `docs/drafting.md`, 「Time」):
+//! The bound of one turn of a draft process row (`docs/store.md`, 「The tables」; `docs/instruction.md`, 「Time」):
 //! the policy's 120 seconds on a row set before it was named.
 
 use sea_orm_migration::prelude::*;

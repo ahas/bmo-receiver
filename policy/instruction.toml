@@ -1,0 +1,47 @@
+# What reaches an agent and how it answers each (docs/instruction.md): a message, a room's words, whose answer is the
+# message that goes out; and a system instruction, a turn marked INSTRUCTION that shows the message as it stands and
+# asks one thing of it, answered with the message reprinted whole as it should now go out or with PASS alone. The
+# block carries the three rules below once; an instruction's own words ride its turn. The chain of instructions a
+# message passes, and each one's words, are a supervisor's own where the console set them (`GET`/`PUT
+# /instruction-stages`, `GET`/`PUT /instruction-texts`) and these where it did not.
+
+# How a message is read, how an instruction is read and how an instruction is answered, each said once in the room's
+# block and none naming the turns that come after another. {pass} in `answer_rule` is `pass`.
+message_rule = "WHEN A TURN CARRIES A ROOM'S WORDS — it is a message: read the words and answer them in your own session, with your tools where they are on, reading what the answer needs. Your answer is the message that goes out."
+instruction_rule = "WHEN A TURN IS MARKED INSTRUCTION — it is the system speaking into your session, not a room: nobody sent it and nothing of it goes to a room. It carries one instruction and the message as it stands. Do what the instruction asks of that message, reading with your tools where it needs that, and do not answer the room's words again."
+answer_rule = "ANSWERING AN INSTRUCTION — where the message needs no change, answer {pass} alone. Otherwise answer with the whole message as it should now go out, plainly, with no note about the instruction: what you answer is what the room receives."
+pass = "PASS"
+
+# The line an instruction turn opens with, naming the instruction by its stage's name, and the head the message as it
+# stands goes under. The instruction's words, the message and the room's words ride the turn as data.
+marker = "INSTRUCTION: {name}."
+standing = "The message as it stands:"
+
+# The line a message turn that skipped naming no reason is asked once more with: the form a skip goes in. A second
+# answer naming none ends the round as a skip whose reason is recorded as none given.
+skip_again = "That skip named no reason, so it is not taken as a skip. A turn that sends nothing answers <<SKIP: <why>>>, the reason one line in English saying why. Answer this turn again: the message, or a skip naming its reason."
+
+# The system instruction that shows the room's words that waited while the message was written: its marker, and what
+# it asks, said once in the room's block. {voice} is `voice`.
+arrived_marker = "ARRIVED MESSAGES."
+arrived = "WHEN A TURN IS MARKED ARRIVED MESSAGES — the message as it stands is shown first, then the messages that arrived after the turn went out and before the message did, each with its number. Answer with the message as it should now go out, whole: it takes the standing message's place, so write all of it, not only what changes or what it adds, its fold mark with it where it is to fold under the rule for folding you were given. Answer with nothing but the marks to send the standing message unchanged. <<DONE #<number>>> marks a message that needs no answer, <<SEPARATE #<number>>> one to be answered in a round of its own after this one, <<REPLY #<number>>> the one your message answers where it is to go out as a reply to it, under the rule for replies you were given; <<SKIP: <why>>> sends nothing, the reason one line saying why. {voice}"
+voice = "Write the message as the message itself, in the voice your persona sets for the person you answer, its register toward them included, and in their language, never as notes or a report."
+
+# The heads an instruction turn shows its data under: the room's words, the rules and knowledge the round carries,
+# and each person the message answers (name and sender number), so an instruction about how people are addressed
+# reads whom the message addresses. {name}, {id}, {path} and {ids} are filled per turn.
+words = "The room's words:"
+rules = "The rules and knowledge this round carries:"
+answers = "The people the message answers:"
+person = "- {name} (id {id})"
+handed = "[{path}] (handed in this turn)"
+room_handed = "The room's words {ids} were handed in this turn; only the lines after them are new."
+
+# The default chain, in the order its instructions are asked once the message stands; a supervisor with no chain of
+# its own follows it, and an empty chain sends the message as the message turn wrote it.
+chain = ["review"]
+
+# The words of each instruction, by its stage's name, last of the file so the table holds nothing but them: the
+# words the deployment set, which the console sets over per supervisor in the person's own words.
+[stages]
+review = "메세지 내용에서 답변하는 모든 인물에 대한 호칭을 지켰습니까? 충분히 브레인을 검색했습니까?"

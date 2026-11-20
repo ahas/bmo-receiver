@@ -1,4 +1,4 @@
-//! The situation note the receiver keeps for a room (`docs/store.md`, 「The tables」; `docs/drafting.md`, 「The
+//! The situation note the receiver keeps for a room (`docs/store.md`, 「The tables」; `docs/instruction.md`, 「The
 //! situation note」): one row a room, replaced when the note changes.
 
 use sea_orm_migration::prelude::*;

@@ -9,12 +9,12 @@ use bmo_receiver::store::migration::m20261019_000005_message_metadata::TABLE as 
 use bmo_receiver::store::migration::m20261022_000008_news_briefs::TABLES as NEWS_BRIEFS_TABLES;
 use bmo_receiver::store::migration::m20261023_000009_room_providers::TABLES as ROOM_PROVIDERS_TABLES;
 use bmo_receiver::store::migration::m20261023_000010_room_modes::TABLE as ROOM_MODES;
-use bmo_receiver::store::migration::m20261023_000012_draft_process::TABLES as DRAFT_PROCESS_TABLES;
 use bmo_receiver::store::migration::m20261027_000018_avatar_sets::TABLE as AVATAR_SETS;
 use bmo_receiver::store::migration::m20261027_000020_record_acts::TABLE as MESSAGE_REACTIONS;
 use bmo_receiver::store::migration::m20261027_000022_room_situations::TABLE as ROOM_SITUATIONS;
 use bmo_receiver::store::migration::m20261029_000030_room_settings_dropped::TABLES as DROPPED_SETTINGS;
 use bmo_receiver::store::migration::m20261106_000034_session_notes::TABLE as SESSION_NOTES;
+use bmo_receiver::store::migration::m20261119_000057_retire_draft_process::TABLES as INSTRUCTION_TABLES;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -65,7 +65,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
     ])
     .chain(NEWS_BRIEFS_TABLES)
     .chain(ROOM_PROVIDERS_TABLES)
-    .chain(DRAFT_PROCESS_TABLES)
+    .chain(INSTRUCTION_TABLES)
     .map(str::to_owned)
     .collect();
 
@@ -87,9 +87,9 @@ async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
   assert_eq!(
     database.texts(INDEXES).await,
     [
-      "draft_rounds_room",
-      "draft_rounds_round",
-      "draft_rounds_session",
+      "instruction_rounds_room",
+      "instruction_rounds_round",
+      "instruction_rounds_session",
       "instructions_pending",
       "instructions_round",
       "instructions_run",
@@ -296,48 +296,39 @@ async fn a_message_holding_a_kept_sticker_takes_the_sticker_kind() {
 }
 
 #[tokio::test]
-async fn what_stood_for_every_supervisor_becomes_each_supervisor_s_own() {
+async fn the_draft_settings_go_and_the_round_log_keeps_its_rows_under_its_new_name() {
   let database = Scratch::new().await;
   let db = database.db();
+  let steps = undone_from(db, "m20261119_000057_retire_draft_process").await;
 
-  let steps = undone_from(db, "m20261110_000038_draft_per_supervisor").await;
-
-  for row in [
-    r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (1, 'agent-a'), (2, 'agent-a'), (2, 'agent-b')"#,
-    r#"INSERT INTO "draft_questions" ("name", "text", "set_at") VALUES ('facts', 'check the facts', 7)"#,
-    r#"INSERT INTO "draft_processes"
-         ("provider", "tier", "agent", "rounds", "send_from", "light", "off", "light_chars", "ceiling_seconds",
-          "past_ceiling", "set_at")
-       VALUES ('*', '*', '*', '["facts","final"]', '', '["final"]', '[]', 12, 0, 'send', 7),
-              ('provider-a', '*', '*', '["final"]', '', '["final"]', '[]', 12, 0, 'send', 7)"#,
-  ] {
-    database.run(row, vec![]).await;
-  }
+  database
+    .run(
+      r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
+           "changed", "outcome", "ms", "at")
+         VALUES ('round-a', -7, 'agent-a', 1, 'message', 'turn', 5, false, 'answered', 3, 9)"#,
+      vec![],
+    )
+    .await;
+  database
+    .run(r#"INSERT INTO "draft_questions" ("agent", "name", "text", "set_at") VALUES ('agent-a', 'tone', 'x', 7)"#, vec![])
+    .await;
 
   assert_eq!(migrate(db).await.unwrap(), steps);
   assert_eq!(
     database
-      .texts(r#"SELECT "agent" || ' ' || "name" || ' ' || "text" FROM "draft_questions" ORDER BY "agent""#)
+      .texts(r#"SELECT "round" || ' ' || "question" || ' ' || "outcome" FROM "instruction_rounds""#)
       .await,
-    ["agent-a facts check the facts", "agent-b facts check the facts"]
-  );
-  assert_eq!(
-    database
-      .texts(
-        r#"SELECT "provider" || '/' || "tier" || '/' || "agent" || ' ' || "rounds" FROM "draft_processes"
-            ORDER BY "agent""#
-      )
-      .await,
-    [r#"*/*/agent-a ["facts","final"]"#, r#"*/*/agent-b ["facts","final"]"#],
-    "each supervisor holds the row that stood for all, and a row of no supervisor is gone"
+    ["round-a message answered"]
   );
 
-  // Stepping back keeps one text a name.
-  undone_from(db, "m20261110_000038_draft_per_supervisor").await;
-  assert_eq!(
-    database.texts(r#"SELECT "name" || ' ' || "text" FROM "draft_questions""#).await,
-    ["facts check the facts"]
-  );
+  let tables = database.texts(SCHEMA_TABLES).await;
+
+  assert!(!tables.iter().any(|table| table.starts_with("draft_")), "{tables:?}");
+
+  // Stepping back gives the rows their old name and the settings tables back, empty.
+  undone_from(db, "m20261119_000057_retire_draft_process").await;
+  assert_eq!(database.texts(r#"SELECT "round" FROM "draft_rounds""#).await, ["round-a"]);
+  assert!(database.texts(r#"SELECT "name" FROM "draft_questions""#).await.is_empty());
 }
 
 #[tokio::test]

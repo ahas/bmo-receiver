@@ -99,7 +99,7 @@ pub struct Page {
   /// The room, the message and the name of who said it, on a copy the owner forwarded.
   pub forwarded: Option<(i64, i64, String)>,
   /// The room's situation note as the round that judged this message read it, and whether that round changed it; none
-  /// on a message no round has judged under a note (docs/drafting.md, 「The situation note」).
+  /// on a message no round has judged under a note (docs/instruction.md, 「The situation note」).
   pub situation: Option<Situation>,
   pub files: Vec<KeptFile>,
 }

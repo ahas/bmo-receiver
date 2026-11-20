@@ -16,7 +16,7 @@ use bmo_receiver::js::bun_hash;
 use bmo_receiver::receiver::{Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::drafting::DRAFTING;
+use receiver_policy::instruction::INSTRUCTION;
 use receiver_ports::agency::Load;
 use receiver_ports::gate::{Entry, IndexGroup, Source};
 
@@ -113,7 +113,7 @@ impl Group {
   async fn new(session: StandInSession) -> Self {
     let scratch = Scratch::new().await;
 
-    crate::integration::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_stages(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).agent_in(ROOM, IDENTITY));
@@ -182,78 +182,6 @@ impl Group {
 }
 
 #[tokio::test]
-async fn the_judgement_opens_on_the_catalogues_supervisor_text_which_no_list_may_name() {
-  use bmo_receiver::chat::draft::table::{self, SUPERVISOR};
-
-  let round = Group::new(
-    StandInSession::new(SESSION, "unused").answering(&["<<SKIP: nobody here was asked>>", "never asked"]),
-  )
-  .await;
-  let catalogue = table::questions(round.scratch.db(), Some(AGENT)).await.unwrap();
-
-  assert_eq!(catalogue[0].name, SUPERVISOR);
-  assert_eq!(
-    catalogue[0].text,
-    table::supervisor_default(),
-    "the policy's head and question where none is set"
-  );
-  assert!(!catalogue[0].set);
-
-  table::set_question(round.scratch.db(), AGENT, SUPERVISOR, "Decide first, briefly.")
-    .await
-    .unwrap();
-  round.noted("We talked about the match.").await;
-  round.hand(1, "did anyone see the match last night", false).await;
-  round.rounds_over(1).await;
-
-  let prompts = round.session.prompts();
-  let judging = turn_of(&prompts[0]);
-
-  assert!(
-    !prompts.iter().any(|prompt| prompt.contains(&CHAT_ROUND.situation.previous)),
-    "no turn of the round updates the note: {prompts:#?}"
-  );
-  assert!(
-    prompts[0].contains("Decide first, briefly."),
-    "the room's block carries the set supervisor text: {}",
-    prompts[0]
-  );
-  assert!(
-    judging.starts_with(&CHAT_ROUND.supervisor.marker) && !judging.contains("Decide first, briefly."),
-    "the judging turn carries the marker, not the question: {judging}"
-  );
-  assert!(!judging.contains(&CHAT_ROUND.supervisor.question));
-  assert!(
-    judging.contains(&format!("{}\nWe talked about the match.", CHAT_ROUND.situation.front)),
-    "the judgement reads the note the session has not read: {judging}"
-  );
-
-  let catalogue = table::questions(round.scratch.db(), Some(AGENT)).await.unwrap();
-
-  assert_eq!(
-    (catalogue[0].name.as_str(), catalogue[0].set),
-    (SUPERVISOR, true),
-    "the console's text stands at its place"
-  );
-  assert_eq!(catalogue.iter().filter(|question| question.name == SUPERVISOR).count(), 1);
-
-  let process = table::Process {
-    provider: "*".into(),
-    tier: "*".into(),
-    agent: AGENT.into(),
-    rounds: vec![SUPERVISOR.into(), "final".into()],
-    send_from: String::new(),
-    off: vec![],
-    stages_off: vec![],
-    ceiling_seconds: 60,
-    past_ceiling: table::PastCeiling::Send,
-    set: true,
-  };
-
-  assert!(table::refusal(&process, &catalogue).is_some_and(|why| why.contains(SUPERVISOR)));
-}
-
-#[tokio::test]
 async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing_and_asks_no_gate() {
   let round = Group::new(
     StandInSession::new(SESSION, "unused").answering(&["<<SKIP: nobody here was asked>>", "never asked"]),
@@ -291,7 +219,9 @@ async fn words_the_window_alone_let_in_are_judged_first_and_a_skip_sends_nothing
 
   let log = round
     .scratch
-    .texts(r#"SELECT "kind" || ' ' || "number" || ' ' || "outcome" FROM "draft_rounds" ORDER BY "id""#)
+    .texts(
+      r#"SELECT "kind" || ' ' || "number" || ' ' || "outcome" FROM "instruction_rounds" ORDER BY "id""#,
+    )
     .await;
 
   assert_eq!(log, ["supervisor 0 skip"]);
@@ -342,7 +272,7 @@ async fn a_line_that_resumes_an_earlier_thread_with_the_agent_is_answered_with_i
   assert!(
     !prompts[1].contains("They asked you to send the file; you promised it")
       && !prompts[1].contains(&CHAT_ROUND.situation.unchanged),
-    "the session read the note in its judgement, and the draft turn carries none of it: {}",
+    "the session read the note in its judgement, and the message turn carries none of it: {}",
     prompts[1]
   );
 }
@@ -571,7 +501,7 @@ async fn a_line_that_asks_the_agent_is_answered_with_the_situation_note() {
   assert!(
     !prompts[1].contains("They asked you to send the file.")
       && !prompts[1].contains(&CHAT_ROUND.situation.unchanged),
-    "the note is read once, and the draft turn carries none of it: {}",
+    "the note is read once, and the message turn carries none of it: {}",
     prompts[1]
   );
   assert_eq!(
@@ -631,7 +561,7 @@ async fn a_line_between_two_people_is_left_alone_though_the_note_names_them() {
   assert_eq!(
     round
       .scratch
-      .texts(r#"SELECT "kind" || ' ' || "outcome" FROM "draft_rounds" ORDER BY "id""#)
+      .texts(r#"SELECT "kind" || ' ' || "outcome" FROM "instruction_rounds" ORDER BY "id""#)
       .await,
     ["supervisor skip"]
   );
@@ -755,7 +685,7 @@ async fn the_judgement_row_keeps_the_reason_its_skip_named() {
       .scratch
       .texts(
         r#"SELECT "kind" || ' ' || "number" || ' ' || "outcome" || ' ' || coalesce("detail", '-')
-             FROM "draft_rounds" ORDER BY "id""#
+             FROM "instruction_rounds" ORDER BY "id""#
       )
       .await,
     ["supervisor 0 skip a line of theirs, not for me"],
@@ -782,7 +712,7 @@ async fn a_judgement_that_skips_bare_is_asked_once_over_and_keeps_none_given() {
     turn_of(&prompts[1])
   );
   assert!(
-    prompts[1].contains(&DRAFTING.skip_again) && prompts[1].contains("<<SKIP: <why>>>"),
+    prompts[1].contains(&INSTRUCTION.skip_again) && prompts[1].contains("<<SKIP: <why>>>"),
     "the line states the form: {}",
     prompts[1]
   );
@@ -791,7 +721,7 @@ async fn a_judgement_that_skips_bare_is_asked_once_over_and_keeps_none_given() {
       .scratch
       .texts(
         r#"SELECT "kind" || ' ' || "number" || ' ' || "outcome" || ' ' || coalesce("detail", '-')
-             FROM "draft_rounds" ORDER BY "id""#
+             FROM "instruction_rounds" ORDER BY "id""#
       )
       .await,
     ["supervisor 0 no-verdict -", "supervisor 1 skip none given"],

@@ -198,7 +198,7 @@ room's matter.
 |---|---|---|---|
 | the supervisors | `GET /supervisors` | | `items`, every supervisor with its row's fields — its `label`, `aliases`, `sessionScope`, `turnShape`, `defaultAnswerer`, `repository`, `voice`, and the `provider`, `model` and `effort` its last turn went out on — and `more`; every supervisor listed stands, and is read as awake; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
 | a supervisor | `GET /supervisors/{supervisorName}` | | the supervisor's row as the list answers it, of which the receiver reads `seeded`, whether the deployment seeds it; 404 where no supervisor has the name, read as none. Asked afresh, never kept, before a supervisor is taken out (`docs/api.md`, 「Supervisors」) |
-| a supervisor's settings | `GET /supervisors/{supervisorName}/settings` | | the supervisor's settings page, of which the receiver reads `settings.brainOn` and `settings.referenceOn`, whether its brain and its reference are on, either off carrying no brain into its turns; a field it does not answer, a 404 or an agency that does not answer reads as on. Asked afresh, never kept, as a round composes its turn (`docs/drafting.md`, 「A supervisor whose brain or reference is off」) |
+| a supervisor's settings | `GET /supervisors/{supervisorName}/settings` | | the supervisor's settings page, of which the receiver reads `settings.brainOn` and `settings.referenceOn`, whether its brain and its reference are on, either off carrying no brain into its turns; a field it does not answer, a 404 or an agency that does not answer reads as on. Asked afresh, never kept, as a round composes its turn (`docs/instruction.md`, 「A supervisor whose brain or reference is off」) |
 | a supervisor's reset point | `GET /supervisors/{supervisorName}/reset-point` | | `supervisor` and `resetPoint`, the moment in epoch milliseconds its last reset cut its turns off at, or null where it was never reset; 404 where no supervisor has the name, read as none. Asked afresh, never kept, by every send for its agent's reset point (`docs/wake.md`, 「An agent's reset」) |
 | the roles | `GET /roles` | | `roles`, each its `name`, `label`, `description` and `bundles` (each its `name`), which the owner's roster and a role's send read |
 | the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which a supervisor added on the console is checked against |
@@ -250,7 +250,7 @@ Of the events whose shape the receiver reads:
   the send answers it: the turn under `turn`, `run`, `outcome`, `answer`, `answers`, `reason`, `engineError` and
   `delivery`, `taken` or `blocked`, which the receiver reads as the send's `delivered` and `blocked`. `answers` is
   each turn's answer of the program the round spanned, `text` and `opened` (`handed` or `program`), which the
-  round's answer is built from (`docs/drafting.md`, 「What the receiver reads of an answer」); an end that carries
+  round's answer is built from (`docs/instruction.md`, 「What it is」); an end that carries
   none is read by its `answer` alone.
 
 - **`road.changed`** names its row as `supervisor` or `role`, the other null, beside its `fact` and what the fact
@@ -333,7 +333,7 @@ receiver hands it the turn's envelope and the words on their way in and out, eve
 | Call | Route | Sends | Answers |
 |---|---|---|---|
 | a turn's reference | `POST /reference/selected` | `roomId`, `messageId?`, `lines`, `speakerIds`, `situation?` (`agentName`, `roomKind`, `events` each `kind` and `itemId?`, `nowAt`), `holds?`, `round?`, `peopleSpoke`, `answered?`, `records` | `entries`, each `path`, `text`, `source` and `holds?`: what attaches with no pick, which the gate hands the brain to count; the receiver puts each in the turn whole, as the turn's core. A selection that fails costs a turn carrying no events its reference alone; one whose envelope carried events fails the turn, so the rows that brought them are given back rather than settled unread (`docs/bmo-window.md`, 「Quiet instruction」) |
-| a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`, each `slug`, `holds`, `path` and `memoryId?`; the receiver reads `group`, `unread` and `hint` into the index the room's block carries when the session opens, and an entry's `slug`, `holds`, `path` and `memoryId` into a round's reads (`docs/drafting.md`, 「The round log」) |
+| a room's index | `GET /reference/index?room=&session=&agent=` | | `groups`, each `group` (`system-documents`, `room-rules`, `knowledge`, `people`, `room-memories`), `unread`, the entries the session's loads do not hold, `hint` or null, and `entries`, each `slug`, `holds`, `path` and `memoryId?`; the receiver reads `group`, `unread` and `hint` into the index the room's block carries when the session opens, and an entry's `slug`, `holds`, `path` and `memoryId` into a round's reads (`docs/instruction.md`, 「The round log」) |
 | a judgement | `POST /judgements` | `roomId`, `messageId?`, `gateName`, `verdict`, `detail?`, `ms?`, `round?` | 201, the judgement as written |
 | a round's judgements attached | `POST /judgements/attached` | `roomId`, `messageId`, `since` in epoch milliseconds | 204 |
 
@@ -512,16 +512,13 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **No unit's document states how a deployment records its purpose** before the receiver stops; the receiver keeps
   what was recorded as its `restart_reason` setting, and where none was, reads its own deployment record
   (「The deployments」) at start-up for the purpose and the commit.
-- **The draft process table** is keyed by provider, tier and agent, and a row is one supervisor's, its provider
-  and its tier `*` (`docs/drafting.md`, 「The process table」): the console's routes keep the two places in the key
-  until the web unit takes them out with the receiver.
 - **The gate's `draft` stage** reads the receiver's event stream (`GET /events`) and takes every frame whose
-  data's `type` is `draft` as one row of a round's draft process, with the fields the receiver's
+  data's `type` is `draft` as one row of a round's pipeline, with the fields the receiver's
   `docs/receiver.md`, 「The event stream」, names: `chatId`, `round`, `agentName`, `number` (from 1), `question`,
   `kind`, `answerChars`, `changed`, `outcome`, `detail`, `ms`, `at`, `reads`, `session`, `loaded` and
   `versions`, the last four of which the gate does not read. A `draft` event of kind `start` is no row:
-  it tells a question as it starts, with its `number`, the process's `count` and the question's name, for the
-  console's running line, and carries no `answerChars`, `changed`, `outcome` or `ms`. The gate is to let a
+  it tells a turn of the round as it starts, with its `number`, `count`, name and `input` (`message` or
+  `system`), for the console's running line, and carries no `answerChars`, `changed`, `outcome` or `ms`. The gate is to let a
   `start` frame go by its `kind` before it reads a row's fields; its port reads every `draft` frame as a row and
   refuses each `start` as missing `answerChars` until it does. The receiver writes no `draft` judgement at the
   gate itself.
@@ -542,7 +539,7 @@ Statements the receiver makes that a sibling's document does not yet match, each
   its index. The receiver reads either where the gate gives it; until the gate states them, a core piece the index
   does not list is named by the receiver's policy word for its `source`, and a piece's memory is read off the two
   path forms the gate builds for one memory, `memories/<id>` and `memories/<room>/memory-<id>`, so a knowledge
-  piece or a rule filed under a path of its own names no memory (`docs/drafting.md`, 「The round log」).
+  piece or a rule filed under a path of its own names no memory (`docs/instruction.md`, 「The round log」).
 - **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
   message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
   the release's `VERSION` file where it does not (「The deployments」).
@@ -558,6 +555,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
   chat session, while the receiver reports a fold under the agency's id of the session (「The brain」 above): the
   fold the agent reports at a hand-off clears the marks of no key that outlives its own turn, until the brain's
   tool reports under a name the session keeps across its turns.
-- **The agency's usage by turn** is read by round: every turn of the draft process goes out naming its round, as
+- **The agency's usage by turn** is read by round: every turn of the instruction pipeline goes out naming its round, as
   the round's own turn does, so the agency's ledger opens each under the round's name. No document of the agency
-  states a per-turn usage record the console reads beside a round's draft rows yet.
+  states a per-turn usage record the console reads beside a round's pipeline rows yet.

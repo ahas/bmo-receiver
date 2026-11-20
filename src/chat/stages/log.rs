@@ -1,5 +1,5 @@
-//! The round log of the draft process (docs/drafting.md, 「The round log」): a row for every turn of a round's
-//! process and one for its end, each told on the event stream as it is written, under the turn's speaker, and
+//! The round log of the instruction pipeline (docs/instruction.md, 「The round log」): a row for every turn of a round
+//! and one for its end, each told on the event stream as it is written, under the turn's speaker, and
 //! read back by round.
 
 use sea_orm::{ConnectionTrait, QueryResult};
@@ -10,23 +10,62 @@ use crate::receiver::Receiver;
 use crate::store::{Fault, settings};
 use crate::{all, now_ms, one, run};
 
-/// The draft turn told as it starts, before its answer (docs/drafting.md, 「The round log」): its place and count,
-/// both 1, and the name its row goes by, told as the agent's own. It is no row of the log.
+/// What reaches the agent on a turn of the round (docs/bmo-window.md, 「A message and an instruction」): a message,
+/// the room's words, or a system instruction the round itself opens. A screen tells a message received only on the
+/// first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Input {
+  Message,
+  System,
+}
+
+impl Input {
+  pub fn word(self) -> &'static str {
+    match self {
+      Self::Message => "message",
+      Self::System => "system",
+    }
+  }
+}
+
+/// A turn of the round as it is told starting: its place from 1 among the turns of its sort and how many there
+/// are, the name its row of the log goes by and what reaches the agent on it.
+#[derive(Clone, Copy, Debug)]
+pub struct Started<'a> {
+  pub number: usize,
+  pub count: usize,
+  pub question: &'a str,
+  pub input: Input,
+}
+
+impl Started<'static> {
+  /// The round's message turn: the one turn of its sort, carrying the room's words.
+  pub fn message() -> Self {
+    Started {
+      number: 1,
+      count: 1,
+      question: "message",
+      input: Input::Message,
+    }
+  }
+}
+
+/// A turn of the round told as it starts, before its answer (docs/instruction.md, 「The round log」), as the agent's
+/// own. It is no row of the log.
 pub fn tell_start(
   conversations: &Conversations,
   round: &str,
   chat_id: i64,
   agent: &str,
-  number: usize,
-  count: usize,
-  question: &str,
+  started: Started<'_>,
 ) {
   let member = json!({
     "round": round,
     "agentName": agent,
-    "number": number,
-    "count": count,
-    "question": question,
+    "number": started.number,
+    "count": started.count,
+    "question": started.question,
+    "input": started.input.word(),
     "kind": "start",
     "at": now_ms(),
   });
@@ -39,17 +78,13 @@ pub fn tell_start(
 pub enum Kind {
   /// The agent's own judgement whether to answer, before a round its open window alone let in.
   Supervisor,
-  /// The round's own turn where the process asks no question, its answer being the message.
+  /// The round's own turn, whose answer is the message.
   Turn,
-  /// A question of the process's list, the first riding the round's own turn.
-  Question,
-  /// An item asked once the message stands.
-  Item,
-  /// A check on the final text asked again.
-  Check,
-  /// The review before a message goes out, and its verdict.
-  Review,
-  /// The process's end.
+  /// The system instruction that shows the room's words that arrived meanwhile.
+  Arrived,
+  /// An instruction stage of the chain the message passes before it goes out.
+  Stage,
+  /// The round's end.
   End,
 }
 
@@ -58,10 +93,8 @@ impl Kind {
     match self {
       Self::Supervisor => "supervisor",
       Self::Turn => "turn",
-      Self::Question => "question",
-      Self::Item => "item",
-      Self::Check => "check",
-      Self::Review => "review",
+      Self::Arrived => "arrived",
+      Self::Stage => "stage",
       Self::End => "end",
     }
   }
@@ -70,8 +103,9 @@ impl Kind {
 /// What the round log records as the reason of a round that skipped with no reason named, twice over.
 pub const NO_REASON: &str = "none given";
 
-/// How a turn of the process ended: answered, answered with the message now by the send marker, skipped, no
-/// verdict because it skipped naming no reason and the same turn was asked once more, or failed.
+/// How a turn of the round ended: answered, answered with the message now by the send marker, skipped, no verdict
+/// because it skipped naming no reason and the same turn was asked once more, or failed; and a stage's two
+/// verdicts, passed with the message unchanged or revised with the whole message it wrote.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Answered {
   Answered,
@@ -79,6 +113,8 @@ pub enum Answered {
   Skip,
   NoVerdict,
   Failed,
+  Passed,
+  Revised,
 }
 
 impl Answered {
@@ -89,16 +125,17 @@ impl Answered {
       Self::Skip => "skip",
       Self::NoVerdict => "no-verdict",
       Self::Failed => "failed",
+      Self::Passed => "pass",
+      Self::Revised => "revised",
     }
   }
 }
 
-/// How the process ended.
+/// How the round ended: its message sent, or nothing sent.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ended {
   Message,
   Skip,
-  Withheld,
 }
 
 impl Ended {
@@ -106,12 +143,11 @@ impl Ended {
     match self {
       Self::Message => "message",
       Self::Skip => "skip",
-      Self::Withheld => "withheld",
     }
   }
 }
 
-/// One thing a round read from the brain (docs/drafting.md, 「The round log」): its path, what it holds, the brain
+/// One thing a round read from the brain (docs/instruction.md, 「The round log」): its path, what it holds, the brain
 /// memory it is where it is one, and how it was read — `attached`, `held` or `read`.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Read {
@@ -130,7 +166,7 @@ impl Read {
   }
 }
 
-/// How long a turn of the process took, and the answers of the program's turns it spanned where it spanned more
+/// How long a turn of the round took, and the answers of the program's turns it spanned where it spanned more
 /// than one: what a turn's row carries beside its answer.
 #[derive(Clone, Copy, Debug)]
 pub struct Timed<'a> {
@@ -145,7 +181,7 @@ impl<'a> Timed<'a> {
   }
 }
 
-/// The log of one round's process as it is written: the round, the room and the agent, whose conversations tell
+/// The log of one round as it is written: the round, the room and the agent, whose conversations tell
 /// each row, the number the next row takes, counted from 1, and the answer the last turn gave, which the next is
 /// compared with.
 pub struct Log {
@@ -177,7 +213,7 @@ impl Log {
     self
   }
 
-  /// A turn of the process written down: its kind, its question, its answer where it gave one, how it ended, what
+  /// A turn of the round written down: its kind, its question, its answer where it gave one, how it ended, what
   /// the row says beside that ending (the reason a round sent nothing, where it ended in a skip) and how long it
   /// took.
   pub async fn turn(
@@ -214,25 +250,7 @@ impl Log {
     }
   }
 
-  /// A review's verdict written down: PASS, or REJECT with the reason it named.
-  pub async fn verdict(&mut self, name: &str, verdict: &str, reason: &str, ms: i64) {
-    let row = Row {
-      kind: Kind::Review,
-      question: name,
-      answer: None,
-      changed: false,
-      outcome: verdict,
-      detail: Some(reason),
-      ms,
-      reads: &[],
-      session: None,
-      versions: &[],
-    };
-
-    self.write(&row).await;
-  }
-
-  /// The process's end written down, with the row of the table it read, why it ended so, what the round read
+  /// The round's end written down, with the row of the table it read, why it ended so, what the round read
   /// from the brain and the session its turn ran on.
   pub async fn end(&mut self, ended: Ended, detail: &str, ms: i64, reads: &[Read], session: Option<&str>) {
     let row = Row {
@@ -269,7 +287,7 @@ impl Log {
     };
     let written = run(
       self.receiver.db(),
-      r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
+      r#"INSERT INTO "instruction_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
            "changed", "outcome", "detail", "answer", "ms", "at", "reads", "session", "loaded", "versions")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)"#,
       vec![
@@ -297,7 +315,7 @@ impl Log {
     self.number += 1;
 
     if let Err(why) = written {
-      eprintln!("chat {}: a draft round could not be written down: {}", self.chat_id, why.detail);
+      eprintln!("chat {}: a pipeline round could not be written down: {}", self.chat_id, why.detail);
     }
 
     let member = json!({
@@ -354,7 +372,7 @@ impl Row<'_> {
 }
 
 /// Where the round log's last row as a session's ended generation was released is kept: the end rows after it
-/// alone count what the session's present generation read (docs/drafting.md, 「The round log」).
+/// alone count what the session's present generation read (docs/instruction.md, 「The round log」).
 pub fn cut_key(session: &str) -> String {
   format!("loaded_cut:{session}")
 }
@@ -362,7 +380,7 @@ pub fn cut_key(session: &str) -> String {
 /// A session's ended generation cut off from the count: the round log's last row written down as its cut, so the
 /// next round of the session in any room counts from 0.
 pub async fn cut<C: ConnectionTrait>(db: &C, session: &str) -> Result<(), Fault> {
-  let last = one(db, r#"SELECT COALESCE(MAX("id"), 0) AS "last" FROM "draft_rounds""#, vec![])
+  let last = one(db, r#"SELECT COALESCE(MAX("id"), 0) AS "last" FROM "instruction_rounds""#, vec![])
     .await?
     .map(|row| row.try_get::<i64>("", "last"))
     .transpose()?
@@ -372,7 +390,7 @@ pub async fn cut<C: ConnectionTrait>(db: &C, session: &str) -> Result<(), Fault>
 }
 
 /// How many pieces the room's earlier rounds of the session's present generation read in full before a round
-/// (docs/drafting.md, 「The round log」): the latest earlier end after the session's cut, its own count and its
+/// (docs/instruction.md, 「The round log」): the latest earlier end after the session's cut, its own count and its
 /// reads that went in full, a held one counting nothing; 0 where no such end of the room and session stands or the
 /// round ran on no session.
 pub async fn loaded<C: ConnectionTrait>(db: &C, chat_id: i64, session: Option<&str>) -> Result<i64, Fault> {
@@ -385,7 +403,7 @@ pub async fn loaded<C: ConnectionTrait>(db: &C, chat_id: i64, session: Option<&s
     .unwrap_or_default();
   let latest = one(
     db,
-    r#"SELECT "loaded", "reads" FROM "draft_rounds"
+    r#"SELECT "loaded", "reads" FROM "instruction_rounds"
          WHERE "chat_id" = $1 AND "session" = $2 AND "kind" = 'end' AND "id" > $3 ORDER BY "id" DESC LIMIT 1"#,
     vec![chat_id.into(), session.into(), after.into()],
   )
@@ -441,7 +459,7 @@ pub async fn newest_rounds<C: ConnectionTrait>(
 ) -> Result<(Vec<String>, bool), Fault> {
   let rows = all(
     db,
-    r#"SELECT "round" FROM "draft_rounds" WHERE "chat_id" = $1
+    r#"SELECT "round" FROM "instruction_rounds" WHERE "chat_id" = $1
          GROUP BY "round" ORDER BY max("id") DESC LIMIT $2"#,
     vec![chat_id.into(), (limit + 1).into()],
   )
@@ -471,7 +489,7 @@ pub async fn read<C: ConnectionTrait>(
       db,
       r#"SELECT "id", "agent", "number", "question", "kind", "answer_chars", "changed", "outcome", "detail",
                 "answer", "ms", "at", "reads", "session", "loaded", "versions"
-           FROM "draft_rounds" WHERE "chat_id" = $1 AND "round" = $2 ORDER BY "id""#,
+           FROM "instruction_rounds" WHERE "chat_id" = $1 AND "round" = $2 ORDER BY "id""#,
       vec![chat_id.into(), round.clone().into()],
     )
     .await?;

@@ -13,7 +13,7 @@ use crate::store::{Fault, settings};
 
 /// What a session that ended or was handed over no longer holds: the room blocks it read, the note versions it
 /// was handed, the cache record of its head, and the round log's count of what it read, cut where it ended
-/// (docs/unified-bmo.md, 「Replacing the session」; docs/drafting.md, 「The round log」). The agency
+/// (docs/unified-bmo.md, 「Replacing the session」; docs/instruction.md, 「The round log」). The agency
 /// releases the loads as it opens the generation, so a record already emptied is not deleted again; a turn the
 /// receiver composed against the ended generation may have written its loads back after that, and those are the
 /// receiver's to clear.
@@ -39,7 +39,7 @@ pub async fn forget(receiver: &Receiver, agent: &str, session: &str) {
     eprintln!("{agent}: session {session}'s cache record was not forgotten: {}", why.detail);
   }
 
-  if let Err(why) = super::draft::log::cut(db, session).await {
+  if let Err(why) = super::stages::log::cut(db, session).await {
     eprintln!("{agent}: session {session}'s count of what it read was not cut: {}", why.detail);
   }
 }

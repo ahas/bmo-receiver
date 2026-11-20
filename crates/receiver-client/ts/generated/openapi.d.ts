@@ -125,76 +125,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/draft-processes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Every row of the draft process table, the policy's and each supervisor's own; for a supervisor named, the one row it reads. */
-        get: operations["draftProcesses"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/draft-processes/{provider}/{tier}/{agentName}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** A supervisor's row set by the console. */
-        put: operations["setDraftProcess"];
-        post?: never;
-        /** A supervisor's row taken away. */
-        delete: operations["removeDraftProcess"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/draft-questions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** A supervisor's catalogue of questions, or the policy's alone where none is named. */
-        get: operations["draftQuestions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/draft-questions/{agentName}/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** A question's text set by the console for a supervisor. */
-        put: operations["setDraftQuestion"];
-        post?: never;
-        /** The console's text of a supervisor's question taken away. */
-        delete: operations["removeDraftQuestion"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/events": {
         parameters: {
             query?: never;
@@ -276,6 +206,76 @@ export interface paths {
         /** A hook the agency calls at a point of its work. */
         post: operations["hook"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/instruction-stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every row of the instruction stage table, the policy's and each supervisor's own; for a supervisor named, the one row it reads. */
+        get: operations["instructionChains"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/instruction-stages/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A supervisor's chain of instruction stages set by the console. */
+        put: operations["setInstructionChain"];
+        post?: never;
+        /** A supervisor's chain taken away, the supervisor reading the policy's again. */
+        delete: operations["removeInstructionChain"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/instruction-texts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A supervisor's catalogue of questions, or the policy's alone where none is named. */
+        get: operations["instructionTexts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/instruction-texts/{agentName}/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A question's text set by the console for a supervisor. */
+        put: operations["setInstructionText"];
+        post?: never;
+        /** The console's text of a supervisor's question taken away. */
+        delete: operations["removeInstructionText"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1368,23 +1368,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/rounds/drafts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** For a room and the rounds named, or its newest rounds where none is named, every row each round's draft process wrote. */
-        get: operations["roundDrafts"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/rounds/openings": {
         parameters: {
             query?: never;
@@ -1411,6 +1394,23 @@ export interface paths {
         };
         /** One quiet instruction's whole text. */
         get: operations["roundOpening"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rounds/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** For a room and the rounds named, or its newest rounds where none is named, every row each round's instruction pipeline wrote. */
+        get: operations["roundPipeline"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1814,148 +1814,6 @@ export interface components {
         DefaultAnswerer: {
             supervisor: string;
         };
-        /** @description A row of the draft process table (docs/drafting.md, 「The process table」). */
-        DraftProcess: {
-            /** @description An agent, or `*` for any. */
-            agentName: string;
-            /** Format: uint32 */
-            ceilingSeconds: number;
-            /** @description The questions of `rounds` that are switched off: each keeps its place and is not followed. */
-            off: string[];
-            /** @description `send` or `skip`. */
-            pastCeiling: string;
-            /** @description A provider's key, or `*` for any. */
-            provider: string;
-            /** @description The questions every turn's round follows, in order. */
-            rounds: string[];
-            /** @description The question a row once read a send from: kept as it came and read by nothing. */
-            sendFrom: string;
-            /** @description `set` or `default`. */
-            source: string;
-            /**
-             * @description The stages after the message that are switched off: `review`, the items and the checks, by name.
-             * @default []
-             */
-            stagesOff: string[];
-            /** @description A tier, or `*` for any. */
-            tier: string;
-        };
-        /** @description A row of the draft process table set by the console. */
-        DraftProcessSet: {
-            /** Format: uint32 */
-            ceilingSeconds: number;
-            /**
-             * @description The questions of `rounds` that are switched off; left out for none.
-             * @default []
-             */
-            off: string[];
-            /** @description `send` or `skip`. */
-            pastCeiling: string;
-            rounds: string[];
-            /**
-             * @description Read and ignored: the draft turn's answer is the message.
-             * @default
-             */
-            sendFrom: string;
-            /**
-             * @description The stages after the message that are switched off; left out for none.
-             * @default []
-             */
-            stagesOff: string[];
-        };
-        /** @description A question of the draft process's catalogue. */
-        DraftQuestion: {
-            name: string;
-            /** @description `set` or `default`. */
-            source: string;
-            text: string;
-        };
-        /** @description A question's text set by the console. */
-        DraftQuestionSet: {
-            text: string;
-        };
-        /** @description One thing a round read from the brain (docs/drafting.md, 「The round log」). */
-        DraftRead: {
-            /** @description What it holds: the index's words for it where the gate's index lists it, else the name it went in with. */
-            holds: string | null;
-            /**
-             * @description `attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session
-             *     holding that version, or a piece the agent read again through the index at a version the session already
-             *     held) or `read` (a piece the agent read itself through the index during the round at a version new to it).
-             */
-            how: string;
-            /**
-             * Format: int64
-             * @description The brain memory it is, where it is one.
-             */
-            memoryId?: number | null;
-            path: string;
-        };
-        /** @description One turn of a round's draft process, or its end. */
-        DraftRound: {
-            agentName: string;
-            answer: string | null;
-            /** Format: int64 */
-            answerChars: number;
-            /**
-             * Format: int64
-             * @description Epoch milliseconds.
-             */
-            at: number;
-            changed: boolean;
-            detail: string | null;
-            /** Format: int64 */
-            id: number;
-            /**
-             * @description `supervisor` (the agent's own judgement whether to answer, before the round), `turn` (only where the process
-             *     asks no question), `question`, `item`, `check` or `end`.
-             */
-            kind: string;
-            /**
-             * Format: int64
-             * @description On the end, how many pieces the room's earlier rounds of the same session read in full (`attached` or
-             *     `read`), 0 for a session's first round in the room or a round on no session; null on every other row.
-             * @default null
-             */
-            loaded: number | null;
-            /** Format: int64 */
-            ms: number;
-            /**
-             * Format: int64
-             * @description From 1, each question, item and check in the order asked, the round's own turn being the first question's
-             *     row; 0 for the agent's own judgement before a round its open window alone let in.
-             */
-            number: number;
-            /** @description `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip` or `withheld` for the end. */
-            outcome: string;
-            question: string;
-            /**
-             * @description On the end, what the round read from the brain; empty on every other row.
-             * @default []
-             */
-            reads: components["schemas"]["DraftRead"][];
-            /**
-             * @description On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.
-             * @default null
-             */
-            session: string | null;
-            /**
-             * @description On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in
-             *     order, the row's answer built from them; empty on every other row.
-             * @default []
-             */
-            versions: components["schemas"]["DraftVersion"][];
-        };
-        /** @description One answer of the program's turns a turn of the process spanned (docs/drafting.md, 「The round log」). */
-        DraftVersion: {
-            /**
-             * @description What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or
-             *     `program`, the program on its own (a background task's notice).
-             */
-            opened: string;
-            /** @description That turn's answer as it wrote it. */
-            text: string;
-        };
         /** @description The new words of the signed-in person's own message. */
         Editing: {
             /**
@@ -2130,6 +1988,19 @@ export interface components {
         };
         /** @description Whether somebody waits on an instruction (docs/wake.md, 「Quiet instructions」). */
         InstructionCause: "reply" | "housekeeping";
+        /** @description A row of a round's pipeline (docs/instruction.md, 「The round log」). */
+        InstructionChain: {
+            /** @description The supervisor's name, or `*` for the policy's default chain every supervisor follows until it sets one. */
+            agentName: string;
+            /** @description `set` or `default`. */
+            source: string;
+            /** @description The chain's stage names, in the order they are asked once the message stands; empty runs no stage. */
+            stages: string[];
+        };
+        /** @description A supervisor's chain set by the console. */
+        InstructionChainSet: {
+            stages: string[];
+        };
         /** @description An instruction queued for an agent's session. */
         InstructionRequest: {
             /** @default null */
@@ -2181,6 +2052,22 @@ export interface components {
          * @enum {string}
          */
         InstructionState: "pending" | "handed" | "delivered";
+        /**
+         * @description A stage of the catalogue: its name, its text and whether the console set the text; the policy's text of it where
+         *     the console set one for a supervisor and the policy holds it too, null for a stage the console added.
+         */
+        InstructionText: {
+            name: string;
+            /** @default null */
+            policyText: string | null;
+            /** @description `set` or `default`. */
+            source: string;
+            text: string;
+        };
+        /** @description A question's text set by the console. */
+        InstructionTextSet: {
+            text: string;
+        };
         /** @description The body that marks a room's messages read into an agent's book. */
         KeepMarks: {
             agentName: string;
@@ -2473,17 +2360,17 @@ export interface components {
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page12: {
-            items: components["schemas"]["RoundDrafts"][];
+            items: components["schemas"]["RoundPipeline"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page13: {
-            items: components["schemas"]["DraftProcess"][];
+            items: components["schemas"]["InstructionChain"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
         Page14: {
-            items: components["schemas"]["DraftQuestion"][];
+            items: components["schemas"]["InstructionText"][];
             more: boolean;
         };
         /** @description A page of a collection: its members, and whether anything stands past the last of them. */
@@ -2606,6 +2493,65 @@ export interface components {
         /** @description A room's pinned messages, newest pin first. */
         Pins: {
             items: components["schemas"]["Message"][];
+        };
+        /** @description One turn of a round, or its end. */
+        PipelineRound: {
+            agentName: string;
+            answer: string | null;
+            /** Format: int64 */
+            answerChars: number;
+            /**
+             * Format: int64
+             * @description Epoch milliseconds.
+             */
+            at: number;
+            changed: boolean;
+            detail: string | null;
+            /** Format: int64 */
+            id: number;
+            /**
+             * @description `supervisor` (the agent's own judgement before a round), `turn` (the round's own turn), `arrived` (the closing
+             *     check) or `stage` (an instruction stage), or `end`.
+             */
+            kind: string;
+            /**
+             * Format: int64
+             * @description On the end, how many pieces the room's earlier rounds of the same session read in full (`attached` or
+             *     `read`), 0 for a session's first round in the room or a round on no session; null on every other row.
+             * @default null
+             */
+            loaded: number | null;
+            /** Format: int64 */
+            ms: number;
+            /**
+             * Format: int64
+             * @description From 1, the round's own turn first and then the check of the words that arrived meanwhile and each stage in the
+             *     order asked; 0 for the agent's own judgement before a round its open window alone let in.
+             */
+            number: number;
+            /**
+             * @description `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for a
+             *     stage; `message` or `skip` for the end.
+             */
+            outcome: string;
+            /** @description The row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn. */
+            question: string;
+            /**
+             * @description On the end, what the round read from the brain; empty on every other row.
+             * @default []
+             */
+            reads: components["schemas"]["RoundRead"][];
+            /**
+             * @description On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.
+             * @default null
+             */
+            session: string | null;
+            /**
+             * @description On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in
+             *     order, the row's answer built from them; empty on every other row.
+             * @default []
+             */
+            versions: components["schemas"]["RoundVersion"][];
         };
         /**
          * @description Whether a person is reachable now: online, busy or not; away, signed in but idle; offline.
@@ -2883,15 +2829,42 @@ export interface components {
         RoomTitle: {
             title: string | null;
         };
-        /** @description What a round's draft process wrote, row by row (docs/drafting.md, 「The round log」). */
-        RoundDrafts: {
-            round: string;
-            rows: components["schemas"]["DraftRound"][];
-        };
         /** @description What a round settled, without the instructions' text. */
         RoundOpening: {
             instructions: components["schemas"]["Opening"][];
             round: string;
+        };
+        /** @description What a round's turns wrote in the round log, row by row (docs/instruction.md, 「The round log」). */
+        RoundPipeline: {
+            round: string;
+            rows: components["schemas"]["PipelineRound"][];
+        };
+        /** @description One thing a round read from the brain (docs/instruction.md, 「The round log」). */
+        RoundRead: {
+            /** @description What it holds: the index's words for it where the gate's index lists it, else the name it went in with. */
+            holds: string | null;
+            /**
+             * @description `attached` (a piece of the turn's core that went in full), `held` (one that went as a mark, the session
+             *     holding that version, or a piece the agent read again through the index at a version the session already
+             *     held) or `read` (a piece the agent read itself through the index during the round at a version new to it).
+             */
+            how: string;
+            /**
+             * Format: int64
+             * @description The brain memory it is, where it is one.
+             */
+            memoryId?: number | null;
+            path: string;
+        };
+        /** @description One answer of the program's turns a turn of the process spanned (docs/instruction.md, 「The round log」). */
+        RoundVersion: {
+            /**
+             * @description What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or
+             *     `program`, the program on its own (a background task's notice).
+             */
+            opened: string;
+            /** @description That turn's answer as it wrote it. */
+            text: string;
         };
         /** @description What an instruction hands a session: a fact, or the words of an order. */
         Said: {
@@ -3377,202 +3350,6 @@ export interface operations {
             };
         };
     };
-    draftProcesses: {
-        parameters: {
-            query?: {
-                agentName?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page13"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    setDraftProcess: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                provider: string;
-                tier: string;
-                agentName: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DraftProcessSet"];
-            };
-        };
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DraftProcess"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    removeDraftProcess: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                provider: string;
-                tier: string;
-                agentName: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Done; no content. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A refusal or failure: unauthorized, not-found, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    draftQuestions: {
-        parameters: {
-            query?: {
-                agentName?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page14"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    setDraftQuestion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                agentName: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DraftQuestionSet"];
-            };
-        };
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DraftQuestion"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    removeDraftQuestion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                agentName: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Done; no content. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A refusal or failure: unauthorized, not-found, conflict, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
     events: {
         parameters: {
             query?: {
@@ -3769,6 +3546,198 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    instructionChains: {
+        parameters: {
+            query?: {
+                agentName?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page13"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    setInstructionChain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstructionChainSet"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstructionChain"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    removeInstructionChain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, not-found, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    instructionTexts: {
+        parameters: {
+            query?: {
+                agentName?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page14"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    setInstructionText: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstructionTextSet"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstructionText"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    removeInstructionText: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, not-found, conflict, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6447,39 +6416,6 @@ export interface operations {
             };
         };
     };
-    roundDrafts: {
-        parameters: {
-            query: {
-                room: number;
-                rounds?: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page12"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
     roundOpenings: {
         parameters: {
             query: {
@@ -6535,6 +6471,39 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, not-found, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roundPipeline: {
+        parameters: {
+            query: {
+                room: number;
+                rounds?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page12"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

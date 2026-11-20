@@ -12,7 +12,7 @@ use std::time::Duration;
 use futures_util::future::BoxFuture;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::drafting::DRAFTING;
+use receiver_policy::instruction::INSTRUCTION;
 use receiver_ports::agency::{Delivery, Event, Events, RunLine, Scope, Session, SessionState, Turn};
 use receiver_ports::http::{Answer, WireError};
 use serde_json::json;
@@ -60,10 +60,12 @@ pub struct StandInSession {
   pub logged: Mutex<Vec<RunLine>>,
   // Whether the situation update's turn is answered and kept out of the test's list of prompts.
   hide_situation: Mutex<bool>,
-  // Whether the review gate's turn is answered with PASS and kept out of the test's list of prompts.
-  hide_review: Mutex<bool>,
+  // Whether an instruction stage's turn is answered with PASS and kept out of the test's list of prompts.
+  hide_stages: Mutex<bool>,
   // The words a turn's prompt holds for the session to refuse it, as an agency that cannot carry it answers.
   refusing: Mutex<Option<String>>,
+  // The words a turn's prompt holds that end it as a run whose program died.
+  failing: Mutex<Option<String>>,
   // Whether a turn asked while another works is refused as the agency refuses a session in a turn, and how many
   // were refused so.
   busy: Mutex<bool>,
@@ -98,8 +100,9 @@ impl StandInSession {
       folds_itself: Mutex::new(false),
       acting: Mutex::default(),
       hide_situation: Mutex::new(true),
-      hide_review: Mutex::new(true),
+      hide_stages: Mutex::new(true),
       refusing: Mutex::default(),
+      failing: Mutex::default(),
       busy: Mutex::default(),
       refused: Mutex::default(),
       turn_store: Mutex::default(),
@@ -148,13 +151,19 @@ impl StandInSession {
     self
   }
 
+  /// A turn whose prompt holds `words` ends failed, as a run whose program died; every other answers as it would.
+  pub fn failing(self, words: &str) -> Self {
+    *self.failing.lock().unwrap() = Some(words.to_owned());
+    self
+  }
+
   /// From now on every turn's turn-ended says this beside its session, and its answer where none is named.
   pub fn end_as(&self, ending: Option<serde_json::Value>) {
     *self.ending.lock().unwrap() = ending;
   }
 
-  /// The situation update's turn answers its default and stays out of `prompts`, so a test about the draft
-  /// process reads the same turns it did.
+  /// The situation update's turn answers its default and stays out of `prompts`, so a test about a round reads
+  /// the same turns it did.
   pub fn hiding_situations(self) -> Self {
     *self.hide_situation.lock().unwrap() = true;
     self
@@ -166,15 +175,10 @@ impl StandInSession {
     self
   }
 
-  /// The review gate's turn is shown and answered from the script, for a test about that gate.
-  pub fn showing_reviews(self) -> Self {
-    *self.hide_review.lock().unwrap() = false;
-    self
-  }
-
-  /// The review gate's turn is shown when `show`, and answers PASS out of the test's list otherwise.
-  pub fn hiding_reviews_or(self, show: bool) -> Self {
-    *self.hide_review.lock().unwrap() = !show;
+  /// An instruction stage's turn is shown and answered from the script, for a test about the stages; hidden, it
+  /// answers PASS and stays out of `prompts`.
+  pub fn showing_stages(self) -> Self {
+    *self.hide_stages.lock().unwrap() = false;
     self
   }
 
@@ -376,9 +380,9 @@ impl StandInSession {
 
       let hidden_situation =
         *self.hide_situation.lock().unwrap() && turn.prompt.contains(&CHAT_ROUND.situation.previous);
-      let hidden_review =
-        *self.hide_review.lock().unwrap() && turn.prompt.contains(&DRAFTING.review.marker);
-      let hidden = hidden_situation || hidden_review;
+      let stage_head = INSTRUCTION.marker.split("{name}").next().unwrap_or_default();
+      let hidden_stage = *self.hide_stages.lock().unwrap() && turn.prompt.starts_with(stage_head);
+      let hidden = hidden_situation || hidden_stage;
       let number = {
         let mut turns = self.turns.lock().unwrap();
 
@@ -399,8 +403,8 @@ impl StandInSession {
         holds
       };
       let working_for = *self.working_for.lock().unwrap();
-      let answer = if hidden_review {
-        DRAFTING.review.pass.clone()
+      let answer = if hidden_stage {
+        INSTRUCTION.pass.clone()
       } else if hidden_situation {
         bmo_receiver::chat::sentinels::SKIP.to_owned()
       } else {
@@ -436,12 +440,22 @@ impl StandInSession {
         act(turn);
       }
 
-      let mut ended = self
-        .ending
+      let fails = self
+        .failing
         .lock()
         .unwrap()
-        .clone()
-        .unwrap_or_else(|| json!({ "outcome": "answered", "answer": answer }));
+        .as_ref()
+        .is_some_and(|words| turn.prompt.contains(words.as_str()));
+      let mut ended = if fails {
+        json!({ "outcome": "failed", "reason": "the program died" })
+      } else {
+        self
+          .ending
+          .lock()
+          .unwrap()
+          .clone()
+          .unwrap_or_else(|| json!({ "outcome": "answered", "answer": answer }))
+      };
 
       ended["session"] = json!(self.id);
       *self.working.lock().unwrap() = false;
@@ -465,78 +479,22 @@ impl StandInSession {
   }
 }
 
-/// The supervisors the suites stand, each of which reads the draft process a test sets.
+/// The supervisors the suites stand, each of which reads the chain of instruction stages a test sets.
 pub const SUPERVISORS: [&str; 3] = ["agent-a", "agent-b", "agent-c"];
 
-/// The draft process every turn reads, set as the console sets each supervisor its row: the questions every turn
-/// follows and the ceiling, read and ignored.
-pub async fn drafting(db: &sea_orm::DatabaseConnection, rounds: &[&str], ceiling_seconds: u32) {
-  drafting_past(db, rounds, ceiling_seconds, bmo_receiver::chat::draft::table::PastCeiling::Send).await;
-}
-
-/// The draft process every turn reads, with the stages after the message its row switches off.
-pub async fn drafting_with(db: &sea_orm::DatabaseConnection, rounds: &[&str], stages_off: &[&str]) {
-  use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
-
-  let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
+/// The chain of instruction stages every supervisor runs, set as the console sets each supervisor its chain: the
+/// stages it runs once its message stands. An empty chain runs no stage and the message goes out unchecked.
+pub async fn set_chain(db: &sea_orm::DatabaseConnection, chain: &[&str]) {
+  let named = chain.iter().map(|name| (*name).to_owned()).collect::<Vec<String>>();
 
   for supervisor in SUPERVISORS {
-    set(
-      db,
-      &Process {
-        provider: ANY.to_owned(),
-        tier: ANY.to_owned(),
-        agent: supervisor.to_owned(),
-        rounds: named(rounds),
-        send_from: String::new(),
-        off: vec![],
-        stages_off: named(stages_off),
-        ceiling_seconds: 0,
-        past_ceiling: PastCeiling::Send,
-        set: true,
-      }
-      .settled(),
-    )
-    .await
-    .unwrap();
+    bmo_receiver::chat::stages::table::set(db, supervisor, &named).await.unwrap();
   }
 }
 
-/// The draft process every turn reads, with what is done past its ceiling.
-pub async fn drafting_past(
-  db: &sea_orm::DatabaseConnection,
-  rounds: &[&str],
-  ceiling_seconds: u32,
-  past_ceiling: bmo_receiver::chat::draft::table::PastCeiling,
-) {
-  use bmo_receiver::chat::draft::table::{ANY, Process, set};
-
-  let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
-
-  for supervisor in SUPERVISORS {
-    set(
-      db,
-      &Process {
-        provider: ANY.to_owned(),
-        tier: ANY.to_owned(),
-        agent: supervisor.to_owned(),
-        rounds: named(rounds),
-        send_from: String::new(),
-        off: vec![],
-        stages_off: vec![],
-        ceiling_seconds,
-        past_ceiling,
-        set: true,
-      },
-    )
-    .await
-    .unwrap();
-  }
-}
-
-/// No question follows a turn: its own answer is the message, as a test of something else needs it.
-pub async fn no_drafting(db: &sea_orm::DatabaseConnection) {
-  drafting(db, &[], 150).await;
+/// No stage follows a turn: its own answer is the message, as a test of something else needs it.
+pub async fn no_stages(db: &sea_orm::DatabaseConnection) {
+  set_chain(db, &[]).await;
 }
 
 /// The prompt documents a room's block is composed from, stood under `data` so a turn can name its room.

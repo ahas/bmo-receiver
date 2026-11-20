@@ -1,4 +1,4 @@
-//! The draft process's removed turn bound (docs/drafting.md, 「Time」): no clock bounds a turn of the process, so the
+//! The draft process's removed turn bound (docs/instruction.md, 「Time」): no clock bounds a turn of the process, so the
 //! column a row set it in goes.
 
 use sea_orm_migration::prelude::*;

@@ -1,8 +1,8 @@
 //! Words handed to the room's supervisor (docs/messages.md, 「Words handed to the room's supervisor」): a send is
 //! carried only in its agent's own round and only where it holds no words, and every other send — words for
 //! another room, a command at a shell, a job, a worker, a unit's process, a script — is queued as an order for the
-//! room's supervisor carrying what was asked, which that supervisor's round there writes as its message, reviewed
-//! by the draft process, or lets go.
+//! room's supervisor carrying what was asked, which that supervisor's round there writes as its message, checked
+//! by its instruction stages, or lets go.
 
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::fill_marks;

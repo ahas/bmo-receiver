@@ -252,7 +252,7 @@ async fn the_next_fresh_sessions_first_turn_opens_on_the_kept_handoff_then_the_r
 
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
 
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
@@ -389,19 +389,13 @@ fn worded(message_id: i64, text: &str) -> Inbound {
 // A receiver whose default answerer keeps one session across its rooms, stood with documents, a chat service
 // holding the owner's chat, the agent registered, the session given, and a runner ready for its rounds and
 // taking the handoffs asked of it, as the service holds it. No round updates the room's situation note first, so
-// a round's own turn is the first it sends. `reviewing` has each round's message go through the review gate's
-// turn after the draft's, so a round spans two turns.
+// a round's own turn is the first it sends, and no stage follows it.
 async fn stood_handing(
   session: Arc<StandInSession>,
-  reviewing: bool,
 ) -> (Scratch, tempfile::TempDir, crate::integration::common::units::Standing, Runner) {
   let scratch = Scratch::new().await;
 
-  if reviewing {
-    crate::integration::common::session::drafting(scratch.db(), &["final"], 150).await;
-  } else {
-    crate::integration::common::session::no_drafting(scratch.db()).await;
-  }
+  crate::integration::common::session::no_stages(scratch.db()).await;
 
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
@@ -410,7 +404,7 @@ async fn stood_handing(
 
   let mut standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
 
-  standing.receiver = standing.receiver.with_situation_updates(false).with_review_gate(reviewing);
+  standing.receiver = standing.receiver.with_situation_updates(false);
 
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
@@ -460,7 +454,7 @@ async fn a_handoff_asked_while_the_round_waits_on_the_agency_is_asked_without_wa
       .holding_the_first()
       .acting(writing_handoff(NOTE)),
   );
-  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone()).await;
 
   standing
     .receiver
@@ -496,7 +490,7 @@ async fn an_asking_still_waiting_as_the_service_is_told_to_stop_is_answered_stop
       .holding_the_first()
       .acting(writing_handoff(NOTE)),
   );
-  let (_scratch, _data, standing, _runner) = stood_handing(session.clone(), false).await;
+  let (_scratch, _data, standing, _runner) = stood_handing(session.clone()).await;
   let asked = asked_handoff(&standing);
 
   // The handoff turn stands working for as long as the test holds it, so the asking waits on it.
@@ -521,7 +515,7 @@ async fn words_said_while_a_session_is_handed_off_are_the_fresh_sessions_first_t
       .busy()
       .acting(writing_handoff(NOTE)),
   );
-  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone()).await;
   let asked = asked_handoff(&standing);
 
   until_that("the handoff's turn", || session.working()).await;
@@ -555,7 +549,7 @@ async fn words_a_failed_round_gave_back_go_to_the_fresh_sessions_first_turn_once
   const WAITING: &str = "words the old session never answered";
 
   let session = Arc::new(StandInSession::new("agent-a@agent", "Here.").acting(writing_handoff(NOTE)));
-  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone()).await;
 
   // The program dies under the round the words open, so the round fails and gives them back.
   session.end_as(Some(json!({ "outcome": "failed", "reason": "the program died" })));
@@ -588,7 +582,7 @@ async fn a_round_refused_because_the_session_is_in_another_turn_waits_for_it_and
   const WORDS: &str = "words that meet the session working";
 
   let session = Arc::new(StandInSession::new("agent-a@agent", "Here.").holding_the_first().busy());
-  let (_scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+  let (_scratch, _data, standing, runner) = stood_handing(session.clone()).await;
 
   // A turn the receiver did not send holds the session, as the agency's own does.
   let working = {
@@ -631,7 +625,7 @@ async fn a_round_refused_because_the_session_is_in_another_turn_waits_for_it_and
 #[tokio::test]
 async fn a_supervisor_no_handoff_was_asked_for_keeps_the_session_its_next_turn_resumes() {
   let session = Arc::new(StandInSession::new("agent-a@standing", "Here."));
-  let (scratch, _data, standing, runner) = stood_handing(session.clone(), false).await;
+  let (scratch, _data, standing, runner) = stood_handing(session.clone()).await;
   let receiver = standing.receiver.clone();
 
   receiver

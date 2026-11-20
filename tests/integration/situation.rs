@@ -1,4 +1,4 @@
-//! The room's situation note as the console reads it (docs/drafting.md, 「The situation note」): the note stands on
+//! The room's situation note as the console reads it (docs/instruction.md, 「The situation note」): the note stands on
 //! each message the round that wrote it judged, with whether that round changed it, and a room answers the note as it
 //! stands with when it last changed.
 

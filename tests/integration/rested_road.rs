@@ -17,7 +17,7 @@ use receiver_ports::agency::{Rest, RestKind};
 use serde_json::json;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::session::{StandInSession, no_drafting, prompt_documents};
+use crate::integration::common::session::{StandInSession, no_stages, prompt_documents};
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
@@ -95,7 +95,7 @@ impl Rested {
   async fn new() -> Self {
     let scratch = Scratch::new().await;
 
-    no_drafting(scratch.db()).await;
+    no_stages(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
 

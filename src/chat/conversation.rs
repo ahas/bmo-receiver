@@ -1,8 +1,8 @@
 //! The conversations of one conversational agent, every room's in one (docs/wake.md; docs/bmo-window.md): what a
 //! room says joins its queue and is handed over together once the queue's delay is up; the room's conversation
-//! wakes, or takes the words into the round it is running. A round reads what is waiting, asks the session, makes
-//! the message from its draft through the draft process, and sends it — or waits for more, or passes the room by —
-//! and the room's window keeps it listening without being called while it stands.
+//! wakes, or takes the words into the round it is running. A round reads what is waiting, asks the session for the
+//! message, passes it through its instruction stages and sends it — or waits for more, or passes the room by — and
+//! the room's window keeps it listening without being called while it stands.
 
 use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
@@ -13,22 +13,22 @@ use std::time::Duration;
 use tokio::task::JoinHandle;
 
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
+use receiver_policy::instruction::INSTRUCTION;
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
 
 use super::ask::Carry;
 use super::context::{remember_held, sent_prompt};
-use super::draft::{Drafter, Plan};
 use super::health::{FailureOrders, RoomHealth};
 use super::mid_turn::{Paragraph, Push};
 use super::progress::{RunProgress, Told};
-use super::prompt::{self, Round, Scope as RoundScope};
+use super::prompt::{self, Round};
 use super::reply::Sender;
 use super::room::room_context;
 use super::sentinels::{is_skip, is_wait};
 use super::shape::Reading;
+use super::stages::Stager;
 use super::talk::{TalkFailure, TalkRequest};
 use super::thread::ThreadMark;
 use super::touch::TouchAnswer;
@@ -131,10 +131,10 @@ pub struct Reply {
   pub replaced: Vec<SessionReason>,
   pub run: Option<String>,
   /// What the session held as the turn went out, which what a round read is counted from.
-  pub before: super::draft::Before,
+  pub before: super::stages::Before,
   /// The answers of the program's turns the turn spanned, where it spanned more than one; `text` was built from
-  /// them (docs/drafting.md, 「What the receiver reads of an answer」).
-  pub spanned: Vec<super::draft::Spanned>,
+  /// them (docs/instruction.md, 「What it is」).
+  pub spanned: Vec<super::stages::Spanned>,
 }
 
 impl Reply {
@@ -147,7 +147,7 @@ impl Reply {
   }
 }
 
-/// Whether waiting words join a working round, by the senders of their people's words (docs/drafting.md, 「What came
+/// Whether waiting words join a working round, by the senders of their people's words (docs/instruction.md, 「What came
 /// in meanwhile」): into the owner's round where every person among them is he, an agent's line alone keeping
 /// nothing out; into a round that is not his where they are not his alone, so his own words open the round after.
 pub fn joins_round(privileged: bool, peoples: &[i64], owner: i64) -> bool {
@@ -204,38 +204,30 @@ pub trait Carrying: Send + Sync {
   ) -> BoxFuture<'a, Result<Reply, Failure>>;
 }
 
-/// What the draft process makes the message from (docs/drafting.md): the process the round opened, the answer its
-/// turn gave to the first question, its scope, the words the round read and the words around it, how many quiet
-/// instructions it carried, whether its turn may use tools and what it still owes the owner.
-pub struct Drafted<'a> {
-  pub plan: &'a Plan,
+/// What the instruction stages make the message from (docs/instruction.md): the answer the round's message turn gave,
+/// the words the round read and those pushed into its turn, whether its turn may use tools, the room and the road
+/// its answer goes back on, and the reference every later turn goes out with.
+pub struct MessageTurn<'a> {
   pub reply: Reply,
-  pub scope: &'a RoundScope,
-  pub recent: &'a [Inbound],
   pub batch: &'a [Inbound],
-  /// The room's messages pushed into the round's own turn, shown to the process from its start.
+  /// The room's messages pushed into the round's own turn, shown to the stages from their start.
   pub pushed: &'a [Inbound],
-  pub instructions: usize,
   pub tools_allowed: bool,
-  pub owed: usize,
-  /// The room the round answers, the road its answer goes back on, whether every word it took was the owner's,
-  /// and the messages waiting for the next turn: what a turn of the process goes out with beside its question.
+  /// The room the round answers, the road its answer goes back on and whether every word it took was the owner's:
+  /// what a later turn of the round goes out with beside its instruction.
   pub room: Room,
   pub via: String,
   pub privileged: bool,
-  pub pending: Vec<i64>,
-  /// The round's own selection, which every turn of the process goes out with the same reference on.
+  /// The round's own selection, which every later turn of the round goes out with the same reference on.
   pub selection: &'a Selection,
-  /// When the round began, in epoch milliseconds, which the round log's times count from; when its turn went
-  /// out, which the ceiling counts from; and the round's name.
+  /// When the round began, in epoch milliseconds, which the round log's times count from, and the round's name.
   pub began: i64,
-  pub opened: i64,
   pub round: &'a str,
 }
 
-/// What the draft process made: the message, a skip where nothing goes out, with what the last turn carried of
+/// What the instruction stages made: the message, a skip where nothing goes out, with what the last turn carried of
 /// the session; and the room's words that arrived meanwhile and were shown to it, as the agent's marks sort them
-/// (docs/drafting.md, 「What came in meanwhile」).
+/// (docs/instruction.md, 「What came in meanwhile」).
 pub struct Made {
   pub reply: Reply,
   /// The messages shown to the round that its message answers.
@@ -256,18 +248,15 @@ pub struct Made {
   pub silence: Option<String>,
 }
 
-/// What makes a round's message (docs/drafting.md): the process a round opens before its turn goes out, whose
-/// first question the turn carries, and the rest of it once the turn answered. Filled by the module that owns the
-/// process.
-pub trait Drafting: Send + Sync {
-  fn plan<'a>(&'a self, agent: &'a str, chat_id: i64) -> BoxFuture<'a, Plan>;
-
-  fn draft<'a>(
+/// What makes a round's message once its message turn answered (docs/instruction.md): the words that arrived
+/// meanwhile and the supervisor's chain of instruction stages. Filled by the module that owns the stages.
+pub trait Pipeline: Send + Sync {
+  fn stages<'a>(
     &'a self,
     conversations: &'a Conversations,
     agent: &'a str,
     held: &'a Held,
-    drafted: &'a Drafted<'a>,
+    message_turn: &'a MessageTurn<'a>,
   ) -> BoxFuture<'a, Result<Made, Failure>>;
 }
 
@@ -506,7 +495,7 @@ impl Carried {
     self
   }
 
-  /// The room's messages the turn took, shown to the round and settled by its marks (docs/drafting.md, 「What
+  /// The room's messages the turn took, shown to the round and settled by its marks (docs/instruction.md, 「What
   /// came in meanwhile」).
   pub fn into_shown(self) -> Vec<Inbound> {
     self.shown
@@ -740,7 +729,7 @@ struct Inner {
   // The rooms a voice briefing turn of the agent's is being carried in.
   briefings: Arc<super::briefing_turn::BriefingTurns>,
   carrying: Arc<dyn Carrying>,
-  drafting: Arc<dyn Drafting>,
+  pipeline: Arc<dyn Pipeline>,
   sending: Arc<dyn Sending>,
   noting: Arc<dyn Noting>,
   health: Arc<dyn Health>,
@@ -753,7 +742,7 @@ pub struct Conversations(Arc<Inner>);
 
 impl Conversations {
   /// An agent's conversations on the receiver's own parts of a round: its turns carried into the agency's
-  /// sessions, its answers made into messages by the draft process and sent on the road they answer on, its
+  /// sessions, its answers made into messages by the instruction stages and sent on the road they answer on, its
   /// sessions noted and folded, and the health and failure orders of its rooms. The
   /// talk and the touch are the conversations' own, taken behind whatever round is running, and so is the typed
   /// line, composed at once.
@@ -761,7 +750,7 @@ impl Conversations {
     Self(Arc::new(Inner {
       agent: agent.to_owned(),
       carrying: Arc::new(Carry::looking_every(receiver.clone(), timings.look)),
-      drafting: Arc::new(Drafter::new(receiver.clone())),
+      pipeline: Arc::new(Stager::new(receiver.clone())),
       sending: Arc::new(Sender::new(receiver.clone())),
       noting: Arc::new(Noter::new(receiver.clone())),
       health: Arc::new(RoomHealth::new(receiver.clone())),
@@ -1926,7 +1915,7 @@ impl Conversations {
     }
   }
 
-  // The round's answer pinned to the message the agent marked (docs/drafting.md, 「The answer is pinned only to
+  // The round's answer pinned to the message the agent marked (docs/instruction.md, 「The answer is pinned only to
   // the message the agent marks」): the one its number names, the newest it answers where the mark names none, and
   // nothing where it set no mark, where the room's record does not hold the message or no road can aim at it.
   async fn pin(&self, chat_id: i64, answered: &[Inbound], named: Option<i64>) {
@@ -2056,7 +2045,7 @@ impl Conversations {
     let mut via = self.road_of(chat_id, &batch, &roads).await;
 
     // A round with words in a room other than the one the agent last answered in writes that room's situation
-    // note first (docs/drafting.md, 「The situation note」); the note of this room as it stands is kept on the
+    // note first (docs/instruction.md, 「The situation note」); the note of this room as it stands is kept on the
     // messages the round judges, for the console's record.
     if !batch.is_empty() && receiver.situation_updates() {
       self.leave_notes(chat_id, &held).await?;
@@ -2074,20 +2063,12 @@ impl Conversations {
       return self.silent_end(chat_id, &batch, &held, Some(&passed.reason)).await;
     }
 
-    let owed = if chat_id == self.owner_room() {
-      batch.iter().filter(|message| message.sender_id == Some(owner)).count()
-    } else {
-      0
-    };
-
     let final_round = force || (batch.is_empty() && !instructions.is_empty());
     let tools_allowed = true;
     let waited_on: HashSet<i64> = held_words.iter().map(|message| message.message_id).collect();
     let pending: HashSet<i64> = self.pending(chat_id).into_iter().collect();
     let queue_line = self.queue_line(chat_id).await;
     let woken = self.state().woken.get(&chat_id).cloned();
-    // The process is read before the turn goes out, since the turn carries its first question.
-    let plan = self.0.drafting.plan(self.agent(), chat_id).await;
     let composed = prompt::compose(
       &receiver,
       &Round {
@@ -2114,10 +2095,7 @@ impl Conversations {
     )
     .await
     .map_err(|why| Failure::Failed(why.detail))?;
-    let prompt = match plan.first_words() {
-      Some(question) => format!("{}\n\n{question}", composed.prompt),
-      None => composed.prompt.clone(),
-    };
+    let prompt = composed.prompt.clone();
 
     if let Some(conv) = self.state().active.get_mut(&chat_id) {
       conv.first_call = false;
@@ -2158,15 +2136,18 @@ impl Conversations {
       standing: false,
     };
 
-    // The draft turn is told as it starts, under the name its row of the round log goes by.
-    if let Some(names) = plan.names() {
-      super::draft::log::tell_start(self, round, chat_id, self.agent(), 1, 1, &names);
-    }
+    // The message turn is told as it starts, under the name its row of the round log goes by.
+    super::stages::log::tell_start(
+      self,
+      round,
+      chat_id,
+      self.agent(),
+      super::stages::log::Started::message(),
+    );
 
     let asked = self.0.carrying.carry(&asking, &held, &follower).await;
     let carried = follower.finish();
     let mut scope = composed.scope.clone();
-    let recent = composed.recent.clone();
     let mut pushed: Vec<Inbound> = vec![];
 
     // The instructions the turn took while it worked are the round's as much as those it froze, so the road the
@@ -2240,28 +2221,21 @@ impl Conversations {
 
     let made = self
       .0
-      .drafting
-      .draft(
+      .pipeline
+      .stages(
         self,
         self.agent(),
         &held,
-        &Drafted {
-          plan: &plan,
+        &MessageTurn {
           reply: reply.clone(),
-          scope: &scope,
-          recent: &recent,
           batch: &batch,
           pushed: &pushed,
-          instructions: instructions.len(),
           tools_allowed,
-          owed,
           room,
           via: via.to_owned(),
           privileged: held.all_from_owner,
-          pending: self.pending(chat_id),
           selection: &composed.selection,
           began,
-          opened: started,
           round,
         },
       )
@@ -2276,7 +2250,7 @@ impl Conversations {
     self.give_back_words(chat_id, made.separate);
 
     // The round's own words, where several people said them, each carry what the round made of them
-    // (docs/drafting.md, 「Words of several people」): answered by its message, or marked as needing no answer. One
+    // (docs/instruction.md, 「What came in meanwhile」): answered by its message, or marked as needing no answer. One
     // marked to be answered on its own leaves the round and goes back to wait, as a message shown to it does,
     // unless every one of them was: a round sets none of its words apart from itself.
     if prompt::speakers(&batch) > 1 {
@@ -2333,7 +2307,7 @@ impl Conversations {
       let reason = made
         .silence
         .or_else(|| skip.reason().map(str::to_owned))
-        .unwrap_or_else(|| super::draft::log::NO_REASON.to_owned());
+        .unwrap_or_else(|| super::stages::log::NO_REASON.to_owned());
 
       return self.silent_end(chat_id, &batch, &held, Some(&reason)).await;
     }
@@ -2532,7 +2506,7 @@ impl Conversations {
     alone && instructions == 0 && !room.owner_room && chat_id != self.owner_room()
   }
 
-  // The situation notes the agent owes written before a round goes on in `entering` (docs/drafting.md, 「The
+  // The situation notes the agent owes written before a round goes on in `entering` (docs/instruction.md, 「The
   // situation note」): each room it answered in since that room's note was last updated, other than the room the
   // round is in, updated by one turn of the agent's one session, in that room. A turn whose run failed leaves
   // its room owed and the round goes on; a stop ends the round.
@@ -2643,10 +2617,9 @@ impl Conversations {
       thread_mark: None,
       standing: false,
     };
-    let mut log = super::draft::log::Log::new(self, round, chat_id, self.agent()).numbered_from(0);
+    let mut log = super::stages::log::Log::new(self, round, chat_id, self.agent()).numbered_from(0);
     // A judgement that skipped with no reason is no verdict: the marker and the line naming the form are the whole
-    // of the turn asked over, the session holding the words already (docs/drafting.md, 「What the receiver reads
-    // of an answer」). The asking over is asked for once.
+    // of the turn asked over, the session holding the words already (docs/instruction.md, 「What it is」). The asking over is asked for once.
     let mut over_skip = false;
     let (reply, passed) = loop {
       let follower = Follower::new(self, chat_id);
@@ -2663,36 +2636,36 @@ impl Conversations {
       let (ended, reason, passed) =
         match super::sentinels::skip_alone(&crate::form::strip_prompt_scaffolding(&reply.text)) {
           Some(super::sentinels::Skip::Reasoned(reason)) => {
-            (super::draft::log::Answered::Skip, Some(reason.clone()), Some(Passed { reason }))
+            (super::stages::log::Answered::Skip, Some(reason.clone()), Some(Passed { reason }))
           }
           Some(super::sentinels::Skip::Bare) if over_skip => (
-            super::draft::log::Answered::Skip,
-            Some(super::draft::log::NO_REASON.to_owned()),
+            super::stages::log::Answered::Skip,
+            Some(super::stages::log::NO_REASON.to_owned()),
             Some(Passed {
-              reason: super::draft::log::NO_REASON.to_owned(),
+              reason: super::stages::log::NO_REASON.to_owned(),
             }),
           ),
-          Some(super::sentinels::Skip::Bare) => (super::draft::log::Answered::NoVerdict, None, None),
-          None => (super::draft::log::Answered::Answered, None, None),
+          Some(super::sentinels::Skip::Bare) => (super::stages::log::Answered::NoVerdict, None, None),
+          None => (super::stages::log::Answered::Answered, None, None),
         };
 
       log
         .turn(
-          super::draft::log::Kind::Supervisor,
+          super::stages::log::Kind::Supervisor,
           &said.name,
           Some(&reply.text),
           ended,
           reason.as_deref(),
-          super::draft::log::Timed::of(now_ms() - began, &reply.spanned),
+          super::stages::log::Timed::of(now_ms() - began, &reply.spanned),
         )
         .await;
 
-      if ended != super::draft::log::Answered::NoVerdict {
+      if ended != super::stages::log::Answered::NoVerdict {
         break (reply, passed);
       }
 
       over_skip = true;
-      asking.prompt = format!("{}\n{}", said.marker, DRAFTING.skip_again);
+      asking.prompt = format!("{}\n{}", said.marker, INSTRUCTION.skip_again);
     };
 
     if passed.is_none()
@@ -2833,8 +2806,8 @@ impl Conversations {
     }
   }
 
-  /// The words that came into a room while its round's draft process ran, taken for the process's next question or
-  /// its closing check where they carry the round's privilege, read by people's words alone (docs/drafting.md,
+  /// The words that came into a room while its round's message was written, taken for the round's next instruction
+  /// or its closing check where they carry the round's privilege, read by people's words alone (docs/instruction.md,
   /// 「What came in meanwhile」): into the owner's round, words whose people's words are all his; into a round that is
   /// not his, never words that are his alone. The others wait and open the round after.
   pub async fn meanwhile(&self, chat_id: i64, privileged: bool) -> Vec<Inbound> {
@@ -3020,7 +2993,7 @@ impl Conversations {
     Ok(())
   }
 
-  // The messages shown to the round written down under themselves (docs/drafting.md, 「What came in meanwhile」):
+  // The messages shown to the round written down under themselves (docs/instruction.md, 「What came in meanwhile」):
   // those that became the round's own as read with the message its verdict stands under, those marked done as
   // skipped beside it.
   async fn judge_shown(&self, chat_id: i64, under: Option<i64>, took: &[Inbound], done: &[Inbound]) {
@@ -3821,7 +3794,7 @@ async fn return_instructions(db: &DatabaseConnection, ids: Vec<i64>) {
 }
 
 /// Whether the agent's turns go on one session across its rooms, as its registration says.
-/// One room's situation note updated by one turn of the agent's one session, in that room (docs/drafting.md,
+/// One room's situation note updated by one turn of the agent's one session, in that room (docs/instruction.md,
 /// 「The situation note」): the note as it stands and what the room's record holds past it go in, the answer is the
 /// note, and the room is owed none from then on. A room whose record holds nothing the note has not read is
 /// settled with no turn. A turn whose run failed leaves the room owed. The turn goes on the session as it stands:

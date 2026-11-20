@@ -1,4 +1,4 @@
-//! The question a draft process row reads a send from (`docs/store.md`, 「The tables」; `docs/drafting.md`, 「The
+//! The question a draft process row reads a send from (`docs/store.md`, 「The tables」; `docs/instruction.md`, 「The
 //! process table」): empty on a row set before it was named, which reads a send from its first question.
 
 use sea_orm_migration::prelude::*;

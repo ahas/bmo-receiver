@@ -164,7 +164,7 @@ async fn words_asked_in_the_agents_own_round_into_its_room_are_refused_and_nothi
     answer["refusal"].as_str().is_some_and(|why| why.contains("go into the round's answer")),
     "a line in the round's own room is the round's answer: {answer:?}"
   );
-  assert!(road.sent().is_empty(), "no line went out without the draft process");
+  assert!(road.sent().is_empty(), "no line went out outside a round's message");
   assert!(orders(&scratch).await.is_empty(), "nothing was handed");
 }
 

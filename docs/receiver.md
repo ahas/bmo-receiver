@@ -38,9 +38,9 @@ flowchart TD
     - the files a person posted just before the words of theirs that woke the default answerer;
   - the conversations (`docs/wake.md`, `docs/bmo-window.md`): each room's queue, rounds, window and waits, the
     round's turn on the agent's session with the room's words and the quiet instructions that arrive while it
-    works pushed into it, the draft process its answer is made in and the room's words no push put in shown at its
+    works pushed into it, the instruction pipeline its answer is made in and the room's words no push put in shown at its
     question boundaries
-    (`docs/drafting.md`), the answer sent on the road the turn
+    (`docs/instruction.md`), the answer sent on the road the turn
     answers on with the room shown typing meanwhile, the fold, the failure orders and the cache warmer's touch;
     each answer sent is handed back to the receiver like any word filed in the room;
   - the instruction pass over every agent's rows (`docs/bmo-window.md`, 「The agent's queue」): each row handed to
@@ -490,13 +490,16 @@ flowchart TD
   or restarted, a window closed as `window-closed` with its room, its agent and `closedAt`, the moment it closed
   (`docs/wake.md`, 「The names and the window」), a verdict it wrote of a round as `judgement` with its
   `messageId` (null where it stands under no message yet), `stage`, `verdict` and `detail`, each row of a round's
-  draft process as `draft` with its `round`, `agentName`, `number`, `question`, `kind`, `answerChars`, `changed`,
+  instruction pipeline as `draft` with its `round`, `agentName`, `number`, `question`, `kind`, `answerChars`, `changed`,
   `outcome`, `detail`, `ms`, `at`, `reads`, `session`, `loaded` and `versions`, on the end what the round read
   from the brain, the session its turn ran on and what that session had read in full in the room before it, and on
-  a turn's row the program's turns it spanned, each empty or null where it does not stand (`docs/drafting.md`, 「The
-  round log」), each question of it as it starts as
-  `draft` of kind `start` with its `round`, `agentName`, `number`, `count`, `question` and `at` and none of a
-  row's answer fields, a turn of a conversation as
+  a turn's row the program's turns it spanned, each empty or null where it does not stand (`docs/instruction.md`, 「The
+  round log」), each turn of it as it starts as
+  `draft` of kind `start` with its `round`, `agentName`, `number` and `count` (its place from 1 among the turns of
+  its sort and how many there are: the message turn and the check of the words that arrived meanwhile 1 of 1, a
+  stage its place in the chain), `question` (`message`, `arrived` or the stage's name), `input` (`message` for the
+  turn that carries the room's words, `system` for a system instruction the round opens, `docs/bmo-window.md`, 「A
+  message and an instruction」) and `at`, and none of a row's answer fields, a turn of a conversation as
   it begins, moves, sends and ends, each of these under the turn's `speaker` (`docs/api.md`, 「Events and the live
   board」), a room whose
   registration was removed as `room-removed` with its
@@ -569,10 +572,10 @@ flowchart TD
   which makes it a progress line: in an agent's own road a `tool_use` block after the text block, in the same line
   or a later one, and in a rollout a `function_call` or `custom_tool_call` item after an assistant `message` item.
   What the turn writes last, with no call after it, is its answer and never a progress line, and so is what a turn
-  of the program wrote before words handed over opened the next — the round's next question, the review, words
-  pushed in — since those words close the turn before them: a draft, a rewrite or a skip a later turn replaced is
+  of the program wrote before words handed over opened the next — the round's next instruction, words pushed
+  in — since those words close the turn before them: a draft, a rewrite or a skip a later turn replaced is
   never shown as a line. A failed request's text is none, and thinking never is one; a pane program's record carries no text, so its turns have none.
-  Nor is a text holding one of the draft process's answer marks (`docs/drafting.md`: `<<SEND>>`, `<<SKIP: …>>`,
+  Nor is a text holding one of the instruction pipeline's answer marks (`docs/instruction.md`: `<<SEND>>`, `<<SKIP: …>>`,
   `<<WAIT>>`, `<<REPLY #n>>` and the rest), even where a call follows it: it is a draft of the
   turn's message, and nothing of the answer stands before it is sent, so it is left out whole, never shown with
   its mark cut off. A mark is known by its opening, two opening angle brackets and a word in capitals followed by
@@ -819,7 +822,7 @@ flowchart TD
   when it changes. It is the room's live state, not the agent's long-term memory: the brain's `situation` rows are
   rules for a situation, and what the agent remembers beyond the room is the brain's. The note is written when
   the session leaves the room, before a handoff and on a keepalive touch, and a session reads it once, in the
-  round that first takes it into the room (`docs/drafting.md`, 「The situation note」).
+  round that first takes it into the room (`docs/instruction.md`, 「The situation note」).
 
 ## What is kept for a moment
 

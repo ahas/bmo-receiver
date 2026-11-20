@@ -25,7 +25,7 @@ pub struct Room {
   pub head: String,
   pub name: String,
   pub replaces: String,
-  /// The draft process's fixed rules.
+  /// How a room's words are answered, said once in the room's block.
   pub process: String,
   /// That a voice message arrives as text.
   pub voice: String,

@@ -1,5 +1,5 @@
 //! The draft process's table as the console sets it and the round log (`docs/store.md`, 「The tables」;
-//! `docs/drafting.md`).
+//! `docs/instruction.md`).
 
 use sea_orm_migration::prelude::*;
 

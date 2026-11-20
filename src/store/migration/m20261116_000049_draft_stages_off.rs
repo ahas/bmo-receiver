@@ -1,5 +1,5 @@
 //! The stages after the message a draft process row has switched off (`docs/store.md`, 「The tables」;
-//! `docs/drafting.md`, 「The process table」): none on a row set before a stage could be switched off.
+//! `docs/instruction.md`, 「How a supervisor reads the chain」): none on a row set before a stage could be switched off.
 
 use sea_orm_migration::prelude::*;
 

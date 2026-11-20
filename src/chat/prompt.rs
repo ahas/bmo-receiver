@@ -66,7 +66,6 @@ pub struct Scope {
 /// A round's prompt, with what it read and what it was handed.
 pub struct Composed {
   pub prompt: String,
-  pub recent: Vec<Inbound>,
   pub scope: Scope,
   pub context: Vec<(String, String)>,
   pub selection: Selection,
@@ -121,7 +120,7 @@ async fn chat_kind(receiver: &Receiver, room: Room) -> Result<&'static str, Faul
 
 // Whether the turn opens on a session that does not hold the room's conversation: a handover, to a session the
 // agency never opened or one this turn will replace, or a return to a room the agent's one session has not
-// answered in (docs/drafting.md, 「The questions」; docs/unified-bmo.md, 「Moving between rooms」).
+// answered in (docs/instruction.md, 「The stage chain and its texts」; docs/unified-bmo.md, 「Moving between rooms」).
 async fn opening_turn(
   receiver: &Receiver,
   round: &Round<'_>,
@@ -453,7 +452,7 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
   }
 
   // Words of several people are each answered or set apart by mark, so no one's words pass unanswered in
-  // silence (docs/drafting.md, 「Words of several people」).
+  // silence (docs/instruction.md, 「What came in meanwhile」).
   let people = speakers(round.batch);
 
   if people > 1 {
@@ -494,14 +493,13 @@ pub async fn compose(receiver: &Receiver, round: &Round<'_>) -> Result<Composed,
     context.push(("archive".to_owned(), quoted_range(chat_id, &quoted)));
   }
 
-  // A session reads a room's situation note once (docs/drafting.md, 「The situation note」): the round's turn
+  // A session reads a room's situation note once (docs/instruction.md, 「The situation note」): the round's turn
   // carries its place at its head, above the room's words, filled where the session the turn settles on holds
   // none of this room.
   let prompt = format!("{}\n\n{}", super::situation::first_reading(chat_id), parts.join("\n"));
 
   Ok(Composed {
     prompt,
-    recent,
     scope,
     context,
     selection,

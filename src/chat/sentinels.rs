@@ -1,6 +1,6 @@
 //! The words a turn of the default answerer's session answers with when it is not answering the room: wait for more, or
-//! say nothing this time, a round's turn naming on one line why it says nothing; the one a turn of the draft process
-//! opens on to make its answer the message now; and the marks it sets on a message that arrived while the process ran.
+//! say nothing this time, a round's turn naming on one line why it says nothing; the one a turn of a round opens on
+//! to make its answer the message now; and the marks it sets on a message that arrived while the round ran.
 
 use std::sync::LazyLock;
 
@@ -14,12 +14,12 @@ pub const SKIP: &str = "<<SKIP>>";
 pub const SEND: &str = "<<SEND>>";
 pub const FOLD: &str = "<<FOLD>>";
 
-// The opening of any of the draft process's answer marks: two opening angle brackets and a word in
+// The opening of any of a round's answer marks: two opening angle brackets and a word in
 // capitals, then the closing brackets, a colon or a number's `#`. A shell here-document's opening is none.
 static ANSWER_MARK: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"<<[A-Z][A-Z_]*[ \t]*(?:>>|:|#)").expect("an answer mark"));
 
-/// Whether a text holds one of the draft process's answer marks, and so is a draft of a turn's message
+/// Whether a text holds one of a round's answer marks, and so is a draft of a turn's message
 /// (docs/receiver.md, 「The event stream」).
 pub fn holds_answer_mark(text: &str) -> bool {
   ANSWER_MARK.is_match(text)
@@ -30,7 +30,7 @@ pub fn is_wait(text: &str) -> bool {
   trim(&text.replace(FOLD, "").replace(WAIT, "")).is_empty()
 }
 
-/// What a skip in an answer is read as (docs/drafting.md, 「What the receiver reads of an answer」).
+/// What a skip in an answer is read as (docs/instruction.md, 「What it is」).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Skip {
   /// `<<SKIP: <reason>>>`: nothing is sent and the answer says why, on the one line the reason is.
@@ -114,12 +114,12 @@ pub fn asks_fold(text: &str) -> bool {
 }
 
 /// The words after the send marker, where an answer opens on it: the message the answer makes now
-/// (docs/drafting.md, 「What it is」).
+/// (docs/instruction.md, 「What it is」).
 pub fn sent_now(text: &str) -> Option<&str> {
   trim(text).strip_prefix(SEND).map(trim)
 }
 
-/// What an answer of the draft process says of a message of its round (docs/drafting.md, 「What came in
+/// What an answer of a round's turn says of a message of its round (docs/instruction.md, 「What came in
 /// meanwhile」): that it needs no answer, that it is answered in a round of its own, or that it is the one the
 /// answer answers. A reply mark that names no message, or names it by zero or by a number too large to be one,
 /// carries the number zero: the newest message the round answers.

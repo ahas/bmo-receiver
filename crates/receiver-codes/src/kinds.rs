@@ -45,7 +45,7 @@ pub enum SessionReason {
   Full,
   /// A handover was asked for the session.
   Asked,
-  /// The draft process's instructions the session was handed changed.
+  /// The pipeline's texts the session was handed changed: the chain or a stage's text moved.
   Process,
 }
 

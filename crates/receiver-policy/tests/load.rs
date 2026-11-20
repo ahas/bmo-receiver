@@ -1,14 +1,15 @@
 //! Every part of the policy reads as its type, every file under `policy/` is a part, and the lines carry the marks
 //! their readers fill (docs/policy.md).
 
+use receiver_policy::answer_reading::ANSWER_READING;
 use receiver_policy::chat_health::CHAT_HEALTH;
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::commands::COMMANDS;
-use receiver_policy::drafting::DRAFTING;
 use receiver_policy::files::FILES;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
+use receiver_policy::instruction::INSTRUCTION;
 use receiver_policy::keepalive::KEEPALIVE;
 use receiver_policy::kept::KEPT;
 use receiver_policy::open_files::OPEN_FILES;
@@ -22,7 +23,6 @@ use receiver_policy::roads::ROADS;
 use receiver_policy::roles::ROLES;
 use receiver_policy::run_lines::RUN_LINES;
 use receiver_policy::scripts::SCRIPTS;
-use receiver_policy::second_asks::SECOND_ASKS;
 use receiver_policy::secret_shapes::SECRET_SHAPES;
 use receiver_policy::talk::TALK;
 use receiver_policy::tool_host::TOOL_HOST;
@@ -36,18 +36,19 @@ fn parts() -> Vec<&'static str> {
   let _ = (&*CHAT_HEALTH, &*CHAT_LINE, &*CHAT_ROUND, &*COMMANDS);
   let _ = (&*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
-  let _ = (&*SECOND_ASKS, &*KEPT, &*OPEN_FILES, &*DRAFTING, &*PRESENCE);
+  let _ = (&*ANSWER_READING, &*KEPT, &*OPEN_FILES, &*INSTRUCTION, &*PRESENCE);
   let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES, &*VOICE_BRIEFING);
 
   vec![
+    "answer-reading.toml",
     "chat-health.toml",
     "chat-line.toml",
     "chat-round.toml",
     "commands.toml",
-    "drafting.toml",
     "files.toml",
     "fixed-lines.toml",
     "handover.toml",
+    "instruction.toml",
     "keepalive.toml",
     "kept.toml",
     "open-files.toml",
@@ -61,7 +62,6 @@ fn parts() -> Vec<&'static str> {
     "roles.toml",
     "run-lines.toml",
     "scripts.toml",
-    "second-asks.toml",
     "secret-shapes.toml",
     "talk.toml",
     "tool-host.toml",
@@ -98,59 +98,48 @@ fn the_rounds_lines_carry_their_marks() {
   assert!(CHAT_ROUND.index.memories.contains("{chat}"));
   assert_eq!(CHAT_ROUND.situation.gap_messages, 200);
   assert_eq!(CHAT_ROUND.voice.emotions.len(), 10);
-  assert!(SECOND_ASKS.data.owed.contains("{count}"));
-  assert!(SECOND_ASKS.data.room.contains("{chat}"));
-  assert!(SECOND_ASKS.errands.wake.contains("the room id the turn shows"));
-  assert!(SECOND_ASKS.errands.rule.contains("the room id the turn shows"));
-  assert_eq!(SECOND_ASKS.reading.pledge_final, 8);
-  assert!(!SECOND_ASKS.errands.format.is_empty());
 }
 
 #[test]
-fn the_draft_process_ends_every_list_on_its_last_question() {
-  // The round's line names the questions its round follows and nothing else.
-  assert!(DRAFTING.round.contains("{names}"));
+fn the_instruction_stages_are_a_default_chain_with_their_texts() {
   assert!(CHAT_ROUND.closing.rule.contains("<<SKIP: <why>>>"), "{}", CHAT_ROUND.closing.rule);
-  assert!(DRAFTING.questions.contains_key("final"));
   // A skip of a round's turn names its reason, and the line that says so stands where the agent reads it: in the
-  // room's block, in the judgement's question, in the last question, and in the asking over a bare skip.
-  for line in [&CHAT_LINE.room.process, &DRAFTING.questions["final"], &DRAFTING.arrived] {
+  // room's block and in the judgement's question.
+  for line in [
+    &CHAT_LINE.room.process,
+    &CHAT_ROUND.supervisor.question,
+    &CHAT_ROUND.supervisor.structure,
+  ] {
     assert!(line.contains("<<SKIP: <why>>>"), "{line}");
   }
+  // The default chain's stages each have a text, and the chain is asked once the message stands.
+  let chain = &INSTRUCTION.chain;
+
   assert!(
-    CHAT_ROUND.supervisor.question.contains("<<SKIP: <why>>>")
-      && CHAT_ROUND.supervisor.structure.contains("<<SKIP: <why>>>"),
-    "{}",
-    CHAT_ROUND.supervisor.question
+    chain.iter().all(|stage| INSTRUCTION.stages.contains_key(stage)),
+    "every default chain stage has its text: {chain:?}"
+  );
+  assert!(!chain.is_empty());
+  // The block's rules for reading a message, an instruction and answering a stage are each present and English.
+  assert!(!INSTRUCTION.message_rule.is_empty() && !INSTRUCTION.instruction_rule.is_empty());
+  let answer_rule = &INSTRUCTION.answer_rule;
+
+  assert!(answer_rule.contains("{pass}"), "{answer_rule}");
+  assert!(
+    !fill_marks(answer_rule, &[("pass", &INSTRUCTION.pass)]).contains('{'),
+    "every mark is filled"
   );
   assert!(
-    DRAFTING.skip_again.contains("<<SKIP: <why>>>") && !DRAFTING.skip_again.contains("{"),
-    "the line that asks a turn over its bare skip states the form: {}",
-    DRAFTING.skip_again
+    INSTRUCTION.marker.contains("{name}") && !INSTRUCTION.standing.is_empty(),
+    "an instruction names its stage"
   );
-  // The room's block says the voice a message is written in, once; a round's line carries none of it.
-  for line in [&DRAFTING.stages_head, &DRAFTING.arrived] {
-    assert!(line.contains("{voice}"), "{line}");
-  }
-  assert!(!DRAFTING.round.contains("{voice}") && !DRAFTING.voice.is_empty());
-  // The review is shown the questions the draft round followed, as data.
-  assert!(DRAFTING.review.followed.contains("{names}"));
-  // It is shown each person the message answers by name and sender number, as data.
-  assert!(DRAFTING.review.person.contains("{name}") && DRAFTING.review.person.contains("{id}"));
-  assert!(!DRAFTING.review.answers.contains('{'));
+  // The room's block names the marks a message that arrived meanwhile takes, once.
+  let process = &CHAT_LINE.room.process;
 
-  // The room's block names the marks a message that arrived meanwhile takes, once, and so does the closing check;
-  // the round's line names only its questions.
-  for line in [&CHAT_LINE.room.process, &DRAFTING.arrived] {
-    assert!(line.contains("<<DONE #<number>>>") && line.contains("<<SEPARATE #<number>>>"), "{line}");
-  }
-
-  for process in &DRAFTING.process {
-    assert!(process.rounds.iter().all(|name| DRAFTING.questions.contains_key(name)), "{process:?}");
-    assert_eq!(process.rounds.last().map(String::as_str), Some("final"), "{process:?}");
-  }
-
-  assert!(DRAFTING.process.iter().any(|process| process.provider == "*" && process.agent == "*"));
+  assert!(
+    process.contains("<<DONE #<number>>>") && process.contains("<<SEPARATE #<number>>>"),
+    "{process}"
+  );
 }
 
 #[test]
@@ -219,87 +208,14 @@ fn a_mark_is_filled_once_and_a_mark_nothing_names_stays() {
 }
 
 #[test]
-fn a_process_row_that_still_names_a_ceiling_loads_and_ignores_it() {
-  let policy = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml"))
-    .expect("the drafting policy reads");
-  let text = format!(
-    "{policy}\n[[process]]\nprovider = \"*\"\ntier = \"*\"\nagent = \"*\"\nrounds = [\"final\"]\nsend_from = \"\"\nceiling_seconds = 150\npast_ceiling = \"send\"\n"
-  );
-  let parsed: receiver_policy::drafting::Drafting = toml::from_str(&text).expect("the old keys load");
-
-  let row = parsed.process.last().expect("the appended row stands");
-
-  assert_eq!(row.ceiling_seconds, Some(150));
-  assert_eq!(row.past_ceiling.as_deref(), Some("send"));
-}
-
-#[test]
-fn the_policy_has_one_process_for_every_agent_and_the_old_two_collapse_to_it() {
-  use receiver_policy::drafting::{Drafting, Process};
-
-  let six = vec!["intent", "information", "facts", "memory", "promises", "final"];
-  let five = &six[1..];
-
-  assert_eq!(DRAFTING.process.len(), 1);
-  assert_eq!(DRAFTING.process[0].provider, "*");
-  assert_eq!(DRAFTING.process[0].tier, "*");
-  assert_eq!(DRAFTING.process[0].agent, "*");
-  assert_eq!(DRAFTING.process[0].rounds, six);
-  assert_eq!(DRAFTING.process[0].send_from, None, "no row names a question a send is read from");
-
-  let policy = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/drafting.toml"))
-    .expect("the drafting policy reads");
-  let mut old: Drafting = toml::from_str(&policy).expect("the policy reads");
-
-  old.process = vec![
-    Process {
-      provider: "*".to_owned(),
-      tier: "*".to_owned(),
-      agent: "*".to_owned(),
-      rounds: vec!["information".to_owned(), "facts".to_owned(), "final".to_owned()],
-      send_from: Some("facts".to_owned()),
-      off: vec![],
-      stages_off: vec![],
-      ceiling_seconds: Some(150),
-      past_ceiling: Some("send".to_owned()),
-      turn_seconds: None,
-    },
-    Process {
-      provider: "claude-code".to_owned(),
-      tier: "*".to_owned(),
-      agent: "*".to_owned(),
-      rounds: five.iter().map(|name| (*name).to_owned()).collect(),
-      send_from: Some("facts".to_owned()),
-      off: vec![],
-      stages_off: vec![],
-      ceiling_seconds: Some(150),
-      past_ceiling: Some("send".to_owned()),
-      turn_seconds: None,
-    },
-  ];
-  old.normalize();
-
-  assert_eq!(old.process.len(), 1);
-  assert_eq!(old.process[0].provider, "*");
-  assert_eq!(old.process[0].tier, "*");
-  assert_eq!(old.process[0].agent, "*");
-  assert_eq!(
-    old.process[0].rounds,
-    five.iter().map(|name| (*name).to_owned()).collect::<Vec<String>>()
-  );
-}
-
-#[test]
-fn a_second_asks_table_that_still_names_a_language_loads_and_ignores_it() {
-  use receiver_policy::second_asks::SecondAsks;
+fn an_answer_reading_table_that_still_names_a_language_loads_and_ignores_it() {
+  use receiver_policy::answer_reading::AnswerReading;
 
   let policy =
-    std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/second-asks.toml"))
-      .expect("the second-asks policy reads");
-  let with_errand = policy.replace("[errands]\n", "[errands]\nlanguage = \"old language errand\"\n");
-  let text = format!("{with_errand}\n[language]\njudged_from = 4\n");
-  let parsed: SecondAsks = toml::from_str(&text).expect("the old language keys load");
+    std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../policy/answer-reading.toml"))
+      .expect("the answer-reading policy reads");
+  let text = format!("{policy}\n[language]\njudged_from = 4\n");
+  let parsed: AnswerReading = toml::from_str(&text).expect("the old language keys load");
 
-  assert_eq!(parsed.errands.language.as_deref(), Some("old language errand"));
   assert_eq!(parsed.language.map(|language| language.judged_from), Some(4));
 }

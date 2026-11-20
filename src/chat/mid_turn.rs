@@ -3,8 +3,8 @@
 //! docs/bmo-window.md, 「The openings」, `push`): the one paragraph they go in as — the short marker that names the
 //! push and what arrived, as data; the rule the marker stands for, how each message is judged and how the
 //! instructions are taken, stands in the room's block. The messages and instructions are formatted and cleaned
-//! exactly as a round's own are. The same data, without the marker, stands under a question of the draft process
-//! for the words no push put in (docs/drafting.md, 「What came in meanwhile」).
+//! exactly as a round's own are. The same data, without the marker, stands under the round's turn that shows the
+//! words that arrived meanwhile for the words no push put in (docs/instruction.md, 「What came in meanwhile」).
 
 use std::collections::HashSet;
 
@@ -38,7 +38,7 @@ pub struct Push<'a> {
   pub tools_allowed: bool,
   pub reader: Option<&'a Roads>,
   /// Whether the paragraph opens on the marker and the counts saying what arrived. A push into a working turn
-  /// does; a block the draft process shows carries the messages as data, with no marker of its own.
+  /// does; a block a later turn of the round shows carries the messages as data, with no marker of its own.
   pub announced: bool,
 }
 

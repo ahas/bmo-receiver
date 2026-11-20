@@ -1,4 +1,4 @@
-//! A room's round log as a reader asks it (docs/drafting.md, 「The round log」): the rounds it names, or, where it
+//! A room's round log as a reader asks it (docs/instruction.md, 「The round log」): the rounds it names, or, where it
 //! names none, the room's newest rounds.
 
 use axum::http::StatusCode;
@@ -15,9 +15,9 @@ async fn written(scratch: &Scratch, rows: &[(i64, &str)]) {
   for (number, (room, round)) in rows.iter().enumerate() {
     scratch
       .run(
-        r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
+        r#"INSERT INTO "instruction_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
                                        "changed", "outcome", "ms", "at")
-           VALUES ($1, $2, $3, $4, 'draft', 'turn', 10, false, 'send', 5, 1000)"#,
+           VALUES ($1, $2, $3, $4, 'message', 'turn', 10, false, 'send', 5, 1000)"#,
         vec![(*round).into(), (*room).into(), AGENT.into(), (number as i64 + 1).into()],
       )
       .await;
@@ -52,7 +52,7 @@ async fn a_read_naming_no_round_answers_the_rooms_newest_rounds_oldest_first() {
   )
   .await;
 
-  let (status, newest) = get(&front, &format!("/rounds/drafts?room={ROOM}&limit=2")).await;
+  let (status, newest) = get(&front, &format!("/rounds/pipeline?room={ROOM}&limit=2")).await;
 
   assert_eq!(status, StatusCode::OK, "{newest}");
   assert_eq!(
@@ -63,12 +63,12 @@ async fn a_read_naming_no_round_answers_the_rooms_newest_rounds_oldest_first() {
   assert_eq!(newest["more"], true, "an older round stands");
   assert_eq!(newest["items"][1]["rows"].as_array().unwrap().len(), 2, "a round answers all its rows");
 
-  let (_, all) = get(&front, &format!("/rounds/drafts?room={ROOM}")).await;
+  let (_, all) = get(&front, &format!("/rounds/pipeline?room={ROOM}")).await;
 
   assert_eq!(rounds(&all), [round(1), round(3), round(2)]);
   assert_eq!(all["more"], false);
 
-  let (_, named) = get(&front, &format!("/rounds/drafts?room={ROOM}&rounds={}", round(1))).await;
+  let (_, named) = get(&front, &format!("/rounds/pipeline?room={ROOM}&rounds={}", round(1))).await;
 
   assert_eq!(rounds(&named), [round(1)], "a read naming rounds answers those alone");
 }

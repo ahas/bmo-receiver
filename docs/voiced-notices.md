@@ -32,7 +32,7 @@ agent that answers the room says the line.
   text, one short line, in this room's manner; that it says nothing about models, code, prompts, hosts or other
   internals unless the chat is the owner's private chat; that it uses its own words, never copying the fact text
   out; and that it answers no `<<WAIT>>` or `<<REPLY>>`, and skips only under the optional marker, in the round's
-  form, which names why (`docs/drafting.md`, 「What it is」).
+  form, which names why (`docs/instruction.md`, 「What it is」).
 - **Recipients and switches are the notice's own.** A voiced notice goes to exactly the chats the line is for,
   under the per-chat switch (`notice:restart`), and the rest rule holds: a rest and its lifting are told to the
   owner alone, and a room's session folding says nothing to any room.
@@ -342,7 +342,7 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
   Where the policy holds no sentence for the code in that language, the line is dropped, nothing reaches the room,
   and the journal says which line and why. A code and its fields, or any JSON, never stand in a room.
 - **A fixed line is the service's own, never an agent's.** No send asks for one: a session's words reach a room
-  only as its round's message, which the draft process reviews (`docs/drafting.md`).
+  only as its round's message, which its instruction stages check (`docs/instruction.md`).
 - **A line a chat service hands over is kept as a fixed line.** A person coming into a room or going out of it, said
   by the platform as a line (bmo-chat's `docs/contract.md`, 「Lines」), is kept with the kind `fixed-line` and its
   code and fields as they came, beside the plain sentence the service wrote for it (`docs/api.md`, 「The chat

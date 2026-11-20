@@ -1,5 +1,5 @@
 //! A room's rounds listed off the round log by room and row (`docs/store.md`, 「The tables」;
-//! `docs/drafting.md`, 「The round log」).
+//! `docs/instruction.md`, 「The round log」).
 
 use sea_orm_migration::prelude::*;
 

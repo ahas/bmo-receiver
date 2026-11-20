@@ -51,7 +51,7 @@ flowchart TB
 - **A room's words do not wait for the round that is working.** Words the room queue hands over while a turn of
   that room's round works go into that turn at its next look, in one paragraph with any quiet instruction pushed
   with them (「The openings」, `push`), and the agent judges each itself; what no push puts in waits for the
-  round's closing check (`docs/drafting.md`, 「What came in meanwhile」).
+  round's closing check (`docs/instruction.md`, 「What came in meanwhile」).
 
 ## Every road into the agent
 
@@ -66,7 +66,7 @@ is written.
 | Unread words at start-up, every room's | backlog | room queue | `round` | opens | — |
 | A quiet instruction arriving while a turn works | instruction pass | instruction table | `push` | joins the working one | the pushed rows' |
 | A room's words arriving while a round's turn works | room queue | room queue | `push` | joins the working one, the agent judging each message | — |
-| A room's words no push put in: arriving between the round's turns, refused by the turn, or for a turn that takes no words while it works | room queue | room queue | `question` | in the round's closing check (`docs/drafting.md`, 「What came in meanwhile」) | — |
+| A room's words no push put in: arriving between the round's turns, refused by the turn, or for a turn that takes no words while it works | room queue | room queue | `question` | in the round's closing check (`docs/instruction.md`, 「What came in meanwhile」) | — |
 | A job's end and its report, a dead pane's among them | the agency's `POST /instructions` | instruction table | `round` | opens | `job-ended` |
 | A change of an item or a job told to the supervisor that ordered it: an item awaiting a launch or an approval, an item its paused queue holds or one no checkout takes, an item moved under its running job or closed by another, a job waiting for a road or a slot, an ended job's item left unclosed | the agency's `POST /instructions` | instruction table | `round` | opens | the item's own, named by its kind (the agency's `docs/agent-control.md`, 「An item's change is told to its orderer」) |
 | A job's question for the supervisor to judge — settle it itself, talk it over with the job or put it to the owner — withdrawn once it is settled or put to the owner | `POST /instructions`, from `bmo job ask` in the job's own process | instruction table | `round` | opens | `question-for-supervisor` |
@@ -90,7 +90,7 @@ is written.
 | The keepalive touch | the cache warmer's ping | — | `keepalive` | opens | — |
 | The consolidation before a fold: the session asked, tools on, to consolidate its brain and answer the skip (`docs/unified-bmo.md`, 「The brain's consolidation」) | the conversation's fold | — | none: the handover policy's `CONSOLIDATE.` marker with the room's block, composed by no window | opens, waited on before the fold | — |
 | A line a person types into the agent's program | the agency's `typed-line` hook | — | none: composed, never asked | the person's own turn of the program | — |
-| A later turn of the draft process inside a round, after the round's own turn, which is its draft turn: the closing check, an item (an owed answer, a promise to record, a promise to be woken for, a rule to file), the review, a revision it sent back or a check on the final text (`docs/drafting.md`) | the round itself | — | `question` | inside the round | the round's |
+| An instruction stage of the chain, or the closing check, asked inside a round after its message turn (`docs/instruction.md`) | the round itself | — | `question` | inside the round | the round's |
 
 - **The session handover** is not a turn. The note a replaced session leaves rides at the head of whichever
   turn first goes out on the new session, and that turn came through the window like every other: it goes whole,
@@ -108,6 +108,22 @@ is written.
     the window only composes what goes with it (「A line typed into the program」 below).
   - The owner's answer to a job's question, taken in his private chat before anybody is woken (「The owner's
     answer to a job's question」 below).
+
+## A message and an instruction
+
+- **What reaches an agent is one of two things, and the window says which.** A **message** is a room's words, sent by
+  a person through a chat service: the agent answers it, and its answer is the message that goes back to the room. An
+  **instruction** is the system speaking into the agent's own session; nobody sent it, and none of it goes out as words
+  a person wrote.
+- **An instruction divides.** A **quiet instruction** is a row of the instruction table handed to the chat's own
+  session (「Quiet instruction」 below): the system telling that session something without the room hearing it, kept in
+  its own block with its publisher and its words. A **system instruction** is a turn the round's or the session's own
+  work opens in that session: an instruction stage of the chain, the closing check, the agent's first judgement, the
+  situation note, a handoff and a consolidation. Each carries a marker naming what it asks, never the shape of a
+  person's message, so a screen that shows the turn at all shows an instruction and not a message received.
+- **Both kinds of instruction reach the session the rooms' words reach,** hold the round's rules and go through the
+  same roads. What differs is what each does with an answer: a stage's answer is the message that goes out, while a
+  quiet instruction's, a note's, a judgement's and a consolidation's reach no room.
 
 ## The owner's answer to a job's question
 
@@ -200,7 +216,7 @@ that session without the room hearing it.
   answer does it fail, uncounted.
 - **Acted on as the owner's word in that chat.** The session may skip the instruction in any chat, the owner's
   private chat included, when acting on it needs nothing said; where the instruction rode a round of a room, the
-  skip goes in the round's form, which names why (`docs/drafting.md`, 「What it is」). The permission covers the
+  skip goes in the round's form, which names why (`docs/instruction.md`, 「What it is」). The permission covers the
   instruction and not the
   round it rides in, so where the same round also read the owner's own words in the owner's own chat the silence
   is withdrawn and those words are answered along with the instruction.
@@ -313,7 +329,7 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
 
 **A supervisor whose brain or reference is off asks the gate for no core.** Its turns carry no entry the gate
 would attach, and its room's block no index, hint or due line, nor the block's rules about the index; a person's own
-thread still goes in (`docs/drafting.md`, 「A supervisor whose brain or reference is off」). Everything below holds
+thread still goes in (`docs/instruction.md`, 「A supervisor whose brain or reference is off」). Everything below holds
 for a supervisor whose brain and reference are both on, which every supervisor is unless its settings say
 otherwise.
 
@@ -331,13 +347,13 @@ block goes in full — the session's opening on that room — and the agent read
   out.
 - **Then one hint, never an order:** look one up only when the answer needs it, and otherwise just
   answer. It closes the index the opening block carries. Whether the agent reads is its own choice, and nothing
-  counts or holds it to having read. The only hard rule stands in the draft process's `facts` question: nothing
+  counts or holds it to having read. The only hard rule stands in the instruction pipeline's `facts` question: nothing
   unread is spoken of as fact.
 - **Then the due line, where the brain said a consolidation was due at that opening.** The receiver asks the
   agent's brain whether one is (`docs/boundary-api.md`, 「The brain」), and where it answers `consolidationDue`
   true the line stands after the hint (`chat-round.toml`, `[index]`, `due`). The room's block also carries the
   standing rule that the `memory` question consolidates when the brain has unconsolidated episodes
-  (`docs/drafting.md`, 「The questions」); a brain that does not answer, or answers false, carries no due line.
+  (`docs/instruction.md`, 「The stage chain and its texts」); a brain that does not answer, or answers false, carries no due line.
 - **The counts are the gate's** (`GET /reference/index`, `docs/boundary-api.md`, 「The gate」): its `unread`, what
   the session's loads do not hold, and its `hint`, one line of what changed in the last three days. A piece the
   session already loaded is counted out of its group. Where the gate serves no index, the hint and the due line
@@ -347,16 +363,16 @@ block goes in full — the session's opening on that room — and the agent read
 - **A person's own thread** from the group rooms they share with the agent, handed to a turn in their private
   room (`docs/unified-bmo.md`), is the receiver's own words of rooms rather than the brain's. It is handed whole
   the first time and then only the lines added since the last line it handed, under the same path and a heading
-  saying so; a turn with no new line attaches nothing and the draft record lists the piece as `held`. The mark is
+  saying so; a turn with no new line attaches nothing and the pipeline record lists the piece as `held`. The mark is
   the thread's own, kept under `thread_mark:<path>` in the settings: a session folded, replaced or started again
   is handed only what came after it, within the days the thread reaches, so the raw lines a session has already
   read are never handed to the next one again.
 - **A turn's material is handed once.** The round's first turn carries the core's documents and references and
   the room's words whole; a later round of the same turn carries each as a line and only what is new whole, under
-  the turn's own mark (`docs/drafting.md`, 「The turn's mark」).
-- **The room's situation** is the receiver's own note, one row a room (`docs/drafting.md`, 「The situation note」):
+  the turn's own mark (`docs/instruction.md`, 「The turn's mark」).
+- **The room's situation** is the receiver's own note, one row a room (`docs/instruction.md`, 「The situation note」):
   it is written when the session leaves the room, before a handoff and on a touch, and the round that first takes
-  a session into the room reads it, in its judgement turn or at the head of its draft turn, ahead of the room's
+  a session into the room reads it, in its judgement turn or at the head of its message turn, ahead of the room's
   words. It is no reference document,
   it stands nowhere in the core, and it is not a brain memory. A session reads a room's note once: a round
   carries it only where the session holds none of that room, which is its first round there since it opened,
@@ -382,8 +398,8 @@ Beside the reference, a turn carries the room's messages the agent has not read:
 - **An ordinary round carries what its session was never handed:** its session holds every message a turn put
   into it, so the block carries only the messages after the room's read marker that no turn handed it — words
   that called nobody, said in a group room before someone called the agent — leaving the agent's own out. A
-  round with none such carries no block. The words that arrived after its draft turn went out and no push put
-  in still stand in the closing check (`docs/drafting.md`, 「What came in meanwhile」).
+  round with none such carries no block. The words that arrived after its message turn went out and no push put
+  in still stand in the closing check (`docs/instruction.md`, 「What came in meanwhile」).
 - **At most a set number of them:** the archived block carries the newest unread messages in their order, as
   many as the chat round's policy sets (`archived_messages`, 100 by default). Where more were unread, the block
   says in one line how many older ones it left out and that they stand in the room's archive, where the agent's
@@ -407,16 +423,16 @@ Beside the reference, a turn carries the room's messages the agent has not read:
   - **Only this room's words.** The push takes its messages from the room's own conversation, keyed by its chat
     id, and its quiet instructions from that same room's rows: another room's message or instruction never joins
     it, and the block names only this room's own message numbers. A test pins this isolation.
-  - **Which turns take it.** The round's own turn, its draft turn, takes the room's words and the quiet
-    instructions. The closing check, an item, the review and a check on the final text take no
-    push, and words that come while they work wait (`docs/drafting.md`, 「What came in meanwhile」).
+  - **Which turns take it.** The round's own turn, its message turn, takes the room's words and the quiet
+    instructions. The closing check and the instruction stages take no
+    push, and words that come while they work wait (`docs/instruction.md`, 「What came in meanwhile」).
   - **Only while the turn works.** The round looks at its working turn every `look_ms` (`chat-round.toml`,
     `[pushing]`), and offers nothing for `refused_gap_ms` after the agency refused a push. The agency decides
     twice whether the turn still works and puts the words in only where the turn's provider declares that it
     takes words mid-turn; a provider that does not answers every push refused, and its words wait for the
     closing check. A push that went in is waited on, bounded, until the session's record holds it.
   - **The round's privilege holds.** The room's words go in only where they keep the round's standing, read as
-    the closing check reads it (`docs/drafting.md`, 「What came in meanwhile」); the others wait and open the
+    the closing check reads it (`docs/instruction.md`, 「What came in meanwhile」); the others wait and open the
     round after.
   - **The judgement is the agent's.** The room's block says, for the marker, that the words arrived while this
     answer was being made and that each is judged on its own: a message that asks something new or changes what was asked is answered in
@@ -426,7 +442,7 @@ Beside the reference, a turn carries the room's messages the agent has not read:
     aside with `<<DONE #<number>>>`. The block also says that only what is written after the marker goes out,
     so the reply is written whole after it whatever the agent decides.
   - **How the round settles each pushed message.** A pushed message is shown to the round as one in the closing
-    check is, and the round settles it by the marks its answers set (`docs/drafting.md`, 「What came in
+    check is, and the round settles it by the marks its answers set (`docs/instruction.md`, 「What came in
     meanwhile」): one marked neither way is the round's own, answered or heeded by its message, the read mark
     moving to it and the owner's words among it owed an answer; one held goes back to the front of what waits
     once the round's message is made and opens the round after as the room's question; one set aside is read,
@@ -442,15 +458,15 @@ Beside the reference, a turn carries the room's messages the agent has not read:
     lets them go unread with everything else waiting for the agent (`docs/wake.md`, 「An agent's reset」), a push
     it overtook before it went out does not go out, and whatever the agency answers one already sent, nothing
     of it joins the round or goes back to wait.
-- **`question`**: a later turn of the draft process inside the same round (`docs/drafting.md`): the closing
-  check, an item, the review, a revision it sent back or a check; the draft turn itself rides the round's own
-  turn. It carries its marker and its data and no instruction text, which stands in the room's block, and no
-  reference of its own: the core went in with the round's turn
+- **`question`**: a system instruction inside the same round (`docs/instruction.md`): an instruction stage of the
+  chain, or the closing check. The message turn itself rides the round's own turn. It carries its marker and its data
+  — for a stage the stage's own words and the message as it stands, for the closing check the message and the room's
+  words that came in meanwhile — and no reference of its own: the core went in with the round's turn
   and the brain's index with the room's block at session opening. The closing check, once the
   message stands, carries the room's words that came in meanwhile and no push put in as one block.
 - **`talk`**: one turn of a console talk. The window selects over what the owner said and the subject.
 - **`keepalive`**: the touch that keeps the prefix warm while nothing is happening. Where a room is owed its
-  situation note, the touch is that note's update turn, one a room (`docs/drafting.md`, 「The situation note」).
+  situation note, the touch is that note's update turn, one a room (`docs/instruction.md`, 「The situation note」).
   Where none is, it is composed like any turn,
   so a row that has come due while the room was quiet is in front of the agent, and it carries the keepalive
   prompt alone. Its answer goes to no room.
@@ -462,7 +478,7 @@ Beside the reference, a turn carries the room's messages the agent has not read:
 - **The touch is a turn of the room the session last stood in,** opened as `keepalive` with the keepalive
   prompt.
 - **A touch writes the notes the session owes.** Where the agent answered in rooms whose situation note has not
-  been updated since (`docs/drafting.md`, 「The situation note」), the touch updates each room's note with one
+  been updated since (`docs/instruction.md`, 「The situation note」), the touch updates each room's note with one
   turn of the session, in that room, and those turns are what keeps the prefix warm: the keepalive prompt
   goes in only where no room is owed a note. The touch answers `warmed` where a turn of either kind went in.
 - **It is never beside another turn:** while any room is in a conversation or a compaction it answers `busy`;
@@ -519,7 +535,7 @@ flowchart TD
   saves to a file beside the session and hands over the path and the first 2 KB, so the model reads the rest
   with a tool call.
 - **What does not follow:** the answer stays on the program's screen. Nothing the receiver does with a round's
-  answer reaches it (the output gates, the draft process, formatting, sending to a room) and
+  answer reaches it (the output gates, the instruction pipeline, formatting, sending to a room) and
   the line is not archived.
 - **When the receiver cannot compose it** (down, failing, or slower than the hook's bound) the hook answers no
   context and the line goes on as typed.
@@ -561,14 +577,13 @@ flowchart TD
   `<<WAIT>>` to take the next words in. A turn no longer counts what
   waits behind it.
 - **No content judgement stands between the agent and any room.** A round sends what the agent wrote at the end
-  of its draft process, held only to the code's own items and checks below and the words' form.
-- **The draft process asks the agent its questions** (`docs/drafting.md`): the round's turn names the first
+  of its pipeline, held only to the code's own items and checks below and the words' form.
+- **The instruction pipeline asks the agent its questions** (`docs/instruction.md`): the round's turn names the first
   round, each question's own text stands in the room's block, the agent establishes what the message needs
   before it writes it, and what it answers is its own; no model judges the answer.
-- **The mechanical checks stay in code,** on every round, as the process's items and checks: an owed answer to
-  the owner's words, a promise with nothing recorded, a promise to act once something happens with nothing set
-  to wake the agent when it does, a rule the owner set and nothing filed, then the review and the final text's
-  format (`docs/answer-checks.md`).
+- **What checks a message before it goes out is the supervisor's chain of instruction stages** (`docs/instruction.md`,
+  「The stages before the send」): a system instruction a stage, each answered with the message reprinted or `PASS`,
+  and the checks that stay in code are the ones `docs/answer-checks.md` names.
 
 ## What keeps the window the only way in
 

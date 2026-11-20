@@ -205,7 +205,7 @@ async fn a_room_reply_landing_on_an_expired_session_is_handed_at_once() {
 async fn a_room_reply_on_an_expired_session_starts_a_turn_that_resumes_it() {
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
 
   let data = tempfile::tempdir().unwrap();
   let session = Arc::new(
@@ -273,7 +273,7 @@ async fn a_room_reply_on_an_expired_session_starts_a_turn_that_resumes_it() {
 async fn a_real_message_after_expiry_resumes_the_session_as_it_stands() {
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
 
   let data = tempfile::tempdir().unwrap();
   let session = Arc::new(

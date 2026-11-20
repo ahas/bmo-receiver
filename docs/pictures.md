@@ -10,7 +10,7 @@ receiver keeps the pictures and decides what a session is shown.
   `bmo photo [--chat <chatId>] [--via <road>] --url <imageUrl> [--label <word>] [--url ... [--label ...]]
   [--caption <text>]` (the owner's chat when `--chat` is absent).
 - **A picture carries no words of the agent's.** In the agent's own round a picture goes without a caption, and
-  what the agent says of it is its round's message, which the draft process reviews; a caption asked there is
+  what the agent says of it is its round's message, which the instruction pipeline reviews; a caption asked there is
   refused, and pictures asked from outside that round, a caption among them, are handed to the room's supervisor
   (`docs/messages.md`, 「Words handed to the room's supervisor」).
 - **One picture goes as a photo and several as one album**, as many to an album as the room's chat service
@@ -190,7 +190,7 @@ receiver keeps the pictures and decides what a session is shown.
   the path of the replied-to message's image as well) so the agent opens the picture, and the same note tells it to
   decide afterwards whether the picture calls for an answer at all: it answers when the picture is addressed to it,
   asks something, or plainly invites a reaction, and otherwise stays silent with a skip naming on one line what the
-  picture was (`docs/drafting.md`, 「What it is」).
+  picture was (`docs/instruction.md`, 「What it is」).
 - **An older picture is fetched on demand.** With the switch on, a new message in a turn with tools that replies to
   a message whose image the receiver never stored or no longer holds has that message's media fetched through its
   chat service into the same directory, so old photos stay answerable and a second question about the same photo

@@ -107,7 +107,7 @@ family. No code carries a sentence in a room's language.
 | `other-rooms-file` | 403 | `room` | a file of another room's folder |
 | `job-sends-room-file` | 403 | | a job asked to send a room's file |
 | `briefing-turn` | 409 | `agent`, `room` | the agent's session asked a send into the room while the receiver carries its voice briefing turn there, whose answer is the script itself |
-| `words-in-answer` | 409 | `agent`, `room` | the agent's own round asked a line, a spoken talk, a voice note or a caption into the room it answers, whose words go only into the round's answer, which the draft process reviews (`docs/messages.md`, 「Words handed to the room's supervisor」) |
+| `words-in-answer` | 409 | `agent`, `room` | the agent's own round asked a line, a spoken talk, a voice note or a caption into the room it answers, whose words go only into the round's answer, which the instruction pipeline reviews (`docs/messages.md`, 「Words handed to the room's supervisor」) |
 
 ### RoomGrantRefusal
 
@@ -280,7 +280,7 @@ session once the setting has changed, one waiting per setting.
 | `downgrade-forced` | the model was replaced on its own |
 | `full` | the session filled its window and its provider hands it over by its own note rather than a fold |
 | `asked` | a handover was asked for the session (`POST /handovers/{agentName}`) |
-| `process` | the draft process's instructions the session was handed changed (`docs/drafting.md`, 「The questions」) |
+| `process` | the room block's rules for reading and answering a turn the session was handed changed (`docs/instruction.md`, 「The stage chain and its texts」) |
 
 ### TurnOpening
 

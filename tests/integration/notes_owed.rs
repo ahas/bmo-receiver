@@ -1,4 +1,4 @@
-//! The room's situation note written when the agent's one session leaves a room (docs/drafting.md, 「The situation
+//! The room's situation note written when the agent's one session leaves a room (docs/instruction.md, 「The situation
 //! note」): no round writes it; words in another room write the note of the room last answered in first, a handoff
 //! and a keepalive touch write the note of every room answered in, and a session reads a room's note once.
 
@@ -76,7 +76,7 @@ impl Two {
   async fn on(session: StandInSession) -> Self {
     let scratch = Scratch::new().await;
 
-    crate::integration::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_stages(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER).holding(&[ROOM]).agent_in(ROOM, IDENTITY));

@@ -187,7 +187,7 @@ impl Speech {
   }
 
   /// The line kept as `kept` keeps it, as a reply to the message it is pinned to where it is pinned to one
-  /// (docs/drafting.md, 「The pin stands on the room's record」).
+  /// (docs/wake.md, 「Replies」).
   pub async fn kept_replying(
     &self,
     chat_id: i64,

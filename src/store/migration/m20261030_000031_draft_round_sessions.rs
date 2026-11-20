@@ -1,4 +1,4 @@
-//! The session a round ran on and what it had read before (docs/store.md, 「The tables」; docs/drafting.md, 「The
+//! The session a round ran on and what it had read before (docs/store.md, 「The tables」; docs/instruction.md, 「The
 //! round log」): two columns of the round log holding, on a round's end, the agency session its turn ran on and how
 //! many pieces that session's earlier rounds in the room read in full, and an index of the end rows by room,
 //! session and number that the next end reads.

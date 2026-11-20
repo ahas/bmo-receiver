@@ -1,4 +1,4 @@
-//! The program's turns a turn of the draft process spanned (`docs/store.md`, 「The tables」; `docs/drafting.md`, 「The
+//! The program's turns a turn of the draft process spanned (`docs/store.md`, 「The tables」; `docs/instruction.md`, 「The
 //! round log」): a column of the round log holding, on a turn's row, each of those turns' answers and what opened it.
 
 use sea_orm_migration::prelude::*;

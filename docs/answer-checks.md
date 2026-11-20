@@ -1,28 +1,21 @@
-# The checks an answer passes
+# The readings an answer is held to
 
-The readings the code holds a chat answer to before it goes out: a promise that stands on a record and a rule
-the owner sets that stands on a row. Each is an item or a check of the draft process (`docs/drafting.md`): where
-it finds something, the same session is asked once more, as one more turn of the process. The language an answer
-is written in is the agent's rule, not a check; nothing on the send path reads it.
+The readings the code holds a chat answer and the owner's words to: the answer's own sentences, with code and
+anything it quotes set aside, and whether a text waits for something to happen before it can be done. Nothing
+on the send path asks the session again over what a reading finds: what holds a message to its rules before it
+goes out are the instruction stages the supervisor chains (`docs/instruction.md`, 「The stages before the send」).
 
-## Where the checks stand
+## Where the readings stand
 
-- **The process asks them once the message stands, in this order:** an owed answer over a skip
-  (`docs/wake.md`), a promise recorded, a promise set to wake and a rule the owner set, as items; then the
-  review and the format, as the gate on the final text (`docs/drafting.md`, 「The review」 and 「The checks on the
-  final text」).
-- **What the checks read stands in the receiver's policy**: the words of time to come, of keeping in mind, of
-  waiting on something, of a condition and of a manner, and the volitional and imperative endings
-  (`policy/second-asks.toml`), and the Hangul syllable block a word is told by (`policy/scripts.toml`). These are words of the room's language the code matches on, and so data. So is
-  every errand an item or a check sends, in English as every agent's text is.
-- **An item or a check goes back to the same session** with a marker naming it, the data its rule reads, the
-  turn's scope and the ids of the messages waiting for the next turn; the rule itself stands in the room's
-  block (`policy/second-asks.toml`, `[errands]` and `[data]`). It is a turn of the process: its answer is
-  written in the round log under the item's or the check's name (`docs/drafting.md`, 「The round log」), and no
-  judgement is written for it at the gate. The `record`, `wake` and `rule` items answer the short mark `CHECK`
-  and write no message, so the message that stands goes out unchanged; `owed` and `owner_directive` are asked
-  only where no message stands and answer with the message itself. A run of it that failed leaves the text as
-  it stood, and a stop ends the round.
+- **Two things read an answer's own sentences.** The situation note is refused where it copies a sentence a shown
+  message carried, or makes a first-person claim that a reply, a fix, an attachment or a send happened; only a
+  message the room's record holds counts (`docs/instruction.md`, 「The situation note」). The brain refuses a promise
+  row whose action waits on a happening and names nothing to wait on, and answers whether a text waits at
+  `POST /promises/waits` (`docs/api.md`).
+- **What the readings use stands in the receiver's policy** (`policy/answer-reading.toml`, `[reading]`): the syllables a
+  sentence of an answer ends on, beside the marks that end one wherever it stands, and the words of something that has
+  to happen first — a job's end, a unit on another machine, a deployment, a result. The Hangul syllable block a word is
+  told by stands in `policy/scripts.toml`. These are words of the room's language the code matches on, and so data.
 
 ## The language an answer goes out in
 
@@ -34,49 +27,32 @@ is written in is the agent's rule, not a check; nothing on the send path reads i
   brain holds of them, their country and the language they usually speak, and how the conversation with them has
   gone — and the agent's manual states the rule. A message carrying commands, paths or code in another language
   is still the message of the person who wrote it, and what it quotes never decides the language of the answer.
-- **Nothing on the send path reads the language.** No check, errand or withholding reads the language of the
+- **Nothing on the send path reads the language.** No check, stage or withholding reads the language of the
   answer, and an answer in a language a person does not write goes out as the agent wrote it.
 
 ## A promise stands on a record
 
-- A session's memory is gone the next time it is replaced, so a promise about what the agent will do from now on
-  (to do something some way from now on, to check first next time, to keep something in mind, and a promise to
-  behave some way only for this session above all) stands only where the same turn wrote it down: a working
-  rule or standard as a note (which the digest carries into the room's rulebook and the library), something to do
-  later as a memory, what to do whenever a situation comes back as a memory carrying a condition, a change to
-  code or to a manual as an item or words appended to one.
-  - **The code holds every answer to it**, as the process's `record` item, because only the code sees the
-    turn's writes. An answer is read as promising when a sentence of its own (code and anything it quotes set aside)
-    carries a first-person volitional ending beside a word of time to come or a word of keeping in mind, as the
-    policy lists them. A promise about this very turn's work carries neither and is not one.
-  - **Whether the turn recorded is read off what it wrote**: the records every run of the process's turns kept
-    under the run (`run_records`), and the items bmo-job holds filed or appended from the room since the turn
-    began.
-  - **A run that wrote nothing is read off its calls instead**, out of the agency's run log
-    (`GET /log-lines`): a call of one of the recording tools, or of the `bmo` verbs under them, that did not
-    fail. A tool call counts by the record its catalogue entry declares for what it named. A verb is recognised
-    by the word after the binary, the binary being the word `bmo` standing alone or ending a path however the
-    path was written.
-  - **An answer that promised with nothing written** is asked once more, the `record` item, to record the
-    promise. The round answers the short mark `CHECK` and writes no message: the message that stands goes out
-    unchanged, and nothing about where the promise was recorded is said in any room. A turn whose tools are off
-    cannot record one and only answers `CHECK`.
-  - **A promise to act once something happens** (to report back when something is done, to do one thing after
-    another finishes) stands only where a turn of the process set what wakes the agent when it does: a watch, or
-    a memory carrying an event or a check to wait on. An answer that made one with nothing set is asked once more,
-    the `wake` item, to set it, the same way: it answers `CHECK` and the message that stands goes out unchanged.
-    The receiver answers the brain whether a text waits on a happening by the same reading
-    (`POST /promises/waits`).
+- **A session's memory is gone the next time it is replaced**, so a promise about what the agent will do from now on
+  (to do something some way on, to check first next time, to keep something in mind, and a promise to behave some way
+  only for this session above all) stands only where the same turn wrote it down: a working rule or standard as a note,
+  which the digest carries into the room's rulebook and the library; something to do later as a memory; what to do
+  whenever a situation comes back as a memory carrying a condition; a change to code or to a manual as an item or words
+  appended to one. A promise kept only in this session is no promise at all.
+- **Recording a promise is the agent's own**, with its tools, in the turn that made it. A supervisor that wants a room
+  held to it chains a stage whose text asks whether the promise was recorded; no item turn of the receiver's asks.
+  Where a promise was filed as a row that waits on a happening with nothing set to wake it, the brain refuses the row
+  and names what it waits on.
+- **What a run wrote is kept beside it** (`run_records`, `docs/store.md`): each recording call of a tool or of a `bmo`
+  verb that did not fail, read by the record its catalogue entry declares for what it named. A row filed or appended in
+  the room by bmo-job since the turn began counts the same way. The keeps stand so a reader can tell what a turn recorded
+  without asking it again; no reading of them withholds a message.
 
 ## A rule the owner sets stands on a row
 
-- The check for a rule the owner sets sits beside the promise's. It reads the turn's own incoming messages rather
-  than the answer, and only the owner's: what anybody else asks for in a room is that turn's request.
-- Words are read as setting a rule when a sentence of the owner's (code and anything quoted set aside) tells
-  somebody to do something and carries the reach of a rule with it: a word of time to come, or a condition
-  pointed at a manner, as the policy lists them. A request for this once carries neither and is not one.
-  - **Where the owner set one and no turn of the process filed a rule**, the session is asked once, the `rule`
-    item, to file it as a situation memory. The round answers `CHECK` and writes no message: the message that
-    stands goes out unchanged, and nothing about the rule is said in any room. Once and no more: where it still
-    files nothing the message stands, and the rule is not invented for the owner. A turn whose tools are off
-    cannot file one and is not asked.
+- **Words that set what is to be done from a situation on** stand as a situation memory, filed by the agent with its
+  tools in the turn that read them: `memory_add` with the room, a condition and an action, `by` and `message` naming who
+  said it and where, `replaces` taking the place of a rule already standing, `slug` naming it, and `global` for a rule
+  tied to no room at all. The condition is the half a later situation is judged against, so it is written as the
+  situation rather than as this one turn.
+- **No turn of the receiver files it and none asks after it**: filing is the agent's own, and a supervisor that wants
+  the room held to it chains a stage whose text asks.

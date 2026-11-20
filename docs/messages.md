@@ -138,7 +138,7 @@ and when a room sees it typing.
 ## What an agent can send back
 
 - **Words go out only as a round's message.** The agent's words reach a room as the answer of its round there,
-  written and reviewed by the draft process (`docs/drafting.md`), with what the answer's marks ask of it:
+  written by its message turn and checked by its instruction stages (`docs/instruction.md`), with what the answer's marks ask of it:
   - a reply pinned to a message (`<<REPLY>>`);
   - an answer folded where its road's dialect folds (`<<FOLD>>`, `docs/wake.md` 「Folds」).
 - **Each send is an entry of the send tool** (`docs/chat-mcp.md`), and some are a noun of the receiver's command
@@ -202,7 +202,7 @@ and when a room sees it typing.
   `thinking` (`docs/receiver.md`, 「The event stream」): the block as it stands, in its own language and
   untranslated, its secret-shaped runs taken out as any message's are, cut at the policy's ceiling with an
   ellipsis marking the cut (`chat-round.toml`, `[thinking]`). A newer block takes its place, unless it holds one
-  of the draft process's answer marks, which keeps it out of the picture (`docs/receiver.md`, 「The event
+  of the instruction pipeline's answer marks, which keeps it out of the picture (`docs/receiver.md`, 「The event
   stream」), and it goes with the picture when the turn ends: no room's record keeps it.
 - **Only a turn in the owner's private chat carries it.** Thinking can quote private or other-room material and a
   group room holds other people, so the picture of a turn in any other room carries none.
@@ -214,20 +214,20 @@ and when a room sees it typing.
 ## Words handed to the room's supervisor
 
 Every message a room receives comes from that room's supervisor, the one that answers it, and every word of it is
-the message of a round of that room, written and reviewed by the draft process (`docs/drafting.md`). No send puts
-words in a room: anything that wants something said there hands the words to that room's supervisor, whose round
-there writes them as its message, the review included.
+the message of a round of that room, written by its message turn and checked by its instruction stages
+(`docs/instruction.md`). No send puts words in a room: anything that wants something said there hands the words to
+that room's supervisor, whose round there writes them as its message, its stages included.
 
 - **A send is carried only in its supervisor's own round, and only where it holds no words.** `POST /sends`
   carries an act as asked where its asker names an agent, no job asks it, that agent has a round working at that
   moment in the room that set the send off (the asker's `by`, `chat:<room>`), and the act holds no words: a
   picture or a file with no caption, a reaction, a pin, a sticker or a fair draw. Those are carried in the round's
-  own turn and every later question of its draft process, where the send tool's entries and the shell verbs of
+  own turn and every later question of its pipeline, where the send tool's entries and the shell verbs of
   that turn run, into that room or another room the agent answers.
 - **Words asked in the round's own room are refused.** A line, a spoken talk, a voice note, or a picture or a file
   with a caption, asked in the agent's own round into the room that round answers, is refused `words-in-answer`
-  (`docs/codes.md`, 「SendRefusal」), its sentence saying that the words go into the round's answer, which the draft
-  process reviews; nothing reaches the room. A progress line said while work runs is the same line, and is refused
+  (`docs/codes.md`, 「SendRefusal」), its sentence saying that the words go into the round's answer, which the instruction
+  stages check before it goes out; nothing reaches the room. A progress line said while work runs is the same line, and is refused
   the same way.
 - **Words asked into another room are handed there.** The same acts asked in the agent's own round into another
   room are handed to that room's supervisor as below, so a supervisor that wants words in another room asks for a
@@ -251,7 +251,7 @@ there writes them as its message, the review included.
   supervisor writes the handed words into its round's answer, in its own words and voice, as its rule for handed
   lines says (the agency's chat manual): it relays them as they stand, rephrases them, folds them, pins them as a
   reply, or judges them not worth saying and skips in the round's form. The answer is the round's message and
-  passes every question, the review and every check its round runs. A spoken talk and a voice note handed are said
+  passes every instruction stage its round runs. A spoken talk and a voice note handed are said
   as words in that message. A picture or a file handed goes out through that same entry with no caption, and the
   caption's words are written into the message.
 - **An answer wanted back is armed when the line goes out.** A line asked with `reply` from a round of another

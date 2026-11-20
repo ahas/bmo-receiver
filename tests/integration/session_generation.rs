@@ -21,7 +21,7 @@ use receiver_ports::gate::{Entry, Source};
 use serde_json::{Value, json};
 
 use crate::integration::common::Scratch;
-use crate::integration::common::session::{StandInSession, no_drafting};
+use crate::integration::common::session::{StandInSession, no_stages};
 use crate::integration::common::units::{
   ADDRESS, AGENT, BRAIN, OWNER, StandInChat, Standing as StandingUnits, deployment, registration, unrun,
   woken,
@@ -133,7 +133,7 @@ impl Round {
   async fn new(mut session: StandInSession, unified: bool) -> Self {
     let scratch = Scratch::new().await;
 
-    no_drafting(scratch.db()).await;
+    no_stages(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER).holding(&[OTHER]));
 
@@ -228,7 +228,7 @@ impl Round {
   async fn reads(&self) -> Vec<Value> {
     self
       .scratch
-      .texts(r#"SELECT "reads" FROM "draft_rounds" WHERE "kind" = 'end' ORDER BY "id""#)
+      .texts(r#"SELECT "reads" FROM "instruction_rounds" WHERE "kind" = 'end' ORDER BY "id""#)
       .await
       .into_iter()
       .map(|row| serde_json::from_str(&row).unwrap())

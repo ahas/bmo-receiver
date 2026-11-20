@@ -1,4 +1,4 @@
-//! No turn is light (`docs/drafting.md`, 「The table」): every turn follows its row's `rounds`, so a row keeps no light
+//! No turn is light (`docs/instruction.md`, 「The table」): every turn follows its row's `rounds`, so a row keeps no light
 //! list and no light bound.
 
 use sea_orm_migration::prelude::*;

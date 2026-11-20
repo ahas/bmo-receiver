@@ -3,14 +3,15 @@
 
 use serde::de::DeserializeOwned;
 
+pub mod answer_reading;
 pub mod chat_health;
 pub mod chat_line;
 pub mod chat_round;
 pub mod commands;
-pub mod drafting;
 pub mod files;
 pub mod fixed_lines;
 pub mod handover;
+pub mod instruction;
 pub mod keepalive;
 pub mod kept;
 pub mod open_files;
@@ -24,7 +25,6 @@ pub mod roads;
 pub mod roles;
 pub mod run_lines;
 pub mod scripts;
-pub mod second_asks;
 pub mod secret_shapes;
 pub mod talk;
 pub mod tool_host;

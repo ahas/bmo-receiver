@@ -1,5 +1,5 @@
 //! The situation note as the round that judged a message read it (`docs/store.md`, 「The tables」;
-//! `docs/drafting.md`, 「The situation note」): the note's text on the message, and whether that round changed it.
+//! `docs/instruction.md`, 「The situation note」): the note's text on the message, and whether that round changed it.
 
 use sea_orm_migration::prelude::*;
 

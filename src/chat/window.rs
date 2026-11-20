@@ -332,7 +332,7 @@ async fn answered_line(
   Ok(Some(message_line(&said.sender_name, said.sender_id, &text)))
 }
 
-/// Whether the brain reaches a supervisor's turns (docs/drafting.md, 「A supervisor whose brain or
+/// Whether the brain reaches a supervisor's turns (docs/instruction.md, 「A supervisor whose brain or
 /// reference is off」): its brain and its reference both on, as its settings say, read afresh; on where the
 /// agency does not answer, so a round runs as it does with both on.
 pub async fn brain_reaches(receiver: &Receiver, agent: &str) -> bool {
@@ -490,7 +490,7 @@ fn made(chat_id: i64, entries: Vec<Entry>) -> Selection {
 }
 
 /// What a piece of the turn's core holds: the name its maker gives it, else the policy's word for its sort
-/// (docs/drafting.md, 「The round log」).
+/// (docs/instruction.md, 「The round log」).
 pub fn core_holds(entry: &Entry) -> Option<String> {
   entry
     .holds

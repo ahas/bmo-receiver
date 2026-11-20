@@ -62,11 +62,11 @@ pub enum SendRefusal {
   )]
   BriefingTurn { agent: String, room: i64 },
   /// The agent's own round asked words into the room it answers: a line, a spoken talk, a voice note or a caption,
-  /// whose words go only into the round's answer, which the draft process reviews.
+  /// whose words go only into the round's answer, which the instruction stages check.
   #[error(
-    "this round of {agent} answers the room {room}, so words for it go into the round's answer, which the draft \
-     process reviews, and no send carries them; nothing was sent: write the words into the answer, and send a \
-     picture or a file without a caption"
+    "this round of {agent} answers the room {room}, so words for it go into the round's answer, which the round's \
+     message turn writes and the instruction stages check, and no send carries them; nothing was sent: write the words into \
+     the answer, and send a picture or a file without a caption"
   )]
   WordsInAnswer { agent: String, room: i64 },
 }

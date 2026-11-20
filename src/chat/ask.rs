@@ -571,7 +571,7 @@ impl Carry {
       .await
       .map_err(|why| Failure::Failed(why.detail))?;
     let marked = states(&asking.prompt, &loaded);
-    let before = super::draft::Before {
+    let before = super::stages::Before {
       session: Some(session.id.clone()),
       core: marked.clone(),
       names: super::context::core_names(&asking.prompt),
@@ -862,10 +862,9 @@ impl Carry {
 
     let ended: Value = ended.clone().unwrap_or(Value::Null);
     let built = ended.get("answer").and_then(Value::as_str).unwrap_or_default();
-    // A later turn of the program that says nothing leaves the answer written before it (docs/drafting.md,
-    // 「What the receiver reads of an answer」).
-    let spanned = super::draft::Spanned::of(&ended);
-    let answer = super::draft::spanned_answer(built, &spanned);
+    // A later turn of the program that says nothing leaves the answer written before it (docs/instruction.md, 「What it is」).
+    let spanned = super::stages::Spanned::of(&ended);
+    let answer = super::stages::spanned_answer(built, &spanned);
     let answer = answer.as_str();
     let spanned = if spanned.len() > 1 { spanned } else { vec![] };
     let outcome = ended.get("outcome").and_then(Value::as_str).unwrap_or_default();

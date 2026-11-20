@@ -732,57 +732,55 @@ impl ReceiverClient {
     .await
   }
 
-  /// `GET /rounds/drafts`.
-  pub async fn drafts(&self, room_id: i64, rounds: &[String]) -> Answer<Page<RoundDrafts>> {
+  /// `GET /rounds/pipeline`.
+  pub async fn round_pipeline(&self, room_id: i64, rounds: &[String]) -> Answer<Page<RoundPipeline>> {
     Self::answered(
-      self.get(&["rounds", "drafts"], &[("room", room_id.to_string()), ("rounds", rounds.join(","))]),
+      self.get(&["rounds", "pipeline"], &[("room", room_id.to_string()), ("rounds", rounds.join(","))]),
     )
     .await
   }
 
-  /// `GET /draft-processes`: every row, or with a supervisor named the one row it reads.
-  pub async fn draft_processes(&self, agent_name: Option<&str>) -> Answer<Page<DraftProcess>> {
+  /// `GET /instruction-stages`: every chain, or with a supervisor named the one it follows.
+  pub async fn instruction_chains(&self, agent_name: Option<&str>) -> Answer<Page<InstructionChain>> {
     let whose: Vec<(&str, &str)> = agent_name.map(|name| ("agentName", name)).into_iter().collect();
 
-    Self::answered(self.get(&["draft-processes"], &whose)).await
+    Self::answered(self.get(&["instruction-stages"], &whose)).await
   }
 
-  /// `PUT /draft-processes/{provider}/{tier}/{agentName}`.
-  pub async fn set_draft_process(
+  /// `PUT /instruction-stages/{agentName}`.
+  pub async fn set_instruction_chain(
     &self,
-    provider: &str,
-    tier: &str,
     agent_name: &str,
-    process: &DraftProcessSet,
-  ) -> Answer<DraftProcess> {
-    Self::answered(self.send(Method::PUT, &["draft-processes", provider, tier, agent_name], process)).await
+    chain: &InstructionChainSet,
+  ) -> Answer<InstructionChain> {
+    Self::answered(self.send(Method::PUT, &["instruction-stages", agent_name], chain)).await
   }
 
-  /// `DELETE /draft-processes/{provider}/{tier}/{agentName}`.
-  pub async fn remove_draft_process(&self, provider: &str, tier: &str, agent_name: &str) -> Answer<()> {
-    Self::nothing(self.request(Method::DELETE, &["draft-processes", provider, tier, agent_name])).await
+  /// `DELETE /instruction-stages/{agentName}`.
+  pub async fn remove_instruction_chain(&self, agent_name: &str) -> Answer<()> {
+    Self::nothing(self.request(Method::DELETE, &["instruction-stages", agent_name])).await
   }
 
-  /// `GET /draft-questions`: a supervisor's catalogue, or the policy's alone where none is named.
-  pub async fn draft_questions(&self, agent_name: Option<&str>) -> Answer<Page<DraftQuestion>> {
+  /// `GET /instruction-texts`: a supervisor's stage catalogue, or the policy's alone where none is named.
+  pub async fn instruction_texts_read(&self, agent_name: Option<&str>) -> Answer<Page<InstructionText>> {
     let whose: Vec<(&str, &str)> = agent_name.map(|name| ("agentName", name)).into_iter().collect();
 
-    Self::answered(self.get(&["draft-questions"], &whose)).await
+    Self::answered(self.get(&["instruction-texts"], &whose)).await
   }
 
-  /// `PUT /draft-questions/{agentName}/{name}`.
-  pub async fn set_draft_question(
+  /// `PUT /instruction-texts/{agentName}/{name}`.
+  pub async fn set_instruction_text(
     &self,
     agent_name: &str,
     name: &str,
-    question: &DraftQuestionSet,
-  ) -> Answer<DraftQuestion> {
-    Self::answered(self.send(Method::PUT, &["draft-questions", agent_name, name], question)).await
+    question: &InstructionTextSet,
+  ) -> Answer<InstructionText> {
+    Self::answered(self.send(Method::PUT, &["instruction-texts", agent_name, name], question)).await
   }
 
-  /// `DELETE /draft-questions/{agentName}/{name}`.
-  pub async fn remove_draft_question(&self, agent_name: &str, name: &str) -> Answer<()> {
-    Self::nothing(self.request(Method::DELETE, &["draft-questions", agent_name, name])).await
+  /// `DELETE /instruction-texts/{agentName}/{name}`.
+  pub async fn remove_instruction_text(&self, agent_name: &str, name: &str) -> Answer<()> {
+    Self::nothing(self.request(Method::DELETE, &["instruction-texts", agent_name, name])).await
   }
 
   /// `POST /supervisors`.

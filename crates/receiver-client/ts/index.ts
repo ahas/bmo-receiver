@@ -78,12 +78,12 @@ export type PinRooms = Schemas["PinRooms"];
 export type PinRoom = Schemas["PinRoom"];
 export type PublishedEvent = Schemas["PublishedEvent"];
 export type Live = Schemas["Live"];
-export type RoundDrafts = Schemas["RoundDrafts"];
-export type DraftRound = Schemas["DraftRound"];
-export type DraftProcess = Schemas["DraftProcess"];
-export type DraftProcessSet = Schemas["DraftProcessSet"];
-export type DraftQuestion = Schemas["DraftQuestion"];
-export type DraftQuestionSet = Schemas["DraftQuestionSet"];
+export type RoundPipeline = Schemas["RoundPipeline"];
+export type PipelineRound = Schemas["PipelineRound"];
+export type InstructionChain = Schemas["InstructionChain"];
+export type InstructionChainSet = Schemas["InstructionChainSet"];
+export type InstructionText = Schemas["InstructionText"];
+export type InstructionTextSet = Schemas["InstructionTextSet"];
 export type Pins = Schemas["Pins"];
 export type Sticker = Schemas["Sticker"];
 export type Stickers = Schemas["Stickers"];
@@ -586,69 +586,69 @@ export function receiverClient(options: ReceiverOptions) {
       return answered(await client.PUT("/rooms/{roomId}/supervisors", { params: { path: { roomId } }, body }));
     },
 
-    /** `GET /rounds/drafts`: what each named round's draft process wrote. */
-    async roundDrafts(room: number, rounds: string[]): Promise<Page<RoundDrafts>> {
+    /** `GET /rounds/pipeline`: what each named round's instruction pipeline wrote. */
+    async roundPipeline(room: number, rounds: string[]): Promise<Page<RoundPipeline>> {
       return answered(
-        await client.GET("/rounds/drafts", { params: { query: { room, rounds: rounds.join(",") } } }),
+        await client.GET("/rounds/pipeline", { params: { query: { room, rounds: rounds.join(",") } } }),
       );
     },
 
-    /** `GET /draft-processes`: every row, or with a supervisor named the one row it reads. */
-    async draftProcesses(agentName?: string): Promise<Page<DraftProcess>> {
+    /** `GET /instruction-stages`: every row, or with a supervisor named the one row it reads. */
+    async instructionChains(agentName?: string): Promise<Page<InstructionChain>> {
       return answered(
-        await client.GET("/draft-processes", {
+        await client.GET("/instruction-stages", {
           params: { query: agentName === undefined ? {} : { agentName } },
         }),
       );
     },
 
-    /** `PUT /draft-processes/{provider}/{tier}/{agentName}`: a supervisor's row, its provider and tier `*`. */
-    async setDraftProcess(
+    /** `PUT /instruction-stages/{provider}/{tier}/{agentName}`: a supervisor's row, its provider and tier `*`. */
+    async setInstructionChain(
       provider: string,
       tier: string,
       agentName: string,
-      body: DraftProcessSet,
-    ): Promise<DraftProcess> {
+      body: InstructionChainSet,
+    ): Promise<InstructionChain> {
       return answered(
-        await client.PUT("/draft-processes/{provider}/{tier}/{agentName}", {
+        await client.PUT("/instruction-stages/{provider}/{tier}/{agentName}", {
           params: { path: { provider, tier, agentName } },
           body,
         }),
       );
     },
 
-    /** `DELETE /draft-processes/{provider}/{tier}/{agentName}`. */
-    async removeDraftProcess(provider: string, tier: string, agentName: string): Promise<void> {
+    /** `DELETE /instruction-stages/{provider}/{tier}/{agentName}`. */
+    async removeInstructionChain(provider: string, tier: string, agentName: string): Promise<void> {
       answered(
-        await client.DELETE("/draft-processes/{provider}/{tier}/{agentName}", {
+        await client.DELETE("/instruction-stages/{provider}/{tier}/{agentName}", {
           params: { path: { provider, tier, agentName } },
         }),
       );
     },
 
-    /** `GET /draft-questions`: a supervisor's catalogue, or the policy's alone where none is named. */
-    async draftQuestions(agentName?: string): Promise<Page<DraftQuestion>> {
+    /** `GET /instruction-texts`: a supervisor's catalogue, or the policy's alone where none is named. */
+    async instructionTexts(agentName?: string): Promise<Page<InstructionText>> {
       return answered(
-        await client.GET("/draft-questions", {
+        await client.GET("/instruction-texts", {
           params: { query: agentName === undefined ? {} : { agentName } },
         }),
       );
     },
 
-    /** `PUT /draft-questions/{agentName}/{name}`. */
-    async setDraftQuestion(agentName: string, name: string, body: DraftQuestionSet): Promise<DraftQuestion> {
+    /** `PUT /instruction-texts/{agentName}/{name}`. */
+    async setInstructionText(agentName: string, name: string, body: InstructionTextSet): Promise<InstructionText> {
       return answered(
-        await client.PUT("/draft-questions/{agentName}/{name}", {
+        await client.PUT("/instruction-texts/{agentName}/{name}", {
           params: { path: { agentName, name } },
           body,
         }),
       );
     },
 
-    /** `DELETE /draft-questions/{agentName}/{name}`. */
-    async removeDraftQuestion(agentName: string, name: string): Promise<void> {
+    /** `DELETE /instruction-texts/{agentName}/{name}`. */
+    async removeInstructionText(agentName: string, name: string): Promise<void> {
       answered(
-        await client.DELETE("/draft-questions/{agentName}/{name}", {
+        await client.DELETE("/instruction-texts/{agentName}/{name}", {
           params: { path: { agentName, name } },
         }),
       );

@@ -134,9 +134,9 @@ its rounds.
 - **A round that ends in silence is written down with why.** Its ending is a judgement of the stage `skipped`
   with the verdict `SKIP`, under the last message the round read, or under none where it read nothing of the
   room, and its `detail` is why the round sent nothing: the reason the skip named, on the one line it is, as the
-  round log keeps it, whether the agent's own judgement of the room's words or the round's draft process ended in
-  the skip; `none given` where the agent named none even when asked over; and `withheld: ` then the checks that
-  failed twice where the draft process withheld the message (`docs/drafting.md`, 「The round log」). Only a round
+  round log keeps it, whether the agent's own judgement of the room's words or the round's pipeline ended in
+  the skip; and `none given` where the agent named none even when asked over (`docs/instruction.md`, 「The round
+  log」). Only a round
   that holds no reason at all carries none, as a quiet turn that only read an instruction does. The stream is told
   the same as `skipped`, with the room, that message, the verdict and that `detail`, so a screen says why the
   agent held its peace.
@@ -172,16 +172,16 @@ its rounds.
 
 ## The owner's own chat is always answered
 
-- **A round that read the owner's own words in the owner's own chat never ends in silence,** and the code holds
-  it to that rather than asking: every message of the owner's the round took is owed a reply whatever else the
-  round was carrying.
+- **A round that read the owner's own words in the owner's own chat answers them in its own message,** and the
+  process's fixed rules hold the agent to that: every message of the owner's the round took is owed a reply
+  whatever else the round was carrying, so a skip there is only for words that ask nothing of the agent. A
+  supervisor that wants a room held to this chains an instruction stage whose text asks whether the owner's words
+  were answered.
 - **The turn is told so in as many words**: the permission a quiet instruction brings covers the instruction
   alone, and the line a closed window puts in front of the turn withholds the silence too.
-- **A skip that comes back anyway is not taken.** Where the draft process ends in a skip, the session is
-  asked once more with the silence withdrawn, the process's `owed` item (`docs/drafting.md`), where the
-  supervisor's row does not switch that item off, and what it writes
-  then is the message; a session that stays silent through that asking ends the round the way it stood, with
-  every turn of it in the round log.
+- **A skip that comes back anyway is not taken,** and nothing asks the round a second time over its silence: where
+  the message turn skips, the round ends with nothing sent and every turn of it stands in the round log. The
+  instruction stages run only once a message stands, so they never turn a silence into a message.
 - **The round is where this is held, because the round is what consumed the messages:** they are spliced out of
   the room's buffer as it opens and are nowhere else to be found once it has them, so a silence taken there is a
   question of the owner's that nothing will ever come back to.
@@ -198,7 +198,7 @@ its rounds.
   sent as a reply only where the agent marks it so, in a room whose chat service declares it can point an answer
   at a message; where it cannot, the words simply land in the room. The receiver never pins an answer the agent
   left unmarked and never withholds or moves a pin the agent set: when an answer is pinned, and to what, is a rule
-  the agent is given, which the round's draft process restates where it names the mark (`docs/drafting.md`).
+  the agent is given, which the round's pipeline restates where it names the mark (`docs/instruction.md`).
 - **The rule the agent is given:** a plain message is the default. A reply is for when the room has moved past the
   message being answered, other people's words standing between them, or when the answer takes one of several
   open questions and has to say which; never in the owner's private chat. Its target is the message the answer
@@ -232,7 +232,7 @@ its rounds.
   detail block that a reader opens only if they want it. A conversational answer, a short answer and an answer
   that is all one piece are never folded.
 - **`<<FOLD>>` in the message asks its fold.** It is the message's own mark, so it travels with the message's
-  words: whichever answer of the draft process becomes the message carries it or not, and an answer of nothing
+  words: whichever answer of the instruction pipeline becomes the message carries it or not, and an answer of nothing
   but the mark is no words. It counts outside a code span or fence, where it is not being quoted, and every send
   to a chat removes it with the other markers.
 - **The copy the room's record keeps carries the same decision** to the room's other providers, and every other
@@ -274,27 +274,25 @@ its rounds.
   alone — none of them names the agent (「The names and the window」), replies to its words or stands in a private
   chat — opens with the agent's own judgement of whether to answer, before every pregate. The
   judgement is one turn of the same session carrying a marker, the room's situation note where the session
-  has not read it (`docs/drafting.md`, 「The situation note」), the room's
+  has not read it (`docs/instruction.md`, 「The situation note」), the room's
   recent words in the room shape and the words being judged as data — whether they are said to it or want its
-  answer. What the marker asks is the draft catalogue's `supervisor` text (the round policy's head and question,
-  `chat-round.toml`, `[supervisor]`, where the console set none; `docs/drafting.md`, 「The routes」), said in the
-  room's block. The turn carries no reference and no index,
-  and nothing of it passes any gate. A skip in the round's form (`<<SKIP: <reason>>>`, `docs/drafting.md`, 「What
+  answer. What the marker asks is the round policy's head and question (`chat-round.toml`, `[supervisor]`), said in
+  the room's block. The turn carries no reference and no index,
+  and nothing of it passes any gate. A skip in the round's form (`<<SKIP: <reason>>>`, `docs/instruction.md`, 「What
   it is」) ends the round there: nothing is sent, the words are
   read and the window keeps the time it had, as a skipped round leaves it, and the judgement's row of the round log
   carries the reason it named. An answer skipping with no reason is no verdict: the same judgement turn is asked
   once more under one line naming the form, and a second answer naming none ends the round with its reason recorded
   as `none given`. Any other answer opens the ordinary
-  round, its reference and its draft process. A round with a named call, a reply, words of a
+  round, its reference and its pipeline. A round with a named call, a reply, words of a
   private chat or the owner's chat skips this step. The judgement is a row of the round log of its own kind,
-  `supervisor` (`docs/drafting.md`, 「The round log」).
+  `supervisor` (`docs/instruction.md`, 「The round log」).
 - **A round goes through the receiver's own parts, every agent's conversations alike:** the turn composed by the
   window is carried into the agent's session through the agency (`POST /sessions`, `GET /sessions/{sessionId}`,
   `POST /sessions/{sessionId}/turns`, and the turn's `turn.created` and `turn.ended` on the event stream); every
-  agent's turn, every supervisor's alike, opens the same way and carries the first question of the
-  draft process, which makes the message (`docs/drafting.md`): the questions asked of the same
-  session, the notes they establish first and the message last, the items and the checks on the final text
-  (`docs/answer-checks.md`); the message is sent on the road the turn
+  agent's turn, every supervisor's alike, opens the same way as the round's message turn, whose answer is the
+  message, which then passes the supervisor's chain of instruction stages (`docs/instruction.md`); the message is
+  sent on the road the turn
   answers on, then handed back to the receiver as filed. The round's session is noted, a failed round of the
   agent's own raises its failure order, and the failure orders are looked over on the conversations' own clock.
 - **A room's words go into the working turn.** Words the room queue hands over while a turn of a round works, from
@@ -302,7 +300,7 @@ its rounds.
   (`POST /sessions/{sessionId}/turns/{turnId}/inputs`) at the round's next look at it, with the quiet
   instructions delivered meanwhile where the turn is the round's own (`docs/bmo-window.md`, `push`). The agent
   judges each message: answered with the message, set aside as needing no answer, or held to be answered in a
-  round of its own (`docs/drafting.md`, 「What came in meanwhile」). What the agency says was `delivered` is the
+  round of its own (`docs/instruction.md`, 「What came in meanwhile」). What the agency says was `delivered` is the
   round's; what is `waiting` or `refused` goes back to wait, and a `waiting` turn is offered nothing more.
 - **What no push put in waits for a question boundary:** under the round's next question, or in the one closing
   check before the message is sent, where the agent marks it the same way. A message pushed or shown inside a

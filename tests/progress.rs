@@ -704,7 +704,7 @@ fn a_picture_whose_counts_alone_moved_is_told_at_most_once_a_gap() {
   assert_eq!(told.tell(&counted(40), GAP + 1, GAP), None, "the gap counts from the last told");
 }
 
-// "a text holding one of the draft process's answer marks is a draft of the turn's message and never a
+// "a text holding one of a round's answer marks is a draft of the turn's message and never a
 // progress line, even where a call follows it; it is left out whole", a reason the line's bound would cut
 // still counting.
 #[test]

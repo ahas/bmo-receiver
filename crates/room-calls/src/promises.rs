@@ -1,66 +1,29 @@
-//! What an answer of the chat says, as the checks it passes read it (docs/answer-checks.md): a promise about what
-//! the agent will do from now on, a promise to act once something has happened, and the owner's words setting a rule
-//! for later. The words each reads by stand in the receiver's policy; the sentences are cut and the quotations set
-//! aside here.
+//! What an answer of the chat says, read by the code that holds it (docs/answer-checks.md): the answer's own
+//! sentences with code and quotations set aside, and whether a text waits for something to happen first. The words
+//! each reads by stand in the receiver's policy; the sentences are cut and the quotations set aside here.
 
 use std::sync::LazyLock;
 
 use regex::Regex;
 
-use crate::js::{SPACE, chars, is_space, trim};
-use receiver_policy::scripts::{SCRIPTS, Span};
-use receiver_policy::second_asks::SECOND_ASKS;
-
-// A range as a regular expression character class's body.
-fn class_body(span: Span) -> String {
-  format!(r"\x{{{:x}}}-\x{{{:x}}}", span.first, span.last)
-}
-
-// The modern Hangul syllables, as a character class's body.
-static SYLLABLE: LazyLock<String> = LazyLock::new(|| class_body(SCRIPTS.syllables));
-
-// How a syllable's number is made: its final consonant varies fastest, its vowel next.
-const FINALS: u32 = 28;
-const VOWEL_SPAN: u32 = 588;
+use crate::js::{SPACE, chars, is_space};
+use receiver_policy::answer_reading::ANSWER_READING;
+use receiver_policy::scripts::SCRIPTS;
 
 // A policy pattern as this side compiles it: the white space the machine's own class where the pattern says `\s`.
 fn compiled(pattern: &str) -> Regex {
   Regex::new(&pattern.replace(r"\s", &format!("[{SPACE}]"))).expect("a reading pattern of the policy")
 }
 
-// A policy pattern followed by no syllable: the next character, consumed, is none or no syllable. A match read
-// for whether it is there, or for its first group, reads the same as a lookahead would.
-fn followed_by_no_syllable(pattern: &str) -> Regex {
-  compiled(&format!("(?:{pattern})(?:$|[^{}])", *SYLLABLE))
-}
-
 struct Reading {
-  later: Regex,
-  remember: Regex,
   awaiting: Regex,
-  condition: Regex,
-  manner: Regex,
-  volition: Regex,
-  pledge: Regex,
-  told: Regex,
-  told_closing: Regex,
-  request: Regex,
 }
 
 static READING: LazyLock<Reading> = LazyLock::new(|| {
-  let reading = &SECOND_ASKS.reading;
+  let reading = &ANSWER_READING.reading;
 
   Reading {
-    later: compiled(&reading.later),
-    remember: compiled(&reading.remember),
     awaiting: compiled(&reading.awaiting),
-    condition: compiled(&reading.condition),
-    manner: compiled(&reading.manner),
-    volition: followed_by_no_syllable(&reading.volition),
-    pledge: followed_by_no_syllable(&reading.pledge),
-    told: followed_by_no_syllable(&reading.told),
-    told_closing: compiled(&reading.told_closing),
-    request: followed_by_no_syllable(&reading.request),
   }
 });
 
@@ -98,7 +61,7 @@ fn is_syllable(character: char) -> bool {
 
 // Whether a sentence ends on this syllable where white space follows it.
 fn closes_sentence(character: char) -> bool {
-  SECOND_ASKS.reading.closings.contains(character)
+  ANSWER_READING.reading.closings.contains(character)
 }
 
 // Single-quoted spans set aside, but for one that stands right after a syllable.
@@ -161,85 +124,8 @@ pub fn own_sentences(text: &str) -> Vec<String> {
   sentences
 }
 
-// The first person's volition: a formal ending, or a syllable closed on the policy's final consonant before the
-// pledge.
-fn volunteers(sentence: &str) -> bool {
-  let reading = &*READING;
-
-  reading.volition.is_match(sentence)
-    || reading.pledge.captures_iter(sentence).any(|found| {
-      found[1]
-        .chars()
-        .next()
-        .and_then(syllable)
-        .is_some_and(|code| code % FINALS == SECOND_ASKS.reading.pledge_final)
-    })
-}
-
-/// Whether an answer promises something about what the agent will do from now on; a promise about this turn's own
-/// work carries no word of time to come and is not one, and what the answer quotes is not read.
-pub fn promises_later(answer: &str) -> bool {
-  let reading = &*READING;
-
-  own_sentences(answer).iter().any(|sentence| {
-    (reading.remember.is_match(sentence) || reading.later.is_match(sentence)) && volunteers(sentence)
-  })
-}
-
-/// Whether an answer promises to act once something has happened.
-pub fn promises_after(answer: &str) -> bool {
-  own_sentences(answer)
-    .iter()
-    .any(|sentence| READING.awaiting.is_match(sentence) && volunteers(sentence))
-}
-
 /// Whether a memory's action waits for something to happen first, whoever's volition it is said in: what a row
 /// filed with nothing to wake it is refused for.
 pub fn waits_on_happening(action: &str) -> bool {
   own_sentences(action).iter().any(|sentence| READING.awaiting.is_match(sentence))
-}
-
-// Whether this syllable is the one an imperative closes on: one of the policy's vowels, with no final consonant.
-fn ends_imperative(character: char) -> bool {
-  syllable(character).is_some_and(|code| {
-    code % FINALS == 0 && SECOND_ASKS.reading.imperative_vowels.contains(&((code % VOWEL_SPAN) / FINALS))
-  })
-}
-
-static LAST_SYLLABLE: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(&format!(r"([{}])[.!。]?$", *SYLLABLE)).expect("a closing syllable"));
-
-// Somebody told to do something: a request made of them, a plain imperative, or a standing obligation.
-pub fn orders(sentence: &str) -> bool {
-  let said = trim(sentence);
-  let reading = &*READING;
-
-  // A question asks rather than tells, whatever its verb looks like.
-  if said.is_empty() || said.ends_with(['?', '？']) {
-    return false;
-  }
-
-  if reading.told.is_match(said) || reading.told_closing.is_match(said) {
-    return true;
-  }
-
-  let first_char = |found: regex::Captures<'_>| found[1].chars().next();
-
-  if reading.request.captures(said).and_then(first_char).is_some_and(ends_imperative) {
-    return true;
-  }
-
-  LAST_SYLLABLE.captures(said).and_then(first_char).is_some_and(ends_imperative)
-}
-
-/// Whether these words set what the agent is to do from a situation on: an order with the reach of a rule, a word
-/// of time to come or a condition pointed at a manner.
-pub fn sets_rule_later(said: &str) -> bool {
-  let reading = &*READING;
-
-  own_sentences(said).iter().any(|sentence| {
-    orders(sentence)
-      && (reading.later.is_match(sentence)
-        || (reading.condition.is_match(sentence) && reading.manner.is_match(sentence)))
-  })
 }

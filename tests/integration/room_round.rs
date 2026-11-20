@@ -19,10 +19,9 @@ use bmo_receiver::events::Events;
 use bmo_receiver::receiver::{Context, Inbound, Room};
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
-use receiver_policy::second_asks::SECOND_ASKS;
+use receiver_policy::instruction::INSTRUCTION;
 use receiver_policy::tool_host::TOOL_HOST;
 use receiver_ports::agency::Said;
 use serde_json::{Value, json};
@@ -141,7 +140,7 @@ impl Round {
   // receiver's own stream where `news` stands, else the recording hearer.
   async fn stood(timings: Timings, session: StandInSession, news: Option<Arc<Events>>) -> Self {
     let scratch = Scratch::new().await;
-    crate::integration::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_stages(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -206,14 +205,15 @@ fn shown_in_the_closing_check(round: &Round) {
     round.pushes()
   );
   assert_eq!(prompts.len(), 2, "the closing check is the round's one more turn");
-  assert!(prompts[1].contains(&DRAFTING.arrived_marker), "{}", prompts[1]);
+  assert!(prompts[1].contains(&INSTRUCTION.arrived_marker), "{}", prompts[1]);
   assert!(
     !prompts[1].contains("Answer with the message as it should now go out"),
     "the closing check's instruction stands in the room's block: {}",
     prompts[1]
   );
   assert!(
-    prompts[0].contains(&receiver_policy::fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
+    prompts[0]
+      .contains(&receiver_policy::fill_marks(&INSTRUCTION.arrived, &[("voice", &INSTRUCTION.voice)])),
     "the room's block carries the closing check's rule"
   );
   assert!(prompts[1].contains(LATER), "the closing check shows the words said meanwhile");
@@ -565,7 +565,7 @@ async fn a_turn_hands_the_agency_no_base_persona_even_where_the_deployment_keeps
 
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
   let persona = data.path().join("prompts").join("persona");
@@ -718,7 +718,7 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
 
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -820,23 +820,26 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
     fill_marks(&HANDOVER.chat.handed_rule, &[("marker", &HANDOVER.chat.handed_marker)]),
     fill_marks(&HANDOVER.chat.carried_rule, &[("marker", &HANDOVER.chat.carried_marker)]),
     fill_marks(&HANDOVER.chat.lost_rule, &[("marker", &HANDOVER.chat.lost_marker)]),
-    SECOND_ASKS.errands.owed.clone(),
-    SECOND_ASKS.errands.owner_directive.clone(),
-    SECOND_ASKS.errands.record.clone(),
-    SECOND_ASKS.errands.wake.clone(),
-    SECOND_ASKS.errands.rule.clone(),
-    SECOND_ASKS.errands.format.clone(),
+    INSTRUCTION.message_rule.clone(),
+    INSTRUCTION.instruction_rule.clone(),
+    fill_marks(&INSTRUCTION.answer_rule, &[("pass", &INSTRUCTION.pass)]),
+    fill_marks(&INSTRUCTION.arrived, &[("voice", &INSTRUCTION.voice)]),
   ];
 
   for rule in &rules {
     assert!(prompt.contains(rule), "the moved rule stands in the block: {rule}");
   }
+
+  assert!(
+    !prompt.contains(&INSTRUCTION.stages["review"]),
+    "a stage's words ride its own turn, never the block: {prompt}"
+  );
 }
 
 #[tokio::test]
 async fn a_turn_carries_the_newest_unread_messages_up_to_the_cap_and_counts_the_rest() {
   let scratch = Scratch::new().await;
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -901,7 +904,7 @@ struct Folded {
 async fn folds_after_a_round(folds_itself: bool, refuses: bool) -> Folded {
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -986,7 +989,7 @@ async fn a_refused_consolidation_turn_never_holds_the_fold() {
 async fn first_prompt_with_due(due: bool) -> String {
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -1042,7 +1045,7 @@ async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet
 
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").holding(&[LAB]).owners(OWNER));
 
@@ -1105,7 +1108,7 @@ async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_hi
 
   let scratch = Scratch::new().await;
 
-  crate::integration::common::session::no_drafting(scratch.db()).await;
+  crate::integration::common::session::no_stages(scratch.db()).await;
   let data = tempfile::tempdir().unwrap();
   let chat = Arc::new(StandInChat::new("road-a").holding(&[LAB]).owners(OWNER));
 

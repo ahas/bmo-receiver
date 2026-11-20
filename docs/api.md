@@ -342,7 +342,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   or a person's number), `forwardedFrom` (`room`, `messageId` and `senderName` of the message it copies, or null),
   `situation` (the room's situation note as it stood when the round that judged this message opened — its `text`,
   and `changed`, which is false since no round writes the note, the owner's private chat's messages included — or
-  null on a message no round judged under a note; `docs/drafting.md`, 「The situation note」), and `files`, each a `KeptFile` (`kind`, `source`,
+  null on a message no round judged under a note; `docs/instruction.md`, 「The situation note」), and `files`, each a `KeptFile` (`kind`, `source`,
   `storedPath`, `summary`, `collectedAt`). `notCarried` stands on the answer of an act on a message alone, and only where one of the
   room's chat services did not take that act: each entry its `provider` key, its `reason` (`no-copy` where the service holds no number
   for the message, `refused` where the service turned the act down in the voice named and in the room's own voice where that was tried,
@@ -455,7 +455,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **Its `cause`** says whether somebody waits on it (`docs/wake.md`, 「Quiet instructions」). `reply`, the default,
   is a room reply: it answers something a room or the owner asked or set going — a research run's result, a
   delegate's or a worker's answer, a job's ending and report, the end or loss of background work an agent's
-  program launched in the room (`docs/drafting.md`, 「Long work in a round」), a reminder or a watch come due —
+  program launched in the room (`docs/instruction.md`, 「Long work in a round」), a reminder or a watch come due —
   and opens the agent's turn as soon as it is queued, on a session past its cache lifetime too, which that turn
   replaces.
   `housekeeping` is a record for the agent alone that nobody waits on, and waits for a round something else opens
@@ -761,58 +761,50 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 |---|---|---|
 | `GET /rounds/openings` | `room`, `rounds` (comma-separated) | a page of `{round, instructions}`, each instruction `id`, `sort`, `summary`, `createdAt` |
 | `GET /rounds/openings/{instructionId}` | `room` | `id`, `text`: one quiet instruction whole |
-| `GET /rounds/drafts` | `room`, `rounds` (comma-separated), `limit` | a page of `{round, rows}`, each row a `DraftRound` |
+| `GET /rounds/pipeline` | `room`, `rounds` (comma-separated), `limit` | a page of `{round, rows}`, each row a `PipelineRound` |
 
-- **A `DraftRound`** is one turn of a round's draft process, or its end (`docs/drafting.md`, 「The round log」):
-  `id`, `agentName`, `number` (from 1, the round's own turn being the first question's row; 0 for the agent's own
-  judgement before a round), `question`, `kind` (`supervisor`, the agent's own judgement whether to answer words
-  its open window alone let in, `turn`, `question`, `item`, `check` or `end`; `turn` only where the row's list is
-  empty), `answerChars`,
-  `changed`, `outcome` (`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn; `PASS` or `REJECT` for a
-  review; `message`, `skip` or `withheld` for the end), `detail` (or null: a row ending `skip` names there why the
+- **An `InstructionChain`** and an `InstructionText` are described in 「The routes」 of `docs/instruction.md`: the chain a round runs, and each stage's editable text.
+- **A `PipelineRound`** is one turn of a round's pipeline, or its end (`docs/instruction.md`, 「The round log」):
+  `id`, `agentName`, `number` (from 1, the round's own turn first and then the check of the words that arrived meanwhile and each instruction stage in the order asked; 0 for the agent's own
+  judgement before a round), `question` (the row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn), `kind` (`supervisor`, the agent's own judgement whether to answer words
+  its open window alone let in; `turn`, the round's own turn; `arrived`, the closing check; `stage`, an instruction stage; or `end`), `answerChars`,
+  `changed`, `outcome` (`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for a stage, a stage's row carrying its answer; `message` or `skip` for the end), `detail` (or null: a row ending `skip` names there why the
   round sent nothing, or `none given`), `answer` (or null), `ms`, `at` and `reads`:
   on the end, what the round read from the brain, each `path`, `holds` (or null) and `how` (`attached`, `held` or
-  `read`; `docs/drafting.md`, 「The round log」), and empty on every other row; `session` and `loaded`: on the end,
+  `read`; `docs/instruction.md`, 「The round log」), and empty on every other row; `session` and `loaded`: on the end,
   the agency session the round's turn ran on (or null) and how many pieces that session's earlier rounds in the room
-  read in full (`docs/drafting.md`, 「The round log」), and null on every other row; `versions`: on a turn's row
+  read in full (`docs/instruction.md`, 「The round log」), and null on every other row; `versions`: on a turn's row
   whose turn spanned more than one turn of the agent's program, each of those turns' answers in order, `text` and
-  `opened` (`handed` or `program`), the row's `answer` built from them (`docs/drafting.md`, 「The round log」), and
+  `opened` (`handed` or `program`), the row's `answer` built from them (`docs/instruction.md`, 「The round log」), and
   empty on every other row. The rows of a round stand in the order they were written.
 
-## The draft process
+## The instruction stages
 
 | Route | Body | Answers |
 |---|---|---|
-| `GET /draft-processes` | query `agentName?` | a page of `DraftProcess`: the policy's row and each supervisor's own; with `agentName`, the one row that supervisor reads |
-| `PUT /draft-processes/{provider}/{tier}/{agentName}`, the provider and the tier `*` and the agent a supervisor's name | `rounds`, `off?`, `stagesOff?`; `light?`, `lightChars?`, `sendFrom?`, `turnSeconds?`, `ceilingSeconds?` and `pastCeiling?` are read and ignored | the `DraftProcess` as it now stands |
-| `DELETE /draft-processes/{provider}/{tier}/{agentName}` | | 204; `not-found` where the console set no row of the key |
-| `GET /draft-questions` | query `agentName?` | a page of `DraftQuestion`: that supervisor's catalogue, or the policy's alone where none is named |
-| `PUT /draft-questions/{agentName}/{name}` | `text` | the `DraftQuestion` as it now stands |
-| `DELETE /draft-questions/{agentName}/{name}` | | 204; `not-found` where the console set that supervisor no text of the name, `conflict` where a list of its row still names a question the console added |
+| `GET /instruction-stages` | query `agentName?` | a page of `InstructionChain`: the policy's chain and each supervisor's own; with `agentName`, the one chain that supervisor follows |
+| `PUT /instruction-stages/{agentName}`, the agent a supervisor's name | `stages` | the `InstructionChain` as it now stands |
+| `DELETE /instruction-stages/{agentName}` | | 204; `not-found` where the console set no chain of that name |
+| `GET /instruction-texts` | query `agentName?` | a page of `InstructionText`: that supervisor's catalogue, or the policy's alone where none is named |
+| `PUT /instruction-texts/{agentName}/{name}` | `text` | the `InstructionText` as it now stands |
+| `DELETE /instruction-texts/{agentName}/{name}` | | 204; `not-found` where the console set that supervisor no text of the name, `conflict` where a chain of its supervisor still names a stage the console added |
 
-- **A `DraftProcess`** is `provider`, `tier` and `agentName`, each a name or `*` for any; `rounds`, the
-  names of the questions every turn's round follows, in order; `off`, the questions of that list that are switched
-  off, each keeping its place and not followed; `stagesOff`, the stages after the message that are switched off,
-  each by its name (`arrived`, `owed`, `owner_directive`, `record`, `wake` and `rule`, `format`; the review is never
-  one, and a kept row naming it is read with it left out), empty for
-  none; no turn bound stands; and `source`,
-  `set` where the console set the row and `default` where the policy's stands (`docs/drafting.md`, 「The process
-  table」). A
-  row that still carries `sendFrom`, `ceilingSeconds` or `pastCeiling` is read with them ignored, and they stand
-  in its answer as they came. The page holds the policy's rows in their order,
-  each replaced by the console's of the same key, then the console's own keys.
-- **A `DraftQuestion`** is `name`, `text` and `source`. The page opens on `supervisor`, the text the agent's own
-  judgement of whether to answer opens on (`docs/drafting.md`, 「The routes」), set like any question; a list that
-  names it is refused `bad-request`.
-- **A set is refused `bad-request`,** with nothing written, where a list names a question the catalogue does not
-  hold, where a list that holds questions does not end in `final` or holds it before its end, where `off` names
-  `final`, where `stagesOff` names anything but those stages, and where a question's name is not a lowercase word of letters, digits
-  and dashes of at most 40 characters or its text is empty or past 4,000 characters. A name `off` holds that
-  the list does not hold is dropped, and the answer carries `off` as it now stands.
-- **A question's text taken away** leaves the catalogue where the console added the question, and stands again
-  in the policy's text where the policy holds it.
-- **A set or a removal that changes the instructions a session reads for the process** has the agent's one
-  session replaced through its handoff before its next turn (`docs/drafting.md`, 「The questions」).
+- **An `InstructionChain`** is `agentName` (the supervisor's name, or `*` for the policy's default chain every
+  supervisor follows until it sets one), `stages` (the chain's stage names, in the order they are asked once the
+  message stands; empty runs no stage and the message goes out unchecked) and `source` (`set` where the console set
+  the chain, `default` where the policy's stands). The page opens with the policy's chain, then each supervisor's own
+  by name.
+- **An `InstructionText`** is `name`, `text`, `source` and `policyText`: the policy's text of the stage wherever the
+  policy holds it, so a screen can set a supervisor's text back to it, and null for a stage the console added. The page carries the policy's
+  stages, each text replaced by the console's for that supervisor, then the stages the console added for it.
+- **A chain set is refused `bad-request`,** with nothing written, where it names a stage whose text the catalogue
+  does not hold; an empty chain is allowed and runs no stage. A stage's name that is not a lowercase word of letters,
+  digits and dashes of at most 40 characters, or a text that is empty or past 4,000 characters, is refused the same way.
+- **A stage's text taken away** leaves the catalogue where the console added the stage, and stands again in the
+  policy's text where the policy holds it. A stage the console added that a chain of its supervisor still names is
+  refused `conflict`, since the chain would name nothing: it is taken out of the chain first.
+- **A set or a removal reaches the supervisor's next round** and replaces no session: a stage's words ride its own
+  turn, and nothing of the room's block moves with them (`docs/instruction.md`, 「The stage chain and its texts」).
 
 ## Supervisors
 
@@ -826,7 +818,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `PUT /default-answerer` | `supervisor` | `supervisor`, as the setting now stands; `unknown-supervisor` (404) |
 
 - **Every supervisor is alike to the receiver.** Its rounds are the same rounds, its judgement of window words
-  first and its draft process among them (`docs/wake.md`); what tells one from another is its own row at the
+  first and its pipeline among them (`docs/wake.md`); what tells one from another is its own row at the
   agency and the rooms that name it here.
 - **A room names the supervisors that answer it,** the room's `supervisors`. A room that names none is answered by
   the supervisor the user it is a one-to-one with owns, where one stands, and otherwise by the default answerer;
@@ -866,7 +858,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   each keeps its record, and `forgetBrain` and `force` as the console gave them; the agency's `running` comes back
   as `running` with the `label`. Once the agency has taken its half, the receiver lets go of every number it gave
   the supervisor that no kept message is filed under, with its picture, of every room's naming of it, and of its
-  draft process row and its question texts (`docs/drafting.md`, 「The process table」); a room left naming none is
+  instruction stage chain and its question texts (`docs/instruction.md`, 「The stage chain and its texts」); a room left naming none is
   the default answerer's.
 - **A reset is the agency's, with the rooms the receiver names.** `POST /supervisors/{supervisorName}/resets`
   hands the agency's reset (the agency's `docs/supervisors.md`, 「Starting it afresh」) `conversation`, `person`,

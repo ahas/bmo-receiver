@@ -1,4 +1,4 @@
-//! The questions a draft process row has switched off (`docs/store.md`, 「The tables」; `docs/drafting.md`, 「The
+//! The questions a draft process row has switched off (`docs/store.md`, 「The tables」; `docs/instruction.md`, 「The
 //! process table」): none on a row set before a question could be switched off.
 
 use sea_orm_migration::prelude::*;

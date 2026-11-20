@@ -1354,30 +1354,32 @@ pub struct OpeningText {
   pub text: String,
 }
 
-/// What a round's draft process wrote, row by row (docs/drafting.md, 「The round log」).
+/// What a round's turns wrote in the round log, row by row (docs/instruction.md, 「The round log」).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct RoundDrafts {
+pub struct RoundPipeline {
   pub round: String,
-  pub rows: Vec<DraftRound>,
+  pub rows: Vec<PipelineRound>,
 }
 
-/// One turn of a round's draft process, or its end.
+/// One turn of a round, or its end.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DraftRound {
+pub struct PipelineRound {
   pub id: i64,
   pub agent_name: String,
-  /// From 1, each question, item and check in the order asked, the round's own turn being the first question's
-  /// row; 0 for the agent's own judgement before a round its open window alone let in.
+  /// From 1, the round's own turn first and then the check of the words that arrived meanwhile and each stage in the
+  /// order asked; 0 for the agent's own judgement before a round its open window alone let in.
   pub number: i64,
+  /// The row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn.
   pub question: String,
-  /// `supervisor` (the agent's own judgement whether to answer, before the round), `turn` (only where the process
-  /// asks no question), `question`, `item`, `check` or `end`.
+  /// `supervisor` (the agent's own judgement before a round), `turn` (the round's own turn), `arrived` (the closing
+  /// check) or `stage` (an instruction stage), or `end`.
   pub kind: String,
   pub answer_chars: i64,
   pub changed: bool,
-  /// `answered`, `send`, `skip` or `failed` for a turn; `message`, `skip` or `withheld` for the end.
+  /// `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for a
+  /// stage; `message` or `skip` for the end.
   pub outcome: String,
   pub detail: Option<String>,
   pub answer: Option<String>,
@@ -1386,7 +1388,7 @@ pub struct DraftRound {
   pub at: i64,
   /// On the end, what the round read from the brain; empty on every other row.
   #[serde(default)]
-  pub reads: Vec<DraftRead>,
+  pub reads: Vec<RoundRead>,
   /// On the end, the agency session the round's turn ran on, null where it ran on none; null on every other row.
   #[serde(default)]
   pub session: Option<String>,
@@ -1397,13 +1399,13 @@ pub struct DraftRound {
   /// On a turn's row whose turn spanned more than one turn of the agent's program, each of those turns' answers in
   /// order, the row's answer built from them; empty on every other row.
   #[serde(default)]
-  pub versions: Vec<DraftVersion>,
+  pub versions: Vec<RoundVersion>,
 }
 
-/// One answer of the program's turns a turn of the process spanned (docs/drafting.md, 「The round log」).
+/// One answer of the program's turns a turn of the process spanned (docs/instruction.md, 「The round log」).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DraftVersion {
+pub struct RoundVersion {
   /// That turn's answer as it wrote it.
   pub text: String,
   /// What opened that turn: `handed`, words handed over (the turn's own prompt or words pushed into it), or
@@ -1411,10 +1413,10 @@ pub struct DraftVersion {
   pub opened: String,
 }
 
-/// One thing a round read from the brain (docs/drafting.md, 「The round log」).
+/// One thing a round read from the brain (docs/instruction.md, 「The round log」).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DraftRead {
+pub struct RoundRead {
   pub path: String,
   /// What it holds: the index's words for it where the gate's index lists it, else the name it went in with.
   pub holds: Option<String>,
@@ -1427,65 +1429,42 @@ pub struct DraftRead {
   pub how: String,
 }
 
-/// A row of the draft process table (docs/drafting.md, 「The process table」).
+/// A row of a round's pipeline (docs/instruction.md, 「The round log」).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DraftProcess {
-  /// A provider's key, or `*` for any.
-  pub provider: String,
-  /// A tier, or `*` for any.
-  pub tier: String,
-  /// An agent, or `*` for any.
+pub struct InstructionChain {
+  /// The supervisor's name, or `*` for the policy's default chain every supervisor follows until it sets one.
   pub agent_name: String,
-  /// The questions every turn's round follows, in order.
-  pub rounds: Vec<String>,
-  /// The question a row once read a send from: kept as it came and read by nothing.
-  pub send_from: String,
-  /// The questions of `rounds` that are switched off: each keeps its place and is not followed.
-  pub off: Vec<String>,
-  /// The stages after the message that are switched off: `review`, the items and the checks, by name.
-  #[serde(default)]
-  pub stages_off: Vec<String>,
-  pub ceiling_seconds: u32,
-  /// `send` or `skip`.
-  pub past_ceiling: String,
+  /// The chain's stage names, in the order they are asked once the message stands; empty runs no stage.
+  pub stages: Vec<String>,
   /// `set` or `default`.
   pub source: String,
 }
 
-/// A row of the draft process table set by the console.
+/// A supervisor's chain set by the console.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DraftProcessSet {
-  pub rounds: Vec<String>,
-  /// Read and ignored: the draft turn's answer is the message.
-  #[serde(default)]
-  pub send_from: String,
-  /// The questions of `rounds` that are switched off; left out for none.
-  #[serde(default)]
-  pub off: Vec<String>,
-  /// The stages after the message that are switched off; left out for none.
-  #[serde(default)]
-  pub stages_off: Vec<String>,
-  pub ceiling_seconds: u32,
-  /// `send` or `skip`.
-  pub past_ceiling: String,
+pub struct InstructionChainSet {
+  pub stages: Vec<String>,
 }
 
-/// A question of the draft process's catalogue.
+/// A stage of the catalogue: its name, its text and whether the console set the text; the policy's text of it where
+/// the console set one for a supervisor and the policy holds it too, null for a stage the console added.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DraftQuestion {
+pub struct InstructionText {
   pub name: String,
   pub text: String,
   /// `set` or `default`.
   pub source: String,
+  #[serde(default)]
+  pub policy_text: Option<String>,
 }
 
 /// A question's text set by the console.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct DraftQuestionSet {
+pub struct InstructionTextSet {
   pub text: String,
 }
 

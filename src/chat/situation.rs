@@ -1,4 +1,4 @@
-//! The room's situation note (docs/drafting.md, 「The situation note」): one light turn reads the room's note as it
+//! The room's situation note (docs/instruction.md, 「The situation note」): one light turn reads the room's note as it
 //! stands and the messages that came in since it last read the room's record, writes it afresh and keeps it for the
 //! room with the row it read to. The note is the receiver's own row, one a room. It is written when the agent's
 //! session leaves a room it answered in, before a handoff and on a keepalive touch, and a session reads a room's
@@ -428,7 +428,7 @@ pub fn note_from_answer(answer: &str, shown: &[String]) -> Option<String> {
   (!kept.is_empty()).then_some(kept)
 }
 
-/// Where the rooms an agent owes a situation note are kept (docs/drafting.md, 「The situation note」).
+/// Where the rooms an agent owes a situation note are kept (docs/instruction.md, 「The situation note」).
 pub fn owed_key(agent: &str) -> String {
   format!("{agent}_notes_owed")
 }
@@ -488,7 +488,7 @@ pub struct Update {
   through: Option<i64>,
 }
 
-/// The update of a room's note as its turn is asked (docs/drafting.md, 「The situation note」): the note as it
+/// The update of a room's note as its turn is asked (docs/instruction.md, 「The situation note」): the note as it
 /// stands and what it has not read — the room's record after the row it read to, or, where the room has no note
 /// yet, the latest messages the policy names, so the first note has a room to stand on. A gap longer than the
 /// policy's bound is read as its newest messages alone. None where the record holds nothing the note has not read.

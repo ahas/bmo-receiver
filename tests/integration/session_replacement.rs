@@ -93,7 +93,7 @@ impl Unified {
   async fn on(session: StandInSession) -> Self {
     let scratch = Scratch::new().await;
 
-    crate::integration::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_stages(scratch.db()).await;
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
@@ -421,34 +421,41 @@ async fn a_full_session_handed_over_by_its_note_is_replaced_at_its_next_turn_thr
   assert_eq!(unified.standing.agency.ended(), [SESSION]);
 }
 
-// The process row the supervisor's turns read, as the console sets it.
-async fn process_row(unified: &Unified, rounds: &[&str], off: &[&str]) {
-  use bmo_receiver::chat::draft::table::{ANY, PastCeiling, Process, set};
+// What a turn of the session leaves where it read the block's reading rules as `process` marks them: a judged
+// turn's leaving, with the road the first round kept.
+async fn read_rules(unified: &Unified, process: &str, judged: bool) {
+  use bmo_receiver::chat::cache::{Leaving, active_route, remember};
 
-  let named = |list: &[&str]| list.iter().map(|name| (*name).to_owned()).collect();
+  let db = unified.scratch.db();
+  let route = active_route(db, AGENT).await.unwrap().expect("the first round kept its road");
+  let leaving = Leaving {
+    chat_id: OWNER,
+    route: route.clone(),
+    moved: None,
+    process: process.to_owned(),
+    judged,
+    resumed: route.session.clone(),
+    cache_reads: None,
+    input: None,
+    text: String::new(),
+  };
 
-  set(
-    unified.scratch.db(),
-    &Process {
-      provider: ANY.to_owned(),
-      tier: ANY.to_owned(),
-      agent: AGENT.to_owned(),
-      rounds: named(rounds),
-      send_from: String::new(),
-      off: named(off),
-      stages_off: vec![],
-      ceiling_seconds: 0,
-      past_ceiling: PastCeiling::Send,
-      set: true,
-    },
-  )
-  .await
-  .unwrap();
+  remember(db, AGENT, &leaving).await.unwrap();
+}
+
+// Why the next round would replace the session, as it stands now.
+async fn reason_now(unified: &Unified) -> Option<receiver_codes::SessionReason> {
+  use bmo_receiver::chat::cache::{active_route, reset_reason};
+
+  let db = unified.scratch.db();
+  let route = active_route(db, AGENT).await.unwrap().expect("the first round kept its road");
+  let state = unified.standing.receiver.units().agency.state(SESSION).await.unwrap_or_default();
+
+  reset_reason(db, AGENT, &route, &state).await.unwrap()
 }
 
 #[tokio::test]
-async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() {
-  use bmo_receiver::chat::cache::{active_route, reset_reason};
+async fn a_session_that_read_other_reading_rules_is_replaced_once() {
   use receiver_codes::SessionReason;
 
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
@@ -456,15 +463,10 @@ async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() 
   unified.round(1, "the first words").await;
   assert!(unified.standing.agency.ended().is_empty());
 
-  // A question asked that was not: the block's stage lines are no longer the ones the session read.
-  process_row(&unified, &["final"], &[]).await;
-
-  let db = unified.scratch.db();
-  let route = active_route(db, AGENT).await.unwrap().expect("the first round kept its road");
-  let state = unified.standing.receiver.units().agency.state(SESSION).await.unwrap_or_default();
-
+  // The session read the block's rules for a message and an instruction as a deployment before this one set them.
+  read_rules(&unified, "rules-of-an-earlier-deployment", true).await;
   assert_eq!(
-    reset_reason(db, AGENT, &route, &state).await.unwrap(),
+    reason_now(&unified).await,
     Some(SessionReason::Process),
     "the replacement names the process"
   );
@@ -472,7 +474,7 @@ async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() 
 
   let ended = unified.standing.agency.ended();
 
-  assert_eq!(ended, [SESSION], "the session that read the instructions as they were is replaced");
+  assert_eq!(ended, [SESSION], "the session that read the rules as they were is replaced");
   assert!(
     unified.session.prompts()[1].contains("the second words"),
     "the round that found the change goes on in the session as it stood: {:?}",
@@ -480,73 +482,43 @@ async fn a_change_of_the_draft_process_instructions_replaces_the_session_once() 
   );
 
   unified.round(3, "the third words").await;
-  assert_eq!(unified.standing.agency.ended(), ended, "instructions that stand replace nothing more");
+  assert_eq!(unified.standing.agency.ended(), ended, "rules that stand replace nothing more");
 }
 
 #[tokio::test]
-async fn a_turn_that_judges_no_replacement_leaves_a_change_of_the_process_instructions_to_the_next_round() {
-  use bmo_receiver::chat::cache::{Leaving, active_route, remember, reset_reason};
+async fn a_turn_that_judges_no_replacement_leaves_a_change_of_the_reading_rules_to_the_next_round() {
   use bmo_receiver::chat::room::process_mark;
   use receiver_codes::SessionReason;
 
   let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
 
   unified.round(1, "the first words").await;
-  process_row(&unified, &["final"], &[]).await;
-
-  let db = unified.scratch.db();
-  let route = active_route(db, AGENT).await.unwrap().expect("the first round kept its road");
+  read_rules(&unified, "rules-of-an-earlier-deployment", true).await;
 
   // A situation note goes on the session as it stands, carrying the block as it now is, and judges nothing.
-  remember(
-    db,
-    AGENT,
-    &Leaving {
-      chat_id: OWNER,
-      route: route.clone(),
-      moved: None,
-      process: process_mark(db, AGENT).await.unwrap(),
-      judged: false,
-      resumed: route.session.clone(),
-      cache_reads: None,
-      input: None,
-      text: String::new(),
-    },
-  )
-  .await
-  .unwrap();
-
-  let state = unified.standing.receiver.units().agency.state(SESSION).await.unwrap_or_default();
-
+  read_rules(&unified, &process_mark(), false).await;
   assert_eq!(
-    reset_reason(db, AGENT, &route, &state).await.unwrap(),
+    reason_now(&unified).await,
     Some(SessionReason::Process),
-    "the next round still finds the instructions the session read are not the ones that stand"
+    "the next round still finds the rules the session read are not the ones that stand"
   );
 }
 
 #[tokio::test]
-async fn a_change_that_leaves_the_process_instructions_as_they_were_replaces_nothing() {
-  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+async fn a_chain_or_a_stage_text_the_console_sets_replaces_no_session() {
+  use bmo_receiver::chat::stages::table::{set, set_text};
 
-  process_row(&unified, &["information", "final"], &[]).await;
+  let unified = Unified::on(StandInSession::new(SESSION, ANSWER)).await;
+  let db = unified.scratch.db();
+
   unified.round(1, "the first words").await;
 
-  // The same row set again is no change of the block.
-  process_row(&unified, &["information", "final"], &[]).await;
+  // A stage's words ride its own turn, so nothing of the block moves with the chain or a stage's text.
+  set_text(db, AGENT, "tone", "Is the tone right?").await.unwrap();
+  set(db, AGENT, &["tone".to_owned(), "review".to_owned()]).await.unwrap();
+  assert_eq!(reason_now(&unified).await, None);
   unified.round(2, "the second words").await;
-  assert!(unified.standing.agency.ended().is_empty(), "the same row set again replaces nothing");
-
-  // A question switched off and on again before the session's next turn leaves the block as it was.
-  process_row(&unified, &["information", "final"], &["information"]).await;
-  process_row(&unified, &["information", "final"], &[]).await;
-  unified.round(3, "the third words").await;
-  assert!(unified.standing.agency.ended().is_empty(), "a change set back replaces nothing");
-
-  // Switched off, it leaves the block, and the session that read its line is replaced.
-  process_row(&unified, &["information", "final"], &["information"]).await;
-  unified.round(4, "the fourth words").await;
-  assert_eq!(unified.standing.agency.ended(), [SESSION]);
+  assert!(unified.standing.agency.ended().is_empty(), "the session goes on");
 }
 
 // A state of the session that names no provider or model — the agency restarting, or a session opened afresh and

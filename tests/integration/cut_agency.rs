@@ -92,7 +92,7 @@ impl Cut {
   async fn stood() -> Self {
     let scratch = Scratch::new().await;
 
-    crate::integration::common::session::no_drafting(scratch.db()).await;
+    crate::integration::common::session::no_stages(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));

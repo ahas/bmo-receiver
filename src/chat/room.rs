@@ -10,13 +10,11 @@ use std::sync::LazyLock;
 
 use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
-use receiver_policy::drafting::DRAFTING;
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
-use receiver_policy::second_asks::SECOND_ASKS;
+use receiver_policy::instruction::INSTRUCTION;
 use receiver_policy::tool_host::TOOL_HOST;
 use regex::Regex;
-use sea_orm::DatabaseConnection;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -57,7 +55,7 @@ pub fn read_required(path: &Path) -> Result<String, Fault> {
   )
 }
 
-/// The room's block, the line that restates it, and the fingerprint of the draft process's part of the block,
+/// The room's block, the line that restates it, and the fingerprint of the block's rules for reading a turn,
 /// which a session is replaced on where it changes (docs/unified-bmo.md, 「Replacing the session」).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RoomContext {
@@ -464,62 +462,20 @@ pub async fn roster(receiver: &Receiver) -> Result<String, Fault> {
   Ok(lines.join("\n"))
 }
 
-// The draft process's stage instructions, as a supervisor's room block carries them (docs/drafting.md, 「The
-// questions」): the head and one line for each question the supervisor's row may ask, ordinary or light, out of the
-// supervisor's catalogue; then what a waiting line means and the rules of the items and checks that follow the
-// message, which stand here whether the row asks a question or none, each but those the row switches off.
-async fn stages(db: &DatabaseConnection, agent: &str) -> Result<String, Fault> {
-  let mut parts = vec![];
-  let row = super::draft::table::row_of(db, agent).await?;
-  let runs = |stage: &str| !row.as_ref().is_some_and(|row| row.stage_off(stage));
-
-  if let Some(row) = &row {
-    let catalogue = super::draft::table::questions(db, Some(agent)).await?;
-    // A question the row has switched off is not asked, so the block carries no line for it.
-    let names = row.asked(&row.rounds);
-
-    if !names.is_empty() {
-      parts.push(fill_marks(&DRAFTING.stages_head, &[("voice", &DRAFTING.voice)]));
-
-      for name in names {
-        if let Some(question) = catalogue.iter().find(|question| question.name == name) {
-          parts.push(fill_marks(&DRAFTING.stage, &[("name", &name), ("text", &question.text)]));
-        }
-      }
-    }
-  }
-
-  // The lines a turn carries only as data, and the rules the items and checks that follow the message follow.
-  parts.push(SECOND_ASKS.later.clone());
-  parts.push(SECOND_ASKS.items_head.clone());
-
-  for (stage, rule) in [
-    ("owed", SECOND_ASKS.errands.owed.clone()),
-    ("owner_directive", SECOND_ASKS.errands.owner_directive.clone()),
-    ("record", SECOND_ASKS.errands.record.clone()),
-    ("wake", SECOND_ASKS.errands.wake.clone()),
-    ("rule", SECOND_ASKS.errands.rule.clone()),
-    ("arrived", fill_marks(&DRAFTING.arrived, &[("voice", &DRAFTING.voice)])),
-    ("format", SECOND_ASKS.errands.format.clone()),
-  ] {
-    if runs(stage) {
-      parts.push(rule);
-    }
-  }
-
-  Ok(parts.join("\n"))
+// How a message and an instruction are read and how each is answered, as the room's block carries them once
+// (docs/instruction.md, 「What reaches an agent」): an instruction's own words ride its turn, so nothing here changes
+// with a supervisor's chain or its stages' words.
+fn reading_rules() -> String {
+  [
+    INSTRUCTION.message_rule.clone(),
+    INSTRUCTION.instruction_rule.clone(),
+    fill_marks(&INSTRUCTION.answer_rule, &[("pass", &INSTRUCTION.pass)]),
+    fill_marks(&INSTRUCTION.arrived, &[("voice", &INSTRUCTION.voice)]),
+  ]
+  .join("\n")
 }
 
-// The review's instructions, as the room's block carries them (docs/drafting.md, 「The review」): what the review
-// reads, the verdict words it answers, and what a revision round does with the reason it is shown.
-fn review_instruction() -> String {
-  let said = &DRAFTING.review;
-  let review = fill_marks(&said.instruction, &[("pass", &said.pass), ("reject", &said.reject)]);
-
-  format!("{review}\n{}", said.revise)
-}
-
-// The situation-note instruction, as the room's block carries it (docs/drafting.md, 「The situation note」): the
+// The situation-note instruction, as the room's block carries it (docs/instruction.md, 「The situation note」): the
 // policy's text with its character ceiling.
 fn situation_instruction() -> String {
   let said = &CHAT_ROUND.situation;
@@ -527,25 +483,19 @@ fn situation_instruction() -> String {
   fill_marks(&said.instruction, &[("ceiling", &said.ceiling_chars.to_string())])
 }
 
-/// The draft process's part of a supervisor's room block, the same in every room it answers (docs/drafting.md,
-/// 「The questions」): the process's fixed rules, the stage lines, the supervisor's first judgement and the review's
-/// instructions, in the order the block carries them.
-pub async fn process_part(db: &DatabaseConnection, agent: &str) -> Result<Vec<String>, Fault> {
-  let supervisor = super::draft::table::supervisor_text(db, agent).await?;
-  let mut parts = vec![
+/// The part of the room's block that says how a turn is read and answered, the same for every supervisor in every
+/// room (docs/instruction.md, 「What reaches an agent」): the rules for a room's words, the rules for reading and
+/// answering a message and an instruction, and the agent's first judgement, in the order the block carries them.
+pub fn process_part() -> Vec<String> {
+  vec![
     CHAT_LINE.room.process.clone(),
-    stages(db, agent).await?,
+    reading_rules(),
     CHAT_ROUND.supervisor.structure.clone(),
     fill_marks(
       &CHAT_ROUND.supervisor.rule,
-      &[("marker", &CHAT_ROUND.supervisor.marker), ("question", &supervisor)],
+      &[("marker", &CHAT_ROUND.supervisor.marker), ("question", &CHAT_ROUND.supervisor.question)],
     ),
-  ];
-
-  // Every round's message is reviewed, so the block always carries the review's instructions.
-  parts.push(review_instruction());
-
-  Ok(parts)
+  ]
 }
 
 /// The fingerprint of the process's part of the block as its parts stand.
@@ -553,9 +503,9 @@ pub fn process_mark_of(parts: &[String]) -> String {
   format!("{:x}", Sha256::digest(parts.join("\n\n").as_bytes()))
 }
 
-/// The fingerprint of the process's part of a supervisor's block as it stands now.
-pub async fn process_mark(db: &DatabaseConnection, agent: &str) -> Result<String, Fault> {
-  Ok(process_mark_of(&process_part(db, agent).await?))
+/// The fingerprint of the process's part of the block as the policy sets it now.
+pub fn process_mark() -> String {
+  process_mark_of(&process_part())
 }
 
 /// The room's block a turn in a room carries, answering on the road it was asked on where that road reaches
@@ -576,7 +526,7 @@ pub async fn room_context(
   let elsewhere = (road.key != home.key).then_some(&home);
   let title = serde_json::to_string(&rows::chat_title(receiver.db(), chat_id).await?).unwrap_or_default();
   let server = server_facts(receiver).await;
-  let process = process_part(receiver.db(), agent).await?;
+  let process = process_part();
   let process_mark = process_mark_of(&process);
   let mut parts = vec![
     fill_marks(&said.head, &[("chat", &chat_id.to_string()), ("kind", kind)]),

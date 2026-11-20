@@ -1,4 +1,4 @@
-//! A turn's own mark (docs/drafting.md, 「The turn's mark」): what one round of a turn has already handed the
+//! A turn's own mark (docs/instruction.md, 「The turn's mark」): what one round of a turn has already handed the
 //! session, so a later round of the same turn carries the line and not the body. It is the turn's, separate from
 //! the session's mark, and is let go when the turn ends.
 

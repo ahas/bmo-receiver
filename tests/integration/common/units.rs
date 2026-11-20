@@ -2552,7 +2552,7 @@ pub fn unrun(
     .with_news(heard.clone())
     .with_wake(waking.clone())
     .with_situation_updates(false)
-    .with_review_gate(false)
+    .with_instruction_gate(false)
     .stopping_voice_every(Duration::from_millis(2));
 
   Standing {

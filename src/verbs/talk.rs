@@ -1,6 +1,6 @@
 //! `bmo talk`: words for a room, as a line or as a spoken line in a voice (docs/boundary-api.md, 「The unit
-//! command」). Neither is said here: words go into a room only as a round's message, which the draft process
-//! writes and reviews, so the receiver refuses them in the asker's own round for that round's room and hands them
+//! command」). Neither is said here: words go into a room only as a round's message, which the round writes and
+//! its instruction stages check, so the receiver refuses them in the asker's own round for that round's room and hands them
 //! to the room's supervisor everywhere else (docs/messages.md, 「Words handed to the room's supervisor」). A spoken
 //! line is asked by its words — the voice, the written words and the spoken words where given — and nothing is
 //! synthesised.

@@ -8,7 +8,6 @@ mod avatars;
 mod brain;
 mod briefing;
 mod console;
-mod drafts;
 mod events;
 mod figures;
 mod file_fills;
@@ -26,6 +25,7 @@ mod rooms;
 mod say;
 mod sends;
 mod speakers;
+mod stages;
 mod supervisors;
 mod talks;
 mod writable;
@@ -290,17 +290,13 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("DELETE", "/rooms/{roomId}", delete(room_removal::remove)),
     ("GET", "/rounds/openings", get(openings::openings)),
     ("GET", "/rounds/openings/{instructionId}", get(openings::instruction)),
-    ("GET", "/rounds/drafts", get(drafts::drafts)),
-    ("GET", "/draft-processes", get(drafts::processes)),
-    ("PUT", "/draft-processes/{provider}/{tier}/{agentName}", put(drafts::set_process)),
-    (
-      "DELETE",
-      "/draft-processes/{provider}/{tier}/{agentName}",
-      delete(drafts::remove_process),
-    ),
-    ("GET", "/draft-questions", get(drafts::questions)),
-    ("PUT", "/draft-questions/{agentName}/{name}", put(drafts::set_question)),
-    ("DELETE", "/draft-questions/{agentName}/{name}", delete(drafts::remove_question)),
+    ("GET", "/rounds/pipeline", get(stages::rounds)),
+    ("GET", "/instruction-stages", get(stages::chains)),
+    ("PUT", "/instruction-stages/{agentName}", put(stages::set_chain)),
+    ("DELETE", "/instruction-stages/{agentName}", delete(stages::remove_chain)),
+    ("GET", "/instruction-texts", get(stages::texts)),
+    ("PUT", "/instruction-texts/{agentName}/{name}", put(stages::set_text)),
+    ("DELETE", "/instruction-texts/{agentName}/{name}", delete(stages::remove_text)),
     ("POST", "/supervisors", post(supervisors::add)),
     ("DELETE", "/supervisors/{supervisorName}", delete(supervisors::remove)),
     ("POST", "/supervisors/{supervisorName}/resets", post(supervisors::reset)),

@@ -171,7 +171,7 @@ async fn a_voice_note_in_the_agents_own_round_is_refused_since_its_words_go_into
     answer["refusal"].as_str().is_some_and(|why| why.contains("go into the round's answer")),
     "{answer:?}"
   );
-  assert!(road.sent().is_empty(), "no voice note went out without the draft process");
+  assert!(road.sent().is_empty(), "no voice note went out outside a round's message");
 }
 
 #[tokio::test]

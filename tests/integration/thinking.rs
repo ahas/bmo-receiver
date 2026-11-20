@@ -19,7 +19,7 @@ use receiver_ports::gate::{Entry, Source};
 use serde_json::json;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::session::{StandInSession, no_drafting};
+use crate::integration::common::session::{StandInSession, no_stages};
 use crate::integration::common::units::{
   ADDRESS, AGENT, Heard, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
 };
@@ -128,7 +128,7 @@ impl Round {
   async fn new(session: StandInSession, unified: bool) -> Self {
     let scratch = Scratch::new().await;
 
-    no_drafting(scratch.db()).await;
+    no_stages(scratch.db()).await;
 
     let data = tempfile::tempdir().unwrap();
     let chat = Arc::new(StandInChat::new("road-a").owners(OWNER).holding(&[OTHER]));
