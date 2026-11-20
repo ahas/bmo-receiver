@@ -2,16 +2,6 @@
 # agency's events wake」): a job's run fallen to a lesser model, the overtime order and a road's change. `{name}` marks what each
 # line carries.
 
-# The owner notice of a job's question the owner did not answer by its due time, which the job service settled
-# on its recommendation (docs/api.md, 「Notices」): its `code`, and the fact it is told as, `{question}`, `{item}`,
-# the item worded by `item` where the notice names one and nothing where it does not, the `{answer}` it went with
-# and the recommendation's reason, `{why}`.
-[question_settled]
-code = "job-question-settled"
-fact = "The owner did not answer question #{question}{item} by its due time, so it was settled on its recommendation, with the answer: {answer}. The recommendation's reason: {why}"
-item = " on item #{item}"
-intent = "tell the owner he did not answer in time, so it went with the recommendation, and which answer it went with."
-
 # A job's run that answered on a lesser model than it was launched on: the {role} it ran as, the {place} it ran
 # in, the {model} it fell to and the one it was {launched} on, the {job} it ran for where it names one, and what
 # became of the session its role keeps there.

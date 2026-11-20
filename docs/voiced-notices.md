@@ -48,10 +48,8 @@ agent that answers the room says the line.
 - **Through the instruction queue, always.** A notice is a queued instruction row, never a direct hand-off to a
   live session: the queue holds a row while the rest closes its agent's road, where a direct hand-off to a
   session that cannot take a turn would be lost. The agency queues the job queue's notices with `POST /instructions`, as `bmo job ask` does a job's
-  question from the job's own process, and its owner notices — an
-  idle queue, a job's question past its due time, a job that failed in another room — with
-  `POST /owner/notices`; the brain its owner notices with
-  `POST /owner/notices`.
+  question from the job's own process; a unit that tells the owner a fact as a code and its parameters, with
+  no words of its own, queues it with `POST /owner/notices`.
 - **Delivered at once, unless it rides.** The instruction pass delivers pending rows on its regular tick; a
   notice queued through a route or by the receiver itself also asks for a pass straight away, so it does not wait
   for the tick. A notice queued to ride waits for the next round its room opens for something else instead

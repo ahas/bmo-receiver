@@ -9,8 +9,6 @@ use sea_orm::DatabaseConnection;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
-use receiver_policy::fill_marks;
-use receiver_policy::owner_facts::OWNER_FACTS;
 use room_calls::promises::waits_on_happening;
 
 use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, store};
@@ -21,41 +19,8 @@ use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, reads};
 use crate::routes::writable::WritableRoom;
 
-// What an owner notice's line is for: the brain writes no sentence, its agent says the fact.
+// What an owner notice's line is for: the caller writes no sentence, the agent says the fact.
 const OWNER_INTENT: &str = "tell the owner what the system recorded.";
-
-// A parameter of an owner notice as words: a string as it is, a number as its digits, nothing for null.
-fn said(value: Option<&Value>) -> String {
-  match value {
-    Some(Value::String(said)) => said.clone(),
-    Some(Value::Null) | None => String::new(),
-    Some(other) => other.to_string(),
-  }
-}
-
-// An owner notice's fact and what it is for: a code the receiver words itself in its own words, any other the code
-// and its parameters, which the agent says.
-fn worded(code: &str, asked: &Map<String, Value>) -> (String, &'static str) {
-  let settled = &OWNER_FACTS.question_settled;
-
-  if code != settled.code {
-    return (json!(asked).to_string(), OWNER_INTENT);
-  }
-
-  let item = said(asked.get("itemId"));
-  let item = if item.is_empty() { item } else { fill_marks(&settled.item, &[("item", &item)]) };
-  let fact = fill_marks(
-    &settled.fact,
-    &[
-      ("question", &said(asked.get("questionId"))),
-      ("item", &item),
-      ("answer", &said(asked.get("answer"))),
-      ("why", &said(asked.get("why"))),
-    ],
-  );
-
-  (fact, &settled.intent)
-}
 
 // A read of the room that could not be made because a unit it reaches did not answer.
 fn reached(why: NotReceived) -> Refusal {
@@ -391,7 +356,6 @@ pub async fn notice(State(served): State<Served>, body: axum::body::Bytes) -> Ac
   let Some(code) = asked.get("code").and_then(|code| code.as_str()) else {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "The body holds no `code` to notice."));
   };
-  let (fact, intent) = worded(code, &asked);
   let queued = Queued {
     kind: Some(code),
     sort: Some("notice"),
@@ -402,7 +366,7 @@ pub async fn notice(State(served): State<Served>, body: axum::body::Bytes) -> Ac
     receiver.db(),
     &receiver.default_answerer(),
     receiver.owner_room(),
-    &frame(&fact, intent, None, false),
+    &frame(&json!(asked).to_string(), OWNER_INTENT, None, false),
     &queued,
   )
   .await

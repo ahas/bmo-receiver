@@ -1,6 +1,6 @@
 //! What the owner's session is told of the agency's events that no other part words (docs/policy.md): a
-//! job's run fallen to a lesser model, the overtime order, a road the agency moved, returned or found closed,
-//! and a job's question settled on its recommendation.
+//! job's run fallen to a lesser model, the overtime order, and a road the agency moved, returned or found
+//! closed.
 
 use serde::Deserialize;
 
@@ -18,17 +18,6 @@ pub struct WorkerDowngraded {
   pub kept: String,
   pub role_none: String,
   pub kind: String,
-}
-
-/// The owner notice of a question settled on its recommendation once its due time passed: its code, its fact,
-/// the item as the fact names it, and what it is for.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct QuestionSettled {
-  pub code: String,
-  pub fact: String,
-  pub item: String,
-  pub intent: String,
 }
 
 /// The order a run past its clock hands the default answerer.
@@ -83,7 +72,6 @@ pub struct OwnerFacts {
   pub worker_downgraded: WorkerDowngraded,
   pub overtime: Overtime,
   pub road: Road,
-  pub question_settled: QuestionSettled,
 }
 
 crate::part!(pub OWNER_FACTS: OwnerFacts = "owner-facts.toml");
