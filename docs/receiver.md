@@ -816,6 +816,21 @@ flowchart TD
   console retitles a person's own supervisor's private room as the person's name changes. A room a chat service
   carries is refused that write, its title standing as its service gives it.
 
+## A room's tone layer
+
+- **A room is set to one tone layer or to none,** a row of the receiver's own (`room_tones`, `docs/store.md`); a
+  room with no row is set to none. The layer is a file of the deployment, `prompts/persona/<tone>.md` under the
+  data root, and the layers a room may be set to are the ones the configuration's `tones` names
+  (`docs/boundary-api.md`, 「Configuration」).
+- **The room's block carries the layer** under the tone header of the policy's `chat-line.toml`, read from its file
+  as each block is composed (`docs/unified-bmo.md`, 「The system prompt and the room switch」). A room set to none,
+  and one whose layer's file is missing or empty, carries no layer. A change is a new version of the block, which
+  the room's session is given in full on its next turn; no session is replaced for it.
+- **The administrator sets it from the console,** `PUT /rooms/{roomId}/tone` (`docs/api.md`, 「Rooms」). A layer the
+  configuration does not name is refused, so a room is never set to a file the deployment does not offer. A layer
+  the configuration stops naming stays set on the rooms that hold it, and their blocks carry it while its file
+  stands.
+
 ## The room's situation
 
 - **A room's situation note is the receiver's own row** (`room_situations`, `docs/store.md`), one a room, replaced

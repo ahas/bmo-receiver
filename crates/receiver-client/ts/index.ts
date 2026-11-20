@@ -50,6 +50,8 @@ export type ChangeRoomMode = Schemas["ChangeRoomMode"];
 export type RoomArchive = Schemas["RoomArchive"];
 export type RoomLeaders = Schemas["RoomLeaders"];
 export type ChangeRoomArchive = Schemas["ChangeRoomArchive"];
+export type RoomTone = Schemas["RoomTone"];
+export type ChangeRoomTone = Schemas["ChangeRoomTone"];
 export type ChangeRoomTitle = Schemas["ChangeRoomTitle"];
 export type RoomTitle = Schemas["RoomTitle"];
 export type Notice = Schemas["Notice"];
@@ -221,6 +223,21 @@ export function receiverClient(options: ReceiverOptions) {
     /** `PUT /rooms/{roomId}/title`, for a room on the record alone. */
     async changeRoomTitle(roomId: number, body: ChangeRoomTitle): Promise<RoomTitle> {
       return answered(await client.PUT("/rooms/{roomId}/title", { params: { path: { roomId } }, body }));
+    },
+
+    /** `GET /rooms/{roomId}/tone`. */
+    async roomTone(roomId: number): Promise<RoomTone> {
+      return answered(await client.GET("/rooms/{roomId}/tone", { params: { path: { roomId } } }));
+    },
+
+    /** `PUT /rooms/{roomId}/tone`, as the administrator the console names. */
+    async changeRoomTone(roomId: number, by: string, body: ChangeRoomTone): Promise<RoomTone> {
+      return answered(
+        await client.PUT("/rooms/{roomId}/tone", {
+          params: { path: { roomId }, query: { by } },
+          body,
+        }),
+      );
     },
 
     /** `GET /rooms/{roomId}/messages`. */

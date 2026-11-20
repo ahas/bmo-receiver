@@ -41,6 +41,7 @@ pub mod situation;
 pub mod spoken;
 pub mod talk;
 pub mod thread;
+pub mod tone;
 pub mod touch;
 pub mod turn_mark;
 pub mod turnover;

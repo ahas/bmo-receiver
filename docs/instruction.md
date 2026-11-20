@@ -307,7 +307,7 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 - **What the session read is the agency's record of its loads,** the pieces the gate handed the session and those it read
   through the gate's index (the agency's `GET /session-loads/{sessionId}`), with the round's own core: a person counts as
   read where a piece is their sheet, told by the person's key in its path (`…/people/<key>/…`), or a memory the brain
-  names them a subject of. Only the brain counts: a room's persona documents are no source. The brain's own marks of what
+  names them a subject of. Only the brain counts. The brain's own marks of what
   it handed a session are not read, since no live session's recall keeps them, and the agent's own brain tool reads are
   not counted, since its calls reach the brain without the gate and leave no load.
 - **A person read in this session is passed over.** For one read in nothing, the brain is asked what it holds of them

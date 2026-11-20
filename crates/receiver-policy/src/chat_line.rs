@@ -3,11 +3,11 @@
 
 use serde::Deserialize;
 
+/// The header a room's tone layer stands under in its block.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Persona {
-  pub tone_header: String,
-  pub room_header: String,
+pub struct Tone {
+  pub header: String,
 }
 
 /// The lines the roster of the owner's private chat names its members under: the other supervisors, each a
@@ -81,7 +81,7 @@ pub struct Downgrade {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChatLine {
-  pub persona: Persona,
+  pub tone: Tone,
   pub room: Room,
   pub capabilities: Capabilities,
   pub downgrade: Downgrade,

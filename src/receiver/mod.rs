@@ -400,6 +400,8 @@ pub struct Deployment {
   pub notices_room: Option<i64>,
   /// The language the rooms are spoken in, which a fixed line is rendered in.
   pub language: String,
+  /// The tone layers a room may be set to, by name.
+  pub tones: Vec<String>,
 }
 
 /// The units a receiver reaches: the chat services through their roads, the gate, the web unit, the agency whose

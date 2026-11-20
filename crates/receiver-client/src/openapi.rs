@@ -367,6 +367,40 @@ pub fn openapi() -> Value {
   );
   add!(
     "GET",
+    "/rooms/{roomId}/tone",
+    "roomTone",
+    "Rooms",
+    "The tone layer a room is set to, and the layers the deployment offers.",
+    vec![path_parameter("roomId")],
+    None,
+    vec![(200, json_answer::<RoomTone>(&mut generator))],
+    vec!["unauthorized", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/tone",
+    "changeRoomTone",
+    "Rooms",
+    "A room set to a tone layer the deployment offers, or to none, by the administrator; its block carries the layer from its next turn.",
+    vec![
+      path_parameter("roomId"),
+      parameter("by", "string", true),
+      parameter("account", "integer", false)
+    ],
+    Some(generator.subschema_for::<ChangeRoomTone>()),
+    vec![(200, json_answer::<RoomTone>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "unknown-tone",
+      "not-administrator",
+      "not-found",
+      "private-room",
+      "failed"
+    ]
+  );
+  add!(
+    "GET",
     "/rooms/{roomId}/answerers",
     "roomAnswerers",
     "Rooms",

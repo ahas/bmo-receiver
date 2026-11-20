@@ -577,6 +577,21 @@
         ],
         "type": "object"
       },
+      "ChangeRoomTone": {
+        "description": "`PUT /rooms/{roomId}/tone`: the tone layer a room is to stand in, one the deployment offers, or null for none.",
+        "properties": {
+          "tone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "tone"
+        ],
+        "type": "object"
+      },
       "ChangeSpeaker": {
         "description": "`PUT /rooms/{roomId}/messages/{messageId}/speaker`: the agent a kept line standing under its own number in the\nroom is to be filed as.",
         "properties": {
@@ -3367,6 +3382,35 @@
         },
         "required": [
           "title"
+        ],
+        "type": "object"
+      },
+      "RoomTone": {
+        "description": "`GET /rooms/{roomId}/tone`: the tone layer a room is set to, and the layers the deployment offers.",
+        "properties": {
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "tone": {
+            "description": "The layer's name; null where the room is set to none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tones": {
+            "description": "The layers a room may be set to, as the deployment's configuration names them.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "room",
+          "tone",
+          "tones"
         ],
         "type": "object"
       },
@@ -9377,6 +9421,127 @@
           "not-found",
           "private-room",
           "titled-by-service",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/tone": {
+      "get": {
+        "operationId": "roomTone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomTone"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, failed"
+          }
+        },
+        "summary": "The tone layer a room is set to, and the layers the deployment offers.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "changeRoomTone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoomTone"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomTone"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, unknown-tone, not-administrator, not-found, private-room, failed"
+          }
+        },
+        "summary": "A room set to a tone layer the deployment offers, or to none, by the administrator; its block carries the layer from its next turn.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "unknown-tone",
+          "not-administrator",
+          "not-found",
+          "private-room",
           "failed"
         ]
       }

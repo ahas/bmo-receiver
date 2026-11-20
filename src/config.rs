@@ -68,6 +68,10 @@ pub struct Config {
   #[serde(default)]
   pub notices_room: Option<i64>,
   pub language: String,
+  /// The tone layers a room may be set to, each the name of its file under the data root's persona folder
+  /// (docs/receiver.md, 「A room's tone layer」); none where the configuration names none.
+  #[serde(default)]
+  pub tones: Vec<String>,
   /// No limit on a file's size stands in the configuration (docs/boundary-api.md, 「Configuration」): a file that
   /// still names one loads, and the value is read by nothing.
   #[serde(default)]
@@ -154,6 +158,7 @@ impl Config {
       owner_room: self.owner_room,
       notices_room: self.notices_room,
       language: self.language.clone(),
+      tones: self.tones.clone(),
     }
   }
 

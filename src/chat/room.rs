@@ -1,7 +1,7 @@
 //! The room's block a turn of BMO's chat carries ahead of its prompt (docs/unified-bmo.md, 「The system prompt
 //! and the room switch」): which room this is and what it is called, the chat's document for its kind with the
 //! roster in the owner's own chat, what the road the turn answers on does with marks, shows and sends, the
-//! room's persona and what is in force in it — and the one line that restates it to a session holding this
+//! room's tone layer and what is in force in it — and the one line that restates it to a session holding this
 //! version from earlier. Variable room instructions belong to a turn, never to the cached prefix, so the
 //! prefix every room shares stays one.
 
@@ -68,10 +68,6 @@ pub struct RoomContext {
 // A heading of the capability document naming the verb it is about and what that verb is called.
 static CAPABILITY: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^CAPABILITY ([A-Za-z]+): (.+)$").expect("a capability heading"));
-
-// The tone a room's persona file may open with.
-static TONE: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"^tone:[ \t]*(\S+)[ \t]*(?:\n|$)").expect("a tone line"));
 
 /// What the room is: the owner's own chat, or a group.
 pub async fn room_kind(receiver: &Receiver, chat_id: i64) -> Result<&'static str, Fault> {
@@ -234,41 +230,6 @@ pub fn capability_context(
   parts.push(withheld);
 
   Ok(joined(parts, "\n\n"))
-}
-
-// A persona file, trimmed, or nothing where there is none.
-fn persona_file(path: &Path) -> String {
-  std::fs::read_to_string(path).map(|text| js::trim(&text).to_owned()).unwrap_or_default()
-}
-
-fn persona_dir(trees: &Trees) -> PathBuf {
-  trees.data.join("prompts").join("persona")
-}
-
-/// The room's tone layer and its own persona, each under its header: the tone its file opens with, `none` for
-/// none, or the default.
-pub fn room_persona(trees: &Trees, chat_id: i64) -> String {
-  let said = &CHAT_LINE.persona;
-  let raw = persona_file(&persona_dir(trees).join("rooms").join(format!("{chat_id}.md")));
-  let (tone, text) = match TONE.captures(&raw) {
-    Some(found) => {
-      let tone = (&found[1] != "none").then(|| found[1].to_owned());
-
-      (tone, js::trim(&raw[found[0].len()..]).to_owned())
-    }
-    None => (None, raw.clone()),
-  };
-  let tone = tone
-    .map(|name| persona_file(&persona_dir(trees).join(format!("{name}.md"))))
-    .unwrap_or_default();
-
-  joined(
-    vec![
-      if tone.is_empty() { String::new() } else { format!("{}\n{tone}", said.tone_header) },
-      if text.is_empty() { String::new() } else { format!("{}\n{text}", said.room_header) },
-    ],
-    "\n\n",
-  )
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -587,7 +548,10 @@ pub async fn room_context(
   );
   parts.push(capability_context(&trees, &server, &road, elsewhere)?);
   parts.push(fill_marks(&said.road, &[("key", &road.key)]));
-  parts.push(room_persona(&trees, chat_id));
+  parts.push(super::tone::layer(
+    &trees,
+    super::tone::tone_of(receiver.db(), chat_id).await?.as_deref(),
+  ));
   parts.push(room_rules(receiver, chat_id).await?);
   parts.push(said.end.clone());
 

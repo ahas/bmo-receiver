@@ -173,7 +173,7 @@ pub struct Held {
 
 /// What a round hands the session: the composed prompt, the room its turn answers in, the road it answers on,
 /// the messages it answers and when it took them. The carrying fills what the session's own program needs
-/// beside these — its room block and persona — from the receiver's own parts.
+/// beside these — its room block — from the receiver's own parts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Asking {
   pub chat_id: i64,

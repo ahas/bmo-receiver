@@ -10,6 +10,8 @@ owner = 42
 agent = "agent-a"
 sender_name = "Agent A"
 language = "en"
+# The tone layers a room may be set to, each the name of its file under the data root's persona folder.
+tones = ["plain", "dry"]
 
 # The names a deployment chooses beyond the required ones: the infrastructure room, the brain root a document reload reads the brain's
 # documents from in place of `brain` under the data root, the tree the agents' shipped documents stand in, which a

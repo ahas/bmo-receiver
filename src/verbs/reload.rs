@@ -384,8 +384,6 @@ pub async fn chats_concerned(receiver: &Receiver, places: &Places, path: &str) -
 
   match parts.as_slice() {
     ["docs", "lore", ..] => sessions.clone(),
-    ["persona", "rooms", _, ..] => only(named.parse::<i64>().into_iter().collect()),
-    ["persona", ..] => sessions.clone(),
     ["agents", "chat", ..] if named == "rules" => {
       sessions.iter().filter(|chat| **chat != receiver.owner_room()).copied().collect()
     }

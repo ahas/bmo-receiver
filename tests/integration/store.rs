@@ -15,6 +15,7 @@ use bmo_receiver::store::migration::m20261027_000022_room_situations::TABLE as R
 use bmo_receiver::store::migration::m20261029_000030_room_settings_dropped::TABLES as DROPPED_SETTINGS;
 use bmo_receiver::store::migration::m20261106_000034_session_notes::TABLE as SESSION_NOTES;
 use bmo_receiver::store::migration::m20261119_000057_retire_draft_process::TABLES as INSTRUCTION_TABLES;
+use bmo_receiver::store::migration::m20261120_000058_room_tones::TABLE as ROOM_TONES;
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -62,6 +63,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
       "private_rooms",
       "agent_avatar_sets",
       "people_names",
+      ROOM_TONES,
     ])
     .chain(NEWS_BRIEFS_TABLES)
     .chain(ROOM_PROVIDERS_TABLES)

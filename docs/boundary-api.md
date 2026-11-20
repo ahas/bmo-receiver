@@ -37,7 +37,8 @@ whose label and call names (`aliases` on `GET /supervisors`) are the words a roo
 one is named in place of the room numbered as the owner's own number, a room `owner-room` below stands up on the
 record alone among what it may name (`docs/receiver.md`, 「Identity, and reaching the owner」); the owner's notices room, `notices_room`, the room the system's other notices to the owner go to, never a briefing's, which goes to his private room;
 the owner's private room where none is named; the language the rooms are spoken in, which
-a fixed line is rendered in; the brain
+a fixed line is rendered in; `tones`, the tone layers a room may be set to, each the name of its file under the
+data root's persona folder, none where it names none (`docs/receiver.md`, 「A room's tone layer」); the brain
 root, where the brain's documents stand; the document tree, where the documents that ship with the agents' code
 stand; the deploy roots, the folder every unit's deploy root stands in as `bmo-<unit>`, the account's
 `.local/share` where it names none; the tool host's control socket, `tool_host_socket`, where it stands apart

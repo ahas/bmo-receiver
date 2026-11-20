@@ -69,7 +69,7 @@ agent that answers the room says the line.
 ## What each path says
 
 - **Search and browse.** No script announces a search. The session that launches it says in the same turn, in
-  its own voice, that it is looking something up, or stays silent where its room's persona wants a quiet lookup.
+  its own voice, that it is looking something up, or stays silent where its persona wants a quiet lookup.
   The result returns later as a quiet instruction. A run somebody stopped hands back what it had written where
   there is anything to hand back, and says nothing more.
 - **Deploy and restart.** The deployment's purpose says why this goes live now, and whether the work is finished

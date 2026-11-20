@@ -34,8 +34,9 @@
   the absolute rules, the common manual, the answer rules, the base persona). It is the same for every room.
 - **The base persona is the agent's own,** the base layer of its brain, which the agency reads itself when it
   launches the supervisor and puts after the line's documents. The receiver hands no base persona with a turn.
-- **The persona a room adds is the receiver's:** the room's tone layer, `prompts/persona/<tone>.md` under the data
-  root, and the room's own persona, `prompts/persona/rooms/<chat id>.md`, each under its header in the turn's block.
+- **The tone layer a room adds is the receiver's:** the layer the room is set to (`docs/receiver.md`, 「A room's tone
+  layer」), `prompts/persona/<tone>.md` under the data root, under its header in the turn's block. A room set to
+  none adds nothing. Who the people of a room are is the brain's, never a room's document.
 - **What a turn's scaffolding means is said there once**, not on every turn: that a quiet instruction comes from
   the system, is acted on as the owner's word and may be skipped (in a round of a room, in the round's form, which
   names why: `docs/instruction.md`, 「What it is」); that a reference block outranks
@@ -49,7 +50,7 @@
   only its mark, its own words and the material it reads. The turn carries
   only what changes from turn to turn: the room and its facts, the words themselves, the round's mark and the
   material the gate attaches.
-- **Kept out of the system prompt:** each room's tone and traits, the group-room rules, the private chat's
+- **Kept out of the system prompt:** each room's tone layer, the group-room rules, the private chat's
   instructions and agent list, and the rules for what can be done in the room (a picture, a file, a reaction, a
   sticker, a voice briefing, pinning, an answer aimed at a message, a folded answer), which the room's chat
   service declares and which reach the turn marked by capability, with one line naming what that service cannot
@@ -64,7 +65,7 @@
     room's context given since no longer applies. So the room a turn is in is never left to be inferred from what
     came before it.
   - **What a version is:** the whole block as composed for the turn (the room's rules or the owner's
-    instructions, the roster, the road it answers on, the room's tone and traits). Any change to any of them is
+    instructions, the roster, the road it answers on, the room's tone layer). Any change to any of them is
     a new version and goes in full.
   - **After a new session, a session fold, a new generation the agency opens under the session** or anything
     that changes the block, it goes in full again; a fold, a new generation and a new session empty the record

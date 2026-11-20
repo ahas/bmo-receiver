@@ -106,6 +106,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `PUT /rooms/{roomId}/archive` | `by` (the administrator, the room's leader or a head of the leader's unit); `archived` | the archive as it now stands; `not-room-leader` (403) for anyone else, `not-found` (404) for a room the receiver does not hold |
 | `GET /rooms/{roomId}/title` | | `title`, or null |
 | `PUT /rooms/{roomId}/title` | `title`, the name the room is to stand under | the `title` it now stands under; `bad-request` (400) for an empty one, `not-found` (404) for a room the receiver does not hold, `titled-by-service` (409) for a room a chat service carries, whose title is its service's |
+| `GET /rooms/{roomId}/tone` | | `room`, `tone`, the tone layer the room is set to or null for none, and `tones`, the layers the deployment offers |
+| `PUT /rooms/{roomId}/tone` | `by` (the administrator); `tone`, a layer `tones` names or null for none, required | the tone as it now stands; `unknown-tone` (400) for a layer the deployment does not offer, `not-administrator` (403) for anyone but the administrator, `not-found` (404) for a room the receiver does not hold |
 | `GET /rooms/{roomId}/answerers` | | `default`, `voice`, and a page of `Answerer` (`agentName`, `defaultAnswerer`, whether it is the supervisor the receiver's default answerer setting names) |
 | `PUT /rooms/{roomId}/supervisors` | `supervisors`, the whole list, each a supervisor's name | `supervisors`, the list as it now stands; `unknown-supervisor` (404) for a name the agency does not register |
 | `GET /answerers` | `room` (optional) | a page of `{room, agents}`: every room's agents answering it, or one room's |
@@ -169,7 +171,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   account, and two that differ are refused 400 `bad-request`. Every route that changes a room, a message in it or
   what is kept of it is judged so (`docs/receiver.md`, 「Console rooms and accounts」): the acts on a message, a
   sticker, a forward (its own room and `to` both), a line's reading, the pinned order, a room's picture, its
-  registration, archive, providers, supervisors, notices, read marks and file fills, its removal, its members by
+  registration, archive, tone layer, providers, supervisors, notices, read marks and file fills, its removal, its members by
   account, an account's words and files (`account` there, required), and the owner's routes, which act for the
   owner's account. In a room whose `privateOf` is set, a write for any other account, the administrator's among
   them, is refused 403 `private-room` (`room`, `account`) before anything is written; the room's own account's go
