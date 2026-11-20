@@ -444,13 +444,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 |---|---|---|
 | `GET /rooms/{roomId}/notices` | `before`, `after`, `limit`, `kind`, `from`, `to` | a page of `Notice` |
 | `POST /rooms/{roomId}/notices` | `fact`, `intent`, `followUp?`, `optional`, `kind?`, `events?`, `ridesUntil?` | 201, `{id}`: the instruction it was queued as |
-| `POST /owner/notices` | `code` and its parameters beside it | 201, `{id}` |
 
 - **A `Notice`** is `id`, `kind`, `summary`, `text` and `createdAt`. The list is walked by `before` or
   `after`, an instruction id, and narrowed by `kind` and by the span it was queued in, both ends included.
-- **An owner notice** is queued for the default answerer in the owner's private room, carrying the code and its
-  parameters as a fact, which the agent says in its own words. Its kind is its code, so a newer notice of a code
-  replaces one not yet said.
 
 ## Instructions
 

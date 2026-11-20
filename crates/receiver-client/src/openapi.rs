@@ -968,17 +968,6 @@ pub fn openapi() -> Value {
   );
   add!(
     "POST",
-    "/owner/notices",
-    "ownerNotice",
-    "Notices",
-    "A code and its parameters queued for the default answerer in the owner's private chat.",
-    vec![],
-    Some(generator.subschema_for::<OwnerNotice>()),
-    vec![(201, json_answer::<Created>(&mut generator))],
-    vec!["unauthorized", "bad-request", "failed"]
-  );
-  add!(
-    "POST",
     "/owner/instructions",
     "ownerInstruction",
     "Instructions",

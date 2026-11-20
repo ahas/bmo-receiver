@@ -538,9 +538,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
   `GET /rooms/{roomId}/spoke-between?person=&from=&to=`; `GET /rooms/{roomId}/owner-spoke?person=&before=&windowMs=`;
   the names people went under off `GET /people?ids=`, a page of `Person`, `id` and `name`; whether a text waits on
   a happening off `POST /promise-readings` with `text`; an agent's own number off
-  `GET /rooms/{roomId}/own-number?agentName=`; the owner notice at `POST /owner/notices`, 201 with the queued row's
-  `id`; and one stored message off `GET /rooms/{roomId}/messages/{messageId}`, a `Message` whose sender, name and
-  moment are `senderId`, `senderName` and `sentAt`, 404 `not-found` where the receiver keeps none. The receiver
+  `GET /rooms/{roomId}/own-number?agentName=`; and one stored message off
+  `GET /rooms/{roomId}/messages/{messageId}`, a `Message` whose sender, name and moment are `senderId`,
+  `senderName` and `sentAt`, 404 `not-found` where the receiver keeps none. The receiver
   serves no second family of these: `POST /rooms/titles`, `POST /rooms/roads`, `POST /rooms/spoke-between`,
   `POST /rooms/owner-spoke`, `POST /people/names`, `POST /promises/waits`, `POST /rooms/own-number` and
   `POST /owner/notice` answer 404 `no-route`, and the message read carries no snake_case `sent_at`. The gate's

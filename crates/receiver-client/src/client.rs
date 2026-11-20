@@ -672,11 +672,6 @@ impl ReceiverClient {
     Self::nothing(self.request(Method::DELETE, &["instructions", &instruction_id.to_string()])).await
   }
 
-  /// `POST /owner/notices`.
-  pub async fn owner_notice(&self, notice: &OwnerNotice) -> Answer<Created> {
-    Self::answered(self.send(Method::POST, &["owner", "notices"], notice)).await
-  }
-
   /// `POST /owner/instructions`.
   pub async fn owner_instruction(&self, instruction: &OwnerInstruction) -> Answer<()> {
     Self::nothing(self.send(Method::POST, &["owner", "instructions"], instruction)).await

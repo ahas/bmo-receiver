@@ -144,7 +144,7 @@ async fn the_gates_calls_answer_as_its_document_states_them() {
   assert!(!keys(&message).contains(&"sent_at".to_owned()), "{:?}", keys(&message));
   assert_eq!(get(&front, "/rooms/7/messages/2").await.1["code"], "not-found");
 
-  // The facts read by room, whether a text waits, and the owner notice.
+  // The facts read by room and whether a text waits.
   assert_eq!(keys(&get(&front, "/rooms/7/roads").await.1), ["kind", "oneToOne"]);
   assert_eq!(
     keys(
@@ -163,10 +163,6 @@ async fn the_gates_calls_answer_as_its_document_states_them() {
     ["number"]
   );
   assert_eq!(keys(&post(&front, "/promise-readings", json!({ "text": "words" })).await.1), ["waits"]);
-
-  let (noticed, notice) = post(&front, "/owner/notices", json!({ "code": "attachment-alarm" })).await;
-
-  assert_eq!((noticed, keys(&notice)), (StatusCode::CREATED, vec!["id".to_owned()]));
 
   // No second family of the same facts is served.
   for path in [

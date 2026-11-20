@@ -401,23 +401,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/owner/notices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** A code and its parameters queued for the default answerer in the owner's private chat. */
-        post: operations["ownerNotice"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/people": {
         parameters: {
             query?: never;
@@ -2377,12 +2360,6 @@ export interface components {
             replyTo: number | null;
             text: string;
         };
-        /** @description An item filed with a notice. */
-        OwnerNotice: {
-            code: string;
-        } & {
-            [key: string]: unknown;
-        };
         /** @description Whether the person is the owner, and whether the owner spoke in the span. */
         OwnerSpoke: {
             owner: boolean;
@@ -4054,39 +4031,6 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, forbidden, bad-request, not-found, conflict, private-room, upstream-failed, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    ownerNotice: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OwnerNotice"];
-            };
-        };
-        responses: {
-            /** @description Created. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Created"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

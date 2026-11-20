@@ -1151,15 +1151,6 @@ pub struct OwnerInstruction {
   pub text: String,
 }
 
-/// An item filed with a notice.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct OwnerNotice {
-  pub code: String,
-  #[serde(flatten)]
-  pub params: serde_json::Map<String, Value>,
-}
-
 /// A turn of a talk.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

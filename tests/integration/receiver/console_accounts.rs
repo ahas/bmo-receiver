@@ -1242,12 +1242,11 @@ async fn a_forward_stands_under_the_account_that_forwards_it() {
 
 // The routes that change something and act for no account but a unit's own under the receiver's token, each with
 // why no account's private room is judged there; every other write names its room and is judged by the write guard.
-const UNIT_WRITES: [(&str, &str); 31] = [
+const UNIT_WRITES: [(&str, &str); 30] = [
   ("POST /rooms", "a room added is no one's yet"),
   ("POST /sends", "an agent's own act through its tools"),
   ("POST /instructions", "a unit's instruction"),
   ("DELETE /instructions/{instructionId}", "a unit's instruction withdrawn"),
-  ("POST /owner/notices", "the receiver's notice to the owner"),
   ("PUT /room-holders/{holderName}", "a unit declaring what it holds"),
   ("POST /talks", "a talk with no room"),
   ("POST /handoffs/{agentName}", "an agent's handoff"),

@@ -7,20 +7,15 @@ use axum::extract::{Path, RawQuery, State};
 use axum::http::StatusCode;
 use sea_orm::DatabaseConnection;
 use serde::Deserialize;
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use room_calls::promises::waits_on_happening;
 
 use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, store};
 use crate::Fault;
-use crate::chat::instructions::{Queued, queue};
-use crate::receiver::notices::frame;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, reads};
 use crate::routes::writable::WritableRoom;
-
-// What an owner notice's line is for: the caller writes no sentence, the agent says the fact.
-const OWNER_INTENT: &str = "tell the owner what the system recorded.";
 
 // A read of the room that could not be made because a unit it reaches did not answer.
 fn reached(why: NotReceived) -> Refusal {
@@ -347,34 +342,4 @@ pub async fn owner_spoke(State(served): State<Served>, Path(room): Path<i64>, ra
     .map_err(store)?;
 
   answered(json!({ "owner": owner, "spoke": spoke }))
-}
-
-/// The code and its parameters queued as an instruction for the default answerer in the owner's private chat.
-pub async fn notice(State(served): State<Served>, body: axum::body::Bytes) -> Accepted {
-  let asked = read::<Map<String, Value>>(&body)?;
-  let receiver: Receiver = (*served.receiver).clone();
-  let Some(code) = asked.get("code").and_then(|code| code.as_str()) else {
-    return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "The body holds no `code` to notice."));
-  };
-  let queued = Queued {
-    kind: Some(code),
-    sort: Some("notice"),
-    summary: Some(code),
-    ..Queued::default()
-  };
-  let id = queue(
-    receiver.db(),
-    &receiver.default_answerer(),
-    receiver.owner_room(),
-    &frame(&json!(asked).to_string(), OWNER_INTENT, None, false),
-    &queued,
-  )
-  .await
-  .map_err(store)?;
-
-  if let Some(pass) = receiver.pass() {
-    pass.kick();
-  }
-
-  Ok((StatusCode::CREATED, axum::Json(json!({ "id": id }))))
 }

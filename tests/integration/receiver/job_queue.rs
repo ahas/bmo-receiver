@@ -498,41 +498,6 @@ async fn a_quiet_instruction_is_queued_under_the_sort_its_kind_names_and_wakes_t
 }
 
 #[tokio::test]
-async fn an_owner_notice_is_queued_for_the_chat_agent_in_the_owners_private_chat() {
-  let scratch = Scratch::new().await;
-  let front = stood(&scratch, OWNER).await;
-  let (made, _) = post(
-    &front,
-    "/owner/notices",
-    json!({ "code": "rule-candidate", "agent": "someone", "candidate": "a rule" }),
-  )
-  .await;
-
-  assert_eq!(made, StatusCode::CREATED);
-  assert_eq!(
-    rows(
-      &scratch,
-      r#"SELECT COUNT(*) FROM "instructions" WHERE "chat_id" = $1 AND "kind" = 'rule-candidate'"#,
-      vec![OWNER.into()],
-    )
-    .await,
-    1,
-  );
-  assert_eq!(
-    told(
-      &scratch,
-      &[
-        r#""code":"rule-candidate""#.to_owned(),
-        "tell the owner what the system recorded.".to_owned()
-      ]
-    )
-    .await,
-    1,
-  );
-  assert_eq!(front.kicked.times(), 1);
-}
-
-#[tokio::test]
 async fn a_unit_declared_a_holder_keeps_its_declaration_and_declaring_again_replaces_it() {
   let scratch = Scratch::new().await;
   let front = stood(&scratch, OWNER).await;

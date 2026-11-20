@@ -2039,19 +2039,6 @@
         ],
         "type": "object"
       },
-      "OwnerNotice": {
-        "additionalProperties": true,
-        "description": "An item filed with a notice.",
-        "properties": {
-          "code": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "type": "object"
-      },
       "OwnerSpoke": {
         "description": "Whether the person is the owner, and whether the owner spoke in the span.",
         "properties": {
@@ -5491,52 +5478,6 @@
           "conflict",
           "private-room",
           "upstream-failed",
-          "failed"
-        ]
-      }
-    },
-    "/owner/notices": {
-      "post": {
-        "operationId": "ownerNotice",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnerNotice"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Created"
-                }
-              }
-            },
-            "description": "Created."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WireError"
-                }
-              }
-            },
-            "description": "A refusal or failure: unauthorized, bad-request, failed"
-          }
-        },
-        "summary": "A code and its parameters queued for the default answerer in the owner's private chat.",
-        "tags": [
-          "Notices"
-        ],
-        "x-codes": [
-          "unauthorized",
-          "bad-request",
           "failed"
         ]
       }

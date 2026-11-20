@@ -269,7 +269,6 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("POST", "/instructions", post(instructions::queue_instruction)),
     ("GET", "/instructions/{instructionId}", get(instructions::instruction_state)),
     ("DELETE", "/instructions/{instructionId}", delete(instructions::withdraw)),
-    ("POST", "/owner/notices", post(brain::notice)),
     ("POST", "/owner/instructions", persons_words(post(instruct))),
     ("PUT", "/room-holders/{holderName}", put(instructions::declare)),
     ("POST", "/sends", post(sends)),

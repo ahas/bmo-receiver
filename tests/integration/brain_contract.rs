@@ -161,10 +161,6 @@ async fn a_rooms_record_answers_the_fields_the_api_names() {
       .unwrap(),
   );
   assert_eq!(
-    post(&front, "/owner/notices", json!({ "code": "digest-paused" })).await.0,
-    StatusCode::CREATED
-  );
-  assert_eq!(
     post(
       &front,
       "/instructions",
