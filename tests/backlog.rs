@@ -1,8 +1,6 @@
 //! The restart's backlog (docs/messages.md, 「Backlog」): every room the receiver listens to is served one at a
 //! time, whatever its road's screen shows, each agent handed the unread lines from the first that wakes it, a line
-//! older than the policy's while waking nothing, marked read so a line is never served twice. It runs alone in a
-//! process of its own (`integration::common::alone`): a room's first launch in a process is spaced from every other
-//! room's, so the two fresh rooms it opens would hold back the rounds the other tests of the process wait on.
+//! older than the policy's while waking nothing, marked read so a line is never served twice.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -18,7 +16,6 @@ use receiver_policy::chat_line::CHAT_LINE;
 use receiver_policy::chat_round::CHAT_ROUND;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::alone::alone;
 use crate::integration::common::session::StandInSession;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, StandInChat, Standing, deployment, registration, unrun, woken,
@@ -79,6 +76,9 @@ impl Group {
     standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
     standing.agency.carrying_on(session.clone());
     receiver.hold_runner(Arc::new(runner.clone()));
+    // Each room's first launch is paced behind the last on the real clock; both rooms count as launched, so the
+    // second room's round is not held behind the first room's.
+    receiver.launches().lock().await.rooms.extend([ROOM, ROOM_B]);
 
     Group {
       scratch,
@@ -92,13 +92,6 @@ impl Group {
 
 #[tokio::test]
 async fn a_restart_serves_each_room_from_the_line_that_wakes_its_agent_once_and_in_order() {
-  let Some(_run) = alone(
-    module_path!(),
-    "a_restart_serves_each_room_from_the_line_that_wakes_its_agent_once_and_in_order",
-  ) else {
-    return;
-  };
-
   let round = Group::new(
     StandInSession::new(SESSION, "unscripted")
       .answering(&["here", "there"])

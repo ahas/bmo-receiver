@@ -2285,6 +2285,7 @@ async fn a_push_carries_only_its_own_rooms_words_and_instructions() {
     .find(|(_, _, words)| words.contains(OWNER_WORDS))
     .expect("the owner's push was waited for");
 
+  assert!(pushed.contains(OWNER_INSTRUCTION), "its own instruction is pushed: {pushed}");
   assert!(!pushed.contains(LAB_INSTRUCTION), "another room's instruction never joins: {pushed}");
   assert!(!pushed.contains(LAB_WORDS), "another room's words never join: {pushed}");
   assert!(
