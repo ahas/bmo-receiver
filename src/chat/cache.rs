@@ -42,17 +42,15 @@ pub fn state_key(agent: &str, session: &str) -> String {
   format!("{agent}_cache:{session}")
 }
 
-/// The road an agent's one session stands on: the provider and model it answers on, the login it was opened
-/// under, the session itself and the tail of what its sessions answered in each room, the transcript a replacement
-/// falls back on where the closing session wrote no handoff.
+/// The road an agent's one session stands on: the provider and model it answers on, the session itself and the
+/// tail of what its sessions answered in each room, the transcript a replacement falls back on where the closing
+/// session wrote no handoff. The effort and the login are the agency's to judge, whose state names neither
+/// (docs/unified-bmo.md, 「Replacing the session」).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Route {
   pub provider: String,
   pub model: String,
-  pub effort: String,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub account: Option<String>,
   #[serde(default)]
   pub session: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -128,29 +126,17 @@ async fn forget_setting(db: &DatabaseConnection, key: &str) -> Result<(), Fault>
   run(db, r#"DELETE FROM "settings" WHERE "key" = $1"#, vec![key.into()]).await.map(drop)
 }
 
-/// Why the road the room stands on is not one this turn may go on: another provider, model or effort, or another
-/// login. A provider or model the agency's state does not name — a state it could not answer while it restarts,
-/// or a session opened afresh and not yet through its first turn — says nothing of the road, so it moves nothing
+/// Why the road the room stands on is not one this turn may go on: another provider or model. A provider or model
+/// the agency's state does not name — a state it could not answer while it restarts, or a session opened afresh
+/// and not yet through its first turn — says nothing of the road, so it moves nothing. A move of the effort or the
+/// login is the agency's to find, which asks the session's handoff itself before it opens a fresh one
 /// (docs/unified-bmo.md, 「Replacing the session」).
-pub fn route_reason(
-  held: &Route,
-  provider: &str,
-  model: &str,
-  effort: &str,
-  account: Option<&str>,
-) -> Option<SessionReason> {
+pub fn route_reason(held: &Route, provider: &str, model: &str) -> Option<SessionReason> {
   if provider.is_empty() || model.is_empty() {
     return None;
   }
 
-  if held.provider != provider || held.model != model || held.effort != effort {
-    return Some(SessionReason::Route);
-  }
-
-  match account {
-    Some(account) if held.account.as_deref().unwrap_or_default() != account => Some(SessionReason::Account),
-    _ => None,
-  }
+  (held.provider != provider || held.model != model).then_some(SessionReason::Route)
 }
 
 /// Why the session this turn would resume may not be resumed as it stands: the owner's word, a road moved, a
@@ -172,9 +158,10 @@ pub async fn reset_reason(
     return Ok(Some(reason));
   }
 
-  if let Some(moved) = active_route(db, agent).await?.and_then(|held| {
-    route_reason(&held, &asked.provider, &asked.model, &asked.effort, asked.account.as_deref())
-  }) {
+  if let Some(moved) = active_route(db, agent)
+    .await?
+    .and_then(|held| route_reason(&held, &asked.provider, &asked.model))
+  {
     return Ok(Some(moved));
   }
 
@@ -307,10 +294,28 @@ pub async fn transcript(db: &DatabaseConnection, agent: &str) -> Result<Option<S
   )
 }
 
+/// The settings key the tail of what an agent answered in one room is kept under.
+pub fn room_transcript_key(agent: &str, chat_id: i64) -> String {
+  format!("{agent}_transcript:{chat_id}")
+}
+
+/// The tail of what an agent answered in one room, where it answered there.
+pub async fn room_transcript(
+  db: &DatabaseConnection,
+  agent: &str,
+  chat_id: i64,
+) -> Result<Option<String>, Fault> {
+  Ok(
+    settings::get(db, &room_transcript_key(agent, chat_id))
+      .await?
+      .filter(|kept| !kept.trim().is_empty()),
+  )
+}
+
 /// The transcript carried on with one more answer of the agent's in a room, cut to the tail: an answer that
 /// says nothing (empty, a skip or a wait) adds nothing.
-fn transcript_of(agent: &str, chat_id: i64, previous: Option<&Route>, text: &str) -> Option<String> {
-  let kept = previous.and_then(|held| held.transcript.clone()).unwrap_or_default();
+fn transcript_of(agent: &str, chat_id: i64, previous: Option<String>, text: &str) -> Option<String> {
+  let kept = previous.unwrap_or_default();
   let text = text.trim();
 
   if text.is_empty() || is_skip(text) || is_wait(text) {
@@ -373,7 +378,17 @@ pub async fn remember(db: &DatabaseConnection, agent: &str, leaving: &Leaving) -
   }
 
   let previous = active_route(db, agent).await?;
-  let transcript = transcript_of(agent, leaving.chat_id, previous.as_ref(), &leaving.text);
+  let transcript =
+    transcript_of(agent, leaving.chat_id, previous.and_then(|held| held.transcript), &leaving.text);
+  let room_key = room_transcript_key(agent, leaving.chat_id);
+  let room_kept = settings::get(db, &room_key).await?;
+
+  // The room's own tail is kept beside the one across rooms, so a room's own session opened without its handoff
+  // reads that room's answers alone.
+  if let Some(room) = transcript_of(agent, leaving.chat_id, room_kept, &leaving.text) {
+    settings::set(db, &room_key, &room).await?;
+  }
+
   let mut route = leaving.route.clone();
 
   route.transcript = transcript;

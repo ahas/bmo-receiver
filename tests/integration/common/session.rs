@@ -46,6 +46,8 @@ pub struct StandInSession {
   working_for: Mutex<Duration>,
   // Why the session's prefix changed, as its state names it, where a test sets it.
   prefix_change: Mutex<Option<String>>,
+  // Whether its state says the agency opened it without the handoff it was owed.
+  handoff_lost: Mutex<bool>,
   // The generation its state names: none until a test sets one.
   generation: Mutex<serde_json::Value>,
   // The provider its state names.
@@ -91,6 +93,7 @@ impl StandInSession {
       holding_turn: Mutex::default(),
       working_for: Mutex::new(Duration::ZERO),
       prefix_change: Mutex::default(),
+      handoff_lost: Mutex::default(),
       generation: Mutex::new(json!(null)),
       logged: Mutex::default(),
       provider: Mutex::new("provider-a".to_owned()),
@@ -181,6 +184,11 @@ impl StandInSession {
   /// Its state names this reason for a changed prefix from now on.
   pub fn prefix_changed(&self, why: &str) {
     *self.prefix_change.lock().unwrap() = Some(why.to_owned());
+  }
+
+  /// Its state says, from now on, whether the agency opened it without the handoff it was owed.
+  pub fn handoff_lost(&self, lost: bool) {
+    *self.handoff_lost.lock().unwrap() = lost;
   }
 
   /// Its state says it is past every fold share from now on, and whether its program carries its own fold.
@@ -325,6 +333,7 @@ impl StandInSession {
       supervisor: None,
       role: None,
       prefix_change_reason: self.prefix_change.lock().unwrap().clone(),
+      handoff_lost: *self.handoff_lost.lock().unwrap(),
     };
 
     Box::pin(async move { Ok(state) })

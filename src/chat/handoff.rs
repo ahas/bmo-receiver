@@ -204,6 +204,26 @@ pub fn carried_note(note: &Note) -> String {
   }
 }
 
+/// The note a fresh session opens on where the session it replaced left no handoff: the transcript the receiver
+/// keeps of what the agent answered — a room's own answers for a room's own session — or, where none is kept,
+/// the word that nothing was recovered, the owner told once (docs/unified-bmo.md, 「Replacing the session」).
+pub async fn fallback(receiver: &Receiver, agent: &str, room: Option<i64>, reason: SessionReason) -> Note {
+  let db = receiver.db();
+  let kept = match room {
+    Some(chat_id) => super::cache::room_transcript(db, agent, chat_id).await,
+    None => super::cache::transcript(db, agent).await,
+  };
+
+  match kept {
+    Ok(Some(kept)) => Note::Carried(kept),
+    Ok(None) | Err(_) => {
+      tell_lost(receiver, agent, reason).await;
+
+      Note::Lost
+    }
+  }
+}
+
 /// The owner told, once in the private chat, that nothing of a replaced session could be carried over.
 pub async fn tell_lost(receiver: &Receiver, agent: &str, reason: SessionReason) {
   let said = &HANDOVER.lost_notice;
@@ -265,6 +285,12 @@ pub fn carried_key(agent: &str) -> String {
   format!("{agent}_transcript_pending")
 }
 
+/// The settings key the word that nothing of a replaced session was recovered is kept under, until the fresh
+/// session's first turn opens on it.
+pub fn lost_key(agent: &str) -> String {
+  format!("{agent}_handoff_lost")
+}
+
 /// The note kept for an agent's next fresh session taken: the handoff where its file still stands, else the
 /// transcript kept for it, where the session the turn goes on is a fresh one; none otherwise. Taken either way, so a
 /// session the agency resumed lets it go.
@@ -272,6 +298,7 @@ pub async fn take_pending(receiver: &Receiver, agent: &str, fresh: bool) -> Opti
   let db = receiver.db();
   let path = crate::store::settings::take(db, &pending_key(agent)).await.ok().flatten();
   let carried = crate::store::settings::take(db, &carried_key(agent)).await.ok().flatten();
+  let lost = crate::store::settings::take(db, &lost_key(agent)).await.ok().flatten();
 
   if !fresh {
     return None;
@@ -286,7 +313,9 @@ pub async fn take_pending(receiver: &Receiver, agent: &str, fresh: bool) -> Opti
     }))
   });
 
-  handed.or_else(|| carried.filter(|kept| !kept.trim().is_empty()).map(Note::Carried))
+  handed
+    .or_else(|| carried.filter(|kept| !kept.trim().is_empty()).map(Note::Carried))
+    .or_else(|| lost.map(|_| Note::Lost))
 }
 
 /// The note a session replaced while its agent was quiet left kept for the fresh session's first turn: the handoff's
@@ -298,7 +327,7 @@ pub async fn keep_pending(receiver: &Receiver, agent: &str, note: &Note) {
       crate::store::settings::set(db, &pending_key(agent), &handed.path.display().to_string()).await
     }
     Note::Carried(kept) => crate::store::settings::set(db, &carried_key(agent), kept).await,
-    Note::Lost => Ok(()),
+    Note::Lost => crate::store::settings::set(db, &lost_key(agent), "lost").await,
   };
 
   if let Err(why) = kept {

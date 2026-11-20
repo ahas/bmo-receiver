@@ -190,6 +190,8 @@ struct SessionMember {
   role: Option<String>,
   #[serde(default)]
   prefix_change_reason: Option<String>,
+  #[serde(default)]
+  handoff_lost: bool,
 }
 
 impl SessionMember {
@@ -214,6 +216,7 @@ impl SessionMember {
       supervisor: self.supervisor.filter(|supervisor| !supervisor.is_empty()),
       role: self.role.filter(|role| !role.is_empty()),
       prefix_change_reason: self.prefix_change_reason.filter(|why| !why.trim().is_empty()),
+      handoff_lost: self.handoff_lost,
     }
   }
 }
@@ -310,6 +313,10 @@ pub struct SessionState {
   /// turn stood on says its head moved.
   #[serde(default, rename = "prefixChangeReason")]
   pub prefix_change_reason: Option<String>,
+  /// Whether the agency opened the session, or its generation, without the handoff it was owed: its first turn
+  /// then opens on the receiver's transcript.
+  #[serde(default, rename = "handoffLost")]
+  pub handoff_lost: bool,
 }
 
 /// A supervisor the console registers: the name it is registered by, what it is called in the room, the

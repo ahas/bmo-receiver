@@ -79,6 +79,7 @@ fn session(
       supervisor: None,
       role: None,
       prefix_change_reason: None,
+      handoff_lost: false,
     },
   )
 }
