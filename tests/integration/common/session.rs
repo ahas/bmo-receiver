@@ -62,7 +62,7 @@ pub struct StandInSession {
   pub logged: Mutex<Vec<RunLine>>,
   // Whether the situation update's turn is answered and kept out of the test's list of prompts.
   hide_situation: Mutex<bool>,
-  // Whether an instruction stage's turn is answered with PASS and kept out of the test's list of prompts.
+  // Whether an instruction stage's turn is answered with nothing and kept out of the test's list of prompts.
   hide_stages: Mutex<bool>,
   // The words a turn's prompt holds for the session to refuse it, as an agency that cannot carry it answers.
   refusing: Mutex<Option<String>>,
@@ -179,7 +179,7 @@ impl StandInSession {
   }
 
   /// An instruction stage's turn is shown and answered from the script, for a test about the stages; hidden, it
-  /// answers PASS and stays out of `prompts`.
+  /// answers nothing, keeping the message, and stays out of `prompts`.
   pub fn showing_stages(self) -> Self {
     *self.hide_stages.lock().unwrap() = false;
     self
@@ -413,7 +413,7 @@ impl StandInSession {
       };
       let working_for = *self.working_for.lock().unwrap();
       let answer = if hidden_stage {
-        INSTRUCTION.pass.clone()
+        String::new()
       } else if hidden_situation {
         bmo_receiver::chat::sentinels::SKIP.to_owned()
       } else {

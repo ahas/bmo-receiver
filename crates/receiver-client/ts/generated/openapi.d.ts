@@ -2552,8 +2552,9 @@ export interface components {
              */
             number: number;
             /**
-             * @description `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for
-             *     the audit and a stage; `message` or `skip` for the end.
+             * @description `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check, and `pass` for a check whose
+             *     empty answer kept the message; `pass`, `revised` or `failed` for the audit and a stage; `message` or `skip`
+             *     for the end.
              */
             outcome: string;
             /** @description The row's name: the stage it ran, `arrived` for the closing check, `message` for the round's own turn. */

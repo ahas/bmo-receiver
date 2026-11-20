@@ -512,11 +512,11 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
 }
 
 #[tokio::test]
-async fn a_summary_turn_after_a_stage_s_pass_names_the_line_and_carries_it_no_more() {
+async fn a_summary_turn_after_a_stage_that_wrote_nothing_names_the_line_and_carries_it_no_more() {
   let session = StandInSession::new("agent-a@agent", "unused")
     .answering(&[
       "The nightly backup finished.",
-      "PASS",
+      "",
       &format!(
         "{}\nBackup done\nThe backup finished overnight.",
         emotion_line(&CHAT_ROUND.voice.emotions[1])
@@ -537,7 +537,7 @@ async fn a_summary_turn_after_a_stage_s_pass_names_the_line_and_carries_it_no_mo
   assert_eq!(prompts.len(), 3, "the message turn, the stage and the summary: {prompts:#?}");
   assert!(
     prompts[2].contains(&CHAT_ROUND.voice.summary) && !prompts[2].contains("The nightly backup finished."),
-    "a PASS leaves the line the session's own message, so it is not carried: {}",
+    "an empty stage answer leaves the line the session's own message, so it is not carried: {}",
     prompts[2]
   );
 }

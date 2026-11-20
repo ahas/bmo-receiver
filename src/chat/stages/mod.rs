@@ -1,7 +1,7 @@
 //! The instruction stages (docs/instruction.md): a round's message is made by the agent's own message turn — it reads
 //! the room's words, works with its tools and answers with the message — and then goes through the chain of
 //! instruction stages the supervisor sets in its settings, one system instruction a turn, each carrying its own
-//! words: on a stage the agent answers with the whole message as it should now go out, or `PASS` alone when it
+//! words: on a stage the agent answers with the whole message as it should now go out, or writes nothing when it
 //! changes nothing and the message that stands goes on. The answer after the last stage is what is sent. A message
 //! turn that sends nothing answers `<<SKIP: <why>>>` and ends the round with nothing sent. Every turn of the round is
 //! written in the round log.
@@ -88,7 +88,8 @@ impl Spanned {
 /// The answer of a turn of the process, built from the answers of the program's turns it spanned
 /// (docs/instruction.md, 「What it is」): a turn opened by words handed over replaces it, a
 /// turn the program opened on its own adds to it, and a turn whose answer says nothing never displaces an answer
-/// that says something. Where the agency handed no turns, the answer it built stands.
+/// that says something; one of nothing but marks leaves it standing with its marks added. Where the agency handed
+/// no turns, the answer it built stands.
 pub fn spanned_answer(built: &str, turns: &[Spanned]) -> String {
   if turns.is_empty() {
     return built.to_owned();
@@ -97,6 +98,8 @@ pub fn spanned_answer(built: &str, turns: &[Spanned]) -> String {
   turns.iter().filter(|turn| !turn.text.is_empty()).fold(String::new(), |standing, turn| {
     if usable(&standing) && !usable(&turn.text) {
       standing
+    } else if usable(&standing) && without_round_marks(&turn.text).is_empty() {
+      format!("{standing}\n\n{}", turn.text)
     } else if standing.is_empty() || turn.handed {
       turn.text.clone()
     } else {
@@ -234,6 +237,8 @@ struct Run<'a> {
   holds: HashSet<String>,
   marks: Vec<(Mark, i64)>,
   only_marks: bool,
+  // Whether a message stands, so an answer of nothing keeps it rather than being no verdict.
+  standing: bool,
   turn_mark: TurnMark,
   skip_reason: Option<String>,
 }
@@ -560,11 +565,13 @@ impl Run<'_> {
 
     let said = strip_prompt_scaffolding(&answered.text);
     let text = self.marked(&said);
-    // An answer of nothing but marks says nothing more: no skip, and no words.
-    let (text, ending, reason) = match (self.only_marks, text.is_empty()) {
-      (true, _) => (text, Answered::Answered, None),
-      (false, true) => read_answer(SKIP),
-      (false, false) => read_answer(&text),
+    // An answer of nothing but marks says nothing more: no skip, and no words. Once a message stands, an answer of
+    // nothing, marks or none, keeps it (docs/instruction.md, 「What it is」); before, no words are no verdict.
+    let (text, ending, reason) = match (self.only_marks, text.is_empty(), self.standing) {
+      (true, _, true) | (false, true, true) => (text, Answered::Passed, None),
+      (true, _, false) => (text, Answered::Answered, None),
+      (false, true, false) => read_answer(SKIP),
+      (false, false, _) => read_answer(&text),
     };
     // At the asking that settles the round, a skip naming no reason is its skip after all, none given.
     let (ending, reason) = match (ending, settling) {
@@ -733,16 +740,15 @@ impl Run<'_> {
 }
 
 /// A stage's verdict on the message as it stood (docs/instruction.md, 「The stages before the send」): passed where it
-/// answered `PASS` alone, the message unchanged, nothing but marks, a wait or a skip, since the round's skip
-/// decision is its message turn's; revised where it wrote any other message, whose whole text takes the standing
-/// one's place.
+/// answered nothing, nothing but marks, the message unchanged, a wait or a skip, since the round's skip decision is
+/// its message turn's; revised where it wrote any other message, whatever its words, whose whole text takes the
+/// standing one's place.
 pub fn stage_verdict(said: &str, ended: Answered, standing: &str) -> Answered {
   let words = onespace(said);
   let unchanged = words.is_empty()
-    || words.eq_ignore_ascii_case(&onespace(&INSTRUCTION.pass))
     || words == onespace(standing)
     || is_wait(said)
-    || matches!(ended, Answered::Skip | Answered::NoVerdict);
+    || matches!(ended, Answered::Skip | Answered::NoVerdict | Answered::Passed);
 
   if unchanged { Answered::Passed } else { Answered::Revised }
 }
@@ -925,6 +931,7 @@ impl Stager {
       holds: message_turn.selection.entries.iter().map(|entry| entry.path.clone()).collect(),
       marks: vec![],
       only_marks: false,
+      standing: false,
       turn_mark: TurnMark::default(),
       skip_reason: None,
     };
@@ -975,6 +982,8 @@ impl Stager {
 
     let mut message: Option<Reply> = (first.ended != Answered::Skip).then(|| first.reply.clone());
 
+    run.standing = message.is_some();
+
     // Once the message stands, the room's words that waited since the last answer are shown in one more system
     // instruction, so the message answers them as well (docs/instruction.md, 「What came in meanwhile」).
     if let Some(standing) = &message
@@ -996,7 +1005,8 @@ impl Stager {
           if answer.ended == Answered::Skip {
             message = None;
             run.skipped(answer.reason.as_deref());
-          } else if is_wait(&answer.reply.text) || run.only_marks || answer.reply.text.trim().is_empty() {
+          } else if answer.ended == Answered::Passed || is_wait(&answer.reply.text) {
+            // An answer of nothing, or of marks alone, or a wait keeps the message that stands.
             message = Some(standing.clone());
           } else {
             // The answer is the whole message as it now goes out, in the standing one's place.

@@ -102,12 +102,11 @@ fn a_stage_text_is_a_lowercase_name_and_not_empty() {
 }
 
 #[test]
-fn a_stage_passes_on_pass_alone_or_the_message_unchanged_and_revises_on_any_other_message() {
+fn a_stage_passes_on_nothing_or_the_message_unchanged_and_revises_on_any_other_message() {
   let standing = "Hello, Mina.\nThe build is green.";
 
   for (said, ended) in [
-    ("PASS", Answered::Answered),
-    ("  pass \n", Answered::Answered),
+    ("", Answered::Passed),
     ("Hello, Mina. The build is green.", Answered::Answered),
     ("", Answered::Answered),
     ("<<WAIT>>", Answered::Answered),
@@ -125,6 +124,14 @@ fn a_stage_passes_on_pass_alone_or_the_message_unchanged_and_revises_on_any_othe
     Answered::Revised,
     "a reprint that changes the message revises it"
   );
+
+  for said in ["PASS", "  pass \n"] {
+    assert_eq!(
+      stage_verdict(said, Answered::Answered, standing),
+      Answered::Revised,
+      "{said:?} is message text, no verdict"
+    );
+  }
 }
 
 #[test]
@@ -140,6 +147,11 @@ fn an_answer_opening_on_the_send_marker_is_the_message_and_a_skip_wins() {
   assert_eq!(
     read_answer("notes that name <<SEND>> later"),
     ("notes that name <<SEND>> later".to_owned(), Answered::Answered, None)
+  );
+  assert_eq!(
+    read_answer("PASS"),
+    ("PASS".to_owned(), Answered::Answered, None),
+    "PASS is the message's words"
   );
 }
 
@@ -213,6 +225,21 @@ fn a_later_turn_that_says_nothing_leaves_the_answer_written_before_it() {
   assert_eq!(spanned_answer("x", &[handed(skipped), handed(sent)]), sent);
   assert_eq!(spanned_answer("x", &[handed("<<SKIP>>"), handed(skipped)]), skipped);
   assert_eq!(spanned_answer("as built", &[]), "as built");
+  assert_eq!(
+    spanned_answer("x", &[handed(sent), handed("")]),
+    sent,
+    "writing nothing keeps the reply"
+  );
+  assert_eq!(
+    spanned_answer("x", &[handed(sent), handed("<<DONE #7>>")]),
+    "<<SEND>> the reply\n\n<<DONE #7>>",
+    "marks alone keep the reply and add their marks"
+  );
+  assert_eq!(
+    spanned_answer("x", &[handed(sent), handed("PASS")]),
+    "PASS",
+    "any words are the new reply"
+  );
 
   let (text, ended, _) = read_answer(&spanned_answer(skipped, &[handed(sent), handed(skipped)]));
 

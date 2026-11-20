@@ -122,7 +122,12 @@ impl Round {
   }
 
   async fn timed(timings: Timings) -> Self {
-    let round = Round::stood(timings, StandInSession::new(SESSION, ANSWER), None).await;
+    Round::meanwhile(timings, StandInSession::new(SESSION, ANSWER)).await
+  }
+
+  // A round whose first turn is still working when the room says more, its session answering as `session` does.
+  async fn meanwhile(timings: Timings, session: StandInSession) -> Self {
+    let round = Round::stood(timings, session, None).await;
 
     round.hear(1, FIRST).await;
     until("the first turn", || round.session.working()).await;
@@ -233,6 +238,20 @@ async fn words_said_while_the_turn_works_wait_and_the_closing_check_shows_them()
     "the round answers the room once, and the words it showed call no round of their own"
   );
   assert!(sent[0].contains(ANSWER), "the closing check's answer is what goes back to the room");
+}
+
+#[tokio::test]
+async fn a_closing_check_that_writes_nothing_sends_the_message_that_stands() {
+  let standing = "The message written first.";
+  let session = StandInSession::new(SESSION, ANSWER).answering(&[standing, ""]);
+  let round = Round::meanwhile(timings(), session).await;
+
+  assert_eq!(round.session.prompts().len(), 2, "an empty closing check is no verdict asked again");
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(standing), "writing nothing keeps the message that stands: {sent:?}");
 }
 
 // A round whose working turn takes the words said meanwhile as they are pushed, its session answering `answer`, on
@@ -822,7 +841,7 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
     fill_marks(&HANDOVER.chat.lost_rule, &[("marker", &HANDOVER.chat.lost_marker)]),
     INSTRUCTION.message_rule.clone(),
     INSTRUCTION.instruction_rule.clone(),
-    fill_marks(&INSTRUCTION.answer_rule, &[("pass", &INSTRUCTION.pass)]),
+    INSTRUCTION.answer_rule.clone(),
     fill_marks(&INSTRUCTION.arrived, &[("voice", &INSTRUCTION.voice)]),
   ];
 

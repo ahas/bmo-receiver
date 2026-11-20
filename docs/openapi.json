@@ -2622,7 +2622,7 @@
             "type": "integer"
           },
           "outcome": {
-            "description": "`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for\nthe audit and a stage; `message` or `skip` for the end.",
+            "description": "`answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check, and `pass` for a check whose\nempty answer kept the message; `pass`, `revised` or `failed` for the audit and a stage; `message` or `skip`\nfor the end.",
             "type": "string"
           },
           "question": {

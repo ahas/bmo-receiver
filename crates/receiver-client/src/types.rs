@@ -1396,8 +1396,9 @@ pub struct PipelineRound {
   pub kind: String,
   pub answer_chars: i64,
   pub changed: bool,
-  /// `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check; `pass`, `revised` or `failed` for
-  /// the audit and a stage; `message` or `skip` for the end.
+  /// `answered`, `send`, `no-verdict`, `skip` or `failed` for a turn or check, and `pass` for a check whose
+  /// empty answer kept the message; `pass`, `revised` or `failed` for the audit and a stage; `message` or `skip`
+  /// for the end.
   pub outcome: String,
   pub detail: Option<String>,
   pub answer: Option<String>,

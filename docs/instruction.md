@@ -2,7 +2,7 @@
 
 How a round's message is made and then checked: the round's own message turn, whose answer is the message; the chain of
 instruction stages the supervisor sets in its settings, which the message passes before it goes out and where the agent
-reprints the message or answers PASS; the markers that end the round early; the words that arrive while it works; and the
+writes the message again or writes nothing to keep it; the markers that end the round early; the words that arrive while it works; and the
 record each turn of it leaves. A quiet instruction is a different thing — a row of the instruction table (`docs/bmo-window.md`,
 「Quiet instruction」), which this pipeline leaves unchanged.
 
@@ -15,15 +15,15 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 - **The room's block says how to read each and how to answer each, and nothing more.** It carries, once: how a turn that
   carries a room's words is read and that its answer is the message (`instruction.toml`, `message_rule`); how a turn marked
   `INSTRUCTION` is read, the system speaking and no room, one instruction about the message, which is the agent's last
-  answer (`instruction_rule`); how an instruction is answered, the whole message as it should now go out or `PASS` alone where it
-  needs no change (`answer_rule`, whose `{pass}` mark fills to `pass`); and what the turn marked `ARRIVED MESSAGES` asks
+  answer (`instruction_rule`); how an instruction is answered, the whole message as it should now go out, or nothing at all
+  where it needs no change (`answer_rule`); and what the turn marked `ARRIVED MESSAGES` asks
   (`arrived`). It describes no chain, names no stage and carries no stage's words, so the block is the same for every
   supervisor whatever its chain.
 - **An instruction's words ride its own turn.** A stage's turn opens on the line naming the stage (`marker`, its `{name}` the
   stage's name), then the stage's words and the round's data (「The stages before the send」 below).
 - **The message is the agent's own, and no later turn of the round carries it again.** The agent's own output is what goes
-  out, so an instruction is about the last message the session wrote in the round: its last answer, or the one before it
-  where it answered `PASS` since. A round holds the agent's session from its message turn to its end, the summary of a
+  out, so an instruction is about the last message the session wrote in the round: its last answer that said something,
+  an answer of nothing since leaving it as it stood. A round holds the agent's session from its message turn to its end, the summary of a
   notice turn included, so no other room's turn comes between and the message is always the session's own; a stage, the
   audit, the closing check and the summary carry it no more (`docs/voiced-notices.md`, 「The summary of a notice turn」).
 - **A screen tells a message received only on the message turn.** Each turn of the round is told on the event stream as it
@@ -46,7 +46,7 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   message before that answer.
 - **Once the message stands it passes the stage chain.** The chain is an ordered list of instruction stages the supervisor
   sets; each stage is one more turn of the same session, a system instruction carrying the stage's words and the message as
-  it stands. On a stage the agent answers with the whole revised message, or answers `PASS` alone when it changes nothing
+  it stands. On a stage the agent answers with the whole revised message, or writes nothing when it changes nothing
   and the message that stands goes on unchanged. After the last stage the agent's final response
   is the message that goes out. A supervisor with an empty chain sends its message unchecked.
 - **The instruction pipeline is the only road the agent's words take into a room.** A round's message is the one text an
@@ -72,19 +72,29 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   one's answer with what opened it (its `docs/agent-control.md`, 「The round's answer」). The receiver builds the answer
   from them as the agency does — a turn opened by words handed over replaces it, a turn the program opened on its own adds
   to it — save that a turn whose answer says nothing, a skip of either shape, a wait or no words, never displaces an
-  answer that says something: the answer written before it stands and is read as above. A line that carries its program's
+  answer that says something: the answer written before it stands and is read as above. A turn whose answer is nothing
+  but marks leaves that answer standing too, its marks added to it. A line that carries its program's
   background apart, as the chat line does, reads its rounds with notices apart: a turn its program opens on a background
   task's notice is no round's, so the agency hands no such turn, and the work's end reaches the room as an instruction of
-  its own (「Long work in a round」 below). So a turn opened by a quiet instruction alone that skips does not take away the
-  message written before it. A cancellation pushed into the turn is answered with a reply saying so (`chat-round.toml`,
+  its own (「Long work in a round」 below). So a turn opened by a quiet instruction alone that writes nothing or skips does
+  not take away the message written before it, and a push that carries quiet instructions alone says so at its head: the
+  message written before it stands and goes out unless the turn writes a new one (`chat-round.toml`, `[push]`, `kept`).
+  Whatever such a turn does write is the new message, so a quiet instruction that asks for a verdict is answered with the
+  tool it names, never with words. A cancellation pushed into the turn is answered with a reply saying so (`chat-round.toml`,
   `[push]`), never with a skip. Where the agency hands no turns, the answer it built stands.
-- **A stage's turn answers `PASS` alone when it changes nothing** and the message that stands goes out unchanged; where
-  the agent answers `PASS` it is the answer with the stage, so a stage never rewrites the room's answer. A revision takes
-  the message's place. A turn whose answer is nothing but `PASS` leaves the standing message unchanged. A skip in a stage's
-  answer, or a wait in it, changes nothing: the round's skip decision belongs to its message turn, and the message that stands
-  goes on through the chain. A message turn that skipped naming no reason is asked once more under the line naming the form,
-  the session holding the round already; a second answer naming none ends the round as a skip whose reason is recorded as
-  `none given` (`instruction.toml`, `skip_again`).
+- **Writing nothing keeps the message that stands, in every round where one stands.** Once a message stands — after
+  the message turn's answer that said something, in a turn opened by words pushed into it, in the closing check, the audit
+  and every stage — an answer with no words, or with nothing but marks, leaves that message as it stood, and the last
+  answer that said something is what goes out. The receiver does not tell an answer the agent left empty from a turn that
+  ended with nothing written: both leave the message standing. Every rule that tells the agent how to keep the message
+  says this one form (`instruction.toml`, `answer_rule` and `arrived`; `chat-round.toml`, `[push]`). No word is a verdict:
+  any answer that says something is message text, `PASS` among them, and a revision takes the message's place. A skip in a
+  stage's answer, or a wait in it, changes nothing either: the round's skip decision belongs to its message turn, and the
+  message that stands goes on through the chain.
+- **Before a message stands, an answer of nothing is no verdict.** A message turn that wrote nothing, or skipped naming
+  no reason, is asked once more under the line naming the form, the session holding the round already; a second answer
+  that is again no verdict ends the round as a skip whose reason is recorded as `none given` (`instruction.toml`,
+  `skip_again`).
 - **The bare marker stands where a rule gives it whole.** The handoff turn, a consolidation turn and the situation-note turn
   are each told to output exactly `<<SKIP>>` and ask no reason, since nothing of them goes to a room and what they leave
   unsaid is settled by their own rule; the reader of those turns takes a skip naming a reason as the same nothing to say.
@@ -155,7 +165,7 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   statement about live system state comes from a read made in this turn; whether it answers only what was asked without
   restating what the agent was told; and whether it follows the writing rules, with no dash. What a stage is answered
   with stands once in the block's rule for answering an instruction; the default `review` text closes by restating it,
-  the corrected message whole or PASS. A supervisor chains several stages by listing them in the order to run them.
+  the corrected message whole or nothing at all. A supervisor chains several stages by listing them in the order to run them.
 - **The block carries how a turn is read, and a stage's turn carries the stage.** What the block says once stands in
   「What reaches an agent」 above; beside it the block carries the confidence rule, the source rule, that nothing is hedged,
   that a skip in its form ends the round and is for words that ask nothing and change nothing (naming its reason on one
@@ -260,8 +270,8 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   last one the session wrote, and the turn carries it no more (「What reaches an agent」 above).
   What the check does stands in the room's block (`instruction.toml`, `arrived`). The answer, marks taken out, is the whole message as
   it should now go out, answering the words that arrived as well, and it takes the standing message's place: nothing is joined to
-  anything, so no part of the message goes out twice. An answer that is nothing but marks sends the standing message unchanged, a wait
-  leaves it too, and a skip sends nothing; the marks keep their meaning for the messages shown. The check is not asked where the pipeline
+  anything, so no part of the message goes out twice. An empty answer, or one that is nothing but marks, sends the standing message
+  unchanged, a wait leaves it too, and a skip sends nothing; the marks keep their meaning for the messages shown. The check is not asked where the pipeline
   came to nothing to send.
 - **The agent decides each message it was shown, by mark,** a message pushed into the message turn being shown to the round as one
   in the closing check is: by default the round's message answers it; `<<DONE #<number>>>` needs no answer; `<<SEPARATE #<number>>>` is
@@ -321,7 +331,7 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   given. A person asked before whom the brain still holds nothing of is passed over.
 - **The audit is one system instruction,** asked as a stage is (「The stages before the send」 below): its marker names
   the stage `audit`, its words are the policy's `text` and the people's lines, and it is answered with the message
-  reprinted whole or `PASS`. Where no person is owed a line, where the brain does not reach the supervisor's turns
+  reprinted whole or with nothing where it already fits. Where no person is owed a line, where the brain does not reach the supervisor's turns
   (「A supervisor whose brain or reference is off」) or where the agent has no brain, no audit is asked.
 
 ## The stages before the send
@@ -334,9 +344,9 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 - **A turn whose run failed fails the round with it,** a stage, the closing check and the message turn alike: the round gives
   back what it took and no message goes out past a turn it did not pass through. A stage's answer that skips or waits changes
   nothing, and its row keeps the reason a skip named.
-- **A stage passes the standing message unchanged when its answer is `PASS` alone** (`instruction.toml`, `pass`, read whatever its case
-  and spacing), when it reprints the message that stands, or when it answers nothing but marks; otherwise
-  the whole revised answer takes the message's place. No check reads the final text for the pipeline's own lines: the answer marks are taken out of a turn's answer
+- **A stage passes the standing message unchanged when its answer is empty,** when it answers nothing but marks, or
+  when it reprints the message that stands; otherwise the whole revised answer takes the message's place, whatever its
+  words, so an answer of `PASS` is a message whose words are `PASS`. No check reads the final text for the pipeline's own lines: the answer marks are taken out of a turn's answer
   and prompt scaffolding is cut where it begins, so no stage marker stands in a message that goes out.
 
 ## The turn's mark
@@ -361,7 +371,8 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   (from 1, the message turn and then the closing check, the audit and each stage in the order asked), its name (the stage's name, `arrived` for the closing check, `message` for the message turn),
   its kind, how long its answer is in characters, whether the answer differs from the one before it, how it ended, the answer itself and how long the turn took.
 - **The kinds are `supervisor`, `turn`, `arrived`, `audit`, `stage` and `end`;** the closing check is a turn of kind `arrived`, the audit one of kind `audit` named `audit`, and a stage's turn one of kind `stage`. A turn's row ends `answered`,
-  `send` where its answer opened on `<<SEND>>` and became the message, `no-verdict` where it skipped naming no reason and the same turn was asked once over, `skip` or `failed`; a stage's
+  `send` where its answer opened on `<<SEND>>` and became the message, `no-verdict` where it wrote nothing or skipped naming no reason and the same turn was asked once over, `skip` or `failed`,
+  and the closing check's row ends `pass` where it wrote nothing, or nothing but marks, and the message stood; a stage's
   row and the audit's carry the agent's answer and end `pass` where the message went on unchanged, `revised` where the answer took its place, or `failed`, and its detail keeps the reason a skip named.
 - **The round's end is a row of its own,** of kind `end`: `message` where a text goes to the send, `skip` where nothing does, and in its detail the supervisor whose chain the round read and,
   where the round skipped, the reason (`; skipped: ` then the reason, or `none given`).

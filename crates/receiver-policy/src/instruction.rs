@@ -28,10 +28,8 @@ pub struct Instruction {
   pub message_rule: String,
   /// How a turn marked INSTRUCTION, a system instruction, is read, said once in the block.
   pub instruction_rule: String,
-  /// How an instruction is answered, said once in the block; `{pass}` is `pass`.
+  /// How an instruction is answered, said once in the block: an empty answer keeps the standing message.
   pub answer_rule: String,
-  /// The answer that leaves the standing message unchanged.
-  pub pass: String,
   /// The line an instruction turn opens with, `{name}` its stage's name.
   pub marker: String,
   /// The line a message turn that skipped naming no reason is asked once more with.
