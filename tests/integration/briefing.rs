@@ -473,9 +473,8 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
     prompts[1]
   );
   assert!(
-    prompts[1].contains(&CHAT_ROUND.voice.summary_own)
-      && !prompts[1].contains("The nightly backup finished."),
-    "the line was the session's last answer, so the turn names it and carries it no more: {}",
+    prompts[1].contains(&CHAT_ROUND.voice.summary) && !prompts[1].contains("The nightly backup finished."),
+    "the line is the session's own message, so the turn names it and carries it no more: {}",
     prompts[1]
   );
 
@@ -502,7 +501,7 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
 }
 
 #[tokio::test]
-async fn a_summary_turn_carries_the_line_where_the_sessions_last_answer_was_not_it() {
+async fn a_summary_turn_after_a_stage_s_pass_names_the_line_and_carries_it_no_more() {
   let session = StandInSession::new("agent-a@agent", "unused")
     .answering(&[
       "The nightly backup finished.",
@@ -526,11 +525,8 @@ async fn a_summary_turn_carries_the_line_where_the_sessions_last_answer_was_not_
 
   assert_eq!(prompts.len(), 3, "the message turn, the stage and the summary: {prompts:#?}");
   assert!(
-    prompts[2].contains(&receiver_policy::fill_marks(
-      &CHAT_ROUND.voice.summary,
-      &[("line", "The nightly backup finished.")]
-    )),
-    "the stage's PASS was the last answer, so the line is carried: {}",
+    prompts[2].contains(&CHAT_ROUND.voice.summary) && !prompts[2].contains("The nightly backup finished."),
+    "a PASS leaves the line the session's own message, so it is not carried: {}",
     prompts[2]
   );
 }

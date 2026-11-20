@@ -139,24 +139,10 @@ impl Answer {
 }
 
 /// The turn that shows the words that arrived meanwhile (docs/instruction.md, 「What came in meanwhile」): its
-/// marker, the message as it stands under its head where the session's last answer was not that message, then the
-/// block of what arrived. What it asks stands in the room's block.
-pub fn closing_words(standing: Option<&str>, block: &str) -> String {
-  format!("{}\n\n{}{block}", INSTRUCTION.arrived_marker, standing_part(standing))
-}
-
-/// The message as it stands under its head, carried by an instruction turn only where the session's last answer
-/// was not that message (docs/instruction.md, 「What reaches an agent」); nothing where it was, since the
-/// instruction is about that answer.
-pub fn standing_part(standing: Option<&str>) -> String {
-  standing
-    .map(|message| format!("{}\n{}\n\n", INSTRUCTION.standing, message.trim()))
-    .unwrap_or_default()
-}
-
-/// Whether the session's last answer was the message itself: its words, white space aside, are the message's.
-pub fn said_last(last: &str, message: &str) -> bool {
-  onespace(last) == onespace(message)
+/// marker, then the block of what arrived. The message is the last one the session wrote in the round, so the turn
+/// carries it no more; what it asks stands in the room's block.
+pub fn closing_words(block: &str) -> String {
+  format!("{}\n\n{block}", INSTRUCTION.arrived_marker)
 }
 
 /// An answer that says something: not empty, not a skip of either shape and not a wait.
@@ -379,11 +365,10 @@ impl Run<'_> {
   }
 
   // An instruction stage's turn (docs/instruction.md, 「The stages before the send」): the line naming the stage, its
-  // words, the message as it stands, the room's words, the people the message answers and the rules and knowledge
-  // the round carries. How an instruction is read and answered stands in the room's block.
-  fn stage_prompt(&self, name: &str, text: &str, message: &str) -> String {
-    let standing = (!said_last(&self.latest.text, message)).then_some(message);
-
+  // words, the room's words, the people the message answers and the rules and knowledge the round carries. The
+  // message is the last one the session wrote in the round, so the turn carries it no more; how an instruction is
+  // read and answered stands in the room's block.
+  fn stage_prompt(&self, name: &str, text: &str) -> String {
     let said = &INSTRUCTION;
     // What the main round handed is a line; what was not handed, or arrived since, is the body.
     let mut handed: Vec<i64> = vec![];
@@ -431,10 +416,9 @@ impl Run<'_> {
     };
 
     format!(
-      "{}\n{}\n\n{}{}\n{}\n\n{answers}{}\n{}",
+      "{}\n{}\n\n{}\n{}\n\n{answers}{}\n{}",
       fill_marks(&said.marker, &[("name", name)]),
       text.trim(),
-      standing_part(standing),
       said.words,
       words.join("\n"),
       said.rules,
@@ -622,7 +606,7 @@ impl Run<'_> {
 
     tell_start(self.conversations, message_turn.round, self.held.chat_id, self.agent, started);
 
-    let words = self.stage_prompt(&stage.name, &stage.text, &message.text);
+    let words = self.stage_prompt(&stage.name, &stage.text);
     let mut answer = self.carry(kind, &stage.name, &words, false).await?;
     let verdict = stage_verdict(&answer.reply.text, answer.ended, &message.text);
     let reason =
@@ -853,7 +837,6 @@ impl Run<'_> {
     let (took, done, separate) = self.sorted();
 
     Made {
-      said_last: said_last(&self.latest.text, text),
       reply: Reply {
         text: text.to_owned(),
         ..self.latest.clone()
@@ -989,8 +972,7 @@ impl Stager {
     if let Some(standing) = &message
       && let Some((block, took)) = run.arrived().await
     {
-      let shown = (!said_last(&run.latest.text, &standing.text)).then_some(standing.text.as_str());
-      let asked = closing_words(shown, &block);
+      let asked = closing_words(&block);
       let started = Started {
         question: log::ARRIVED,
         input: Input::System,

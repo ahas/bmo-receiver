@@ -34,8 +34,6 @@ pub struct Instruction {
   pub pass: String,
   /// The line an instruction turn opens with, `{name}` its stage's name.
   pub marker: String,
-  /// The head the instruction turn shows the standing message under.
-  pub standing: String,
   /// The line a message turn that skipped naming no reason is asked once more with.
   pub skip_again: String,
   /// The marker that names the instruction showing the words that arrived meanwhile.

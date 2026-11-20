@@ -213,14 +213,10 @@ async fn the_stages_run_in_order_a_pass_keeps_the_message_and_the_last_answer_is
     assert!(prompt.contains(text), "the stage's words ride its turn: {prompt}");
   }
 
-  // The first stage follows the message turn's own answer, so it carries no message; the second follows a PASS, so
-  // it carries the message as it stands.
-  assert!(
-    !prompts[1].contains(&INSTRUCTION.standing) && !prompts[1].contains(WRITTEN),
-    "{}",
-    prompts[1]
-  );
-  assert!(prompts[2].contains(&format!("{}\n{WRITTEN}", INSTRUCTION.standing)), "{}", prompts[2]);
+  // The message is the agent's own last one, so no stage turn carries it again, after a PASS as well.
+  for prompt in &prompts[1..] {
+    assert!(!prompt.contains(WRITTEN), "{prompt}");
+  }
 
   assert!(!prompts[0].contains(NAMES.1), "the block carries no stage's words");
   assert_eq!(round.sent().len(), 1, "{:?}", round.sent());

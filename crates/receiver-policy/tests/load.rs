@@ -129,10 +129,7 @@ fn the_instruction_stages_are_a_default_chain_with_their_texts() {
     !fill_marks(answer_rule, &[("pass", &INSTRUCTION.pass)]).contains('{'),
     "every mark is filled"
   );
-  assert!(
-    INSTRUCTION.marker.contains("{name}") && !INSTRUCTION.standing.is_empty(),
-    "an instruction names its stage"
-  );
+  assert!(INSTRUCTION.marker.contains("{name}"), "an instruction names its stage");
   // The room's block names the marks a message that arrived meanwhile takes, once.
   let process = &CHAT_LINE.room.process;
 
