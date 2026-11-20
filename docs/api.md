@@ -481,8 +481,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   replaces.
   `housekeeping` is a record for the agent alone that nobody waits on, and waits for a round something else opens
   where the session is past its cache lifetime; one marked `agentOnly` is housekeeping whatever it names.
-- **A quiet instruction** is one with `kind` `watch` or `reminder` and a `said.order`: it is queued under that
-  kind and opens the agent's turn there.
+- **A quiet instruction** is one with `sort` `watch` or `reminder` and a `said.order`: it is queued under its
+  `kind` and opens the agent's turn there.
 - **A withdrawn instruction** that was handed or is gone is no refusal; it is simply no longer pending.
 
 ## Sends
