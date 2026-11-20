@@ -130,13 +130,16 @@ async fn the_mode_changes_between_record_only_and_avatar_with_the_record_and_the
     "the room's messages were not touched"
   );
 
-  // The same mode asked again writes nothing, and record-only changes it back.
+  // The same mode asked again writes nothing, and record-only changes it back, asked as the console asks it,
+  // naming the administrator's account beside the mode.
   assert_eq!(
     put(&front, &registration_path(ROOM), json!({ "mode": "avatar" })).await.1["mode"],
     "avatar"
   );
   assert_eq!(
-    put(&front, &registration_path(ROOM), json!({ "mode": "record-only" })).await.1["mode"],
+    put(&front, &registration_path(ROOM), json!({ "mode": "record-only", "account": 1 }))
+      .await
+      .1["mode"],
     "record-only"
   );
   assert_eq!(kept_mode(&scratch).await.as_deref(), Some("record-only"));

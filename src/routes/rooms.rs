@@ -605,9 +605,10 @@ struct ByAdministrator {
   by: String,
 }
 
-/// The mode a room's registration is to stand in.
+/// The mode a room's registration is to stand in; the account the write acts for may stand beside it, which the
+/// write guard reads.
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 struct ChangingMode {
   mode: RoomMode,
 }

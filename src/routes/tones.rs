@@ -24,9 +24,9 @@ struct ByAdministrator {
 }
 
 /// The tone layer a room is to stand in: a layer's name, or null for none. The field is required, so a body
-/// that leaves it out is refused rather than read as none.
+/// that leaves it out is refused rather than read as none; the account the write acts for may stand beside it,
+/// which the write guard reads.
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
 struct Setting {
   tone: Value,
 }

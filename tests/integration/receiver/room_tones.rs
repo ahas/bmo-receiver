@@ -80,7 +80,8 @@ async fn the_administrator_sets_a_rooms_tone_layer_and_its_block_carries_it() {
   assert_eq!(status.as_u16(), 400, "{refused}");
   assert_eq!(get(&front, &path).await.1["tone"], json!(null), "nothing refused was set");
 
-  let (status, set) = put(&front, &as_admin, json!({ "tone": TONES[0] })).await;
+  // Asked as the console asks it, naming the administrator's account beside the tone.
+  let (status, set) = put(&front, &as_admin, json!({ "tone": TONES[0], "account": 1 })).await;
 
   assert_eq!(status.as_u16(), 200, "{set}");
   assert_eq!(set["tone"], TONES[0]);
