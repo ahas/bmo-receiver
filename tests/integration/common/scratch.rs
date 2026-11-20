@@ -1,12 +1,21 @@
 //! An empty receiver database of a test's own on the suite's PostgreSQL server, as a database of its own: the
 //! receiver's migrations run once per test process into a template database, and each test handed a copy of it,
 //! which the server makes in a fraction of the time a migration takes. A copy is dropped when its test is done,
-//! and a test whose copy cannot be dropped fails. Before a process makes its first database it drops the
-//! templates and copies that processes of this harness which no longer run left behind. The guard a test holds
-//! is `common::Scratch`.
+//! and a test whose copy cannot be dropped fails. As a process makes its first database it starts dropping, behind
+//! its tests, the templates and copies that processes of this harness which no longer run left behind. The guard a
+//! test holds is `common::Scratch`.
+//!
+//! A drop ends only once every process of the server has taken the signal it sends, and an idle I/O worker of
+//! PostgreSQL 18 can leave it untaken until other work on the server wakes it, so a drop made while nothing else
+//! reads can hold for minutes. Making a database therefore never waits on one: the sweep goes on a thread of its
+//! own that nothing waits for. A test waits for its own copy's drop for a bound, past which the drop goes on behind
+//! it and a copy it leaves standing is the next process's sweep's.
 
 use std::str::FromStr;
+use std::sync::Once;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::time::Duration;
 
 use bmo_receiver::store::migration::Migrator;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
@@ -19,9 +28,11 @@ const TEMPLATE: &str = "receiver_rs_tmpl_";
 const COPY: &str = "receiver_rs_copy_";
 // How many times a drop ends the database's sessions and tries again before it gives up.
 const DROP_ATTEMPTS: usize = 3;
+// How long a test waits for its copy's drop before the drop goes on behind it.
+const DROP_BOUND: Duration = Duration::from_secs(10);
 
 static COPIES: AtomicU32 = AtomicU32::new(0);
-static SWEPT: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+static SWEPT: Once = Once::new();
 static MADE: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
 
 /// The suite's PostgreSQL server, as the run names it, and the machine's own socket where nothing does.
@@ -63,7 +74,7 @@ async fn server() -> PgConnection {
 }
 
 async fn create(admin: &mut PgConnection, database: &str, template: &str) {
-  swept().await;
+  swept();
   admin
     .execute(format!("CREATE DATABASE \"{database}\" TEMPLATE {template}").as_str())
     .await
@@ -128,12 +139,16 @@ async fn made(template: &str) -> String {
 }
 
 /// A copy dropped, its connections ended with it; what kept it standing where it could not be. It goes on a
-/// thread of its own, since a guard dropped inside the runtime may not block on it.
+/// thread of its own, since a guard dropped inside the runtime may not block on it, and is waited for up to
+/// `DROP_BOUND`: a drop the server still holds then goes on behind the caller, said on the error output, and
+/// counts as made.
 pub fn drop_copy(database: String) -> Result<(), String> {
+  let (told, heard) = mpsc::channel();
+  let name = database.clone();
+
   std::thread::spawn(move || {
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-
-    runtime.block_on(async move {
+    let dropped = runtime.block_on(async move {
       let mut admin =
         PgConnection::connect_with(&PgConnectOptions::from_str(&address_of("postgres")).unwrap())
           .await
@@ -144,10 +159,20 @@ pub fn drop_copy(database: String) -> Result<(), String> {
       let _ = admin.close().await;
 
       dropped
-    })
-  })
-  .join()
-  .unwrap_or_else(|_| Err("the drop's thread panicked".to_owned()))
+    });
+
+    let _ = told.send(dropped);
+  });
+
+  match heard.recv_timeout(DROP_BOUND) {
+    Ok(dropped) => dropped,
+    Err(RecvTimeoutError::Timeout) => {
+      eprintln!("{name} is still being dropped after {DROP_BOUND:?}; the drop goes on behind the test");
+
+      Ok(())
+    }
+    Err(RecvTimeoutError::Disconnected) => Err("the drop's thread panicked".to_owned()),
+  }
 }
 
 /// Drops `name`. This role's own sessions on it are ended first, and the drop is a plain one: a drop that forces
@@ -174,9 +199,17 @@ async fn drop_database(admin: &mut PgConnection, name: &str) -> Result<(), sqlx:
   }
 }
 
-// The sweep, run once before this process makes its first database.
-async fn swept() {
-  SWEPT.get_or_init(sweep).await;
+// The sweep, started once as this process makes its first database, on a thread no test waits for.
+fn swept() {
+  SWEPT.call_once(|| {
+    std::thread::spawn(|| {
+      tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(sweep());
+    });
+  });
 }
 
 /// Drops the templates and copies this role owns that a process of this harness left behind once it no longer
