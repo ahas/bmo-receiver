@@ -141,7 +141,8 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 - **Each stage's text names what the stage holds the message to, and quotes no sentence for the agent to copy.** Its
   default stands in the policy (`instruction.toml`, `[stages]`) and is the words the deployment set for it, Korean among
   them; the console sets a supervisor's text over it (「The routes」 below), in the words the person sets. A stage's name
-  is a lowercase word of letters, digits and dashes opening on a letter (of at most 40 characters); its text is not empty and at most 4,000
+  is a lowercase word of letters, digits and dashes opening on a letter (of at most 40 characters), never `message`,
+  `arrived` or the audit's `audit`, which the round's fixed turns go by; its text is not empty and at most 4,000
   characters. The policy's default chain is the single `review` stage, and its text asks whether the message answers every
   person it addresses by the term the brain keeps for them, and whether the brain was searched enough. What a stage is
   answered with stands once in the block's rule for answering an instruction, not in a stage's text. A supervisor chains several

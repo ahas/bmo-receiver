@@ -73,6 +73,11 @@ fn a_stage_text_is_a_lowercase_name_and_not_empty() {
   assert_eq!(text_refusal("tone-2", "a text"), None);
   assert!(text_refusal("Tone", "a text").is_some(), "a name starts lowercase");
   assert!(text_refusal("tone", " ").is_some(), "an empty text is refused");
+  assert!(text_refusal("2nd", "a text").is_some(), "a name opens on a letter");
+
+  for name in ["message", "arrived", INSTRUCTION.audit.name.as_str()] {
+    assert!(text_refusal(name, "a text").is_some(), "{name} is a fixed turn's own");
+  }
 }
 
 #[test]

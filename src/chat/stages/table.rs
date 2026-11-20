@@ -269,9 +269,19 @@ pub fn text_refusal(name: &str, text: &str) -> Option<String> {
     ));
   }
 
+  if reserved(name) {
+    return Some(format!("The name {name} is the round's own turn's, and no stage takes it."));
+  }
+
   if text.trim().is_empty() || text.chars().count() > TEXT_CHARS {
     return Some(format!("A stage's text is not empty and at most {TEXT_CHARS} characters."));
   }
 
   None
+}
+
+/// Whether a name is one a round's fixed turns go by in the round log, which no stage may take: the message turn's,
+/// the turn's showing the words that arrived meanwhile, and the audit's.
+pub fn reserved(name: &str) -> bool {
+  [super::log::MESSAGE, super::log::ARRIVED, INSTRUCTION.audit.name.as_str()].contains(&name)
 }

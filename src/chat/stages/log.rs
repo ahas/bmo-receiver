@@ -38,13 +38,19 @@ pub struct Started<'a> {
   pub input: Input,
 }
 
+/// The name the message turn's row goes by.
+pub const MESSAGE: &str = "message";
+
+/// The name the row of the turn showing the words that arrived meanwhile goes by.
+pub const ARRIVED: &str = "arrived";
+
 impl Started<'static> {
   /// The round's message turn: the one turn of its sort, carrying the room's words.
   pub fn message() -> Self {
     Started {
       number: 1,
       count: 1,
-      question: "message",
+      question: MESSAGE,
       input: Input::Message,
     }
   }

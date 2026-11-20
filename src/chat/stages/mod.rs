@@ -980,7 +980,7 @@ impl Stager {
     {
       let asked = closing_words(&standing.text, &block);
       let started = Started {
-        question: "arrived",
+        question: log::ARRIVED,
         input: Input::System,
         ..Started::message()
       };
