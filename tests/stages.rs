@@ -246,6 +246,27 @@ fn a_later_turn_that_says_nothing_leaves_the_answer_written_before_it() {
   assert_eq!((text.as_str(), ended), ("the reply", Answered::Send));
 }
 
+// Words pushed into a working turn keep the reply written before them with the keep mark, and add to it with the
+// append mark, so the reply is never written again for them (docs/instruction.md, 「What it is」).
+#[test]
+fn a_pushed_turn_keeps_the_reply_with_the_keep_mark_and_adds_to_it_with_the_append_mark() {
+  let sent = "The reply to the first words.";
+
+  let kept = spanned_answer("x", &[handed(sent), handed("<<KEEP>>")]);
+  let (text, ended, _) = read_answer(&bmo_receiver::chat::sentinels::without_round_marks(&kept));
+
+  assert_eq!((text.as_str(), ended), (sent, Answered::Answered), "{kept:?}");
+  assert_eq!(
+    spanned_answer("x", &[handed(sent), handed("<<APPEND>> And the answer to the new words.")]),
+    "The reply to the first words.\n\nAnd the answer to the new words."
+  );
+  assert_eq!(
+    spanned_answer("x", &[handed("<<SKIP: nothing yet>>"), handed("<<APPEND>> The first words answered.")]),
+    "<<APPEND>> The first words answered.",
+    "with no reply standing, an appending answer is the answer, its mark taken out as every mark is"
+  );
+}
+
 #[test]
 fn the_answers_of_a_turns_end_are_read_with_what_opened_each() {
   let ended = serde_json::json!({

@@ -1,6 +1,7 @@
 //! The words a turn of the default answerer's session answers with when it is not answering the room: wait for more, or
 //! say nothing this time, a round's turn naming on one line why it says nothing; the one a turn of a round opens on
-//! to make its answer the message now; and the marks it sets on a message that arrived while the round ran.
+//! to make its answer the message now; the marks that keep the message that stands or add to it; and the marks it
+//! sets on a message that arrived while the round ran.
 
 use std::sync::LazyLock;
 
@@ -13,6 +14,8 @@ pub const WAIT: &str = "<<WAIT>>";
 pub const SKIP: &str = "<<SKIP>>";
 pub const SEND: &str = "<<SEND>>";
 pub const FOLD: &str = "<<FOLD>>";
+pub const KEEP: &str = "<<KEEP>>";
+pub const APPEND: &str = "<<APPEND>>";
 
 // The opening of any of a round's answer marks: two opening angle brackets and a word in
 // capitals, then the closing brackets, a colon or a number's `#`. A shell here-document's opening is none.
@@ -28,6 +31,35 @@ pub fn holds_answer_mark(text: &str) -> bool {
 /// Whether an answer is nothing but waits, or nothing at all; a fold asked of no words is nothing.
 pub fn is_wait(text: &str) -> bool {
   trim(&text.replace(FOLD, "").replace(WAIT, "")).is_empty()
+}
+
+// Whether `mark` stands in a text outside a code span or fence, where it is not being quoted.
+fn stands(text: &str, mark: &str) -> bool {
+  text.matches(mark).count() > without_control_markers(text).matches(mark).count()
+}
+
+/// Whether an answer keeps the message that stands: the keep mark outside a code span or fence
+/// (docs/instruction.md, 「What it is」).
+pub fn keeps(text: &str) -> bool {
+  stands(text, KEEP)
+}
+
+/// Whether an answer adds its words after the message that stands rather than taking its place: the append mark
+/// outside a code span or fence (docs/instruction.md, 「What it is」).
+pub fn appends(text: &str) -> bool {
+  stands(text, APPEND)
+}
+
+/// The message that stands with an appending answer's words added after it, the answer's marks taken out; the
+/// standing message alone where the answer adds no words.
+pub fn appended(standing: &str, answer: &str) -> String {
+  let added = without_round_marks(answer);
+
+  if added.is_empty() {
+    standing.to_owned()
+  } else {
+    format!("{}\n\n{added}", trim(standing))
+  }
 }
 
 /// What a skip in an answer is read as (docs/instruction.md, 「What it is」).
@@ -110,7 +142,7 @@ pub fn skip_alone(text: &str) -> Option<Skip> {
 /// Whether a message asks to be folded (docs/wake.md, 「Folds」): the fold mark stands in it outside a code span
 /// or fence, where it is not being quoted.
 pub fn asks_fold(text: &str) -> bool {
-  text.matches(FOLD).count() > without_control_markers(text).matches(FOLD).count()
+  stands(text, FOLD)
 }
 
 /// The words after the send marker, where an answer opens on it: the message the answer makes now
@@ -181,10 +213,12 @@ pub fn round_marks(text: &str) -> Vec<(Mark, i64)> {
 }
 
 static ROUND_MARK_SPACED: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(r"[ \t]?<<(?:(?:DONE|SEPARATE|REPLY) #-?[0-9]+|REPLY(?::-?[0-9]+)?)>>").expect("a round mark")
+  Regex::new(r"[ \t]?<<(?:(?:DONE|SEPARATE|REPLY) #-?[0-9]+|REPLY(?::-?[0-9]+)?|KEEP|APPEND)>>")
+    .expect("a round mark")
 });
 
-/// An answer with every round mark taken out, so nothing after reads them as words.
+/// An answer with every round mark taken out, the keep and append marks among them, so nothing after reads them as
+/// words.
 pub fn without_round_marks(text: &str) -> String {
   trim(&ROUND_MARK_SPACED.replace_all(text, "")).to_owned()
 }

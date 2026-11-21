@@ -254,6 +254,38 @@ async fn a_closing_check_that_writes_nothing_sends_the_message_that_stands() {
   assert!(sent[0].contains(standing), "writing nothing keeps the message that stands: {sent:?}");
 }
 
+// The closing check keeps the message that stands with the keep mark, a visible answer, rather than reprinting it
+// (docs/instruction.md, 「What came in meanwhile」).
+#[tokio::test]
+async fn a_closing_check_that_answers_the_keep_mark_sends_the_message_that_stands() {
+  let standing = "The message written first.";
+  let session = StandInSession::new(SESSION, ANSWER).answering(&[standing, "<<KEEP>>"]);
+  let round = Round::meanwhile(timings(), session).await;
+
+  assert_eq!(round.session.prompts().len(), 2, "the keep mark is a verdict, asked nothing more");
+
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(standing), "{sent:?}");
+  assert!(!sent[0].contains("KEEP"), "the mark never reaches the room: {sent:?}");
+}
+
+// The closing check adds the part for the words that arrived after the message that stands with the append mark, so
+// the message is not written again.
+#[tokio::test]
+async fn a_closing_check_that_appends_adds_its_words_after_the_message_that_stands() {
+  let standing = "The message written first.";
+  let added = "And the words that came meanwhile, answered.";
+  let session = StandInSession::new(SESSION, ANSWER).answering(&[standing, &format!("<<APPEND>> {added}")]);
+  let round = Round::meanwhile(timings(), session).await;
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(standing) && sent[0].contains(added), "{sent:?}");
+  assert!(!sent[0].contains("APPEND"), "the mark never reaches the room: {sent:?}");
+}
+
 // A round whose working turn takes the words said meanwhile as they are pushed, its session answering `answer`, on
 // the receiver's own stream: the stream, and the picture as it stood once the push went in.
 async fn pushed_into(answer: &str) -> (Round, Arc<Events>, Value) {

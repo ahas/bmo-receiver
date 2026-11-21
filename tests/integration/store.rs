@@ -16,6 +16,7 @@ use bmo_receiver::store::migration::m20261029_000030_room_settings_dropped::TABL
 use bmo_receiver::store::migration::m20261106_000034_session_notes::TABLE as SESSION_NOTES;
 use bmo_receiver::store::migration::m20261119_000057_retire_draft_process::TABLES as INSTRUCTION_TABLES;
 use bmo_receiver::store::migration::m20261120_000058_room_tones::TABLE as ROOM_TONES;
+use bmo_receiver::store::migration::m20261121_000059_keep_mark_texts::{KEPT, WRITTEN_NOTHING};
 use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{DatabaseConnection, TransactionTrait};
@@ -331,6 +332,44 @@ async fn the_draft_settings_go_and_the_round_log_keeps_its_rows_under_its_new_na
   undone_from(db, "m20261119_000057_retire_draft_process").await;
   assert_eq!(database.texts(r#"SELECT "round" FROM "draft_rounds""#).await, ["round-a"]);
   assert!(database.texts(r#"SELECT "name" FROM "draft_questions""#).await.is_empty());
+}
+
+// A set stage text that told the agent to write nothing to keep the message ends on the keep mark, every other word
+// of it and every other text left as set, and stepping back restores it.
+#[tokio::test]
+async fn a_set_stage_text_keeps_the_message_with_the_keep_mark() {
+  let database = Scratch::new().await;
+  let db = database.db();
+  let steps = undone_from(db, "m20261121_000059_keep_mark_texts").await;
+  let set = format!(
+    "Read it for the person's language. If anything falls short, print it whole; {WRITTEN_NOTHING}"
+  );
+
+  for (agent, text) in [("agent-a", set.as_str()), ("agent-b", "Check the tone and print it whole.")] {
+    database
+      .run(
+        r#"INSERT INTO "instruction_texts" ("agent", "name", "text", "set_at") VALUES ($1, 'review', $2, 7)"#,
+        vec![agent.into(), text.into()],
+      )
+      .await;
+  }
+
+  assert_eq!(migrate(db).await.unwrap(), steps);
+  assert_eq!(
+    database.texts(r#"SELECT "text" FROM "instruction_texts" ORDER BY "agent""#).await,
+    [
+      format!("Read it for the person's language. If anything falls short, print it whole; {KEPT}"),
+      "Check the tone and print it whole.".to_owned(),
+    ]
+  );
+
+  undone_from(db, "m20261121_000059_keep_mark_texts").await;
+  assert_eq!(
+    database
+      .texts(r#"SELECT "text" FROM "instruction_texts" WHERE "agent" = 'agent-a'"#)
+      .await,
+    [set]
+  );
 }
 
 #[tokio::test]

@@ -129,6 +129,26 @@ fn the_fold_mark_asks_a_fold_outside_code_and_never_reaches_the_room() {
 }
 
 #[test]
+fn the_keep_and_append_marks_count_outside_code_and_never_reach_the_room() {
+  use bmo_receiver::chat::sentinels::{appended, appends, keeps, round_marks, without_round_marks};
+
+  assert!(keeps("<<KEEP>>"));
+  assert!(!keeps("Quoted: `<<KEEP>>`"));
+  assert!(appends("<<APPEND>> One more line."));
+  assert!(!appends("```\n<<APPEND>>\n```"));
+  assert_eq!(round_marks("<<KEEP>>"), [], "the keep mark is no mark on a message shown");
+  assert_eq!(without_round_marks("<<KEEP>> <<DONE #4>>"), "");
+  assert_eq!(without_round_marks("<<APPEND>> One more line."), "One more line.");
+  assert_eq!(without_control_markers("Hello <<KEEP>> <<APPEND>>"), "Hello");
+  assert_eq!(
+    appended("The reply.\n", "<<APPEND>> One more line. <<DONE #4>>"),
+    "The reply.\n\nOne more line.",
+    "an appending answer's words follow the message that stands, its marks taken out"
+  );
+  assert_eq!(appended("The reply.", "<<APPEND>>"), "The reply.", "an append of no words adds nothing");
+}
+
+#[test]
 fn a_round_s_skip_names_its_reason_and_a_bare_one_names_none() {
   use bmo_receiver::chat::sentinels::{Skip, is_skip, skip, skip_alone};
 

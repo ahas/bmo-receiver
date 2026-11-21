@@ -62,6 +62,7 @@ pub mod m20261117_000055_relays_wait_on_orders;
 pub mod m20261118_000056_fixed_line_messages;
 pub mod m20261119_000057_retire_draft_process;
 pub mod m20261120_000058_room_tones;
+pub mod m20261121_000059_keep_mark_texts;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -130,6 +131,7 @@ impl MigratorTrait for Migrator {
       Box::new(m20261118_000056_fixed_line_messages::Migration),
       Box::new(m20261119_000057_retire_draft_process::Migration),
       Box::new(m20261120_000058_room_tones::Migration),
+      Box::new(m20261121_000059_keep_mark_texts::Migration),
     ]
   }
 }
