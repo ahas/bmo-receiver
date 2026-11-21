@@ -1,5 +1,5 @@
-//! The receiver's migrations, run by SeaORM's migrator, which keeps the ones it ran in its own table beside
-//! the receiver's (`docs/store.md`, 「The database」).
+//! The receiver's migrations, run by SeaORM's migrator in the order the list below names them, which keeps the
+//! ones it ran in its own table beside the receiver's (`docs/store.md`, 「The database」).
 
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::sea_orm::DatabaseConnection;
