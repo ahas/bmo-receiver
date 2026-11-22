@@ -408,9 +408,10 @@ it serves an open room. The port reads the model as
 
 Its `docs/boundary-api.md` and `docs/openapi.json`, in camelCase and behind its token, at the `voice` the
 configuration names: `POST /briefings` with `voiceName`, `text`, `chatId`, `messageId`, `kind`, `title?`,
-`emotion?`, `plays` and `key?`, a notice turn's summary, a line's full reading or an answer said aloud (`speech`,
-with no `messageId` and keyed by its round), its `text` the written words and no `spoken`, so the engine derives the
-spoken words; `GET /briefings` with `chatId`, `messageId` and `kind`, the page a line's full reading is looked up
+`emotion?`, `plays`, `key?` and `askedBy`, a notice turn's summary, a line's full reading or an answer said aloud
+(`speech`, with no `messageId` and keyed by its round), its `text` the written words and no `spoken`, so the engine
+derives the spoken words, and its `askedBy` the agent whose line it speaks, which the engine hands on as the asker of
+the slot those words are derived on; `GET /briefings` with `chatId`, `messageId` and `kind`, the page a line's full reading is looked up
 in; `GET /briefings/{briefingId}`, a speech read until it ends; `GET /briefings/{briefingId}/sound`, a done speech's
 sound, which goes out as the answer's voice note; `POST /briefings/{briefingId}/line` with `messageId`, the line a
 speech went out as; `POST /briefings/stop` with `kind` `summary` and no room, every room's summaries stopped once

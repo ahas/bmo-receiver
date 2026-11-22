@@ -130,6 +130,7 @@ pub async fn voiced(
       emotion: spoken.emotion.clone(),
       plays: true,
       key,
+      asked_by: agent.to_owned(),
     })
     .await
     .map_err(|why| format!("the voice engine did not take the speech: {why}"))?;

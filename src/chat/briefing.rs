@@ -296,6 +296,7 @@ pub async fn speak_summary(
     emotion,
     plays: on(receiver, AUTOPLAY).await,
     key: None,
+    asked_by: agent.to_owned(),
   };
 
   match hand_over_summary(receiver, engine.as_ref(), &briefing).await {
@@ -426,6 +427,7 @@ pub async fn reading(receiver: &Receiver, chat_id: i64, message_id: i64) -> Resu
       emotion,
       plays: false,
       key: None,
+      asked_by: agent,
     };
 
     if let Err(why) = engine.brief(&briefing).await {

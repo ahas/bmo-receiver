@@ -189,6 +189,10 @@ spoken, and the session writes what is said.
 - **The engine derives the spoken words.** A briefing carries no spoken words of its own: the engine makes them
   from the text, the same words as a Korean reader says them aloud, and checks them before it speaks. Spoken
   words it cannot clear are a refusal of the briefing (`unconverted-run`), handled as every refusal of it is.
+- **The agent whose line it speaks asks it.** Every briefing names that agent as its `askedBy`, the supervisor the
+  engine asks agency's transliterator slot for, so the spoken words are derived on that supervisor's road, and on
+  the transliterator's own where that road cannot answer (agency's `docs/role-agents.md`, 「An agent that follows its
+  asker」).
 
 ### The switches
 

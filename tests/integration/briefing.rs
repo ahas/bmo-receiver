@@ -259,9 +259,11 @@ async fn a_lines_full_reading_is_launched_once_then_answered_as_it_stands_and_re
       briefed[0].kind.as_str(),
       briefed[0].voice_name.as_str(),
       briefed[0].message_id,
-      briefed[0].plays
+      briefed[0].plays,
+      briefed[0].asked_by.as_str()
     ),
-    ("full", VOICE, Some(11), false)
+    ("full", VOICE, Some(11), false, AGENT),
+    "the agent whose line it reads asks it"
   );
   assert_eq!(
     briefed[0].text, "The backup finished. Nothing else changed.",
@@ -494,6 +496,7 @@ async fn a_notice_turn_of_the_owners_chat_is_summarised_by_its_own_session_and_h
   assert_eq!(briefed.len(), 1);
   assert_eq!(briefed[0].kind, "summary");
   assert_eq!(briefed[0].chat_id, OWNER);
+  assert_eq!(briefed[0].asked_by, AGENT, "the agent whose line it sums up asks it");
   assert_eq!(briefed[0].title.as_deref(), Some("Backup done"));
   assert_eq!(briefed[0].emotion.as_ref(), Some(&CHAT_ROUND.voice.emotions[1]));
   assert_eq!(briefed[0].text, "The backup finished overnight.");
@@ -920,6 +923,7 @@ async fn a_round_asked_to_speak_sends_its_answer_as_a_voice_note_in_its_own_voic
   assert_eq!(speech.kind, "speech", "{briefed:#?}");
   assert_eq!((speech.chat_id, speech.message_id, speech.plays), (OWNER, None, true));
   assert_eq!(speech.voice_name, VOICE);
+  assert_eq!(speech.asked_by, AGENT, "the agent whose answer it says asks it");
   assert_eq!(speech.text, ANSWER);
   assert_eq!(speech.emotion.as_ref(), Some(&emotion));
   assert!(

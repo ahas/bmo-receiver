@@ -35,6 +35,7 @@ async fn a_briefing_a_lines_lookup_and_a_stop_of_one_kind_go_out_as_the_engine_p
       emotion: None,
       plays: false,
       key: None,
+      asked_by: "agent-a".to_owned(),
     })
     .await
     .unwrap();
@@ -68,6 +69,7 @@ async fn a_briefing_a_lines_lookup_and_a_stop_of_one_kind_go_out_as_the_engine_p
           "messageId": 11,
           "kind": "full",
           "plays": false,
+          "askedBy": "agent-a",
         }))
       ),
       call("GET /briefings", "chatId=-5&messageId=11&kind=full&limit=10", None),

@@ -26,6 +26,9 @@ pub struct NewBriefing {
   /// The caller's own name for the line, so a second ask of the same line answers the first briefing.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub key: Option<String>,
+  /// The agent whose line it speaks, which the engine hands on as the asker of the slot its spoken words are derived
+  /// on.
+  pub asked_by: String,
 }
 
 /// A briefing as the receiver reads it: its id, its kind and where it stands, and the synthesis that speaks it.
