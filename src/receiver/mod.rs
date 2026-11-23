@@ -460,6 +460,8 @@ pub struct Receiver {
   // out: a handoff the agency asks from such a turn never waits for that round (docs/unified-bmo.md,
   // 「Replacing the session」).
   at_agency: Arc<tokio::sync::watch::Sender<std::collections::HashMap<String, usize>>>,
+  // The agents whose handoff turn waits on the agency now, counted as `at_agency` is.
+  handing_at_agency: Arc<tokio::sync::watch::Sender<std::collections::HashMap<String, usize>>>,
   // Whether the service was told to stop: a request that waits without a bound ends on it.
   stop: Arc<tokio::sync::watch::Sender<bool>>,
   // Whether every round with words first updates the room's situation note: on for the service, off where a test
@@ -554,6 +556,7 @@ impl Receiver {
       replacing: Arc::default(),
       handovers: Arc::default(),
       at_agency: Arc::new(tokio::sync::watch::channel(Default::default()).0),
+      handing_at_agency: Arc::new(tokio::sync::watch::channel(Default::default()).0),
       stop: Arc::new(tokio::sync::watch::channel(false).0),
       situation_updates: true,
       instruction_gate: true,
@@ -619,9 +622,31 @@ impl Receiver {
     }
   }
 
+  /// The agent's handoff turn marked as waiting on the agency, until the mark is dropped.
+  pub fn handoff_waits_on_agency(&self, agent: &str) -> AtAgency {
+    self
+      .handing_at_agency
+      .send_modify(|waiting| *waiting.entry(agent.to_owned()).or_default() += 1);
+
+    AtAgency {
+      waiting: self.handing_at_agency.clone(),
+      agent: agent.to_owned(),
+    }
+  }
+
+  /// Ends once the agent's handoff turn waits on the agency; never where none comes to.
+  pub async fn handoff_at_agency(&self, agent: &str) {
+    Self::came(&self.handing_at_agency, agent).await;
+  }
+
   /// Ends once a holder of the agent's turn waits on the agency; never where none comes to.
   pub async fn round_at_agency(&self, agent: &str) {
-    let mut waiting = self.at_agency.subscribe();
+    Self::came(&self.at_agency, agent).await;
+  }
+
+  // Ends once the count of `agent` in `marks` stands above none; never where it does not come to that.
+  async fn came(marks: &tokio::sync::watch::Sender<std::collections::HashMap<String, usize>>, agent: &str) {
+    let mut waiting = marks.subscribe();
 
     if waiting
       .wait_for(|waiting| waiting.get(agent).is_some_and(|rounds| *rounds > 0))

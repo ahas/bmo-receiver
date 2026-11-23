@@ -746,7 +746,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   handoff turn — it is answered 503 `stopping` as the receiver is told to stop, so a stop never waits on it;
   the agency opens its fresh session without the handoff.
 - **An asking while a handoff of the same agent is under way waits in line** behind it, and is then answered as
-  an asking again within `again_minutes` is.
+  an asking again within `again_minutes` is. One made while that handoff's own turn waits on the agency comes
+  from inside that turn, which cannot end before it is answered, so it is answered 204 at once, and the
+  handoff under way writes the note the fresh session opens on.
 - **An asking within `again_minutes` of the last one asked** (`handover.toml`) does not reach the standing
   session: it answers 200 with the file that one kept where it is still kept, else 204, and the journal counts
   the askings in a row.

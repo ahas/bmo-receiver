@@ -135,6 +135,8 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
   let agency = receiver.units().agency.clone();
   // Whoever holds the agent's turn for this handoff waits on the agency from here on.
   let _at_agency = receiver.waits_on_agency(agent);
+  // And the handoff's own turn does, so an asking made from inside it is told apart from one in line.
+  let _handing = receiver.handoff_waits_on_agency(agent);
 
   // The stream is opened before the turn is tried: a turn that refuses this one ends after the refusal, and its
   // end is what the asking waits on.
@@ -264,8 +266,10 @@ pub struct Asking {
 }
 
 impl Asking {
-  /// The agent's turn to ask, once every asking for it ahead of this one has ended.
-  pub async fn begin(agent: &str) -> Self {
+  /// The agent's turn to ask, once every asking for it ahead of this one has ended; none where an asking ahead
+  /// holds the line while its handoff turn waits on the agency, since the asking then comes from inside the very
+  /// handoff turn the one ahead waits on, and waiting in line behind it would never end.
+  pub async fn begin(receiver: &Receiver, agent: &str) -> Option<Self> {
     let line = UNDER_WAY
       .lock()
       .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -273,8 +277,13 @@ impl Asking {
       .or_default()
       .clone();
 
-    Asking {
-      _held: line.lock_owned().await,
+    if let Ok(held) = line.clone().try_lock_owned() {
+      return Some(Asking { _held: held });
+    }
+
+    tokio::select! {
+      held = line.lock_owned() => Some(Asking { _held: held }),
+      () = receiver.handoff_at_agency(agent) => None,
     }
   }
 }

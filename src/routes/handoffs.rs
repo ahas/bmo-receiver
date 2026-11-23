@@ -29,7 +29,8 @@ pub struct Asked {
 /// ask or it wrote nothing. A round doing its own work between two turns is waited for, one that itself waits on
 /// the agency is not, and a session already in a turn is waited for until that turn ends. An asking while a
 /// handoff of the same agent is under way waits for it in line, and is then answered by the handoff kept, as an
-/// asking again within the policy's span is. An asking still waiting as the service is told to stop is answered
+/// asking again within the policy's span is; one made while that handoff's turn waits on the agency comes from
+/// inside it and is answered 204 at once. An asking still waiting as the service is told to stop is answered
 /// 503 `stopping`.
 pub async fn hand_off(
   State(served): State<Served>,
@@ -74,7 +75,16 @@ async fn asked_of(
   reason: &str,
   room: Option<i64>,
 ) -> Result<Option<handoff::Handoff>, Refusal> {
-  let _asking = Asking::begin(agent).await;
+  // An asking from inside the handoff under way is answered at once: that handoff's note is kept for the fresh
+  // session all the same.
+  let Some(_asking) = Asking::begin(receiver, agent).await else {
+    eprintln!(
+      "{agent}: a handoff asked ({reason}) from inside the handoff under way, which waits on the agency; it is \
+       answered at once and the handoff under way writes the note"
+    );
+
+    return Ok(None);
+  };
 
   // A handoff is asked at most once in the policy's span: an asking again within it is answered with the one kept,
   // and counted, so a road that cannot keep its session shows instead of asking turn after turn.

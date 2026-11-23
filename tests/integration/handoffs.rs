@@ -1,6 +1,6 @@
 //! A handoff asked for ahead of a fresh session (docs/api.md, 「Handoffs」; docs/unified-bmo.md, 「Replacing the
 //! session」): the route has the agent's standing session write its handoff file and keeps it, a second asking while
-//! one runs waits in line for it, an agent with no opened session writes nothing, and the next fresh session's first turn
+//! one runs waits in line for it unless it comes from inside that handoff's turn waiting on the agency, an agent with no opened session writes nothing, and the next fresh session's first turn
 //! opens on the file, then the room's words, then the brain, and a supervisor no handoff was asked for keeps its
 //! session. The asking never waits for a round that itself waits on the agency and never outlasts the service's stop, words said meanwhile and words a
 //! failed round gave back are the fresh session's first turn's new messages, and a round refused because the session is in
@@ -65,7 +65,7 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queue
 
   // A handoff of the same agent under way holds the second asking in line until it ends, which is then answered
   // by the handoff kept.
-  let under_way = Asking::begin(AGENT).await;
+  let under_way = Asking::begin(&front.standing.receiver, AGENT).await.expect("the line is free");
   let again = post(&front, "/handoffs/agent-a", json!({ "reason": "again" }));
 
   tokio::pin!(again);
@@ -79,6 +79,20 @@ async fn the_route_has_the_standing_session_write_its_handoff_keeps_it_and_queue
 
   assert_eq!(status, StatusCode::OK, "{body}");
   assert_eq!(body["bytes"], NOTE.len());
+
+  // An asking made while the handoff under way waits on the agency comes from inside that handoff's own turn, so
+  // it is answered at once instead of waiting in line behind the very asking it answers.
+  let under_way = Asking::begin(&front.standing.receiver, AGENT).await.expect("the line is free");
+  let at_agency = front.standing.receiver.handoff_waits_on_agency(AGENT);
+  let (status, body) = tokio::time::timeout(
+    Duration::from_secs(5),
+    post(&front, "/handoffs/agent-a", json!({ "reason": "from inside" })),
+  )
+  .await
+  .expect("an asking from inside the handoff under way is answered at once");
+
+  assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+  drop((at_agency, under_way));
 
   let (status, _) = post(&front, "/handoffs/agent-a", json!({ "reason": "" })).await;
 
