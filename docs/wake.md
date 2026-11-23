@@ -227,10 +227,11 @@ its rounds.
   the rule for folding only on such a road. The receiver never folds an answer the agent left unmarked, whatever
   its length, and never drops a fold the agent asked for: the send carries the decision to the chat service as its
   `fold`, and where the fold falls in the words is the dialect's.
-- **The rule the agent is given:** an unfolded message is the default. A fold is for an answer whose body runs
-  long and stands apart from a short lead the room reads first: a lead, then a long list, quotation, code or
-  detail block that a reader opens only if they want it. A conversational answer, a short answer and an answer
-  that is all one piece are never folded.
+- **The rule the agent is given:** an answer whose body runs long behind a lead the room reads first folds: past
+  about 600 characters or eight lines, a lead of a sentence or a short paragraph, then sections, a list, a
+  quotation, code or details a reader opens only if they want them, however warmly it is written. A short
+  answer, a back-and-forth reply of a few lines and an answer that is all one piece with no lead standing apart
+  stay open. The measure is the dialect's own fold measure, so an answer the agent folds is long enough to fold.
 - **`<<FOLD>>` in the message asks its fold.** It is the message's own mark, so it travels with the message's
   words: whichever answer of the instruction pipeline becomes the message carries it or not, and an answer of nothing
   but the mark is no words. It counts outside a code span or fence, where it is not being quoted, and every send
