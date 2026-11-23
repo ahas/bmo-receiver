@@ -306,6 +306,7 @@ dependencies = [
  "async-trait",
  "axum",
  "bmo-chat-client",
+ "bmo-secret-shapes",
  "chrono",
  "clap",
  "futures-util",
@@ -339,6 +340,15 @@ dependencies = [
  "tower",
  "tower-http",
  "url",
+]
+
+[[package]]
+name = "bmo-secret-shapes"
+version = "0.1.0-rev.10"
+dependencies = [
+ "regex",
+ "serde",
+ "toml",
 ]
 
 [[package]]

@@ -17,6 +17,8 @@ axum = { version = "0.8.9", features = ["macros", "multipart", "ws"] }
 chrono = "0.4.45"
 # The base library the receiver reaches every chat service through.
 bmo-chat-client = { path = "../../base/chat/client" }
+# The base library a message's words are read for secret-shaped runs through.
+bmo-secret-shapes = { path = "../../base/chat/secret-shapes" }
 # The binary's command line.
 clap = { version = "4.5.40", features = ["derive"] }
 futures-util = "0.3.34"
@@ -90,6 +92,8 @@ axum.workspace = true
 # A moment written as the room's transcript shows it.
 chrono.workspace = true
 bmo-chat-client.workspace = true
+# The secret shapes a message's words are read for.
+bmo-secret-shapes.workspace = true
 # The binary's command line.
 clap.workspace = true
 futures-util.workspace = true

@@ -23,7 +23,6 @@ use receiver_policy::roads::ROADS;
 use receiver_policy::roles::ROLES;
 use receiver_policy::run_lines::RUN_LINES;
 use receiver_policy::scripts::SCRIPTS;
-use receiver_policy::secret_shapes::SECRET_SHAPES;
 use receiver_policy::talk::TALK;
 use receiver_policy::tool_host::TOOL_HOST;
 use receiver_policy::voice_briefing::VOICE_BRIEFING;
@@ -37,7 +36,7 @@ fn parts() -> Vec<&'static str> {
   let _ = (&*FILES, &*HANDOVER, &*KEEPALIVE, &*PROVIDERS);
   let _ = (&*RESIDENT_TURN, &*REST, &*RESTART, &*ROADS, &*ROLES, &*RUN_LINES, &*SCRIPTS);
   let _ = (&*ANSWER_READING, &*KEPT, &*OPEN_FILES, &*INSTRUCTION, &*PRESENCE);
-  let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*SECRET_SHAPES, &*VOICE_BRIEFING);
+  let _ = (&*TALK, &*WAKE, &*OWNER_FACTS, &*TOOL_HOST, &*VOICE_BRIEFING);
 
   vec![
     "answer-reading.toml",
@@ -62,7 +61,6 @@ fn parts() -> Vec<&'static str> {
     "roles.toml",
     "run-lines.toml",
     "scripts.toml",
-    "secret-shapes.toml",
     "talk.toml",
     "tool-host.toml",
     "voice-briefing.toml",

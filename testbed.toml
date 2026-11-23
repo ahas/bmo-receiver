@@ -28,7 +28,7 @@ dir = "tools"
 quick = ["wording", "korean", "layout", "dependencies", "cargo-profile", "shared-versions", "personal-data"]
 wording_document = "docs/wording.md"
 korean_ledger = "korean-ledger.json"
-base_libraries = ["bmo-chat", "bmo-chat-client", "bmo-ui"]
+base_libraries = ["bmo-chat", "bmo-chat-client", "bmo-secret-shapes", "bmo-ui"]
 
 # The repository whose root holds the shared versions the manifests and the lock hold to.
 [check.shared_versions]

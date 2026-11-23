@@ -15,7 +15,8 @@ repository's, under `tools/`, each with its `tool.toml`.
   match. `docs/api.md` and the OpenAPI document `docs/openapi.json` state every route this service serves, in
   the one fixed wire format; `docs/boundary-api.md` states its configuration, its commands, every call it
   makes on another unit and the gaps a sibling's document has not yet matched.
-- **No `bmo-*` dependency but the base libraries** `bmo-chat`, `bmo-chat-client` and `bmo-ui`. Another unit
+- **No `bmo-*` dependency but the base libraries** `bmo-chat`, `bmo-chat-client`, `bmo-secret-shapes` and
+  `bmo-ui`. Another unit
   is reached through a port in this repository, over HTTP; a helper an old shared crate held is copied into
   a crate here. The testbed's `dependencies` check fails on any other `bmo-*` dependency, and
   `tests/repository.rs` on the old shared crate names (`docs/checks.md`).
