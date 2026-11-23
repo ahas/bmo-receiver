@@ -430,13 +430,18 @@ at those moments and tells the brain of a fold it asks of the session itself.
   alone, is the owner's in his private room alone.
 - **The same absolute rules also cover:** not carrying room talk elsewhere; refusing questions about privacy and
   about the system itself; and none of those refusals reaching the owner's own request, by the owner's recorded
-  sender, in any room.
+  sender, in any room. A question about the system is answered beside him only to a sender the room's current
+  grants or rules name for it, within their scope.
 
 ### Delegations
 
 - **Where they live:** the room's rules are `rule` memories in the agent's brain, read for a turn by the gate, and once the
   account model is in force (`GET /accounts/model` on the web unit), the grants the web unit keeps, a room rule
   being a standing-rule grant to the subject's user with the owner's words beside it.
+- **The agent saves them where its turns read them.** In a room on the account model it saves what the owner
+  allows a person or the room's members with agency's `bmo/room_grant`, on the owner's message of the turn, and
+  says it is in force only once the grant it reads back stands; it keeps none as a brain memory there. Asking
+  about the system itself is a relation of its own, `system`, which a person or the room's members may hold.
 - **Commands,** each on the basis of an owner message in that room (`--message <id>`):
   - read with `bmo room rules --chat <id> --list`;
   - add a room rule with `--set <rule-id> --subject <userId> --text <work and target project>`;
