@@ -178,7 +178,8 @@ spoken, and the session writes what is said.
   session wrote, its emotion line taken off, as the briefing's `text`, which the engine keeps as its transcript.
 - **The session names the emotion a briefing is said with.** The answer to a summary or a reading opens on an
   emotion line: the label `[voice]` `emotion_label` names and one of the briefing emotions, `[voice]`
-  `emotions` (`policy/chat-round.toml`), the set the voice engine speaks with and the face draws a face for.
+  `emotions` (`policy/chat-round.toml`), the set the voice engine speaks with and the face draws a face for,
+  each one English word, so an emotion is never written in another language.
   The marker's rule in the room's block lists them and asks for the one that fits what the line tells. The
   receiver takes that line off the answer and hands its emotion to the engine as the briefing's `emotion`, which
   the engine keeps on the briefing and its events, so a face listening shows it while the briefing plays.

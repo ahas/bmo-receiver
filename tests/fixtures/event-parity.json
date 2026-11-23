@@ -1,4 +1,4 @@
 {
-  "briefingEmotions": ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"],
+  "briefingEmotions": ["neutral", "happy", "sad", "surprised", "angry", "sleepy", "laughing", "worried", "hurt", "straining"],
   "types": ["message.created", "briefing.created", "avatars.changed"]
 }
