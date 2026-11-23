@@ -26,15 +26,19 @@ use crate::{Fault, all, now_ms, one, run};
 pub const RELOAD_USAGE: &str = "usage: bmo reload --path <file> [--path <file>...] [--now]";
 
 // The tree's document directories a session relies on, relative to its root.
-const DOCUMENT_DIRS: [&str; 4] = ["docs/lore", "prompts/persona", "prompts/rules", "prompts/agents"];
+const DOCUMENT_DIRS: [&str; 5] =
+  ["docs/lore", "prompts/persona", "prompts/rules", "prompts/platform", "prompts/agents"];
 
-// The rulebooks and the default answerer's own documents a chat session is given as its system prompt.
-const CHAT_DOCUMENTS: [&str; 5] = [
+// The rulebooks and the default answerer's own documents a chat session is given as its system prompt, the
+// platform's rulebooks the agency puts before the role of a supervisor of the platform administrator's among them.
+const CHAT_DOCUMENTS: [&str; 7] = [
   "rules/answer-content.md",
   "rules/answer-shape.md",
   "rules/plain-writing.md",
   "rules/agent-words.md",
   "rules/self-preservation.md",
+  "platform/preservation.md",
+  "platform/operations.md",
 ];
 const CHAT_SYSTEM_DOCUMENTS: [&str; 2] = ["agents/chat/context.md", "agents/chat/manual.md"];
 
@@ -175,9 +179,9 @@ fn stem(file: &str) -> &str {
   file.strip_suffix(".md").unwrap_or(file)
 }
 
-/// Whether a document is a rulebook or one of the agents' own documents.
+/// Whether a document is a rulebook, one of the platform's, or one of the agents' own documents.
 pub fn is_agent_document(path: &str) -> bool {
-  matches!(document_parts(path).first(), Some(&"rules" | &"agents"))
+  matches!(document_parts(path).first(), Some(&"rules" | &"platform" | &"agents"))
 }
 
 /// Whether a document is part of a chat session's turn rather than its system prompt or something read with a
