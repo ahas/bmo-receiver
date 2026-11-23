@@ -269,7 +269,7 @@ async fn an_owners_message_a_secret_was_taken_from_reaches_the_turn_with_its_not
     .await
     .unwrap();
 
-  // What bmo-ear heard is kept as the shapes leave it.
+  // What the listening tool heard is kept as the shapes leave it.
   standing.hearing.saying(&format!("the key is {}", key()), Some(2.0));
   standing
     .receiver

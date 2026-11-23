@@ -73,9 +73,9 @@ pub struct Inbound {
   /// `stored` or `failed` for a picture the message carried, where its keeping was tried; none for no picture.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub image_state: Option<String>,
-  /// What bmo-ear heard in a voice note, once the recording stands.
+  /// What the listening tool heard in a voice note, once the recording stands.
   pub transcript: Option<String>,
-  /// How long the recording ran, where bmo-ear heard it.
+  /// How long the recording ran, where the listening tool heard it.
   pub voice_seconds: Option<f64>,
   /// `heard` or `failed`, for a voice note whose recording was heard; none for a message that carries no voice.
   pub voice_state: Option<String>,

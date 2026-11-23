@@ -1,7 +1,7 @@
 //! A voice note heard before its turn (docs/messages.md, 「Every kind of message」; docs/instruction.md, 「A voice
-//! note」): the saved recording is handed to bmo-ear through the tool host, and what it heard, how long it ran and
-//! whether it could be heard are kept on the message. A recording that cannot be heard is a state of its own, so
-//! the turn says so instead of saying nothing.
+//! note」): the saved recording is handed to the listening tool through the tool host, and what it heard, how
+//! long it ran and whether it could be heard are kept on the message. A recording that cannot be heard is a
+//! state of its own, so the turn says so instead of saying nothing.
 
 use std::path::Path;
 

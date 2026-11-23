@@ -75,7 +75,7 @@ item #1737 that carried it. The sets are the ones the work order numbered S1 to 
 | `schedules/parity.rs` | 1 | goes with the loops it tests |
 | `schedules/mod.rs` | 1 | none: the receiver keeps no loop of its own |
 | `watches/machine.rs`, `watches/hardware/` | 13 | bmo-node |
-| `word_chain/`, `control/word_chain`, `bot/word-chain` | 3 | bmo-word-chain |
+| `word_chain/`, `control/word_chain`, `bot/word-chain` | 3 | the word-game unit |
 | `providers/telegram/` | 10 | the provider repositories |
 | `providers/teams/` | 5 | the provider repositories |
 | `providers/discord.rs`, `providers/kakao.rs`, `providers/numbers.rs` | 3 | the provider repositories |
@@ -162,7 +162,7 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `tests/integration/room_removal.rs`, `receiver/voice.rs`, `tests/fixtures/event-parity.json`, the colocated modules of `events/mod`, `events/relay`, `control/events`, `control/turn_openings` | `tests/integration/room_removal.rs`, `tests/integration/voice.rs`, `tests/fixtures/event-parity.json`, `tests/events.rs`, `tests/relay.rs`, `tests/parity.rs`, `tests/openings.rs` | build-13 |
 | `tests/integration/control.rs` (the receiver's routes only), `src/bin/bmo/tests.rs` | `tests/integration/routes.rs`, `tests/cli.rs` | build-14 |
 | the send tool's entry tests | `tools/send/tests/send.rs` | build-15 |
-| the provider tests, the TS control and bot tests, the testbed's own tests, the word-chain fixtures | not carried: they belong to the provider repositories, the other units and bmo-word-chain | S4 |
+| the provider tests, the TS control and bot tests, the testbed's own tests, the word-chain fixtures | not carried: they belong to the provider repositories, the other units and the word-game unit | S4 |
 
 ## S10 — the documents this repository carries
 

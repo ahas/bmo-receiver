@@ -1,4 +1,4 @@
-//! The listening tool, bmo-ear (`ear/listen`), as the receiver calls it through the tool host's control
+//! The listening tool (`ear/listen`), as the receiver calls it through the tool host's control
 //! socket (docs/boundary-api.md, 「The tool host」; bmo-pocket's `docs/api.md`, 「The control socket」): one saved
 //! recording answered with what was heard, how long it ran and the language it was heard in.
 
@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use crate::http::{Answer, Caller, Peer, PortFailure, WireError};
 
-/// What bmo-ear heard in one recording.
+/// What the listening tool heard in one recording.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Heard {
   pub transcript: String,
@@ -21,7 +21,7 @@ pub struct Heard {
   pub seconds: Option<f64>,
 }
 
-/// The receiver's way to hear a saved recording: bmo-ear, or a stand-in where a test runs one.
+/// The receiver's way to hear a saved recording: the listening tool, or a stand-in where a test runs one.
 pub trait Hearing: Send + Sync {
   fn transcribe<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, Answer<Heard>>;
 }
@@ -36,7 +36,8 @@ struct CallAnswer {
   result: Value,
 }
 
-/// bmo-ear on the tool host's control socket, with a tool session the receiver issues for itself and keeps.
+/// The listening tool on the tool host's control socket, with a tool session the receiver issues for itself
+/// and keeps.
 pub struct HttpHearing {
   socket: PathBuf,
   data_root: PathBuf,

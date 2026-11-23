@@ -70,7 +70,7 @@ and when a room sees it typing.
   replaced by the marker `<redacted-secret>`: in the row the record keeps, in what is carried to the room's other
   providers, in what a turn is handed and in what the console's live events and pages read. So are the words of an
   edit, a file's caption, every string of the payload a chat service hands over beside a message and of the fields
-  of a line it hands over as one, what bmo-ear heard in a voice note, the new words a person's edit from the console
+  of a line it hands over as one, what the listening tool heard in a voice note, the new words a person's edit from the console
   carries, and the words and captions the owner puts in a room or says to a room's session from the console
   (`docs/receiver.md`, 「The owner's words」), the progress lines a working turn's picture carries
   (`docs/receiver.md`, 「The event stream」), and the thinking block that picture carries (「A working turn's
@@ -130,7 +130,7 @@ and when a room sees it typing.
   received」), never as a line with nothing in it.
 - **Anything forwarded is prefixed with who it came from,** as the chat service hands it over.
 - **A voice note is heard before it reaches the turn.** Once its recording stands, the receiver hands the saved
-  file to bmo-ear (`ear/listen`, through the tool host) and keeps what was heard, how long it ran and whether
+  file to the listening tool (`ear/listen`, through the tool host) and keeps what was heard, how long it ran and whether
   it could be heard on the message's row. The turn reads it as a voice message with its length and its transcript;
   a recording that could not be heard is one line saying so, never silence. The console shows the transcript under
   the player. A voice note still being gathered is heard when its file comes.

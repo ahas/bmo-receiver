@@ -375,7 +375,7 @@ read again at every connection. Where no socket can be named, nothing is heard o
   hears neither a frame nor the host's ping for a minute, is opened again after the policy's wait
   (`policy/tool-host.toml`). What the host published while nothing listened is heard by nobody, as the host's own
   document says.
-- **A voice note is heard through bmo-ear.** The receiver issues a tool session for itself with the issuer token
+- **A voice note is heard through the listening tool.** The receiver issues a tool session for itself with the issuer token
   (`POST /tool-sessions`; the `bmo` namespace, the `room.tools` capability, `BMO_DATA_DIR`) and calls
   `ear/listen` with the saved recording's path (`POST /tool-calls`), keeping the session for the next call. The
   answer's `structuredContent` carries `transcript`, `language` and `duration`; a tool failure is kept as the
